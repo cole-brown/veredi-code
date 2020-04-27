@@ -1,4 +1,4 @@
-#!python3
+#!python3 -*- coding: utf-8 -*-
 
 '''
 Command line entry point for Veredi.
@@ -56,20 +56,20 @@ def _init_args(parser):
       argparse.ArgumentParser with arguments added
 
     '''
-    _parser.add_argument(
+    parser.add_argument(
         '--verbose', '-v',
         action='count',
         default=0,
         help=("Verbosity Level. Use multiple times for more verbose, "
               "e.g. '-vvv'."))
 
-    _parser.add_argument(
+    parser.add_argument(
         '--dry-run',
         action='store_true',
         help=('Set dry-run flag if script should not make any '
               'changes to the saved data.'))
 
-    # §-TODO-§ [2020-04-21]: repository pattern type
+    # Â§-TODO-Â§ [2020-04-21]: repository pattern type
     #   e..g.? "file/yaml", "db/sqlite3"?
 
 
@@ -83,8 +83,52 @@ def _init_subcommands(parser):
       argparse.ArgumentParser with arguments added
 
     '''
-    # §-TODO-§ [2020-04-21]: this?
-    pass
+    # Â§-TODO-Â§ [2020-04-21]: this?
+    subparsers = parser.add_subparsers(help='sub-command help')
+    #  - title - title for the sub-parser group in help output; by default
+    #            “subcommands” if description is provided, otherwise uses title
+    #            for positional arguments
+    #
+    #  - description - description for the sub-parser group in help output, by
+    #                  default None
+    #
+    #  - prog - usage information that will be displayed with sub-command help,
+    #           by default the name of the program and any positional arguments
+    #           before the subparser argument
+    #
+    #  - parser_class - class which will be used to create sub-parser instances,
+    #                   by default the class of the current parser
+    #                   (e.g. ArgumentParser)
+    #
+    #  - action - the basic type of action to be taken when this argument is
+    #             encountered at the command line
+    #
+    #  - dest - name of the attribute under which sub-command name will be
+    #           stored; by default None and no value is stored
+    #
+    #  - required - Whether or not a subcommand must be provided, by default
+    #               False (added in 3.7)
+    #
+    #  - help - help for sub-parser group in help output, by default None
+    #
+    #  - metavar - string presenting available sub-commands in help; by default
+    #              it is None and presents sub-commands in form {cmd1, cmd2, ..}
+
+    _init_cmd_roll(subparsers)
+
+
+def _init_cmd_roll(subparsers):
+
+    roll_parser = subparsers.add_parser(
+        'roll',
+        help=("Takes a dice expression (e.g. '3d20 + 12 + d6 - d10 / 2'),"
+              "rolls the dice, does the math, and returns the results."))
+
+    # Arg for type/system (e.g. d20)?
+    # §-TODO-§ [2020-04-26]: type/system?
+
+    roll_parser.add_argument('expression', type=str)
+    roll_parser.set_defaults(func=roll)
 
 
 def _init_parser():
@@ -94,12 +138,12 @@ def _init_parser():
       argparse.ArgumentParser ready to go
 
     '''
-    _parser = argparse.ArgumentParser(description=PARSER_DESC)
+    parser = argparse.ArgumentParser(description=PARSER_DESC)
 
-    _init_args(_parser)
-    _init_subcommands(_parser)
+    _init_args(parser)
+    _init_subcommands(parser)
 
-    return _parser
+    return parser
 
 
 def _parse_args(parser):
@@ -114,6 +158,18 @@ def _parse_args(parser):
     '''
     return parser.parse_args()
 
+
+# ------------------------------------------------------------------------------
+# Sub-command Entry Points
+# ------------------------------------------------------------------------------
+
+def roll(args):
+    print("roll cmd:", args)
+
+    from roll.parsing.d20.parser import parse_input
+
+    print("rolled:", parse_input(args.expression))
+
 # -----------------------------------Veredi------------------------------------
 # --                     Main Command Line Entry Point                       --
 # -----------------------------------------------------------------------------
@@ -123,10 +179,14 @@ if __name__ == '__main__':
     # Setup
     # ---
     # Setup parser and read command inputs into `_args`.
-    _parser = _init_parser()
-    _args = _parse_args(_parser)
+    parser = _init_parser()
+    args = _parse_args(parser)
 
     # ---
     # Run
     # ---
-    print("Hello there.")
+    args.func(args)
+    # print("-" * 10)
+    # print("Veredi dice roller:")
+    # print("-" * 10)
+    # user_data = input("roll> ")
