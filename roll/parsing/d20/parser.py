@@ -272,7 +272,7 @@ class Evaluator:
 # ------------------------------------------------------------------------------
 
 class Outputter:
-    @static
+    @staticmethod
     def _walk(root, branch_only=True):
         '''
         Generator that walks the tree, yielding each node in depth-first manner.
@@ -321,7 +321,11 @@ class Outputter:
                 yield each
                 seen.add(id(each))
 
+    @staticmethod
     def string(root, options=FormatOptions.ALL):
+        if isinstance(root, tree.Leaf):
+            return root.expr_str(options)
+
         # Each branch node is, approximately:
         #   str(children[0]) + str(branch) + str(children[1])
         #
@@ -329,14 +333,28 @@ class Outputter:
         #   d20 * (2d4 + 3)
         #
         # Also we aren't restricting our children to a max of 2.
-        output = []
-        for branch in self._walk(root):
+        branch_finals = {}
+        last = None
+        for branch in Outputter._walk(root):
             operator = branch.expr_str(options)
+            branch_output = []
             # §-TODO-§ [2020-04-27]: hm... need a dict or something for the
             # strings? Like for saving a branch, then getting it back next step
             # to fold into the final output? Or can I just walk and push things?
+            for child in branch.children:
+                if branch_output:
+                    branch_output.append(operator)
+                string = None
+                if isinstance(child, tree.Branch):
+                    string = branch_finals[id(child)]
+                else:
+                    string = child.expr_str(options)
+                branch_output.append(string)
 
-        pass
+            last = ' '.join(branch_output)
+            branch_finals[id(branch)] = last
+
+        return last + " = " + str(root.value)
 
 # -----------------------------------Veredi-------------------------------------
 # --                             Text -> Veredi                               --
@@ -349,7 +367,10 @@ def parse_input(input):
     # return roll_tree
 
     evaluator = Evaluator()
-    return evaluator.eval(roll_tree)
+    # return evaluator.eval(roll_tree)
+    evaluator.eval(roll_tree)
+    return Outputter.string(roll_tree)
+
 
 
 # -----------------------------------Veredi------------------------------------

@@ -262,10 +262,10 @@ class Dice(Leaf):
         if roll_fmt:
             if d20_fmt:
                 output.append("=")
-            if roll is None:
+            if self.roll is None:
                 output.append(self.NULL_SIGN)
             else:
-                output.append(str(roll))
+                output.append(str(self.roll))
 
         total_fmt = options.has(FormatOptions.FINAL)
         if total_fmt:
