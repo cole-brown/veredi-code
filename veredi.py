@@ -127,7 +127,7 @@ def _init_cmd_roll(subparsers):
     # Arg for type/system (e.g. d20)?
     # §-TODO-§ [2020-04-26]: type/system?
 
-    roll_parser.add_argument('expression', type=str)
+    roll_parser.add_argument('expression', nargs='*')
     roll_parser.set_defaults(func=roll)
 
 
@@ -164,11 +164,12 @@ def _parse_args(parser):
 # ------------------------------------------------------------------------------
 
 def roll(args):
-    print("roll cmd:", args)
-
     from roll.parsing.d20.parser import parse_input
 
-    print("rolled:", parse_input(args.expression))
+    expression = ' '.join(args.expression)
+    print("input: ", expression)
+    print("rolled:", parse_input(expression))
+
 
 # -----------------------------------Veredi------------------------------------
 # --                     Main Command Line Entry Point                       --

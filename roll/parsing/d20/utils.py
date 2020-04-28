@@ -31,8 +31,8 @@ class FormatOptions(enum.Flag):
 
     def has(self, *desired):
         for each in desired:
-            if (options & each) == each
-            return True
+            if (self & each) == each:
+                return True
         return False
 
 
