@@ -16,7 +16,7 @@ $ ./veredi.py help
 # Python
 # ---
 import argparse
-
+import os
 
 # ---
 # Veredi: Dice
@@ -69,6 +69,8 @@ def _init_args(parser):
         help=('Set dry-run flag if script should not make any '
               'changes to the saved data.'))
 
+    # parser.set_defaults(func=cmd_base)
+
     # Â§-TODO-Â§ [2020-04-21]: repository pattern type
     #   e..g.? "file/yaml", "db/sqlite3"?
 
@@ -115,20 +117,49 @@ def _init_subcommands(parser):
     #              it is None and presents sub-commands in form {cmd1, cmd2, ..}
 
     _init_cmd_roll(subparsers)
+    _init_cmd_session(subparsers)
 
 
 def _init_cmd_roll(subparsers):
 
     roll_parser = subparsers.add_parser(
         'roll',
-        help=("Takes a dice expression (e.g. '3d20 + 12 + d6 - d10 / 2'),"
+        help=("Takes a dice expression (e.g. '3d20 + 12 + d6 - d10 / 2'), "
               "rolls the dice, does the math, and returns the results."))
 
     # Arg for type/system (e.g. d20)?
     # §-TODO-§ [2020-04-26]: type/system?
 
     roll_parser.add_argument('expression', nargs='*')
-    roll_parser.set_defaults(func=roll)
+    roll_parser.set_defaults(func=cmd_roll)
+
+
+def _init_cmd_session(subparsers):
+
+    roll_parser = subparsers.add_parser(
+        'session',
+        help=("Loads a game's/session's data (players, etc). Then takes a dice "
+              "expression (e.g. '3d20 + $str_mod + d6 - d10 / 2'), "
+              "rolls the dice, does the math, and returns the results."))
+
+    # Arg for type/system (e.g. d20)?
+    # §-TODO-§ [2020-04-26]: type/system?
+
+    roll_parser.add_argument('-c', '--campaign',
+                             type=str,
+                             required=True,
+                             help='Name of game/campaign.')
+
+    roll_parser.add_argument('-p', '--player',
+                             type=str,
+                             action='append',
+                             nargs=2,
+                             required=True,
+                             metavar=('user-name', 'player-name'),
+                             help='Name of game/campaign.')
+
+    roll_parser.add_argument('expression', nargs='*')
+    roll_parser.set_defaults(func=cmd_session)
 
 
 def _init_parser():
@@ -163,12 +194,55 @@ def _parse_args(parser):
 # Sub-command Entry Points
 # ------------------------------------------------------------------------------
 
-def roll(args):
+# def cmd_base(args):
+#     print("Veredi has nothing to do...")
+
+
+def cmd_roll(args):
     from roll.parsing.d20.parser import parse_input
 
     expression = ' '.join(args.expression)
     print("input: ", expression)
     print("rolled:", parse_input(expression))
+
+
+def cmd_session(args):
+    import game.session
+    import repository.player
+    # from roll.parsing.d20.parser import parse_input
+
+    # ---
+    # Repository Setup
+    # ---
+    root_data_dir = os.path.join(os.getcwd(),
+                                 "..",  # Test dir is sibling of veredi code dir
+                                 "test",
+                                 "data",
+                                 "repository",
+                                 "file",
+                                 "json")
+    root_human_dir = os.path.join(root_data_dir,
+                                  "human")
+    root_hashed_dir = os.path.join(root_data_dir,
+                                   "hashed")
+    repo_human = repository.player.PlayerRepository_FileJson(
+        root_human_dir,
+        repository.player.PathNameOption.HUMAN_SAFE)
+
+    # ---
+    # Session Setup
+    # ---
+    players = [("us1!{er", "jeff")]
+    session = game.session.Session("some-forgotten-campaign",
+                                   players,
+                                   repo_human)
+
+    # ---
+    # Roll one thing and throw it all away! ^_^
+    # ---
+    expression = ' '.join(args.expression)
+    print("input: ", expression)
+    print("rolled:", session.roll("jeff", expression))
 
 
 # -----------------------------------Veredi------------------------------------
@@ -186,7 +260,37 @@ if __name__ == '__main__':
     # ---
     # Run
     # ---
-    args.func(args)
+    subcommand = getattr(args, 'func', None)
+    if subcommand is not None:
+        subcommand(args)
+    else:
+        # No subcommand found - print error message and help to stderr.
+        import sys
+        print("Sub-command not found.\n", file=sys.stderr)
+
+        # Examples:
+        print("Examples:")
+        print(' '.join([" ",
+                        "doc-veredi python -m veredi"
+                        "roll"
+                        # dice expression
+                        "d20 + 11"]))
+        print(' '.join([" ",
+                        "doc-veredi python -m veredi",
+                        "session",
+                        # campaign name
+                        "-c some-forgotten-campaign",
+                        # player 1
+                        "-p 'us1!{er' jeff",
+                        # (can do more players...)
+
+                        # dice expression
+                        "d20 + '$str_mod'"]))
+        print("\n")
+
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
     # print("-" * 10)
     # print("Veredi dice roller:")
     # print("-" * 10)
