@@ -210,7 +210,7 @@ class PlayerRepository_FileJson(ABC):
             for each in range(self._MIN_DIFF, self._MAX_DIFF):
                 file_path = path.join(base_path,
                                       self._to_filename(each))
-                print(f"{each}: {file_path}\n  exists? {path.isfile(file_path)}")
+                # print(f"{each}: {file_path}\n  exists? {path.isfile(file_path)}")
                 if not path.isfile(file_path):
                     # Any sequence break in revision number is an end to the
                     # revision chain.
