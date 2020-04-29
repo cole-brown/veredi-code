@@ -19,9 +19,9 @@ import argparse
 import os
 
 # ---
-# Veredi: Dice
+# Veredi: Misc
 # ---
-
+from logger import log
 
 # ---
 # Commands
@@ -191,6 +191,14 @@ def _parse_args(parser):
 
 
 # ------------------------------------------------------------------------------
+# Other Setup Functions
+# ------------------------------------------------------------------------------
+
+def _init_logging():
+    log.init()
+    log.debug("test?")
+
+# ------------------------------------------------------------------------------
 # Sub-command Entry Points
 # ------------------------------------------------------------------------------
 
@@ -253,6 +261,8 @@ if __name__ == '__main__':
     # ---
     # Setup
     # ---
+    _init_logging()
+
     # Setup parser and read command inputs into `_args`.
     parser = _init_parser()
     args = _parse_args(parser)
@@ -271,8 +281,8 @@ if __name__ == '__main__':
         # Examples:
         print("Examples:")
         print(' '.join([" ",
-                        "doc-veredi python -m veredi"
-                        "roll"
+                        "doc-veredi python -m veredi",
+                        "roll",
                         # dice expression
                         "d20 + 11"]))
         print(' '.join([" ",
