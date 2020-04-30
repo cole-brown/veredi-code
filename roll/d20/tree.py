@@ -9,12 +9,12 @@ Tree base classes for a d20 roll tree.
 # -----------------------------------------------------------------------------
 
 # Python
-import random
 from functools import reduce
 
 # Framework
 
 # Our Stuff
+from veredi.bases import random
 from .utils import FormatOptions
 
 # -----------------------------------------------------------------------------
