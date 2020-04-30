@@ -21,7 +21,7 @@ import os
 # ---
 # Veredi: Misc
 # ---
-from logger import log
+from veredi.logger import log
 
 # ---
 # Commands
@@ -207,7 +207,7 @@ def _init_logging():
 
 
 def cmd_roll(args):
-    from roll.parsing.d20.parser import parse_input
+    from veredi.roll.d20.parser import parse_input
 
     expression = ' '.join(args.expression)
     print("input: ", expression)
@@ -215,9 +215,9 @@ def cmd_roll(args):
 
 
 def cmd_session(args):
-    import game.session
-    import repository.player
-    # from roll.parsing.d20.parser import parse_input
+    import veredi.game.session
+    import veredi.repository.player
+    # from veredi.roll.d20.parser import parse_input
 
     # ---
     # Repository Setup
