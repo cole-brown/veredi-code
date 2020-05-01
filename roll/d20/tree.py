@@ -34,7 +34,7 @@ class Node:
     NULL_SIGN = '∅'
 
     def __init__(self, tags=None):
-        self._value = 0
+        self._value = None
         # tags, traits, whatever
         self._tags = tags
 
@@ -78,36 +78,57 @@ class Node:
     # --------------------------------------------------------------------------
 
     def __add__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot add; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value + other._value
         return self._value + other
 
     def __sub__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot subtract; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value - other._value
         return self._value - other
 
     def __mul__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot multiply; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value * other._value
         return self._value * other
 
     def __truediv__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot true-divide; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value / other._value
         return self._value / other
 
     def __floordiv__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot floor-divide; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value // other._value
         return self._value // other
 
     def __mod__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot modulo; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value % other._value
         return self._value % other
 
     def __pow__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot power; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value ** other._value
         return self._value ** other
@@ -120,31 +141,49 @@ class Node:
     # # TODO [2020-04-25]: May need to compare tags and such...
 
     def __lt__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot less-than; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value < other._value
         return self._value < other
 
     def __gt__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot greater-than; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value > other._value
         return self._value > other
 
     def __le__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot less-than-or-equal; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value <= other._value
         return self._value <= other
 
     def __ge__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot greater-than-or-equal; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value >= other._value
         return self._value >= other
 
     def __eq__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot equal; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value == other._value
         return self._value == other
 
     def __ne__(self, other):
+        if self._value is None:
+            raise ValueError(f"Cannot not-equal; {str(self)} has a value of None.")
+
         if isinstance(other, Node):
             return self._value != other._value
         return self._value != other
@@ -166,9 +205,6 @@ class Leaf(Node):
 
         # 1 == positive, -1 == negative
         self._sign = 1
-
-        # Nearly-final value (sans self._sign).
-        self._value = None
 
     # --------------------------------------------------------------------------
     # To String
