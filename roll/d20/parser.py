@@ -19,7 +19,7 @@ from collections import deque
 # from queue import Queue, LifoQueue
 
 # Dice Grammer Parser
-from lark import Lark, Transformer, Visitor, v_args
+import lark # Lark, Transformer, Visitor, v_args
 
 # Veredi
 from . import tree
@@ -90,7 +90,7 @@ class Parser:
     #
     # Maybe this to fix ambiguity?
     # https://github.com/lark-parser/lark/blob/master/docs/grammar.md#priority
-    parser = Lark(grammar)
+    parser = lark.Lark(grammar)
 
     @classmethod
     def parse(cls, text):
@@ -113,8 +113,8 @@ class Parser:
 #     assign_vars(self, items)
 # NOTE: Should not be used for large lists of args. But all of mine are just
 # one or two items.
-#@v_args(inline=True)
-class D20Transformer(Transformer):
+#@lark.v_args(inline=True)
+class Transformer(lark.Transformer):
     '''Transforms a lexed/parsed tree into a Veredi roll tree.'''
 
     # --------------------------------------------------------------------------
@@ -133,13 +133,13 @@ class D20Transformer(Transformer):
     # ---
     # Variables
     # ---
-    @v_args(inline=True)
+    @lark.v_args(inline=True)
     def assign_var(self, name, value):
         self.vars[name] = value
 
         return value
 
-    @v_args(inline=True)
+    @lark.v_args(inline=True)
     def var(self, name):
         # name is Token class
         if name in self.vars:
@@ -150,22 +150,22 @@ class D20Transformer(Transformer):
     # ---
     # Dice
     # ---
-    @v_args(inline=True)
+    @lark.v_args(inline=True)
     def die(self, faces):
         return tree.Dice(1, int(faces))
 
-    @v_args(inline=True)
+    @lark.v_args(inline=True)
     def dice(self, amount, faces):
         return tree.Dice(int(amount), int(faces))
 
     # ---
     # Constants
     # ---
-    @v_args(inline=True)
+    @lark.v_args(inline=True)
     def int(self, value):
         return tree.Constant(int(value))
 
-    @v_args(inline=True)
+    @lark.v_args(inline=True)
     def number(self, value):
         return tree.Constant(float(value))
 
@@ -175,12 +175,12 @@ class D20Transformer(Transformer):
 
     # Replace Unary nodes with their leaf (acted on by the unary operator).
 
-    @v_args(inline=True)
+    @lark.v_args(inline=True)
     def neg(self, value):
         value.neg()
         return value
 
-    @v_args(inline=True)
+    @lark.v_args(inline=True)
     def pos(self, value):
         value.pos()
         return value
@@ -198,7 +198,7 @@ class D20Transformer(Transformer):
         return tree.OperatorSub(children)
 
     def mul(self, children):
-        return tree.OperatorMul(children)
+        return tree.OperatorMult(children)
 
     def div(self, children):
         return tree.OperatorDiv(children)
@@ -362,7 +362,7 @@ class Outputter:
 
 def parse_input(input):
     ast = Parser.parse(input)
-    xform = D20Transformer()
+    xform = Transformer()
     roll_tree = xform.transform(ast)
     # return roll_tree
 
@@ -391,7 +391,7 @@ if __name__ == '__main__':
     print("\nLark output, pretty:")
     print(Parser.format(ast))
 
-    xform = D20Transformer()
+    xform = Transformer()
     roll_tree = xform.transform(ast)
     print("\nTransformed:")
     print(roll_tree)
