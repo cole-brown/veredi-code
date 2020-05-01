@@ -2,7 +2,7 @@
 
 '''
 Unit tests for:
-  veredi/roll/d20/tree.py
+  veredi/roll/d20/parser.py
 '''
 
 # -----------------------------------------------------------------------------
@@ -28,29 +28,12 @@ from . import tree
 # --                          Test your grammar...                            --
 # ------------------------------------------------------------------------------
 
-# Need to test:
-#   - Each node type in our EBNF grammar.
-#     - assign_var
-#     - var
-#     - add
-#     - sub
-#     - mul
-#     - dif
-#     - mod
-#     - pow
-#     - neg
-#     - pos
-#     - int
-#     - number
-#     - die
-#     - dice
-#   -
 
 # -----------------------------------------------------------------------------
 # Test::Parser's Nodes
 # -----------------------------------------------------------------------------
 
-class Test_Parser_Nodes(unittest.TestCase):
+class Test_Parser(unittest.TestCase):
 
     # NOTE!
     #  Don't test Lark itself. Just test some basics so I can know my grammar

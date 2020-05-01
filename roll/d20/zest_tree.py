@@ -68,7 +68,7 @@ class Test_Node(unittest.TestCase):
     # --------------------------------------------------------------------------
 
     def test_value(self):
-        self.assertEqual(self.node0.value, 0)
+        self.assertIsNone(self.node0.value)
         self.assertEqual(self.node0._value, self.node0.value)
 
         with self.assertRaises(AttributeError) as context:
@@ -405,12 +405,16 @@ class Test_Variable(unittest.TestCase):
         # So they shouldn't have a value just yet.
         self.assertEqual(None, self.var0.value)
         self.assertEqual(None, self.var1.value)
-        self.assertEqual(None, self.var0)
-        self.assertEqual(None, self.var1)
+        with self.assertRaises(ValueError) as context:
+            self.assertEqual(None, self.var0)
+        with self.assertRaises(ValueError) as context:
+            self.assertEqual(None, self.var1)
         self.assertNotEqual(self.value0, self.var0.value)
         self.assertNotEqual(self.value1, self.var1.value)
-        self.assertNotEqual(self.value0, self.var0)
-        self.assertNotEqual(self.value1, self.var1)
+        with self.assertRaises(ValueError) as context:
+            self.assertNotEqual(self.value0, self.var0)
+        with self.assertRaises(ValueError) as context:
+            self.assertNotEqual(self.value1, self.var1)
 
         # But they should have their name.
         self.assertEqual(self.name0, self.var0.name)
@@ -483,8 +487,10 @@ class Test_OperatorAdd(unittest.TestCase):
         self.value1 = None
 
     def test_add(self):
-        self.assertEqual(0, self.add.value)
-        self.assertEqual(0, self.add)
+        self.assertIsNone(self.add.value)
+        with self.assertRaises(ValueError) as context:
+            # raises an error before it's eval'd
+            self.assertEqual(0, self.add)
 
         self.add.eval()
 
@@ -515,8 +521,10 @@ class Test_OperatorSub(unittest.TestCase):
         self.value1 = None
 
     def test_sub(self):
-        self.assertEqual(0, self.sub.value)
-        self.assertEqual(0, self.sub)
+        self.assertEqual(None, self.sub.value)
+        with self.assertRaises(ValueError) as context:
+            # raises an error before it's eval'd
+            self.assertEqual(0, self.sub)
 
         self.sub.eval()
 
@@ -547,8 +555,10 @@ class Test_OperatorMult(unittest.TestCase):
         self.value1 = None
 
     def test_mult(self):
-        self.assertEqual(0, self.mult.value)
-        self.assertEqual(0, self.mult)
+        self.assertEqual(None, self.mult.value)
+        with self.assertRaises(ValueError) as context:
+            # raises an error before it's eval'd
+            self.assertEqual(0, self.mult)
 
         self.mult.eval()
 
@@ -579,8 +589,10 @@ class Test_OperatorDiv(unittest.TestCase):
         self.value1 = None
 
     def test_div(self):
-        self.assertEqual(0, self.div.value)
-        self.assertEqual(0, self.div)
+        self.assertEqual(None, self.div.value)
+        with self.assertRaises(ValueError) as context:
+            # raises an error before it's eval'd
+            self.assertEqual(0, self.div)
 
         self.div.eval()
 
@@ -611,8 +623,10 @@ class Test_OperatorMod(unittest.TestCase):
         self.value1 = None
 
     def test_mod(self):
-        self.assertEqual(0, self.mod.value)
-        self.assertEqual(0, self.mod)
+        self.assertEqual(None, self.mod.value)
+        with self.assertRaises(ValueError) as context:
+            # raises an error before it's eval'd
+            self.assertEqual(0, self.mod)
 
         self.mod.eval()
 
@@ -643,8 +657,10 @@ class Test_OperatorPow(unittest.TestCase):
         self.value1 = None
 
     def test_pow(self):
-        self.assertEqual(0, self.pow.value)
-        self.assertEqual(0, self.pow)
+        self.assertEqual(None, self.pow.value)
+        with self.assertRaises(ValueError) as context:
+            # raises an error before it's eval'd
+            self.assertEqual(0, self.pow)
 
         self.pow.eval()
 
