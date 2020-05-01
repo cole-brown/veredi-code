@@ -26,72 +26,40 @@ import hashlib
 # Formats
 #-----
 import json
+import yaml
 
 #-----
 # Our Stuff
 #-----
 from . import exceptions
+from veredi.logger import log
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-@enum.unique
-class PathNameOption(enum.Enum):
-    HUMAN_SAFE = enum.auto()
-    HASHED     = enum.auto()
-
-    def valid(option):
-        for good_value in PathNameOption:
-            if option is good_value:
-                return True
-        return False
-
-    # def has(self, *desired):
-    #     for each in desired:
-    #         if (self & each) == each:
-    #             return True
-    #     return False
-
-# §-TODO-§ [2020-04-27]: factory w/ some enums? e.g.
-# Foo.getRepo(Backend.File, Format.Json)
-# Foo.getRepo(Backend.SQLite, Format.Native)
-# Foo.getRepo(Backend.Couchbase, Format.Native)
-# Foo.getRepo(Backend.File, Format.Pickle)
+# @enum.unique
+# class PathNameOption(enum.Enum):
+#     HUMAN_SAFE = enum.auto()
+#     HASHED     = enum.auto()
+#
+#     def valid(option):
+#         for good_value in PathNameOption:
+#             if option is good_value:
+#                 return True
+#         return False
+#
+#     # def has(self, *desired):
+#     #     for each in desired:
+#     #         if (self & each) == each:
+#     #             return True
+#     #     return False
 
 
 # ------------------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------------------
 
-class Path:
-    _human_safe = re.compile(r'[^\w\d-]')
-    _REPLACEMENT = '_'
-
-    @classmethod
-    def get(cls, option, root, *args):
-        if not PathNameOption.valid(option):
-            raise TypeError(f"Unsupported PathNameOption: {option}")
-
-        components = []
-        fn_make_safe = None
-        if option is PathNameOption.HUMAN_SAFE:
-            fn_make_safe = Path._human_readable
-        elif option is PathNameOption.HASHED:
-            fn_make_safe = Path._hashed
-
-        for each in args:
-            components.append(fn_make_safe(each))
-
-        return path.join(root, *components)
-
-    @classmethod
-    def _human_readable(cls, string):
-        return cls._human_safe.sub(cls._REPLACEMENT, string)
-
-    @classmethod
-    def _hashed(cls, string):
-        return hashlib.sha256(string.encode()).hexdigest()
 
 
 # -----------------------------------------------------------------------------
@@ -99,6 +67,7 @@ class Path:
 # -----------------------------------------------------------------------------
 
 class PlayerRepository(ABC):
+
     @abstractmethod
     def load_by_name(self, user, campaign, player):
         '''Gets (loads) a player from backend data store by:
@@ -109,43 +78,6 @@ class PlayerRepository(ABC):
 
         '''
         pass
-
-
-# ------------------------------------------------------------------------------
-# Backend: files
-# Format:  json
-# ------------------------------------------------------------------------------
-
-class PlayerRepository_FileJson(ABC):
-    _EXTENSION = "json"
-
-    #   load user/campaign/player/0000-0000-0000-0000.json
-    #   load user/campaign/player/0000-0000-0000-0001.json
-    #    ...
-    #   load user/campaign/player/0000-0000-0000-0999.json
-    _MIN_DIFF = 0
-    _MAX_DIFF = 10**16  # Ten quadrillion should be enough?..
-
-    _DIFF_FMT_DIV = 10**4  # Get us our quad groups.
-    _DIFF_FMT = "{:04d}-{:04d}-{:04d}-{:04d}.{:s}"
-
-    def __init__(self, root_of_everything, path_options):
-        self.root = path.abspath(root_of_everything)
-        self.options = path_options
-
-    # --------------------------------------------------------------------------
-    # Get / Read / Load
-    # --------------------------------------------------------------------------
-
-    def load_by_name(self, user, campaign, player):
-        '''Gets (loads) a player from backend data store by player name.'''
-        path = self._to_path(user, campaign, player)
-        return self._load_all(path,
-                              self._to_context(user, campaign, player))
-
-    # --------------------------------------------------------------------------
-    # Helpers
-    # --------------------------------------------------------------------------
 
     def _to_context(self, user, campaign, player):
         '''Convert user-related info we have for whatever operation into a
@@ -160,12 +92,87 @@ class PlayerRepository_FileJson(ABC):
         }
         return context
 
+
+class PlayerFileTree(PlayerRepository):
+    # ---
+    # File Revisions / Names
+    # ---
+
+    #   load user/campaign/player/0000-0000-0000-0000.json
+    #   load user/campaign/player/0000-0000-0000-0001.json
+    #    ...
+    #   load user/campaign/player/0000-0000-0000-0999.json
+    _MIN_DIFF = 0
+    _MAX_DIFF = 10**16  # Ten quadrillion should be enough?..
+
+    _DIFF_FMT_DIV = 10**4  # Get us our quad groups.
+    _DIFF_FMT = "{:04d}-{:04d}-{:04d}-{:04d}.{:s}"
+
+    # ---
+    # Path Names
+    # ---
+    _HUMAN_SAFE = re.compile(r'[^\w\d-]')
+    _REPLACEMENT = '_'
+
+    def __init__(self, root_of_everything,
+                 file_sys_safing_fn=None,
+                 data_format=None):
+        self.root = path.abspath(root_of_everything)
+
+        # Use user-defined or set to our defaults.
+        self.fn_path_safing = file_sys_safing_fn or self._to_human_readable
+        self.data_format = data_format or YamlFormat()
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}: "
+            f"ext:{self.data_format.ext()} "
+            f"root:{self.root}"
+        )
+
+    # --------------------------------------------------------------------------
+    # Parent's Abstract Methods
+    # --------------------------------------------------------------------------
+
+    def load_by_name(self, user, campaign, player):
+        '''Gets (loads) a player from backend data store by player name.'''
+        path = self._to_path(user, campaign, player)
+        return self._load_all(path,
+                              self._to_context(user, campaign, player))
+
+    # --------------------------------------------------------------------------
+    # Path Safing
+    # --------------------------------------------------------------------------
+
+    def _safe_path(self, root, *args):
+        '''Makes args safe with self.fn_path_safing, then joins them together
+        with root path into a full path string.
+
+        '''
+        components = []
+        for each in args:
+            components.append(self.fn_path_safing(each))
+
+        return path.join(root, *components)
+
+    @staticmethod
+    def _to_human_readable(string):
+        return PlayerFileTree._HUMAN_SAFE.sub(PlayerFileTree._REPLACEMENT,
+                                              string)
+
+    @staticmethod
+    def _to_hashed(string):
+        return hashlib.sha256(string.encode()).hexdigest()
+
+    # --------------------------------------------------------------------------
+    # Helpers
+    # --------------------------------------------------------------------------
+
     def _to_path(self, user, campaign, player):
         '''Convert input to path and filename.'''
-        path = Path.get(self.options,
-                        self.root,
-                        user, campaign,
-                        player)
+        path = self._safe_path(self.root,
+                               user, campaign,
+                               player)
         return path
 
     def _to_filename(self, number):
@@ -184,7 +191,7 @@ class PlayerRepository_FileJson(ABC):
         number = number // self._DIFF_FMT_DIV
 
         return self._DIFF_FMT.format(greatest, greater, lesser, least,
-                                     self._EXTENSION)
+                                     self.data_format.ext())
 
     def _apply(self, data, diff):
         '''Applies a diff to the base data.
@@ -215,7 +222,7 @@ class PlayerRepository_FileJson(ABC):
                     # Any sequence break in revision number is an end to the
                     # revision chain.
                     break
-                diff = self._load(file_path, error_context)
+                diff = self._load_file(file_path, error_context)
                 data = self._apply(data, diff)
                 revision += 1
 
@@ -232,8 +239,50 @@ class PlayerRepository_FileJson(ABC):
         data['revision'] = revision
         return data
 
-    def _load(self, path, error_context):
+    def _load_file(self, path, error_context):
         '''Load a single data file from path.
+
+        Raises:
+          - exceptions.LoadError
+            - wrapped error from self.data_format.load()
+              - e.g. JSONDecodeError
+        '''
+        data = None
+        with open(path, 'r') as f:
+            # Can raise an error - we'll let it.
+            try:
+                data = self.data_format.load(f, error_context)
+            except exceptions.LoadError:
+                # Let this one bubble up as-is.
+                data = None
+                raise
+            except Exception as e:
+                # Complain that we found an exception we don't handle.
+                # ...then let it bubble up as-is.
+                log.error("Unhandled exception:", e)
+                data = None
+                raise
+
+        return data
+
+
+# TODO: Move each file format to its own .py file so the lib imports only happen
+# if a specific format is used?
+
+# ------------------------------------------------------------------------------
+# Backend: files
+# Format:  json
+# ------------------------------------------------------------------------------
+
+class JsonFormat:
+    _EXTENSION = "json"
+
+    # TODO: ABC's abstract method
+    def ext(self):
+        return self._EXTENSION
+
+    def load(self, file_obj, error_context):
+        '''Load and decodes data from a single data file.
 
         Raises:
           - exceptions.LoadError
@@ -242,15 +291,49 @@ class PlayerRepository_FileJson(ABC):
             - Other json/file errors?
         '''
         data = None
-        with open(path, 'r') as json_file:
-            try:
-                data = json.load(json_file)
-            except json.JSONDecodeError as error:
-                data = None
-                raise exceptions.LoadError(f"Error loading json file: {path}",
-                                           error,
-                                           error_context) from error
+        try:
+            data = json.load(file_obj)
+        except json.JSONDecodeError as error:
+            data = None
+            raise exceptions.LoadError(f"Error loading json file: {path}",
+                                       error,
+                                       error_context) from error
         return data
+
+
+# ------------------------------------------------------------------------------
+# Backend: files
+# Format:  yaml
+# ------------------------------------------------------------------------------
+
+class YamlFormat:
+    _EXTENSION = "yaml"
+
+    # https://pyyaml.org/wiki/PyYAMLDocumentation
+
+    # TODO: ABC's abstract method
+    def ext(self):
+        return self._EXTENSION
+
+    def load(self, file_obj, error_context):
+        '''Load and decodes data from a single data file.
+
+        Raises:
+          - exceptions.LoadError
+            - wrapped yaml.YAMLDecodeError
+          Maybes:
+            - Other yaml/file errors?
+        '''
+        data = None
+        try:
+            data = yaml.safe_load(file_obj)
+        except yaml.YAMLError as error:
+            data = None
+            raise exceptions.LoadError(f"Error loading yaml file: {path}",
+                                       error,
+                                       error_context) from error
+        return data
+
 
 
 # -----------------------------------Veredi------------------------------------
@@ -273,7 +356,7 @@ if __name__ == '__main__':
                                 "hashed")
 
     print(f"Player Repo (human) at: {root_data_dir}:")
-    repo_human = PlayerRepository_FileJson(root_human_dir, PathNameOption.HUMAN_SAFE)
+    repo_human = PlayerFileTree(root_human_dir, None, JsonFormat())
     print(repo_human.load_by_name("us1!{er", "some-forgotten-campaign", "jeff"))
 
     # print(f"Player Repo (hashed) at: {root_data_dir}:")
