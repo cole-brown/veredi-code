@@ -100,7 +100,7 @@ class Path:
 
 class PlayerRepository(ABC):
     @abstractmethod
-    def get_by_name(self, user, campaign, player):
+    def load_by_name(self, user, campaign, player):
         '''Gets (loads) a player from backend data store by:
           - campaign name
           - user name
@@ -137,7 +137,7 @@ class PlayerRepository_FileJson(ABC):
     # Get / Read / Load
     # --------------------------------------------------------------------------
 
-    def get_by_name(self, user, campaign, player):
+    def load_by_name(self, user, campaign, player):
         '''Gets (loads) a player from backend data store by player name.'''
         path = self._to_path(user, campaign, player)
         return self._load_all(path,
@@ -274,8 +274,8 @@ if __name__ == '__main__':
 
     print(f"Player Repo (human) at: {root_data_dir}:")
     repo_human = PlayerRepository_FileJson(root_human_dir, PathNameOption.HUMAN_SAFE)
-    print(repo_human.get_by_name("us1!{er", "some-forgotten-campaign", "jeff"))
+    print(repo_human.load_by_name("us1!{er", "some-forgotten-campaign", "jeff"))
 
     # print(f"Player Repo (hashed) at: {root_data_dir}:")
     # repo_hash = PlayerRepository_FileJson(root_hashed_dir, PathNameOption.HASHED)
-    # print(repo_hash.get_by_name("us1!{er", "some-forgotten-campaign", "jeff"))
+    # print(repo_hash.load_by_name("us1!{er", "some-forgotten-campaign", "jeff"))
