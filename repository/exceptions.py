@@ -11,7 +11,7 @@ All your Exceptions are belong to these classes.
 # Python
 
 # Our Stuff
-from bases.exceptions import VerediError
+from veredi.bases.exceptions import VerediError
 
 # ------------------------------------------------------------------------------
 # Exceptions

@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-A session of a game/campaign.
+Test Data helper/util functions.
 '''
 
 # -----------------------------------------------------------------------------
@@ -9,7 +9,7 @@ A session of a game/campaign.
 # -----------------------------------------------------------------------------
 
 # Python
-# import datetime
+import os
 
 # Framework
 
@@ -20,22 +20,22 @@ A session of a game/campaign.
 # Constants
 # -----------------------------------------------------------------------------
 
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
 
-class Session:
-    def __init__(self, campaign, user_player_pairs, repository):
-        self.campaign = campaign
-        self.players = {}
-        for each in user_player_pairs:
-            user = each[0]
-            player = each[1]
-            data = repository.load_by_name(user, campaign, player)
-            self.players[player] = data
+def abs_path(*rel):
+    '''Returns absolute path to a file given its path rooted from this file's
+    directory (that is, it should probably start with 'data').
 
-        print(self.campaign, self.players)
+    Returns None if file does not exist.
 
-    def roll(self, name, expression):
-        print(f"todo: {name} wants to roll '{expression}'")
+    '''
+    path = os.path.join(THIS_DIR, *rel)
+    if not os.path.exists(path):
+        return None
+
+    return path
