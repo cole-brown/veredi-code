@@ -24,7 +24,11 @@ import math
 FMT_DATETIME = '%Y-%m-%d %H:%M:%S.{msecs:03d}%z'  # Yeah, this is fun.
 STYLE = '{'
 
-FMT_LINE_HUMAN = '{asctime:s} - {name:s} - {levelname:8s} - {message:s}'
+# https://docs.python.org/3/library/logging.html#logrecord-attributes
+FMT_LINE_HUMAN = (
+    '{asctime:s} - {name:s} - {levelname:8s} - '
+    '{module:s}.{funcName:s}:{message:s}'
+)
 
 LOGGER_NAME = "veredi"
 
@@ -83,21 +87,45 @@ class BestTimeFmt(logging.Formatter):
         return string
 
 
+# def fmt_msg(cls, method, msg):
+#     if isinstance(cls, str):
+#         return f"{cls}.{method}: msg"
+#     return f"{cls.__class__.__name__}.{method}: msg"
+
+
 def debug(msg, *args, **kwargs):
-    logger.debug(msg, *args, **kwargs)
+    logger.debug(
+        msg,
+        *args, **kwargs)
 
 
 def info(msg, *args, **kwargs):
-    logger.info(msg, *args, **kwargs)
+    logger.info(
+        msg,
+        *args, **kwargs)
 
 
 def warning(msg, *args, **kwargs):
-    logger.warning(msg, *args, **kwargs)
+    logger.warning(
+        msg,
+        *args, **kwargs)
 
 
 def error(msg, *args, **kwargs):
-    logger.error(msg, *args, **kwargs)
+    logger.error(
+        msg,
+        *args, **kwargs)
 
 
 def critical(msg, *args, **kwargs):
-    logger.critical(msg, *args, **kwargs)
+    logger.critical(
+        msg,
+        *args, **kwargs)
+
+
+# ------------------------------------------------------------------------------
+# Module Setup
+# ------------------------------------------------------------------------------
+
+if not initialized:
+    init()
