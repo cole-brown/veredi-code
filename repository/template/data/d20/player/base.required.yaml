@@ -1,0 +1,42 @@
+template:
+  source: 'veredi.templates'
+  system: 'd20'
+  entity: 'player'
+  name: 'base.required'
+  display-name: 'Veredi D20 Base Player Template Requirements'
+
+user:
+  name: required
+
+campaign:
+  name: required
+
+player:
+  name: required
+
+  ability:
+    strength:
+      score: required
+    dexterity:
+      score: required
+    constitution:
+      score: required
+    intelligence:
+      score: required
+    wisdom:
+      score: required
+    charisma:
+      score: required
+
+  defense:
+    armor-class: required
+    saves:
+      fortitude: required
+      reflex: required
+      will: required
+
+  attack:
+    base: required
+    melee: required
+    ranged: required
+    combat-maneuver: required
