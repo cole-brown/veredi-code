@@ -13,47 +13,25 @@ various backend implementations (db, file, etc).
 # Python
 #-----
 from abc import ABC, abstractmethod
-import enum
 
 #-----
 # File-Based
 #-----
-from os import path
+import os
 import re
 import hashlib
 
 #-----
-# Formats
-#-----
-import json
-import yaml
-
-#-----
 # Our Stuff
 #-----
-from . import exceptions
 from veredi.logger import log
+from . import exceptions
+# from .file import json
+from .file import yaml
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# @enum.unique
-# class PathNameOption(enum.Enum):
-#     HUMAN_SAFE = enum.auto()
-#     HASHED     = enum.auto()
-#
-#     def valid(option):
-#         for good_value in PathNameOption:
-#             if option is good_value:
-#                 return True
-#         return False
-#
-#     # def has(self, *desired):
-#     #     for each in desired:
-#     #         if (self & each) == each:
-#     #             return True
-#     #     return False
 
 
 # ------------------------------------------------------------------------------
@@ -117,11 +95,11 @@ class PlayerFileTree(PlayerRepository):
     def __init__(self, root_of_everything,
                  file_sys_safing_fn=None,
                  data_format=None):
-        self.root = path.abspath(root_of_everything)
+        self.root = os.path.abspath(root_of_everything)
 
         # Use user-defined or set to our defaults.
         self.fn_path_safing = file_sys_safing_fn or self._to_human_readable
-        self.data_format = data_format or YamlFormat()
+        self.data_format = data_format or yaml.YamlFormat()
 
     def __str__(self):
         return (
@@ -153,7 +131,7 @@ class PlayerFileTree(PlayerRepository):
         for each in args:
             components.append(self.fn_path_safing(each))
 
-        return path.join(root, *components)
+        return os.path.join(root, *components)
 
     @staticmethod
     def _to_human_readable(string):
@@ -215,10 +193,10 @@ class PlayerFileTree(PlayerRepository):
 
         try:
             for each in range(self._MIN_DIFF, self._MAX_DIFF):
-                file_path = path.join(base_path,
-                                      self._to_filename(each))
+                file_path = os.path.join(base_path,
+                                         self._to_filename(each))
                 # print(f"{each}: {file_path}\n  exists? {path.isfile(file_path)}")
-                if not path.isfile(file_path):
+                if not os.path.isfile(file_path):
                     # Any sequence break in revision number is an end to the
                     # revision chain.
                     break
@@ -266,99 +244,9 @@ class PlayerFileTree(PlayerRepository):
         return data
 
 
-# TODO: Move each file format to its own .py file so the lib imports only happen
-# if a specific format is used?
-
-# ------------------------------------------------------------------------------
-# Backend: files
-# Format:  json
-# ------------------------------------------------------------------------------
-
-class JsonFormat:
-    _EXTENSION = "json"
-
-    # TODO: ABC's abstract method
-    def ext(self):
-        return self._EXTENSION
-
-    def load(self, file_obj, error_context):
-        '''Load and decodes data from a single data file.
-
-        Raises:
-          - exceptions.LoadError
-            - wrapped json.JSONDecodeError
-          Maybes:
-            - Other json/file errors?
-        '''
-        data = None
-        try:
-            data = json.load(file_obj)
-        except json.JSONDecodeError as error:
-            data = None
-            raise exceptions.LoadError(f"Error loading json file: {path}",
-                                       error,
-                                       error_context) from error
-        return data
-
-
-# ------------------------------------------------------------------------------
-# Backend: files
-# Format:  yaml
-# ------------------------------------------------------------------------------
-
-class YamlFormat:
-    _EXTENSION = "yaml"
-
-    # https://pyyaml.org/wiki/PyYAMLDocumentation
-
-    # TODO: ABC's abstract method
-    def ext(self):
-        return self._EXTENSION
-
-    def load(self, file_obj, error_context):
-        '''Load and decodes data from a single data file.
-
-        Raises:
-          - exceptions.LoadError
-            - wrapped yaml.YAMLDecodeError
-          Maybes:
-            - Other yaml/file errors?
-        '''
-        data = None
-        try:
-            data = yaml.safe_load(file_obj)
-        except yaml.YAMLError as error:
-            data = None
-            raise exceptions.LoadError(f"Error loading yaml file: {path}",
-                                       error,
-                                       error_context) from error
-        return data
-
-
-
 # -----------------------------------Veredi------------------------------------
 # --                     Main Command Line Entry Point                       --
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    from os import getcwd
-
-    root_data_dir = path.join(getcwd(),
-                              "..",  # Test dir is sibling of veredi code dir
-                              "test",
-                              "data",
-                              "repository",
-                              "file",
-                              "json")
-    root_human_dir = path.join(root_data_dir,
-                               "human")
-    root_hashed_dir = path.join(root_data_dir,
-                                "hashed")
-
-    print(f"Player Repo (human) at: {root_data_dir}:")
-    repo_human = PlayerFileTree(root_human_dir, None, JsonFormat())
-    print(repo_human.load_by_name("us1!{er", "some-forgotten-campaign", "jeff"))
-
-    # print(f"Player Repo (hashed) at: {root_data_dir}:")
-    # repo_hash = PlayerRepository_FileJson(root_hashed_dir, PathNameOption.HASHED)
-    # print(repo_hash.load_by_name("us1!{er", "some-forgotten-campaign", "jeff"))
+    print(f"hi")

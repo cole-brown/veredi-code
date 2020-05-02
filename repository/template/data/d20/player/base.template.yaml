@@ -1,0 +1,151 @@
+template:
+  source: 'veredi.templates'
+  system: 'd20'
+  entity: 'player'
+  name: 'base.template'
+  display-name: 'Veredi D20 Base Player Template'
+
+user:
+  name: ''
+
+campaign:
+  name: ''
+
+player:
+  name: ''
+
+  speed:
+    land: 0
+    run: ${this.land} * 4
+    swim: 0
+    climb: 0
+    fly: 0
+
+  ability:
+    strength:
+      score: 10
+      modifier: (${this.score} - 10) // 2
+    dexterity:
+      score: 10
+      modifier: (${this.score} - 10) // 2
+    constitution:
+      score: 10
+      modifier: (${this.score} - 10) // 2
+    intelligence:
+      score: 10
+      modifier: (${this.score} - 10) // 2
+    wisdom:
+      score: 10
+      modifier: (${this.score} - 10) // 2
+    charisma:
+      score: 10
+      modifier: (${this.score} - 10) // 2
+
+  defense:
+    armor-class: 10
+    saves:
+      fortitude: 0
+      reflex: 0
+      will: 0
+
+  attack:
+    base: 0
+    melee: 0 + ${ability.strength.modifier}
+    ranged: 0 + ${ability.dexterity.modifier}
+    combat-maneuver: 0
+
+  skill:
+    acrobatics:
+      class: false
+      ranks: 0
+    appraise:
+      class: false
+      ranks: 0
+    bluff:
+      class: false
+      ranks: 0
+    climb:
+      class: false
+      ranks: 0
+    craft:
+      type: ''
+      class: false
+      ranks: 0
+    diplomacy:
+      class: false
+      ranks: 0
+    disable-device:
+      class: false
+      ranks: 0
+      display-name: "Disable Device"
+    disguise:
+      class: false
+      ranks: 0
+    escape-artist:
+      class: false
+      ranks: 0
+    fly:
+      class: false
+      ranks: 0
+    handle-animal:
+      class: false
+      ranks: 0
+    heal:
+      class: false
+      ranks: 0
+    intimidate:
+      class: false
+      ranks: 0
+    knowledge:
+      type: ''
+      choices:
+        - arcana
+        - dungeoneering
+        - engineering
+        - geography
+        - history
+        - local
+        - nature
+        - nobility
+        - planes
+        - religion
+      class: false
+      ranks: 0
+    linguistics:
+      class: false
+      ranks: 0
+    perception:
+      class: false
+      ranks: 0
+    perform:
+      class: false
+      ranks: 0
+      type: ''
+    profession:
+      class: false
+      ranks: 0
+      type: ''
+    ride:
+      class: false
+      ranks: 0
+    sense-motive:
+      class: false
+      ranks: 0
+    sleight-of-hand:
+      class: false
+      ranks: 0
+    spellcraft:
+      class: false
+      ranks: 0
+    stealth:
+      class: false
+      ranks: 0
+    survival:
+      class: false
+      ranks: 0
+    swim:
+      class: false
+      ranks: 0
+    use-magic-device:
+      class: false
+      ranks: 0
