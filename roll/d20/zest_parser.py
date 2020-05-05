@@ -76,6 +76,17 @@ class Test_Parser(unittest.TestCase):
 
     def test_var(self):
 
+        lark_tree = parser.Parser.parse("${jeff}")
+        # Make sure we got something.
+        self.assertIsNotNone(lark_tree)
+        self.assertTrue(lark_tree)
+
+        # Make sure it's only a var token in there?
+        self.assertEqual(1, len(lark_tree.children))
+        self.assertEqual(lark_tree.data, "var")
+        self.assertEqual(lark_tree.children[0].type, "NAME")
+        self.assertEqual(lark_tree.children[0].value, "jeff")
+
         lark_tree = parser.Parser.parse("$jeff")
         # Make sure we got something.
         self.assertIsNotNone(lark_tree)
@@ -86,6 +97,25 @@ class Test_Parser(unittest.TestCase):
         self.assertEqual(lark_tree.data, "var")
         self.assertEqual(lark_tree.children[0].type, "NAME")
         self.assertEqual(lark_tree.children[0].value, "jeff")
+
+    def test_func(self):
+
+        lark_tree = parser.Parser.parse("max(0, 1)")
+        # Make sure we got something.
+        self.assertIsNotNone(lark_tree)
+        self.assertTrue(lark_tree)
+
+        # Make sure it's only a var token in there?
+        self.assertEqual(3, len(lark_tree.children))
+        self.assertEqual(lark_tree.data, "func")
+        self.assertEqual(lark_tree.children[0].type, "NAME")
+        self.assertEqual(lark_tree.children[0].value, "max")
+        self.assertEqual(lark_tree.children[1].data, "int")
+        self.assertEqual(lark_tree.children[1].children[0].type, "INT")
+        self.assertEqual(lark_tree.children[1].children[0].value, "0")
+        self.assertEqual(lark_tree.children[2].data, "int")
+        self.assertEqual(lark_tree.children[2].children[0].type, "INT")
+        self.assertEqual(lark_tree.children[2].children[0].value, "1")
 
     def test_int(self):
 

@@ -55,6 +55,10 @@ grammar = '''
         | INT                   -> int
         | NUMBER                -> number
         | "(" sum ")"
+        | func
+
+// function is func name and list of params (one or more)
+func: NAME "(" [sum ("," sum)*] ")"
 
 var: "$" NAME
    | "${" NAME "}"
