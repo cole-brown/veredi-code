@@ -48,6 +48,7 @@ logger = None
 # -----------------------------------------------------------------------------
 
 def init(level=DEFAULT_LEVEL):
+    global initialized
     if initialized:
         return
 
@@ -62,15 +63,13 @@ def init(level=DEFAULT_LEVEL):
     console_handler.setLevel(level)
 
     # Set up our format.
-    # formatter = logging.Formatter(fmt=FMT_LINE_HUMAN,
-    #                               datefmt=FMT_DATETIME,
-    #                               style=STYLE)
     formatter = BestTimeFmt(fmt=FMT_LINE_HUMAN,
                             datefmt=FMT_DATETIME,
                             style=STYLE)
     console_handler.setFormatter(formatter)
 
     logger.addHandler(console_handler)
+    initialized = True
 
 
 class BestTimeFmt(logging.Formatter):
@@ -87,6 +86,9 @@ class BestTimeFmt(logging.Formatter):
         return string
 
 
+def brace_message(fmt, *args, **kwargs):
+    return fmt.format(*args, **kwargs)
+
 # def fmt_msg(cls, method, msg):
 #     if isinstance(cls, str):
 #         return f"{cls}.{method}: msg"
@@ -95,32 +97,37 @@ class BestTimeFmt(logging.Formatter):
 
 def debug(msg, *args, **kwargs):
     logger.debug(
-        msg,
-        *args, **kwargs)
+        brace_message(
+            msg,
+            *args, **kwargs))
 
 
 def info(msg, *args, **kwargs):
     logger.info(
-        msg,
-        *args, **kwargs)
+        brace_message(
+            msg,
+            *args, **kwargs))
 
 
 def warning(msg, *args, **kwargs):
     logger.warning(
-        msg,
-        *args, **kwargs)
+        brace_message(
+            msg,
+            *args, **kwargs))
 
 
 def error(msg, *args, **kwargs):
     logger.error(
-        msg,
-        *args, **kwargs)
+        brace_message(
+            msg,
+            *args, **kwargs))
 
 
 def critical(msg, *args, **kwargs):
     logger.critical(
-        msg,
-        *args, **kwargs)
+        brace_message(
+            msg,
+            *args, **kwargs))
 
 
 # ------------------------------------------------------------------------------
