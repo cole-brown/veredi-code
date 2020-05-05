@@ -119,6 +119,15 @@ class PlayerFileTree(PlayerRepository):
                               self._to_context(user, campaign, player))
 
     # --------------------------------------------------------------------------
+    # Unit Testing Methods
+    # --------------------------------------------------------------------------
+
+    def _load_for_unit_tests(self, path, **context):
+        '''Just blindly load a single file given the path and context.'''
+        return self._load_file(path,
+                               context)
+
+    # --------------------------------------------------------------------------
     # Path Safing
     # --------------------------------------------------------------------------
 

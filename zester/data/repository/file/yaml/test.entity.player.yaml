@@ -1,0 +1,270 @@
+user:
+  name: 'us1!{er'
+  id: null
+
+campaign:
+  name: some-forgotten-campaign
+  id: null
+
+player:
+  name: Jeff the Girl
+  id: null
+  description: ''
+
+  alignment: Chaotic Good
+
+  gender: Female
+
+  size:
+    normal: medium
+    current: medium
+    quadruped: false
+
+  physique:
+    age: 19
+    height: 6' 5"
+    weight: 206
+    eyes: brown
+    hair: brown, short
+    skin: medium brown
+
+  background:
+    diety: null
+    homeland: null
+    occupation: Mercernary
+
+  race:
+    name: human
+    type: null
+
+  senses:
+    vision: low-light
+    scent: !veredi.has
+      ${self.tags.buff}: rage # has 'scent' sense, but only when raging (rage power)
+
+  class:
+    barbarian:
+      archetype: titan mauler
+
+  level:
+    xp:
+      current: 68341
+      pending: 1001
+      level-up: 77000
+    current: ${veredi.auto}
+    taken:
+      - barbarian
+      - barbarian
+      - barbarian
+      - barbarian
+      - barbarian
+      - barbarian
+      - barbarian
+      - barbarian
+
+  language:
+    - name: Common
+      type: Vestri
+      fluency: 5
+        # https://en.wikipedia.org/wiki/ILR_scale
+        #   - ILR Level 0 - No proficiency
+        #   - ILR Level 1 - Elementary proficiency
+        #   - ILR Level 2 - Limited working proficiency
+        #   - ILR Level 3 - Professional working proficiency
+        #   - ILR Level 4 - Full professional proficiency
+        #   - ILR Level 5 - Native or bilingual proficiency
+    - name: Common
+      type: Austri
+      fluency: 2
+
+  speed:
+    land: 30
+    run: ${this.land} * 4
+    swim: max(20, ${level} // 3)
+    climb: 20
+    fly: 60
+
+  ability:
+    strength:
+      score: 21
+      score.base: 17
+      score.inherent: +2
+      score.enhancement: +2
+      modifier: (${this.score} - 10) // 2
+    dexterity:
+      score: 15
+      modifier: (${this.score} - 10) // 2
+    constitution:
+      score: 18
+      score.base: 16
+      score.enhancement: +2
+      modifier: (${this.score} - 10) // 2
+    intelligence:
+      score: 11
+      modifier: (${this.score} - 10) // 2
+    wisdom:
+      score: 11
+      modifier: (${this.score} - 10) // 2
+    charisma:
+      score: 14
+      modifier: (${this.score} - 10) // 2
+
+  hit-points:
+    class: 74
+    feat.toughness: ${level}  # one extra hp per level
+    total: ${ability.constitution.modifier} + ${this.class} + ${this.feat.toughness}
+    damage:
+      lethal: 0
+      nonlethal: 0
+
+  defense:
+    armor-class:
+      base: 10
+      touch:
+        amount: ${this.base} + ${ability.dexterity.modifier} + ${size.current.armor-class}
+        exclude: !veredi.tag [channel.equipment, channel.natural] # channel.item instead of equipment?
+      normal:
+        amount: !veredi.sum
+          - ${this.base}
+          - ${ability.dexterity.modifier}
+          - ${size.current.armor-class}
+          - ${equipment.current.armor}
+          - ${equipment.current.shield}
+      flat-footed:
+        amount: !veredi.sum
+          - ${this.base}
+          - ${size.current.armor-class}
+          - ${equipment.current.armor}
+          - ${equipment.current.shield}
+        exclude: !veredi.tag [ability.dexterity, channel.dodge]
+    saves:
+      fortitude: 0
+      reflex: 0
+      will: 0
+    combat-maneuver:
+      base: 10
+      normal:
+        amount: !veredi.sum
+          - ${this.base}
+          - ${attack.base}
+          - ${ability.strength.modifier}
+          - ${ability.dexterity.modifier}
+        flat-footed:
+        amount: !veredi.sum
+          - ${this.base}
+          - ${attack.base}
+          - ${ability.strength.modifier}
+    damage-reduction:
+      physical: 0
+      energy:
+        all: 0
+        fire: 0
+        # etc...
+    spell-resistance: 0
+    immunity: null
+    weakness: null
+
+  attack:
+    base: 0
+    melee: ${this.base} + ${ability.strength.modifier}
+    ranged: ${this.base} + ${ability.dexterity.modifier}
+    combat-maneuver: ${this.base} + ${ability.strength.modifier}
+
+  initiative:
+    score: ${ability.dexterity.modifier}
+
+  skill:
+    acrobatics:
+      class: false
+      ranks: 0
+    appraise:
+      class: false
+      ranks: 0
+    bluff:
+      class: false
+      ranks: 0
+    climb:
+      class: false
+      ranks: 0
+    craft:
+      type: ''
+      class: false
+      ranks: 0
+    diplomacy:
+      class: false
+      ranks: 0
+    disable-device:
+      class: false
+      ranks: 0
+      display-name: "Disable Device"
+    disguise:
+      class: false
+      ranks: 0
+    escape-artist:
+      class: false
+      ranks: 0
+    fly:
+      class: false
+      ranks: 0
+    handle-animal:
+      class: false
+      ranks: 0
+    heal:
+      class: false
+      ranks: 0
+    intimidate:
+      class: false
+      ranks: 0
+    knowledge:
+      type: ''
+      choices:
+        - arcana
+        - dungeoneering
+        - engineering
+        - geography
+        - history
+        - local
+        - nature
+        - nobility
+        - planes
+        - religion
+      class: false
+      ranks: 0
+    linguistics:
+      class: false
+      ranks: 0
+    perception:
+      class: false
+      ranks: 0
+    perform:
+      class: false
+      ranks: 0
+      type: ''
+    profession:
+      class: false
+      ranks: 0
+      type: ''
+    ride:
+      class: false
+      ranks: 0
+    sense-motive:
+      class: false
+      ranks: 0
+    sleight-of-hand:
+      class: false
+      ranks: 0
+    spellcraft:
+      class: false
+      ranks: 0
+    stealth:
+      class: false
+      ranks: 0
+    survival:
+      class: false
+      ranks: 0
+    swim:
+      class: false
+      ranks: 0
+    use-magic-device:
+      class: false
+      ranks: 0
