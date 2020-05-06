@@ -160,7 +160,7 @@ player:
         all: 0
         fire: 0
         # etc...
-    spell-resistance: 0
+    spell-resistance: 1
     immunity: null
     weakness: null
 
