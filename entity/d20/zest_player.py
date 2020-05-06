@@ -16,7 +16,7 @@ import enum
 
 # Veredi
 from . import player
-from veredi.repository import player as player_repo
+from veredi.data.repository import player as player_repo
 
 # Our Stuff
 from veredi.zester import test_data

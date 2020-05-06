@@ -25,9 +25,9 @@ import hashlib
 # Our Stuff
 #-----
 from veredi.logger import log
-from . import exceptions
-# from .file import json
-from .file import yaml
+from .. import exceptions
+# from ..format import json
+from ..format import yaml
 
 # -----------------------------------------------------------------------------
 # Constants
