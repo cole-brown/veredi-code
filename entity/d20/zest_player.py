@@ -12,6 +12,7 @@ Unit tests for:
 # Python
 import unittest
 import os
+import enum
 
 # Veredi
 from . import player
@@ -100,18 +101,102 @@ class Test_PlayerEntity(unittest.TestCase):
         self.assertEqual(False,
                          entity._data['skill']['use-magic-device']['class'])
 
+    def test_get_raw(self):
+        # Did we get_raw anything?
+        self.assertTrue(self.data)
 
+        # What about when we try to say this data is a player entity?
+        entity = player.Player(self.data)
+        self.assertTrue(entity)
+        self.assertTrue(entity._data)
 
+        self.assertEqual(68341,
+                         entity.get_raw('level', 'xp', 'current'))
+        self.assertEqual('(${this.score} - 10) // 2',
+                         entity.get_raw('ability', 'charisma', 'modifier'))
 
-# TODO: test that more is loaded...
-#     def test_load_more(self):
-#         # Did we get anything?
-#         self.assertTrue(self.data)
-#
-#         # Does it contain the data we think it should?
-#         self.assertEqual(self.name_user,     self.data['user']['name'])
-#         self.assertEqual(self.name_campaign, self.data['campaign']['name'])
-#         self.assertEqual(self.name_player,   self.data['player']['name'])
+        # We don't have immunity, but this should at least not throw anything.
+        class defense(enum.Enum):
+            spell_resistance = ["defense", "spell-resistance"]
+        self.assertEqual(["defense", "spell-resistance"],
+                         defense.spell_resistance.value)
+        self.assertEqual(1,
+                         entity.get_raw(*defense.spell_resistance.value))
+        self.assertEqual(1,
+                         entity.get_raw(defense.spell_resistance))
+
+        class armor_class(enum.Enum):
+            base = "base"
+            def hyphen(self, string):
+                return string.replace('_', '-')
+            @property
+            def key(self):
+                return [
+                    self.hyphen("defense"),
+                    self.hyphen(self.__class__.__name__),
+                    self.hyphen(self.value)
+                ]
+        self.assertEqual(10,
+                         entity.get_raw(armor_class.base))
+
+    def test_get(self):
+        # Did we get_raw anything?
+        self.assertTrue(self.data)
+
+        # What about when we try to say this data is a player entity?
+        entity = player.Player(self.data)
+        self.assertTrue(entity)
+        self.assertTrue(entity._data)
+
+        ctx = entity.get('level', 'xp', 'current')
+        self.assertIsNotNone(ctx)
+        self.assertEqual(68341,
+                         ctx.value)
+        self.assertEqual(['level', 'xp', 'current'],
+                         ctx.keys)
+
+        ctx = entity.get('ability', 'charisma', 'modifier')
+        self.assertIsNotNone(ctx)
+        self.assertEqual('(${this.score} - 10) // 2',
+                         ctx.value)
+        self.assertEqual(['ability', 'charisma', 'modifier'],
+                         ctx.keys)
+
+        # We don't have immunity, but this should at least not throw anything.
+        class defense(enum.Enum):
+            spell_resistance = ["defense", "spell-resistance"]
+        ctx = entity.get(*defense.spell_resistance.value)
+        self.assertIsNotNone(ctx)
+        self.assertEqual(1,
+                         ctx.value)
+        self.assertEqual(["defense", "spell-resistance"],
+                         ctx.keys)
+        ctx = entity.get(defense.spell_resistance)
+        self.assertIsNotNone(ctx)
+        self.assertEqual(1,
+                         ctx.value)
+        self.assertEqual(["defense", "spell-resistance"],
+                         ctx.keys)
+
+        class armor_class(enum.Enum):
+            base = "base"
+            def hyphen(self, string):
+                return string.replace('_', '-')
+            @property
+            def key(self):
+                return [
+                    self.hyphen("defense"),
+                    self.hyphen(self.__class__.__name__),
+                    self.hyphen(self.value)
+                ]
+        ctx = entity.get(armor_class.base)
+        self.assertIsNotNone(ctx)
+        self.assertEqual(10,
+                         ctx.value)
+        self.assertEqual(["defense", "armor-class", "base"],
+                         ctx.keys)
+
+# TODO: test.... recalc?..
 
 
 # --------------------------------Unit Testing----------------------------------
