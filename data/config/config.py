@@ -9,7 +9,7 @@ Configuration file reader/writer for Veredi games.
 # -----------------------------------------------------------------------------
 
 # Python
-import yaml
+from .format import yaml
 
 # Our Stuff
 
