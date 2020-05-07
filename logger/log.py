@@ -12,6 +12,8 @@ Logging utilities for Veredi.
 import logging
 import datetime
 import math
+import sys
+import os
 
 # Framework
 
@@ -27,12 +29,13 @@ STYLE = '{'
 # https://docs.python.org/3/library/logging.html#logrecord-attributes
 FMT_LINE_HUMAN = (
     '{asctime:s} - {name:s} - {levelname:8s} - '
-    '{module:s}.{funcName:s}:{message:s}'
+    '{module:s}.{funcName:s}: {message:s}'
 )
 
 LOGGER_NAME = "veredi"
 
 DEFAULT_LEVEL=logging.DEBUG
+
 
 # ------------------------------------------------------------------------------
 # Variables
@@ -69,6 +72,7 @@ def init(level=DEFAULT_LEVEL):
     console_handler.setFormatter(formatter)
 
     logger.addHandler(console_handler)
+
     initialized = True
 
 
@@ -89,45 +93,56 @@ class BestTimeFmt(logging.Formatter):
 def brace_message(fmt, *args, **kwargs):
     return fmt.format(*args, **kwargs)
 
-# def fmt_msg(cls, method, msg):
-#     if isinstance(cls, str):
-#         return f"{cls}.{method}: msg"
-#     return f"{cls.__class__.__name__}.{method}: msg"
 
+def get_stack_level(kwargs):
+    retval = 2
+    if kwargs:
+        retval = kwargs.pop('stacklevel', 2)
+    return retval
 
 def debug(msg, *args, **kwargs):
+    stacklevel = get_stack_level(kwargs)
     logger.debug(
         brace_message(
             msg,
-            *args, **kwargs))
+            *args, **kwargs),
+        stacklevel=stacklevel)
 
 
 def info(msg, *args, **kwargs):
+    stacklevel = get_stack_level(kwargs)
     logger.info(
         brace_message(
             msg,
-            *args, **kwargs))
+            *args, **kwargs),
+        stacklevel=stacklevel)
 
 
 def warning(msg, *args, **kwargs):
+    stacklevel = get_stack_level(kwargs)
     logger.warning(
         brace_message(
             msg,
-            *args, **kwargs))
+            *args, **kwargs),
+        stacklevel=stacklevel)
 
 
 def error(msg, *args, **kwargs):
+    stacklevel = get_stack_level(kwargs)
     logger.error(
         brace_message(
             msg,
-            *args, **kwargs))
+            *args, **kwargs),
+        stacklevel=stacklevel)
 
 
 def critical(msg, *args, **kwargs):
+    stacklevel = get_stack_level(kwargs)
     logger.critical(
         brace_message(
             msg,
-            *args, **kwargs))
+            *args, **kwargs),
+        stacklevel=stacklevel)
 
 
 # ------------------------------------------------------------------------------

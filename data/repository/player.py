@@ -25,6 +25,7 @@ import hashlib
 # Our Stuff
 #-----
 from veredi.logger import log
+from veredi.data.config.registry import register
 from .. import exceptions
 # from ..format import json
 from ..format import yaml
@@ -71,6 +72,7 @@ class PlayerRepository(ABC):
         return context
 
 
+@register("repository", "player", "file-tree")
 class PlayerFileTree(PlayerRepository):
     # ---
     # File Revisions / Names
