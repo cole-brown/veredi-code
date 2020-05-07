@@ -25,6 +25,22 @@ A session of a game/campaign.
 # Code
 # -----------------------------------------------------------------------------
 
+# Session is:
+#   in charge of everything happening/happened this session.
+#     - players present
+#     - rolls done
+#     - monsters, loot....?
+#
+# should get:
+#   campaign obj
+#   player objs
+#   mather/roller obj(s)?
+#   ref to game for e.g. requesting saves/loads to/from repos?
+#
+# then...?
+#   be ready to do shit?
+
+
 class Session:
     def __init__(self, campaign, user_player_pairs, repository):
         self.campaign = campaign
