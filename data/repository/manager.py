@@ -30,7 +30,8 @@ class Manager:
     game/session.
 
     '''
-    def __init__(self, campaign, session, player):  # ...monster, item, etc...)
+    def __init__(self, owner, campaign, session, player):  # ...monster, item, etc...)
+        self.owner = owner
         self.campaign = campaign
         self.session = session
         self.player = player

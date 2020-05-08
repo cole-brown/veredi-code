@@ -14,6 +14,7 @@ import datetime
 import math
 import sys
 import os
+import enum
 
 # Framework
 
@@ -23,6 +24,7 @@ import os
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
 FMT_DATETIME = '%Y-%m-%d %H:%M:%S.{msecs:03d}%z'  # Yeah, this is fun.
 STYLE = '{'
 
@@ -34,7 +36,31 @@ FMT_LINE_HUMAN = (
 
 LOGGER_NAME = "veredi"
 
-DEFAULT_LEVEL=logging.DEBUG
+# ---
+# Log Levels
+# ---
+
+@enum.unique
+class Level(enum.IntEnum):
+    NOTSET   = logging.NOTSET
+    DEBUG    = logging.DEBUG
+    INFO     = logging.INFO
+    WARNING  = logging.WARNING
+    ERROR    = logging.ERROR
+    CRITICAL = logging.CRITICAL
+
+    @staticmethod
+    def valid(lvl):
+        for known in Level:
+            if lvl == known:
+                return True
+        return False
+
+    @staticmethod
+    def to_logging(lvl):
+        return int(lvl)
+
+DEFAULT_LEVEL = Level.INFO
 
 
 # ------------------------------------------------------------------------------
@@ -44,7 +70,6 @@ DEFAULT_LEVEL=logging.DEBUG
 initialized = False
 
 logger = None
-
 
 # -----------------------------------------------------------------------------
 # Code
@@ -59,11 +84,12 @@ def init(level=DEFAULT_LEVEL):
 
     # Create our logger at our default output level.
     logger = logging.getLogger(LOGGER_NAME)
-    logger.setLevel(level)
+    logger.setLevel(Level.to_logging(level))
 
     # Console Handler, same level.
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
+    # leave as NOTSET - this will let logger control log level
+    # console_handler.setLevel(Level.to_logging(level))
 
     # Set up our format.
     formatter = BestTimeFmt(fmt=FMT_LINE_HUMAN,
@@ -74,6 +100,23 @@ def init(level=DEFAULT_LEVEL):
     logger.addHandler(console_handler)
 
     initialized = True
+
+def set_level(level=DEFAULT_LEVEL):
+    '''Change logger's log level. Options are:
+      - log.CRITICAL
+      - log.ERROR
+      - log.WARNING
+      - log.INFO
+      - log.DEBUG
+      - log.NOTSET
+      - log.DEFAULT_LEVEL
+
+    '''
+    if not Level.valid(level):
+        log.error("Invalid log level {}. Ignoring.", level)
+        return
+
+    logger.setLevel(Level.to_logging(level))
 
 
 class BestTimeFmt(logging.Formatter):
@@ -91,6 +134,7 @@ class BestTimeFmt(logging.Formatter):
 
 
 def brace_message(fmt, *args, **kwargs):
+    # print(f"bm:: fmt: {fmt}, args: {args}, kwa: {kwargs}")
     return fmt.format(*args, **kwargs)
 
 
@@ -99,6 +143,7 @@ def get_stack_level(kwargs):
     if kwargs:
         retval = kwargs.pop('stacklevel', 2)
     return retval
+
 
 def debug(msg, *args, **kwargs):
     stacklevel = get_stack_level(kwargs)

@@ -72,7 +72,7 @@ class PlayerRepository(ABC):
         return context
 
 
-@register("repository", "player", "file-tree")
+@register('veredi', 'repository', 'player', 'file-tree')
 class PlayerFileTree(PlayerRepository):
     # ---
     # File Revisions / Names
@@ -94,10 +94,10 @@ class PlayerFileTree(PlayerRepository):
     _HUMAN_SAFE = re.compile(r'[^\w\d-]')
     _REPLACEMENT = '_'
 
-    def __init__(self, root_of_everything,
+    def __init__(self, directory,
                  file_sys_safing_fn=None,
                  data_format=None):
-        self.root = os.path.abspath(root_of_everything)
+        self.root = os.path.abspath(directory)
 
         # Use user-defined or set to our defaults.
         self.fn_path_safing = file_sys_safing_fn or self._to_human_readable
