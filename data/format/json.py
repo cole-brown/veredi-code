@@ -14,6 +14,7 @@ import json
 # Framework
 
 # Our Stuff
+from veredi.data.config.registry import register
 
 
 # -----------------------------------------------------------------------------
@@ -25,8 +26,9 @@ import json
 # Code
 # -----------------------------------------------------------------------------
 
+@register('veredi', 'format', 'json')
 class JsonFormat:
-    _EXTENSION = "json"
+    _EXTENSION = 'json'
 
     # TODO: ABC's abstract method
     def ext(self):

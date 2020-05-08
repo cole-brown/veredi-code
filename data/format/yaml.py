@@ -10,8 +10,9 @@ YAML Format Reader / Writer
 
 import yaml
 
-from .. import exceptions
+from veredi.data.config.registry import register
 from veredi.logger import log
+from .. import exceptions
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -22,8 +23,9 @@ from veredi.logger import log
 # Code
 # -----------------------------------------------------------------------------
 
+@register('veredi', 'format', 'yaml')
 class YamlFormat:
-    _EXTENSION = "yaml"
+    _EXTENSION = 'yaml'
 
     # https://pyyaml.org/wiki/PyYAMLDocumentation
 
@@ -40,6 +42,9 @@ class YamlFormat:
           Maybes:
             - Other yaml/file errors?
         '''
+
+        # §-TODO-§ [2020-05-06]: Read type and version, verify them?
+
         data = None
         try:
             data = yaml.safe_load(file_obj)
@@ -52,6 +57,67 @@ class YamlFormat:
                                        error,
                                        error_context) from error
         return data
+
+    def load_all(self, file_obj, error_context):
+        '''Load and decodes data from a single data file.
+
+        Raises:
+          - exceptions.LoadError
+            - wrapped yaml.YAMLDecodeError
+          Maybes:
+            - Other yaml/file errors?
+        '''
+
+        # §-TODO-§ [2020-05-06]: Read type and version, verify them?
+        # Only one per file?
+
+        data = None
+        try:
+            data = yaml.safe_load_all(file_obj)
+        except yaml.YAMLError as error:
+            log.error('YAML failed while loading the file. {} {}',
+                      error.__class__.__qualname__,
+                      error_context)
+            data = None
+            raise exceptions.LoadError("Error loading yaml file:",
+                                       error,
+                                       error_context) from error
+        return data
+
+
+# ------------------------------------------------------------------------------
+# YAML Doc Types
+# ------------------------------------------------------------------------------
+
+class DocMetadata(yaml.YAMLObject):
+    yaml_loader = yaml.SafeLoader
+    yaml_tag = '!metadata'
+
+    def __init__(self, values):
+        # Example:
+        # values=[
+        #     (ScalarNode(tag='tag:yaml.org,2002:str', value='doc-type'),
+        #      ScalarNode(tag='tag:yaml.org,2002:str', value='veredi.config')),
+        #
+        #     (ScalarNode(tag='tag:yaml.org,2002:str', value='version'),
+        #      ScalarNode(tag='tag:yaml.org,2002:timestamp', value='2020-05-06'))
+        # ]
+
+        # print(self.yaml_tag, "init", values)
+        for each in values:
+            if each[0].value == 'doc-type':
+                self.doc_type = each[1].value
+            elif each[0].value == 'version':
+                self.version = each[1].value
+            else:
+                log.warning('YAML tag {} has unknown node: {}',
+                            self.yaml_tag,
+                            each)
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        # print(cls.yaml_tag, "from_yaml", str(cls), str(loader), str(node))
+        return cls(node.value)
 
 
 # ------------------------------------------------------------------------------

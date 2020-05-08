@@ -15,6 +15,7 @@ import functools
 
 # Our Stuff
 from veredi.logger import log
+from .. import exceptions
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -27,13 +28,16 @@ _REGISTRY = {}
 # -----------------------------------------------------------------------------
 
 
-# Decorator way of doing it...
+# Decorator way of doing factory registration. Note that we will only get
+# classes that are imported, when they are imported. We don't know about any
+# that are sitting around waiting to be imported. If needed, we can fix that by
+# importing things in their folder's __init__.py.
+
 # First, a lil' decorator factory to take our args and make the decorator...
 def register(*args):
-    print(f'register: {args}')
+    # Now make the actual class decorator...
     def register_decorator(cls):
-        print(f'register_decorator: {cls}')
-        # pull final key off of list so we
+        # Pull final key off of list so we don't make too many dictionaries.
         try:
             config_name = args[-1]
         except IndexError:
@@ -68,3 +72,26 @@ def register(*args):
         return cls
 
     return register_decorator
+
+
+def create(dotted_keys_str, *args, **kwargs):
+    '''Create a registered class from the dot-separated keys (e.g.
+    "repository.player.file-tree"), passing it args and kwargs.
+
+    '''
+    try:
+        registration = _REGISTRY
+        for key in dotted_keys_str.split('.'):
+            if registration is None:
+                break
+            # This can throw the KeyError...
+            registration = registration[key]
+
+        # TODO: Check for if this is callable?
+        return registration(*args, **kwargs)
+
+    except KeyError as error:
+        raise exceptions.ConfigError(
+                f"Registry has nothing under the keys: {dotted_keys_str}",
+                error,
+                {'keys': dotted_keys_str}) from error
