@@ -1,0 +1,71 @@
+# coding: utf-8
+
+'''
+Tests for the generic System class.
+'''
+
+# -----------------------------------------------------------------------------
+# Imports
+# -----------------------------------------------------------------------------
+
+from datetime import datetime, timezone
+import decimal
+import unittest
+
+from . import time
+from . import exceptions
+
+# -----------------------------------------------------------------------------
+# Constants
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+# Test Code
+# -----------------------------------------------------------------------------
+
+class Test_Time(unittest.TestCase):
+
+    def setUp(self):
+        self.time = time.Time()
+        self.midnight_utc = datetime.now(timezone.utc).replace(hour=0,
+                                                               minute=0,
+                                                               second=0,
+                                                               microsecond=0)
+
+    def tearDown(self):
+        self.time = None
+
+    def test_init(self):
+        self.assertTrue(self.time)
+        self.assertEqual(self.time.tick.seconds, 0)
+        self.assertEqual(self.time.clock.time_stamp,
+                         self.midnight_utc.timestamp())
+
+    def test_tick(self):
+        start = self.time.get_tick()
+        self.assertEqual(start,
+                         self.time.tick.seconds)
+
+        now = self.time.step()
+        self.assertEqual(start + now,
+                         self.time.tick.seconds)
+        self.assertEqual(start + now,
+                         self.time.get_tick())
+
+        now = 999
+        self.time.set_tick(now)
+        self.assertEqual(now,
+                         self.time.tick.seconds)
+        self.assertEqual(now,
+                         self.time.get_tick())
+
+    def test_specialness(self):
+        with self.assertRaises(exceptions.SystemError) as context:
+            tick = self.time.register()
+
+        with self.assertRaises(exceptions.SystemError) as context:
+            tick = self.time.priority()
+
+        with self.assertRaises(exceptions.SystemError) as context:
+            tick = self.time.update_time(0.0, None, None)
