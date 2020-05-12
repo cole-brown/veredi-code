@@ -80,8 +80,10 @@ class Configuration:
         try:
             data = getattr(self._data_repo, kind)
         except AttributeError as error:
-            log.error("Repo Config Data has no attribute '{}'! data: {}",
-                      kind, self._data_repo)
+            log.exception(
+                error,
+                "Repo Config Data has no attribute '{}'! data: {}",
+                kind, self._data_repo)
             raise exceptions.ConfigError(
                 "Data has no attribute '{}'! data: {}",
                 error,
@@ -94,9 +96,11 @@ class Configuration:
 
             # optional
             directory = data.get('directory', None)
-        except KeyError:
-            log.error("Repo Config Data missing important key '{}'! data: {}",
-                      kind, data)
+        except KeyError as error:
+            log.exception(
+                error,
+                "Repo Config Data missing important key '{}'! data: {}",
+                kind, data)
             raise exceptions.ConfigError(
                 "Data has no attribute '{}'! data: {}",
                 error,
@@ -136,8 +140,8 @@ class Configuration:
             except Exception as error:
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up as-is.
-                log.error("Unhandled exception! type: {}, str(): {}",
-                          type(error), str(error))
+                log.exception(error, "Unhandled exception! type: {}, str: {}",
+                              type(error), str(error))
                 data = None
                 raise
 

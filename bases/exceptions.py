@@ -16,10 +16,6 @@ All your Exceptions are belong to these classes.
 # ------------------------------------------------------------------------------
 
 class VerediError(Exception):
-    def __init__(self):
-        '''No-args ctor.'''
-        pass
-
     def __init__(self, message, cause, context):
         '''Context data included.'''
         self.message = message
@@ -34,3 +30,9 @@ class VerediError(Exception):
             output += f" with context {self.context}"
 
         return output
+
+
+class KeyError(VerediError):
+    def __init__(self, message, cause, context):
+        '''With context data.'''
+        super().__init__(message, cause, context)

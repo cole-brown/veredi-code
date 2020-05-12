@@ -19,6 +19,7 @@ import enum
 from veredi.logger import log
 from veredi.thesaurus.d20 import thesaurus
 from .. import exceptions
+from veredi.bases.exceptions import KeyError
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -160,7 +161,7 @@ class Player(Entity):
         if key:
             return key
 
-        raise exceptions.KeyError(
+        raise KeyError(
             f"Failed to translate key {name} into key string.",
             None,
             None)  # TODO: Make context? player name, campaign, user name?
