@@ -181,6 +181,31 @@ def error(msg, *args, **kwargs):
         stacklevel=stacklevel)
 
 
+def exception(err, msg=None, *args, **kwargs):
+    '''
+    Log the exception at ERROR level. If no `msg` supplied, will use:
+        msg = "Exception caught. type: {}, str: {}"
+        args = [type(error), str(error)]
+    Otherwise error info will be tacked onto end.
+      msg += " (Exception type: {err_type}, str: {err_str})"
+      kwargs['err_type'] = type(error)
+      kwargs['err_type'] = str(error)
+    '''
+    stacklevel = get_stack_level(kwargs)
+    if not msg:
+        "Exception caught. type: {}, str: {}"
+        args = [type(error), str(error)]
+    else:
+        msg += " (Exception type: {err_type}, str: {err_str})"
+        kwargs['err_type'] = type(error)
+        kwargs['err_type'] = str(error)
+    logger.error(
+        brace_message(
+            msg,
+            *args, **kwargs),
+        stacklevel=stacklevel)
+
+
 def critical(msg, *args, **kwargs):
     stacklevel = get_stack_level(kwargs)
     logger.critical(
