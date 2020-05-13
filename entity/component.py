@@ -9,7 +9,7 @@ subclass...
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import NewType, Any
+from typing import NewType, Any, Union, Type, Iterable
 import enum
 
 from .exceptions import ComponentError
@@ -21,6 +21,7 @@ from .exceptions import ComponentError
 EntityId = NewType('EntityId', int)
 INVALID_ENTITY_ID = EntityId(0)
 
+InstOrType = Union['Component', Type['Component']]
 
 @enum.unique
 class StateLifeCycle(enum.Enum):
@@ -35,8 +36,12 @@ class StateLifeCycle(enum.Enum):
 # -----------------------------------------------------------------------------
 
 class Component:
-    def __init__(self, entity_id: EntityId) -> None:
-        self.entity_id = entity_id
+    '''
+    A component does not track its EntityId. This is so we can have entities
+    that actually share the same exact component.
+    '''
+
+    def __init__(self) -> None:
         self.meta = ComponentMetaData(True, StateLifeCycle.ADDED)
 
     def replaceable_with(self, other: 'Component'):
@@ -56,17 +61,29 @@ class Component:
     # Set Interface (hashable, equals)
     # --------------------------------------------------------------------------
 
+    @staticmethod
+    def hashed(components: Iterable['Component']) -> int:
+        '''
+        Hashes each component and returns the overall hash.
+        '''
+        return sum(map(hash, components))
+
     def __hash__(self):
         # Hash of (sub)class itself, not any instance.
         # All (sub)class instances will be considered 'equal' this way for
         # e.g. set, dict operations.
-        return id(self.__class__)
+        return hash(self.__class__)
 
     def __eq__(self, other: Any):
         # Hash of (sub)class itself, not any instance.
         # All (sub)class instances will be considered 'equal' this way for
         # e.g. set, dict operations.
-        return hash(self) == hash(other)
+        other_hash = None
+        if isinstance(other, (set, frozenset)):
+            other_hash = Component.hashed(other)
+        else:
+            other_hash = hash(other)
+        return hash(self) == other_hash
 
 
 class ComponentMetaData:

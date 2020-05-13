@@ -25,8 +25,10 @@ from veredi.entity import component
 class CompOne(component.Component):
     pass
 
+
 class CompTwo(component.Component):
     pass
+
 
 class SysJeff(system.System):
     last_tick = system.SystemTick.DEATH
@@ -76,6 +78,11 @@ class SysJeff(system.System):
         return system.SystemHealth.FATAL
 
 
+class SysJill(system.System):
+     def priority(self):
+        return system.SystemPriority.HIGH
+
+
 # -----------------------------------------------------------------------------
 # Test Code
 # -----------------------------------------------------------------------------
@@ -107,6 +114,16 @@ class Test_System(unittest.TestCase):
 
     def test_priority(self):
         self.assertEqual(self.sys.priority(), system.SystemPriority.MEDIUM + 13)
+
+        sys2 = SysJill()
+
+        self.assertEqual(sys2.priority(), system.SystemPriority.HIGH)
+
+        self.assertTrue(sys2.priority() < self.sys.priority())
+        systems = [self.sys, sys2]
+        systems.sort(key=system.System.sort_key)
+        self.assertEqual(systems,
+                         [sys2, self.sys])
 
     def test_required(self):
         required = self.sys.required()
