@@ -16,7 +16,7 @@ from .exceptions import SystemError, TickError
 
 from . import time
 from .entity import SystemLifeCycle
-from . import system
+from .system import SystemTick, SystemPriority, SystemHealth, System
 from veredi.entity.component import (EntityId,
                                      INVALID_ENTITY_ID,
                                      Component,
@@ -89,6 +89,7 @@ class Game:
 
     def __init__(self, owner, campaign_id, repo_manager,
                  time_system=None, life_cycle=None):
+        # TODO: Make session a System, put these in there?
         self.repo = repo_manager
         self.owner = owner
         self.campaign = repo_manager.campaign.load_by_id(campaign_id)
@@ -105,14 +106,45 @@ class Game:
         # ---
         # General Systems
         # ---
-        self._sys_register = set()
-        self._sys_priority = []
+        self._sys_registration = set()
+        self._sys_schedule = []
 
     def _time_setup(self, time_system=None):
         self.sys_time = time_system or time.Time()
 
     def _life_cycle_setup(self, life_cycle):
         self.sys_life_cycle = life_cycle or SystemLifeCycle()
+
+
+    # --------------------------------------------------------------------------
+    # Game Set Up
+    # --------------------------------------------------------------------------
+    def register(self, system: System):
+        '''
+        Systems wanting to run in the game loop should register themselves
+        before the set_up() call comes.
+        '''
+        self._sys_registration.add(system)
+
+    def set_up(self):
+        '''
+        Systems wanting to run in the game loop should register themselves
+        before the set_up() call comes.
+        '''
+        # Start with what we have, if anything.
+        schedule = set(self._sys_schedule)
+        self._sys_schedule.clear()
+
+        # Update with registered systems.
+        schedule.update(self._sys_registration)
+
+        # Priority sort (highest priority firstest)
+        self._sys_schedule.extend(schedule)
+        self._sys_schedule.sort(key=System.sort_key)
+
+        # TODO HERE
+        # self._sys_schedule.extend(self._sys_registration)
+
 
     # -------------------------------------------------------------------------
     # Game Loops
@@ -174,7 +206,7 @@ class Game:
             # Plow on ahead anyways.
             # raise
 
-    def _update_systems(self, time: float, tick: system.SystemTick) -> None:
+    def _update_systems(self, time: float, tick: SystemTick) -> None:
         # TODO: self._systems[tick] is a priority queue or something that
         # doesn't pop off members each loop?
         for each in self._systems[tick]:
@@ -226,7 +258,7 @@ class Game:
     def _update_time(self, time_step):
         now = self.sys_time.tick(time_step)
 
-        self._update_systems(now, system.SystemTick.TIME)
+        self._update_systems(now, SystemTick.TIME)
 
     def _update_life(self, time):
         '''
@@ -237,21 +269,21 @@ class Game:
         self.sys_life_cycle.update_life(time,
                                         self.sys_life_cycle, self.sys_time)
 
-        self._update_systems(now, system.SystemTick.LIFE)
+        self._update_systems(now, SystemTick.LIFE)
 
     def _update_pre(self, time):
         '''
         Main game loop's set-up update function - anything that has to happen
         before SystemTick.STANDARD.
         '''
-        self._update_systems(now, system.SystemTick.PRE)
+        self._update_systems(now, SystemTick.PRE)
 
     def _update_post(self, time):
         '''
         Main game loop's clean-up update function - anything that has to happen
         after SystemTick.STANDARD.
         '''
-        self._update_systems(now, system.SystemTick.POST)
+        self._update_systems(now, SystemTick.POST)
 
     def _update_death(self, time):
         '''
@@ -262,13 +294,13 @@ class Game:
         self.sys_life_cycle.update_life(time,
                                         self.sys_life_cycle, self.sys_time)
 
-        self._update_systems(now, system.SystemTick.LIFE)
+        self._update_systems(now, SystemTick.LIFE)
 
     def _update(self, time_step):
         '''
         Main game loop's main update tick function.
         '''
-        self._update_systems(now, system.SystemTick.STANDARD)
+        self._update_systems(now, SystemTick.STANDARD)
 
     # TODO: Check return values of system ticks and kill off any that are
     # unhealthy too much?
