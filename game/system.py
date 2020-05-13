@@ -38,25 +38,12 @@ class SystemTick(enum.Flag):
 
 class SystemPriority(enum.IntEnum):
     '''
-    Low priority go last, so they get a bigger value.
+    Low priority systems go last, so that a standard (non-reversed) sort will
+    sort them in high-to-low priority.
     '''
     LOW    = 10000
     MEDIUM = 1000
     HIGH   = 100
-
-    @staticmethod
-    def compare(left:  Union['SystemPriority', int],
-                right: Union['SystemPriority', int]):
-        '''
-        Compares two priority/int values against each other
-        for priority sorting.
-        '''
-
-        if left < right:
-            return -1
-        elif left > right:
-            return 1
-        return 0
 
 
 @enum.unique
@@ -95,11 +82,8 @@ class System:
         return SystemPriority.LOW
 
     @staticmethod
-    def compare(left: 'System', right: 'System'):
-        '''
-        Compares two systems against each other for priority sorting.
-        '''
-        return SystemPriority.compare(left.priority(), right.priority())
+    def sort_key(system: 'System') -> Union[SystemPriority, int]:
+        return system.priority()
 
     def required(self) -> Optional[Iterable[Component]]:
         '''
@@ -206,3 +190,4 @@ class System:
         Final upate. Death/deletion part of life cycles managed here.
         '''
         return SystemHealth.FATAL
+
