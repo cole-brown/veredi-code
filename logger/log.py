@@ -198,7 +198,7 @@ def exception(err, msg=None, *args, **kwargs):
     else:
         msg += " (Exception type: {err_type}, str: {err_str})"
         kwargs['err_type'] = type(error)
-        kwargs['err_type'] = str(error)
+        kwargs['err_str'] = str(error)
     logger.error(
         brace_message(
             msg,

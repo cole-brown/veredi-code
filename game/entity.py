@@ -24,6 +24,7 @@ Inspired by:
 
 # Python
 from typing import Union, Type, Iterable, Optional, Set
+from collections.abc import Iterable as iter_inst
 
 # Framework
 
@@ -105,7 +106,17 @@ class SystemLifeCycle(system.System):
         Entity/Components will be added before the start of the next tick.
         '''
         self._new_entity_id += 1
-        self._entity_add[self._new_entity_id] = set(components)
+
+        adding = set()
+        for comp in components:
+            if isinstance(comp, set):
+                adding.update(comp)
+            elif isinstance(comp, iter_inst):
+                adding.update(comp)
+            else:
+                adding.add(comp)
+
+        self._entity_add[self._new_entity_id] = adding
 
         return self._new_entity_id
 
