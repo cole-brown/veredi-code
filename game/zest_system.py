@@ -33,11 +33,11 @@ class CompTwo(component.Component):
 class SysJeff(system.System):
     last_tick = system.SystemTick.DEATH
 
-    @classmethod
-    def register(cls):
-        return (system.SystemTick.PRE
-                | system.SystemTick.STANDARD
-                | system.SystemTick.POST)
+    def __init__(self):
+        super().__init__()
+        self._ticks = (system.SystemTick.PRE
+                       | system.SystemTick.STANDARD
+                       | system.SystemTick.POST)
 
     def priority(self):
         return system.SystemPriority.MEDIUM + 13
@@ -67,9 +67,9 @@ class SysJeff(system.System):
         return system.SystemHealth.FATAL
 
     def update_post(self,
-                   time,
-                   sys_entities,
-                   sys_time):
+                    time,
+                    sys_entities,
+                    sys_time):
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
@@ -97,20 +97,6 @@ class Test_System(unittest.TestCase):
 
     def test_init(self):
         self.assertTrue(self.sys)
-
-    def test_register(self):
-        self.assertEqual(self.sys.register(), SysJeff.register())
-
-        # Test it wants what I think I said it wants...
-        ticks = SysJeff.register()
-        self.assertFalse(ticks.has(system.SystemTick.TIME))
-        self.assertFalse(ticks.has(system.SystemTick.LIFE))
-
-        self.assertTrue(ticks.has(system.SystemTick.PRE))
-        self.assertTrue(ticks.has(system.SystemTick.STANDARD))
-        self.assertTrue(ticks.has(system.SystemTick.POST))
-
-        self.assertFalse(ticks.has(system.SystemTick.DEATH))
 
     def test_priority(self):
         self.assertEqual(self.sys.priority(), system.SystemPriority.MEDIUM + 13)

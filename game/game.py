@@ -9,18 +9,26 @@ A game of something or other.
 # -----------------------------------------------------------------------------
 
 from typing import Callable, Optional, Iterable, Set
+import enum
+import decimal
 
 from veredi.bases.exceptions import VerediError
 from veredi.entity.exceptions import ComponentError
+from veredi.logger import log
 from .exceptions import SystemError, TickError
 
-from . import time
+from .time import Time
 from .entity import SystemLifeCycle
 from .system import SystemTick, SystemPriority, SystemHealth, System
+
 from veredi.entity.component import (EntityId,
                                      INVALID_ENTITY_ID,
                                      Component,
                                      ComponentMetaData)
+from veredi.entity.entity import Entity
+
+from veredi.data.repository import manager
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -83,25 +91,49 @@ from veredi.entity.component import (EntityId,
 # NOTE: DM is god. They must be able to change everything, ideally on a
 # temporary OR permanent basis.
 
+@enum.unique
+class GameDebug(enum.Flag):
+    LOG_TICK     = enum.auto()
+    '''Output a log message each tick at debug level.'''
+
+    RAISE_ERRORS = enum.auto()
+    '''Re-raises any errors/exceptions caught in Game object itself.'''
+
+    UNIT_TESTS = LOG_TICK | RAISE_ERRORS
+
+    def has(self, flag):
+        if (self & flag) == flag:
+            return True
+        return False
+
 
 class Game:
-    DEBUG_TICK = True
 
-    def __init__(self, owner, campaign_id, repo_manager,
-                 time_system=None, life_cycle=None):
-        # TODO: Make session a System, put these in there?
-        self.repo = repo_manager
-        self.owner = owner
-        self.campaign = repo_manager.campaign.load_by_id(campaign_id)
+    def __init__(self,
+                 owner: Entity,
+                 campaign_id: int,
+                 repo_manager: manager.Manager,
+                 time_system: Optional[System] = None,
+                 life_system: Optional[System] = None,
+                 debug: Optional[GameDebug] = None) -> None:
+        # # TODO: Make session a System, put these in there?
+        # self.repo = repo_manager
+        # self.owner = owner
+        # self.campaign = repo_manager.campaign.load_by_id(campaign_id)
 
         # TODO: load/make session based on... campaign and.... parameter?
         #   - or is that a second init step?
 
         # ---
+        # Debugging
+        # ---
+        self.debug = debug
+
+        # ---
         # Required/Special Systems
         # ---
-        self._time_setup(time_system)
-        self._life_cycle_setup(life_cycle)
+        self._set_up_time(time_system)
+        self._set_up_life(life_system)
 
         # ---
         # General Systems
@@ -109,24 +141,48 @@ class Game:
         self._sys_registration = set()
         self._sys_schedule = []
 
-    def _time_setup(self, time_system=None):
-        self.sys_time = time_system or time.Time()
+    def debug_flagged(self, desired) -> bool:
+        '''
+        Returns true if Game's debug flags are set to something and that
+        something has the desired flag. Returns false otherwise.
+        '''
+        return self._debug and self._debug.has(desired)
 
-    def _life_cycle_setup(self, life_cycle):
-        self.sys_life_cycle = life_cycle or SystemLifeCycle()
+    @property
+    def debug(self) -> GameDebug:
+        '''Returns current debug flags.'''
+        return self._debug
+
+    @debug.setter
+    def debug(self, value: GameDebug) -> None:
+        '''
+        Set current debug flags. No error/sanity checks.
+        Universe could explode; use wisely.
+        '''
+        self._debug = value
+
+    def _set_up_time(self,
+                     time_system: Optional[System] = None) -> None:
+        self.sys_time = time_system or Time()
+
+    def _set_up_life(self,
+                     life_system: Optional[System] = None) -> None:
+        self.sys_life_cycle = life_system or SystemLifeCycle()
 
 
     # --------------------------------------------------------------------------
     # Game Set Up
     # --------------------------------------------------------------------------
-    def register(self, system: System):
+
+    def register(self, *systems: System) -> None:
         '''
         Systems wanting to run in the game loop should register themselves
         before the set_up() call comes.
         '''
-        self._sys_registration.add(system)
+        for sys in systems:
+            self._sys_registration.add(sys)
 
-    def set_up(self):
+    def set_up(self) -> None:
         '''
         Systems wanting to run in the game loop should register themselves
         before the set_up() call comes.
@@ -137,84 +193,98 @@ class Game:
 
         # Update with registered systems.
         schedule.update(self._sys_registration)
+        self._sys_registration.clear()
 
         # Priority sort (highest priority firstest)
         self._sys_schedule.extend(schedule)
         self._sys_schedule.sort(key=System.sort_key)
 
-        # TODO HERE
-        # self._sys_schedule.extend(self._sys_registration)
-
 
     # -------------------------------------------------------------------------
     # Game Loops
     # -------------------------------------------------------------------------
-    def tick(self, time_step):
+    def tick(self) -> None:
         '''
         One full swing through the update loop functions.
         '''
+        now_secs = -1  # In case _update_time errors out.
         try:
-            time = self._update_time(time_step)
+            now_secs = self._update_time()
 
-            self._update_life(time)
-            self._update_pre(time)
+            self._update_life(now_secs)
+            self._update_pre(now_secs)
 
-            self._update(time)
+            self._update(now_secs)
 
-            self._update_post(time)
-            self._update_death(time)
+            self._update_post(now_secs)
+            self._update_death(now_secs)
 
         # Various exceptions we can handle at this level...
         # Or we can't but want to log.
         except TickError as error:
             log.exception(
                 error,
-                "Game's {} System had a TickError during {} tick (time={}).",
-                str(each), tick, time)
+                "Game's tick() received a TickError at time {}.",
+                now_secs)
             # TODO: health thingy
+            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                raise
         except SystemError as error:
             log.exception(
                 error,
-                "Game's {} System had a SystemError during {} tick (time={}).",
-                str(each), tick, time)
+                "Game's tick() received a SystemError at time {}.",
+                now_secs)
             # TODO: health thingy
+            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                raise
         except ComponentError as error:
             log.exception(
                 error,
-                "Game's {} System had a ComponentError during {} tick (time={}).",
-                str(each), tick, time)
+                "Game's tick() received a ComponentError at time {}.",
+                now_secs)
             # TODO: health thingy
+            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                raise
         except VerediError as error:
             log.exception(
                 error,
-                "Game's {} System had a generic VerediError during {} tick (time={}).",
-                str(each), tick, time)
+                "Game's tick() received a generic VerediError at time {}.",
+                now_secs)
             # TODO: health thingy
+            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                raise
         except Exception as error:
             log.exception(
                 error,
-                "Game's {} System had an unknown exception during {} tick (time={}).",
-                str(each), tick, time)
+                "Game's tick() received an unknown exception at time {}.",
+                now_secs)
             # TODO: health thingy
             # Plow on ahead anyways.
             # raise
+            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                raise
         except:
             log.error(
-                "Game's tick had a _very_ unknown exception during {} tick (time={}).",
-                tick, time)
+                "Game's tick() received a _very_ unknown exception at time {}.",
+                now_secs)
             # TODO: health thingy
             # Plow on ahead anyways.
             # raise
+            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                raise
 
-    def _update_systems(self, time: float, tick: SystemTick) -> None:
-        # TODO: self._systems[tick] is a priority queue or something that
+    def _update_systems(self, time: decimal.Decimal, tick: SystemTick) -> None:
+        # TODO: self._sys_schedule[tick] is a priority queue or something that
         # doesn't pop off members each loop?
-        for each in self._systems[tick]:
-            if self.DEBUG_TICK:
-                log.debug("Tick.{tick} [{time:05.6d}]: {system}",
+        for each in self._sys_schedule:
+            if not each.wants_update_tick(tick, time):
+                continue
+
+            if self.debug_flagged(GameDebug.LOG_TICK):
+                log.debug("Tick.{tick} [{time:05.6f}]: {system}",
                           tick=tick,
                           time=time,
-                          system=system)
+                          system=each)
 
             # Try/catch each system, so they don't kill each other with a single
             # repeating exception.
@@ -228,75 +298,87 @@ class Game:
                     error,
                     "Game's {} System had a TickError during {} tick (time={}).",
                     str(each), tick, time)
+                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                    raise
                 # TODO: health thingy
             except SystemError as error:
                 log.exception(
                     error,
                     "Game's {} System had a SystemError during {} tick (time={}).",
                     str(each), tick, time)
+                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                    raise
                 # TODO: health thingy
             except ComponentError as error:
                 log.exception(
                     error,
                     "Game's {} System had a ComponentError during {} tick (time={}).",
                     str(each), tick, time)
+                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                    raise
                 # TODO: health thingy
             except VerediError as error:
                 log.exception(
                     error,
                     "Game's {} System had a generic VerediError during {} tick (time={}).",
                     str(each), tick, time)
+                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                    raise
                 # TODO: health thingy
             except Exception as error:
                 log.exception(
                     error,
                     "Game's {} System had an unknown exception during {} tick (time={}).",
                     str(each), tick, time)
+                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                    raise
                 # TODO: health thingy
                 raise
 
-    def _update_time(self, time_step):
-        now = self.sys_time.tick(time_step)
+    def _update_time(self) -> decimal.Decimal:
+        now = self.sys_time.step()
 
         self._update_systems(now, SystemTick.TIME)
 
-    def _update_life(self, time):
+        return now
+
+    def _update_life(self, now: decimal.Decimal) -> None:
         '''
         Main game loop's final update function - birth/creation of
         components & entities.
         '''
         # TODO: have life make a list of new entities?
-        self.sys_life_cycle.update_life(time,
+        self.sys_life_cycle.update_life(now,
                                         self.sys_life_cycle, self.sys_time)
 
         self._update_systems(now, SystemTick.LIFE)
 
-    def _update_pre(self, time):
+    def _update_pre(self, now: decimal.Decimal) -> None:
         '''
         Main game loop's set-up update function - anything that has to happen
         before SystemTick.STANDARD.
         '''
         self._update_systems(now, SystemTick.PRE)
 
-    def _update_post(self, time):
+    def _update_post(self, now: decimal.Decimal) -> None:
         '''
         Main game loop's clean-up update function - anything that has to happen
         after SystemTick.STANDARD.
         '''
         self._update_systems(now, SystemTick.POST)
 
-    def _update_death(self, time):
+    def _update_death(self, now: decimal.Decimal) -> None:
         '''
         Main game loop's final update function - death/deletion of
         components & entities.
         '''
         # TODO: have life make a list of dead entities? sub-components?
-        self.sys_life_cycle.update_life(time,
+        self.sys_life_cycle.update_life(now,
                                         self.sys_life_cycle, self.sys_time)
 
-        self._update_systems(now, SystemTick.LIFE)
+        self._update_systems(now, SystemTick.DEATH)
 
-    def _update(self, time_step):
+    def _update(self, now: decimal.Decimal) -> None:
         '''
         Main game loop's main update tick function.
         '''

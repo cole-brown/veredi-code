@@ -10,6 +10,7 @@ Base class for game update loop systems.
 
 from typing import Optional, Iterable, Set, Union
 import enum
+import decimal
 
 from veredi.entity.component import (EntityId,
                                      INVALID_ENTITY_ID,
@@ -60,19 +61,12 @@ class SystemHealth(enum.Enum):
 class System:
     def __init__(self) -> None:
         self._components = None
-        self._health = {} # TODO: impl this? or put in game?
+        self._health = {} # TODO: impl this? or put in game class?
+        self._ticks = None
 
     # --------------------------------------------------------------------------
     # System Registration / Definition
     # --------------------------------------------------------------------------
-
-    @classmethod
-    def register(cls: 'System') -> Optional[SystemTick]:
-        '''
-        Returns a SystemTick value of flagged ticks this system desires to run
-        during.
-        '''
-        return None
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
@@ -100,9 +94,18 @@ class System:
     # Game Update Loop/Tick Functions
     # --------------------------------------------------------------------------
 
+    def wants_update_tick(self,
+                          tick: SystemTick,
+                          time: decimal.Decimal) -> bool:
+        '''
+        Returns a boolean for whether this system wants to run during this tick
+        update function.
+        '''
+        return self._ticks is not None and self._ticks.has(tick)
+
     def update_tick(self,
                     tick: SystemTick,
-                    time: float,
+                    time: decimal.Decimal,
                     sys_entities: 'System',
                     sys_time: 'System') -> SystemHealth:
         '''
@@ -111,22 +114,22 @@ class System:
         Returns SystemHealth value.
         '''
         if tick is SystemTick.TIME:
-            return self.update_time(tick, time, sys_entities, sys_time)
+            return self.update_time(time, sys_entities, sys_time)
 
         elif tick is SystemTick.LIFE:
-            return self.update_life(tick, time, sys_entities, sys_time)
+            return self.update_life(time, sys_entities, sys_time)
 
         elif tick is SystemTick.PRE:
-            return self.update_pre(tick, time, sys_entities, sys_time)
+            return self.update_pre(time, sys_entities, sys_time)
 
         elif tick is SystemTick.STANDARD:
-            return self.update(tick, time, sys_entities, sys_time)
+            return self.update(time, sys_entities, sys_time)
 
         elif tick is SystemTick.POST:
-            return self.update_post(tick, time, sys_entities, sys_time)
+            return self.update_post(time, sys_entities, sys_time)
 
         elif tick is SystemTick.DEATH:
-            return self.update_death(tick, time, sys_entities, sys_time)
+            return self.update_death(time, sys_entities, sys_time)
 
         else:
             # This, too, should be treated as a SystemHealth.FATAL...
@@ -135,7 +138,7 @@ class System:
                 self.__class__.__name__, tick)
 
     def update_time(self,
-                    time: float,
+                    time: decimal.Decimal,
                     sys_entities: 'System',
                     sys_time: 'System') -> SystemHealth:
         '''
@@ -145,7 +148,7 @@ class System:
         return SystemHealth.FATAL
 
     def update_life(self,
-                    time: float,
+                    time: decimal.Decimal,
                     sys_entities: 'System',
                     sys_time: 'System') -> SystemHealth:
         '''
@@ -154,7 +157,7 @@ class System:
         return SystemHealth.FATAL
 
     def update_pre(self,
-                   time: float,
+                   time: decimal.Decimal,
                    sys_entities: 'System',
                    sys_time: 'System') -> SystemHealth:
         '''
@@ -164,7 +167,7 @@ class System:
         return SystemHealth.FATAL
 
     def update(self,
-               time: float,
+               time: decimal.Decimal,
                sys_entities: 'System',
                sys_time: 'System') -> SystemHealth:
         '''
@@ -173,7 +176,7 @@ class System:
         return SystemHealth.FATAL
 
     def update_post(self,
-                    time: float,
+                    time: decimal.Decimal,
                     sys_entities: 'System',
                     sys_time: 'System') -> SystemHealth:
         '''
@@ -183,7 +186,7 @@ class System:
         return SystemHealth.FATAL
 
     def update_death(self,
-                    time: float,
+                    time: decimal.Decimal,
                     sys_entities: 'System',
                     sys_time: 'System') -> SystemHealth:
         '''
