@@ -12,11 +12,14 @@ from typing import Optional, Iterable, Set, Union
 import enum
 import decimal
 
-from veredi.entity.component import (EntityId,
-                                     INVALID_ENTITY_ID,
+from veredi.entity.component import (ComponentId,
+                                     INVALID_COMPONENT_ID,
                                      Component,
                                      ComponentMetaData,
                                      ComponentError)
+from veredi.entity.entity import (EntityId,
+                                  INVALID_ENTITY_ID,
+                                  Entity)
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -31,10 +34,8 @@ class SystemTick(enum.Flag):
     POST     = enum.auto()
     DEATH    = enum.auto()
 
-    def has(self, tick):
-        if (self & tick) == tick:
-            return True
-        return False
+    def has(self, flag):
+        return ((self & flag) == flag)
 
 
 class SystemPriority(enum.IntEnum):
@@ -73,6 +74,13 @@ class System:
         Returns a SystemPriority (or int) for when, relative to other systems,
         this should run. Highest priority goes firstest.
         '''
+        # TODO: flow control - systems have priorities and can depend on each
+        # other, so that a topological order for their execution can be
+        # established.
+
+        # So allow either static priority level, or some sort of...
+        # SystemFlow.Before('class name')
+        # SystemFlow.After('class name')
         return SystemPriority.LOW
 
     @staticmethod

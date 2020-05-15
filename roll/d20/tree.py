@@ -287,14 +287,14 @@ class Dice(Leaf):
             return ''
 
         output = []
-        d20_fmt = options.has(FormatOptions.INITIAL)
+        d20_fmt = options.any(FormatOptions.INITIAL)
         if d20_fmt:
             if self.dice == 0:
                 output.append(f'd{self.faces}')
             else:
                 output.append(f'{self.dice}d{self.faces}')
 
-        roll_fmt = options.has(FormatOptions.INTERMEDIATE)
+        roll_fmt = options.any(FormatOptions.INTERMEDIATE)
         if roll_fmt:
             if d20_fmt:
                 output.append("=")
@@ -303,7 +303,7 @@ class Dice(Leaf):
             else:
                 output.append(str(self.roll))
 
-        total_fmt = options.has(FormatOptions.FINAL)
+        total_fmt = options.any(FormatOptions.FINAL)
         if total_fmt:
             if roll_fmt:
                 output.append("=")
@@ -383,7 +383,7 @@ class Variable(Leaf):
             return ''
 
         output = []
-        name_fmt = options.has(FormatOptions.INITIAL, FormatOptions.INTERMEDIATE)
+        name_fmt = options.any(FormatOptions.INITIAL, FormatOptions.INTERMEDIATE)
         if name_fmt:
             if not self.name:
                 output.append(self.NULL_SIGN)
@@ -391,7 +391,7 @@ class Variable(Leaf):
                 # §-TODO-§ [2020-04-27]: 'proper name' instead of input name
                 output.append(f'${self.name}')
 
-        total_fmt = options.has(FormatOptions.FINAL)
+        total_fmt = options.any(FormatOptions.FINAL)
         if total_fmt:
             if name_fmt:
                 output.append("=")

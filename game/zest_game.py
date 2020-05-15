@@ -11,13 +11,16 @@ Tests for game.py (The Game Itself).
 import unittest
 
 from . import game
-from .entity import SystemLifeCycle
-from .time import Time
-from veredi.entity import component
-from veredi.entity.component import (EntityId,
-                                     INVALID_ENTITY_ID,
-                                     Component)
-from veredi.entity.entity import Entity
+from .entity import EntityManager
+from .time import TimeManager
+from veredi.entity.component import (ComponentId,
+                                     INVALID_COMPONENT_ID,
+                                     Component,
+                                     ComponentMetaData,
+                                     ComponentError)
+from veredi.entity.entity import (EntityId,
+                                  INVALID_ENTITY_ID,
+                                  Entity)
 from .system import System, SystemTick, SystemPriority, SystemHealth
 
 
@@ -167,10 +170,10 @@ class SysNoReq(SysTest):
 class Test_Game(unittest.TestCase):
 
     def setUp(self):
-        self.entities = SystemLifeCycle()
-        self.time = Time()
+        self.entities = EntityManager()
+        self.time = TimeManager()
         self.game = game.Game(None, None, None,
-                               self.time, self.entities,
+                              self.time, self.entities,
                               game.GameDebug.UNIT_TESTS)
 
     def tearDown(self):
@@ -179,15 +182,15 @@ class Test_Game(unittest.TestCase):
         self.game = None
 
     def create_entities(self):
-        comps_1_2_x = set([CompOne(), CompTwo()])
-        comps_1_x_x = set([CompOne()])
-        comps_1_2_3 = set([CompOne(), CompTwo(), CompThree()])
-        comps_x_2_3 = set([           CompTwo(), CompThree()])
+        comps_1_2_x = set([CompOne(0), CompTwo(1)])
+        comps_1_x_x = set([CompOne(2)])
+        comps_1_2_3 = set([CompOne(3), CompTwo(4), CompThree(5)])
+        comps_x_2_3 = set([            CompTwo(6), CompThree(7)])
 
-        self.ent_1_2_x = self.entities.create(comps_1_2_x)
-        self.ent_1_x_x = self.entities.create(comps_1_x_x)
-        self.ent_1_2_3 = self.entities.create(comps_1_2_3)
-        self.ent_x_2_3 = self.entities.create(comps_x_2_3)
+        self.ent_1_2_x = self.entities.create(1, comps_1_2_x)
+        self.ent_1_x_x = self.entities.create(2, comps_1_x_x)
+        self.ent_1_2_3 = self.entities.create(1, comps_1_2_3)
+        self.ent_x_2_3 = self.entities.create(3, comps_x_2_3)
 
         self.ent_ids = {
             self.ent_1_2_x,
@@ -195,11 +198,6 @@ class Test_Game(unittest.TestCase):
             self.ent_1_2_3,
             self.ent_x_2_3,
         }
-
-    def create_systems(self, *systems):
-        for each in systems:
-            self.game.register(each)
-        self.game.set_up()
 
     def saw_ents(self, sys, tick, ent_ids):
         seen_ids = set()
