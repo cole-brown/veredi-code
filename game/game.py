@@ -17,15 +17,18 @@ from veredi.entity.exceptions import ComponentError
 from veredi.logger import log
 from .exceptions import SystemError, TickError
 
-from .time import Time
-from .entity import SystemLifeCycle
+from .time import TimeManager
+from .entity import EntityManager
 from .system import SystemTick, SystemPriority, SystemHealth, System
 
-from veredi.entity.component import (EntityId,
-                                     INVALID_ENTITY_ID,
+from veredi.entity.component import (ComponentId,
+                                     INVALID_COMPONENT_ID,
                                      Component,
-                                     ComponentMetaData)
-from veredi.entity.entity import Entity
+                                     ComponentMetaData,
+                                     ComponentError)
+from veredi.entity.entity import (EntityId,
+                                  INVALID_ENTITY_ID,
+                                  Entity)
 
 from veredi.data.repository import manager
 
@@ -102,9 +105,7 @@ class GameDebug(enum.Flag):
     UNIT_TESTS = LOG_TICK | RAISE_ERRORS
 
     def has(self, flag):
-        if (self & flag) == flag:
-            return True
-        return False
+        return ((self & flag) == flag)
 
 
 class Game:
@@ -113,8 +114,8 @@ class Game:
                  owner: Entity,
                  campaign_id: int,
                  repo_manager: manager.Manager,
-                 time_system: Optional[System] = None,
-                 life_system: Optional[System] = None,
+                 time_manager: Optional[TimeManager] = None,
+                 entity_manager: Optional[EntityManager] = None,
                  debug: Optional[GameDebug] = None) -> None:
         # # TODO: Make session a System, put these in there?
         # self.repo = repo_manager
@@ -132,8 +133,8 @@ class Game:
         # ---
         # Required/Special Systems
         # ---
-        self._set_up_time(time_system)
-        self._set_up_life(life_system)
+        self._set_up_time(time_manager)
+        self._set_up_entity(entity_manager)
 
         # ---
         # General Systems
@@ -162,12 +163,12 @@ class Game:
         self._debug = value
 
     def _set_up_time(self,
-                     time_system: Optional[System] = None) -> None:
-        self.sys_time = time_system or Time()
+                     time_manager: Optional[TimeManager] = None) -> None:
+        self.time_manager = time_manager or TimeManager()
 
-    def _set_up_life(self,
-                     life_system: Optional[System] = None) -> None:
-        self.sys_life_cycle = life_system or SystemLifeCycle()
+    def _set_up_entity(self,
+                       entity_manager: Optional[EntityManager] = None) -> None:
+        self.entity_manager = entity_manager or EntityManager()
 
 
     # --------------------------------------------------------------------------
@@ -289,7 +290,7 @@ class Game:
             # Try/catch each system, so they don't kill each other with a single
             # repeating exception.
             try:
-                each.update_tick(tick, time, self.sys_life_cycle, self.sys_time)
+                each.update_tick(tick, time, self.entity_manager, self.time_manager)
 
             # Various exceptions we can handle at this level...
             # Or we can't but want to log.
@@ -336,7 +337,7 @@ class Game:
                 raise
 
     def _update_time(self) -> decimal.Decimal:
-        now = self.sys_time.step()
+        now = self.time_manager.step()
 
         self._update_systems(now, SystemTick.TIME)
 
@@ -348,8 +349,7 @@ class Game:
         components & entities.
         '''
         # TODO: have life make a list of new entities?
-        self.sys_life_cycle.update_life(now,
-                                        self.sys_life_cycle, self.sys_time)
+        self.entity_manager.creation(self.time_manager)
 
         self._update_systems(now, SystemTick.LIFE)
 
@@ -373,8 +373,7 @@ class Game:
         components & entities.
         '''
         # TODO: have life make a list of dead entities? sub-components?
-        self.sys_life_cycle.update_life(now,
-                                        self.sys_life_cycle, self.sys_time)
+        self.entity_manager.destruction(self.time_manager)
 
         self._update_systems(now, SystemTick.DEATH)
 

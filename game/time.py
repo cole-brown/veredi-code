@@ -131,7 +131,7 @@ class Clock:
         self.time_stamp = value.timestamp(self.time_zone)
 
 
-class Time(system.System):
+class TimeManager:
     '''
     This class has the potential to be saved to data fields. Let it control its
     timezones. Convert to user-friendly elsewhere.
@@ -176,37 +176,3 @@ class Time(system.System):
 
     def set_datetime(self, value: datetime) -> None:
         self.clock.datetime = value
-
-    # ---
-    # system.System overrides
-    # ---
-
-    def update_time(self,
-                    time: float,
-                    sys_entities: system.System,
-                    sys_time: system.System) -> system.SystemHealth:
-        '''
-        Time should not be part of those /normal/ Systems.
-        It is TIME ITSELF!!!!
-        '''
-        raise exceptions.SystemError("Time should never run this tick. "
-                                     "Use its tick().",
-                                     NotImplemented, None)
-
-    @staticmethod
-    def register() -> Optional[system.SystemTick]:
-        '''
-        Returns a SystemTick value of flagged ticks this system desires to run
-        during.
-        '''
-        raise exceptions.SystemError("Time system should not register normally.",
-                                     NotImplemented, None)
-
-    @staticmethod
-    def priority() -> system.SystemPriority:
-        '''
-        Returns a SystemPriority (or int) for when, relative to other systems,
-        this should run. Highest priority goes firstest.
-        '''
-        raise exceptions.SystemError("Time system should not run normally.",
-                                     NotImplemented, None)

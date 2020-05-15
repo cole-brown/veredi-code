@@ -8,15 +8,23 @@ An entity is just a grab bag of Components with an EntityId associated to it.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Iterable, Set, Any
+from typing import Optional, Iterable, Set, Any, NewType, Dict, Union, Type
 
-from .component import EntityId, INVALID_ENTITY_ID, Component
-from . import component
+from .component import (ComponentId,
+                        INVALID_COMPONENT_ID,
+                        Component,
+                        CompInstOrType)
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+EntityId = NewType('EntityId', int)
+INVALID_ENTITY_ID = EntityId(0)
+
+EntityTypeId = NewType('EntityTypeId', int)
+INVALID_ENTITY_TYPE_ID = EntityTypeId(0)
 
 
 # -----------------------------------------------------------------------------
@@ -29,28 +37,41 @@ class Entity:
     else. The components /are/ the entity, basically.
     '''
 
-    def __init__(self, eid: EntityId, components: Iterable[Component]) -> None:
+    def __init__(self,
+                 eid: EntityId,
+                 tid: EntityTypeId,
+                 *components: Component) -> None:
+        '''DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!'''
         self._entity_id = eid
+        self._type_id = tid
         self._components = {}
-        for each in components:
-            self._components[each] = each
+        for comp in components:
+            if isinstance(comp, Iterable):
+                for each in comp:
+                    self._components[type(each)] = each
+            else:
+                self._components[type(comp)] = comp
 
     @property
     def id(self) -> EntityId:
         return self._entity_id
 
-    # Disallow setting id.
-    # @id.setter
-    # def id(self, value: EntityId) -> None:
-    #     self._entity_id = value
+    @property
+    def type_id(self) -> EntityId:
+        return self._type_id
 
-    def get(self, component: component.InstOrType) -> Optional[Component]:
+    # Setting ids isn't allowed.
+
+    # TODO: get component by id?
+
+    def get(self, component: CompInstOrType) -> Optional[Component]:
         '''
         Gets a component type from this entity. Will return the component
         instance or None.
         '''
         return self._components.get(component, None)
 
+    # TODO: remove this - put in EntityManager.
     def add(self, component: Component):
         '''
         Adds the component to this entity.
@@ -72,6 +93,7 @@ class Entity:
                 "replacement. entity_id: {}, existing: {}, new: {}",
                 self.id, existing, component)
 
+    # TODO: remove this - put in EntityManager.
     def update(self, components: Iterable[Component]) -> None:
         '''
         Tries to add() all the supplied components to this entity.
@@ -79,6 +101,7 @@ class Entity:
         for each in components:
             self.add(each)
 
+    # TODO: remove this - put in EntityManager.
     def discard(self, component: Component) -> Optional[Component]:
         '''
         Removes a component from the entity.
@@ -86,40 +109,44 @@ class Entity:
         '''
         return self._components.pop(component, None)
 
-    def contains(self, comp_set: Set[Component]) -> bool:
+    def contains(self,
+                 comp_set: Set[Union[Type[Component], Component]]) -> bool:
         '''
         Returns true if this entity is a superset of the desired components.
+        I.e. if entity.contains({RequiredComp0, RequiredComp2})
         '''
-        return self._components.keys() >= comp_set
+        # For each component, check that it's in our dictionary.
+        return all(self.__contains__(component)
+                   for component in comp_set)
 
     # --------------------------------------------------------------------------
-    # Set Interface (hashable, ==, 'in')
+    # Python Interfaces (hashable, ==, 'in')
     # --------------------------------------------------------------------------
 
-    def __hash__(self):
-        return id(self._entity_id)
+    # def __hash__(self):
+    #     '''
+    #     __hash__ and __eq__ needed for putting in dict, set. We'll make it a
+    #     bit easier since EntityId must be unique.
+    #     '''
+    #     return hash(self._entity_id)
 
     def __eq__(self, other: Any):
         '''
-        This will make `entity == entity_id` true... So don't do that unless you
-        mean to.
+        Entity == Entity is just an id equality check. Otherwise uses id() func.
         '''
         if isinstance(other, Entity):
             return self.id == other.id
 
-        # Otherwise, try to compare a hash of our components with whatever
-        # other's hash is.
-        other_hash = None
-        if isinstance(other, (set, frozenset)):
-            self_hash = Component.hashed(self._components.values())
-            other_hash = Component.hashed(other)
-            return self_hash == other_hash
-        else:
-            other_hash = hash(other)
-
-        return hash(self) == other_hash
+        return id(self) == id(other)
 
     def __contains__(self, key):
+        '''
+        This is for the any "if component in entity:" sort of check systems
+        might want to do.
+        '''
+        # Convert to type if component instance, otherwise check directly.
+        if isinstance(key, Component):
+            return type(key) in self._components
         return key in self._components
 
 # class EntityMetaData:

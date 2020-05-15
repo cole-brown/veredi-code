@@ -18,18 +18,17 @@ from .exceptions import ComponentError
 # Constants
 # -----------------------------------------------------------------------------
 
-EntityId = NewType('EntityId', int)
-INVALID_ENTITY_ID = EntityId(0)
+ComponentId = NewType('ComponentId', int)
+INVALID_COMPONENT_ID = ComponentId(0)
 
-InstOrType = Union['Component', Type['Component']]
+CompInstOrType = Union['Component', Type['Component']]
 
 @enum.unique
-class StateLifeCycle(enum.Enum):
-    INVALID = 0
-    ADDED   = enum.auto()
-    EXISTS  = enum.auto()
-    REMOVED = enum.auto()
-
+class ComponentLifeCycle(enum.Enum):
+    INVALID    = 0
+    CREATING   = enum.auto()
+    ALIVE      = enum.auto()
+    DESTROYING = enum.auto()
 
 # -----------------------------------------------------------------------------
 # Code
@@ -41,8 +40,22 @@ class Component:
     that actually share the same exact component.
     '''
 
-    def __init__(self) -> None:
-        self.meta = ComponentMetaData(True, StateLifeCycle.ADDED)
+    def __init__(self,
+                 cid: ComponentId) -> None:
+        self._comp_id = cid
+        self._life_cycle = ComponentLifeCycle.CREATING
+
+    @property
+    def id(self) -> ComponentId:
+        return self._comp_id
+
+    @property
+    def life_cycle(self):
+        return self._life_cycle
+
+    @property
+    def enabled(self):
+        return self._life_cycle == ComponentLifeCycle.ALIVE
 
     def replaceable_with(self, other: 'Component'):
         '''
@@ -61,35 +74,40 @@ class Component:
     # Set Interface (hashable, equals)
     # --------------------------------------------------------------------------
 
-    @staticmethod
-    def hashed(components: Iterable['Component']) -> int:
-        '''
-        Hashes each component and returns the overall hash.
-        '''
-        return sum(map(hash, components))
-
     def __hash__(self):
+        '''Set/Dict interface.
+
+        Redefining so that Components are singleton - only one per class
+        allowed. This doesn't prevent an Entity from having, say, HealthClass
+        and HealthSubClass, but at least it's a sanity check.
+        '''
         # Hash of (sub)class itself, not any instance.
         # All (sub)class instances will be considered 'equal' this way for
         # e.g. set, dict operations.
         return hash(self.__class__)
 
     def __eq__(self, other: Any):
+        '''Set/Dict interface.
+
+        Redefining so that Components are singleton - only one per class
+        allowed. This doesn't prevent an Entity from having, say, HealthClass
+        and HealthSubClass, but at least it's a sanity check.
+        '''
         # Hash of (sub)class itself, not any instance.
         # All (sub)class instances will be considered 'equal' this way for
         # e.g. set, dict operations.
         other_hash = None
-        if isinstance(other, (set, frozenset)):
+        if isinstance(other, Component):
             other_hash = Component.hashed(other)
         else:
             other_hash = hash(other)
         return hash(self) == other_hash
 
+# TODO:
+#   Some ComponentSet or ComponentDict or ComponentManager for representing, comparing Components/Entities.
 
 class ComponentMetaData:
     def __init__(self,
                  enabled: bool = True,
-                 state: StateLifeCycle = StateLifeCycle.ADDED
                  ) -> None:
         self.enabled = enabled
-        self.state = state

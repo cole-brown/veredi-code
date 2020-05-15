@@ -29,8 +29,11 @@ class FormatOptions(enum.Flag):
     FINAL        = enum.auto()
     ALL = INITIAL | INTERMEDIATE | FINAL
 
-    def has(self, *desired):
-        for each in desired:
+    def all(self, flag):
+        return ((self & flag) == flag)
+
+    def any(self, *flags):
+        for each in flags:
             if (self & each) == each:
                 return True
         return False

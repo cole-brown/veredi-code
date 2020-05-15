@@ -1,20 +1,19 @@
 # coding: utf-8
 
 '''
-Entity's/Components' Life Cycle System. Manages adding, removing entities to a
-scene in an update-loop-safe manner.
+Entity's Life Cycle System. Manages adding, removing entities to a
+scene in a safe manner.
 
-"Update-safe" means:
-  - Adding happens before the beginning of the normal update loop.
-  - Removing happens after the end of the normal update loop.
-
-This way any iteration underway will not be interrupted by the entity that
-needed managed.
+Do not hold onto Entities, Components, etc. They /can/ be destroyed at any time,
+leaving you holding a dead object. Only keep the EntityId or ComponentId, then
+ask its manager. If the manager returns None, the Entity/Component does not
+exist anymore.
 
 Inspired by:
   - Entity Component System design pattern
   - personal pain and suffering
   - mecs: https://github.com/patrick-finke/mecs
+  - EntityComponentSystem: https://github.com/tobias-stein/EntityComponentSystem
 '''
 
 
@@ -22,21 +21,20 @@ Inspired by:
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
 from typing import Union, Type, Iterable, Optional, Set
-from collections.abc import Iterable as iter_inst
 
-# Framework
-
-# Our Stuff
 from veredi.logger import log
-from veredi.entity import component
-from veredi.entity.component import (EntityId,
-                                     INVALID_ENTITY_ID,
+from veredi.entity.component import (ComponentId,
+                                     INVALID_COMPONENT_ID,
                                      Component,
-                                     ComponentError)
-from veredi.entity.entity import Entity
-from . import system
+                                     ComponentError,
+                                     CompInstOrType)
+from veredi.entity.entity import (EntityId,
+                                  EntityTypeId,
+                                  INVALID_ENTITY_ID,
+                                  Entity)
+from .system import SystemHealth
+from .time import TimeManager
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -47,23 +45,21 @@ from . import system
 # Code
 # -----------------------------------------------------------------------------
 
-class SystemLifeCycle(system.System):
+class EntityManager:
     '''
     Manages the life cycles of entities/components.
     '''
 
     def __init__(self) -> None:
         '''Initializes this thing.'''
-        self._new_entity_id = INVALID_ENTITY_ID
-        self._entity_add    = {}
-        self._entity_rm     = {}
-        self._entity_del    = set()
-        self._entity        = {}
+        # TODO: Pools instead of allowing stuff to be allocated/deallocated?
 
-        self._entity_transitioned = {
-            component.StateLifeCycle.ADDED:   set(),
-            component.StateLifeCycle.REMOVED: set(),
-        }
+        self._new_entity_id  = INVALID_ENTITY_ID
+        self._entity_add     = {}
+        self._entity_remove  = {}
+        self._entity_destroy = set()
+
+        self._entity         = {}
 
 
     # --------------------------------------------------------------------------
@@ -95,7 +91,7 @@ class SystemLifeCycle(system.System):
         '''
         return self._entity.get(entity_id, None)
 
-    def create(self, *components: Component) -> EntityId:
+    def create(self, type_id: EntityTypeId, *components: Component) -> EntityId:
         '''
         Creates an entity with the supplied components. This is the start of the
         life cycle of the entity.
@@ -107,65 +103,51 @@ class SystemLifeCycle(system.System):
         '''
         self._new_entity_id += 1
 
-        adding = set()
-        for comp in components:
-            if isinstance(comp, set):
-                adding.update(comp)
-            elif isinstance(comp, iter_inst):
-                adding.update(comp)
-            else:
-                adding.add(comp)
-
-        self._entity_add[self._new_entity_id] = adding
+        entity = Entity(self._new_entity_id, type_id, *components)
+        self._entity_add[self._new_entity_id] = entity
 
         return self._new_entity_id
 
-    def delete(self, entity_id: EntityId) -> None:
+    def destroy(self, entity_id: EntityId) -> None:
         '''
         Removes all components from an entity. This is the end of the life cycle
         of the entity.
 
-        Entity/Components will be deleted after the end of the current tick.
+        Entity/Components will be destroyed after the end of the current tick.
         '''
-        self._entity_del.add(entity_id)
+        self._entity_destroy.add(entity_id)
 
     def add(self, entity_id: EntityId, *components: Component) -> None:
         '''
         Add components to an entity. The entity will be updated with its new
         components at the start of the new tick.
         '''
+        # TODO: Put on pre-existing entity, but set to disabled or something
+        # until creation()?
         entity = self._entity_add.setdefault(entity_id, set())
         entity.update(components)
 
-    def remove(self, entity_id: EntityId, *components: component.InstOrType) -> None:
+    def remove(self, entity_id: EntityId, *components: CompInstOrType) -> None:
         '''
         Remove components from an entity. The entity will be updated after the
         end of the update tick.
 
         `components` can be component objects or types.
         '''
-        comp_set = self._entity_rm.get(entity_id, None)
+        comp_set = self._entity_remove.get(entity_id, None)
         if comp_set:
             comp_set.update(components)
         else:
             comp_set = set(components)
 
-        self._entity_rm[entity_id] = comp_set
+        self._entity_remove[entity_id] = comp_set
 
     # --------------------------------------------------------------------------
     # Game Loop: Component/Entity Life Cycle Updates
     # --------------------------------------------------------------------------
 
-    def _transition(self, entity_id: EntityId, state: component.StateLifeCycle) -> None:
-        self._entity_transitioned[state].add(entity_id)
-
-    def _get_transitions(self, state: component.StateLifeCycle) -> set:
-        return self._entity_transitioned[state]
-
-    def update_life(self,
-                    time: float,
-                    sys_entities: system.System,
-                    sys_time: system.System) -> system.SystemHealth:
+    def creation(self,
+                 time: TimeManager) -> SystemHealth:
         '''
         Runs before the start of the tick/update loop.
 
@@ -174,30 +156,39 @@ class SystemLifeCycle(system.System):
         '''
 
         for entity_id in self._entity_add:
-            # Actual entity?
-            entity = self._entity.get(entity_id, None)
-            # Components to add
-            components = self._entity_add[entity_id]
+            # Pre-existing entity?
+            existing = self._entity.get(entity_id, None)
+            # New Entity or Components to add.
+            adding = self._entity_add[entity_id]
 
             try:
                 # New entity?
-                if not entity:
-                    # Could be an empty set of components, but that's allowed...
-                    # for now. (create() doesn't require components)
-                    entity = Entity(entity_id, components)
-                    self._entity[entity_id] = entity
+                if not existing:
+                    if isinstance(adding, Entity):
+                        self._entity[entity_id] = adding
+                    else:
+                        # Ignore, generally. Maybe they died...
+                        log.debug("'Add' requested for components {} to "
+                                  "entity id {}, but no entity exists.",
+                                  adding, entity_id)
 
                 # Existing entity, but no new components?
-                elif not components:
+                elif not adding:
                     log.error("'Add' requested for existing entity {}, but no "
                               "components supplied for adding: {}",
-                              entity_id, components)
+                              entity_id, adding)
                     # TODO: pretty print funcs for:
                     #   entity_id, component, 'entity' (aka bag o' components)
 
-                # Existing entity; have components; ask for update.
+                # Pre-existing entity, and just created one?!
+                elif isinstance(adding, Entity):
+                    log.error("'Create' requested for pre-existing entity {}. "
+                              "Components supplied for creation: {}",
+                              entity_id, adding)
+
+                # Existing entity; adding components; ask for the update.
                 else:
-                    entity.update(components)
+                    existing.update(adding)
 
             except ComponentError as error:
                 log.exception(
@@ -206,19 +197,17 @@ class SystemLifeCycle(system.System):
                     entity_id)
                 # TODO: put this entity in... jail or something?
 
-            if entity:
-                self._transition(entity_id, component.StateLifeCycle.ADDED)
+            # TODO EVENT HERE!
+            # if entity:
+            #     self._transition(entity_id, component.StateLifeCycle.ADDED)
 
         # Done with iteration - clear the adds.
         self._entity_add.clear()
 
-        # return self._get_transitions(component.StateLifeCycle.ADDED)
-        return system.SystemHealth.HEALTHY
+        return SystemHealth.HEALTHY
 
-    def update_death(self,
-                     time: float,
-                     sys_entities: system.System,
-                     sys_time: system.System) -> system.SystemHealth:
+    def destruction(self,
+                    time: TimeManager) -> SystemHealth:
         '''
         Runs after the end of the tick/update loop.
 
@@ -226,19 +215,20 @@ class SystemLifeCycle(system.System):
         anything needs updating after a component loss.
         '''
 
-        # Full delete of entities first... Skips having to delete some
-        # components, then deleting whole entity anyways.
-        for entity_id in self._entity_del:
+        # Full destroy of entities first... Skips having to destroy some
+        # components, then destorying whole entity anyways.
+        for entity_id in self._entity_destroy:
             # Actual entity
             entity = self._entity.pop(entity_id, None)
-            if entity:
-                self._transition(entity_id, component.StateLifeCycle.REMOVED)
+            # TODO EVENT HERE!
+            # if entity:
+            #     self._transition(entity_id, component.StateLifeCycle.REMOVED)
 
-        # Done with iteration - clear the deletes.
-        self._entity_del.clear()
+        # Done with iteration - clear the destroys.
+        self._entity_destroy.clear()
 
-        # Delete of select components next.
-        for entity_id in self._entity_rm:
+        # Destruction of select components next.
+        for entity_id in self._entity_remove:
             # Actual entity
             entity = self._entity.get(entity_id, None)
             if not entity:
@@ -246,7 +236,7 @@ class SystemLifeCycle(system.System):
                 continue
 
             # Components to remove
-            components = self._entity_rm[entity_id]
+            components = self._entity_remove[entity_id]
             removed = False
 
             # Existing entity, but no new components?
@@ -261,11 +251,11 @@ class SystemLifeCycle(system.System):
                 for comp in components:
                     removed = removed or bool(entity.discard(comp))
 
-            if removed:
-                self._transition(entity_id, component.StateLifeCycle.REMOVED)
+            # TODO EVENT HERE!
+            # if removed:
+            #     self._transition(entity_id, component.StateLifeCycle.REMOVED)
 
         # Done with iteration - clear the removes.
-        self._entity_rm.clear()
+        self._entity_remove.clear()
 
-        # return self._get_transitions(component.StateLifeCycle.REMOVED)
-        return system.SystemHealth.HEALTHY
+        return SystemHealth.HEALTHY

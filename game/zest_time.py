@@ -27,7 +27,7 @@ from . import exceptions
 class Test_Time(unittest.TestCase):
 
     def setUp(self):
-        self.time = time.Time()
+        self.time = time.TimeManager()
         self.midnight_utc = datetime.now(timezone.utc).replace(hour=0,
                                                                minute=0,
                                                                second=0,
@@ -59,13 +59,3 @@ class Test_Time(unittest.TestCase):
                          self.time.tick.seconds)
         self.assertEqual(now,
                          self.time.get_tick())
-
-    def test_specialness(self):
-        with self.assertRaises(exceptions.SystemError) as context:
-            tick = self.time.register()
-
-        with self.assertRaises(exceptions.SystemError) as context:
-            tick = self.time.priority()
-
-        with self.assertRaises(exceptions.SystemError) as context:
-            tick = self.time.update_time(0.0, None, None)
