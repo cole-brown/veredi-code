@@ -15,7 +15,6 @@ import decimal
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,
                                      Component,
-                                     ComponentMetaData,
                                      ComponentError)
 from veredi.entity.entity import (EntityId,
                                   INVALID_ENTITY_ID,

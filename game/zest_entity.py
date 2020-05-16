@@ -14,11 +14,11 @@ from .entity import EntityManager
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,
                                      Component,
-                                     ComponentMetaData,
                                      ComponentError)
 from veredi.entity.entity import (EntityId,
                                   INVALID_ENTITY_ID,
-                                  Entity)
+                                  Entity,
+                                  EntityLifeCycle)
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -55,55 +55,58 @@ class Test_EntityManager(unittest.TestCase):
     def test_init(self):
         self.assertTrue(self.entities)
 
-    def test_request_create(self):
+    def test_create(self):
         self.assertEqual(self.entities._new_entity_id,
                          INVALID_ENTITY_ID)
 
         eid = self.entities.create(self._TYPE_DONT_CARE, CompOne(0), CompTwo(1))
         self.assertNotEqual(eid, INVALID_ENTITY_ID)
 
-        self.assertEqual(len(self.entities._entity_add), 1)
-        self.assertEqual(len(self.entities._entity_remove), 0)
+        self.assertEqual(len(self.entities._entity_create), 1)
         self.assertEqual(len(self.entities._entity_destroy), 0)
-        self.assertEqual(len(self.entities._entity), 0)
+        self.assertEqual(len(self.entities._entity), 1)
 
         # TODO EVENT HERE!
-        # # Entities will not be 'transitioned' until the tick where they're
-        # # actually added or removed.
-        # added = self.entities._get_transitions(component.StateLifeCycle.ADDED)
-        # removed = self.entities._get_transitions(component.StateLifeCycle.REMOVED)
-        # self.assertFalse(added)
-        # self.assertFalse(removed)
 
         # Entity should only have the components we asked for.
-        entity = self.entities._entity_add[eid]
-        self.assertIsInstance(self.entities._entity_add[eid],
+        entity = self.entities.get(eid)
+        self.assertIsNotNone(entity)
+        self.assertIsInstance(entity,
                               Entity)
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne, CompTwo})
+        self.assertTrue(entity.contains({CompOne, CompTwo}))
+        self.assertEqual(entity.life_cycle,
+                         EntityLifeCycle.CREATING)
 
-    def test_request_destroy(self):
+    def test_destroy(self):
         self.assertEqual(self.entities._new_entity_id,
                          INVALID_ENTITY_ID)
 
+        # destroy non-existant == no-op
         eid = 1
         self.entities.destroy(eid)
-        self.assertNotEqual(eid, INVALID_ENTITY_ID)
-
-        self.assertEqual(len(self.entities._entity_add), 0)
-        self.assertEqual(len(self.entities._entity_remove), 0)
-        self.assertEqual(len(self.entities._entity_destroy), 1)
         self.assertEqual(len(self.entities._entity), 0)
+        self.assertEqual(len(self.entities._entity_create), 0)
+        self.assertEqual(len(self.entities._entity_destroy), 0)
 
-        # TODO EVENT HERE!
-        # # Entities will not be 'transitioned' until the tick where they're
-        # # actually added or removed.
-        # added = self.entities._get_transitions(component.StateLifeCycle.ADDED)
-        # removed = self.entities._get_transitions(component.StateLifeCycle.REMOVED)
-        # self.assertFalse(added)
-        # self.assertFalse(removed)
+        eid = self.entities.create(self._TYPE_DONT_CARE, CompOne(0), CompTwo(1))
+        self.assertNotEqual(eid, INVALID_ENTITY_ID)
+        # Now we should have a create...
+        self.assertEqual(len(self.entities._entity), 1)
+        self.assertEqual(len(self.entities._entity_create), 1)
+        # ...a destroy...
+        self.entities.destroy(eid)
+        self.assertEqual(len(self.entities._entity_destroy), 1)
+        # ...and a DESTROYING state.
+        entity = self.entities.get(eid)
+        self.assertIsNotNone(entity)
+        self.assertIsInstance(entity,
+                              Entity)
+        self.assertEqual(entity.life_cycle,
+                         EntityLifeCycle.DESTROYING)
 
-    def test_request_add(self):
+        # TODO EVENT HERE?
+
+    def test_add(self):
         self.assertEqual(self.entities._new_entity_id,
                          INVALID_ENTITY_ID)
 
@@ -111,72 +114,80 @@ class Test_EntityManager(unittest.TestCase):
         self.assertNotEqual(eid, INVALID_ENTITY_ID)
 
         # Entity should only have the components we asked for.
-        entity = self.entities._entity_add[eid]
-        self.assertIsInstance(self.entities._entity_add[eid],
+        entity = self.entities.get(eid)
+        self.assertIsInstance(entity,
                               Entity)
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne, CompTwo})
+        self.assertTrue(entity.contains({CompOne, CompTwo}))
 
         # Now we add a third
         self.entities.add(eid, CompThree(2))
 
         # And the Entity should now have that as well.
-        entity = self.entities._entity_add[eid]
+        entity = self.entities.get(eid)
         self.assertIsInstance(entity,
                               Entity)
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne, CompTwo, CompThree})
+        self.assertTrue(entity.contains({CompOne, CompTwo, CompThree}))
 
-    def test_request_remove(self):
+        # TODO Event?
+
+    def test_remove(self):
         self.assertEqual(self.entities._new_entity_id,
                          INVALID_ENTITY_ID)
 
-        eid = 1
+        comp1 = CompOne(1)
+        comp2 = CompTwo(2)
+        eid = self.entities.create(self._TYPE_DONT_CARE, comp1, comp2)
         self.assertNotEqual(eid, INVALID_ENTITY_ID)
 
-        # ask for this eid to remove a component
-        self.entities.remove(eid, CompThree)
+        # Entity should have the components we asked for.
+        entity = self.entities.get(eid)
+        self.assertIsInstance(entity,
+                              Entity)
+        self.assertTrue(entity.contains({CompOne, CompTwo}))
 
-        entity = self.entities._entity_remove[eid]
-        self.assertEqual(entity,
-                         {CompThree})
+        # Now we remove one...
+        self.entities.remove(eid, type(comp2))
 
-        # ask for this eid to remove more
-        self.entities.remove(eid, CompOne)
+        # And the Entity should now have just the one.
+        entity = self.entities.get(eid)
+        self.assertIsInstance(entity,
+                              Entity)
+        self.assertFalse(entity.contains({CompOne, CompTwo}))
+        self.assertFalse(entity.contains({CompTwo}))
+        self.assertTrue(entity.contains({CompOne}))
 
-        entity = self.entities._entity_remove[eid]
-        self.assertEqual(entity,
-                         {CompOne, CompThree})
+        # TODO Event?
 
-    def test_full_create(self):
+    def test_creation(self):
         self.assertEqual(self.entities._new_entity_id,
                          INVALID_ENTITY_ID)
 
-        eid = self.entities.create(self._TYPE_DONT_CARE, CompOne(3), CompTwo(7))
+        comp1 = CompOne(1)
+        comp2 = CompTwo(2)
+        eid = self.entities.create(self._TYPE_DONT_CARE, comp1, comp2)
         self.assertNotEqual(eid, INVALID_ENTITY_ID)
 
-        # TODO EVENT HERE!
-        # # Entities will not be 'transitioned' until the tick where they're
-        # # actually added or removed.
-        # added = self.entities._get_transitions(component.StateLifeCycle.ADDED)
-        # self.assertFalse(added)
+        # Entity should exist and be in CREATING state now...
+        entity = self.entities.get(eid)
+        self.assertIsNotNone(entity)
+        self.assertEqual(entity.id, eid)
+        self.assertEqual(entity.life_cycle,
+                         EntityLifeCycle.CREATING)
 
-        # Tick past creation to get new entity pushed into alive pool.
+        # Tick past creation to get new entity finished.
         self.entities.creation(None)
 
-        # TODO EVENT HERE!
-        # self.assertTrue(added)
-        # self.assertTrue(eid in added)
-        entity = self.entities.get(eid)
-        self.assertTrue(entity)
-        # correct component set
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne, CompTwo})
-        # wrong component set
-        self.assertNotEqual(set(entity._components.values()),
-                            {CompOne, CompThree})
+        # Entity should still exist and be in ALIVE state now.
+        self.assertIsNotNone(entity)
+        self.assertIsInstance(entity,
+                              Entity)
+        self.assertEqual(entity.id, eid)
+        self.assertEqual(entity.life_cycle,
+                         EntityLifeCycle.ALIVE)
 
-    def test_full_destroy(self):
+        # TODO EVENT HERE?
+
+    def test_destruction(self):
         self.assertEqual(self.entities._new_entity_id,
                          INVALID_ENTITY_ID)
 
@@ -186,102 +197,18 @@ class Test_EntityManager(unittest.TestCase):
         self.entities.creation(None)
         entity = self.entities.get(eid)
         self.assertTrue(entity)
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne, CompTwo})
+        self.assertTrue(entity.contains({CompOne, CompTwo}))
 
         # Now (ask for) destroy!
         self.entities.destroy(eid)
 
         # Now (actually do) destroy!
         self.entities.destruction(None)
-        entity = self.entities.get(eid)
-        self.assertFalse(entity)
-        self.assertIsNone(entity)
+
+        # EntityManager should no longer have them...
+        self.assertIsNone(self.entities.get(eid))
+        # ...and they should be dead (via our old handle).
+        self.assertEqual(entity.life_cycle,
+                         EntityLifeCycle.DEAD)
 
         # TODO EVENT HERE!
-        # removed = self.entities._get_transitions(component.StateLifeCycle.REMOVED)
-        # self.assertTrue(removed)
-        # self.assertTrue(eid in removed)
-
-    def test_full_add(self):
-        self.assertEqual(self.entities._new_entity_id,
-                         INVALID_ENTITY_ID)
-
-        eid = self.entities.create(self._TYPE_DONT_CARE, CompOne(0), CompTwo(1))
-        self.assertNotEqual(eid, INVALID_ENTITY_ID)
-
-        # TODO EVENT HERE!
-        # # Entities will not be 'transitioned' until the tick where they're
-        # # actually added or removed.
-        # added = self.entities._get_transitions(component.StateLifeCycle.ADDED)
-        # self.assertFalse(added)
-
-        # Tick past update_life to get new entity pushed into alive pool.
-        self.entities.creation(None)
-
-        # TODO EVENT HERE!
-        # self.assertTrue(added)
-        # self.assertTrue(eid in added)
-        entity = self.entities.get(eid)
-        self.assertTrue(entity)
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne, CompTwo})
-
-        # Alright.... now we can test adding a component.
-        self.entities.add(eid, CompThree(3))
-
-        # And the Entity should now have that queued up...
-        adding = self.entities._entity_add[eid]
-        self.assertEqual(adding,
-                         {CompThree})
-        # ...and entity should be unchanged as of yet.
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne, CompTwo})
-
-        # Tick past update_life to get new component on entity.
-        self.entities.creation(None)
-
-        # TODO EVENT HERE!
-        # self.assertTrue(added)
-        # self.assertTrue(eid in added)
-        # Handle on entity should still be valid.
-        # entity = self.entities.get(eid)
-        self.assertTrue(entity)
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne, CompTwo, CompThree})
-
-    def test_full_remove(self):
-        self.assertEqual(self.entities._new_entity_id,
-                         INVALID_ENTITY_ID)
-
-        # Get an entity so we can rm a component...
-        eid = self.entities.create(self._TYPE_DONT_CARE, CompOne(0), CompTwo(1))
-        self.assertNotEqual(eid, INVALID_ENTITY_ID)
-        self.entities.creation(None)
-
-        entity = self.entities.get(eid)
-        self.assertTrue(entity)
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne, CompTwo})
-
-        # Alright.... now we can test removing a component.
-        self.entities.remove(eid, CompTwo(1))
-
-        # And the Entity should now have that queued up...
-        removing = self.entities._entity_remove[eid]
-        self.assertEqual(removing,
-                         {CompTwo})
-
-        # Tick past destruction to get new entity pushed into alive pool.
-        self.entities.destruction(None)
-
-        # TODO EVENT HERE!
-        # removed = self.entities._get_transitions(component.StateLifeCycle.REMOVED)
-        # self.assertTrue(removed)
-        # self.assertTrue(eid in removed)
-
-        # Handle on entity should still be valid.
-        # entity = self.entities.get(eid)
-        self.assertTrue(entity)
-        self.assertEqual(set(entity._components.values()),
-                         {CompOne})

@@ -13,7 +13,7 @@ import enum
 import decimal
 
 from veredi.bases.exceptions import VerediError
-from veredi.entity.exceptions import ComponentError
+from veredi.entity.exceptions import ComponentError, EntityError
 from veredi.logger import log
 from .exceptions import SystemError, TickError
 
@@ -23,9 +23,7 @@ from .system import SystemTick, SystemPriority, SystemHealth, System
 
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,
-                                     Component,
-                                     ComponentMetaData,
-                                     ComponentError)
+                                     Component)
 from veredi.entity.entity import (EntityId,
                                   INVALID_ENTITY_ID,
                                   Entity)
@@ -246,6 +244,14 @@ class Game:
             # TODO: health thingy
             if self.debug_flagged(GameDebug.RAISE_ERRORS):
                 raise
+        except EntityError as error:
+            log.exception(
+                error,
+                "Game's tick() received a EntityError at time {}.",
+                now_secs)
+            # TODO: health thingy
+            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                raise
         except VerediError as error:
             log.exception(
                 error,
@@ -314,6 +320,14 @@ class Game:
                 log.exception(
                     error,
                     "Game's {} System had a ComponentError during {} tick (time={}).",
+                    str(each), tick, time)
+                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                    raise
+                # TODO: health thingy
+            except EntityError as error:
+                log.exception(
+                    error,
+                    "Game's {} System had a EntityError during {} tick (time={}).",
                     str(each), tick, time)
                 if self.debug_flagged(GameDebug.RAISE_ERRORS):
                     raise
