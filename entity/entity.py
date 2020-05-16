@@ -8,12 +8,15 @@ An entity is just a grab bag of Components with an EntityId associated to it.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Iterable, Set, Any, NewType, Dict, Union, Type
+from typing import (Optional, Iterable, Set, Any, NewType,
+                    Dict, Union, Type, Callable)
+import enum
 
+from veredi.logger import log
 from .component import (ComponentId,
                         INVALID_COMPONENT_ID,
                         Component,
-                        CompInstOrType)
+                        CompIdOrType)
 
 
 # -----------------------------------------------------------------------------
@@ -26,6 +29,24 @@ INVALID_ENTITY_ID = EntityId(0)
 EntityTypeId = NewType('EntityTypeId', int)
 INVALID_ENTITY_TYPE_ID = EntityTypeId(0)
 
+@enum.unique
+class EntityLifeCycle(enum.Enum):
+    INVALID    = 0
+    CREATING   = enum.auto()
+    ALIVE      = enum.auto()
+    DESTROYING = enum.auto()
+    DEAD       = enum.auto()
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}.{self._name_}"
+        )
+
+    def __repr__(self):
+        return (
+            f"ELC.{self._name_}"
+        )
+
 
 # -----------------------------------------------------------------------------
 # Code
@@ -33,91 +54,164 @@ INVALID_ENTITY_TYPE_ID = EntityTypeId(0)
 
 class Entity:
     '''
-    An Entity tracks its EntityId and holds a collection of Components. Nothing
-    else. The components /are/ the entity, basically.
+    An Entity tracks its EntityId and life cycle, but primarily holds a
+    collection of its Components. The components /are/ the entity,
+    basically.
     '''
+
+    __get_component_fn : Optional[Callable[[ComponentId], Optional[Component]]] = None
+
+    @classmethod
+    def set_comp_getter(klass: 'Entity',
+                        getter: Optional[Callable[[ComponentId], Optional[Component]]]):
+        klass.__get_component_fn = getter
 
     def __init__(self,
                  eid: EntityId,
                  tid: EntityTypeId,
-                 *components: Component) -> None:
+                 *args: Any,
+                 **kwargs: Any) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!'''
-        self._entity_id = eid
-        self._type_id = tid
-        self._components = {}
-        for comp in components:
-            if isinstance(comp, Iterable):
-                for each in comp:
-                    self._components[type(each)] = each
-            else:
-                self._components[type(comp)] = comp
+        self._entity_id:  EntityId        = eid
+        self._type_id:    EntityTypeId    = tid
+        self._life_cycle: EntityLifeCycle = EntityLifeCycle.INVALID
+
+        # TODO:
+        #  - only hold on to component ids.
+        #  - have getters go ask ComponentManager for component?
+        self._components : Dict[Type[Component], Component] = {}
+        for arg in args:
+            if isinstance(arg, Iterable):
+                for each in arg:
+                    if isinstance(each, (type(ComponentId), Component)):
+                        self._add(each)
+            elif isinstance(arg, (type(ComponentId), Component)):
+                self._add(arg)
+            # else:
+            #     # No other use for arg right now...
+
+        # No use for kwargs right now...
 
     @property
     def id(self) -> EntityId:
         return self._entity_id
 
     @property
-    def type_id(self) -> EntityId:
+    def type_id(self) -> EntityTypeId:
         return self._type_id
 
-    # Setting ids isn't allowed.
+    @property
+    def enabled(self) -> bool:
+        return self._life_cycle == ComponentLifeCycle.ALIVE
 
-    # TODO: get component by id?
+    @property
+    def life_cycle(self) -> EntityLifeCycle:
+        return self._life_cycle
 
-    def get(self, component: CompInstOrType) -> Optional[Component]:
+    def _life_cycled(self, new_state: EntityLifeCycle) -> None:
         '''
-        Gets a component type from this entity. Will return the component
-        instance or None.
+        EntityManager calls this to update life cycle. Will be called on:
+          - INVALID  -> CREATING   : During EntityManager.create().
+          - CREATING -> ALIVE      : During EntityManager.creation()
+          - ALIVE    -> DESTROYING : During EntityManager.destroy().
+          - DESTROYING -> DEAD     : During EntityManager.destruction()
         '''
-        return self._components.get(component, None)
+        self._life_cycle = new_state
 
-    # TODO: remove this - put in EntityManager.
-    def add(self, component: Component):
+    def get(self, id_or_type: CompIdOrType) -> Optional[Component]:
         '''
+        Gets a component from this entity by ComponentId or ComponentType. Will
+        return the component instance or None.
+        '''
+        # Try to get by type first...
+        component = self._components.get(id_or_type, None)
+        if component:
+            return component
+
+        # Ok... id maybe?
+        if self.__get_component_fn:
+            component = self.__get_component_fn(id_or_type)
+            if component:
+                # Make sure it's ours...
+                my_comp = self._components.get(type(component), None)
+                if my_comp and component == my_comp:
+                    return component
+
+        # Fall thorough - ain't got that one.
+        return None
+
+    def contains(self,
+                 comp_set: Set[CompIdOrType]) -> bool:
+        '''
+        Returns true if this entity is a superset of the desired components.
+        I.e. if entity owns all these required ComponentIds/ComponentTypes.
+        '''
+        # For each component, check that it's in our dictionary.
+        return all(self.__contains__(component)
+                   for component in comp_set)
+
+    # -------------------------------------------------------------------------
+    # EntityManager Interface/Helpers
+    # -------------------------------------------------------------------------
+
+    def _add(self, component: Component):
+        '''
+        DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
+
         Adds the component to this entity.
         '''
-        existing = self._components.get(component, None)
+        existing = self._components.get(type(component), None)
         if not existing:
-            self._components[component] = component
-
-        elif existing.replaceable_with(comp):
-            # Entity already has one of these... but it can be replace.
-            self._components[component] = component
+            self._components[type(component)] = component
 
         else:
             # Entity has component already and it cannot
             # be replaced.
             log.warning(
-                "Ignoring 'add' requested for existing component on "
-                "existing entity. Existing component refused "
-                "replacement. entity_id: {}, existing: {}, new: {}",
+                "Ignoring 'add' requested for component type already existing "
+                "on entity. entity_id: {}, existing: {}, requested: {}",
                 self.id, existing, component)
 
-    # TODO: remove this - put in EntityManager.
-    def update(self, components: Iterable[Component]) -> None:
+    def _add_all(self, components: Iterable[Component]) -> None:
         '''
+        DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
+
         Tries to add() all the supplied components to this entity.
         '''
         for each in components:
-            self.add(each)
+            self._add(each)
 
-    # TODO: remove this - put in EntityManager.
-    def discard(self, component: Component) -> Optional[Component]:
+    def _remove(self, id_or_type: CompIdOrType) -> Optional[Component]:
         '''
+        DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
+
         Removes a component from the entity.
-        Returns result of component pop() - component or nothing.
+        Returns component if found & removed, else None.
         '''
-        return self._components.pop(component, None)
+        # Type passed in?
+        component = self._components.pop(id_or_type, None)
+        if component:
+            return component
 
-    def contains(self,
-                 comp_set: Set[Union[Type[Component], Component]]) -> bool:
+        # Ok... id maybe?
+        if self.__get_component_fn:
+            component = self.__get_component_fn(id_or_type)
+            if component:
+                # Make sure it's ours...
+                my_comp = self._components.get(type(component), None)
+                if my_comp and component == my_comp:
+                    return component
+
+        return None
+
+    def _remove_all(self, components: Iterable[CompIdOrType]) -> None:
         '''
-        Returns true if this entity is a superset of the desired components.
-        I.e. if entity.contains({RequiredComp0, RequiredComp2})
+        DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
+
+        Tries to remove() all the supplied components from the entity.
         '''
-        # For each component, check that it's in our dictionary.
-        return all(self.__contains__(component)
-                   for component in comp_set)
+        for each in components:
+            self._remove(each)
 
     # --------------------------------------------------------------------------
     # Python Interfaces (hashable, ==, 'in')
@@ -139,20 +233,43 @@ class Entity:
 
         return id(self) == id(other)
 
-    def __contains__(self, key):
+    def __contains__(self, key: CompIdOrType):
         '''
-        This is for the any "if component in entity:" sort of check systems
+        This is for any "if component in entity:" sort of check systems
         might want to do.
         '''
-        # Convert to type if component instance, otherwise check directly.
-        if isinstance(key, Component):
-            return type(key) in self._components
-        return key in self._components
+        # Don't eval all them args unless it'll be used...
+        if log.will_output(log.Level.DEBUG):
+            log.debug("{} contains {}? {} -> {}\n    all: {}",
+                      self.__class__.__name__,
+                      key,
+                      self.get(key),
+                      bool(self.get(key)),
+                      self._components)
+        return bool(self.get(key))
 
-# class EntityMetaData:
-#     def __init__(self,
-#                  enabled: bool = True,
-#                  state: StateLifeCycle = StateLifeCycle.ADDED
-#                  ) -> None:
-#         self.enabled = enabled
-#         self.state = state
+    def __str__(self):
+        ent_str = (
+            f"{self.__class__.__name__}"
+            f"[id:{self.id:03d}, "
+            f"type:{self.type_id:03d}, "
+            f"{str(self.life_cycle)}]: "
+        )
+        comps = []
+        for each in self._components.values():
+            comps.append(str(each))
+        comp_str = ', '.join(comps)
+        return ent_str + '{' + comp_str + '}'
+
+    def __repr__(self):
+        ent_str = (
+            f"{self.__class__.__name__}"
+            f"[id:{self.id:03d}, "
+            f"type:{self.type_id:03d}, "
+            f"{repr(self.life_cycle)}]: "
+        )
+        comps = []
+        for each in self._components.values():
+            comps.append(repr(each))
+        comp_str = ', '.join(comps)
+        return '<v.ent:' + ent_str + '{' + comp_str + '}>'

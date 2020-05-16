@@ -21,18 +21,19 @@ Inspired by:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Type, Iterable, Optional, Set
+from typing import Union, Type, Iterable, Optional, Set, Any
 
 from veredi.logger import log
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,
                                      Component,
                                      ComponentError,
-                                     CompInstOrType)
+                                     CompIdOrType)
 from veredi.entity.entity import (EntityId,
                                   EntityTypeId,
                                   INVALID_ENTITY_ID,
-                                  Entity)
+                                  Entity,
+                                  EntityLifeCycle)
 from .system import SystemHealth
 from .time import TimeManager
 
@@ -54,13 +55,12 @@ class EntityManager:
         '''Initializes this thing.'''
         # TODO: Pools instead of allowing stuff to be allocated/deallocated?
 
-        self._new_entity_id  = INVALID_ENTITY_ID
-        self._entity_add     = {}
-        self._entity_remove  = {}
-        self._entity_destroy = set()
+        self._new_entity_id:  EntityId      = INVALID_ENTITY_ID
+        self._entity_create:  Set[EntityId] = set()
+        self._entity_destroy: Set[EntityId] = set()
 
-        self._entity         = {}
-
+        self._entity: Dict[EntityId, 'Entity'] = {}
+        # self._entity_type?
 
     # --------------------------------------------------------------------------
     # API: Entity Collection Iteration
@@ -87,60 +87,77 @@ class EntityManager:
         '''
         Get an existing/alive entity from the entity pool and return it.
 
-        Does not look for pre-alive entities that are waiting to be born.
+        Does not care about current life cycle state of entity.
         '''
         return self._entity.get(entity_id, None)
 
-    def create(self, type_id: EntityTypeId, *components: Component) -> EntityId:
+    def create(self,
+               type_id: EntityTypeId,
+               *args: Any,
+               **kwargs: Any) -> EntityId:
         '''
-        Creates an entity with the supplied components. This is the start of the
-        life cycle of the entity.
+        Creates an entity with the supplied args. This is the start of
+        the life cycle of the entity.
 
-        Returns an entity id. If one or more components are supplied to the
-        method, these will be added to the new entity.
+        Returns the entity id.
 
-        Entity/Components will be added before the start of the next tick.
+        Entity will be cycled to ALIVE during the LIFE tick.
         '''
         self._new_entity_id += 1
 
-        entity = Entity(self._new_entity_id, type_id, *components)
-        self._entity_add[self._new_entity_id] = entity
+        entity = Entity(self._new_entity_id, type_id, *args, **kwargs)
+        self._entity[self._new_entity_id] = entity
+        self._entity_create.add(self._new_entity_id)
+        entity._life_cycled(EntityLifeCycle.CREATING)
+
+        # TODO Event?
 
         return self._new_entity_id
 
     def destroy(self, entity_id: EntityId) -> None:
         '''
-        Removes all components from an entity. This is the end of the life cycle
+        Cycles entity to DEATH now... This is the 'end' of the life cycle
         of the entity.
 
-        Entity/Components will be destroyed after the end of the current tick.
+        Entity will be fully removed from our pools on the DEATH tick.
         '''
-        self._entity_destroy.add(entity_id)
+        entity = self.get(entity_id)
+        if not entity:
+            return
+
+        entity._life_cycle = EntityLifeCycle.DESTROYING
+        self._entity_destroy.add(entity.id)
+        # TODO Event?
 
     def add(self, entity_id: EntityId, *components: Component) -> None:
         '''
-        Add components to an entity. The entity will be updated with its new
-        components at the start of the new tick.
-        '''
-        # TODO: Put on pre-existing entity, but set to disabled or something
-        # until creation()?
-        entity = self._entity_add.setdefault(entity_id, set())
-        entity.update(components)
+        Add component(s) to an entity.
 
-    def remove(self, entity_id: EntityId, *components: CompInstOrType) -> None:
+        This is the end of this as far as EntityManager is concerned -
+        ComponentManager will do things for the Component's life cycle if
+        necessary.
         '''
-        Remove components from an entity. The entity will be updated after the
-        end of the update tick.
+        entity = self.get(entity_id)
+        if not entity:
+            return
+        entity._add_all(components)
+        # TODO Event?
+
+    def remove(self, entity_id: EntityId, *components: CompIdOrType) -> None:
+        '''
+        Remove components from an entity.
 
         `components` can be component objects or types.
-        '''
-        comp_set = self._entity_remove.get(entity_id, None)
-        if comp_set:
-            comp_set.update(components)
-        else:
-            comp_set = set(components)
 
-        self._entity_remove[entity_id] = comp_set
+        This is the end of this as far as EntityManager is concerned -
+        ComponentManager will do things for the Component's life cycle if
+        necessary.
+        '''
+        entity = self.get(entity_id)
+        if not entity:
+            return
+        entity._remove_all(components)
+        # TODO Event?
 
     # --------------------------------------------------------------------------
     # Game Loop: Component/Entity Life Cycle Updates
@@ -151,58 +168,32 @@ class EntityManager:
         '''
         Runs before the start of the tick/update loop.
 
-        Returns an iterable of entity_ids to run a pre_update on in case they
-        need to init any components to entity data.
+        Updates entities in CREATING state to ALIVE state.
         '''
 
-        for entity_id in self._entity_add:
-            # Pre-existing entity?
-            existing = self._entity.get(entity_id, None)
-            # New Entity or Components to add.
-            adding = self._entity_add[entity_id]
+        for entity_id in self._entity_create:
+            # Entity should exist in our pool, otherwise we don't
+            # care about it...
+            entity = self.get(entity_id)
+            if (not entity
+                    or entity._life_cycle != EntityLifeCycle.CREATING):
+                continue
 
             try:
-                # New entity?
-                if not existing:
-                    if isinstance(adding, Entity):
-                        self._entity[entity_id] = adding
-                    else:
-                        # Ignore, generally. Maybe they died...
-                        log.debug("'Add' requested for components {} to "
-                                  "entity id {}, but no entity exists.",
-                                  adding, entity_id)
+                # Bump it to alive now.
+                entity._life_cycled(EntityLifeCycle.ALIVE)
 
-                # Existing entity, but no new components?
-                elif not adding:
-                    log.error("'Add' requested for existing entity {}, but no "
-                              "components supplied for adding: {}",
-                              entity_id, adding)
-                    # TODO: pretty print funcs for:
-                    #   entity_id, component, 'entity' (aka bag o' components)
-
-                # Pre-existing entity, and just created one?!
-                elif isinstance(adding, Entity):
-                    log.error("'Create' requested for pre-existing entity {}. "
-                              "Components supplied for creation: {}",
-                              entity_id, adding)
-
-                # Existing entity; adding components; ask for the update.
-                else:
-                    existing.update(adding)
-
-            except ComponentError as error:
+            except EntityError as error:
                 log.exception(
                     error,
-                    "ComponentError on update_life for entity_id {}.",
+                    "EntityError in creation() for entity_id {}.",
                     entity_id)
-                # TODO: put this entity in... jail or something?
+                # TODO: put this entity in... jail or something? Delete?
 
             # TODO EVENT HERE!
-            # if entity:
-            #     self._transition(entity_id, component.StateLifeCycle.ADDED)
 
         # Done with iteration - clear the adds.
-        self._entity_add.clear()
+        self._entity_create.clear()
 
         return SystemHealth.HEALTHY
 
@@ -211,51 +202,36 @@ class EntityManager:
         '''
         Runs after the end of the tick/update loop.
 
-        Returns an iterable of entity_ids to run a post_update on in case
-        anything needs updating after a component loss.
+        Removes entities not in ALIVE state from entity pools.
         '''
 
-        # Full destroy of entities first... Skips having to destroy some
-        # components, then destorying whole entity anyways.
+        # Check all entities in the destroy pool...
         for entity_id in self._entity_destroy:
-            # Actual entity
-            entity = self._entity.pop(entity_id, None)
-            # TODO EVENT HERE!
-            # if entity:
-            #     self._transition(entity_id, component.StateLifeCycle.REMOVED)
-
-        # Done with iteration - clear the destroys.
-        self._entity_destroy.clear()
-
-        # Destruction of select components next.
-        for entity_id in self._entity_remove:
-            # Actual entity
-            entity = self._entity.get(entity_id, None)
-            if not entity:
-                # Entity already doesn't exist; ignore
+            # Entity should exist in our pool, otherwise we don't
+            # care about it...
+            entity = self.get(entity_id)
+            if (not entity
+                    # INVALID, CREATING, DESTROYING will all be
+                    # cycled into death. ALIVE can stay.
+                    or entity._life_cycle == EntityLifeCycle.ALIVE):
                 continue
 
-            # Components to remove
-            components = self._entity_remove[entity_id]
-            removed = False
+            try:
+                # Bump it to dead now.
+                entity._life_cycled(EntityLifeCycle.DEAD)
+                # ...and forget about it.
+                self._entity.pop(entity_id, None)
 
-            # Existing entity, but no new components?
-            if not components:
-                log.error("'Remove' requested for existing entity {}, but no "
-                          "components supplied for removing: {}",
-                          entity_id, components)
-                # TODO: posttty print funcs for:
-                #   entity_id, component, 'entity' (aka bag o' components)
-
-            else:
-                for comp in components:
-                    removed = removed or bool(entity.discard(comp))
+            except EntityError as error:
+                log.exception(
+                    error,
+                    "EntityError in creation() for entity_id {}.",
+                    entity_id)
+                # TODO: put this entity in... jail or something? Delete?
 
             # TODO EVENT HERE!
-            # if removed:
-            #     self._transition(entity_id, component.StateLifeCycle.REMOVED)
 
         # Done with iteration - clear the removes.
-        self._entity_remove.clear()
+        self._entity_destroy.clear()
 
         return SystemHealth.HEALTHY

@@ -21,7 +21,7 @@ from .exceptions import ComponentError
 ComponentId = NewType('ComponentId', int)
 INVALID_COMPONENT_ID = ComponentId(0)
 
-CompInstOrType = Union['Component', Type['Component']]
+CompIdOrType = Union[ComponentId, Type['Component']]
 
 @enum.unique
 class ComponentLifeCycle(enum.Enum):
@@ -29,6 +29,18 @@ class ComponentLifeCycle(enum.Enum):
     CREATING   = enum.auto()
     ALIVE      = enum.auto()
     DESTROYING = enum.auto()
+    DEAD       = enum.auto()
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}.{self._name_}"
+        )
+
+    def __repr__(self):
+        return (
+            f"ELC.{self._name_}"
+        )
+
 
 # -----------------------------------------------------------------------------
 # Code
@@ -41,73 +53,84 @@ class Component:
     '''
 
     def __init__(self,
-                 cid: ComponentId) -> None:
+                 cid: ComponentId,
+                 *args: Any,
+                 **kwargs: Any) -> None:
+        '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
         self._comp_id = cid
-        self._life_cycle = ComponentLifeCycle.CREATING
+        self._life_cycle = ComponentLifeCycle.INVALID
 
     @property
     def id(self) -> ComponentId:
         return self._comp_id
 
     @property
-    def life_cycle(self):
-        return self._life_cycle
-
-    @property
     def enabled(self):
         return self._life_cycle == ComponentLifeCycle.ALIVE
 
-    def replaceable_with(self, other: 'Component'):
+    @property
+    def life_cycle(self):
+        return self._life_cycle
+
+    def _life_cycled(self, new_state: ComponentLifeCycle):
         '''
-        Entities can only have one of any type of component. This function is
-        for the case where a component type has been requested to be added to an
-        entity that already has one of those.
-
-        Returns:
-          - True if this can be replaced with `other`.
-          - False if not.
+        ComponentManager calls this to update life cycle. Will be called on:
+          - INVALID  -> CREATING   : During ComponentManager.create().
+          - CREATING -> ALIVE      : During ComponentManager.creation()
+          - ALIVE    -> DESTROYING : During ComponentManager.destroy().
+          - DESTROYING -> DEAD     : During ComponentManager.destruction()
         '''
-        # default to not allowing a component to be replaced
-        return False
+        self._life_cycle = new_state
 
-    # --------------------------------------------------------------------------
-    # Set Interface (hashable, equals)
-    # --------------------------------------------------------------------------
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f"[id:{self.id:03d}, "
+            f"{str(self.life_cycle)}]"
+        )
 
-    def __hash__(self):
-        '''Set/Dict interface.
+    def __repr__(self):
+        return (
+            '<v.comp:'
+            f"{self.__class__.__name__}"
+            f"[id:{self.id:03d}, "
+            f"{repr(self.life_cycle)}]>"
+        )
 
-        Redefining so that Components are singleton - only one per class
-        allowed. This doesn't prevent an Entity from having, say, HealthClass
-        and HealthSubClass, but at least it's a sanity check.
-        '''
-        # Hash of (sub)class itself, not any instance.
-        # All (sub)class instances will be considered 'equal' this way for
-        # e.g. set, dict operations.
-        return hash(self.__class__)
 
-    def __eq__(self, other: Any):
-        '''Set/Dict interface.
+    # TODO: __str__
+    # TODO: __repr__
 
-        Redefining so that Components are singleton - only one per class
-        allowed. This doesn't prevent an Entity from having, say, HealthClass
-        and HealthSubClass, but at least it's a sanity check.
-        '''
-        # Hash of (sub)class itself, not any instance.
-        # All (sub)class instances will be considered 'equal' this way for
-        # e.g. set, dict operations.
-        other_hash = None
-        if isinstance(other, Component):
-            other_hash = Component.hashed(other)
-        else:
-            other_hash = hash(other)
-        return hash(self) == other_hash
 
-# TODO:
-#   Some ComponentSet or ComponentDict or ComponentManager for representing, comparing Components/Entities.
-
-class ComponentMetaData:
-    def __init__(self,
-                 enabled: bool = True,
-                 ) -> None:
-        self.enabled = enabled
+#     # --------------------------------------------------------------------------
+#     # Set Interface (hashable, equals)
+#     # --------------------------------------------------------------------------
+#
+#     def __hash__(self):
+#         '''Set/Dict interface.
+#
+#         Redefining so that Components are singleton - only one per class
+#         allowed. This doesn't prevent an Entity from having, say, HealthClass
+#         and HealthSubClass, but at least it's a sanity check.
+#         '''
+#         # Hash of (sub)class itself, not any instance.
+#         # All (sub)class instances will be considered 'equal' this way for
+#         # e.g. set, dict operations.
+#         return hash(self.__class__)
+#
+#     def __eq__(self, other: Any):
+#         '''Set/Dict interface.
+#
+#         Redefining so that Components are singleton - only one per class
+#         allowed. This doesn't prevent an Entity from having, say, HealthClass
+#         and HealthSubClass, but at least it's a sanity check.
+#         '''
+#         # Hash of (sub)class itself, not any instance.
+#         # All (sub)class instances will be considered 'equal' this way for
+#         # e.g. set, dict operations.
+#         other_hash = None
+#         if isinstance(other, Component):
+#             other_hash = Component.hashed(other)
+#         else:
+#             other_hash = hash(other)
+#         return hash(self) == other_hash

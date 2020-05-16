@@ -119,6 +119,15 @@ def set_level(level=DEFAULT_LEVEL):
     logger.setLevel(Level.to_logging(level))
 
 
+def will_output(level):
+    '''
+    Returns true if supplied `level` is high enough to output a log.
+    '''
+    if isinstance(level, Level):
+        level = Level.to_logging(level)
+    return level >= logger.level
+
+
 class BestTimeFmt(logging.Formatter):
     converter = datetime.datetime.fromtimestamp
 
