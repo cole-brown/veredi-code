@@ -33,7 +33,8 @@ from veredi.entity.entity import (EntityId,
                                   EntityTypeId,
                                   INVALID_ENTITY_ID)
 from .const import SystemHealth
-from .time import TimeManager
+from .event import EcsManagerWithEvents, EventManager
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -59,6 +60,25 @@ class ComponentManager:
 
         self._component_id:   Dict[ComponentId, Component]           = {}
         self._component_type: Dict[Type[Component], List[Component]] = {}
+
+
+    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+        '''
+        Subscribe to any life-long event subscriptions here. Can hold on to
+        event_manager if need to sub/unsub more dynamically.
+        '''
+        return SystemHealth.HEALTY
+
+    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+        '''
+        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        '''
+        # Mark every ent for destruction, then run destruction.
+        for cid in self._component_id:
+            self.destroy(cid)
+        self.destruction(time)
+
+        return super().apoptosis(time)
 
     def _add(self, id: ComponentId, component: Component) -> None:
         '''
@@ -152,7 +172,7 @@ class ComponentManager:
     # --------------------------------------------------------------------------
 
     def creation(self,
-                 time: TimeManager) -> SystemHealth:
+                 time: 'TimeManager') -> SystemHealth:
         '''
         Runs before the start of the tick/update loop.
 
@@ -186,7 +206,7 @@ class ComponentManager:
         return SystemHealth.HEALTHY
 
     def destruction(self,
-                    time: TimeManager) -> SystemHealth:
+                    time: 'TimeManager') -> SystemHealth:
         '''
         Runs after the end of the tick/update loop.
 

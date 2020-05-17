@@ -34,7 +34,8 @@ from veredi.entity.entity import (EntityId,
                                   INVALID_ENTITY_ID,
                                   Entity,
                                   EntityLifeCycle)
-from.component import ComponentManager
+from .event import EcsManagerWithEvents, EventManager
+from .component import ComponentManager
 from .const import SystemHealth
 #from .time import TimeManager  # TODO: can we forward ref or something?
 
@@ -47,7 +48,7 @@ from .const import SystemHealth
 # Code
 # -----------------------------------------------------------------------------
 
-class EntityManager:
+class EntityManager(EcsManagerWithEvents):
     '''
     Manages the life cycles of entities/components.
     '''
@@ -64,6 +65,24 @@ class EntityManager:
 
         self._entity: Dict[EntityId, 'Entity'] = {}
         # self._entity_type?
+
+    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+        '''
+        Subscribe to any life-long event subscriptions here. Can hold on to
+        event_manager if need to sub/unsub more dynamically.
+        '''
+        return SystemHealth.HEALTY
+
+    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+        '''
+        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        '''
+        # Mark every ent for destruction, then run destruction.
+        for eid in self._entity:
+            self.destroy(eid)
+        self.destruction(time)
+
+        return super().apoptosis(time)
 
     # --------------------------------------------------------------------------
     # API: Entity Collection Iteration

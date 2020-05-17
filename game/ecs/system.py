@@ -13,6 +13,7 @@ import enum
 import decimal
 
 from .const import SystemTick, SystemPriority, SystemHealth
+from .event import EventManager
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,
                                      Component,
@@ -40,6 +41,19 @@ class System:
     # --------------------------------------------------------------------------
     # System Registration / Definition
     # --------------------------------------------------------------------------
+
+    def subscribe(self, event_manager: EventManager) -> SystemHealth:
+        '''
+        Subscribe to any life-long event subscriptions here. Can hold on to
+        event_manager if need to sub/unsub more dynamically.
+        '''
+        return SystemHealth.HEALTY
+
+    def apoptosis(self, time: TimeManager) -> SystemHealth:
+        '''
+        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        '''
+        return SystemHealth.APOPTOSIS
 
     def priority(self) -> Union[SystemPriority, int]:
         '''

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 import decimal
 
 from veredi.logger import log
-from . import system
+from .const import SystemHealth
 from . import exceptions
 
 # -----------------------------------------------------------------------------
@@ -135,6 +135,9 @@ class TimeManager:
     '''
     This class has the potential to be saved to data fields. Let it control its
     timezones. Convert to user-friendly elsewhere.
+
+    NOTE: IMITATES / DUCK-TYPES EcsManagerWithEvents, almost. Doesn't include
+    the 'TimeManager' in whatever functions have it, as... well. I am Time.
     '''
     _DEFAULT_TICK_STEP = decimal.Decimal(6)
 
@@ -153,6 +156,21 @@ class TimeManager:
                                          "non-zero, positive amount.",
                                          None, None)
         self.tick  = Tick(tick_amount)
+
+    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+        '''
+        Subscribe to any life-long event subscriptions here. Can hold on to
+        event_manager if need to sub/unsub more dynamically.
+        '''
+        return SystemHealth.HEALTY
+
+    def apoptosis(self) -> SystemHealth:
+        '''
+        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        '''
+        # Anything to do, time-wise?
+
+        return SystemHealth.APOPTOSIS
 
     # ---
     # Ticking Time

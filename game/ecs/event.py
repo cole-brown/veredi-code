@@ -10,10 +10,25 @@ Event Manager. Pub/Sub style. Subscribe to events by class type.
 
 from typing import Callable, Type, Any
 
+from .manager import EcsManager
+from .const import SystemHealth
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+
+# ------------------------------------------------------------------------------
+# Manager Interface Subclass
+# ------------------------------------------------------------------------------
+
+class EcsManagerWithEvents(EcsManager):
+    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+        '''
+        Subscribe to any life-long event subscriptions here. Can hold on to
+        event_manager if need to sub/unsub more dynamically.
+        '''
+        return SystemHealth.HEALTY
 
 
 # -----------------------------------------------------------------------------
@@ -28,7 +43,7 @@ from typing import Callable, Type, Any
 #    - Heavily suggest systems stick to PRE/STANDARD/POST ticks?
 #  -
 
-class EventManager:
+class EventManager(EcsManager):
     def __init__(self) -> None:
         self._subscriptions = {}
         self._events = []  # FIFO queue of events that came in, if saving up.
@@ -78,3 +93,11 @@ class EventManager:
         for each in self._events:
             self._push(each)
         self._events.clear()
+
+    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+        '''
+        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        '''
+        # About all we can do is make sure the event queue is empty.
+        self.publish()
+        return SystemHealth.APOPTOSIS
