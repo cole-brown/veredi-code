@@ -75,9 +75,30 @@ class SystemHealth(enum.Enum):
     Return value for system tick functions, and some ECS manager functions.
     '''
 
-    FATAL     = enum.auto()
-    UNHEALTHY = enum.auto()
+    INVALID   = 0
+    '''A state to indicate a state hasn't been set but should/should have.'''
+
     HEALTHY   = enum.auto()
+    '''Valid, healthly system.'''
+
+    UNHEALTHY = enum.auto()
+    '''Mr. Stark, I don't feel so good...'''
+
+    FATAL     = enum.auto()
+    '''System is encountering bad things and should be killed.'''
+
+    APOPTOSIS = enum.auto()
+    '''System just wants to die.'''
+
+    def should_die(self):
+        '''
+        Is this a state that should trigger system death?
+        '''
+        return (self == SystemHealth.FATAL
+                or self == SystemHealth.APOPTOSIS)
+        # TODO: Should INVALID be a trigger as well?
+        # TODO: Should FATAL require a count of N > 1 FATALS?
+
 
 
 # -----------------------------------------------------------------------------

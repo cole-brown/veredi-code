@@ -140,6 +140,8 @@ class Engine:
         # TODO: load/make session based on... campaign and.... parameter?
         #   - or is that a second init step?
 
+        self._health = SystemHealth.HEALTHY
+
         # ---
         # Debugging
         # ---
@@ -213,9 +215,77 @@ class Engine:
         self._sys_schedule.sort(key=System.sort_key)
 
 
+    # --------------------------------------------------------------------------
+    # Game Never-Ending Loop
+    # --------------------------------------------------------------------------
+
+    def _should_stop(self):
+        return self._health.should_die()
+
+    def stop(self):
+        '''
+        Call if you want engine to stop after the end of this tick, then run
+        it's apoptosis() function, then exit gracefully.
+        '''
+        self._health = SystemHealth.APOPTOSIS
+
+    def run(self) -> SystemHealth:
+        '''
+        Infinite loop the game until quitting time.
+        '''
+        while not self._should_stop():
+            self.tick()
+
+        return self.apoptosis()
+
+    def apoptosis(self) -> SystemHealth:
+        '''
+        Graceful game shutdown.
+        '''
+        # Should I fire off an event, or should I call directly? I think both...
+        # In fact, I will only call directly and EventManager can do the big
+        # overall event if it wants.
+
+        # Ordering matters. We want the systems that depend on things to go after those things.
+        # E.g. EntityManager depends on ComponentManager, so it goes after.
+        # E.g. They all might want updated time.
+        health = self.time.apoptosis()
+        if health != SystemHealth.APOPTOSIS:
+            log.critical("TimeManager.apoptosis() returned an unexpected "
+                         "SystemHealth: {} (time: {})",
+                         health, self.time.seconds)
+
+        health = self.event.apoptosis(self.time)
+        if health != SystemHealth.APOPTOSIS:
+            log.critical("EventManager.apoptosis() returned an unexpected "
+                         "SystemHealth: {} (time: {})",
+                         health, self.time.seconds)
+
+        health = self.component.apoptosis(self.time)
+        if health != SystemHealth.APOPTOSIS:
+            log.critical("ComponentManager.apoptosis() returned an unexpected "
+                         "SystemHealth: {} (time: {})",
+                         health, self.time.seconds)
+
+        health = self.entity.apoptosis(self.time)
+        if health != SystemHealth.APOPTOSIS:
+            log.critical("EntityManager.apoptosis() returned an unexpected "
+                         "SystemHealth: {} (time: {})",
+                         health, self.time.seconds)
+
+        # TODO THIS SYSTEM MANAGER
+        #health = self.system.apoptosis(self.time)
+        # if health != SystemHealth.APOPTOSIS:
+        #     log.critical("SystemManager.apoptosis() returned an unexpected "
+        #                  "SystemHealth: {} (time: {})",
+        #                  health, self.time.seconds)
+
+        return SystemHealth.APOPTOSIS
+
     # -------------------------------------------------------------------------
     # Game Loops
     # -------------------------------------------------------------------------
+
     def tick(self) -> None:
         '''
         One full swing through the update loop functions.

@@ -47,19 +47,16 @@ class Test_Events(unittest.TestCase):
         self.events = None
 
     def event_handler_one(self, event):
-        print(event, event.id)
         slot = self.events_recvd.setdefault(event.id, [])
         slot.append(event)
         self.handlers_called[1] = self.handlers_called.setdefault(1, 0) + 1
 
     def event_handler_two(self, event):
-        print(event, event.id)
         slot = self.events_recvd.setdefault(event.id, [])
         slot.append(event)
         self.handlers_called[2] = self.handlers_called.setdefault(2, 0) + 1
 
     def event_handler_three(self, event):
-        print(event, event.id)
         slot = self.events_recvd.setdefault(event.id, [])
         slot.append(event)
         self.handlers_called[3] = self.handlers_called.setdefault(3, 0) + 1
