@@ -15,7 +15,8 @@ from . import engine
 from .ecs.entity import EntityManager
 from .ecs.component import ComponentManager
 from .ecs.time import TimeManager
-from .ecs.system import System, SystemTick, SystemPriority, SystemHealth
+from .ecs.system import System
+from .ecs.const import SystemTick, SystemPriority, SystemHealth
 
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,

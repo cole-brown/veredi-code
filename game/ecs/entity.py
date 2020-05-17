@@ -35,7 +35,7 @@ from veredi.entity.entity import (EntityId,
                                   Entity,
                                   EntityLifeCycle)
 from.component import ComponentManager
-from .system import SystemHealth   # todo: move to a general spot.
+from .const import SystemHealth
 #from .time import TimeManager  # TODO: can we forward ref or something?
 
 # -----------------------------------------------------------------------------

@@ -11,6 +11,7 @@ Tests for the generic System class.
 import unittest
 
 from . import system
+from . import const
 from veredi.entity import component
 
 # -----------------------------------------------------------------------------
@@ -35,12 +36,12 @@ class SysJeff(system.System):
 
     def __init__(self):
         super().__init__()
-        self._ticks = (system.SystemTick.PRE
-                       | system.SystemTick.STANDARD
-                       | system.SystemTick.POST)
+        self._ticks = (const.SystemTick.PRE
+                       | const.SystemTick.STANDARD
+                       | const.SystemTick.POST)
 
     def priority(self):
-        return system.SystemPriority.MEDIUM + 13
+        return const.SystemPriority.MEDIUM + 13
 
     def required(self):
         return {CompOne, CompTwo}
@@ -53,8 +54,8 @@ class SysJeff(system.System):
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
         '''
-        last_tick = system.SystemTick.PRE
-        return system.SystemHealth.HEALTHY
+        last_tick = const.SystemTick.PRE
+        return const.SystemHealth.HEALTHY
 
     def update(self,
                time,
@@ -63,8 +64,8 @@ class SysJeff(system.System):
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
-        last_tick = system.SystemTick.STANDARD
-        return system.SystemHealth.FATAL
+        last_tick = const.SystemTick.STANDARD
+        return const.SystemHealth.FATAL
 
     def update_post(self,
                     time,
@@ -74,13 +75,13 @@ class SysJeff(system.System):
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
         '''
-        last_tick = system.SystemTick.POST
-        return system.SystemHealth.FATAL
+        last_tick = const.SystemTick.POST
+        return const.SystemHealth.FATAL
 
 
 class SysJill(system.System):
      def priority(self):
-        return system.SystemPriority.HIGH
+        return const.SystemPriority.HIGH
 
 
 # -----------------------------------------------------------------------------
@@ -99,11 +100,11 @@ class Test_System(unittest.TestCase):
         self.assertTrue(self.sys)
 
     def test_priority(self):
-        self.assertEqual(self.sys.priority(), system.SystemPriority.MEDIUM + 13)
+        self.assertEqual(self.sys.priority(), const.SystemPriority.MEDIUM + 13)
 
         sys2 = SysJill()
 
-        self.assertEqual(sys2.priority(), system.SystemPriority.HIGH)
+        self.assertEqual(sys2.priority(), const.SystemPriority.HIGH)
 
         self.assertTrue(sys2.priority() < self.sys.priority())
         systems = [self.sys, sys2]
@@ -117,14 +118,14 @@ class Test_System(unittest.TestCase):
         self.assertTrue(CompTwo in required)
 
     def test_tick(self):
-        self.assertTrue(self.sys.last_tick, system.SystemTick.DEATH)
+        self.assertTrue(self.sys.last_tick, const.SystemTick.DEATH)
 
         self.sys.update_pre(1.0, None, None)
-        self.assertTrue(self.sys.last_tick, system.SystemTick.PRE)
+        self.assertTrue(self.sys.last_tick, const.SystemTick.PRE)
 
         self.sys.update(1.0, None, None)
-        self.assertTrue(self.sys.last_tick, system.SystemTick.STANDARD)
+        self.assertTrue(self.sys.last_tick, const.SystemTick.STANDARD)
 
         health = self.sys.update_post(1.0, None, None)
-        self.assertTrue(self.sys.last_tick, system.SystemTick.POST)
-        self.assertTrue(health, system.SystemHealth.HEALTHY)
+        self.assertTrue(self.sys.last_tick, const.SystemTick.POST)
+        self.assertTrue(health, const.SystemHealth.HEALTHY)
