@@ -34,8 +34,9 @@ from veredi.entity.entity import (EntityId,
                                   INVALID_ENTITY_ID,
                                   Entity,
                                   EntityLifeCycle)
-from .system import SystemHealth
-from .time import TimeManager
+from.component import ComponentManager
+from .system import SystemHealth   # todo: move to a general spot.
+#from .time import TimeManager  # TODO: can we forward ref or something?
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -51,9 +52,11 @@ class EntityManager:
     Manages the life cycles of entities/components.
     '''
 
-    def __init__(self) -> None:
+    def __init__(self, component_manager: ComponentManager) -> None:
         '''Initializes this thing.'''
         # TODO: Pools instead of allowing stuff to be allocated/deallocated?
+
+        # TODO: self._comp_mgr! And use it for... stuff?
 
         self._new_entity_id:  EntityId      = INVALID_ENTITY_ID
         self._entity_create:  Set[EntityId] = set()
@@ -164,7 +167,7 @@ class EntityManager:
     # --------------------------------------------------------------------------
 
     def creation(self,
-                 time: TimeManager) -> SystemHealth:
+                 time: 'TimeManager') -> SystemHealth:
         '''
         Runs before the start of the tick/update loop.
 
@@ -198,7 +201,7 @@ class EntityManager:
         return SystemHealth.HEALTHY
 
     def destruction(self,
-                    time: TimeManager) -> SystemHealth:
+                    time: 'TimeManager') -> SystemHealth:
         '''
         Runs after the end of the tick/update loop.
 

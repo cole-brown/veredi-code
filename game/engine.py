@@ -8,19 +8,26 @@ A game of something or other.
 # Imports
 # -----------------------------------------------------------------------------
 
+# Python
 from typing import Callable, Optional, Iterable, Set
 import enum
 import decimal
 
+# Error Handling
+from veredi.logger import log
+
 from veredi.bases.exceptions import VerediError
 from veredi.entity.exceptions import ComponentError, EntityError
-from veredi.logger import log
-from .exceptions import SystemError, TickError
+from .ecs.exceptions import SystemError, TickError
 
-from .time import TimeManager
-from .entity import EntityManager
-from .system import SystemTick, SystemPriority, SystemHealth, System
+# ECS Managers & Systems
+from .ecs.entity import EntityManager
+from .ecs.component import ComponentManager
+from .ecs.system import SystemTick, SystemPriority, SystemHealth, System
+from .ecs.time import TimeManager
+from .ecs.event import EventManager
 
+# ECS Minions
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,
                                      Component)
@@ -28,6 +35,7 @@ from veredi.entity.entity import (EntityId,
                                   INVALID_ENTITY_ID,
                                   Entity)
 
+# Game Data
 from veredi.data.repository import manager
 
 
@@ -93,12 +101,12 @@ from veredi.data.repository import manager
 # temporary OR permanent basis.
 
 @enum.unique
-class GameDebug(enum.Flag):
+class EngineDebug(enum.Flag):
     LOG_TICK     = enum.auto()
     '''Output a log message each tick at debug level.'''
 
     RAISE_ERRORS = enum.auto()
-    '''Re-raises any errors/exceptions caught in Game object itself.'''
+    '''Re-raises any errors/exceptions caught in Engine object itself.'''
 
     UNIT_TESTS = LOG_TICK | RAISE_ERRORS
 
@@ -106,15 +114,23 @@ class GameDebug(enum.Flag):
         return ((self & flag) == flag)
 
 
-class Game:
+class Engine:
+    '''
+    Implements an ECS-powered game engine with just
+    one time-step loop (currently).
+    '''
 
     def __init__(self,
-                 owner: Entity,
-                 campaign_id: int,
-                 repo_manager: manager.Manager,
-                 time_manager: Optional[TimeManager] = None,
-                 entity_manager: Optional[EntityManager] = None,
-                 debug: Optional[GameDebug] = None) -> None:
+                 owner:             Entity,
+                 campaign_id:       int,
+                 repo_manager:      manager.Manager,
+                 event_manager:     Optional[EventManager]     = None,
+                 entity_manager:    Optional[EntityManager]    = None,
+                 component_manager: Optional[ComponentManager] = None,
+                 # system_manager:  Optional[SystemManager]    = None,
+                 time_manager:      Optional[TimeManager]      = None,
+                 debug:             Optional[EngineDebug]      = None
+                 ) -> None:
         # # TODO: Make session a System, put these in there?
         # self.repo = repo_manager
         # self.owner = owner
@@ -131,8 +147,13 @@ class Game:
         # ---
         # Required/Special Systems
         # ---
-        self._set_up_time(time_manager)
-        self._set_up_entity(entity_manager)
+        self.event     = event_manager     or EventManager()
+        self.component = component_manager or ComponentManager()
+        self.entity    = entity_manager    or EntityManager(self.component)
+        # TODO THIS SYSTEM MANAGER
+        #self.system    = system_manager    or SystemManager()
+        self.time      = time_manager      or TimeManager()
+        # TODO: give these folks a back-link to me? Or the Event system for regstration step???
 
         # ---
         # General Systems
@@ -142,35 +163,27 @@ class Game:
 
     def debug_flagged(self, desired) -> bool:
         '''
-        Returns true if Game's debug flags are set to something and that
+        Returns true if Engine's debug flags are set to something and that
         something has the desired flag. Returns false otherwise.
         '''
         return self._debug and self._debug.has(desired)
 
     @property
-    def debug(self) -> GameDebug:
+    def debug(self) -> EngineDebug:
         '''Returns current debug flags.'''
         return self._debug
 
     @debug.setter
-    def debug(self, value: GameDebug) -> None:
+    def debug(self, value: EngineDebug) -> None:
         '''
         Set current debug flags. No error/sanity checks.
         Universe could explode; use wisely.
         '''
         self._debug = value
 
-    def _set_up_time(self,
-                     time_manager: Optional[TimeManager] = None) -> None:
-        self.time_manager = time_manager or TimeManager()
-
-    def _set_up_entity(self,
-                       entity_manager: Optional[EntityManager] = None) -> None:
-        self.entity_manager = entity_manager or EntityManager()
-
 
     # --------------------------------------------------------------------------
-    # Game Set Up
+    # Engine Set Up
     # --------------------------------------------------------------------------
 
     def register(self, *systems: System) -> None:
@@ -223,61 +236,63 @@ class Game:
         except TickError as error:
             log.exception(
                 error,
-                "Game's tick() received a TickError at time {}.",
+                "Engine's tick() received a TickError at time {}.",
                 now_secs)
             # TODO: health thingy
-            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+            if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                 raise
         except SystemError as error:
             log.exception(
                 error,
-                "Game's tick() received a SystemError at time {}.",
+                "Engine's tick() received a SystemError at time {}.",
                 now_secs)
             # TODO: health thingy
-            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+            if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                 raise
         except ComponentError as error:
             log.exception(
                 error,
-                "Game's tick() received a ComponentError at time {}.",
+                "Engine's tick() received a ComponentError at time {}.",
                 now_secs)
             # TODO: health thingy
-            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+            if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                 raise
         except EntityError as error:
             log.exception(
                 error,
-                "Game's tick() received a EntityError at time {}.",
+                "Engine's tick() received a EntityError at time {}.",
                 now_secs)
             # TODO: health thingy
-            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+            if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                 raise
         except VerediError as error:
             log.exception(
                 error,
-                "Game's tick() received a generic VerediError at time {}.",
+                "Engine's tick() received a generic VerediError at time {}.",
                 now_secs)
             # TODO: health thingy
-            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+            if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                 raise
         except Exception as error:
+            print(self.debug)
+            print(error)
             log.exception(
                 error,
-                "Game's tick() received an unknown exception at time {}.",
+                "Engine's tick() received an unknown exception at time {}.",
                 now_secs)
             # TODO: health thingy
             # Plow on ahead anyways.
             # raise
-            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+            if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                 raise
         except:
             log.error(
-                "Game's tick() received a _very_ unknown exception at time {}.",
+                "Engine's tick() received a _very_ unknown exception at time {}.",
                 now_secs)
             # TODO: health thingy
             # Plow on ahead anyways.
             # raise
-            if self.debug_flagged(GameDebug.RAISE_ERRORS):
+            if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                 raise
 
     def _update_systems(self, time: decimal.Decimal, tick: SystemTick) -> None:
@@ -287,7 +302,7 @@ class Game:
             if not each.wants_update_tick(tick, time):
                 continue
 
-            if self.debug_flagged(GameDebug.LOG_TICK):
+            if self.debug_flagged(EngineDebug.LOG_TICK):
                 log.debug("Tick.{tick} [{time:05.6f}]: {system}",
                           tick=tick,
                           time=time,
@@ -296,62 +311,62 @@ class Game:
             # Try/catch each system, so they don't kill each other with a single
             # repeating exception.
             try:
-                each.update_tick(tick, time, self.entity_manager, self.time_manager)
+                each.update_tick(tick, time, self.entity, self.time)
 
             # Various exceptions we can handle at this level...
             # Or we can't but want to log.
             except TickError as error:
                 log.exception(
                     error,
-                    "Game's {} System had a TickError during {} tick (time={}).",
+                    "Engine's {} System had a TickError during {} tick (time={}).",
                     str(each), tick, time)
-                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
             except SystemError as error:
                 log.exception(
                     error,
-                    "Game's {} System had a SystemError during {} tick (time={}).",
+                    "Engine's {} System had a SystemError during {} tick (time={}).",
                     str(each), tick, time)
-                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
             except ComponentError as error:
                 log.exception(
                     error,
-                    "Game's {} System had a ComponentError during {} tick (time={}).",
+                    "Engine's {} System had a ComponentError during {} tick (time={}).",
                     str(each), tick, time)
-                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
             except EntityError as error:
                 log.exception(
                     error,
-                    "Game's {} System had a EntityError during {} tick (time={}).",
+                    "Engine's {} System had a EntityError during {} tick (time={}).",
                     str(each), tick, time)
-                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
             except VerediError as error:
                 log.exception(
                     error,
-                    "Game's {} System had a generic VerediError during {} tick (time={}).",
+                    "Engine's {} System had a generic VerediError during {} tick (time={}).",
                     str(each), tick, time)
-                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
             except Exception as error:
                 log.exception(
                     error,
-                    "Game's {} System had an unknown exception during {} tick (time={}).",
+                    "Engine's {} System had an unknown exception during {} tick (time={}).",
                     str(each), tick, time)
-                if self.debug_flagged(GameDebug.RAISE_ERRORS):
+                if self.debug_flagged(EngineDebug.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
                 raise
 
     def _update_time(self) -> decimal.Decimal:
-        now = self.time_manager.step()
+        now = self.time.step()
 
         self._update_systems(now, SystemTick.TIME)
 
@@ -363,7 +378,7 @@ class Game:
         components & entities.
         '''
         # TODO: have life make a list of new entities?
-        self.entity_manager.creation(self.time_manager)
+        self.entity.creation(self.time)
 
         self._update_systems(now, SystemTick.LIFE)
 
@@ -387,7 +402,7 @@ class Game:
         components & entities.
         '''
         # TODO: have life make a list of dead entities? sub-components?
-        self.entity_manager.destruction(self.time_manager)
+        self.entity.destruction(self.time)
 
         self._update_systems(now, SystemTick.DEATH)
 
@@ -434,7 +449,7 @@ class Game:
     # TODO: This stuff?
 
     # --------------------------------------------------------------------------
-    # Game Management
+    # Engine Management
     # --------------------------------------------------------------------------
 
     # add player to session
