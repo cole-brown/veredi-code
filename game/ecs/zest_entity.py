@@ -11,6 +11,7 @@ Tests for entity.py (EntityManager class).
 import unittest
 
 from .entity import EntityManager
+from .component import ComponentManager
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,
                                      Component,
@@ -47,7 +48,7 @@ class Test_EntityManager(unittest.TestCase):
     _TYPE_DONT_CARE = 1
 
     def setUp(self):
-        self.entities = EntityManager()
+        self.entities = EntityManager(ComponentManager())
 
     def tearDown(self):
         self.entities = None

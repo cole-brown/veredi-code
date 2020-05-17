@@ -194,20 +194,20 @@ def exception(err, msg=None, *args, **kwargs):
     '''
     Log the exception at ERROR level. If no `msg` supplied, will use:
         msg = "Exception caught. type: {}, str: {}"
-        args = [type(error), str(error)]
+        args = [type(err), str(err)]
     Otherwise error info will be tacked onto end.
       msg += " (Exception type: {err_type}, str: {err_str})"
-      kwargs['err_type'] = type(error)
-      kwargs['err_type'] = str(error)
+      kwargs['err_type'] = type(err)
+      kwargs['err_type'] = str(err)
     '''
     stacklevel = get_stack_level(kwargs)
     if not msg:
         "Exception caught. type: {}, str: {}"
-        args = [type(error), str(error)]
+        args = [type(err), str(err)]
     else:
         msg += " (Exception type: {err_type}, str: {err_str})"
-        kwargs['err_type'] = type(error)
-        kwargs['err_str'] = str(error)
+        kwargs['err_type'] = type(err)
+        kwargs['err_str'] = str(err)
     logger.error(
         brace_message(
             msg,

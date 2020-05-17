@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Tests for game.py (The Game Itself).
+Tests for engine.py (The Game Itself).
 '''
 
 # -----------------------------------------------------------------------------
@@ -10,9 +10,13 @@ Tests for game.py (The Game Itself).
 
 import unittest
 
-from . import game
-from .entity import EntityManager
-from .time import TimeManager
+from . import engine
+
+from .ecs.entity import EntityManager
+from .ecs.component import ComponentManager
+from .ecs.time import TimeManager
+from .ecs.system import System, SystemTick, SystemPriority, SystemHealth
+
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,
                                      Component,
@@ -20,7 +24,6 @@ from veredi.entity.component import (ComponentId,
 from veredi.entity.entity import (EntityId,
                                   INVALID_ENTITY_ID,
                                   Entity)
-from .system import System, SystemTick, SystemPriority, SystemHealth
 
 
 # -----------------------------------------------------------------------------
@@ -166,19 +169,20 @@ class SysNoReq(SysTest):
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_Game(unittest.TestCase):
+class Test_Engine(unittest.TestCase):
 
     def setUp(self):
-        self.entities = EntityManager()
+        self.components = ComponentManager()
+        self.entities = EntityManager(self.components)
         self.time = TimeManager()
-        self.game = game.Game(None, None, None,
-                              self.time, self.entities,
-                              game.GameDebug.UNIT_TESTS)
+        self.engine = engine.Engine(None, None, None,
+                                    self.time, self.entities,
+                                    engine.EngineDebug.UNIT_TESTS)
 
     def tearDown(self):
         self.entities = None
         self.time = None
-        self.game = None
+        self.engine = None
 
     def create_entities(self):
         comps_1_2_x = set([CompOne(0), CompTwo(1)])
@@ -210,58 +214,58 @@ class Test_Game(unittest.TestCase):
     def test_init(self):
         self.assertTrue(self.entities)
         self.assertTrue(self.time)
-        self.assertTrue(self.game)
+        self.assertTrue(self.engine)
 
     def test_set_up(self):
         jeff = SysJeff()
         jill = SysJill()
-        self.game.register(jeff)
-        self.game.register(jill)
+        self.engine.register(jeff)
+        self.engine.register(jill)
 
         # Nothing in schedule yet.
-        self.assertFalse(self.game._sys_schedule)
+        self.assertFalse(self.engine._sys_schedule)
         # But they're ready...
-        self.assertTrue(self.game._sys_registration)
+        self.assertTrue(self.engine._sys_registration)
 
-        self.game.set_up()
+        self.engine.set_up()
 
         # Now registered systems should be scheduled by priority.
-        self.assertFalse(self.game._sys_registration)
-        self.assertTrue(self.game._sys_schedule)
-        self.assertEqual(self.game._sys_schedule,
+        self.assertFalse(self.engine._sys_registration)
+        self.assertTrue(self.engine._sys_schedule)
+        self.assertEqual(self.engine._sys_schedule,
                          [jill, jeff])
 
     def test_no_sys_tick(self):
         # raise exceptions if things go wrong
-        self.game.DEBUG_TICK = True
-        self.game.tick()
+        self.engine.DEBUG_TICK = True
+        self.engine.tick()
 
     def test_tickless_sys(self):
         # Register, set up, and run it... and assert, uhh... no exceptions.
         noop = SysNoTick()
-        self.game.register(noop)
-        self.game.set_up()
-        self.game.tick()
+        self.engine.register(noop)
+        self.engine.set_up()
+        self.engine.tick()
         # guess we can check this too...
         self.assertEqual(noop.test_saw_total(), 0)
 
         # Once more with entities.
         self.create_entities()
-        self.game.tick()
+        self.engine.tick()
         self.assertEqual(noop.test_saw_total(), 0)
 
     def test_reqless_sys(self):
         # Register, set up, and run it... and assert, uhh... no exceptions.
         chill_sys = SysNoReq()
-        self.game.register(chill_sys)
-        self.game.set_up()
-        self.game.tick()
+        self.engine.register(chill_sys)
+        self.engine.set_up()
+        self.engine.tick()
         # guess we can check this too...
         self.assertEqual(chill_sys.test_saw_total(), 0)
 
         # Once more with entities.
         self.create_entities()
-        self.game.tick()
+        self.engine.tick()
         self.assertEqual(chill_sys.test_saw_total(), 0)
 
 
@@ -271,10 +275,10 @@ class Test_Game(unittest.TestCase):
         no_tick = SysNoTick()
         jeff = SysJeff()
         jill = SysJill()
-        self.game.register(no_req, no_tick, jeff)
-        self.game.register(jill)
-        self.game.set_up()
-        self.game.tick()
+        self.engine.register(no_req, no_tick, jeff)
+        self.engine.register(jill)
+        self.engine.set_up()
+        self.engine.tick()
         # guess we can check this too...
         self.assertEqual(no_req.test_saw_total(), 0)
         self.assertEqual(no_tick.test_saw_total(), 0)
@@ -283,7 +287,7 @@ class Test_Game(unittest.TestCase):
 
         # Once more with entities.
         self.create_entities()
-        self.game.tick()
+        self.engine.tick()
         self.assertEqual(no_req.test_saw_total(), 0)
         self.assertEqual(no_tick.test_saw_total(), 0)
         # Jeff wants:
@@ -357,4 +361,4 @@ class Test_Game(unittest.TestCase):
 
 
     # TODO: Test that a system barfing exceptions all over the place doesn't
-    # kill the game.
+    # kill the engine.
