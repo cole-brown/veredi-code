@@ -12,6 +12,7 @@ from typing import Optional, Iterable, Set, Union
 import enum
 import decimal
 
+from .const import SystemTick, SystemPriority, SystemHealth
 from veredi.entity.component import (ComponentId,
                                      INVALID_COMPONENT_ID,
                                      Component,
@@ -24,34 +25,6 @@ from veredi.entity.entity import (EntityId,
 # Constants
 # -----------------------------------------------------------------------------
 
-@enum.unique
-class SystemTick(enum.Flag):
-    TIME     = enum.auto()
-    LIFE     = enum.auto()
-    PRE      = enum.auto()
-    STANDARD = enum.auto()
-    POST     = enum.auto()
-    DEATH    = enum.auto()
-
-    def has(self, flag):
-        return ((self & flag) == flag)
-
-
-class SystemPriority(enum.IntEnum):
-    '''
-    Low priority systems go last, so that a standard (non-reversed) sort will
-    sort them in high-to-low priority.
-    '''
-    LOW    = 10000
-    MEDIUM = 1000
-    HIGH   = 100
-
-
-@enum.unique
-class SystemHealth(enum.Enum):
-    FATAL     = enum.auto()
-    UNHEALTHY = enum.auto()
-    HEALTHY   = enum.auto()
 
 
 # -----------------------------------------------------------------------------

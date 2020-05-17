@@ -21,9 +21,10 @@ from veredi.entity.exceptions import ComponentError, EntityError
 from .ecs.exceptions import SystemError, TickError
 
 # ECS Managers & Systems
+from .ecs.const import SystemTick, SystemPriority, SystemHealth
 from .ecs.entity import EntityManager
 from .ecs.component import ComponentManager
-from .ecs.system import SystemTick, SystemPriority, SystemHealth, System
+from .ecs.system import System
 from .ecs.time import TimeManager
 from .ecs.event import EventManager
 

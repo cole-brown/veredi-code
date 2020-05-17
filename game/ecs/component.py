@@ -32,7 +32,7 @@ from veredi.entity.component import (ComponentId,
 from veredi.entity.entity import (EntityId,
                                   EntityTypeId,
                                   INVALID_ENTITY_ID)
-from .system import SystemHealth
+from .const import SystemHealth
 from .time import TimeManager
 
 # -----------------------------------------------------------------------------
