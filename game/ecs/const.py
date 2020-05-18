@@ -12,6 +12,24 @@ each other.
 import enum
 
 
+# ------------------------------------------------------------------------------
+# Debugging
+# ------------------------------------------------------------------------------
+
+@enum.unique
+class DebugFlag(enum.Flag):
+    LOG_TICK     = enum.auto()
+    '''Output a log message each tick at debug level.'''
+
+    RAISE_ERRORS = enum.auto()
+    '''Re-raises any errors/exceptions caught in Engine object itself.'''
+
+    UNIT_TESTS = LOG_TICK | RAISE_ERRORS
+
+    def has(self, flag):
+        return ((self & flag) == flag)
+
+
 # -----------------------------------------------------------------------------
 # Systems
 # -----------------------------------------------------------------------------

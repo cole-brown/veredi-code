@@ -19,7 +19,7 @@ import enum
 from veredi.logger import log
 from veredi.thesaurus.d20 import thesaurus
 from .. import exceptions
-from veredi.bases.exceptions import KeyError
+from veredi.base.exceptions import KeyError
 
 # -----------------------------------------------------------------------------
 # Constants

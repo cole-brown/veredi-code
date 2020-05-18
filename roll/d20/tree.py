@@ -14,7 +14,7 @@ from functools import reduce
 # Framework
 
 # Our Stuff
-from veredi.bases import random
+from veredi.base import random
 from .utils import FormatOptions
 
 # -----------------------------------------------------------------------------

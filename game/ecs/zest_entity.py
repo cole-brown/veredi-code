@@ -12,14 +12,12 @@ import unittest
 
 from .entity import EntityManager
 from .component import ComponentManager
-from veredi.entity.component import (ComponentId,
-                                     INVALID_COMPONENT_ID,
-                                     Component,
-                                     ComponentError)
-from veredi.entity.entity import (EntityId,
-                                  INVALID_ENTITY_ID,
-                                  Entity,
-                                  EntityLifeCycle)
+from .base.identity import (ComponentId,
+                            EntityId)
+from .base.component import (Component,
+                             ComponentError)
+from .base.entity import (Entity,
+                          EntityLifeCycle)
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -57,11 +55,11 @@ class Test_EntityManager(unittest.TestCase):
         self.assertTrue(self.entities)
 
     def test_create(self):
-        self.assertEqual(self.entities._new_entity_id,
-                         INVALID_ENTITY_ID)
+        self.assertEqual(self.entities._entity_id.peek(),
+                         EntityId.INVALID)
 
         eid = self.entities.create(self._TYPE_DONT_CARE, CompOne(0), CompTwo(1))
-        self.assertNotEqual(eid, INVALID_ENTITY_ID)
+        self.assertNotEqual(eid, EntityId.INVALID)
 
         self.assertEqual(len(self.entities._entity_create), 1)
         self.assertEqual(len(self.entities._entity_destroy), 0)
@@ -79,8 +77,8 @@ class Test_EntityManager(unittest.TestCase):
                          EntityLifeCycle.CREATING)
 
     def test_destroy(self):
-        self.assertEqual(self.entities._new_entity_id,
-                         INVALID_ENTITY_ID)
+        self.assertEqual(self.entities._entity_id.peek(),
+                         EntityId.INVALID)
 
         # destroy non-existant == no-op
         eid = 1
@@ -90,7 +88,7 @@ class Test_EntityManager(unittest.TestCase):
         self.assertEqual(len(self.entities._entity_destroy), 0)
 
         eid = self.entities.create(self._TYPE_DONT_CARE, CompOne(0), CompTwo(1))
-        self.assertNotEqual(eid, INVALID_ENTITY_ID)
+        self.assertNotEqual(eid, EntityId.INVALID)
         # Now we should have a create...
         self.assertEqual(len(self.entities._entity), 1)
         self.assertEqual(len(self.entities._entity_create), 1)
@@ -108,11 +106,11 @@ class Test_EntityManager(unittest.TestCase):
         # TODO EVENT HERE?
 
     def test_add(self):
-        self.assertEqual(self.entities._new_entity_id,
-                         INVALID_ENTITY_ID)
+        self.assertEqual(self.entities._entity_id.peek(),
+                         EntityId.INVALID)
 
         eid = self.entities.create(self._TYPE_DONT_CARE, CompOne(0), CompTwo(1))
-        self.assertNotEqual(eid, INVALID_ENTITY_ID)
+        self.assertNotEqual(eid, EntityId.INVALID)
 
         # Entity should only have the components we asked for.
         entity = self.entities.get(eid)
@@ -132,13 +130,13 @@ class Test_EntityManager(unittest.TestCase):
         # TODO Event?
 
     def test_remove(self):
-        self.assertEqual(self.entities._new_entity_id,
-                         INVALID_ENTITY_ID)
+        self.assertEqual(self.entities._entity_id.peek(),
+                         EntityId.INVALID)
 
         comp1 = CompOne(1)
         comp2 = CompTwo(2)
         eid = self.entities.create(self._TYPE_DONT_CARE, comp1, comp2)
-        self.assertNotEqual(eid, INVALID_ENTITY_ID)
+        self.assertNotEqual(eid, EntityId.INVALID)
 
         # Entity should have the components we asked for.
         entity = self.entities.get(eid)
@@ -160,13 +158,13 @@ class Test_EntityManager(unittest.TestCase):
         # TODO Event?
 
     def test_creation(self):
-        self.assertEqual(self.entities._new_entity_id,
-                         INVALID_ENTITY_ID)
+        self.assertEqual(self.entities._entity_id.peek(),
+                         EntityId.INVALID)
 
         comp1 = CompOne(1)
         comp2 = CompTwo(2)
         eid = self.entities.create(self._TYPE_DONT_CARE, comp1, comp2)
-        self.assertNotEqual(eid, INVALID_ENTITY_ID)
+        self.assertNotEqual(eid, EntityId.INVALID)
 
         # Entity should exist and be in CREATING state now...
         entity = self.entities.get(eid)
@@ -189,12 +187,12 @@ class Test_EntityManager(unittest.TestCase):
         # TODO EVENT HERE?
 
     def test_destruction(self):
-        self.assertEqual(self.entities._new_entity_id,
-                         INVALID_ENTITY_ID)
+        self.assertEqual(self.entities._entity_id.peek(),
+                         EntityId.INVALID)
 
         # create so we can destroy...
         eid = self.entities.create(self._TYPE_DONT_CARE, CompOne(2), CompTwo(0))
-        self.assertNotEqual(eid, INVALID_ENTITY_ID)
+        self.assertNotEqual(eid, EntityId.INVALID)
         self.entities.creation(None)
         entity = self.entities.get(eid)
         self.assertTrue(entity)

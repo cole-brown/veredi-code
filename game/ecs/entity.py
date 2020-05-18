@@ -24,20 +24,20 @@ Inspired by:
 from typing import Union, Type, Iterable, Optional, Set, Any
 
 from veredi.logger import log
-from veredi.entity.component import (ComponentId,
-                                     INVALID_COMPONENT_ID,
-                                     Component,
-                                     ComponentError,
-                                     CompIdOrType)
-from veredi.entity.entity import (EntityId,
-                                  EntityTypeId,
-                                  INVALID_ENTITY_ID,
-                                  Entity,
-                                  EntityLifeCycle)
+from .base.identity import (MonotonicIdGenerator,
+                            ComponentId,
+                            EntityId)
+from .base.component import (Component,
+                             ComponentError,
+                             CompIdOrType)
+from .base.entity import (EntityTypeId,
+                          Entity,
+                          EntityLifeCycle,
+                          EntityTools)
 from .event import EcsManagerWithEvents, EventManager
 from .component import ComponentManager
 from .const import SystemHealth
-#from .time import TimeManager  # TODO: can we forward ref or something?
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -57,14 +57,16 @@ class EntityManager(EcsManagerWithEvents):
         '''Initializes this thing.'''
         # TODO: Pools instead of allowing stuff to be allocated/deallocated?
 
-        # TODO: self._comp_mgr! And use it for... stuff?
+        self._component_manager: ComponentManager         = component_manager
 
-        self._new_entity_id:  EntityId      = INVALID_ENTITY_ID
-        self._entity_create:  Set[EntityId] = set()
-        self._entity_destroy: Set[EntityId] = set()
+        self._entity_id:         MonotonicIdGenerator     = MonotonicIdGenerator(EntityId)
+        self._entity_create:     Set[EntityId]            = set()
+        self._entity_destroy:    Set[EntityId]            = set()
 
-        self._entity: Dict[EntityId, 'Entity'] = {}
+        self._entity:            Dict[EntityId, 'Entity'] = {}
         # self._entity_type?
+
+        self._toolbox = EntityTools(self, component_manager)
 
     def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
         '''
@@ -125,16 +127,17 @@ class EntityManager(EcsManagerWithEvents):
 
         Entity will be cycled to ALIVE during the LIFE tick.
         '''
-        self._new_entity_id += 1
+        eid = self._entity_id.next()
 
-        entity = Entity(self._new_entity_id, type_id, *args, **kwargs)
-        self._entity[self._new_entity_id] = entity
-        self._entity_create.add(self._new_entity_id)
+        entity = Entity(eid, type_id, self._toolbox,
+                        *args, **kwargs)
+        self._entity[eid] = entity
+        self._entity_create.add(eid)
         entity._life_cycled(EntityLifeCycle.CREATING)
 
         # TODO Event?
 
-        return self._new_entity_id
+        return eid
 
     def destroy(self, entity_id: EntityId) -> None:
         '''

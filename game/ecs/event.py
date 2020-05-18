@@ -94,6 +94,14 @@ class EventManager(EcsManager):
             self._push(each)
         self._events.clear()
 
+    def update(self, tick: 'SystemTick', time: 'TimeManager') -> None:
+        '''
+        Engine calls us for each update tick, and we'll call all our
+        game systems.
+        '''
+        # Publish whatever we've built up.
+        self.publish()
+
     def apoptosis(self, time: 'TimeManager') -> SystemHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
