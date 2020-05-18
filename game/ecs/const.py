@@ -42,27 +42,27 @@ class SystemTick(enum.Flag):
     These are (or should be) defined in the order they occur in Engine.
     '''
 
-    TIME     = enum.auto()
+    TIME        = enum.auto()
     '''Tick where game time is updated.'''
 
-    LIFE     = enum.auto()
+    CREATION    = enum.auto()
     '''Tick where ECS creation happens.'''
 
-    PRE      = enum.auto()
+    PRE         = enum.auto()
     '''Tick where ECS creation events are published, and any other
     pre-standard-tick stuff should happen.'''
 
-    STANDARD = enum.auto()
+    STANDARD    = enum.auto()
     '''Tick where basically everything should happen.
 
     USE THIS ONE!
     '''
 
-    POST     = enum.auto()
+    POST        = enum.auto()
     '''Tick where STANDARD events are published, and any other
     post-standard-tick stuff should happen.'''
 
-    DEATH    = enum.auto()
+    DESTRUCTION = enum.auto()
     '''Tick where ECS destruction happens.'''
 
     def has(self, flag):

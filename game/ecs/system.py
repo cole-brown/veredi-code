@@ -244,7 +244,7 @@ class SystemManager(EcsManagerWithEvents):
 
         Returns the system id.
 
-        System will be cycled to ALIVE during the LIFE tick.
+        System will be cycled to ALIVE during the CREATION tick.
         '''
         sid = self._system_id.next()
 
@@ -262,7 +262,7 @@ class SystemManager(EcsManagerWithEvents):
         Cycles system to DESTROYING now... This is the 'end' of the life cycle
         of the system.
 
-        System will be fully removed from our pools on the DEATH tick.
+        System will be fully removed from our pools on the DESTRUCTION tick.
         '''
         system = self.get(system_id)
         if not system:

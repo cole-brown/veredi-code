@@ -155,8 +155,8 @@ class System:
         if tick is SystemTick.TIME:
             return self.update_time(time_mgr, component_mgr, entity_mgr)
 
-        elif tick is SystemTick.LIFE:
-            return self.update_life(time_mgr, component_mgr, entity_mgr)
+        elif tick is SystemTick.CREATION:
+            return self.update_creation(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.PRE:
             return self.update_pre(time_mgr, component_mgr, entity_mgr)
@@ -167,8 +167,8 @@ class System:
         elif tick is SystemTick.POST:
             return self.update_post(time_mgr, component_mgr, entity_mgr)
 
-        elif tick is SystemTick.DEATH:
-            return self.update_death(time_mgr, component_mgr, entity_mgr)
+        elif tick is SystemTick.DESTRUCTION:
+            return self.update_destruction(time_mgr, component_mgr, entity_mgr)
 
         else:
             # This, too, should be treated as a SystemHealth.FATAL...
@@ -186,10 +186,10 @@ class System:
         '''
         return SystemHealth.FATAL
 
-    def update_life(self,
-                    time_mgr:      'TimeManager',
-                    component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> SystemHealth:
+    def update_creation(self,
+                        time_mgr:      'TimeManager',
+                        component_mgr: 'ComponentManager',
+                        entity_mgr:    'EntityManager') -> SystemHealth:
         '''
         Before Standard upate. Creation part of life cycles managed here.
         '''
@@ -224,10 +224,10 @@ class System:
         '''
         return SystemHealth.FATAL
 
-    def update_death(self,
-                     time_mgr:      'TimeManager',
-                     component_mgr: 'ComponentManager',
-                     entity_mgr:    'EntityManager') -> SystemHealth:
+    def update_destruction(self,
+                           time_mgr:      'TimeManager',
+                           component_mgr: 'ComponentManager',
+                           entity_mgr:    'EntityManager') -> SystemHealth:
         '''
         Final upate. Death/deletion part of life cycles managed here.
         '''

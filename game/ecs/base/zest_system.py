@@ -32,7 +32,7 @@ class CompTwo(component.Component):
 
 
 class SysJeff(system.System):
-    last_tick = system.SystemTick.DEATH
+    last_tick = system.SystemTick.DESTRUCTION
 
     def __init__(self, system_id, *args, **kwargs):
         super().__init__(self, system_id, *args, **kwargs)
@@ -118,7 +118,7 @@ class Test_System(unittest.TestCase):
         self.assertTrue(CompTwo in required)
 
     def test_tick(self):
-        self.assertTrue(self.sys.last_tick, const.SystemTick.DEATH)
+        self.assertTrue(self.sys.last_tick, const.SystemTick.DESTRUCTION)
 
         self.sys.update_pre(1.0, None, None)
         self.assertTrue(self.sys.last_tick, const.SystemTick.PRE)

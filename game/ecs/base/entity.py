@@ -49,37 +49,10 @@ class EntityLifeCycle(enum.Enum):
 # Code
 # -----------------------------------------------------------------------------
 
-class class_property_readonly(object):
-    '''
-    Decorator for defining a function as a class-level property.
-    '''
-    def __init__(self, f):
-        self.f = f
-    def __get__(self, obj, owner):
-        return self.f(owner)
-
-
 class EntityTools:
     '''
-    Singleton instance to hold pointers back to EntityManager, ComponentManager.
+    Holds pointers back to stuff like: EntityManager, ComponentManager.
     '''
-    # --------------------------------------------------------------------------
-    # Singleton
-    # --------------------------------------------------------------------------
-    __singleton = None
-
-    def __new__(klass, *args):
-        '''
-        Enforce the singleness of the singleton.
-        '''
-        if klass.__singleton is None:
-            klass.__singleton = object.__new__(klass)
-        # klass.__singleton.val = val
-        return klass.__singleton
-
-    @class_property_readonly
-    def singleton(klass):
-        return klass.__singleton
 
     # --------------------------------------------------------------------------
     # Constructor
@@ -94,13 +67,13 @@ class EntityTools:
     # Accessors for the two managers.
     # --------------------------------------------------------------------------
 
-    @class_property_readonly
-    def entity_manager(klass):
-        return klass.__singleton._entity_manager
+    @property
+    def entity_manager(self):
+        return self._entity_manager
 
-    @class_property_readonly
-    def component_manager(klass):
-        return klass.__singleton._component_manager
+    @property
+    def component_manager(self):
+        return self._component_manager
 
 
 class Entity:
