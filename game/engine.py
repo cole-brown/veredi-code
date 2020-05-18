@@ -247,13 +247,13 @@ class Engine:
         try:
             now_secs = self._update_time()
 
-            self._update_life()
+            self._update_creation()
             self._update_pre()
 
             self._update()
 
             self._update_post()
-            self._update_death()
+            self._update_destruction()
 
         # Various exceptions we can handle at this level...
         # Or we can't but want to log.
@@ -329,7 +329,7 @@ class Engine:
         self.system.update(SystemTick.TIME, self.time,
                            self.component, self.entity)
 
-    def _update_life(self) -> None:
+    def _update_creation(self) -> None:
         '''
         Main game loop's final update function - birth/creation of
         components & entities.
@@ -337,8 +337,8 @@ class Engine:
         self.component.creation(self.time)
         self.entity.creation(self.time)
 
-        self.event.update(SystemTick.LIFE, self.time)
-        self.system.update(SystemTick.LIFE, self.time,
+        self.event.update(SystemTick.CREATION, self.time)
+        self.system.update(SystemTick.CREATION, self.time,
                            self.component, self.entity)
 
     def _update_pre(self) -> None:
@@ -367,7 +367,7 @@ class Engine:
         self.system.update(SystemTick.POST, self.time,
                            self.component, self.entity)
 
-    def _update_death(self) -> None:
+    def _update_destruction(self) -> None:
         '''
         Main game loop's final update function - death/deletion of
         components & entities.
@@ -376,8 +376,8 @@ class Engine:
         self.entity.destruction(self.time)
         self.system.destruction(self.time)
 
-        self.event.update(SystemTick.DEATH, self.time)
-        self.system.update(SystemTick.DEATH, self.time,
+        self.event.update(SystemTick.DESTRUCTION, self.time)
+        self.system.update(SystemTick.DESTRUCTION, self.time,
                            self.component, self.entity)
 
 

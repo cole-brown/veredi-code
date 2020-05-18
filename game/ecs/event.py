@@ -35,14 +35,6 @@ class EcsManagerWithEvents(EcsManager):
 # Code
 # -----------------------------------------------------------------------------
 
-# TODO
-#  - Do I need a SystemManager? Or is Game good enough for it?
-#
-#  - Events should be published... when? Just after STANDARD tick?
-#    - After LIFE(so PRE?), STANDARD(so POST?), DEATH(so.......FINAL?)?
-#    - Heavily suggest systems stick to PRE/STANDARD/POST ticks?
-#  -
-
 class EventManager(EcsManager):
     def __init__(self) -> None:
         self._subscriptions = {}

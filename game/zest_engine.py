@@ -55,12 +55,12 @@ class SysTest(System):
     def __init__(self, system_id, *args, **kwargs):
         super().__init__(system_id, *args, **kwargs)
         self.ents_seen = {
-            SystemTick.TIME:     set(),
-            SystemTick.LIFE:     set(),
-            SystemTick.PRE:      set(),
-            SystemTick.STANDARD: set(),
-            SystemTick.POST:     set(),
-            SystemTick.DEATH:    set(),
+            SystemTick.TIME:        set(),
+            SystemTick.CREATION:    set(),
+            SystemTick.PRE:         set(),
+            SystemTick.STANDARD:    set(),
+            SystemTick.POST:        set(),
+            SystemTick.DESTRUCTION: set(),
         }
 
     def _look_at_entities(self, tick, entity_mgr):
@@ -69,11 +69,11 @@ class SysTest(System):
 
     def test_saw_total(self):
         return (len(self.ents_seen[SystemTick.TIME])
-                + len(self.ents_seen[SystemTick.LIFE])
+                + len(self.ents_seen[SystemTick.CREATION])
                 + len(self.ents_seen[SystemTick.PRE])
                 + len(self.ents_seen[SystemTick.STANDARD])
                 + len(self.ents_seen[SystemTick.POST])
-                + len(self.ents_seen[SystemTick.DEATH]))
+                + len(self.ents_seen[SystemTick.DESTRUCTION]))
 
     def test_saw_entity(self, tick, id):
         return id in self.ents_seen[tick]
@@ -89,11 +89,11 @@ class SysTest(System):
         self._look_at_entities(SystemTick.TIME_MGR, entity_mgr)
         return SystemHealth.HEALTHY
 
-    def update_life(self,
-                    time_mgr,
-                    component_mgr,
-                    entity_mgr):
-        self._look_at_entities(SystemTick.LIFE, entity_mgr)
+    def update_creation(self,
+                        time_mgr,
+                        component_mgr,
+                        entity_mgr):
+        self._look_at_entities(SystemTick.CREATION, entity_mgr)
         return SystemHealth.HEALTHY
 
     def update_pre(self,
@@ -117,11 +117,11 @@ class SysTest(System):
         self._look_at_entities(SystemTick.POST, entity_mgr)
         return SystemHealth.HEALTHY
 
-    def update_death(self,
-                    time_mgr,
-                    component_mgr,
-                    entity_mgr):
-        self._look_at_entities(SystemTick.DEATH, entity_mgr)
+    def update_destruction(self,
+                           time_mgr,
+                           component_mgr,
+                           entity_mgr):
+        self._look_at_entities(SystemTick.DESTRUCTION, entity_mgr)
         return SystemHealth.HEALTHY
 
 
@@ -352,7 +352,7 @@ class Test_Engine(unittest.TestCase):
         expected_ids = set()
         self.assertEqual(self.saw_ents(jeff, tick, self.ent_ids),
                          expected_ids)
-        tick = SystemTick.LIFE
+        tick = SystemTick.CREATION
         self.assertEqual(self.saw_ents(jeff, tick, self.ent_ids),
                          expected_ids)
 
@@ -367,7 +367,7 @@ class Test_Engine(unittest.TestCase):
         self.assertEqual(self.saw_ents(jeff, tick, self.ent_ids),
                          expected_ids)
 
-        tick = SystemTick.DEATH
+        tick = SystemTick.DESTRUCTION
         expected_ids = set()
         self.assertEqual(self.saw_ents(jeff, tick, self.ent_ids),
                          expected_ids)
@@ -379,7 +379,7 @@ class Test_Engine(unittest.TestCase):
         expected_ids = set()
         self.assertEqual(self.saw_ents(jill, tick, self.ent_ids),
                          expected_ids)
-        tick = SystemTick.LIFE
+        tick = SystemTick.CREATION
         self.assertEqual(self.saw_ents(jill, tick, self.ent_ids),
                          expected_ids)
         tick = SystemTick.PRE
@@ -395,7 +395,7 @@ class Test_Engine(unittest.TestCase):
         expected_ids = set()
         self.assertEqual(self.saw_ents(jill, tick, self.ent_ids),
                          expected_ids)
-        tick = SystemTick.DEATH
+        tick = SystemTick.DESTRUCTION
         self.assertEqual(self.saw_ents(jill, tick, self.ent_ids),
                          expected_ids)
 

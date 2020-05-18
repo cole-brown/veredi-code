@@ -125,7 +125,7 @@ class EntityManager(EcsManagerWithEvents):
 
         Returns the entity id.
 
-        Entity will be cycled to ALIVE during the LIFE tick.
+        Entity will be cycled to ALIVE during the CREATION tick.
         '''
         eid = self._entity_id.next()
 
@@ -141,10 +141,10 @@ class EntityManager(EcsManagerWithEvents):
 
     def destroy(self, entity_id: EntityId) -> None:
         '''
-        Cycles entity to DEATH now... This is the 'end' of the life cycle
+        Cycles entity to DESTROYING now... This is the 'end' of the life cycle
         of the entity.
 
-        Entity will be fully removed from our pools on the DEATH tick.
+        Entity will be fully removed from our pools on the DESTRUCTION tick.
         '''
         entity = self.get(entity_id)
         if not entity:

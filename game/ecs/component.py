@@ -136,7 +136,7 @@ class ComponentManager:
 
         Returns the component id.
 
-        Component will be cycled to ALIVE during the LIFE tick.
+        Component will be cycled to ALIVE during the CREATION tick.
         '''
         cid = self._component_id.next()
         component = comp_class(cid, *args, **kwargs)
@@ -150,10 +150,10 @@ class ComponentManager:
 
     def destroy(self, component_id: ComponentId) -> None:
         '''
-        Cycles component to DEATH now... This is the 'end' of the life cycle
+        Cycles component to DESTROYING now... This is the 'end' of the life cycle
         of the component.
 
-        Component will be fully removed from our pools on the DEATH tick.
+        Component will be fully removed from our pools on the DESTRUCTION tick.
         '''
         component = self.get(component_id)
         if not component:
