@@ -24,14 +24,10 @@ Inspired by:
 from typing import Union, Type, Iterable, Optional, Set, List, Any
 
 from veredi.logger import log
-from veredi.entity.component import (ComponentId,
-                                     INVALID_COMPONENT_ID,
-                                     Component,
-                                     ComponentLifeCycle,
-                                     ComponentError)
-from veredi.entity.entity import (EntityId,
-                                  EntityTypeId,
-                                  INVALID_ENTITY_ID)
+from .base.identity import MonotonicIdGenerator, ComponentId
+from .base.component import (Component,
+                             ComponentLifeCycle,
+                             ComponentError)
 from .const import SystemHealth
 from .event import EcsManagerWithEvents, EventManager
 
@@ -54,12 +50,12 @@ class ComponentManager:
         '''Initializes this thing.'''
         # TODO: Pools instead of allowing stuff to be allocated/deallocated?
 
-        self._new_component_id:  ComponentId      = INVALID_COMPONENT_ID
-        self._component_create:  Set[ComponentId] = set()
-        self._component_destroy: Set[ComponentId] = set()
+        self._component_id:      MonotonicIdGenerator = MonotonicIdGenerator(ComponentId)
+        self._component_create:  Set[ComponentId]     = set()
+        self._component_destroy: Set[ComponentId]     = set()
 
-        self._component_id:   Dict[ComponentId, Component]           = {}
-        self._component_type: Dict[Type[Component], List[Component]] = {}
+        self._component_by_id:   Dict[ComponentId, Component]           = {}
+        self._component_by_type: Dict[Type[Component], List[Component]] = {}
 
 
     def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
@@ -74,7 +70,7 @@ class ComponentManager:
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
         # Mark every ent for destruction, then run destruction.
-        for cid in self._component_id:
+        for cid in self._component_by_id:
             self.destroy(cid)
         self.destruction(time)
 
@@ -84,19 +80,19 @@ class ComponentManager:
         '''
         Insert this component into our pools.
         '''
-        self._component_id[id] = component
-        type_dict = self._component_type.setdefault(type(component), [])
+        self._component_by_id[id] = component
+        type_dict = self._component_by_type.setdefault(type(component), [])
         type_dict.append(component)
 
     def _remove(self, id: ComponentId) -> None:
         '''
         Take this component out of our pools.
         '''
-        component = self._component_id.pop(id, None)
+        component = self._component_by_id.pop(id, None)
         if not component:
             return
 
-        type_list = self._component_type.setdefault(type(component), [])
+        type_list = self._component_by_type.setdefault(type(component), [])
         try:
             type_list.remove(component)
         except ValueError:
@@ -115,7 +111,7 @@ class ComponentManager:
         # Look for the specific type, and all parent types.
         for type in comp_type.__class__.__mro__:
             # Walk over all components in that type list...
-            for component in self._component_type[type]:
+            for component in self._component_by_type[type]:
                 yield component
 
     # --------------------------------------------------------------------------
@@ -127,7 +123,7 @@ class ComponentManager:
         Get component from the component pool and return it. Component's
         LifeCycle is not checked so it might not be alive yet/anymore.
         '''
-        return self._component_id.get(component_id, None)
+        return self._component_by_id.get(component_id, None)
 
     # TODO: *args: Any? or maybe data: Dict[str, Any]?
     def create(self,
@@ -142,15 +138,15 @@ class ComponentManager:
 
         Component will be cycled to ALIVE during the LIFE tick.
         '''
-        self._new_component_id += 1
-        component = comp_class(self._new_component_id, *args, **kwargs)
-        self._add(self._new_component_id, component)
-        self._component_create.add(self._new_component_id)
+        cid = self._component_id.next()
+        component = comp_class(cid, *args, **kwargs)
+        self._add(cid, component)
+        self._component_create.add(cid)
         component._life_cycled(ComponentLifeCycle.CREATING)
 
         # TODO Event?
 
-        return self._new_component_id
+        return cid
 
     def destroy(self, component_id: ComponentId) -> None:
         '''

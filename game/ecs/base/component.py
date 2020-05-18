@@ -13,13 +13,12 @@ from typing import NewType, Any, Union, Type, Iterable
 import enum
 
 from .exceptions import ComponentError
+from .identity import ComponentId
+
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-ComponentId = NewType('ComponentId', int)
-INVALID_COMPONENT_ID = ComponentId(0)
 
 CompIdOrType = Union[ComponentId, Type['Component']]
 

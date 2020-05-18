@@ -13,18 +13,15 @@ from typing import (Optional, Iterable, Set, Any, NewType,
 import enum
 
 from veredi.logger import log
-from .component import (ComponentId,
-                        INVALID_COMPONENT_ID,
-                        Component,
+from .identity import (ComponentId,
+                       EntityId)
+from .component import (Component,
                         CompIdOrType)
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-EntityId = NewType('EntityId', int)
-INVALID_ENTITY_ID = EntityId(0)
 
 EntityTypeId = NewType('EntityTypeId', int)
 INVALID_ENTITY_TYPE_ID = EntityTypeId(0)
@@ -52,6 +49,60 @@ class EntityLifeCycle(enum.Enum):
 # Code
 # -----------------------------------------------------------------------------
 
+class class_property_readonly(object):
+    '''
+    Decorator for defining a function as a class-level property.
+    '''
+    def __init__(self, f):
+        self.f = f
+    def __get__(self, obj, owner):
+        return self.f(owner)
+
+
+class EntityTools:
+    '''
+    Singleton instance to hold pointers back to EntityManager, ComponentManager.
+    '''
+    # --------------------------------------------------------------------------
+    # Singleton
+    # --------------------------------------------------------------------------
+    __singleton = None
+
+    def __new__(klass, *args):
+        '''
+        Enforce the singleness of the singleton.
+        '''
+        if klass.__singleton is None:
+            klass.__singleton = object.__new__(klass)
+        # klass.__singleton.val = val
+        return klass.__singleton
+
+    @class_property_readonly
+    def singleton(klass):
+        return klass.__singleton
+
+    # --------------------------------------------------------------------------
+    # Constructor
+    # --------------------------------------------------------------------------
+    def __init__(self,
+                 entity_mgr:    'EntityManager',
+                 component_mgr: 'ComponentManager'):
+        self._entity_manager    = entity_mgr
+        self._component_manager = component_mgr
+
+    # --------------------------------------------------------------------------
+    # Accessors for the two managers.
+    # --------------------------------------------------------------------------
+
+    @class_property_readonly
+    def entity_manager(klass):
+        return klass.__singleton._entity_manager
+
+    @class_property_readonly
+    def component_manager(klass):
+        return klass.__singleton._component_manager
+
+
 class Entity:
     '''
     An Entity tracks its EntityId and life cycle, but primarily holds a
@@ -67,14 +118,16 @@ class Entity:
         klass.__get_component_fn = getter
 
     def __init__(self,
-                 eid: EntityId,
-                 tid: EntityTypeId,
-                 *args: Any,
+                 eid:      EntityId,
+                 tid:      EntityTypeId,
+                 tools:    EntityTools,
+                 *args:    Any,
                  **kwargs: Any) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!'''
         self._entity_id:  EntityId        = eid
         self._type_id:    EntityTypeId    = tid
         self._life_cycle: EntityLifeCycle = EntityLifeCycle.INVALID
+        self._tools:      EntityTools     = tools
 
         # TODO:
         #  - only hold on to component ids.
@@ -83,9 +136,9 @@ class Entity:
         for arg in args:
             if isinstance(arg, Iterable):
                 for each in arg:
-                    if isinstance(each, (type(ComponentId), Component)):
+                    if isinstance(each, (ComponentId, Component)):
                         self._add(each)
-            elif isinstance(arg, (type(ComponentId), Component)):
+            elif isinstance(arg, (ComponentId, Component)):
                 self._add(arg)
             # else:
             #     # No other use for arg right now...
@@ -102,7 +155,7 @@ class Entity:
 
     @property
     def enabled(self) -> bool:
-        return self._life_cycle == ComponentLifeCycle.ALIVE
+        return self._life_cycle == EntityLifeCycle.ALIVE
 
     @property
     def life_cycle(self) -> EntityLifeCycle:
@@ -154,16 +207,24 @@ class Entity:
     # EntityManager Interface/Helpers
     # -------------------------------------------------------------------------
 
-    def _add(self, component: Component):
+    def _add(self, id_or_comp: Union[ComponentId, Component]):
         '''
         DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
 
         Adds the component to this entity.
         '''
+        component = id_or_comp
+        if isinstance(id_or_comp, ComponentId):
+            component = self._tools.component_manager.get(id_or_comp)
+        if not component:
+            log.error("Ignoring 'add' requested for a non-existing component. "
+                      "ID or instance: {} -> {}",
+                      id_or_comp, component)
+            return
+
         existing = self._components.get(type(component), None)
         if not existing:
             self._components[type(component)] = component
-
         else:
             # Entity has component already and it cannot
             # be replaced.

@@ -12,19 +12,22 @@ import unittest
 
 from . import engine
 
+from .ecs.event import EventManager
 from .ecs.entity import EntityManager
 from .ecs.component import ComponentManager
 from .ecs.time import TimeManager
-from .ecs.system import System
-from .ecs.const import SystemTick, SystemPriority, SystemHealth
+from .ecs.system import SystemManager
+from .ecs.const import SystemTick, SystemPriority, SystemHealth, DebugFlag
 
-from veredi.entity.component import (ComponentId,
-                                     INVALID_COMPONENT_ID,
-                                     Component,
-                                     ComponentError)
-from veredi.entity.entity import (EntityId,
-                                  INVALID_ENTITY_ID,
-                                  Entity)
+from .ecs.base.identity import (ComponentId,
+                                EntityId,
+                                SystemId)
+from .ecs.base.component import (Component,
+                                 ComponentLifeCycle)
+from .ecs.base.entity import (Entity,
+                              EntityLifeCycle)
+from .ecs.base.system import (System,
+                              SystemLifeCycle)
 
 
 # -----------------------------------------------------------------------------
@@ -49,8 +52,8 @@ class CompThree(Component):
 
 
 class SysTest(System):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system_id, *args, **kwargs):
+        super().__init__(system_id, *args, **kwargs)
         self.ents_seen = {
             SystemTick.TIME:     set(),
             SystemTick.LIFE:     set(),
@@ -60,8 +63,8 @@ class SysTest(System):
             SystemTick.DEATH:    set(),
         }
 
-    def _look_at_entities(self, tick, sys_entities):
-        for entity in sys_entities.each_with(self.required()):
+    def _look_at_entities(self, tick, entity_mgr):
+        for entity in entity_mgr.each_with(self.required()):
             self.ents_seen[tick].add(entity.id)
 
     def test_saw_total(self):
@@ -80,51 +83,51 @@ class SysTest(System):
             each.clear()
 
     def update_time(self,
-                    time,
-                    sys_entities,
-                    sys_time):
-        self._look_at_entities(SystemTick.TIME, sys_entities)
+                    time_mgr,
+                    component_mgr,
+                    entity_mgr):
+        self._look_at_entities(SystemTick.TIME_MGR, entity_mgr)
         return SystemHealth.HEALTHY
 
     def update_life(self,
-                    time,
-                    sys_entities,
-                    sys_time):
-        self._look_at_entities(SystemTick.LIFE, sys_entities)
+                    time_mgr,
+                    component_mgr,
+                    entity_mgr):
+        self._look_at_entities(SystemTick.LIFE, entity_mgr)
         return SystemHealth.HEALTHY
 
     def update_pre(self,
-                    time,
-                    sys_entities,
-                    sys_time):
-        self._look_at_entities(SystemTick.PRE, sys_entities)
+                    time_mgr,
+                    component_mgr,
+                    entity_mgr):
+        self._look_at_entities(SystemTick.PRE, entity_mgr)
         return SystemHealth.HEALTHY
 
     def update(self,
-                    time,
-                    sys_entities,
-                    sys_time):
-        self._look_at_entities(SystemTick.STANDARD, sys_entities)
+                    time_mgr,
+                    component_mgr,
+                    entity_mgr):
+        self._look_at_entities(SystemTick.STANDARD, entity_mgr)
         return SystemHealth.HEALTHY
 
     def update_post(self,
-                    time,
-                    sys_entities,
-                    sys_time):
-        self._look_at_entities(SystemTick.POST, sys_entities)
+                    time_mgr,
+                    component_mgr,
+                    entity_mgr):
+        self._look_at_entities(SystemTick.POST, entity_mgr)
         return SystemHealth.HEALTHY
 
     def update_death(self,
-                    time,
-                    sys_entities,
-                    sys_time):
-        self._look_at_entities(SystemTick.DEATH, sys_entities)
+                    time_mgr,
+                    component_mgr,
+                    entity_mgr):
+        self._look_at_entities(SystemTick.DEATH, entity_mgr)
         return SystemHealth.HEALTHY
 
 
 class SysJeff(SysTest):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system_id, *args, **kwargs):
+        super().__init__(system_id, *args, **kwargs)
         self._ticks = (SystemTick.PRE
                        | SystemTick.STANDARD
                        | SystemTick.POST)
@@ -137,8 +140,8 @@ class SysJeff(SysTest):
 
 
 class SysJill(SysTest):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system_id, *args, x=None, y=None, **kwargs):
+        super().__init__(system_id, *args, x=None, y=None, **kwargs)
         self._ticks = SystemTick.STANDARD
 
     def priority(self):
@@ -149,8 +152,8 @@ class SysJill(SysTest):
 
 
 class SysNoTick(SysTest):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system_id, *args, **kwargs):
+        super().__init__(system_id, *args, **kwargs)
         self._ticks = None
 
     def priority(self):
@@ -158,8 +161,8 @@ class SysNoTick(SysTest):
 
 
 class SysNoReq(SysTest):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, system_id, *args, **kwargs):
+        super().__init__(system_id, *args, **kwargs)
         self._ticks = None
 
     def required(self):
@@ -173,28 +176,37 @@ class SysNoReq(SysTest):
 class Test_Engine(unittest.TestCase):
 
     def setUp(self):
-        self.components = ComponentManager()
-        self.entities = EntityManager(self.components)
+        self.event = EventManager()
         self.time = TimeManager()
+        self.component = ComponentManager()
+        self.entity = EntityManager(self.component)
+        self.system = SystemManager(DebugFlag.UNIT_TESTS)
         self.engine = engine.Engine(None, None, None,
-                                    self.time, self.entities,
-                                    engine.EngineDebug.UNIT_TESTS)
+                                    self.event,
+                                    self.time,
+                                    self.component,
+                                    self.entity,
+                                    self.system,
+                                    DebugFlag.UNIT_TESTS)
 
     def tearDown(self):
-        self.entities = None
+        self.event = None
         self.time = None
+        self.component = None
+        self.entity = None
+        self.system = None
         self.engine = None
 
     def create_entities(self):
-        comps_1_2_x = set([CompOne(0), CompTwo(1)])
-        comps_1_x_x = set([CompOne(2)])
-        comps_1_2_3 = set([CompOne(3), CompTwo(4), CompThree(5)])
-        comps_x_2_3 = set([            CompTwo(6), CompThree(7)])
+        comps_1_2_x = set([self.component.create(CompOne), self.component.create(CompTwo)])
+        comps_1_x_x = set([self.component.create(CompOne)])
+        comps_1_2_3 = set([self.component.create(CompOne), self.component.create(CompTwo), self.component.create(CompThree)])
+        comps_x_2_3 = set([                                self.component.create(CompTwo), self.component.create(CompThree)])
 
-        self.ent_1_2_x = self.entities.create(1, comps_1_2_x)
-        self.ent_1_x_x = self.entities.create(2, comps_1_x_x)
-        self.ent_1_2_3 = self.entities.create(1, comps_1_2_3)
-        self.ent_x_2_3 = self.entities.create(3, comps_x_2_3)
+        self.ent_1_2_x = self.entity.create(1, comps_1_2_x)
+        self.ent_1_x_x = self.entity.create(2, comps_1_x_x)
+        self.ent_1_2_3 = self.entity.create(1, comps_1_2_3)
+        self.ent_x_2_3 = self.entity.create(3, comps_x_2_3)
 
         self.ent_ids = {
             self.ent_1_2_x,
@@ -202,6 +214,20 @@ class Test_Engine(unittest.TestCase):
             self.ent_1_2_3,
             self.ent_x_2_3,
         }
+
+    def create_systems(self, *args):
+        sids = []
+        for each in args:
+            if isinstance(each, tuple):
+                sids.append(self.system.create(each[0], *each[1:]))
+            else:
+                sids.append(self.system.create(each))
+
+#        # Create stuff.
+#        self.jeff_id = self.system.create(SysJeff)
+#        self.jill_id = self.system.create(SysJill)
+
+        return sids
 
     def saw_ents(self, sys, tick, ent_ids):
         seen_ids = set()
@@ -213,80 +239,94 @@ class Test_Engine(unittest.TestCase):
         return seen_ids
 
     def test_init(self):
-        self.assertTrue(self.entities)
+        self.assertTrue(self.event)
         self.assertTrue(self.time)
+        self.assertTrue(self.component)
+        self.assertTrue(self.entity)
         self.assertTrue(self.engine)
 
     def test_set_up(self):
-        jeff = SysJeff()
-        jill = SysJill()
-        self.engine.register(jeff)
-        self.engine.register(jill)
+        # Create stuff.
+        self.create_entities()
+        jeff_id, jill_id = self.create_systems(SysJeff, SysJill)
 
-        # Nothing in schedule yet.
-        self.assertFalse(self.engine._sys_schedule)
-        # But they're ready...
-        self.assertTrue(self.engine._sys_registration)
+        # Tick should get it all created and alive and scheduled.
+        self.engine.tick()
 
-        self.engine.set_up()
+        self.assertTrue(len(self.component._component_by_id) > 0)
+        for cid in self.component._component_by_id:
+            comp = self.component.get(cid)
+            self.assertIsNotNone(comp)
+            self.assertEqual(comp.life_cycle, ComponentLifeCycle.ALIVE)
 
-        # Now registered systems should be scheduled by priority.
-        self.assertFalse(self.engine._sys_registration)
-        self.assertTrue(self.engine._sys_schedule)
-        self.assertEqual(self.engine._sys_schedule,
-                         [jill, jeff])
+        self.assertTrue(len(self.entity._entity) > 0)
+        for eid in self.entity._entity:
+            ent = self.entity.get(eid)
+            self.assertIsNotNone(ent)
+            self.assertEqual(ent.life_cycle, EntityLifeCycle.ALIVE)
 
-    def test_no_sys_tick(self):
-        # raise exceptions if things go wrong
-        self.engine.DEBUG_TICK = True
+        self.assertTrue(len(self.system._system) > 0)
+        for sid in self.system._system:
+            sys = self.system.get(sid)
+            self.assertIsNotNone(sys)
+            self.assertEqual(sys.life_cycle, SystemLifeCycle.ALIVE)
+
+        self.assertEqual(self.system._schedule,
+                         [self.system.get(jill_id), self.system.get(jeff_id)])
+
+    def test_empty_engine_tick(self):
+        # Tick an empty engine.
+        # Raise exceptions if things go wrong
         self.engine.tick()
 
     def test_tickless_sys(self):
+        self.create_entities()
         # Register, set up, and run it... and assert, uhh... no exceptions.
-        noop = SysNoTick()
-        self.engine.register(noop)
-        self.engine.set_up()
+        sids = self.create_systems(SysNoTick)
         self.engine.tick()
         # guess we can check this too...
+        noop = self.system.get(sids[0])
+        self.assertIsInstance(noop, SysNoTick)
         self.assertEqual(noop.test_saw_total(), 0)
 
-        # Once more with entities.
+        # Once more with entity.
         self.create_entities()
         self.engine.tick()
         self.assertEqual(noop.test_saw_total(), 0)
 
     def test_reqless_sys(self):
         # Register, set up, and run it... and assert, uhh... no exceptions.
-        chill_sys = SysNoReq()
-        self.engine.register(chill_sys)
-        self.engine.set_up()
+        sids = self.create_systems(SysNoReq)
+        chill_sys = self.system.get(sids[0])
         self.engine.tick()
         # guess we can check this too...
         self.assertEqual(chill_sys.test_saw_total(), 0)
 
-        # Once more with entities.
+        # Once more with entity.
         self.create_entities()
         self.engine.tick()
         self.assertEqual(chill_sys.test_saw_total(), 0)
 
-
     def test_multi_sys_see_ents(self):
         # Register, set up, and run 'em.
-        no_req = SysNoReq()
-        no_tick = SysNoTick()
-        jeff = SysJeff()
-        jill = SysJill()
-        self.engine.register(no_req, no_tick, jeff)
-        self.engine.register(jill)
-        self.engine.set_up()
+        sids = self.create_systems(SysNoReq,
+                                   SysNoTick,
+                                   SysJeff,
+                                   SysJill)
+        no_req = self.system.get(sids[0])
+        no_tick = self.system.get(sids[1])
+        jeff = self.system.get(sids[2])
+        jill = self.system.get(sids[3])
+
         self.engine.tick()
+
         # guess we can check this too...
         self.assertEqual(no_req.test_saw_total(), 0)
         self.assertEqual(no_tick.test_saw_total(), 0)
         self.assertEqual(jeff.test_saw_total(), 0)
         self.assertEqual(jill.test_saw_total(), 0)
 
-        # Once more with entities.
+        # Once more with entity.
         self.create_entities()
         self.engine.tick()
         self.assertEqual(no_req.test_saw_total(), 0)

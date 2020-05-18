@@ -8,183 +8,343 @@ Base class for game update loop systems.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Iterable, Set, Union
+from typing import Optional, Iterable, Set, Union, Any, Type
 import enum
 import decimal
 
-from .const import SystemTick, SystemPriority, SystemHealth
-from .event import EventManager
-from veredi.entity.component import (ComponentId,
-                                     INVALID_COMPONENT_ID,
-                                     Component,
-                                     ComponentError)
-from veredi.entity.entity import (EntityId,
-                                  INVALID_ENTITY_ID,
-                                  Entity)
+from veredi.logger import log
+
+from .base.identity import (MonotonicIdGenerator,
+                            ComponentId,
+                            EntityId,
+                            SystemId)
+from .base.component import (Component,
+                             ComponentError)
+from .base.entity import Entity
+from .base.system import (System,
+                          SystemLifeCycle)
+
+from veredi.base.exceptions import VerediError
+from .base.exceptions import ComponentError, EntityError
+from .exceptions import SystemError, TickError
+
+from .const import SystemTick, SystemPriority, SystemHealth, DebugFlag
+from .event import EcsManagerWithEvents
+
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
 
-
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Code
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
-class System:
-    def __init__(self) -> None:
-        self._components = None
-        self._health = {} # TODO: impl this? or put in game class?
-        self._ticks = None
+class SystemManager(EcsManagerWithEvents):
+    '''
+    Manages the life cycles of entities/components.
+    '''
+
+    def __init__(self, debug_flags: Optional[DebugFlag]) -> None:
+        '''Initializes this thing.'''
+        self._debug = debug_flags
+
+        # TODO: Pools instead of allowing stuff to be allocated/deallocated?
+        self._system_id:      MonotonicIdGenerator     = MonotonicIdGenerator(SystemId)
+        self._system_create:  Set[SystemId]            = set()
+        self._system_destroy: Set[SystemId]            = set()
+
+        self._system:         Dict[SystemId, System]   = {}
+        self._schedule:       List[System]             = []
+        self._reschedule:     bool                     = False
+        # self._health = {} # TODO: impl this? or put in game class?
+
+        self._event:          'EventManager'           = None
+
 
     # --------------------------------------------------------------------------
-    # System Registration / Definition
+    # Debugging
     # --------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: EventManager) -> SystemHealth:
+    def debug_flagged(self, desired) -> bool:
+        '''
+        Returns true if SystemManager's debug flags are set to something and that
+        something has the desired flag. Returns false otherwise.
+        '''
+        return self._debug and self._debug.has(desired)
+
+    @property
+    def debug(self) -> DebugFlag:
+        '''Returns current debug flags.'''
+        return self._debug
+
+    @debug.setter
+    def debug(self, value: DebugFlag) -> None:
+        '''
+        Set current debug flags. No error/sanity checks.
+        Universe could explode; use wisely.
+        '''
+        self._debug = value
+
+    # --------------------------------------------------------------------------
+    # EcsManagerWithEvents Interface
+    # --------------------------------------------------------------------------
+
+    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
+        self._event = event_manager
         return SystemHealth.HEALTY
 
-    def apoptosis(self, time: TimeManager) -> SystemHealth:
+    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
-        return SystemHealth.APOPTOSIS
+        # Mark every ent for destruction, then run destruction.
+        for sid in self._system:
+            self.destroy(sid)
+        self.destruction(time)
 
-    def priority(self) -> Union[SystemPriority, int]:
-        '''
-        Returns a SystemPriority (or int) for when, relative to other systems,
-        this should run. Highest priority goes firstest.
-        '''
-        # TODO: flow control - systems have priorities and can depend on each
-        # other, so that a topological order for their execution can be
-        # established.
-
-        # So allow either static priority level, or some sort of...
-        # SystemFlow.Before('class name')
-        # SystemFlow.After('class name')
-        return SystemPriority.LOW
-
-    @staticmethod
-    def sort_key(system: 'System') -> Union[SystemPriority, int]:
-        return system.priority()
-
-    def required(self) -> Optional[Iterable[Component]]:
-        '''
-        Returns the Component types this system /requires/ in order to function
-        on an entity.
-
-        e.g. Perhaps a Combat system /requires/ Health and Defense components,
-        and uses others like Position, Attack... This function should only
-        return Health and Defense.
-        '''
-        return None
+        return super().apoptosis(time)
 
     # --------------------------------------------------------------------------
-    # Game Update Loop/Tick Functions
+    # API: System Collection Iteration
     # --------------------------------------------------------------------------
 
-    def wants_update_tick(self,
-                          tick: SystemTick,
-                          time: decimal.Decimal) -> bool:
+    def _update_schedule(self) -> None:
         '''
-        Returns a boolean for whether this system wants to run during this tick
-        update function.
+        Recreate the system schedule from the current systems, if needed.
+
+        Will only happen once per tick.
         '''
-        return self._ticks is not None and self._ticks.has(tick)
+        if not self._reschedule:
+            return
 
-    def update_tick(self,
-                    tick: SystemTick,
-                    time: decimal.Decimal,
-                    sys_entities: 'System',
-                    sys_time: 'System') -> SystemHealth:
-        '''
-        Calls the correct update function for the tick state.
+        # Clear out our current schedule, and remake it.
+        self._schedule.clear()
+        for sid in self._system:
+            system = self._system[sid]
+            self._schedule.append(system)
 
-        Returns SystemHealth value.
-        '''
-        if tick is SystemTick.TIME:
-            return self.update_time(time, sys_entities, sys_time)
+        # Priority sort (highest priority firstest)
+        self._schedule.sort(key=System.sort_key)
 
-        elif tick is SystemTick.LIFE:
-            return self.update_life(time, sys_entities, sys_time)
-
-        elif tick is SystemTick.PRE:
-            return self.update_pre(time, sys_entities, sys_time)
-
-        elif tick is SystemTick.STANDARD:
-            return self.update(time, sys_entities, sys_time)
-
-        elif tick is SystemTick.POST:
-            return self.update_post(time, sys_entities, sys_time)
-
-        elif tick is SystemTick.DEATH:
-            return self.update_death(time, sys_entities, sys_time)
-
-        else:
-            # This, too, should be treated as a SystemHealth.FATAL...
-            raise exceptions.TickError(
-                "{} does not have an update_tick handler for {}.",
-                self.__class__.__name__, tick)
-
-    def update_time(self,
-                    time: decimal.Decimal,
-                    sys_entities: 'System',
-                    sys_time: 'System') -> SystemHealth:
-        '''
-        First in Game update loop. Systems should use this rarely as the game
-        time clock itself updates in this part of the loop.
-        '''
-        return SystemHealth.FATAL
-
-    def update_life(self,
-                    time: decimal.Decimal,
-                    sys_entities: 'System',
-                    sys_time: 'System') -> SystemHealth:
-        '''
-        Before Standard upate. Creation part of life cycles managed here.
-        '''
-        return SystemHealth.FATAL
-
-    def update_pre(self,
-                   time: decimal.Decimal,
-                   sys_entities: 'System',
-                   sys_time: 'System') -> SystemHealth:
-        '''
-        Pre-update. For any systems that need to squeeze in something just
-        before actual tick.
-        '''
-        return SystemHealth.FATAL
+        self._reschedule = False
 
     def update(self,
-               time: decimal.Decimal,
-               sys_entities: 'System',
-               sys_time: 'System') -> SystemHealth:
+               tick: SystemTick,
+               time: 'TimeManager',
+               component: 'ComponentManager',
+               entity: 'EntityManager') -> None:
         '''
-        Normal/Standard upate. Basically everything should happen here.
+        Engine calls us for each update tick, and we'll call all our
+        game systems.
         '''
-        return SystemHealth.FATAL
+        # Update schedule at start of the tick, if it needs it.
+        if tick == SystemTick.TIME:
+            self._update_schedule()
 
-    def update_post(self,
-                    time: decimal.Decimal,
-                    sys_entities: 'System',
-                    sys_time: 'System') -> SystemHealth:
-        '''
-        Post-update. For any systems that need to squeeze in something just
-        after actual tick.
-        '''
-        return SystemHealth.FATAL
+        # TODO: self._schedule[tick] is a priority/topographical tree or
+        # something that doesn't pop off members each loop?
+        for system in self._schedule:
+            if not system.wants_update_tick(tick, time):
+                continue
 
-    def update_death(self,
-                    time: decimal.Decimal,
-                    sys_entities: 'System',
-                    sys_time: 'System') -> SystemHealth:
+            if self.debug_flagged(DebugFlag.LOG_TICK):
+                log.debug("SystemManager.update({tick}, {time:05.6f}): {system}",
+                          tick=tick,
+                          time=time.get_tick(),
+                          system=system)
+
+            # Try/catch each system, so they don't kill each other with a single
+            # repeating exception.
+            try:
+                system.update_tick(tick, time, component, entity)
+
+            # Various exceptions we can handle at this level...
+            # Or we can't but want to log.
+            except TickError as error:
+                log.exception(
+                    error,
+                    "SystemManager's {} system had a TickError "
+                    "during {} tick (time={}).",
+                    str(system), tick, time.get_tick())
+                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+                    raise
+                # TODO: health thingy
+            except SystemError as error:
+                log.exception(
+                    error,
+                    "SystemManager's {} system had a SystemError "
+                    "during {} tick (time={}).",
+                    str(system), tick, time.get_tick())
+                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+                    raise
+                # TODO: health thingy
+            except ComponentError as error:
+                log.exception(
+                    error,
+                    "SystemManager's {} system had a ComponentError "
+                    "during {} tick (time={}).",
+                    str(system), tick, time.get_tick())
+                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+                    raise
+                # TODO: health thingy
+            except EntityError as error:
+                log.exception(
+                    error,
+                    "SystemManager's {} system had a EntityError "
+                    "during {} tick (time={}).",
+                    str(system), tick, time.get_tick())
+                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+                    raise
+                # TODO: health thingy
+            except VerediError as error:
+                log.exception(
+                    error,
+                    "SystemManager's {} system had a generic VerediError "
+                    "during {} tick (time={}).",
+                    str(system), tick, time.get_tick())
+                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+                    raise
+                # TODO: health thingy
+            except Exception as error:
+                log.exception(
+                    error,
+                    "SystemManager's {} system had an unknown exception "
+                    "during {} tick (time={}).",
+                    str(system), tick, time.get_tick())
+                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+                    raise
+                # TODO: health thingy
+                raise
+
+    # --------------------------------------------------------------------------
+    # API: Component/System Management
+    # --------------------------------------------------------------------------
+
+    def get(self, system_id: SystemId) -> Optional[System]:
         '''
-        Final upate. Death/deletion part of life cycles managed here.
+        Get an existing/alive system from the system pool and return it.
+
+        Does not care about current life cycle state of system.
         '''
-        return SystemHealth.FATAL
+        return self._system.get(system_id, None)
+
+    def create(self,
+               sys_class: Type[System],
+               *args: Any,
+               **kwargs: Any) -> SystemId:
+        '''
+        Creates a system with the supplied args. This is the start of
+        the life cycle of the system.
+
+        Returns the system id.
+
+        System will be cycled to ALIVE during the LIFE tick.
+        '''
+        sid = self._system_id.next()
+
+        system = sys_class(sid, *args, **kwargs)
+        self._system[sid] = system
+        self._system_create.add(sid)
+        system._life_cycled(SystemLifeCycle.CREATING)
+
+        # TODO Event?
+
+        return sid
+
+    def destroy(self, system_id: SystemId) -> None:
+        '''
+        Cycles system to DESTROYING now... This is the 'end' of the life cycle
+        of the system.
+
+        System will be fully removed from our pools on the DEATH tick.
+        '''
+        system = self.get(system_id)
+        if not system:
+            return
+
+        system._life_cycle = SystemLifeCycle.DESTROYING
+        self._system_destroy.add(system.id)
+        # TODO Event?
+
+    # --------------------------------------------------------------------------
+    # Game Loop: Component/System Life Cycle Updates
+    # --------------------------------------------------------------------------
+
+    def creation(self,
+                 time: 'TimeManager') -> SystemHealth:
+        '''
+        Runs before the start of the tick/update loop.
+
+        Updates entities in CREATING state to ALIVE state.
+        '''
+
+        for system_id in self._system_create:
+            # System should exist in our pool, otherwise we don't
+            # care about it...
+            system = self.get(system_id)
+            if (not system
+                    or system._life_cycle != SystemLifeCycle.CREATING):
+                continue
+
+            try:
+                # Bump it to alive now.
+                system._life_cycled(SystemLifeCycle.ALIVE)
+
+            except SystemError as error:
+                log.exception(
+                    error,
+                    "SystemError in creation() for system_id {}.",
+                    system_id)
+                # TODO: put this system in... jail or something? Delete?
+
+            # TODO EVENT HERE!
+
+        self._reschedule = True
+        return SystemHealth.HEALTHY
+
+    def destruction(self,
+                    time: 'TimeManager') -> SystemHealth:
+        '''
+        Runs after the end of the tick/update loop.
+
+        Removes entities not in ALIVE state from system pools.
+        '''
+
+        # Check all entities in the destroy pool...
+        for system_id in self._system_destroy:
+            # System should exist in our pool, otherwise we don't
+            # care about it...
+            system = self.get(system_id)
+            if (not system
+                    # INVALID, CREATING, DESTROYING will all be
+                    # cycled into death. ALIVE can stay.
+                    or system._life_cycle == SystemLifeCycle.ALIVE):
+                continue
+
+            try:
+                # Bump it to dead now.
+                system._life_cycled(SystemLifeCycle.DEAD)
+                # ...and forget about it.
+                self._system.pop(system_id, None)
+
+            except SystemError as error:
+                log.exception(
+                    error,
+                    "SystemError in creation() for system_id {}.",
+                    system_id)
+                # TODO: put this system in... jail or something? Delete?
+
+            # TODO EVENT HERE!
+
+        # Done with iteration - clear the removes.
+        self._system_destroy.clear()
+
+        self._reschedule = True
+        return SystemHealth.HEALTHY
 
