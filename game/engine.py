@@ -51,10 +51,12 @@ from veredi.data.repository import manager
 
 # Game is:
 #   manager of whole shebang
+#   very good at delegation
 #
 # game should get:
 #   campaign info (name, owner?, system?, ...)
 #   repo... types?
+#   managers of the ECS ecosystem
 #
 # game should then:
 #   load campaign from repo into Campaign obj
@@ -172,11 +174,11 @@ class Engine:
         self._debug = value
 
     # --------------------------------------------------------------------------
-    # Game Never-Ending Loop
+    # Game Start/Stop
     # --------------------------------------------------------------------------
 
     def _should_stop(self):
-        return self._health.should_die()
+        return self._health.should_die
 
     def stop(self):
         '''
@@ -237,8 +239,25 @@ class Engine:
 
         return SystemHealth.APOPTOSIS
 
+    # --------------------------------------------------------------------------
+    # Pre-Game Loading Loop
+    # --------------------------------------------------------------------------
+    def loading(self):
+        return (not self._should_stop()
+                and not self.time.is_timed_out(self.time._DEFAULT_TIMEOUT_SEC))
+
+    def load(self):
+        # Call Systems'/Managers' loading functions until everyone
+        # is done loading.
+        retval = SystemHealth.HEALTHY
+        self.time.start_timeout()
+        while self.loading(retval):
+            self.system.update(SystemTick.LOADING, self.time,
+                               self.component, self.entity)
+            self.event.update(SystemTick.LOADING, self.time)
+
     # -------------------------------------------------------------------------
-    # Game Loops
+    # In-Game Loops
     # -------------------------------------------------------------------------
 
     def tick(self) -> None:

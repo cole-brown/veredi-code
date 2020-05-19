@@ -11,6 +11,7 @@ Timing info for game.
 from typing import Optional, Union, Callable
 
 from datetime import datetime, timezone
+import time as py_time
 import decimal
 
 from veredi.logger import log
@@ -131,6 +132,46 @@ class Clock:
         self.time_stamp = value.timestamp(self.time_zone)
 
 
+class MonotonicTimer:
+    '''
+    Uses time.monotonic() to track elapsed time.
+    '''
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self._start: float = self._current
+        self._end:   float = None
+
+    @property
+    def _current(self):
+        return py_time.monotonic()
+
+    def start(self):
+        '''Saves current monotonic time as the start time.'''
+        self._start = self._current
+
+    def stop(self):
+        '''Saves current monotonic time as the end time.'''
+        self._end = self._current
+
+    @property
+    def timing(self):
+        '''Not stopped and have a start time means probably timing something.'''
+        return (self._start and not self._end)
+
+    @property
+    def elapsed(self):
+        '''
+        If timer has been stopped, returns elapsed from start to end.
+
+        Otherwise, returns elapsed from start to now.
+        '''
+        if self._end:
+            return self._end - self._start
+        return self._current - self._start
+
+
 class TimeManager:
     '''
     This class has the potential to be saved to data fields. Let it control its
@@ -140,6 +181,7 @@ class TimeManager:
     the 'TimeManager' in whatever functions have it, as... well. I am Time.
     '''
     _DEFAULT_TICK_STEP = decimal.Decimal(6)
+    _DEFAULT_TIMEOUT_SEC = 10
 
     def __init__(self, tick_amount: Optional[TickTypes] = None) -> None:
         super().__init__()
@@ -171,6 +213,40 @@ class TimeManager:
         # Anything to do, time-wise?
 
         return SystemHealth.APOPTOSIS
+
+    # ---
+    # Timer
+    # ---
+
+    def start_timeout(self) -> None:
+        if not self._timer:
+            self._timer = MonotonicTimer()
+
+        self._timer.start()
+
+    def end_timeout(self) -> None:
+        if not self._timer:
+            return
+
+        self._timer.end()
+        elapsed = self._timer.elapsed
+        self._timer.reset()
+        return elapsed
+
+    def is_timed_out(self, timeout=None) -> None:
+        '''
+        Returns true if timeout timer is:
+          - Falsy.
+          - Not timing.
+          - Past timeout value.
+            - or past _DEFAULT_TIMEOUT_SEC if timeout value is None.
+        '''
+        if not self._timer or not self._timer.timing:
+            return True
+
+        if not timeout or timeout <= 0:
+            timeout = self._DEFAULT_TIMEOUT_SEC
+        return self._timer.elapsed < timeout
 
     # ---
     # Ticking Time
