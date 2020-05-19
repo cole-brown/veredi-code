@@ -22,6 +22,7 @@ Inspired by:
 # -----------------------------------------------------------------------------
 
 from typing import Union, Type, Iterable, Optional, Set, Any
+import enum
 
 from veredi.logger import log
 from .base.identity import (MonotonicIdGenerator,
@@ -34,7 +35,7 @@ from .base.entity import (EntityTypeId,
                           Entity,
                           EntityLifeCycle,
                           EntityTools)
-from .event import EcsManagerWithEvents, EventManager
+from .event import EcsManagerWithEvents, EventManager, Event
 from .component import ComponentManager
 from .const import SystemHealth
 
@@ -43,20 +44,36 @@ from .const import SystemHealth
 # Constants
 # -----------------------------------------------------------------------------
 
+@enum.unique
+class EntityEventType(enum.Enum):
+    COMPONENT_ADD    = enum.auto()
+    COMPONENT_REMOVE = enum.auto()
+
 
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
+
+class EntityEvent(Event):
+    pass
+
+
+class EntityLifeEvent(Event):
+    pass
+
 
 class EntityManager(EcsManagerWithEvents):
     '''
     Manages the life cycles of entities/components.
     '''
 
-    def __init__(self, component_manager: ComponentManager) -> None:
+    def __init__(self,
+                 event_manager:     Optional[EventManager],
+                 component_manager: ComponentManager) -> None:
         '''Initializes this thing.'''
         # TODO: Pools instead of allowing stuff to be allocated/deallocated?
 
+        self._event_manager:     EventManager             = event_manager
         self._component_manager: ComponentManager         = component_manager
 
         self._entity_id:         MonotonicIdGenerator     = MonotonicIdGenerator(EntityId)
@@ -135,7 +152,10 @@ class EntityManager(EcsManagerWithEvents):
         self._entity_create.add(eid)
         entity._life_cycled(EntityLifeCycle.CREATING)
 
-        # TODO Event?
+        self.event(self._event_manager,
+                   EntityLifeEvent,
+                   eid,
+                   EntityLifeCycle.CREATING)
 
         return eid
 
@@ -152,7 +172,11 @@ class EntityManager(EcsManagerWithEvents):
 
         entity._life_cycle = EntityLifeCycle.DESTROYING
         self._entity_destroy.add(entity.id)
-        # TODO Event?
+
+        self.event(self._event_manager,
+                   EntityLifeEvent,
+                   entity_id,
+                   EntityLifeCycle.DESTROYING)
 
     def add(self, entity_id: EntityId, *components: Component) -> None:
         '''
@@ -166,7 +190,11 @@ class EntityManager(EcsManagerWithEvents):
         if not entity:
             return
         entity._add_all(components)
-        # TODO Event?
+
+        self.event(self._event_manager,
+                   EntityEvent,
+                   entity_id,
+                   EntityEventType.COMPONENT_ADD)
 
     def remove(self, entity_id: EntityId, *components: CompIdOrType) -> None:
         '''
@@ -182,7 +210,11 @@ class EntityManager(EcsManagerWithEvents):
         if not entity:
             return
         entity._remove_all(components)
-        # TODO Event?
+
+        self.event(self._event_manager,
+                   EntityEvent,
+                   entity_id,
+                   EntityEventType.COMPONENT_REMOVE)
 
     # --------------------------------------------------------------------------
     # Game Loop: Component/Entity Life Cycle Updates
@@ -215,7 +247,10 @@ class EntityManager(EcsManagerWithEvents):
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
 
-            # TODO EVENT HERE!
+            self.event(self._event_manager,
+                       EntityLifeEvent,
+                       entity_id,
+                       EntityLifeCycle.ALIVE)
 
         # Done with iteration - clear the adds.
         self._entity_create.clear()
@@ -254,7 +289,10 @@ class EntityManager(EcsManagerWithEvents):
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
 
-            # TODO EVENT HERE!
+            self.event(self._event_manager,
+                       EntityLifeEvent,
+                       entity_id,
+                       EntityLifeCycle.DEAD)
 
         # Done with iteration - clear the removes.
         self._entity_destroy.clear()

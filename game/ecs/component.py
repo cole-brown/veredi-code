@@ -29,7 +29,7 @@ from .base.component import (Component,
                              ComponentLifeCycle,
                              ComponentError)
 from .const import SystemHealth
-from .event import EcsManagerWithEvents, EventManager
+from .event import EcsManagerWithEvents, EventManager, Event
 
 
 # -----------------------------------------------------------------------------
@@ -41,12 +41,20 @@ from .event import EcsManagerWithEvents, EventManager
 # Code
 # -----------------------------------------------------------------------------
 
-class ComponentManager:
+class ComponentEvent(Event):
+    pass
+
+
+class ComponentLifeEvent(Event):
+    pass
+
+
+class ComponentManager(EcsManagerWithEvents):
     '''
     Manages the life cycles of components.
     '''
 
-    def __init__(self) -> None:
+    def __init__(self, event_manager: Optional[EventManager]) -> None:
         '''Initializes this thing.'''
         # TODO: Pools instead of allowing stuff to be allocated/deallocated?
 
@@ -57,8 +65,9 @@ class ComponentManager:
         self._component_by_id:   Dict[ComponentId, Component]           = {}
         self._component_by_type: Dict[Type[Component], List[Component]] = {}
 
+        self._event_manager:     EventManager         = event_manager
 
-    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+    def subscribe(self, event_manager: EventManager) -> SystemHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
@@ -125,7 +134,6 @@ class ComponentManager:
         '''
         return self._component_by_id.get(component_id, None)
 
-    # TODO: *args: Any? or maybe data: Dict[str, Any]?
     def create(self,
                comp_class: Type[Component],
                *args: Any,
@@ -144,7 +152,11 @@ class ComponentManager:
         self._component_create.add(cid)
         component._life_cycled(ComponentLifeCycle.CREATING)
 
-        # TODO Event?
+        # And fire off an event for CREATING.
+        self.event(self._event_manager,
+                   ComponentLifeEvent,
+                   cid,
+                   ComponentLifeCycle.CREATING)
 
         return cid
 
@@ -161,7 +173,12 @@ class ComponentManager:
 
         component._life_cycle = ComponentLifeCycle.DESTROYING
         self._component_destroy.add(component.id)
-        # TODO Event?
+
+        # And fire off an event for DESTROYING.
+        self.event(self._event_manager,
+                   ComponentLifeEvent,
+                   component_id,
+                   ComponentLifeCycle.DESTROYING)
 
     # --------------------------------------------------------------------------
     # Game Loop: Component Life Cycle Updates
@@ -194,7 +211,11 @@ class ComponentManager:
                     component_id)
                 # TODO: put this component in... jail or something? Delete?
 
-            # TODO EVENT HERE!
+            # And fire off an event for ALIVE.
+            self.event(self._event_manager,
+                       ComponentLifeEvent,
+                       component_id,
+                       ComponentLifeCycle.ALIVE)
 
         # Done with iteration - clear the adds.
         self._component_create.clear()
@@ -231,7 +252,11 @@ class ComponentManager:
                     component_id)
                 # TODO: put this component in... jail or something? Delete?
 
-            # TODO EVENT HERE!
+            # And fire off an event for DEAD.
+            self.event(self._event_manager,
+                       ComponentLifeEvent,
+                       component_id,
+                       ComponentLifeCycle.DEAD)
 
         # Done with iteration - clear the removes.
         self._component_destroy.clear()

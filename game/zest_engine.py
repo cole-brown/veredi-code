@@ -13,10 +13,16 @@ import unittest
 from . import engine
 
 from .ecs.event import EventManager
-from .ecs.entity import EntityManager
-from .ecs.component import ComponentManager
 from .ecs.time import TimeManager
-from .ecs.system import SystemManager
+from .ecs.component import (ComponentManager,
+                            ComponentEvent,
+                            ComponentLifeEvent)
+from .ecs.entity import (EntityManager,
+                         EntityEvent,
+                         EntityLifeEvent)
+from .ecs.system import (SystemManager,
+                         SystemEvent,
+                         SystemLifeEvent)
 from .ecs.const import SystemTick, SystemPriority, SystemHealth, DebugFlag
 
 from .ecs.base.identity import (ComponentId,
@@ -176,37 +182,43 @@ class SysNoReq(SysTest):
 class Test_Engine(unittest.TestCase):
 
     def setUp(self):
-        self.event = EventManager()
-        self.time = TimeManager()
-        self.component = ComponentManager()
-        self.entity = EntityManager(self.component)
-        self.system = SystemManager(DebugFlag.UNIT_TESTS)
+        self.time_mgr   = TimeManager()
+        self.event_mgr  = EventManager()
+        self.comp_mgr   = ComponentManager(self.event_mgr)
+        self.entity_mgr = EntityManager(self.event_mgr, self.comp_mgr)
+        self.system_mgr = SystemManager(self.event_mgr, DebugFlag.UNIT_TESTS)
+
         self.engine = engine.Engine(None, None, None,
-                                    self.event,
-                                    self.time,
-                                    self.component,
-                                    self.entity,
-                                    self.system,
+                                    self.event_mgr,
+                                    self.time_mgr,
+                                    self.comp_mgr,
+                                    self.entity_mgr,
+                                    self.system_mgr,
                                     DebugFlag.UNIT_TESTS)
 
     def tearDown(self):
-        self.event = None
-        self.time = None
-        self.component = None
-        self.entity = None
-        self.system = None
+        self.event_mgr = None
+        self.time_mgr = None
+        self.comp_mgr = None
+        self.entity_mgr = None
+        self.system_mgr = None
         self.engine = None
 
     def create_entities(self):
-        comps_1_2_x = set([self.component.create(CompOne), self.component.create(CompTwo)])
-        comps_1_x_x = set([self.component.create(CompOne)])
-        comps_1_2_3 = set([self.component.create(CompOne), self.component.create(CompTwo), self.component.create(CompThree)])
-        comps_x_2_3 = set([                                self.component.create(CompTwo), self.component.create(CompThree)])
+        def mkcmp(comp):
+            # This is a cheat - not going through comp_mgr... So I should
+            # probably stop and do it non-cheaty soon...
+            return self.comp_mgr.create(comp)
 
-        self.ent_1_2_x = self.entity.create(1, comps_1_2_x)
-        self.ent_1_x_x = self.entity.create(2, comps_1_x_x)
-        self.ent_1_2_3 = self.entity.create(1, comps_1_2_3)
-        self.ent_x_2_3 = self.entity.create(3, comps_x_2_3)
+        comps_1_2_x = set([mkcmp(CompOne), mkcmp(CompTwo)])
+        comps_1_x_x = set([mkcmp(CompOne)])
+        comps_1_2_3 = set([mkcmp(CompOne), mkcmp(CompTwo), mkcmp(CompThree)])
+        comps_x_2_3 = set([                mkcmp(CompTwo), mkcmp(CompThree)])
+
+        self.ent_1_2_x = self.entity_mgr.create(1, comps_1_2_x)
+        self.ent_1_x_x = self.entity_mgr.create(2, comps_1_x_x)
+        self.ent_1_2_3 = self.entity_mgr.create(1, comps_1_2_3)
+        self.ent_x_2_3 = self.entity_mgr.create(3, comps_x_2_3)
 
         self.ent_ids = {
             self.ent_1_2_x,
@@ -219,13 +231,13 @@ class Test_Engine(unittest.TestCase):
         sids = []
         for each in args:
             if isinstance(each, tuple):
-                sids.append(self.system.create(each[0], *each[1:]))
+                sids.append(self.system_mgr.create(each[0], *each[1:]))
             else:
-                sids.append(self.system.create(each))
+                sids.append(self.system_mgr.create(each))
 
 #        # Create stuff.
-#        self.jeff_id = self.system.create(SysJeff)
-#        self.jill_id = self.system.create(SysJill)
+#        self.jeff_id = self.system_mgr.create(SysJeff)
+#        self.jill_id = self.system_mgr.create(SysJill)
 
         return sids
 
@@ -239,10 +251,10 @@ class Test_Engine(unittest.TestCase):
         return seen_ids
 
     def test_init(self):
-        self.assertTrue(self.event)
-        self.assertTrue(self.time)
-        self.assertTrue(self.component)
-        self.assertTrue(self.entity)
+        self.assertTrue(self.event_mgr)
+        self.assertTrue(self.time_mgr)
+        self.assertTrue(self.comp_mgr)
+        self.assertTrue(self.entity_mgr)
         self.assertTrue(self.engine)
 
     def test_set_up(self):
@@ -253,26 +265,26 @@ class Test_Engine(unittest.TestCase):
         # Tick should get it all created and alive and scheduled.
         self.engine.tick()
 
-        self.assertTrue(len(self.component._component_by_id) > 0)
-        for cid in self.component._component_by_id:
-            comp = self.component.get(cid)
+        self.assertTrue(len(self.comp_mgr._component_by_id) > 0)
+        for cid in self.comp_mgr._component_by_id:
+            comp = self.comp_mgr.get(cid)
             self.assertIsNotNone(comp)
             self.assertEqual(comp.life_cycle, ComponentLifeCycle.ALIVE)
 
-        self.assertTrue(len(self.entity._entity) > 0)
-        for eid in self.entity._entity:
-            ent = self.entity.get(eid)
+        self.assertTrue(len(self.entity_mgr._entity) > 0)
+        for eid in self.entity_mgr._entity:
+            ent = self.entity_mgr.get(eid)
             self.assertIsNotNone(ent)
             self.assertEqual(ent.life_cycle, EntityLifeCycle.ALIVE)
 
-        self.assertTrue(len(self.system._system) > 0)
-        for sid in self.system._system:
-            sys = self.system.get(sid)
+        self.assertTrue(len(self.system_mgr._system) > 0)
+        for sid in self.system_mgr._system:
+            sys = self.system_mgr.get(sid)
             self.assertIsNotNone(sys)
             self.assertEqual(sys.life_cycle, SystemLifeCycle.ALIVE)
 
-        self.assertEqual(self.system._schedule,
-                         [self.system.get(jill_id), self.system.get(jeff_id)])
+        self.assertEqual(self.system_mgr._schedule,
+                         [self.system_mgr.get(jill_id), self.system_mgr.get(jeff_id)])
 
     def test_empty_engine_tick(self):
         # Tick an empty engine.
@@ -285,7 +297,7 @@ class Test_Engine(unittest.TestCase):
         sids = self.create_systems(SysNoTick)
         self.engine.tick()
         # guess we can check this too...
-        noop = self.system.get(sids[0])
+        noop = self.system_mgr.get(sids[0])
         self.assertIsInstance(noop, SysNoTick)
         self.assertEqual(noop.test_saw_total(), 0)
 
@@ -297,7 +309,7 @@ class Test_Engine(unittest.TestCase):
     def test_reqless_sys(self):
         # Register, set up, and run it... and assert, uhh... no exceptions.
         sids = self.create_systems(SysNoReq)
-        chill_sys = self.system.get(sids[0])
+        chill_sys = self.system_mgr.get(sids[0])
         self.engine.tick()
         # guess we can check this too...
         self.assertEqual(chill_sys.test_saw_total(), 0)
@@ -313,10 +325,10 @@ class Test_Engine(unittest.TestCase):
                                    SysNoTick,
                                    SysJeff,
                                    SysJill)
-        no_req = self.system.get(sids[0])
-        no_tick = self.system.get(sids[1])
-        jeff = self.system.get(sids[2])
-        jill = self.system.get(sids[3])
+        no_req = self.system_mgr.get(sids[0])
+        no_tick = self.system_mgr.get(sids[1])
+        jeff = self.system_mgr.get(sids[2])
+        jill = self.system_mgr.get(sids[3])
 
         self.engine.tick()
 

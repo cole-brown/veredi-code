@@ -29,7 +29,7 @@ from .base.exceptions import ComponentError, EntityError
 from .exceptions import SystemError, TickError
 
 from .const import SystemTick, SystemPriority, SystemHealth, DebugFlag
-from .event import EcsManagerWithEvents
+from .event import EcsManagerWithEvents, EventManager, Event
 
 
 # -----------------------------------------------------------------------------
@@ -41,14 +41,25 @@ from .event import EcsManagerWithEvents
 # Code
 # ------------------------------------------------------------------------------
 
+class SystemEvent(Event):
+    pass
+
+
+class SystemLifeEvent(Event):
+    pass
+
+
 class SystemManager(EcsManagerWithEvents):
     '''
     Manages the life cycles of entities/components.
     '''
 
-    def __init__(self, debug_flags: Optional[DebugFlag]) -> None:
+    def __init__(self,
+                 event_manager: Optional[EventManager],
+                 debug_flags:   Optional[DebugFlag]) -> None:
         '''Initializes this thing.'''
-        self._debug = debug_flags
+        self._debug:         Optional[DebugFlag]      = debug_flags
+        self._event_manager: Optional[EventManager]   = event_manager
 
         # TODO: Pools instead of allowing stuff to be allocated/deallocated?
         self._system_id:      MonotonicIdGenerator     = MonotonicIdGenerator(SystemId)
@@ -59,8 +70,6 @@ class SystemManager(EcsManagerWithEvents):
         self._schedule:       List[System]             = []
         self._reschedule:     bool                     = False
         # self._health = {} # TODO: impl this? or put in game class?
-
-        self._event:          'EventManager'           = None
 
 
     # --------------------------------------------------------------------------
@@ -96,7 +105,6 @@ class SystemManager(EcsManagerWithEvents):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        self._event = event_manager
         return SystemHealth.HEALTY
 
     def apoptosis(self, time: 'TimeManager') -> SystemHealth:
@@ -253,7 +261,10 @@ class SystemManager(EcsManagerWithEvents):
         self._system_create.add(sid)
         system._life_cycled(SystemLifeCycle.CREATING)
 
-        # TODO Event?
+        self.event(self._event_manager,
+                   SystemLifeEvent,
+                   sid,
+                   SystemLifeCycle.CREATING)
 
         return sid
 
@@ -270,7 +281,11 @@ class SystemManager(EcsManagerWithEvents):
 
         system._life_cycle = SystemLifeCycle.DESTROYING
         self._system_destroy.add(system.id)
-        # TODO Event?
+
+        self.event(self._event_manager,
+                   SystemLifeEvent,
+                   system_id,
+                   SystemLifeCycle.DESTROYING)
 
     # --------------------------------------------------------------------------
     # Game Loop: Component/System Life Cycle Updates
@@ -303,7 +318,10 @@ class SystemManager(EcsManagerWithEvents):
                     system_id)
                 # TODO: put this system in... jail or something? Delete?
 
-            # TODO EVENT HERE!
+            self.event(self._event_manager,
+                       SystemLifeEvent,
+                       system_id,
+                       SystemLifeCycle.ALIVE)
 
         self._reschedule = True
         return SystemHealth.HEALTHY
@@ -340,7 +358,10 @@ class SystemManager(EcsManagerWithEvents):
                     system_id)
                 # TODO: put this system in... jail or something? Delete?
 
-            # TODO EVENT HERE!
+            self.event(self._event_manager,
+                       SystemLifeEvent,
+                       system_id,
+                       SystemLifeCycle.DEAD)
 
         # Done with iteration - clear the removes.
         self._system_destroy.clear()

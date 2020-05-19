@@ -138,9 +138,11 @@ class Engine:
         # ---
         self.event     = event_manager     or EventManager()
         self.time      = time_manager      or TimeManager()
-        self.component = component_manager or ComponentManager()
-        self.entity    = entity_manager    or EntityManager(self.component)
-        self.system    = system_manager    or SystemManager(self._debug)
+        self.component = component_manager or ComponentManager(self.event)
+        self.entity    = entity_manager    or EntityManager(self.event,
+                                                            self.component)
+        self.system    = system_manager    or SystemManager(self.event,
+                                                            self._debug)
         # TODO: give these folks a back-link to me? Or the Event system for regstration step???
 
         # ---
