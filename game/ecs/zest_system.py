@@ -10,11 +10,18 @@ Tests for SystemManager.
 
 import unittest
 
-from .system import SystemManager
-
-from .component import ComponentManager
-from .entity import EntityManager
+from .event import EventManager
 from .time import TimeManager
+from .component import (ComponentManager,
+                        ComponentEvent,
+                        ComponentLifeEvent)
+from .entity import (EntityManager,
+                     EntityEvent,
+                     EntityEventType,
+                     EntityLifeEvent)
+from .system import (SystemManager,
+                     SystemEvent,
+                     SystemLifeEvent)
 
 from .const import SystemTick, SystemPriority, SystemHealth, DebugFlag
 
@@ -167,16 +174,41 @@ class SysFour(SysTest):
 class Test_SystemManager(unittest.TestCase):
 
     def setUp(self):
-        self.component = ComponentManager()
-        self.entity = EntityManager(self.component)
-        self.time = TimeManager()
-        self.system = SystemManager(DebugFlag.UNIT_TESTS)
+        self.event_mgr  = None
+        self.finish_setUp()
+
+    def finish_setUp(self):
+        self.time_mgr   = TimeManager()
+        self.comp_mgr   = ComponentManager(self.event_mgr)
+        self.entity_mgr = EntityManager(self.event_mgr, self.comp_mgr)
+        self.system_mgr = SystemManager(self.event_mgr, DebugFlag.UNIT_TESTS)
+
+        self.events_recv = {}
 
     def tearDown(self):
-        self.component = None
-        self.entity = None
-        self.time = None
-        self.system = None
+        self.time_mgr   = None
+        self.event_mgr  = None
+        self.comp_mgr   = None
+        self.entity_mgr = None
+        self.system_mgr = None
+        self.events_recv = None
+
+    def register_events(self):
+        self.event_mgr.subscribe(SystemEvent, self.event_comp_recv)
+        self.event_mgr.subscribe(SystemLifeEvent, self.event_comp_recv)
+
+    def clear_events(self):
+        self.events_recv.clear()
+        if self.event_mgr:
+            self.event_mgr._events.clear()
+
+    def event_comp_recv(self, event):
+        if not self.events_recv:
+            self.events_recv = {}
+        self.events_recv.setdefault(type(event), []).append(event)
+
+    def do_events(self):
+        return bool(self.comp_mgr._event_manager)
 
     def create_entities(self):
         comps_1_2_x = set([CompOne(0), CompTwo(1)])
@@ -184,10 +216,10 @@ class Test_SystemManager(unittest.TestCase):
         comps_1_2_3 = set([CompOne(3), CompTwo(4), CompThree(5)])
         comps_x_2_3 = set([            CompTwo(6), CompThree(7)])
 
-        self.ent_1_2_x = self.entity.create(1, comps_1_2_x)
-        self.ent_1_x_x = self.entity.create(2, comps_1_x_x)
-        self.ent_1_2_3 = self.entity.create(1, comps_1_2_3)
-        self.ent_x_2_3 = self.entity.create(3, comps_x_2_3)
+        self.ent_1_2_x = self.entity_mgr.create(1, comps_1_2_x)
+        self.ent_1_x_x = self.entity_mgr.create(2, comps_1_x_x)
+        self.ent_1_2_3 = self.entity_mgr.create(1, comps_1_2_3)
+        self.ent_x_2_3 = self.entity_mgr.create(3, comps_x_2_3)
 
         self.ent_ids = {
             self.ent_1_2_x,
@@ -206,26 +238,44 @@ class Test_SystemManager(unittest.TestCase):
         return seen_ids
 
     def test_init(self):
-        self.assertTrue(self.component)
-        self.assertTrue(self.entity)
-        self.assertTrue(self.time)
-        self.assertTrue(self.system)
+        self.assertTrue(self.comp_mgr)
+        self.assertTrue(self.entity_mgr)
+        self.assertTrue(self.time_mgr)
+        self.assertTrue(self.system_mgr)
 
     def test_create(self):
-        self.assertEqual(self.system._system_id.peek(),
+        self.assertEqual(self.system_mgr._system_id.peek(),
                          SystemId.INVALID)
 
-        sid = self.system.create(SysJeff)
+        sid = self.system_mgr.create(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
 
-        self.assertEqual(len(self.system._system_create), 1)
-        self.assertEqual(len(self.system._system_destroy), 0)
-        self.assertEqual(len(self.system._system), 1)
+        self.assertEqual(len(self.system_mgr._system_create), 1)
+        self.assertEqual(len(self.system_mgr._system_destroy), 0)
+        self.assertEqual(len(self.system_mgr._system), 1)
 
-        # TODO EVENT HERE?
+        if self.do_events():
+            print("create events?:", self.events_recv)
+            num_events = 0
+            for ev_type in (self.events_recv or ()):
+                num_events += len(self.events_recv[ev_type])
+            self.assertEqual(num_events, 0)
+            self.assertTrue(len(self.event_mgr._events) > 0)
+
+            self.event_mgr.publish()
+            num_events = 0
+            for ev_type in (self.events_recv or ()):
+                num_events += len(self.events_recv[ev_type])
+            self.assertEqual(num_events, 1)
+
+            event = self.events_recv[SystemLifeEvent][0]
+            self.assertIsNotNone(event)
+            self.assertEqual(event.id, sid)
+            self.assertEqual(event.type, SystemLifeCycle.CREATING)
+            self.assertIsNone(event.context)
 
         # System should exist and be in CREATING state now...
-        system = self.system.get(sid)
+        system = self.system_mgr.get(sid)
         self.assertIsNotNone(system)
         self.assertIsInstance(system,
                               System)
@@ -234,14 +284,14 @@ class Test_SystemManager(unittest.TestCase):
                          SystemLifeCycle.CREATING)
 
     def test_create_args(self):
-        self.assertEqual(self.system._system_id.peek(),
+        self.assertEqual(self.system_mgr._system_id.peek(),
                          SystemId.INVALID)
 
-        sid = self.system.create(SysJill, x=1, y=2)
+        sid = self.system_mgr.create(SysJill, x=1, y=2)
         self.assertNotEqual(sid, SystemId.INVALID)
 
         # System should exist and have its args assigned.
-        system = self.system.get(sid)
+        system = self.system_mgr.get(sid)
         self.assertIsNotNone(system)
         self.assertIsInstance(system,
                               SysJill)
@@ -251,45 +301,64 @@ class Test_SystemManager(unittest.TestCase):
         self.assertEqual(system.y, 2)
 
     def test_destroy(self):
-        self.assertEqual(self.system._system_id.peek(),
+        self.assertEqual(self.system_mgr._system_id.peek(),
                          SystemId.INVALID)
 
         sid = 1
-        self.system.destroy(sid)
+        self.system_mgr.destroy(sid)
         # System doesn't exist, so nothing happened.
-        self.assertEqual(len(self.system._system_create), 0)
-        self.assertEqual(len(self.system._system_destroy), 0)
+        self.assertEqual(len(self.system_mgr._system_create), 0)
+        self.assertEqual(len(self.system_mgr._system_destroy), 0)
 
-        sid = self.system.create(SysJeff)
+        sid = self.system_mgr.create(SysJeff)
         # Now we should have a create...
         self.assertNotEqual(sid, SystemId.INVALID)
-        self.assertEqual(len(self.system._system_create), 1)
+        self.assertEqual(len(self.system_mgr._system_create), 1)
+        self.clear_events() # don't care about create event
         # ...a destroy...
-        self.system.destroy(sid)
-        self.assertEqual(len(self.system._system_destroy), 1)
+        self.system_mgr.destroy(sid)
+        self.assertEqual(len(self.system_mgr._system_destroy), 1)
         # ...and a DESTROYING state.
-        system = self.system.get(sid)
+        system = self.system_mgr.get(sid)
         self.assertIsNotNone(system)
         self.assertIsInstance(system,
                               SysJeff)
         self.assertEqual(system.life_cycle,
                          SystemLifeCycle.DESTROYING)
 
-        # TODO EVENT HERE?
+        if self.do_events():
+            num_events = 0
+            for ev_type in (self.events_recv or ()):
+                num_events += len(self.events_recv[ev_type])
+            self.assertEqual(num_events, 0)
+            self.assertTrue(len(self.event_mgr._events) > 0)
+
+            self.event_mgr.publish()
+            num_events = 0
+            for ev_type in (self.events_recv or ()):
+                num_events += len(self.events_recv[ev_type])
+            self.assertEqual(num_events, 1)
+
+            event = self.events_recv[SystemLifeEvent][0]
+            self.assertIsNotNone(event)
+            self.assertEqual(event.id, sid)
+            self.assertEqual(event.type, SystemLifeCycle.DESTROYING)
+            self.assertIsNone(event.context)
 
     def test_creation(self):
-        sid = self.system.create(SysJeff)
+        sid = self.system_mgr.create(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
 
         # System should exist and be in CREATING state now...
-        system = self.system.get(sid)
+        system = self.system_mgr.get(sid)
         self.assertIsNotNone(system)
         self.assertEqual(system.id, sid)
         self.assertEqual(system.life_cycle,
                          SystemLifeCycle.CREATING)
+        self.clear_events() # don't care about create event
 
         # Tick past creation to get new system finished.
-        self.system.creation(None)
+        self.system_mgr.creation(None)
 
         # System should still exist and be in ALIVE state now.
         self.assertIsNotNone(system)
@@ -299,28 +368,46 @@ class Test_SystemManager(unittest.TestCase):
         self.assertEqual(system.life_cycle,
                          SystemLifeCycle.ALIVE)
 
-        # TODO EVENT HERE?
+        if self.do_events():
+            num_events = 0
+            for ev_type in (self.events_recv or ()):
+                num_events += len(self.events_recv[ev_type])
+            self.assertEqual(num_events, 0)
+            self.assertTrue(len(self.event_mgr._events) > 0)
+
+            self.event_mgr.publish()
+            num_events = 0
+            for ev_type in (self.events_recv or ()):
+                num_events += len(self.events_recv[ev_type])
+            self.assertEqual(num_events, 1)
+
+            event = self.events_recv[SystemLifeEvent][0]
+            self.assertIsNotNone(event)
+            self.assertEqual(event.id, sid)
+            self.assertEqual(event.type, SystemLifeCycle.ALIVE)
+            self.assertIsNone(event.context)
 
     def test_destruction(self):
-        sid = self.system.create(SysJeff)
+        sid = self.system_mgr.create(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
 
         # System should exist and be in CREATING state now...
-        system = self.system.get(sid)
+        system = self.system_mgr.get(sid)
         self.assertIsNotNone(system)
         self.assertEqual(system.id, sid)
         self.assertEqual(system.life_cycle,
                          SystemLifeCycle.CREATING)
 
         # Now (ask for) destroy!
-        self.system.destroy(sid)
+        self.system_mgr.destroy(sid)
+        self.clear_events() # don't care about create/destroy event
 
         # Tick past destruction to get poor new system DEAD.
-        self.system.destruction(None)
+        self.system_mgr.destruction(None)
 
         # System should not exist as far as SystemManager cares,
         # and be in DEAD state now.
-        self.assertIsNone(self.system.get(sid))
+        self.assertIsNone(self.system_mgr.get(sid))
         self.assertIsNotNone(system)
         self.assertIsInstance(system,
                               SysJeff)
@@ -328,17 +415,43 @@ class Test_SystemManager(unittest.TestCase):
         self.assertEqual(system.life_cycle,
                          SystemLifeCycle.DEAD)
 
-        # TODO EVENT HERE?
+        if self.do_events():
+            num_events = 0
+            for ev_type in (self.events_recv or ()):
+                num_events += len(self.events_recv[ev_type])
+            self.assertEqual(num_events, 0)
+            self.assertTrue(len(self.event_mgr._events) > 0)
+
+            self.event_mgr.publish()
+            num_events = 0
+            for ev_type in (self.events_recv or ()):
+                num_events += len(self.events_recv[ev_type])
+            self.assertEqual(num_events, 1)
+
+            event = self.events_recv[SystemLifeEvent][0]
+            self.assertIsNotNone(event)
+            self.assertEqual(event.id, sid)
+            self.assertEqual(event.type, SystemLifeCycle.DEAD)
+            self.assertIsNone(event.context)
 
     def test_scheduling(self):
-        sid = self.system.create(SysFour)
+        sid = self.system_mgr.create(SysFour)
         self.assertNotEqual(sid, SystemId.INVALID)
 
-        sid = self.system.create(SysJeff)
+        sid = self.system_mgr.create(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
 
-        sid = self.system.create(SysThree)
+        sid = self.system_mgr.create(SysThree)
         self.assertNotEqual(sid, SystemId.INVALID)
 
-        sid = self.system.create(SysJeff)
+        sid = self.system_mgr.create(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
+
+
+class Test_SystemManager_Events(Test_SystemManager):
+    def setUp(self):
+        # Add EventManager so that tests in parent class will
+        # generate/check events.
+        self.event_mgr = EventManager()
+        self.finish_setUp()
+        self.register_events()
