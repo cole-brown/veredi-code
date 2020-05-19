@@ -42,6 +42,9 @@ class SystemTick(enum.Flag):
     These are (or should be) defined in the order they occur in Engine.
     '''
 
+    LOADING     = enum.auto()
+    '''Tick where systems load stuff they care about from data.'''
+
     TIME        = enum.auto()
     '''Tick where game time is updated.'''
 
@@ -108,6 +111,7 @@ class SystemHealth(enum.Enum):
     APOPTOSIS = enum.auto()
     '''System just wants to die.'''
 
+    @property
     def should_die(self):
         '''
         Is this a state that should trigger system death?
