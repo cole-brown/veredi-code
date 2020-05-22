@@ -1,7 +1,8 @@
 # coding: utf-8
 
 '''
-YAML Format Reader / Writer
+Reader/Loader & Writer/Dumper of YAML Format.
+Aka YAML Codec.
 '''
 
 # -----------------------------------------------------------------------------
@@ -14,8 +15,12 @@ from veredi.logger import log
 from veredi.data.config.registry import register
 from veredi.data import exceptions
 
+from ..base import BaseCodec
+
 from . import function
 from . import document
+from . import component
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -26,17 +31,13 @@ from . import document
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'format', 'yaml')
-class YamlFormat:
-    _EXTENSION = 'yaml'
+@register('veredi', 'codec', 'yaml')
+class YamlCodec(BaseCodec):
+    _NAME = 'yaml'
 
     # https://pyyaml.org/wiki/PyYAMLDocumentation
 
-    # TODO: ABC's abstract method
-    def ext(self):
-        return self._EXTENSION
-
-    def load(self, file_obj, error_context):
+    def load(self, stream, error_context):
         '''Load and decodes data from a single data file.
 
         Raises:
@@ -46,11 +47,12 @@ class YamlFormat:
             - Other yaml/file errors?
         '''
 
-        # §-TODO-§ [2020-05-06]: Read type and version, verify them?
+        # §-TODO-§ [2020-05-06]: Read Metadata (type, version, etc),
+        # verify them?
 
         data = None
         try:
-            data = yaml.safe_load(file_obj)
+            data = yaml.safe_load(stream)
         except yaml.YAMLError as error:
             log.error('YAML failed while loading the file. {} {}',
                       error.__class__.__qualname__,
@@ -61,7 +63,7 @@ class YamlFormat:
                                        error_context) from error
         return data
 
-    def load_all(self, file_obj, error_context):
+    def load_all(self, stream, error_context):
         '''Load and decodes data from a single data file.
 
         Raises:
@@ -76,7 +78,7 @@ class YamlFormat:
 
         data = None
         try:
-            data = yaml.safe_load_all(file_obj)
+            data = yaml.safe_load_all(stream)
             # print(f"{self.__class__.__name__}.load_all: data = {data}")
         except yaml.YAMLError as error:
             log.error('YAML failed while loading the file. {} {}',

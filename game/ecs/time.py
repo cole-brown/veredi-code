@@ -50,6 +50,8 @@ class Tick:
         self._seconds = decimal.Decimal(curr_secs)
         self._tick_amt = decimal.Decimal(tick_amount)
 
+        self._num_ticks = 0
+
         # ---
         # Contexts
         # ---
@@ -92,10 +94,23 @@ class Tick:
         '''
         Add `self._tick_amt` seconds to the Tick counter.
         Positive, negative, whatever.
+
+        Adds -1, 0, or 1 to `self._num_ticks`, depending on what self._tick_amt
+        is.
+
         Returns self.seconds after this time step.
         '''
         self._seconds += self._tick_amt
+        self._num_ticks += mathing.sign(self._tick_amt)
         return self._seconds
+
+    @property
+    def tick_num(self) -> int:
+        return self._num_ticks
+
+    @tick_num.setter
+    def tick_num(self, value: int) -> None:
+        self._num_ticks = value
 
 
 class Clock:
@@ -259,14 +274,26 @@ class TimeManager:
     # Getters & Setters
     # ---
 
-    def get_tick(self) -> decimal.Decimal:
+    @property
+    def tick_seconds(self) -> decimal.Decimal:
         return self.tick.seconds
 
-    def set_tick(self, value: TickTypes) -> None:
+    @tick_seconds.setter
+    def tick_seconds(self, value: TickTypes) -> None:
         self.tick.seconds = value
 
-    def get_datetime(self) -> datetime:
+    @property
+    def tick_num(self) -> int:
+        return self.tick.tick_num
+
+    @tick_num.setter
+    def tick_num(self, value: int) -> None:
+        self.tick.tick_num = value
+
+    @property
+    def datetime(self) -> datetime:
         return self.clock.datetime
 
-    def set_datetime(self, value: datetime) -> None:
+    @datetime.setter
+    def datetime(self, value: datetime) -> None:
         self.clock.datetime = value

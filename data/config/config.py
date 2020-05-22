@@ -15,8 +15,8 @@ import re
 # Our Stuff
 from veredi.logger import log
 from .. import exceptions
-from ..format.yaml import yaml
-from ..format.yaml.document import DocMetadata, DocRepository
+from ..codec.yaml import codec
+from ..codec.yaml.document import DocMetadata, DocRepository
 from ..repository.manager import Manager
 from . import registry
 
@@ -48,10 +48,10 @@ def default_path():
 
 class Configuration:
     '''Raises LoadError and ConfigError...'''
-    def __init__(self, config_path=None, data_format=None):
+    def __init__(self, config_path=None, data_codec=None):
         '''Raises LoadError and ConfigError'''
         self._path = config_path or default_path()
-        self._data_format = data_format or yaml.YamlFormat()
+        self._data_codec = data_codec or codec.YamlCodec()
 
         self._load()
         self._set_up()
@@ -91,7 +91,7 @@ class Configuration:
 
         try:
             # required
-            dotted_key_fmt = data['format']
+            dotted_key_fmt = data['codec']
             dotted_key_repo = data['type']
 
             # optional
@@ -110,10 +110,10 @@ class Configuration:
         dotted_key_fmt = self._var_sub(dotted_key_fmt, kind)
         dotted_key_repo = self._var_sub(dotted_key_repo, kind)
 
-        formatter  = registry.create(dotted_key_fmt)
+        codec      = registry.create(dotted_key_fmt)
         repository = registry.create(dotted_key_repo,
                                      directory,
-                                     data_format=formatter)
+                                     data_codec=codec)
         return repository
 
     def _var_sub(self, string, replacement):
@@ -127,9 +127,9 @@ class Configuration:
         with open(self._path, 'r') as file_obj:
             # Can raise an error - we'll let it.
             try:
-                log.debug(f"data format: {self._data_format}")
-                generator = self._data_format.load_all(file_obj,
-                                                       self._to_context())
+                log.debug(f"data codec: {self._data_codec}")
+                generator = self._data_codec.load_all(file_obj,
+                                                      self._to_context())
                 for each in generator:
                     log.debug("loading doc: {}", each)
                     self._load_doc(each)
@@ -146,6 +146,7 @@ class Configuration:
                 raise
 
     def _load_doc(self, document):
+        # TODO: ask codec if it's metadata/repo/whatever?
         if isinstance(document, DocMetadata):
             self._data_meta = document
         elif isinstance(document, DocRepository):
@@ -165,5 +166,5 @@ class Configuration:
 
         '''
         context['config_path'] = self._path
-        context['data_format'] = self._data_format.__class__.__name__
+        context['data_codec']  = self._data_codec.context()
         return context

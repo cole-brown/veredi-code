@@ -99,6 +99,10 @@ class SystemHealth(enum.Enum):
     INVALID   = 0
     '''A state to indicate a state hasn't been set but should/should have.'''
 
+    PENDING   = enum.auto()
+    '''System is uncertain... Probably waiting on something (e.g. subscribe() so
+    it can know if vital EventManager exists).'''
+
     HEALTHY   = enum.auto()
     '''Valid, healthly system.'''
 
@@ -109,7 +113,7 @@ class SystemHealth(enum.Enum):
     '''System is encountering bad things and should be killed.'''
 
     APOPTOSIS = enum.auto()
-    '''System just wants to die.'''
+    '''System is dying in a healthy manner.'''
 
     @property
     def should_die(self):

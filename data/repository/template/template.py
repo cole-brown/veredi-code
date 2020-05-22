@@ -25,8 +25,8 @@ import hashlib
 #-----
 from veredi.logger import log
 from veredi.data import exceptions
-# from veredi.data.format import json
-from veredi.data.format.yaml import yaml
+# from veredi.data.codec.json.codec import JsonCodec
+from veredi.data.codec.yaml.codec import YamlCodec
 
 
 # -----------------------------------------------------------------------------
@@ -101,7 +101,7 @@ class TemplateFileTree(TemplateRepository):
 
     def __init__(self, root_of_everything=None,
                  file_sys_safing_fn=None,
-                 data_format=None):
+                 data_codec=None):
         if root_of_everything:
             self.root = os.path.abspath(root_of_everything)
         else:
@@ -109,12 +109,12 @@ class TemplateFileTree(TemplateRepository):
 
         # Use system-defined or set to our defaults.
         self.fn_path_safing = file_sys_safing_fn or self._to_human_readable
-        self.data_format = data_format or yaml.YamlFormat()
+        self.data_codec = data_codec or YamlCodec()
 
     def __str__(self):
         return (
             f"{self.__class__.__name__}: "
-            f"ext:{self.data_format.ext()} "
+            f"ext:{self.data_codec.name()} "
             f"root:{self.root}"
         )
 
@@ -171,14 +171,14 @@ class TemplateFileTree(TemplateRepository):
 
         return self._NAME_FMT.format(template=template,
                                      type=_type,
-                                     ext=self.data_format.ext())
+                                     ext=self.data_codec.name())
 
     def _load_file(self, path, error_context):
         '''Load a single data file from path.
 
         Raises:
           - exceptions.LoadError
-            - wrapped error from self.data_format.load()
+            - wrapped error from self.data_codec.load()
               - e.g. JSONDecodeError
         '''
 
@@ -186,7 +186,7 @@ class TemplateFileTree(TemplateRepository):
         with open(path, 'r') as f:
             # Can raise an error - we'll let it.
             try:
-                data = self.data_format.load(f, error_context)
+                data = self.data_codec.load(f, error_context)
             except exceptions.LoadError:
                 # Let this one bubble up as-is.
                 data = None

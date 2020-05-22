@@ -17,7 +17,7 @@ from veredi.data import exceptions
 
 from . import component
 from ...repository.template.template import default_root
-from ..yaml.yaml import YamlFormat
+from .codec import YamlCodec
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -38,12 +38,12 @@ class Test_Component(unittest.TestCase):
         self.path = os.path.join(self.data_root,
                                  'component.health.yaml')
 
-        self.data_format = YamlFormat()
+        self.data_codec = YamlCodec()
 
     def tearDown(self):
         self.data_root = None
         self.path = None
-        self.data_format = None
+        self.data_codec = None
 
     # --------------------------------------------------------------------------
     # Read file?
@@ -64,8 +64,8 @@ class Test_Component(unittest.TestCase):
         with open(self.path, 'r') as file_obj:
             # Can raise an error - we'll let it.
             try:
-                log.debug(f"data format: {self.data_format}")
-                generator = self.data_format.load_all(file_obj,
+                log.debug(f"data codec: {self.data_codec}")
+                generator = self.data_codec.load_all(file_obj,
                                                       {"unit-testing":"Test_Component.load"})
                 for each in generator:
                     log.debug("loading doc: {}", each)
@@ -85,7 +85,7 @@ class Test_Component(unittest.TestCase):
     def load_doc(self, document):
         # print(f"loaded doc: {pretty.to_str(document.__dict__)}")
         pass
-        # # if isinstance(document, format_yaml.DocMetadata):
+        # # if isinstance(document, codec_yaml.DocMetadata):
         # #     self.data_meta = document
         # # elif isinstance(document, config_yaml.DocRepository):
         # #     self.data_repo = document

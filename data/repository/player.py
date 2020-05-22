@@ -27,8 +27,8 @@ import hashlib
 from veredi.logger import log
 from veredi.data.config.registry import register
 from .. import exceptions
-# from ..format import json
-from ..format import yaml
+# from ..codec import json
+from ..codec import yaml
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -86,7 +86,7 @@ class PlayerFileTree(PlayerRepository):
     _MAX_DIFF = 10**16  # Ten quadrillion should be enough?..
 
     _DIFF_FMT_DIV = 10**4  # Get us our quad groups.
-    _DIFF_FMT = "{:04d}-{:04d}-{:04d}-{:04d}.{:s}"
+    _DIFF_FMT = "{:04d}-{:04d}-{:04d}-{:04d}.{ext:s}"
 
     # ---
     # Path Names
@@ -96,17 +96,17 @@ class PlayerFileTree(PlayerRepository):
 
     def __init__(self, directory,
                  file_sys_safing_fn=None,
-                 data_format=None):
+                 data_codec=None):
         self.root = os.path.abspath(directory)
 
         # Use user-defined or set to our defaults.
         self.fn_path_safing = file_sys_safing_fn or self._to_human_readable
-        self.data_format = data_format or yaml.YamlFormat()
+        self.data_codec = data_codec or yaml.YamlCodec()
 
     def __str__(self):
         return (
             f"{self.__class__.__name__}: "
-            f"ext:{self.data_format.ext()} "
+            f"ext:{self.data_codec.name()} "
             f"root:{self.root}"
         )
 
@@ -180,7 +180,7 @@ class PlayerFileTree(PlayerRepository):
         number = number // self._DIFF_FMT_DIV
 
         return self._DIFF_FMT.format(greatest, greater, lesser, least,
-                                     self.data_format.ext())
+                                     ext=self.data_codec.name())
 
     def _apply(self, data, diff):
         '''Applies a diff to the base data.
@@ -233,14 +233,14 @@ class PlayerFileTree(PlayerRepository):
 
         Raises:
           - exceptions.LoadError
-            - wrapped error from self.data_format.load()
+            - wrapped error from self.data_codec.load()
               - e.g. JSONDecodeError
         '''
         data = None
         with open(path, 'r') as f:
             # Can raise an error - we'll let it.
             try:
-                data = self.data_format.load(f, error_context)
+                data = self.data_codec.load(f, error_context)
             except exceptions.LoadError:
                 # Let this one bubble up as-is.
                 data = None
