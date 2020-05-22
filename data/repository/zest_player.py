@@ -15,8 +15,8 @@ import os
 
 # Veredi
 from . import player
-from .file import json
-from .file import yaml
+from ..format import json
+from ..format.yaml import yaml
 
 # Our Stuff
 from veredi.zester import test_data

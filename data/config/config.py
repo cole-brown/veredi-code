@@ -14,11 +14,11 @@ import re
 
 # Our Stuff
 from veredi.logger import log
-from ..format import yaml as format_yaml
+from .. import exceptions
+from ..format.yaml import yaml
+from ..format.yaml.document import DocMetadata, DocRepository
 from ..repository.manager import Manager
 from . import registry
-from . import yaml as config_yaml
-from .. import exceptions
 
 
 # -----------------------------------------------------------------------------
@@ -51,7 +51,7 @@ class Configuration:
     def __init__(self, config_path=None, data_format=None):
         '''Raises LoadError and ConfigError'''
         self._path = config_path or default_path()
-        self._data_format = data_format or format_yaml.YamlFormat()
+        self._data_format = data_format or yaml.YamlFormat()
 
         self._load()
         self._set_up()
@@ -146,9 +146,9 @@ class Configuration:
                 raise
 
     def _load_doc(self, document):
-        if isinstance(document, format_yaml.DocMetadata):
+        if isinstance(document, DocMetadata):
             self._data_meta = document
-        elif isinstance(document, config_yaml.DocRepository):
+        elif isinstance(document, DocRepository):
             self._data_repo = document
         else:
             log.error("Unknown document while loading! {}: {}",
