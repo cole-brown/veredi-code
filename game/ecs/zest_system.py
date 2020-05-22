@@ -255,7 +255,6 @@ class Test_SystemManager(unittest.TestCase):
         self.assertEqual(len(self.system_mgr._system), 1)
 
         if self.do_events():
-            print("create events?:", self.events_recv)
             num_events = 0
             for ev_type in (self.events_recv or ()):
                 num_events += len(self.events_recv[ev_type])
