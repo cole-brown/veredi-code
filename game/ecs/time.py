@@ -15,6 +15,7 @@ import time as py_time
 import decimal
 
 from veredi.logger import log
+from veredi import mathing
 from .const import SystemHealth
 from . import exceptions
 
@@ -275,11 +276,11 @@ class TimeManager:
     # ---
 
     @property
-    def tick_seconds(self) -> decimal.Decimal:
+    def seconds(self) -> decimal.Decimal:
         return self.tick.seconds
 
-    @tick_seconds.setter
-    def tick_seconds(self, value: TickTypes) -> None:
+    @seconds.setter
+    def seconds(self, value: TickTypes) -> None:
         self.tick.seconds = value
 
     @property

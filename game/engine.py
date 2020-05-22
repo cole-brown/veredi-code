@@ -211,31 +211,31 @@ class Engine:
         if health != SystemHealth.APOPTOSIS:
             log.critical("TimeManager.apoptosis() returned an unexpected "
                          "SystemHealth: {} (time: {})",
-                         health, self.time.get_tick())
+                         health, self.time.seconds)
 
         health = self.event.apoptosis(self.time)
         if health != SystemHealth.APOPTOSIS:
             log.critical("EventManager.apoptosis() returned an unexpected "
                          "SystemHealth: {} (time: {})",
-                         health, self.time.get_tick())
+                         health, self.time.seconds)
 
         health = self.component.apoptosis(self.time)
         if health != SystemHealth.APOPTOSIS:
             log.critical("ComponentManager.apoptosis() returned an unexpected "
                          "SystemHealth: {} (time: {})",
-                         health, self.time.get_tick())
+                         health, self.time.seconds)
 
         health = self.entity.apoptosis(self.time)
         if health != SystemHealth.APOPTOSIS:
             log.critical("EntityManager.apoptosis() returned an unexpected "
                          "SystemHealth: {} (time: {})",
-                         health, self.time.get_tick())
+                         health, self.time.seconds)
 
         health = self.system.apoptosis(self.time)
         if health != SystemHealth.APOPTOSIS:
             log.critical("SystemManager.apoptosis() returned an unexpected "
                          "SystemHealth: {} (time: {})",
-                         health, self.time.get_tick())
+                         health, self.time.seconds)
 
         return SystemHealth.APOPTOSIS
 
