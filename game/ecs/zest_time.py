@@ -43,7 +43,7 @@ class Test_Time(unittest.TestCase):
                          self.midnight_utc.timestamp())
 
     def test_tick(self):
-        start = self.time.get_tick()
+        start = self.time.seconds
         self.assertEqual(start,
                          self.time.tick.seconds)
 
@@ -51,11 +51,11 @@ class Test_Time(unittest.TestCase):
         self.assertEqual(start + now,
                          self.time.tick.seconds)
         self.assertEqual(start + now,
-                         self.time.get_tick())
+                         self.time.seconds)
 
         now = 999
-        self.time.set_tick(now)
+        self.time.seconds = now
         self.assertEqual(now,
                          self.time.tick.seconds)
         self.assertEqual(now,
-                         self.time.get_tick())
+                         self.time.seconds)

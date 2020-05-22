@@ -8,7 +8,7 @@ Base class for game update loop systems.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import NewType, Optional, Iterable, Set, Union, Any
+from typing import NewType, Optional, Iterable, Set, Union, Any, Type
 import enum
 
 from veredi.logger import log

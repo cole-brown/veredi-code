@@ -164,7 +164,7 @@ class SystemManager(EcsManagerWithEvents):
             if self.debug_flagged(DebugFlag.LOG_TICK):
                 log.debug("SystemManager.update({tick}, {time:05.6f}): {system}",
                           tick=tick,
-                          time=time.get_tick(),
+                          time=time.seconds,
                           system=system)
 
             # Try/catch each system, so they don't kill each other with a single
@@ -179,7 +179,7 @@ class SystemManager(EcsManagerWithEvents):
                     error,
                     "SystemManager's {} system had a TickError "
                     "during {} tick (time={}).",
-                    str(system), tick, time.get_tick())
+                    str(system), tick, time.seconds)
                 if self.debug_flagged(DebugFlag.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
@@ -188,7 +188,7 @@ class SystemManager(EcsManagerWithEvents):
                     error,
                     "SystemManager's {} system had a SystemError "
                     "during {} tick (time={}).",
-                    str(system), tick, time.get_tick())
+                    str(system), tick, time.seconds)
                 if self.debug_flagged(DebugFlag.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
@@ -197,7 +197,7 @@ class SystemManager(EcsManagerWithEvents):
                     error,
                     "SystemManager's {} system had a ComponentError "
                     "during {} tick (time={}).",
-                    str(system), tick, time.get_tick())
+                    str(system), tick, time.seconds)
                 if self.debug_flagged(DebugFlag.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
@@ -206,7 +206,7 @@ class SystemManager(EcsManagerWithEvents):
                     error,
                     "SystemManager's {} system had a EntityError "
                     "during {} tick (time={}).",
-                    str(system), tick, time.get_tick())
+                    str(system), tick, time.seconds)
                 if self.debug_flagged(DebugFlag.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
@@ -215,7 +215,7 @@ class SystemManager(EcsManagerWithEvents):
                     error,
                     "SystemManager's {} system had a generic VerediError "
                     "during {} tick (time={}).",
-                    str(system), tick, time.get_tick())
+                    str(system), tick, time.seconds)
                 if self.debug_flagged(DebugFlag.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
@@ -224,7 +224,7 @@ class SystemManager(EcsManagerWithEvents):
                     error,
                     "SystemManager's {} system had an unknown exception "
                     "during {} tick (time={}).",
-                    str(system), tick, time.get_tick())
+                    str(system), tick, time.seconds)
                 if self.debug_flagged(DebugFlag.RAISE_ERRORS):
                     raise
                 # TODO: health thingy
