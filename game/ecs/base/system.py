@@ -87,19 +87,6 @@ class System:
     # System Registration / Definition
     # --------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
-        '''
-        Subscribe to any life-long event subscriptions here. Can hold on to
-        event_manager if need to sub/unsub more dynamically.
-        '''
-        return SystemHealth.HEALTY
-
-    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
-        '''
-        Game is ending gracefully. Do graceful end-of-the-world stuff...
-        '''
-        return SystemHealth.APOPTOSIS
-
     def priority(self) -> Union[SystemPriority, int]:
         '''
         Returns a SystemPriority (or int) for when, relative to other systems,
@@ -128,6 +115,45 @@ class System:
         return Health and Defense.
         '''
         return self._components
+
+    # --------------------------------------------------------------------------
+    # System Death
+    # --------------------------------------------------------------------------
+
+    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+        '''
+        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        '''
+        return SystemHealth.APOPTOSIS
+
+    # --------------------------------------------------------------------------
+    # Events
+    # --------------------------------------------------------------------------
+
+    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+        '''
+        Subscribe to any life-long event subscriptions here. Can hold on to
+        event_manager if need to sub/unsub more dynamically.
+        '''
+        return SystemHealth.HEALTY
+
+    def event(self,
+              event_manager:              'EventManager',
+              event_class:                Type['Event'],
+              owner_id:                   int,
+              type:                       Union[int, enum.Enum],
+              context:                    Optional[Any]     = None,
+              requires_immediate_publish: bool              = False) -> None:
+        '''
+        Calls event_manager.create() if event_manager exists.
+        '''
+        if not event_manager:
+            return
+        event_manager.create(event_class,
+                             owner_id,
+                             type,
+                             context,
+                             requires_immediate_publish)
 
     # --------------------------------------------------------------------------
     # Game Update Loop/Tick Functions

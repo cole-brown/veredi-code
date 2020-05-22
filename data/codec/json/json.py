@@ -1,20 +1,21 @@
 # coding: utf-8
 
 '''
-JSON Format reader/writer.
+Reader/Loader & Writer/Dumper of JSON Format.
+Aka JSON Codec.
 '''
 
 # -----------------------------------------------------------------------------
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
 import json
 
-# Framework
-
-# Our Stuff
+from veredi.logger import log
 from veredi.data.config.registry import register
+from veredi.data import exceptions
+
+from ..base import BaseCodec
 
 
 # -----------------------------------------------------------------------------
@@ -26,13 +27,9 @@ from veredi.data.config.registry import register
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'format', 'json')
-class JsonFormat:
-    _EXTENSION = 'json'
-
-    # TODO: ABC's abstract method
-    def ext(self):
-        return self._EXTENSION
+@register('veredi', 'codec', 'json')
+class JsonCodec(BaseCodec):
+    _NAME = 'json'
 
     def load(self, file_obj, error_context):
         '''Load and decodes data from a single data file.
@@ -52,3 +49,5 @@ class JsonFormat:
                                        error,
                                        error_context) from error
         return data
+
+    # §-TODO-§ [2020-05-22]: load_all

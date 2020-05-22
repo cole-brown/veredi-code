@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-YAML Format Reader / Writer for Component
+YAML library subclasses for encoding/decoding components.
 '''
 
 # -----------------------------------------------------------------------------
@@ -11,9 +11,9 @@ YAML Format Reader / Writer for Component
 import yaml
 from pydoc import locate  # For str->type.
 
-from veredi.data.config.registry import register
 from veredi.logger import log
 from veredi.data import exceptions
+from veredi import mathing
 
 from . import base
 
@@ -124,11 +124,6 @@ class OptionalInt(Optional):
                 f"got: '{value}' of type '{type(value)}'",
                 None, None)
 
-    @staticmethod
-    def __sign(x):
-        '''Returns 1 for positive x, 0 for x == 0, and -1 for negative x.'''
-        return (x > 0) - (x < 0)
-
     def normalize(self):
         '''
         Attempts to normalize self.tag, throws DataRequirementsError if it finds
@@ -163,7 +158,7 @@ class OptionalInt(Optional):
                 value = -1
 
         if isinstance(value, int):
-            value = self.__sign(value)
+            value = mathing.sign(value)
         else:
             raise exceptions.DataRequirementsError(
                 f"'{self.yaml_tag}' requires: an integer or exactly "
