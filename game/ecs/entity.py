@@ -155,7 +155,8 @@ class EntityManager(EcsManagerWithEvents):
         self.event(self._event_manager,
                    EntityLifeEvent,
                    eid,
-                   EntityLifeCycle.CREATING)
+                   EntityLifeCycle.CREATING,
+                   None, False)
 
         return eid
 
@@ -176,7 +177,8 @@ class EntityManager(EcsManagerWithEvents):
         self.event(self._event_manager,
                    EntityLifeEvent,
                    entity_id,
-                   EntityLifeCycle.DESTROYING)
+                   EntityLifeCycle.DESTROYING,
+                   None, False)
 
     def add(self, entity_id: EntityId, *components: Component) -> None:
         '''
@@ -194,7 +196,8 @@ class EntityManager(EcsManagerWithEvents):
         self.event(self._event_manager,
                    EntityEvent,
                    entity_id,
-                   EntityEventType.COMPONENT_ADD)
+                   EntityEventType.COMPONENT_ADD,
+                   None, False)
 
     def remove(self, entity_id: EntityId, *components: CompIdOrType) -> None:
         '''
@@ -214,7 +217,8 @@ class EntityManager(EcsManagerWithEvents):
         self.event(self._event_manager,
                    EntityEvent,
                    entity_id,
-                   EntityEventType.COMPONENT_REMOVE)
+                   EntityEventType.COMPONENT_REMOVE,
+                   None, False)
 
     # --------------------------------------------------------------------------
     # Game Loop: Component/Entity Life Cycle Updates
@@ -250,7 +254,8 @@ class EntityManager(EcsManagerWithEvents):
             self.event(self._event_manager,
                        EntityLifeEvent,
                        entity_id,
-                       EntityLifeCycle.ALIVE)
+                       EntityLifeCycle.ALIVE,
+                       None, False)
 
         # Done with iteration - clear the adds.
         self._entity_create.clear()
@@ -292,7 +297,8 @@ class EntityManager(EcsManagerWithEvents):
             self.event(self._event_manager,
                        EntityLifeEvent,
                        entity_id,
-                       EntityLifeCycle.DEAD)
+                       EntityLifeCycle.DEAD,
+                       None, False)
 
         # Done with iteration - clear the removes.
         self._entity_destroy.clear()

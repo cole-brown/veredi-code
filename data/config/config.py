@@ -8,16 +8,16 @@ Configuration file reader/writer for Veredi games.
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
+from typing import Dict, Optional, Any, List
 import os
 import re
 
-# Our Stuff
 from veredi.logger import log
+from veredi.base.context import VerediContext
 from .. import exceptions
 from ..codec.yaml import codec
 from ..codec.yaml.document import DocMetadata, DocRepository
-from ..repository.manager import Manager
+from ..repository.manager import RepositoryManager
 from . import registry
 
 
@@ -52,9 +52,26 @@ class Configuration:
         '''Raises LoadError and ConfigError'''
         self._path = config_path or default_path()
         self._data_codec = data_codec or codec.YamlCodec()
+        self._context = VerediContext('configuration', 'configuration')
+        self._context.sub['config_path'] = self._path
 
         self._load()
         self._set_up()
+
+    # --------------------------------------------------------------------------
+    # Context Properties/Methods
+    # --------------------------------------------------------------------------
+
+    @property
+    def context(self):
+        '''
+        Will be the context dict for e.g. Events, Errors.
+        '''
+        return self._context
+
+    # --------------------------------------------------------------------------
+    # Config Stuff
+    # --------------------------------------------------------------------------
 
     # §-TODO-§ [2020-05-06]: Change data into stuff we can use.
     # Classes and suchlike...
@@ -68,13 +85,16 @@ class Configuration:
             raise exceptions.ConfigError(
                 "No repository config data after loading!",
                 None,
-                self.to_context())
+                self.context)
 
         owner = None # self._set_up_repo('owner')
         campaign = None # self._set_up_repo('campaign')
         session = None # self._set_up_repo('session')
         player = self._set_up_repo('player')
-        self.repository = Manager(owner, campaign, session, player)
+        self.repository = RepositoryManager([[0, owner],
+                                             [1, campaign],
+                                             [2, session],
+                                             [3, player]])
 
     def _set_up_repo(self, kind):
         try:
@@ -87,7 +107,7 @@ class Configuration:
             raise exceptions.ConfigError(
                 "Data has no attribute '{}'! data: {}",
                 error,
-                self.to_context()) from error
+                self.context) from error
 
         try:
             # required
@@ -104,7 +124,7 @@ class Configuration:
             raise exceptions.ConfigError(
                 "Data has no attribute '{}'! data: {}",
                 error,
-                self.to_context()) from error
+                self.context) from error
 
         # Replace any $this vars...
         dotted_key_fmt = self._var_sub(dotted_key_fmt, kind)
@@ -128,8 +148,8 @@ class Configuration:
             # Can raise an error - we'll let it.
             try:
                 log.debug(f"data codec: {self._data_codec}")
-                generator = self._data_codec.load_all(file_obj,
-                                                      self._to_context())
+                generator = self._data_codec._load_all(file_obj,
+                                                       self.context)
                 for each in generator:
                     log.debug("loading doc: {}", each)
                     self._load_doc(each)
@@ -158,13 +178,4 @@ class Configuration:
             raise exceptions.LoadError(f"Unknown document while loading! "
                                        f"{type(document)}: {str(document)}",
                                        None,
-                                       self.to_context(document=document))
-
-    def _to_context(self, **context):
-        '''Convert useful info we have for loading into a context object in case
-        an error needs to throw itself off a cliff.
-
-        '''
-        context['config_path'] = self._path
-        context['data_codec']  = self._data_codec.context()
-        return context
+                                       self.context)

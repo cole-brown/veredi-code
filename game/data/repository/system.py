@@ -13,15 +13,12 @@ from typing import Any, Optional, Set, Type, Union, Iterable
 
 from veredi.logger import log
 from veredi.data.config import registry
-from veredi.data.codec.base import BaseCodec
-from veredi.base.context import VerediContext
+from veredi.data.repository.base import BaseRepository
+from veredi.data.repository.manager import RepositoryManager
 
 # Game / ECS Stuff
 from ...ecs.event import EventManager
 from ...ecs.time import TimeManager
-from ...ecs.component import (ComponentManager,
-                              ComponentEvent,
-                              ComponentLifeEvent)
 
 from ...ecs.const import (SystemTick,
                           SystemPriority,
@@ -31,8 +28,6 @@ from ...ecs.const import (SystemTick,
 from ...ecs.base.identity import (ComponentId,
                                   EntityId,
                                   SystemId)
-from ...ecs.base.component import (Component,
-                                   ComponentError)
 from ...ecs.base.system import (System,
                                 SystemLifeCycle)
 
@@ -42,11 +37,11 @@ from ...ecs.system import (SystemEvent,
                            SystemLifeEvent)
 from ..event import (
     # Our events
-    DecodedEvent,
-    EncodedEvent,
+    SerializedEvent,
+    DeserializedEvent,
     # Our subscriptions
-    DataSaveRequest,
-    DeserializedEvent)
+    EncodedEvent,
+    DataLoadRequest)
 
 
 # -----------------------------------------------------------------------------
@@ -58,12 +53,12 @@ from ..event import (
 # Code
 # -----------------------------------------------------------------------------
 
-# §-TODO-§ [2020-05-22]: Saving/Loading system...
+# Â§-TODO-Â§ [2020-05-22]: Saving/Loading system...
 # DirtyFlagSystem: looks for a dirty flag, fires off encode events?
 #   - or name it DataSaveSystem?
 #   - or name it DataSystem?
 
-class CodecSystem(System):
+class RepositorySystem(System):
     def __init__(self,
                  sid: SystemId,
                  *args: Any,
@@ -83,11 +78,12 @@ class CodecSystem(System):
 
         self._event_manager: Optional[EventManager] = None
 
-        # TODO: Event to ask ConfigSystem what the specific codec is?
+        # TODO: Event to ask ConfigSystem what the specific repository is?
         # Maybe that's what we need a SET_UP tick for?
-        # self._codec: Optional[BaseCodec] = None
-        from veredi.data.codec.yaml.codec import YamlCodec
-        self._codec: Optional[BaseCodec] = YamlCodec()
+        # self._repository: Optional[BaseRepository] = None
+        from veredi.data.repository.file.repository import FileRepository
+        repository = FileRepository()
+        self._repo_manager = RepositoryManager((0, repository))
 
     # --------------------------------------------------------------------------
     # System Registration / Definition
@@ -98,8 +94,10 @@ class CodecSystem(System):
         Returns a SystemPriority (or int) for when, relative to other systems,
         this should run. Highest priority goes firstest.
         '''
-        # Probably want HIGH so we can load new things ASAP in the ticks.
-        return SystemPriority.HIGH
+        # Probably want HIGH so we can load new things ASAP in the ticks. HIGH +
+        # 1 (currently) puts us ahead of the CodecSystem, if we do start using
+        # ticks.
+        return SystemPriority.HIGH + 1
 
     def required(self) -> Optional[Iterable[Component]]:
         '''
@@ -148,62 +146,63 @@ class CodecSystem(System):
             # We rely on events to function, so we're not any good now...
             return self._health()
 
-        # Codec subs to:
-        # - DeserializedEvent
-        #   Deserialized Data needs to be decoded so it can be used in game.
-        #   - Codec creates a DecodedEvent once it has done this.
-        self._event_manager.subscribe(DeserializedEvent,
-                                      self.event_deserialized)
+        # Repository subs to:
+        # - DataLoadRequest
+        #   The data needs to be fetched and deserialized.
+        #   - Repository creates a DeserializedEvent once it has done this.
+        self._event_manager.subscribe(DataLoadRequest,
+                                      self.event_data_load_request)
 
-        # Codec subs to:
-        # - DataSaveRequest
-        #   Data needs to be encoded before it can be saved.
-        #   - Codec creates an EncodedEvent once it has done this.
-        self._event_manager.subscribe(DataSaveRequest,
-                                      self.event_data_save_request)
+        # Repository subs to:
+        # - EncodedEvent
+        #   Once data is encoded, it needs to be serialized to repo.
+        #   - Repository creates an SerializedEvent once it has done this.
+        self._event_manager.subscribe(EncodedEvent,
+                                      self.event_encoded)
 
         return self._health()
 
-    def event_deserialized(self, event: DeserializedEvent) -> None:
+    def event_data_load_request(self, event: DataLoadRequest) -> None:
         '''
-        Data has been deserialized. We must decode it and pass it along.
+        Request for data to be loaded. We must ask the repo for it and pack it
+        into a DeserializedEvent.
         '''
         # Get deserialized data stream from event.
-        serial = event.data
-        context = self._codec.context.merge(event.context)
+        request = event.context  # request is in the context
+        context = self._repository.context.merge(event.context)
 
-        # Send into my codec for decoding.
-        decoded = self._codec.decode_all(serial, context)
+        # Ask my repository for this data.
+        deserialized = self._repository.load(request, context)
 
-        # Take codec data result (just a python dict?) and set into DecodedEvent
-        # data/context/whatever. Then have EventManager fire off event for
+        # Take our repository load result and set into DeserializedEvent.
+        # Then have EventManager fire off event for
         # whoever wants the next step.
         self.event(self._event_manager,
-                   DecodedEvent,
+                   DeserializedEvent,
                    event.id,
                    event.type,
                    context,
                    False,
-                   data=decoded)
+                   data=deserialized)
 
-    def event_data_save_request(self, event: DataSaveRequest) -> None:
+    def event_encoded(self, event: EncodedEvent) -> None:
         '''
-        Data wants saved. It must be encoded first.
+        Data is encoded and now must be saved.
         '''
-        context = self._codec.context.merge(event.context)
+        context = self._repository.context.merge(event.context)
 
-        # §-TODO-§ [2020-05-22]: Encode it.
+        # Â§-TODO-Â§ [2020-05-22]: Encode it.
         raise NotImplementedError
-        encoded = None
+        serialized = None
 
         # Done; fire off event for whoever wants the next step.
         self.event(self._event_manager,
-                   EncodedEvent,
+                   SerializedEvent,
                    event.id,
                    event.type,
                    context,
                    False,
-                   data=encoded)
+                   data=serialized)
 
     # --------------------------------------------------------------------------
     # Game Update Loop/Tick Functions

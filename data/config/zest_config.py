@@ -15,7 +15,8 @@ import os
 
 # Veredi
 from veredi.logger import log
-from ..repository import (manager, player)
+from ..repository.manager import RepositoryManager
+from ..repository._old_stuff import player
 from . import config
 
 
@@ -59,12 +60,12 @@ class Test_Configuration(unittest.TestCase):
     def test_config(self):
         conf = config.Configuration()
         self.assertTrue(conf)
-        self.assertIsInstance(conf.repository, manager.Manager)
-        self.assertIsInstance(conf.repository.player, player.PlayerRepository)
-        self.assertIsInstance(conf.repository.player, player.PlayerFileTree)
-
-        self.assertEqual(conf.repository.player.root,
-                         os.path.abspath("test/owner/repository/player/"))
+        self.assertIsInstance(conf.repository, RepositoryManager)
+#         self.assertIsInstance(conf.repository.player, player.PlayerRepository)
+#         self.assertIsInstance(conf.repository.player, player.PlayerFileTree)
+#
+#         self.assertEqual(conf.repository.player.root,
+#                          os.path.abspath("test/owner/repository/player/"))
 
 
 

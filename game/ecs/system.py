@@ -264,7 +264,8 @@ class SystemManager(EcsManagerWithEvents):
         self.event(self._event_manager,
                    SystemLifeEvent,
                    sid,
-                   SystemLifeCycle.CREATING)
+                   SystemLifeCycle.CREATING,
+                   None, False)
 
         return sid
 
@@ -285,7 +286,8 @@ class SystemManager(EcsManagerWithEvents):
         self.event(self._event_manager,
                    SystemLifeEvent,
                    system_id,
-                   SystemLifeCycle.DESTROYING)
+                   SystemLifeCycle.DESTROYING,
+                   None, False)
 
     # --------------------------------------------------------------------------
     # Game Loop: Component/System Life Cycle Updates
@@ -321,7 +323,8 @@ class SystemManager(EcsManagerWithEvents):
             self.event(self._event_manager,
                        SystemLifeEvent,
                        system_id,
-                       SystemLifeCycle.ALIVE)
+                       SystemLifeCycle.ALIVE,
+                       None, False)
 
         self._reschedule = True
         return SystemHealth.HEALTHY
@@ -361,7 +364,8 @@ class SystemManager(EcsManagerWithEvents):
             self.event(self._event_manager,
                        SystemLifeEvent,
                        system_id,
-                       SystemLifeCycle.DEAD)
+                       SystemLifeCycle.DEAD,
+                       None, False)
 
         # Done with iteration - clear the removes.
         self._system_destroy.clear()

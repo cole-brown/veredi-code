@@ -13,6 +13,7 @@ import enum
 
 from .manager import EcsManager
 from .const import SystemHealth
+from veredi.base.context import VerediContext
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -38,8 +39,10 @@ class EcsManagerWithEvents(EcsManager):
               event_class:                Type['Event'],
               owner_id:                   int,
               type:                       Union[int, enum.Enum],
-              context:                    Optional[Any]     = None,
-              requires_immediate_publish: bool              = False) -> None:
+              context:                    Optional[VerediContext],
+              requires_immediate_publish: bool,
+              *args:                      Any,
+              **kwargs:                   Any) -> None:
         '''
         Calls event_manager.create() if event_manager is not none.
         '''
@@ -49,7 +52,9 @@ class EcsManagerWithEvents(EcsManager):
                              owner_id,
                              type,
                              context,
-                             requires_immediate_publish)
+                             requires_immediate_publish,
+                             *args,
+                             **kwargs)
 
 
 # -----------------------------------------------------------------------------
@@ -60,10 +65,17 @@ class Event:
     def __init__(self,
                  id: int,
                  type: Union[int, enum.Enum],
-                 context: Optional[Any] = None) -> None:
-        self.set(id, type, context)
+                 *args: Any,
+                 context: Optional[VerediContext] = None,
+                 **kwargs: Any) -> None:
+        self.set(id, type, context, *args, **kwargs)
 
-    def set(self, id: int, type: Union[int, enum.Enum], context: Any) -> None:
+    def set(self,
+            id: int,
+            type: Union[int, enum.Enum],
+            context: VerediContext,
+            *args: Any,
+            **kwargs: Any) -> None:
         self.id      = id
         self.type    = type
         self.context = context
@@ -95,12 +107,14 @@ class EventManager(EcsManager):
                event_class:                Type[Event],
                owner_id:                   int,
                type:                       Union[int, enum.Enum],
-               context:                    Optional[Any]     = None,
-               requires_immediate_publish: bool              = False) -> None:
+               context:                    Optional[VerediContext],
+               requires_immediate_publish: bool,
+               *args:                      Any,
+               **kwargs:                   Any) -> None:
         '''
         Creates a managed Event from parameters, then calls notify().
         '''
-        event = event_class(owner_id, type, context)
+        event = event_class(owner_id, type, context, *args, **kwargs)
         self.notify(event, requires_immediate_publish)
 
     def notify(self,

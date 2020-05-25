@@ -33,6 +33,22 @@ class VerediYamlDocument(yaml.YAMLObject):
     def from_yaml(cls, loader, node):
         return loader.construct_yaml_object(node, cls)
 
+    # ---
+    # Decoding
+    # ---
+
+    def decode(self):
+        '''
+        YAML objects & stuff to plain old data structure.
+        '''
+        import pprint
+        print(f"{self.__class__.__name__}:\n{pprint.pformat(self.__dict__)}")
+        raise NotImplementedError
+
+    # ---
+    # Strings and Things
+    # ---
+
     def to_pretty(self):
         return f"{self.__class__.__name__}:\n{pretty.to_str(self.__dict__, 2)}"
 
@@ -57,7 +73,7 @@ class VerediYamlObject(yaml.YAMLObject):
 
     @classmethod
     def from_yaml(cls, loader, node):
-        print(cls.yaml_tag, "from_yaml", str(cls), str(loader), str(node))
+        # print(cls.yaml_tag, "from_yaml", str(cls), str(loader), str(node))
         return cls(node.value)
 
 

@@ -114,7 +114,7 @@ class TemplateFileTree(TemplateRepository):
     def __str__(self):
         return (
             f"{self.__class__.__name__}: "
-            f"ext:{self.data_codec.name()} "
+            f"ext:{self.data_codec.name} "
             f"root:{self.root}"
         )
 
@@ -171,14 +171,14 @@ class TemplateFileTree(TemplateRepository):
 
         return self._NAME_FMT.format(template=template,
                                      type=_type,
-                                     ext=self.data_codec.name())
+                                     ext=self.data_codec.name)
 
     def _load_file(self, path, error_context):
         '''Load a single data file from path.
 
         Raises:
           - exceptions.LoadError
-            - wrapped error from self.data_codec.load()
+            - wrapped error from self.data_codec._load()
               - e.g. JSONDecodeError
         '''
 
@@ -186,7 +186,7 @@ class TemplateFileTree(TemplateRepository):
         with open(path, 'r') as f:
             # Can raise an error - we'll let it.
             try:
-                data = self.data_codec.load(f, error_context)
+                data = self.data_codec._load(f, error_context)
             except exceptions.LoadError:
                 # Let this one bubble up as-is.
                 data = None

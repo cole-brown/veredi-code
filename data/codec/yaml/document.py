@@ -34,6 +34,11 @@ from . import base
 class DocMetadata(base.VerediYamlDocument):
     yaml_tag = '!metadata'
 
+    def decode(self):
+        '''
+        YAML objects & stuff to plain old data structure.
+        '''
+        return self.__dict__
 
 # ---
 # Repository
