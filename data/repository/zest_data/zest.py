@@ -8,13 +8,13 @@ Helper for unit test data.
 # Imports
 # -----------------------------------------------------------------------------
 
-import os
+import pathlib
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+THIS_DIR = pathlib.Path(__file__).resolve().parent
 
 
 # -----------------------------------------------------------------------------
@@ -28,8 +28,8 @@ def data_path(*relative):
     Returns None if file does not exist.
 
     '''
-    path = os.path.join(THIS_DIR, *relative)
-    if not os.path.exists(path):
+    path = THIS_DIR.joinpath(*relative)
+    if not path.exists():
         return None
 
     return path
