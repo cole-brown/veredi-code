@@ -34,6 +34,16 @@ from . import base
 # Document Types
 # ------------------------------------------------------------------------------
 
+class DocComponent(base.VerediYamlDocument):
+    yaml_tag = '!component'
+
+    def decode(self):
+        '''
+        YAML objects & stuff to plain old data structure.
+        '''
+        return self.__dict__
+
+
 class DocComponentExample(base.VerediYamlDocument):
     yaml_tag = '!component.example'
 

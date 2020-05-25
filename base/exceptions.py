@@ -8,7 +8,9 @@ All your Exceptions are belong to these classes.
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
+from typing import Optional
+
+from .context import VerediContext
 
 
 # ------------------------------------------------------------------------------
@@ -16,7 +18,10 @@ All your Exceptions are belong to these classes.
 # ------------------------------------------------------------------------------
 
 class VerediError(Exception):
-    def __init__(self, message, cause, context):
+    def __init__(self,
+                 message: str,
+                 cause: Optional[Exception],
+                 context: Optional[VerediContext]):
         '''Context data included.'''
         self.message = message
         self.cause   = cause
@@ -33,6 +38,9 @@ class VerediError(Exception):
 
 
 class KeyError(VerediError):
-    def __init__(self, message, cause, context):
+    def __init__(self,
+                 message: str,
+                 cause: Optional[Exception],
+                 context: Optional[VerediContext]):
         '''With context data.'''
         super().__init__(message, cause, context)

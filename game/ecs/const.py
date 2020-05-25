@@ -42,8 +42,17 @@ class SystemTick(enum.Flag):
     These are (or should be) defined in the order they occur in Engine.
     '''
 
-    LOADING     = enum.auto()
-    '''Tick where systems load stuff they care about from data.'''
+    # ---
+    # Pre-Game-Loop Ticks
+    # ---
+
+    SET_UP      = enum.auto()
+    '''Tick where systems load stuff they care about from data and get all set
+    up and stuff.'''
+
+    # ---
+    # Game-Loop Ticks
+    # ---
 
     TIME        = enum.auto()
     '''Tick where game time is updated.'''

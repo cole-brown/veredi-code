@@ -37,7 +37,7 @@ from .ecs.base.entity import Entity
 from .ecs.base.system import System
 
 # Game Data
-from veredi.data.repository import manager
+from veredi.data.repository.manager import RepositoryManager
 
 
 # -----------------------------------------------------------------------------
@@ -112,7 +112,7 @@ class Engine:
     def __init__(self,
                  owner:             Entity,
                  campaign_id:       int,
-                 repo_manager:      manager.Manager,
+                 repo_manager:      RepositoryManager,
                  event_manager:     Optional[EventManager]     = None,
                  time_manager:      Optional[TimeManager]      = None,
                  component_manager: Optional[ComponentManager] = None,
@@ -242,19 +242,19 @@ class Engine:
     # --------------------------------------------------------------------------
     # Pre-Game Loading Loop
     # --------------------------------------------------------------------------
-    def loading(self):
+    def setting_up(self):
         return (not self._should_stop()
                 and not self.time.is_timed_out(self.time._DEFAULT_TIMEOUT_SEC))
 
-    def load(self):
+    def set_up(self):
         # Call Systems'/Managers' loading functions until everyone
         # is done loading.
         retval = SystemHealth.HEALTHY
         self.time.start_timeout()
-        while self.loading(retval):
-            self.system.update(SystemTick.LOADING, self.time,
+        while self.setting_up(retval):
+            self.system.update(SystemTick.SET_UP, self.time,
                                self.component, self.entity)
-            self.event.update(SystemTick.LOADING, self.time)
+            self.event.update(SystemTick.SET_UP, self.time)
 
     # -------------------------------------------------------------------------
     # In-Game Loops

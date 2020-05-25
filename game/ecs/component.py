@@ -156,7 +156,8 @@ class ComponentManager(EcsManagerWithEvents):
         self.event(self._event_manager,
                    ComponentLifeEvent,
                    cid,
-                   ComponentLifeCycle.CREATING)
+                   ComponentLifeCycle.CREATING,
+                   None, False)
 
         return cid
 
@@ -178,7 +179,8 @@ class ComponentManager(EcsManagerWithEvents):
         self.event(self._event_manager,
                    ComponentLifeEvent,
                    component_id,
-                   ComponentLifeCycle.DESTROYING)
+                   ComponentLifeCycle.DESTROYING,
+                   None, False)
 
     # --------------------------------------------------------------------------
     # Game Loop: Component Life Cycle Updates
@@ -215,7 +217,8 @@ class ComponentManager(EcsManagerWithEvents):
             self.event(self._event_manager,
                        ComponentLifeEvent,
                        component_id,
-                       ComponentLifeCycle.ALIVE)
+                       ComponentLifeCycle.ALIVE,
+                       None, False)
 
         # Done with iteration - clear the adds.
         self._component_create.clear()
@@ -256,7 +259,8 @@ class ComponentManager(EcsManagerWithEvents):
             self.event(self._event_manager,
                        ComponentLifeEvent,
                        component_id,
-                       ComponentLifeCycle.DEAD)
+                       ComponentLifeCycle.DEAD,
+                       None, False)
 
         # Done with iteration - clear the removes.
         self._component_destroy.clear()

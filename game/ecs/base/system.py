@@ -12,6 +12,7 @@ from typing import NewType, Optional, Iterable, Set, Union, Any, Type
 import enum
 
 from veredi.logger import log
+from veredi.base.context import VerediContext
 
 from ..const import SystemTick, SystemPriority, SystemHealth
 from .identity import (ComponentId,
@@ -142,18 +143,23 @@ class System:
               event_class:                Type['Event'],
               owner_id:                   int,
               type:                       Union[int, enum.Enum],
-              context:                    Optional[Any]     = None,
-              requires_immediate_publish: bool              = False) -> None:
+              context:                    Optional[VerediContext],
+              requires_immediate_publish: bool,
+              *args:                      Any,
+              **kwargs:                   Any) -> None:
         '''
         Calls event_manager.create() if event_manager exists.
         '''
         if not event_manager:
             return
-        event_manager.create(event_class,
-                             owner_id,
-                             type,
-                             context,
-                             requires_immediate_publish)
+        event_manager.create(
+            event_class,
+            owner_id,
+            type,
+            context,
+            requires_immediate_publish,
+            *args,
+            **kwargs)
 
     # --------------------------------------------------------------------------
     # Game Update Loop/Tick Functions

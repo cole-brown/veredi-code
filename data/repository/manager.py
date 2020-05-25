@@ -8,13 +8,9 @@ Manages a collection of repos that, combined, will be used in a game/session.
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
-# import datetime
+from typing import Iterable, Tuple
 
-# Framework
-
-# Our Stuff
-
+from .base import BaseRepository
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -25,16 +21,21 @@ Manages a collection of repos that, combined, will be used in a game/session.
 # Code
 # -----------------------------------------------------------------------------
 
-class Manager:
+class RepositoryManager:
     '''Manages a collection of repos that, combined, will be used in a
     game/session.
 
     '''
-    def __init__(self, owner, campaign, session, player):  # ...monster, item, etc...)
-        self.owner = owner
-        self.campaign = campaign
-        self.session = session
-        self.player = player
+    def __init__(self,
+                 repositories: Iterable[Tuple[int, BaseRepository]]):
+        '''
+        Takes an iterable of tuples of (type_id, repository_type). Creates and
+        manages those repositories.
+        '''
+        self._repositories = {}
+#         for each in repositories:
+#             print("hi", "manager: {each}")
+#             self._repositories[each[0]] = each[1]()
 
         # TODO: Do we need to mediate to make this easier on the game/session?
         # e.g. let session say

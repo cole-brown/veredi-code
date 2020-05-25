@@ -15,8 +15,8 @@ import os
 
 # Veredi
 from . import player
-from ..codec.json.codec import JsonCodec
-from ..codec.yaml.codec import YamlCodec
+from veredi.data.codec.json.codec import JsonCodec
+from veredi.data.codec.yaml.codec import YamlCodec
 
 # Our Stuff
 from veredi.zester import test_data

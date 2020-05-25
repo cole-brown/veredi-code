@@ -33,59 +33,146 @@ from . import component
 
 @register('veredi', 'codec', 'yaml')
 class YamlCodec(BaseCodec):
-    _NAME = 'yaml'
-
     # https://pyyaml.org/wiki/PyYAMLDocumentation
 
-    def load(self, stream, error_context):
-        '''Load and decodes data from a single data file.
+    _CODEC_NAME   = 'yaml'
+    _CONTEXT_NAME = 'yaml'
+    _CONTEXT_KEY  = 'codec'
+
+    def __init__(self) -> None:
+        super().__init__(YamlCodec._CODEC_NAME,
+                         YamlCodec._CONTEXT_NAME,
+                         YamlCodec._CONTEXT_KEY)
+
+    def decode(self, stream, error_context):
+        '''Load and decodes data from a single data stream.
 
         Raises:
           - exceptions.LoadError
             - wrapped yaml.YAMLDecodeError
           Maybes:
-            - Other yaml/file errors?
+            - Other yaml/stream errors?
         '''
 
-        # §-TODO-§ [2020-05-06]: Read Metadata (type, version, etc),
-        # verify them?
+        data = self._load(stream, error_context)
+
+        # TODO: Here is where we'd check metadata for versions and stuff?
+
+        # TODO: Here is where we'd verify data against templates
+        # and requirements.
+
+        # Convert YAML output to game data. YAML output is a mix of:
+        #   - yaml objects
+        #   - our subclasses of yaml objects
+        #   - and python objects
+        #
+        # Game data should just be python: dicts, lists, str, int, etc.
+        return self._to_game(data)
+
+    def decode_all(self, stream, error_context):
+        '''Load and decodes data from a single data stream.
+
+        Raises:
+          - exceptions.LoadError
+            - wrapped yaml.YAMLDecodeError
+          Maybes:
+            - Other yaml/stream errors?
+        '''
+
+        data = self._load_all(stream, error_context)
+        if not data:
+            raise exceptions.LoadError(
+                "Loading yaml from stream resulted in no data:",
+                None,
+                self.context.merge(error_context)) from error
+
+        # TODO: Here is where we'd check metadata for versions and stuff?
+
+        # TODO: Here is where we'd verify data against templates
+        # and requirements.
+
+        # Convert YAML output to game data. YAML output is a mix of:
+        #   - yaml objects
+        #   - our subclasses of yaml objects
+        #   - and python objects
+        #
+        # Game data should just be python: dicts, lists, str, int, etc.
+        return self._to_game(data)
+
+    def _to_game(self, yaml_data):
+        '''
+        Convert yaml data to game data.
+
+        Put yaml docs into proper slots or drop them.
+        '''
+        data = []
+        for doc in yaml_data:
+            data.append(doc.decode())
+        return data
+
+    def _load(self, stream, error_context):
+        '''Load data from a single data stream.
+
+        Returns:
+          Output of yaml.safe_load().
+          Mix of:
+            - yaml objects
+            - our subclasses of yaml objects
+            - and python objects
+
+        Raises:
+          - exceptions.LoadError
+            - wrapped yaml.YAMLDecodeError
+          Maybes:
+            - Other yaml/stream errors?
+        '''
 
         data = None
         try:
             data = yaml.safe_load(stream)
         except yaml.YAMLError as error:
-            log.error('YAML failed while loading the file. {} {}',
+            ctx = self.context.merge(error_context)
+            log.error('YAML failed while loading the data. {} {}',
                       error.__class__.__qualname__,
-                      error_context)
+                      ctx)
             data = None
-            raise exceptions.LoadError("Error loading yaml file:",
+            raise exceptions.LoadError("Error loading yaml from stream:",
                                        error,
-                                       error_context) from error
+                                       ctx) from error
         return data
 
-    def load_all(self, stream, error_context):
-        '''Load and decodes data from a single data file.
+    def _load_all(self, stream, error_context):
+        '''Load data from a single data stream.
+
+        Returns:
+          Output of yaml.safe_load_all().
+          Mix of:
+            - yaml objects
+            - our subclasses of yaml objects
+            - and python objects
 
         Raises:
           - exceptions.LoadError
             - wrapped yaml.YAMLDecodeError
           Maybes:
-            - Other yaml/file errors?
+            - Other yaml/stream errors?
         '''
-
-        # §-TODO-§ [2020-05-06]: Read type and version, verify them?
-        # Only one per file?
 
         data = None
         try:
             data = yaml.safe_load_all(stream)
-            # print(f"{self.__class__.__name__}.load_all: data = {data}")
+            # print(f"{self.__class__.__name__}.decode_all: data = {data}")
         except yaml.YAMLError as error:
+            ctx = self.context.merge(error_context)
             log.error('YAML failed while loading the file. {} {}',
                       error.__class__.__qualname__,
-                      error_context)
+                      ctx)
             data = None
-            raise exceptions.LoadError("Error loading yaml file:",
+            raise exceptions.LoadError("Error loading yaml from stream:",
                                        error,
-                                       error_context) from error
-        return data
+                                       ctx) from error
+
+        # safe_load_all() returns a generator. We don't want a generator... We
+        # need to get the data out of the stream before the stream goes bye bye,
+        # so turn it into a list.
+        return list(data)

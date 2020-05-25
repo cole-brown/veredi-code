@@ -8,8 +8,14 @@ Events related to game data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Optional, Set, Type
+from typing import Any, Optional, Set, Type, Union
+from io import TextIOBase
+import enum
 
+from veredi.base.context import (VerediContext,
+                                 DataContext,
+                                 DataLoadContext,
+                                 DataSaveContext)
 from ..ecs.event import Event
 
 
@@ -55,13 +61,23 @@ from ..ecs.event import Event
 # ------------------------------------------------------------------------------
 
 class DataLoadRequest(Event):
-    pass
+
+    @property
+    def keys(self):
+        return self._data_keys
+
+    @property
+    def type(self):
+        return self._data_type
+
 
 class DataSaveRequest(Event):
     pass
 
+
 class DataLoadedEvent(Event):
     pass
+
 
 class DataSavedEvent(Event):
     pass
@@ -72,7 +88,25 @@ class DataSavedEvent(Event):
 # ------------------------------------------------------------------------------
 
 class DeserializedEvent(Event):
-    pass
+    def __init__(self,
+                 id:      int,
+                 type:    Union[int, enum.Enum],
+                 context: Optional[VerediContext] = None,
+                 data:    Optional[TextIOBase]    = None) -> None:
+        self.set(id, type, context, data)
+
+    def set(self,
+            id:      int,
+            type:    Union[int, enum.Enum],
+            context: Optional[VerediContext],
+            data:    Optional[TextIOBase]) -> None:
+        super().set(id, type, context)
+        self.data = data
+
+    def reset(self) -> None:
+        super().reset()
+        self.data = None
+
 
 class SerializedEvent(Event):
     pass
@@ -83,7 +117,25 @@ class SerializedEvent(Event):
 # ------------------------------------------------------------------------------
 
 class DecodedEvent(Event):
-    pass
+    def __init__(self,
+                 id:      int,
+                 type:    Union[int, enum.Enum],
+                 context: Optional[VerediContext] = None,
+                 data:    list                    = None) -> None:
+        self.set(id, type, context, data)
+
+    def set(self,
+            id:      int,
+            type:    Union[int, enum.Enum],
+            context: Optional[VerediContext],
+            data:    list) -> None:
+        super().set(id, type, context)
+        self.data = data
+
+    def reset(self) -> None:
+        super().reset()
+        self.data = None
+
 
 class EncodedEvent(Event):
     pass
