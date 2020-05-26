@@ -20,7 +20,7 @@ from ..event import (SerializedEvent, DeserializedEvent,
                      EncodedEvent, DataLoadRequest)
 from ...ecs.event import EventManager
 
-from .zest_data import zest
+from veredi.zest import zest
 
 
 # -----------------------------------------------------------------------------
@@ -40,7 +40,7 @@ from .zest_data import zest
 class Test_RepoSystem(unittest.TestCase):
 
     def setUp(self):
-        self.path = zest.data_path('file-tree')
+        self.path = zest.repository_file_tree()
         self.repo = RepositorySystem(1, repository_base=self.path)
         self.event_manager = EventManager()
         self.events = []

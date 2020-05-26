@@ -17,7 +17,7 @@ from veredi.base.context import (VerediContext,
                                  DataLoadContext,
                                  DataSaveContext)
 from .file import FileTreeRepository
-from .zest_data import zest
+from veredi.zest import zest
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -31,7 +31,7 @@ from .zest_data import zest
 class Test_FileTreeRepo(unittest.TestCase):
 
     def setUp(self):
-        self.path = zest.data_path('file-tree')
+        self.path = zest.repository_file_tree()
         self.repo = FileTreeRepository(self.path)
 
     def tearDown(self):
