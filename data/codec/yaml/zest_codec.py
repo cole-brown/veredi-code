@@ -9,13 +9,14 @@ Tests for the generic System class.
 # -----------------------------------------------------------------------------
 
 import unittest
-import os
 import datetime
 
 from .codec import YamlCodec
-from .zest_data import zest
 from .document import DocMetadata
 from .component import DocComponent
+
+from veredi.zest import zest
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -30,7 +31,7 @@ class Test_YamlCodec(unittest.TestCase):
 
     def setUp(self):
         self.codec = YamlCodec()
-        self.path = zest.data_path('component.health.yaml')
+        self.path = zest.codec() / 'component.health.yaml'
 
     def tearDown(self):
         self.codec = None
@@ -45,7 +46,7 @@ class Test_YamlCodec(unittest.TestCase):
     def test_init(self):
         self.assertTrue(self.codec)
         self.assertTrue(self.path)
-        self.assertTrue(os.path.isfile(self.path))
+        self.assertTrue(self.path.exists())
 
     def test_load(self):
         loaded = None
