@@ -19,7 +19,7 @@ import hashlib
 
 from veredi.logger import log
 from veredi.data.config.registry import register
-from veredi.base.context import VerediContext, DataContext
+from veredi.base.context import PersistentContext, DataContext
 
 from .. import exceptions
 # from ..codec import json
@@ -47,7 +47,7 @@ class BaseRepository(ABC):
 
         `context_name` and `context_key` are used for Event and Error context.
         '''
-        self._context = VerediContext(context_name, context_key)
+        self._context = PersistentContext(context_name, context_key)
         self._name = repo_name.lower()
 
     # --------------------------------------------------------------------------

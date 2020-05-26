@@ -18,10 +18,8 @@ import uuid
 
 
 # -----------------------------------------------------------------------------
-# Code
+# Actual Contexts
 # -----------------------------------------------------------------------------
-
-# §-TODO-§ [2020-05-23]: make everything that has context use this.
 
 class VerediContext:
 
@@ -166,10 +164,13 @@ class VerediContext:
     # --------------------------------------------------------------------------
 
     def __str__(self):
-        return f"VerediContext: {str(self.get())}"
+        return f"{self.__class__.__name__}: {str(self.get())}"
+
+    def __repr_name__(self):
+        return self.__class__.__name__[:1] + 'Ctx'
 
     def __repr__(self):
-        return f"<VCtx: {str(self.get())}>"
+        return f"<{self.__repr_name__()}: {str(self.get())}>"
 
 
 # ------------------------------------------------------------------------------
@@ -244,6 +245,10 @@ class DataLoadContext(DataContext):
                  campaign: str) -> None:
         super().__init__(name, self.REQUEST_LOAD, type, campaign)
 
+    def __repr_name__(self):
+        return 'DLCtx'
+
+
 
 class DataSaveContext(DataContext):
     def __init__(self,
@@ -251,6 +256,9 @@ class DataSaveContext(DataContext):
                  type:     'DataContext.Type',
                  campaign: str) -> None:
         super().__init__(name, self.REQUEST_SAVE, type, campaign)
+
+    def __repr_name__(self):
+        return 'DSCtx'
 
 
     # --------------------------------------------------------------------------
@@ -279,3 +287,88 @@ class UnitTestContext(VerediContext):
                          'unit-testing')
         ctx_data = self.get()
         ctx_data[self.key] = data
+
+    def __repr_name__(self):
+        return 'UTCtx'
+
+
+# -----------------------------------------------------------------------------
+# Context Mimic / Interface
+# -----------------------------------------------------------------------------
+
+class PersistentContext(VerediContext):
+    '''
+    This is for e.g. systems and other things that are persistent/long lived but
+    have context and want to send it to errors or merge it with events or what
+    have you.
+
+    This class should always let the other context 'win' the merge. So e.g. a
+    DataLoadContext merged with this should be a DataLoadContext. And this
+    merged with a DataLoadContext should also be a DataLoadContext.
+
+    Also, this should not take on its merged cousin's context. It is not really
+    a merge but a put.
+    '''
+
+    def __init__(self, name: str, key: str) -> None:
+        self.data = {}
+        self._name = name
+        self._key  = key
+
+    # def get(self) -> Dict[str, str]:
+    #     '''
+    #     Returns our context dictionary. If it doesn't exist, creates it with
+    #     our bare sub-entry.
+    #     '''
+    #     sub_context = self._ensure()
+    #     return self.data
+
+    def merge(self,
+              other: Optional['VerediContext']) -> 'VerediContext':
+        '''
+        Not really a merge for PersistentContext!!!
+
+        Put our context into other's context.
+        '''
+        if other is None:
+            copy_to = {}
+        elif isinstance(other, dict):
+            raise TypeError('Context needs to copy-to with Context, not dict. '
+                            f'{str(self)} copy-to: {str(other)}')
+        else:
+            copy_to = other.get()
+
+        context = self.get()
+        for key in context:
+            copy_key = key
+            if key in copy_to:
+                log.error(
+                    "Merging dictionaries with key conflict: mine: {context}, "
+                    "copy_to: {copy_to}. My keys will get random values "
+                    "appended to de-conflict, but this could cause issues "
+                    "further along.",
+                    context=context,
+                    copy_to=copy_to)
+                copy_key += '-' + uuid.uuid4().hex[:6]
+            copy_to[copy_key] = context[key]
+
+        # Do not set ours to theirs. Leave us as-is for the next
+        # ephemeral context.
+        # self.data = copy_to
+
+        # Also do not return ourself. Return the other one as it may have
+        # sub-class specific stuff it still needs to do.
+        return other
+
+    # --------------------------------------------------------------------------
+    # To String
+    # --------------------------------------------------------------------------
+
+    def __str__(self):
+        return f"{self.__class__.__name__}: {str(self.get())}"
+
+    def __repr_name__(self):
+        return self.__class__.__name__[:3] + 'Ctx'
+
+    def __repr__(self):
+        return f"<{self.__repr_name__()}: {str(self.get())}>"

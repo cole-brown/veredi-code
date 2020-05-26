@@ -17,6 +17,11 @@ from .base import BaseRepository
 # -----------------------------------------------------------------------------
 
 
+# §-TODO-§ [2020-05-26]: delete this file?
+
+
+
+
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
@@ -26,21 +31,33 @@ class RepositoryManager:
     game/session.
 
     '''
+
+    # §-TODO-§ [2020-05-26]: Take in config data, not already-constructed repos.
     def __init__(self,
-                 repositories: Iterable[Tuple[int, BaseRepository]]):
+                 repositories: Iterable[BaseRepository]):
         '''
-        Takes an iterable of tuples of (type_id, repository_type). Creates and
+        Takes an iterable of repositories. Creates and
         manages those repositories.
         '''
         self._repositories = {}
 #         for each in repositories:
-#             print("hi", "manager: {each}")
-#             self._repositories[each[0]] = each[1]()
-
-        # TODO: Do we need to mediate to make this easier on the game/session?
-        # e.g. let session say
-        #   "manager.mediate(player1)"
-        # or
-        #   "manager.save(player1)"
-        # or whatever. Then let this figure out any special cases or complicated
-        # interactions... See 'mediator design pattern'.
+#             self._repositories[] = each[1]()
+#
+#
+#
+#
+#         # TODO: Do we need to mediate to make this easier on the game/session?
+#         # e.g. let session say
+#         #   "manager.mediate(player1)"
+#         # or
+#         #   "manager.save(player1)"
+#         # or whatever. Then let this figure out any special cases or complicated
+#         # interactions... See 'mediator design pattern'.
+#
+#     def context(self, other: VerediContext):
+#         '''
+#         Get correct context from correct repository base on other's
+#         passed-in context.
+#         '''
+#         return -1
+#

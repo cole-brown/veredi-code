@@ -14,7 +14,6 @@ from typing import Any, Optional, Set, Type, Union, Iterable
 from veredi.logger import log
 from veredi.data.config import registry
 from veredi.data.repository.base import BaseRepository
-from veredi.data.repository.manager import RepositoryManager
 
 # Game / ECS Stuff
 from ...ecs.event import EventManager
@@ -30,6 +29,7 @@ from ...ecs.base.identity import (ComponentId,
                                   SystemId)
 from ...ecs.base.system import (System,
                                 SystemLifeCycle)
+from ...ecs.base.component import Component
 
 # Events
 # Do we need these system events?
@@ -81,9 +81,9 @@ class RepositorySystem(System):
         # TODO: Event to ask ConfigSystem what the specific repository is?
         # Maybe that's what we need a SET_UP tick for?
         # self._repository: Optional[BaseRepository] = None
-        from veredi.data.repository.file.repository import FileRepository
-        repository = FileRepository()
-        self._repo_manager = RepositoryManager((0, repository))
+        from veredi.data.repository.file import FileTreeRepository
+        self._repository = FileTreeRepository(kwargs.get('repository_base',
+                                                         None))
 
     # --------------------------------------------------------------------------
     # System Registration / Definition
@@ -97,6 +97,7 @@ class RepositorySystem(System):
         # Probably want HIGH so we can load new things ASAP in the ticks. HIGH +
         # 1 (currently) puts us ahead of the CodecSystem, if we do start using
         # ticks.
+        # ...though we want to be behind the CodecSystem during saves... Hmm.
         return SystemPriority.HIGH + 1
 
     def required(self) -> Optional[Iterable[Component]]:
@@ -167,16 +168,15 @@ class RepositorySystem(System):
         Request for data to be loaded. We must ask the repo for it and pack it
         into a DeserializedEvent.
         '''
-        # Get deserialized data stream from event.
-        request = event.context  # request is in the context
         context = self._repository.context.merge(event.context)
 
         # Ask my repository for this data.
-        deserialized = self._repository.load(request, context)
+        # Load data info is in the request context.
+        deserialized = self._repository.load(context)
+        # Get back deserialized data stream.
 
         # Take our repository load result and set into DeserializedEvent.
-        # Then have EventManager fire off event for
-        # whoever wants the next step.
+        # Then have EventManager fire off event for whoever wants the next step.
         self.event(self._event_manager,
                    DeserializedEvent,
                    event.id,

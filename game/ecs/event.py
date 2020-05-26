@@ -11,6 +11,7 @@ Event Manager. Pub/Sub style. Subscribe to events by class type.
 from typing import Callable, Type, Any, Union, Optional
 import enum
 
+from . import exceptions
 from .manager import EcsManager
 from .const import SystemHealth
 from veredi.base.context import VerediContext
@@ -76,14 +77,48 @@ class Event:
             context: VerediContext,
             *args: Any,
             **kwargs: Any) -> None:
-        self.id      = id
-        self.type    = type
-        self.context = context
+        self._id      = id
+        self._type    = type
+        self._context = context
+
+        if not self._context:
+            for each in args:
+                if isinstance(each, VerediContext):
+                    if not self._context:
+                        self._context = each
+                    else:
+                        raise exceptions.EventError(
+                            "Too many contexts for event. Already found: "
+                            f"{self._context}. Also just found:"
+                            f"{each}.",
+                            None,
+                            self._context)
+
+        # Don't have a requirement for context right now.
+        # raise exceptions.EventError(
+        #     "Too many contexts for event. Already found: "
+        #     f"{self._context}. Also just found:"
+        #     f"{each}.",
+        #     None,
+        #     self._context):
+
 
     def reset(self) -> None:
-        self.id      = None
-        self.type    = None
-        self.context = None
+        self._id      = None
+        self._type    = None
+        self._context = None
+
+    @property
+    def id(self) -> int:
+        return self._id
+
+    @property
+    def type(self) -> Union[int, enum.Enum]:
+        return self._type
+
+    @property
+    def context(self) -> int:
+        return self._context
 
 
 class EventManager(EcsManager):
