@@ -61,14 +61,7 @@ from ..ecs.event import Event
 # ------------------------------------------------------------------------------
 
 class DataLoadRequest(Event):
-
-    @property
-    def keys(self):
-        return self._data_keys
-
-    @property
-    def type(self):
-        return self._data_type
+    pass
 
 
 class DataSaveRequest(Event):

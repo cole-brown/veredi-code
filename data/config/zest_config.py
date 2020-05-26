@@ -29,8 +29,8 @@ from . import config
 # Test Stuff for a Player Entity
 # -----------------------------------------------------------------------------
 
-class Test_Configuration(unittest.TestCase):
-
+# class Test_Configuration(unittest.TestCase):
+#
 #     def setUp(self):
 #         self.data_root = test_data.abs_path('data', 'repository',
 #                                             'file', 'yaml',
@@ -52,15 +52,15 @@ class Test_Configuration(unittest.TestCase):
 #         self.name_player = None
 #         self.name_campaign = None
 #         self.data = None
-
-    # --------------------------------------------------------------------------
-    # Simple Cases
-    # --------------------------------------------------------------------------
-
-    def test_config(self):
-        conf = config.Configuration()
-        self.assertTrue(conf)
-        self.assertIsInstance(conf.repository, RepositoryManager)
+#
+#     # --------------------------------------------------------------------------
+#     # Simple Cases
+#     # --------------------------------------------------------------------------
+#
+#     def test_config(self):
+#         conf = config.Configuration()
+#         self.assertTrue(conf)
+#         self.assertIsInstance(conf.repository, RepositoryManager)
 #         self.assertIsInstance(conf.repository.player, player.PlayerRepository)
 #         self.assertIsInstance(conf.repository.player, player.PlayerFileTree)
 #

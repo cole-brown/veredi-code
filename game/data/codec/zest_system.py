@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Tests for the generic System class.
+Tests for the CodecSystem class.
 '''
 
 # -----------------------------------------------------------------------------

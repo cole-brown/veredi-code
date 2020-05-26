@@ -22,7 +22,7 @@ import enum
 
 from veredi.logger import log
 from veredi.data.config.registry import register
-from veredi.base.context import VerediContext, DataContext
+from veredi.base.context import PersistentContext, DataContext
 
 from .. import exceptions
 from . import base
@@ -236,7 +236,7 @@ class FileTreeRepository(base.BaseRepository):
 
     def _id(self,
             type:        DataContext.Type,
-            context:     VerediContext) -> List[str]:
+            context:     DataContext) -> List[str]:
         '''
         Turns data repo keys in the context into an id we can use to retrieve
         the data. Keys are safe and ready to go.
@@ -253,7 +253,7 @@ class FileTreeRepository(base.BaseRepository):
 
     def _id_to_path(self,
                     ids:     List[str],
-                    context: VerediContext) -> None:
+                    context: DataContext) -> None:
         '''
         Turn identity stuff into filepath components.
         '''
@@ -285,7 +285,7 @@ class FileTreeRepository(base.BaseRepository):
 
     def _safe_path(self,
                    unsafe: PathType,
-                   context: Optional[VerediContext] = None) -> str:
+                   context: Optional[DataContext] = None) -> str:
         '''Makes `unsafe` safe with self.fn_path_safing. '''
 
         if not self.fn_path_safing:
