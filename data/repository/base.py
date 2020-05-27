@@ -19,7 +19,8 @@ import hashlib
 
 from veredi.logger import log
 from veredi.data.config.registry import register
-from veredi.base.context import PersistentContext, DataContext
+from veredi.base.context import (PersistentContext,
+                                 BaseDataContext)
 
 from .. import exceptions
 # from ..codec import json
@@ -79,7 +80,7 @@ class BaseRepository(ABC):
 
     @abstractmethod
     def load(self,
-             context: DataContext) -> TextIOBase:
+             context: BaseDataContext) -> TextIOBase:
         '''
         Loads data from repository based on `load_id`, `load_type`.
 

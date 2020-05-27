@@ -9,16 +9,15 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
 import unittest
-import os
+from datetime import date
 
-# Veredi
 from veredi.logger import log
-from ..repository.manager import RepositoryManager
-from ..repository._old_stuff import player
-from . import config
 
+from . import config
+from ..codec.base import CodecKeys, CodecDocuments
+
+from veredi.zest import zest
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -29,43 +28,49 @@ from . import config
 # Test Stuff for a Player Entity
 # -----------------------------------------------------------------------------
 
-# class Test_Configuration(unittest.TestCase):
-#
-#     def setUp(self):
-#         self.data_root = test_data.abs_path('data', 'repository',
-#                                             'file', 'yaml',
-#                                             'test.entity.player.yaml')
-#         self.name_user = "us1!{er"
-#         self.name_player = "Jeff the Girl"
-#         self.name_campaign = "some-forgotten-campaign"
-#
-#         self.repo = player_repo.PlayerFileTree(self.data_root)
-#         self.data = self.repo._load_for_unit_tests(self.data_root,
-#                                                    user=self.name_user,
-#                                                    campaign=self.name_campaign,
-#                                                    player=self.name_player,
-#                                                    repository='unit test hacks')
-#
-#     def tearDown(self):
-#         self.data_root = None
-#         self.name_user = None
-#         self.name_player = None
-#         self.name_campaign = None
-#         self.data = None
-#
-#     # --------------------------------------------------------------------------
-#     # Simple Cases
-#     # --------------------------------------------------------------------------
-#
-#     def test_config(self):
-#         conf = config.Configuration()
-#         self.assertTrue(conf)
-#         self.assertIsInstance(conf.repository, RepositoryManager)
-#         self.assertIsInstance(conf.repository.player, player.PlayerRepository)
-#         self.assertIsInstance(conf.repository.player, player.PlayerFileTree)
-#
-#         self.assertEqual(conf.repository.player.root,
-#                          os.path.abspath("test/owner/repository/player/"))
+class Test_Configuration(unittest.TestCase):
+
+    def setUp(self):
+        self.path = zest.config('default.yaml')
+        self.config = config.Configuration(self.path)
+
+    def tearDown(self):
+        self.data_root = None
+        self.name_user = None
+        self.name_player = None
+        self.name_campaign = None
+        self.data = None
+
+    def test_init(self):
+        self.assertIsNotNone(self.path)
+        self.assertIsNotNone(self.config)
+
+    def test_config_metadata(self):
+        self.assertTrue(self.config._config)
+        self.assertEqual(self.config.get(CodecDocuments.METADATA,
+                                         'record-type'),
+                         'veredi.config')
+        self.assertEqual(self.config.get(CodecDocuments.METADATA,
+                                         'version'),
+                         date(2020, 5, 26))
+        self.assertEqual(self.config.get(CodecDocuments.METADATA,
+                                         'author'),
+                         'Cole Brown')
+
+    def test_config_configdata(self):
+        self.assertTrue(self.config._config)
+        self.assertEqual(self.config.get(CodecDocuments.CONFIG,
+                                         'doc-type'),
+                         'configuration')
+        self.assertEqual(self.config.get(CodecDocuments.CONFIG,
+                                         'game', 'repository'),
+                         'veredi.repository.file-tree')
+        self.assertEqual(self.config.get(CodecDocuments.CONFIG,
+                                         'game', 'codec'),
+                         'veredi.codec.yaml')
+        self.assertEqual(self.config.get(CodecDocuments.CONFIG,
+                                         'game', 'directory'),
+                         'test/game/repository/file-tree')
 
 
 

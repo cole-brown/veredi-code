@@ -14,7 +14,7 @@ from io import StringIO
 from veredi.base.context import (UnitTestContext,
                                  DataLoadContext,
                                  DataSaveContext,
-                                 DataContext)
+                                 DataGameContext)
 from .system import RepositorySystem
 from ..event import (SerializedEvent, DeserializedEvent,
                      EncodedEvent, DataLoadRequest)
@@ -74,29 +74,29 @@ class Test_RepoSystem(unittest.TestCase):
     def context_load(self, type):
         ctx = DataLoadContext('unit-testing', type, 'test-campaign')
         path = self.path / 'test-campaign'
-        if type == DataContext.Type.PLAYER:
+        if type == DataGameContext.Type.PLAYER:
             ctx.sub['user'] = 'u/jeff'
             ctx.sub['player'] = 'Sir Jeffsmith'
             # hand-craft the expected escaped/safed path
             path = path / 'players' / 'u_jeff' / 'sir_jeffsmith.yaml'
-        elif type == DataContext.Type.MONSTER:
+        elif type == DataGameContext.Type.MONSTER:
             ctx.sub['family'] = 'dragon'
             ctx.sub['monster'] = 'aluminum dragon'
             # hand-craft the expected escaped/safed path
             path = path / 'monsters' / 'dragon' / 'aluminum_dragon.yaml'
-        elif type == DataContext.Type.NPC:
+        elif type == DataGameContext.Type.NPC:
             ctx.sub['family'] = 'Townville'
             ctx.sub['npc'] = 'Sword Merchant'
             # hand-craft the expected escaped/safed path
             path = path / 'npcs' / 'townville' / 'sword_merchant.yaml'
-        elif type == DataContext.Type.ITEM:
+        elif type == DataGameContext.Type.ITEM:
             ctx.sub['category'] = 'weapon'
             ctx.sub['item'] = 'Sword, Ok'
             # hand-craft the expected escaped/safed path
             path = path / 'items' / 'weapon' / 'sword__ok.yaml'
         else:
             raise exceptions.LoadError(
-                f"No DataContext.Type to ID conversion for: {type}",
+                f"No DataGameContext.Type to ID conversion for: {type}",
                 None,
                 self.context.merge(context))
 
@@ -118,7 +118,7 @@ class Test_RepoSystem(unittest.TestCase):
     def test_event_load_req(self):
         self.set_up_subs()
 
-        load_ctx, load_path = self.context_load(DataContext.Type.PLAYER)
+        load_ctx, load_path = self.context_load(DataGameContext.Type.PLAYER)
         load_ctx.sub['user'] = 'u/jeff'
         load_ctx.sub['player'] = 'Sir Jeffsmith'
 

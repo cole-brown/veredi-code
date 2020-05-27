@@ -11,7 +11,7 @@ Manager interface for ECS managers.
 from typing import Union, Type, Iterable, Optional, Set, Any
 
 from veredi.logger import log
-from .const import SystemHealth
+from veredi.base.const import VerediHealth
 
 
 # -----------------------------------------------------------------------------
@@ -28,8 +28,8 @@ class EcsManager:
     Interface for ECS Managers.
     '''
 
-    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
-        return SystemHealth.APOPTOSIS
+        return VerediHealth.APOPTOSIS

@@ -10,6 +10,8 @@ Tests for the generic System class.
 
 import unittest
 
+from veredi.base.const import VerediHealth
+
 from . import system
 from .. import const
 from . import component
@@ -55,7 +57,7 @@ class SysJeff(system.System):
         before actual tick.
         '''
         last_tick = const.SystemTick.PRE
-        return const.SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
     def update(self,
                time,
@@ -65,7 +67,7 @@ class SysJeff(system.System):
         Normal/Standard upate. Basically everything should happen here.
         '''
         last_tick = const.SystemTick.STANDARD
-        return const.SystemHealth.FATAL
+        return VerediHealth.FATAL
 
     def update_post(self,
                     time,
@@ -76,7 +78,7 @@ class SysJeff(system.System):
         after actual tick.
         '''
         last_tick = const.SystemTick.POST
-        return const.SystemHealth.FATAL
+        return VerediHealth.FATAL
 
 
 class SysJill(system.System):
@@ -128,4 +130,4 @@ class Test_System(unittest.TestCase):
 
         health = self.sys.update_post(1.0, None, None)
         self.assertTrue(self.sys.last_tick, const.SystemTick.POST)
-        self.assertTrue(health, const.SystemHealth.HEALTHY)
+        self.assertTrue(health, VerediHealth.HEALTHY)

@@ -8,9 +8,12 @@ Helper class for managing context dicts for e.g. error messages.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Type
 import enum
 import uuid
+import copy
+
+from veredi.logger import log
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -25,8 +28,14 @@ class VerediContext:
 
     _KEY_NAME = 'name'
 
-    def __init__(self, name: str, key: str) -> None:
-        self.data = {}
+    def __init__(self,
+                 name: str,
+                 key: str,
+                 starting_context: Optional[Dict[str, Any]] = None) -> None:
+        if starting_context:
+            self.data = starting_context
+        else:
+            self.data = {}
         self._name = name
         self._key  = key
 
@@ -78,7 +87,7 @@ class VerediContext:
         self.data = context
 
     # --------------------------------------------------------------------------
-    # Square Brackets! (context['foo'] accessors)
+    # Square Brackets! (context['key'] accessors)
     # --------------------------------------------------------------------------
 
     def __getitem__(self, key):
@@ -177,7 +186,33 @@ class VerediContext:
 # Data Context
 # ------------------------------------------------------------------------------
 
-class DataContext(VerediContext):
+class BaseDataContext(VerediContext):
+    def __repr_name__(self):
+        return 'DataCtx'
+
+
+class DataBareContext(BaseDataContext):
+    def __init__(self,
+                 name: str,
+                 key:  str,
+                 load: Optional[List[Any]] = None,
+                 starting_context: Optional[Dict[str, Any]] = None) -> None:
+        '''
+        Initialize DataBareContext with name, key, and some list called 'load'.
+        '''
+        super().__init__(name, key, starting_context)
+        self._load = load
+        self.sub['load'] = load
+
+    @property
+    def load(self):
+        return self._load
+
+    def __repr_name__(self):
+        return 'DBareCtx'
+
+
+class DataGameContext(BaseDataContext):
 
     @enum.unique
     class Type(enum.Enum):
@@ -205,12 +240,13 @@ class DataContext(VerediContext):
     def __init__(self,
                  name:     str,
                  key:      str,
-                 type:     'DataContext.Type',
-                 campaign: str) -> None:
+                 type:     'DataGameContext.Type',
+                 campaign: str,
+                 starting_context: Optional[Dict[str, Any]] = None) -> None:
         '''
-        Initialize DataContext with name, key, and type.
+        Initialize DataGameContext with name, key, and type.
         '''
-        super().__init__(name, key)
+        super().__init__(name, key, starting_context)
         self._type = type
 
         # Save our request type, request keys into our context.
@@ -222,7 +258,7 @@ class DataContext(VerediContext):
         ctx[self.REQUEST_CAMPAIGN] = campaign
 
     @property
-    def type(self) -> 'DataContext.Type':
+    def type(self) -> 'DataGameContext.Type':
         return self._type
 
     @property
@@ -238,38 +274,31 @@ class DataContext(VerediContext):
         return [self.sub.get(key, None) for key in self.data_keys]
 
 
-class DataLoadContext(DataContext):
+class DataLoadContext(DataGameContext):
     def __init__(self,
                  name:     str,
-                 type:     'DataContext.Type',
-                 campaign: str) -> None:
-        super().__init__(name, self.REQUEST_LOAD, type, campaign)
+                 type:     'DataGameContext.Type',
+                 campaign: str,
+                 starting_context: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(name, self.REQUEST_LOAD,
+                         type, campaign, starting_context)
 
     def __repr_name__(self):
         return 'DLCtx'
 
 
 
-class DataSaveContext(DataContext):
+class DataSaveContext(DataGameContext):
     def __init__(self,
                  name:     str,
-                 type:     'DataContext.Type',
-                 campaign: str) -> None:
-        super().__init__(name, self.REQUEST_SAVE, type, campaign)
+                 type:     'DataGameContext.Type',
+                 campaign: str,
+                 starting_context: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(name, self.REQUEST_SAVE,
+                         type, campaign, starting_context)
 
     def __repr_name__(self):
         return 'DSCtx'
-
-
-    # --------------------------------------------------------------------------
-    # To String
-    # --------------------------------------------------------------------------
-
-    def __str__(self):
-        return f"VerediContext: {str(self.get())}"
-
-    def __repr__(self):
-        return f"<VCtx: {str(self.get())}>"
 
 
 # ------------------------------------------------------------------------------
@@ -277,14 +306,16 @@ class DataSaveContext(DataContext):
 # ------------------------------------------------------------------------------
 
 class UnitTestContext(VerediContext):
-    def __init__(self, test_class, test_name, data) -> None:
+    def __init__(self, test_class, test_name,
+                 data, starting_context = None) -> None:
         '''
         Initialize Context with test name.
         '''
         super().__init__((test_class
                           if not test_name else
                           test_name + '.' + test_name),
-                         'unit-testing')
+                         'unit-testing',
+                         starting_context)
         ctx_data = self.get()
         ctx_data[self.key] = data
 
@@ -309,19 +340,6 @@ class PersistentContext(VerediContext):
     Also, this should not take on its merged cousin's context. It is not really
     a merge but a put.
     '''
-
-    def __init__(self, name: str, key: str) -> None:
-        self.data = {}
-        self._name = name
-        self._key  = key
-
-    # def get(self) -> Dict[str, str]:
-    #     '''
-    #     Returns our context dictionary. If it doesn't exist, creates it with
-    #     our bare sub-entry.
-    #     '''
-    #     sub_context = self._ensure()
-    #     return self.data
 
     def merge(self,
               other: Optional['VerediContext']) -> 'VerediContext':
@@ -358,6 +376,50 @@ class PersistentContext(VerediContext):
 
         # Also do not return ourself. Return the other one as it may have
         # sub-class specific stuff it still needs to do.
+        return other
+
+    def import_to_sub(self,
+                      other: Optional['VerediContext']) -> None:
+        '''
+        Pulls another context into our /sub/-context.
+        '''
+        import_from = None
+        if other is None:
+            return
+        elif isinstance(other, dict):
+            raise TypeError('Context needs to import from another '
+                            'Context, not dict. '
+                            f'{str(self)} other: {str(other)}')
+        else:
+            import_from = other.get()
+
+        context = self.get()
+        for key in import_from:
+            copy_key = key
+            if key in context:
+                log.error(
+                    "Merging dictionaries with key conflict: mine: {context}, "
+                    "import_from: {import_from}. Import key will get random "
+                    "values appended to de-conflict, but this could cause "
+                    "issues further along.",
+                    context=context,
+                    import_from=import_from)
+                copy_key += '-' + uuid.uuid4().hex[:6]
+            context[copy_key] = copy.deepcopy(import_from[key])
+
+    def spawn(self,
+              other_class: Optional[Type['VerediContext']],
+              *args: Any,
+              **kwargs: Any) -> None:
+        '''
+        Makes a new instance of the passed in type w/ our context overwriting
+        its own.
+        '''
+        other = other_class(self.name, self.key,
+                            *args,
+                            starting_context=copy.deepcopy(self.get()),
+                            **kwargs)
+
         return other
 
     # --------------------------------------------------------------------------

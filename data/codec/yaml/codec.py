@@ -9,13 +9,16 @@ Aka YAML Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional, Union, NewType, List, Dict, TextIO, Any
 import yaml
 
 from veredi.logger import log
+from veredi.base.context import VerediContext
+
 from veredi.data.config.registry import register
 from veredi.data import exceptions
 
-from ..base import BaseCodec
+from ..base import BaseCodec, CodecOutput
 
 from . import function
 from . import document
@@ -44,7 +47,9 @@ class YamlCodec(BaseCodec):
                          YamlCodec._CONTEXT_NAME,
                          YamlCodec._CONTEXT_KEY)
 
-    def decode(self, stream, error_context):
+    def decode(self,
+               stream: TextIO,
+               input_context: VerediContext) -> CodecOutput:
         '''Load and decodes data from a single data stream.
 
         Raises:
@@ -54,7 +59,7 @@ class YamlCodec(BaseCodec):
             - Other yaml/stream errors?
         '''
 
-        data = self._load(stream, error_context)
+        data = self._load(stream, input_context)
 
         # TODO: Here is where we'd check metadata for versions and stuff?
 
@@ -69,7 +74,9 @@ class YamlCodec(BaseCodec):
         # Game data should just be python: dicts, lists, str, int, etc.
         return self._to_game(data)
 
-    def decode_all(self, stream, error_context):
+    def decode_all(self,
+                   stream: TextIO,
+                   input_context: VerediContext) -> CodecOutput:
         '''Load and decodes data from a single data stream.
 
         Raises:
@@ -79,12 +86,12 @@ class YamlCodec(BaseCodec):
             - Other yaml/stream errors?
         '''
 
-        data = self._load_all(stream, error_context)
+        data = self._load_all(stream, input_context)
         if not data:
             raise exceptions.LoadError(
                 "Loading yaml from stream resulted in no data:",
                 None,
-                self.context.merge(error_context)) from error
+                self.context.merge(input_context)) from error
 
         # TODO: Here is where we'd check metadata for versions and stuff?
 
@@ -110,7 +117,9 @@ class YamlCodec(BaseCodec):
             data.append(doc.decode())
         return data
 
-    def _load(self, stream, error_context):
+    def _load(self,
+              stream: TextIO,
+              input_context: VerediContext) -> Any:
         '''Load data from a single data stream.
 
         Returns:
@@ -131,7 +140,7 @@ class YamlCodec(BaseCodec):
         try:
             data = yaml.safe_load(stream)
         except yaml.YAMLError as error:
-            ctx = self.context.merge(error_context)
+            ctx = self.context.merge(input_context)
             log.error('YAML failed while loading the data. {} {}',
                       error.__class__.__qualname__,
                       ctx)
@@ -141,7 +150,9 @@ class YamlCodec(BaseCodec):
                                        ctx) from error
         return data
 
-    def _load_all(self, stream, error_context):
+    def _load_all(self,
+                  stream: TextIO,
+                  input_context: VerediContext) -> Any:
         '''Load data from a single data stream.
 
         Returns:
@@ -163,7 +174,7 @@ class YamlCodec(BaseCodec):
             data = yaml.safe_load_all(stream)
             # print(f"{self.__class__.__name__}.decode_all: data = {data}")
         except yaml.YAMLError as error:
-            ctx = self.context.merge(error_context)
+            ctx = self.context.merge(input_context)
             log.error('YAML failed while loading the file. {} {}',
                       error.__class__.__qualname__,
                       ctx)

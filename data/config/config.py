@@ -9,51 +9,99 @@ Configuration file reader/writer for Veredi games.
 # -----------------------------------------------------------------------------
 
 from typing import Dict, Optional, Any, List
-import os
+import pathlib
 import re
+import enum
 
 from veredi.logger import log
-from veredi.base.context import VerediContext
+from veredi.base.context import PersistentContext, DataBareContext
+from veredi.base.const import VerediHealth
+
 from .. import exceptions
-from ..codec.yaml import codec
-from ..codec.yaml.document import DocMetadata, DocRepository
-from ..repository.manager import RepositoryManager
 from . import registry
+
+from ..repository.base import BaseRepository
+
+# For reading our config file:
+from ..repository.file import FileBareRepository
+from ..codec.base import BaseCodec, CodecOutput, CodecKeys, CodecDocuments
+from ..codec.yaml import codec
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+THIS_DIR = pathlib.Path(__file__).resolve().parent
 DEFAULT_NAME = "default.yaml"
+
+
+@enum.unique
+class ConfigKeys(enum.Enum):
+    INVALID  = None
+
+    # level 0
+    GAME     = 'game'
+    TEMPLATE = 'template'
+
+    # level 1
+    REPO     = 'repository'
+    CODEC    = 'codec'
+    DIR      = 'directory'
+
+    # etc...
+
+    def get(string: str) -> Optional['ConfigKeys']:
+        '''
+        Convert a string into a CodecDocuments enum value. Returns None if no
+        conversion is found. Isn't smart - no case insensitivity or anything.
+        Only compares input against our enum /values/.
+        '''
+        for each in CodecDocuments:
+            if string == each.value:
+                return each
+        return None
 
 
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
 
-def default_path():
+def default_path() -> Optional[pathlib.Path]:
     '''Returns absolute path to the DEFAULT config file.
 
     Returns None if file does not exist.
 
     '''
-    path = os.path.join(THIS_DIR, DEFAULT_NAME)
-    if not os.path.exists(path):
+    if not THIS_DIR.exists():
         return None
 
+    path = THIS_DIR / DEFAULT_NAME
+    if not path.exists():
+        return None
     return path
 
 
 class Configuration:
-    '''Raises LoadError and ConfigError...'''
-    def __init__(self, config_path=None, data_codec=None):
+    '''Config data for how a game will run and what stuff it will use.'''
+
+    def __init__(self,
+                 config_path:  Optional[pathlib.Path]   = None,
+                 config_repo:  Optional[BaseRepository] = None,
+                 config_codec: Optional[BaseCodec]      = None):
         '''Raises LoadError and ConfigError'''
-        self._path = config_path or default_path()
-        self._data_codec = data_codec or codec.YamlCodec()
-        self._context = VerediContext('configuration', 'configuration')
-        self._context.sub['config_path'] = self._path
+        self._path    = config_path or default_path()
+        self._repo    = config_repo or FileBareRepository(self._path)
+        self._codec   = config_codec or codec.YamlCodec()
+
+        # Setup our context, import repo & codec's.
+        self._context = PersistentContext('configuration', 'configuration')
+        self._context.sub['path'] = str(self._path)
+        self._context.import_to_sub(self._repo.context)
+        self._context.import_to_sub(self._codec.context)
+
+        # Our storage of the config data itself.
+        self._config = {}
 
         self._load()
         self._set_up()
@@ -70,89 +118,82 @@ class Configuration:
         return self._context
 
     # --------------------------------------------------------------------------
-    # Config Stuff
+    # Config Data
+    # --------------------------------------------------------------------------
+
+    def get(self,
+            doc_type: CodecDocuments,
+            *keys:    ConfigKeys) -> Optional[Any]:
+        '''
+        Get a configuration thingy from us given some keys use to walk into our
+        config data.
+
+        Returns data found at end of doc_type, keys chain.
+        Returns None if couldn't find doc_type or a key in our config data.
+        '''
+        # Get document type data first.
+        data = self._config.get(doc_type, None)
+        if data is None:
+            return None
+
+        # Now hunt for the keys they wanted...
+        for key in keys:
+            data = data.get(key, None)
+            if data is None:
+                return None
+
+        return data
+
+    # --------------------------------------------------------------------------
+    # Load Config Stuff
     # --------------------------------------------------------------------------
 
     # §-TODO-§ [2020-05-06]: Change data into stuff we can use.
     # Classes and suchlike...
-    def _set_up(self):
-        self._set_up_repos()
-
-    def _set_up_repos(self):
+    def _set_up(self) -> VerediHealth:
         '''Raises ConfigError'''
 
-        if not self._data_repo:
+        if not self._path:
             raise exceptions.ConfigError(
-                "No repository config data after loading!",
+                "No path for config data after loading!",
                 None,
                 self.context)
 
-        owner = None # self._set_up_repo('owner')
-        campaign = None # self._set_up_repo('campaign')
-        session = None # self._set_up_repo('session')
-        player = self._set_up_repo('player')
-        self.repository = RepositoryManager([[0, owner],
-                                             [1, campaign],
-                                             [2, session],
-                                             [3, player]])
-
-    def _set_up_repo(self, kind):
-        try:
-            data = getattr(self._data_repo, kind)
-        except AttributeError as error:
-            log.exception(
-                error,
-                "Repo Config Data has no attribute '{}'! data: {}",
-                kind, self._data_repo)
+        if not self._codec:
             raise exceptions.ConfigError(
-                "Data has no attribute '{}'! data: {}",
-                error,
-                self.context) from error
+                "No codec for config data after loading!",
+                None,
+                self.context)
 
-        try:
-            # required
-            dotted_key_fmt = data['codec']
-            dotted_key_repo = data['type']
-
-            # optional
-            directory = data.get('directory', None)
-        except KeyError as error:
-            log.exception(
-                error,
-                "Repo Config Data missing important key '{}'! data: {}",
-                kind, data)
+        if not self._repo:
             raise exceptions.ConfigError(
-                "Data has no attribute '{}'! data: {}",
-                error,
-                self.context) from error
+                "No repository for config data after loading!",
+                None,
+                self.context)
 
-        # Replace any $this vars...
-        dotted_key_fmt = self._var_sub(dotted_key_fmt, kind)
-        dotted_key_repo = self._var_sub(dotted_key_repo, kind)
+        return VerediHealth.HEALTHY
 
-        codec      = registry.create(dotted_key_fmt)
-        repository = registry.create(dotted_key_repo,
-                                     directory,
-                                     data_codec=codec)
-        return repository
-
-    def _var_sub(self, string, replacement):
+    def _load(self) -> VerediHealth:
         '''
-        Replace shell-style variables ($name or ${name}) with their value.
-        '''
-        return re.sub(r'\$\{?this\}?', replacement, string)
+        Load our context data so we know what the ever to do.
 
-    def _load(self):
-        '''Raises LoadError'''
-        with open(self._path, 'r') as file_obj:
+        Raises LoadError
+        '''
+        # Spawn a context from what we know, and ask the config repo to load
+        # something based on that.
+        ctx = self.context.spawn(DataBareContext, self._path)
+        with self._repo.load(ctx) as stream:
+            # Decode w/ codec.
             # Can raise an error - we'll let it.
             try:
-                log.debug(f"data codec: {self._data_codec}")
-                generator = self._data_codec._load_all(file_obj,
-                                                       self.context)
-                for each in generator:
-                    log.debug("loading doc: {}", each)
+                log.debug("Config Load Context: {}, "
+                          "Confgig Repo: {}, "
+                          "Confgig Codec: {}",
+                          ctx, self._repo, self._codec)
+                for each in self._codec.decode_all(stream, ctx):
+                    log.debug("Config Loading Doc: {}", each)
                     self._load_doc(each)
+
             except exceptions.LoadError:
                 # Let this one bubble up as-is.
                 data = None
@@ -165,14 +206,30 @@ class Configuration:
                 data = None
                 raise
 
-    def _load_doc(self, document):
-        # TODO: ask codec if it's metadata/repo/whatever?
-        if isinstance(document, DocMetadata):
-            self._data_meta = document
-        elif isinstance(document, DocRepository):
-            self._data_repo = document
+        return VerediHealth.HEALTHY
+
+    def _load_doc(self, document: codec.CodecOutput) -> None:
+        if isinstance(document, list):
+            log.error("TODO: How do we deal with list document? {}: {}",
+                      type(document),
+                      str(document))
+            raise exceptions.LoadError("TODO: How do we deal with list document? "
+                                       f"{type(document)}: {str(document)}",
+                                       None,
+                                       self.context)
+
+        elif (isinstance(document, dict)
+              and CodecKeys.DOC_TYPE.value in document):
+            # Save these to our config dict under their doc-type key.
+            doc_type_str = document[CodecKeys.DOC_TYPE.value]
+            doc_type = CodecDocuments.get(doc_type_str)
+            self._config[doc_type] = document
+
         else:
-            log.error("Unknown document while loading! {}: {}",
+            log.error("Unknown document while loading! "
+                      "Does it have a '{}' field? "
+                      "{}: {}",
+                      CodecKeys.DOC_TYPE.value,
                       type(document),
                       str(document))
             raise exceptions.LoadError(f"Unknown document while loading! "

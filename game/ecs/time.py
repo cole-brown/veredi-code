@@ -15,8 +15,8 @@ import time as py_time
 import decimal
 
 from veredi.logger import log
+from veredi.base.const import VerediHealth
 from veredi import mathing
-from .const import SystemHealth
 from . import exceptions
 
 # -----------------------------------------------------------------------------
@@ -215,20 +215,20 @@ class TimeManager:
                                          None, None)
         self.tick  = Tick(tick_amount)
 
-    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return SystemHealth.HEALTY
+        return VerediHealth.HEALTY
 
-    def apoptosis(self) -> SystemHealth:
+    def apoptosis(self) -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
         # Anything to do, time-wise?
 
-        return SystemHealth.APOPTOSIS
+        return VerediHealth.APOPTOSIS
 
     # ---
     # Timer

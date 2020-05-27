@@ -13,7 +13,7 @@ from io import TextIOBase
 import enum
 
 from veredi.base.context import (VerediContext,
-                                 DataContext,
+                                 DataGameContext,
                                  DataLoadContext,
                                  DataSaveContext)
 from ..ecs.event import Event

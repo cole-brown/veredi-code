@@ -34,29 +34,17 @@ from . import base
 class DocMetadata(base.VerediYamlDocument):
     yaml_tag = '!metadata'
 
-    def decode(self):
-        '''
-        YAML objects & stuff to plain old data structure.
-        '''
-        return self.__dict__
 
 # ---
-# Repository
+# Config
 # ---
 
-class DocRepository(base.VerediYamlDocument):
-    yaml_tag = '!repository'
-
-    def __str__(self):
-        return (f"{self.__class__.__name__}:\n"
-                f"  owner:    {self.owner if hasattr(self, 'owner') else 'no own'}\n"
-                f"  campaign: {self.campaign if hasattr(self, 'campaign') else 'no camp'}\n"
-                f"  session:  {self.session if hasattr(self, 'session') else 'no sess'}\n"
-                f"  player:   {self.player if hasattr(self, 'player') else 'no plr'}\n")
+class DocConfiguration(base.VerediYamlDocument):
+    yaml_tag = '!configuration'
 
 
 # ---
-# Component Doc Types
+# Other Doc Types
 # ---
 
-# See ./component.py
+# See more specific files, e.g. component.py.

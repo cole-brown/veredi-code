@@ -9,16 +9,45 @@ Aka ___ Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, Optional
+from typing import Optional, Union, NewType, List, Dict, TextIO, Any
 from abc import ABC, abstractmethod
+import enum
 
 from veredi.data import exceptions
 from veredi.base.context import VerediContext
+
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
+CodecOutput = NewType('CodecOutput',
+                      Union[List[Any], Dict[str, Any], None])
+
+
+@enum.unique
+class CodecKeys(enum.Enum):
+    INVALID = None
+    DOC_TYPE = 'doc-type'
+
+
+@enum.unique
+class CodecDocuments(enum.Enum):
+    INVALID = None
+    METADATA = 'metadata'
+    CONFIG = 'configuration'
+    # etc...
+
+    def get(string: str) -> Optional['CodecDocuments']:
+        '''
+        Convert a string into a CodecDocuments enum value. Returns None if no
+        conversion is found. Isn't smart - no case insensitivity or anything.
+        Only compares input against our enum /values/.
+        '''
+        for each in CodecDocuments:
+            if string == each.value:
+                return each
+        return None
 
 # -----------------------------------------------------------------------------
 # Code
@@ -57,7 +86,7 @@ class BaseCodec(ABC):
     # --------------------------------------------------------------------------
 
     @property
-    def context(self):
+    def context(self) -> VerediContext:
         '''
         Will be the context dict for e.g. Events, Errors.
         '''
@@ -68,7 +97,9 @@ class BaseCodec(ABC):
     # --------------------------------------------------------------------------
 
     @abstractmethod
-    def decode(self, stream, error_context):
+    def decode(self,
+               stream: TextIO,
+               input_context: VerediContext) -> CodecOutput:
         '''Load and decodes a single document from the data stream.
 
         Raises:
@@ -78,7 +109,9 @@ class BaseCodec(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def decode_all(self, stream, error_context):
+    def decode_all(self,
+                   stream: TextIO,
+                   input_context: VerediContext) -> CodecOutput:
         '''Load and decodes all documents from the data stream.
 
         Raises:
@@ -88,7 +121,9 @@ class BaseCodec(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _load(self, stream, error_context):
+    def _load(self,
+              stream: TextIO,
+              input_context: VerediContext) -> Any:
         '''Load data from a single data stream.
 
         Returns:
@@ -101,7 +136,9 @@ class BaseCodec(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _load_all(self, stream, error_context):
+    def _load_all(self,
+                  stream: TextIO,
+                  input_context: VerediContext) -> Any:
         '''Load data from a single data stream.
 
         Returns:

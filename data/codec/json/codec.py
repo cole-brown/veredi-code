@@ -9,13 +9,14 @@ Aka JSON Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional, Union, NewType, List, Dict, TextIO
 import json
 
 from veredi.logger import log
 from veredi.data.config.registry import register
 from veredi.data import exceptions
 
-from ..base import BaseCodec
+from ..base import BaseCodec, CodecOutput
 
 
 # -----------------------------------------------------------------------------
@@ -38,7 +39,9 @@ class JsonCodec(BaseCodec):
                          JsonCodec._CONTEXT_NAME,
                          JsonCodec._CONTEXT_KEY)
 
-    def decode(self, stream, error_context):
+    def decode(self,
+               stream: TextIO,
+               input_context: VerediContext) -> CodecOutput:
         '''Load and decodes data from a single data stream.
 
         Raises:
@@ -47,7 +50,7 @@ class JsonCodec(BaseCodec):
           Maybes:
             - Other json/stream errors?
         '''
-        data = self._load(stream, error_context)
+        data = self._load(stream, input_context)
         try:
             data = json.load(stream)
         except json.JSONDecodeError as error:
@@ -55,10 +58,12 @@ class JsonCodec(BaseCodec):
             raise exceptions.LoadError(
                 f"Error loading json from stream: {path}",
                 error,
-                self.context.merge(error_context)) from error
+                self.context.merge(input_context)) from error
         return data
 
-    def _load(self, stream, error_context):
+    def _load(self,
+              stream: TextIO,
+              input_context: VerediContext) -> Any:
         '''Load data from a single data stream.
 
         Returns:
@@ -82,10 +87,12 @@ class JsonCodec(BaseCodec):
             raise exceptions.LoadError(
                 f"Error loading json from stream: {path}",
                 error,
-                self.context.merge(error_context)) from error
+                self.context.merge(input_context)) from error
         return data
 
-    def decode_all(self, stream, error_context):
+    def decode_all(self,
+                   stream: TextIO,
+                   input_context: VerediContext) -> CodecOutput:
         '''Load and decodes all documents from the data stream.
 
         Raises:
@@ -95,7 +102,9 @@ class JsonCodec(BaseCodec):
         # §-TODO-§ [2020-05-22]: decode_all
         raise NotImplementedError("TODO: this")
 
-    def _load_all(self, stream, error_context):
+    def _load_all(self,
+                  stream: TextIO,
+                  input_context: VerediContext) -> Any:
         '''Load data from a single data stream.
 
         Returns:

@@ -24,11 +24,12 @@ Inspired by:
 from typing import Union, Type, Iterable, Optional, Set, List, Any
 
 from veredi.logger import log
+from veredi.base.const import VerediHealth
+
 from .base.identity import MonotonicIdGenerator, ComponentId
 from .base.component import (Component,
                              ComponentLifeCycle,
                              ComponentError)
-from .const import SystemHealth
 from .event import EcsManagerWithEvents, EventManager, Event
 
 
@@ -67,14 +68,14 @@ class ComponentManager(EcsManagerWithEvents):
 
         self._event_manager:     EventManager         = event_manager
 
-    def subscribe(self, event_manager: EventManager) -> SystemHealth:
+    def subscribe(self, event_manager: EventManager) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return SystemHealth.HEALTY
+        return VerediHealth.HEALTY
 
-    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
@@ -187,7 +188,7 @@ class ComponentManager(EcsManagerWithEvents):
     # --------------------------------------------------------------------------
 
     def creation(self,
-                 time: 'TimeManager') -> SystemHealth:
+                 time: 'TimeManager') -> VerediHealth:
         '''
         Runs before the start of the tick/update loop.
 
@@ -223,10 +224,10 @@ class ComponentManager(EcsManagerWithEvents):
         # Done with iteration - clear the adds.
         self._component_create.clear()
 
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
     def destruction(self,
-                    time: 'TimeManager') -> SystemHealth:
+                    time: 'TimeManager') -> VerediHealth:
         '''
         Runs after the end of the tick/update loop.
 
@@ -265,4 +266,4 @@ class ComponentManager(EcsManagerWithEvents):
         # Done with iteration - clear the removes.
         self._component_destroy.clear()
 
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY

@@ -77,6 +77,8 @@ class SystemTick(enum.Flag):
     DESTRUCTION = enum.auto()
     '''Tick where ECS destruction happens.'''
 
+    ALL = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
+
     def has(self, flag):
         return ((self & flag) == flag)
 
@@ -86,9 +88,19 @@ class SystemPriority(enum.IntEnum):
     Low priority systems go last, so that a standard (non-reversed) sort will
     sort them in high-to-low priority.
     '''
+    # ---
+    # GENERAL
+    # ---
     LOW    = 10000
     MEDIUM = 1000
     HIGH   = 100
+
+    # ---
+    # Specific Systems
+    # ---
+    DATA_CODEC = HIGH - 6
+    DATA_REPO  = HIGH - 8
+    DATA_REQ   = HIGH - 10
 
     # @staticmethod
     # def sort_key(key: 'SystemPriority') -> Union[SystemPriority, int]:
@@ -96,44 +108,6 @@ class SystemPriority(enum.IntEnum):
     #     This could be used, but we are using System.sort_key().
     #     '''
     #     return key
-
-
-
-@enum.unique
-class SystemHealth(enum.Enum):
-    '''
-    Return value for system tick functions, and some ECS manager functions.
-    '''
-
-    INVALID   = 0
-    '''A state to indicate a state hasn't been set but should/should have.'''
-
-    PENDING   = enum.auto()
-    '''System is uncertain... Probably waiting on something (e.g. subscribe() so
-    it can know if vital EventManager exists).'''
-
-    HEALTHY   = enum.auto()
-    '''Valid, healthly system.'''
-
-    UNHEALTHY = enum.auto()
-    '''Mr. Stark, I don't feel so good...'''
-
-    FATAL     = enum.auto()
-    '''System is encountering bad things and should be killed.'''
-
-    APOPTOSIS = enum.auto()
-    '''System is dying in a healthy manner.'''
-
-    @property
-    def should_die(self):
-        '''
-        Is this a state that should trigger system death?
-        '''
-        return (self == SystemHealth.FATAL
-                or self == SystemHealth.APOPTOSIS)
-        # TODO: Should INVALID be a trigger as well?
-        # TODO: Should FATAL require a count of N > 1 FATALS?
-
 
 
 # -----------------------------------------------------------------------------
