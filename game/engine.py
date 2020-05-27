@@ -20,8 +20,10 @@ from veredi.base.exceptions import VerediError
 from .ecs.base.exceptions import ComponentError, EntityError
 from .ecs.exceptions import SystemError, TickError
 
+from veredi.base.const import VerediHealth
+
 # ECS Managers & Systems
-from .ecs.const import SystemTick, SystemPriority, SystemHealth, DebugFlag
+from .ecs.const import SystemTick, SystemPriority, DebugFlag
 from .ecs.entity import EntityManager
 from .ecs.component import ComponentManager
 from .ecs.system import SystemManager
@@ -128,7 +130,7 @@ class Engine:
         # TODO: load/make session based on... campaign and.... parameter?
         #   - or is that a second init step?
 
-        self._health = SystemHealth.HEALTHY
+        self._health = VerediHealth.HEALTHY
 
         # ---
         # Debugging
@@ -185,9 +187,9 @@ class Engine:
         Call if you want engine to stop after the end of this tick, then run
         it's apoptosis() function, then exit gracefully.
         '''
-        self._health = SystemHealth.APOPTOSIS
+        self._health = VerediHealth.APOPTOSIS
 
-    def run(self) -> SystemHealth:
+    def run(self) -> VerediHealth:
         '''
         Infinite loop the game until quitting time.
         '''
@@ -196,7 +198,7 @@ class Engine:
 
         return self.apoptosis()
 
-    def apoptosis(self) -> SystemHealth:
+    def apoptosis(self) -> VerediHealth:
         '''
         Graceful game shutdown.
         '''
@@ -208,36 +210,36 @@ class Engine:
         # E.g. EntityManager depends on ComponentManager, so it goes after.
         # E.g. They all might want updated time.
         health = self.time.apoptosis()
-        if health != SystemHealth.APOPTOSIS:
+        if health != VerediHealth.APOPTOSIS:
             log.critical("TimeManager.apoptosis() returned an unexpected "
-                         "SystemHealth: {} (time: {})",
+                         "VerediHealth: {} (time: {})",
                          health, self.time.seconds)
 
         health = self.event.apoptosis(self.time)
-        if health != SystemHealth.APOPTOSIS:
+        if health != VerediHealth.APOPTOSIS:
             log.critical("EventManager.apoptosis() returned an unexpected "
-                         "SystemHealth: {} (time: {})",
+                         "VerediHealth: {} (time: {})",
                          health, self.time.seconds)
 
         health = self.component.apoptosis(self.time)
-        if health != SystemHealth.APOPTOSIS:
+        if health != VerediHealth.APOPTOSIS:
             log.critical("ComponentManager.apoptosis() returned an unexpected "
-                         "SystemHealth: {} (time: {})",
+                         "VerediHealth: {} (time: {})",
                          health, self.time.seconds)
 
         health = self.entity.apoptosis(self.time)
-        if health != SystemHealth.APOPTOSIS:
+        if health != VerediHealth.APOPTOSIS:
             log.critical("EntityManager.apoptosis() returned an unexpected "
-                         "SystemHealth: {} (time: {})",
+                         "VerediHealth: {} (time: {})",
                          health, self.time.seconds)
 
         health = self.system.apoptosis(self.time)
-        if health != SystemHealth.APOPTOSIS:
+        if health != VerediHealth.APOPTOSIS:
             log.critical("SystemManager.apoptosis() returned an unexpected "
-                         "SystemHealth: {} (time: {})",
+                         "VerediHealth: {} (time: {})",
                          health, self.time.seconds)
 
-        return SystemHealth.APOPTOSIS
+        return VerediHealth.APOPTOSIS
 
     # --------------------------------------------------------------------------
     # Pre-Game Loading Loop
@@ -249,7 +251,7 @@ class Engine:
     def set_up(self):
         # Call Systems'/Managers' loading functions until everyone
         # is done loading.
-        retval = SystemHealth.HEALTHY
+        retval = VerediHealth.HEALTHY
         self.time.start_timeout()
         while self.setting_up(retval):
             self.system.update(SystemTick.SET_UP, self.time,

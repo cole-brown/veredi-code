@@ -12,6 +12,7 @@ from typing import Any, Optional, Set, Type, Union, Iterable
 
 
 from veredi.logger import log
+from veredi.base.const import VerediHealth
 from veredi.data.config import registry
 from veredi.data.codec.base import BaseCodec
 from veredi.base.context import VerediContext
@@ -25,7 +26,6 @@ from ...ecs.component import (ComponentManager,
 
 from ...ecs.const import (SystemTick,
                           SystemPriority,
-                          SystemHealth,
                           DebugFlag)
 
 from ...ecs.base.identity import (ComponentId,
@@ -98,8 +98,7 @@ class CodecSystem(System):
         Returns a SystemPriority (or int) for when, relative to other systems,
         this should run. Highest priority goes firstest.
         '''
-        # Probably want HIGH so we can load new things ASAP in the ticks.
-        return SystemPriority.HIGH
+        return SystemPriority.DATA_CODEC
 
     def required(self) -> Optional[Iterable[Component]]:
         '''
@@ -116,20 +115,20 @@ class CodecSystem(System):
     # System Death
     # --------------------------------------------------------------------------
 
-    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
-        return SystemHealth.APOPTOSIS
+        return VerediHealth.APOPTOSIS
 
-    def _health(self, current_health=SystemHealth.HEALTHY):
+    def _health(self, current_health=VerediHealth.HEALTHY):
         if self._event_manager is False:
             # We rely on events to function, so we're bad if it doesn't exist.
-            return SystemHealth.UNHEALTHY
+            return VerediHealth.UNHEALTHY
         if not self._event_manager:
             # We rely on EventManager to function, and we don't have it, but we
             # haven't confirmed it doesn't exist yet...
-            return SystemHealth.PENDING
+            return VerediHealth.PENDING
 
         return current_health
 
@@ -137,7 +136,7 @@ class CodecSystem(System):
     # Events
     # --------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
@@ -209,30 +208,30 @@ class CodecSystem(System):
     # Game Update Loop/Tick Functions
     # --------------------------------------------------------------------------
 
-    def update_set_up(self,
-                      time_mgr:      'TimeManager',
-                      component_mgr: 'ComponentManager',
-                      entity_mgr:    'EntityManager') -> SystemHealth:
+    def _update_set_up(self,
+                       time_mgr:      'TimeManager',
+                       component_mgr: 'ComponentManager',
+                       entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         Proceeds the normal loop. A loop just to wait until all systems say
         they're done getting set up and are ready for the main game loop.
         '''
         return self._health()
 
-    def update_time(self,
-                    time_mgr:      'TimeManager',
-                    component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> SystemHealth:
+    def _update_time(self,
+                     time_mgr:      'TimeManager',
+                     component_mgr: 'ComponentManager',
+                     entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         First in Game update loop. Systems should use this rarely as the game
         time clock itself updates in this part of the loop.
         '''
         return self._health()
 
-    def update_destruction(self,
-                           time_mgr:      'TimeManager',
-                           component_mgr: 'ComponentManager',
-                           entity_mgr:    'EntityManager') -> SystemHealth:
+    def _update_destruction(self,
+                            time_mgr:      'TimeManager',
+                            component_mgr: 'ComponentManager',
+                            entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         Final upate. Death/deletion part of life cycles managed here.
         '''

@@ -50,7 +50,7 @@ class Test_YamlCodec(unittest.TestCase):
 
     def test_load(self):
         loaded = None
-        with open(self.path, 'r') as f:
+        with self.path.open('r') as f:
             loaded = self.codec._load_all(f, self.context())
 
         self.assertIsNotNone(loaded)
@@ -61,14 +61,14 @@ class Test_YamlCodec(unittest.TestCase):
 
     def test_metadata(self):
         loaded = None
-        with open(self.path, 'r') as f:
+        with self.path.open('r') as f:
             loaded = self.codec._load_all(f, self.context())
 
         self.assertIsNotNone(loaded)
         self.assertEqual(type(loaded[0]), DocMetadata)
         metadata = loaded[0].decode()
 
-        self.assertEqual(metadata['doc-type'],
+        self.assertEqual(metadata['record-type'],
                          'veredi.unit-test')
         self.assertEqual(metadata['version'],
                          datetime.date(2020, 5, 19))
@@ -87,7 +87,7 @@ class Test_YamlCodec(unittest.TestCase):
 
     def test_component(self):
         loaded = None
-        with open(self.path, 'r') as f:
+        with self.path.open('r') as f:
             loaded = self.codec._load_all(f, self.context())
 
         self.assertIsNotNone(loaded)

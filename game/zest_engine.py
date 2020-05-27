@@ -10,6 +10,8 @@ Tests for engine.py (The Game Itself).
 
 import unittest
 
+from veredi.base.const import VerediHealth
+
 from . import engine
 
 from .ecs.event import EventManager
@@ -23,7 +25,7 @@ from .ecs.entity import (EntityManager,
 from .ecs.system import (SystemManager,
                          SystemEvent,
                          SystemLifeEvent)
-from .ecs.const import SystemTick, SystemPriority, SystemHealth, DebugFlag
+from .ecs.const import SystemTick, SystemPriority, DebugFlag
 
 from .ecs.base.identity import (ComponentId,
                                 EntityId,
@@ -88,47 +90,47 @@ class SysTest(System):
         for each in self.ents_seen:
             each.clear()
 
-    def update_time(self,
-                    time_mgr,
-                    component_mgr,
-                    entity_mgr):
+    def _update_time(self,
+                     time_mgr,
+                     component_mgr,
+                     entity_mgr):
         self._look_at_entities(SystemTick.TIME_MGR, entity_mgr)
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
-    def update_creation(self,
-                        time_mgr,
-                        component_mgr,
-                        entity_mgr):
+    def _update_creation(self,
+                         time_mgr,
+                         component_mgr,
+                         entity_mgr):
         self._look_at_entities(SystemTick.CREATION, entity_mgr)
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
-    def update_pre(self,
+    def _update_pre(self,
                     time_mgr,
                     component_mgr,
                     entity_mgr):
         self._look_at_entities(SystemTick.PRE, entity_mgr)
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
-    def update(self,
-                    time_mgr,
-                    component_mgr,
-                    entity_mgr):
+    def _update(self,
+                time_mgr,
+                component_mgr,
+                entity_mgr):
         self._look_at_entities(SystemTick.STANDARD, entity_mgr)
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
-    def update_post(self,
-                    time_mgr,
-                    component_mgr,
-                    entity_mgr):
+    def _update_post(self,
+                     time_mgr,
+                     component_mgr,
+                     entity_mgr):
         self._look_at_entities(SystemTick.POST, entity_mgr)
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
-    def update_destruction(self,
-                           time_mgr,
-                           component_mgr,
-                           entity_mgr):
+    def _update_destruction(self,
+                            time_mgr,
+                            component_mgr,
+                            entity_mgr):
         self._look_at_entities(SystemTick.DESTRUCTION, entity_mgr)
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
 
 class SysJeff(SysTest):

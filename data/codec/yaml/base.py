@@ -8,12 +8,15 @@ Base classes for Veredi YAML formatted files.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional, Dict, MutableMapping, Type, Any
 import yaml
 
 from veredi.logger import log
 from veredi.logger import pretty
 from veredi.data.config.registry import register
 from veredi.data import exceptions
+
+from ..base import CodecKeys
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -27,23 +30,35 @@ from veredi.data import exceptions
 class VerediYamlDocument(yaml.YAMLObject):
     yaml_loader = yaml.SafeLoader
     # Set in subclasses!
-    # yaml_tag = '!metadata'
+    yaml_tag = '!document'
 
     @classmethod
-    def from_yaml(cls, loader, node):
+    def from_yaml(cls: Type['VerediYamlDocument'],
+                  loader: yaml.SafeLoader,
+                  node: yaml.Node):
         return loader.construct_yaml_object(node, cls)
 
     # ---
     # Decoding
     # ---
 
+    def _inject_doc_type(self, target: MutableMapping[str, Any]) -> None:
+        '''
+        Returns a (key, value) tuple for putting in a dictionary
+        or something somewhere.
+        '''
+        target[CodecKeys.DOC_TYPE.value] = self.yaml_tag[1:]
+
     def decode(self):
         '''
         YAML objects & stuff to plain old data structure.
+
+        Return value should have doc_type injected.
         '''
-        import pprint
-        print(f"{self.__class__.__name__}:\n{pprint.pformat(self.__dict__)}")
-        raise NotImplementedError
+        # Default to giving our __dict__ out - it may be plain old data
+        # structures, depending on the document.
+        self._inject_doc_type(self.__dict__)
+        return self.__dict__
 
     # ---
     # Strings and Things

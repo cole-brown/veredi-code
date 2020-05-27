@@ -12,8 +12,8 @@ from typing import Callable, Type, Any, Union, Optional
 import enum
 
 from . import exceptions
+from veredi.base.const import VerediHealth
 from .manager import EcsManager
-from .const import SystemHealth
 from veredi.base.context import VerediContext
 
 # -----------------------------------------------------------------------------
@@ -28,12 +28,12 @@ from veredi.base.context import VerediContext
 class EcsManagerWithEvents(EcsManager):
     # TODO: init that pulls in event_manager to self._event_manager?
 
-    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return SystemHealth.HEALTY
+        return VerediHealth.HEALTY
 
     def event(self,
               event_manager:              'EventManager',
@@ -196,10 +196,10 @@ class EventManager(EcsManager):
         # Publish whatever we've built up.
         self.publish()
 
-    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
         # About all we can do is make sure the event queue is empty.
         self.publish()
-        return SystemHealth.APOPTOSIS
+        return VerediHealth.APOPTOSIS

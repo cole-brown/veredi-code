@@ -1,17 +1,21 @@
 --- !metadata
-record-type: veredi.component.data
+record-type: veredi.component.definition
 version: 2020-05-19
 
 source: veredi.templates
 author: Cole Brown
-date:   2020-05-19
+date:   2020-05-26
 
 system: d20
-name: veredi.d20.health
+name: veredi.rules.d20.health
 display-name: Veredi D20 Health Component
 
 
 --- !component.example
+
+meta:
+  registry: veredi.rules.d20.health
+
 
 health:
   # Tracks current hit point amounts.
@@ -61,6 +65,9 @@ health:
 #
 # Is the same as this:
 #   !veredi.psuedo-property hit-points: test
+
+meta:
+  registry: veredi.rules.d20.health.template
 
 
 health:
@@ -114,6 +121,10 @@ health:
 
 
 --- !component.requirements
+
+meta:
+  registry: veredi.rules.d20.health.requirements
+
 
 health:
   current:

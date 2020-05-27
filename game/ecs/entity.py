@@ -25,6 +25,7 @@ from typing import Union, Type, Iterable, Optional, Set, Any
 import enum
 
 from veredi.logger import log
+from veredi.base.const import VerediHealth
 from .base.identity import (MonotonicIdGenerator,
                             ComponentId,
                             EntityId)
@@ -37,7 +38,6 @@ from .base.entity import (EntityTypeId,
                           EntityTools)
 from .event import EcsManagerWithEvents, EventManager, Event
 from .component import ComponentManager
-from .const import SystemHealth
 
 
 # -----------------------------------------------------------------------------
@@ -85,14 +85,14 @@ class EntityManager(EcsManagerWithEvents):
 
         self._toolbox = EntityTools(self, component_manager)
 
-    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return SystemHealth.HEALTY
+        return VerediHealth.HEALTY
 
-    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
@@ -225,7 +225,7 @@ class EntityManager(EcsManagerWithEvents):
     # --------------------------------------------------------------------------
 
     def creation(self,
-                 time: 'TimeManager') -> SystemHealth:
+                 time: 'TimeManager') -> VerediHealth:
         '''
         Runs before the start of the tick/update loop.
 
@@ -260,10 +260,10 @@ class EntityManager(EcsManagerWithEvents):
         # Done with iteration - clear the adds.
         self._entity_create.clear()
 
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
     def destruction(self,
-                    time: 'TimeManager') -> SystemHealth:
+                    time: 'TimeManager') -> VerediHealth:
         '''
         Runs after the end of the tick/update loop.
 
@@ -303,4 +303,4 @@ class EntityManager(EcsManagerWithEvents):
         # Done with iteration - clear the removes.
         self._entity_destroy.clear()
 
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY

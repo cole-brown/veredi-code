@@ -1,26 +1,26 @@
 --- !metadata
-doc-type: veredi.config
-version: 2020-05-06
+record-type: veredi.config
+version: 2020-05-26
 
---- !repository
-owner:
-  type: veredi.repository.${this}.file-tree
-  codec: veredi.codec.yaml
-  directory: test/owner/repository/owner/
-  # connect data here for DBs?
-campaign:
-  type: veredi.repository.${this}.file-tree
-  codec: veredi.codec.yaml
-  directory: test/owner/repository/campaign/
-session:
-  type: veredi.repository.${this}.file-tree
-  codec: veredi.codec.yaml
-  directory: test/owner/repository/session/
-player:
-  type: veredi.repository.${this}.file-tree
-  codec: veredi.codec.yaml
-  directory: test/owner/repository/player/
+source: veredi.config
+author: Cole Brown
+date:   2020-05-26
 
-  # and more...
+system: configuration
+name: veredi.config
+display-name: Veredi Configuration
+
+
+--- !configuration
+
+game:
+  repository: veredi.repository.file-tree
+  codec: veredi.codec.yaml
+  directory: test/game/repository/file-tree
+
+template:
+  repository: veredi.repository.file-tree
+  codec: veredi.codec.yaml
+  directory: test/game/template/file-tree
 
 # and more?

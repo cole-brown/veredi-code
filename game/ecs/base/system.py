@@ -12,9 +12,10 @@ from typing import NewType, Optional, Iterable, Set, Union, Any, Type
 import enum
 
 from veredi.logger import log
+from veredi.base.const import VerediHealth
 from veredi.base.context import VerediContext
 
-from ..const import SystemTick, SystemPriority, SystemHealth
+from ..const import SystemTick, SystemPriority
 from .identity import (ComponentId,
                        EntityId,
                        SystemId)
@@ -121,22 +122,22 @@ class System:
     # System Death
     # --------------------------------------------------------------------------
 
-    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
-        return SystemHealth.APOPTOSIS
+        return VerediHealth.APOPTOSIS
 
     # --------------------------------------------------------------------------
     # Events
     # --------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return SystemHealth.HEALTY
+        return VerediHealth.HEALTY
 
     def event(self,
               event_manager:              'EventManager',
@@ -178,92 +179,92 @@ class System:
                     tick:          SystemTick,
                     time_mgr:      'TimeManager',
                     component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> SystemHealth:
+                    entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         Calls the correct update function for the tick state.
 
         Returns SystemHegalth value.
         '''
         if tick is SystemTick.TIME:
-            return self.update_time(time_mgr, component_mgr, entity_mgr)
+            return self._update_time(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.CREATION:
-            return self.update_creation(time_mgr, component_mgr, entity_mgr)
+            return self._update_creation(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.PRE:
-            return self.update_pre(time_mgr, component_mgr, entity_mgr)
+            return self._update_pre(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.STANDARD:
-            return self.update(time_mgr, component_mgr, entity_mgr)
+            return self._update(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.POST:
-            return self.update_post(time_mgr, component_mgr, entity_mgr)
+            return self._update_post(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.DESTRUCTION:
-            return self.update_destruction(time_mgr, component_mgr, entity_mgr)
+            return self._update_destruction(time_mgr, component_mgr, entity_mgr)
 
         else:
-            # This, too, should be treated as a SystemHealth.FATAL...
+            # This, too, should be treated as a VerediHealth.FATAL...
             raise exceptions.TickError(
                 "{} does not have an update_tick handler for {}.",
                 self.__class__.__name__, tick)
 
-    def update_time(self,
-                    time_mgr:      'TimeManager',
-                    component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> SystemHealth:
+    def _update_time(self,
+                     time_mgr:      'TimeManager',
+                     component_mgr: 'ComponentManager',
+                     entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         First in Game update loop. Systems should use this rarely as the game
         time clock itself updates in this part of the loop.
         '''
-        return SystemHealth.FATAL
+        return VerediHealth.FATAL
 
-    def update_creation(self,
-                        time_mgr:      'TimeManager',
-                        component_mgr: 'ComponentManager',
-                        entity_mgr:    'EntityManager') -> SystemHealth:
+    def _update_creation(self,
+                         time_mgr:      'TimeManager',
+                         component_mgr: 'ComponentManager',
+                         entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         Before Standard upate. Creation part of life cycles managed here.
         '''
-        return SystemHealth.FATAL
+        return VerediHealth.FATAL
 
-    def update_pre(self,
-                   time_mgr:      'TimeManager',
-                   component_mgr: 'ComponentManager',
-                   entity_mgr:    'EntityManager') -> SystemHealth:
+    def _update_pre(self,
+                    time_mgr:      'TimeManager',
+                    component_mgr: 'ComponentManager',
+                    entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
         '''
-        return SystemHealth.FATAL
+        return VerediHealth.FATAL
 
-    def update(self,
-               time_mgr:      'TimeManager',
-               component_mgr: 'ComponentManager',
-               entity_mgr:    'EntityManager') -> SystemHealth:
+    def _update(self,
+                time_mgr:      'TimeManager',
+                component_mgr: 'ComponentManager',
+                entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
-        return SystemHealth.FATAL
+        return VerediHealth.FATAL
 
-    def update_post(self,
-                    time_mgr:      'TimeManager',
-                    component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> SystemHealth:
+    def _update_post(self,
+                     time_mgr:      'TimeManager',
+                     component_mgr: 'ComponentManager',
+                     entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
         '''
-        return SystemHealth.FATAL
+        return VerediHealth.FATAL
 
-    def update_destruction(self,
-                           time_mgr:      'TimeManager',
-                           component_mgr: 'ComponentManager',
-                           entity_mgr:    'EntityManager') -> SystemHealth:
+    def _update_destruction(self,
+                            time_mgr:      'TimeManager',
+                            component_mgr: 'ComponentManager',
+                            entity_mgr:    'EntityManager') -> VerediHealth:
         '''
         Final upate. Death/deletion part of life cycles managed here.
         '''
-        return SystemHealth.FATAL
+        return VerediHealth.FATAL
 
     def __str__(self):
         return (

@@ -2,7 +2,7 @@
 # I just wanted something relatively non-simple for testing repos.
 
 --- !metadata
-doc-type: veredi.unit-test.repo
+record-type: veredi.unit-test.repo
 version: 2020-05-19
 
 source: veredi.unit-test

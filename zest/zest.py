@@ -43,7 +43,7 @@ def rooted(*relative: Union[pathlib.Path, str]) -> Optional[pathlib.Path]:
 # Codecs
 # ------------------------------------------------------------------------------
 
-def codec():
+def codec() -> Optional[pathlib.Path]:
     '''
     Returns pathlib.Path to codec test data.
     '''
@@ -54,15 +54,30 @@ def codec():
 # Repositories
 # ------------------------------------------------------------------------------
 
-def repository():
+def repository() -> Optional[pathlib.Path]:
     '''
     Returns pathlib.Path to repository test data.
     '''
     return retval(rooted('repository'))
 
 
-def repository_file_tree():
+def repository_file_tree() -> Optional[pathlib.Path]:
     '''
     Returns pathlib.Path to FileTreeRepository test data.
     '''
     return retval(rooted('repository', 'file-tree'))
+
+
+# ------------------------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------------------------
+
+def config(name: str) -> Optional[pathlib.Path]:
+    '''
+    Returns pathlib.Path to config test data.
+    '''
+    path = retval(rooted('config'))
+    if not name:
+        return path
+    path = path / name
+    return retval(path)

@@ -8,12 +8,9 @@ Bit of a Factory thing going on here...
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
+from typing import Callable, Type, Any
 import functools
 
-# Framework
-
-# Our Stuff
 from veredi.logger import log
 from .. import exceptions
 
@@ -34,9 +31,9 @@ _REGISTRY = {}
 # importing things in their folder's __init__.py.
 
 # First, a lil' decorator factory to take our args and make the decorator...
-def register(*args):
+def register(*args: str) -> Callable[..., Type[Any]]:
     # Now make the actual class decorator...
-    def register_decorator(cls):
+    def register_decorator(cls: Type[Any]) -> Type[Any]:
         # Pull final key off of list so we don't make too many dictionaries.
         try:
             config_name = args[-1]
@@ -74,7 +71,9 @@ def register(*args):
     return register_decorator
 
 
-def create(dotted_keys_str, *args, **kwargs):
+def create(dotted_keys_str: str,
+           *args: Any,
+           **kwargs: Any):
     '''Create a registered class from the dot-separated keys (e.g.
     "repository.player.file-tree"), passing it args and kwargs.
 

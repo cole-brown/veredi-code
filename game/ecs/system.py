@@ -13,6 +13,7 @@ import enum
 import decimal
 
 from veredi.logger import log
+from veredi.base.const import VerediHealth
 
 from .base.identity import (MonotonicIdGenerator,
                             ComponentId,
@@ -28,7 +29,7 @@ from veredi.base.exceptions import VerediError
 from .base.exceptions import ComponentError, EntityError
 from .exceptions import SystemError, TickError
 
-from .const import SystemTick, SystemPriority, SystemHealth, DebugFlag
+from .const import SystemTick, SystemPriority, DebugFlag
 from .event import EcsManagerWithEvents, EventManager, Event
 
 
@@ -100,14 +101,14 @@ class SystemManager(EcsManagerWithEvents):
     # EcsManagerWithEvents Interface
     # --------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> SystemHealth:
+    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return SystemHealth.HEALTY
+        return VerediHealth.HEALTY
 
-    def apoptosis(self, time: 'TimeManager') -> SystemHealth:
+    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
@@ -294,7 +295,7 @@ class SystemManager(EcsManagerWithEvents):
     # --------------------------------------------------------------------------
 
     def creation(self,
-                 time: 'TimeManager') -> SystemHealth:
+                 time: 'TimeManager') -> VerediHealth:
         '''
         Runs before the start of the tick/update loop.
 
@@ -327,10 +328,10 @@ class SystemManager(EcsManagerWithEvents):
                        None, False)
 
         self._reschedule = True
-        return SystemHealth.HEALTHY
+        return VerediHealth.HEALTHY
 
     def destruction(self,
-                    time: 'TimeManager') -> SystemHealth:
+                    time: 'TimeManager') -> VerediHealth:
         '''
         Runs after the end of the tick/update loop.
 
@@ -371,5 +372,4 @@ class SystemManager(EcsManagerWithEvents):
         self._system_destroy.clear()
 
         self._reschedule = True
-        return SystemHealth.HEALTHY
-
+        return VerediHealth.HEALTHY

@@ -2,7 +2,7 @@
 # I just wanted something relatively non-simple for testing codec.
 
 --- !metadata
-doc-type: veredi.unit-test
+record-type: veredi.unit-test
 version: 2020-05-19
 
 source: veredi.unit-test
