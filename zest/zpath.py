@@ -16,7 +16,7 @@ import pathlib
 # -----------------------------------------------------------------------------
 
 THIS_DIR = pathlib.Path(__file__).resolve().parent
-
+DATA_DIR = THIS_DIR / "zata"
 
 # -----------------------------------------------------------------------------
 # Helper
@@ -30,14 +30,14 @@ def retval(path: pathlib.Path) -> Optional[pathlib.Path]:
 
 
 def rooted(*relative: Union[pathlib.Path, str]) -> Optional[pathlib.Path]:
-    '''Returns absolute path to a file given its path rooted from this file's
-    directory.
+    '''Returns absolute path to a file given its path rooted from our
+    testing data directory.
 
     Returns None if file does not exist.
 
     Return value is a pathlib.Path.
     '''
-    return retval(THIS_DIR.joinpath(*relative))
+    return retval(DATA_DIR.joinpath(*relative))
 
 # ------------------------------------------------------------------------------
 # Codecs
