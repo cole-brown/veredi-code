@@ -15,7 +15,7 @@ from .codec import YamlCodec
 from .document import DocMetadata
 from .component import DocComponent
 
-from veredi.zest import zest
+from veredi.zest import zpath
 
 
 # -----------------------------------------------------------------------------
@@ -31,7 +31,7 @@ class Test_YamlCodec(unittest.TestCase):
 
     def setUp(self):
         self.codec = YamlCodec()
-        self.path = zest.codec() / 'component.health.yaml'
+        self.path = zpath.codec() / 'component.health.yaml'
 
     def tearDown(self):
         self.codec = None

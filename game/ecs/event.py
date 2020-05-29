@@ -13,7 +13,10 @@ import enum
 
 from . import exceptions
 from veredi.base.const import VerediHealth
+from veredi.data.config.config import Configuration
+
 from .manager import EcsManager
+from .base.identity import MonotonicId
 from veredi.base.context import VerediContext
 
 # -----------------------------------------------------------------------------
@@ -64,7 +67,7 @@ class EcsManagerWithEvents(EcsManager):
 
 class Event:
     def __init__(self,
-                 id: int,
+                 id: Union[int, MonotonicId],
                  type: Union[int, enum.Enum],
                  *args: Any,
                  context: Optional[VerediContext] = None,
@@ -72,7 +75,7 @@ class Event:
         self.set(id, type, context, *args, **kwargs)
 
     def set(self,
-            id: int,
+            id: Union[int, MonotonicId],
             type: Union[int, enum.Enum],
             context: VerediContext,
             *args: Any,
@@ -121,8 +124,13 @@ class Event:
         return self._context
 
 
+# ----------------------------"Party Coordinator"?------------------------------
+# --                   "Event Manager" seems so formal...                     --
+# --------------------------------(ah well...)----------------------------------
+
 class EventManager(EcsManager):
-    def __init__(self) -> None:
+    def __init__(self,
+                 config: Optional[Configuration]) -> None:
         self._subscriptions = {}
         self._events = []  # FIFO queue of events that came in, if saving up.
 

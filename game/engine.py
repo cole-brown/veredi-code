@@ -17,10 +17,12 @@ import decimal
 from veredi.logger import log
 
 from veredi.base.exceptions import VerediError
-from .ecs.base.exceptions import ComponentError, EntityError
-from .ecs.exceptions import SystemError, TickError
+from .ecs.base.exceptions import ComponentError, EntityError, SystemError
+from .ecs.exceptions import TickError, EventError
 
+# Other More Basic Stuff
 from veredi.base.const import VerediHealth
+from veredi.data.config.config import Configuration
 
 # ECS Managers & Systems
 from .ecs.const import SystemTick, SystemPriority, DebugFlag
@@ -114,7 +116,7 @@ class Engine:
     def __init__(self,
                  owner:             Entity,
                  campaign_id:       int,
-                 repo_manager:      RepositoryManager,
+                 configuration:     Configuration,
                  event_manager:     Optional[EventManager]     = None,
                  time_manager:      Optional[TimeManager]      = None,
                  component_manager: Optional[ComponentManager] = None,
@@ -140,14 +142,19 @@ class Engine:
         # ---
         # Required/Special Systems
         # ---
+        self.config    = configuration     or Configuration()
         self.event     = event_manager     or EventManager()
         self.time      = time_manager      or TimeManager()
-        self.component = component_manager or ComponentManager(self.event)
-        self.entity    = entity_manager    or EntityManager(self.event,
+        self.component = component_manager or ComponentManager(self.config,
+                                                               self.event)
+        self.entity    = entity_manager    or EntityManager(self.config,
+                                                            self.event,
                                                             self.component)
-        self.system    = system_manager    or SystemManager(self.event,
+        self.system    = system_manager    or SystemManager(self.config,
+                                                            self.event,
                                                             self._debug)
-        # TODO: give these folks a back-link to me? Or the Event system for regstration step???
+        # TODO: give these folks a back-link to me? Or the Event system for
+        # regstration step???
 
         # ---
         # General Systems
@@ -280,65 +287,55 @@ class Engine:
 
         # Various exceptions we can handle at this level...
         # Or we can't but want to log.
-        except TickError as error:
-            log.exception(
-                error,
-                "Engine's tick() received a TickError at time {}.",
-                now_secs)
-            # TODO: health thingy
-            if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise
-        except SystemError as error:
-            log.exception(
-                error,
-                "Engine's tick() received a SystemError at time {}.",
-                now_secs)
-            # TODO: health thingy
-            if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise
-        except ComponentError as error:
-            log.exception(
-                error,
-                "Engine's tick() received a ComponentError at time {}.",
-                now_secs)
-            # TODO: health thingy
-            if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise
-        except EntityError as error:
-            log.exception(
-                error,
-                "Engine's tick() received an EntityError at time {}.",
-                now_secs)
-            # TODO: health thingy
-            if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise
         except VerediError as error:
-            log.exception(
-                error,
-                "Engine's tick() received a generic VerediError at time {}.",
-                now_secs)
             # TODO: health thingy
+            # Plow on ahead anyways or raise due to debug flags.
             if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise
+                raise log.exception(
+                    error,
+                    None,
+                    "Engine's tick() received an error of type '{}' at time {}.",
+                    type(error), now_secs) from error
+            else:
+                log.exception(
+                    error,
+                    None,
+                    "Engine's tick() received a VerediError at time {}.",
+                    now_secs)
+
         except Exception as error:
-            log.exception(
-                error,
-                "Engine's tick() received an unknown exception at time {}.",
-                now_secs)
             # TODO: health thingy
-            # Plow on ahead anyways.
-            # raise
+            # Plow on ahead anyways or raise due to debug flags.
             if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise
+                raise log.exception(
+                    error,
+                    None,
+                    "Engine's tick() received an unknown exception at time {}.",
+                    now_secs) from error
+            else:
+                log.exception(
+                    error,
+                    None,
+                    "Engine's tick() received an unknown exception at time {}.",
+                    now_secs)
+
         except:
-            log.error(
-                "Engine's tick() received a _very_ unknown exception at time {}.",
-                now_secs)
             # TODO: health thingy
-            # Plow on ahead anyways.
-            # raise
+            # Plow on ahead anyways or raise due to debug flags.
             if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise
+                raise log.exception(
+                    error,
+                    None,
+                    "Engine's tick() received a _very_ "
+                    "unknown exception at time {}.",
+                    now_secs) from error
+            else:
+                log.exception(
+                    error,
+                    None,
+                    "Engine's tick() received a _very_ "
+                    "unknown exception at time {}.",
+                    now_secs)
 
     def _update_time(self) -> None:
         # Time is first. Because it is time.

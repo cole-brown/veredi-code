@@ -14,6 +14,7 @@ import decimal
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
+from veredi.data.config.config import Configuration
 
 from .base.identity import (MonotonicIdGenerator,
                             ComponentId,
@@ -26,11 +27,12 @@ from .base.system import (System,
                           SystemLifeCycle)
 
 from veredi.base.exceptions import VerediError
-from .base.exceptions import ComponentError, EntityError
-from .exceptions import SystemError, TickError
+from .base.exceptions import ComponentError, EntityError, SystemError
+from .exceptions import TickError
 
 from .const import SystemTick, SystemPriority, DebugFlag
 from .event import EcsManagerWithEvents, EventManager, Event
+from .component import ComponentManager
 
 
 # -----------------------------------------------------------------------------
@@ -56,17 +58,20 @@ class SystemManager(EcsManagerWithEvents):
     '''
 
     def __init__(self,
-                 event_manager: Optional[EventManager],
-                 debug_flags:   Optional[DebugFlag]) -> None:
+                 config:            Optional[Configuration],
+                 event_manager:     Optional[EventManager],
+                 component_manager: Optional[ComponentManager],
+                 debug_flags:       Optional[DebugFlag]) -> None:
         '''Initializes this thing.'''
-        self._debug:         Optional[DebugFlag]      = debug_flags
-        self._event_manager: Optional[EventManager]   = event_manager
+        self._debug:             Optional[DebugFlag]        = debug_flags
+        self._event_manager:     Optional[EventManager]     = event_manager
+        self._component_manager: Optional[ComponentManager] = component_manager
 
-        # TODO: Pools instead of allowing stuff to be allocated/deallocated?
         self._system_id:      MonotonicIdGenerator     = MonotonicIdGenerator(SystemId)
         self._system_create:  Set[SystemId]            = set()
         self._system_destroy: Set[SystemId]            = set()
 
+        # TODO: Pool instead of allowing stuff to be allocated/deallocated?
         self._system:         Dict[SystemId, System]   = {}
         self._schedule:       List[System]             = []
         self._reschedule:     bool                     = False
@@ -173,63 +178,42 @@ class SystemManager(EcsManagerWithEvents):
             try:
                 system.update_tick(tick, time, component, entity)
 
-            # Various exceptions we can handle at this level...
-            # Or we can't but want to log.
-            except TickError as error:
-                log.exception(
-                    error,
-                    "SystemManager's {} system had a TickError "
-                    "during {} tick (time={}).",
-                    str(system), tick, time.seconds)
-                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                    raise
-                # TODO: health thingy
-            except SystemError as error:
-                log.exception(
-                    error,
-                    "SystemManager's {} system had a SystemError "
-                    "during {} tick (time={}).",
-                    str(system), tick, time.seconds)
-                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                    raise
-                # TODO: health thingy
-            except ComponentError as error:
-                log.exception(
-                    error,
-                    "SystemManager's {} system had a ComponentError "
-                    "during {} tick (time={}).",
-                    str(system), tick, time.seconds)
-                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                    raise
-                # TODO: health thingy
-            except EntityError as error:
-                log.exception(
-                    error,
-                    "SystemManager's {} system had a EntityError "
-                    "during {} tick (time={}).",
-                    str(system), tick, time.seconds)
-                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                    raise
-                # TODO: health thingy
             except VerediError as error:
-                log.exception(
-                    error,
-                    "SystemManager's {} system had a generic VerediError "
-                    "during {} tick (time={}).",
-                    str(system), tick, time.seconds)
-                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                    raise
                 # TODO: health thingy
+                # Plow on ahead anyways or raise due to debug flags.
+                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+                    raise log.exception(
+                        error,
+                        None,
+                        "SystemManager's {} system caught error type '{}' "
+                        "during {} tick (time={}).",
+                        str(system), type(error),
+                        tick, time.seconds) from error
+                else:
+                    log.exception(
+                        error,
+                        None,
+                        "SystemManager's {} system had a TickError "
+                        "during {} tick (time={}).",
+                        str(system), tick, time.seconds)
+
             except Exception as error:
-                log.exception(
-                    error,
-                    "SystemManager's {} system had an unknown exception "
-                    "during {} tick (time={}).",
-                    str(system), tick, time.seconds)
-                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                    raise
                 # TODO: health thingy
-                raise
+                # Plow on ahead anyways or raise due to debug flags.
+                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+                    raise log.exception(
+                        error,
+                        None,
+                        "SystemManager's {} system had an unknown exception "
+                        "during {} tick (time={}).",
+                        str(system), tick, time.seconds)
+                else:
+                    log.exception(
+                        error,
+                        None,
+                        "SystemManager's {} system had an unknown exception "
+                        "during {} tick (time={}).",
+                        str(system), tick, time.seconds)
 
     # --------------------------------------------------------------------------
     # API: Component/System Management
@@ -257,7 +241,12 @@ class SystemManager(EcsManagerWithEvents):
         '''
         sid = self._system_id.next()
 
-        system = sys_class(sid, *args, **kwargs)
+        # Stuff event, component managers into kwargs in case system wants them
+        # on init.
+        system = sys_class(sid, *args,
+                           event_manager=self._event_manager,
+                           component_manager=self._component_manager,
+                           **kwargs)
         self._system[sid] = system
         self._system_create.add(sid)
         system._life_cycled(SystemLifeCycle.CREATING)

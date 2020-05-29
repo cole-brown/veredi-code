@@ -9,15 +9,17 @@ health, hit points, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Union, Iterable, Collection, Dict
+from typing import Any, Union, Iterable, Collection, MutableMapping, Container
 import enum
 # import re
 # import decimal
 
-from veredi.data.exceptions import (DataNotPresentError,
-                                    DataRestrictedError)
-from ..ecs.base import (Component,
-                        ComponentError)
+from veredi.data.config.registry import register
+
+from veredi.data.exceptions         import (DataNotPresentError,
+                                            DataRestrictedError)
+from veredi.game.ecs.base.component import ComponentError
+from veredi.game.data.component     import DataComponent
 
 
 # -----------------------------------------------------------------------------
@@ -67,7 +69,7 @@ class HealthComponent(DataComponent):
 
     # def __init__(self,
     #              cid: ComponentId,
-    #              data: Dict[str, Any],
+    #              data: MutableMapping[str, Any],
     #              *args: Any,
     #              **kwargs: Any) -> None:
     #     '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
@@ -80,18 +82,18 @@ class HealthComponent(DataComponent):
         # §-TODO-§ [2020-05-26]: verify against template/reqs.
         # For now, simpler verify...
 
-        if not self.data:
+        if not self._persistent:
             raise DataNotPresentError(
-                "No data supplied."
+                "No data supplied.",
                 None, None)
 
         for key in self._REQ_KEYS:
-            self._verify_key(key, self.data, self._REQ_KEYS[key])
+            self._verify_key(key, self._persistent, self._REQ_KEYS[key])
 
     def _verify_key(self,
                     key: str,
                     data: Collection[str],
-                    keys: Union[Collection[str], Dict[str, str]]) -> None:
+                    keys: Union[Collection[str], MutableMapping[str, str]]) -> None:
         # Get this one...
         self._verify_exists(key, data)
 

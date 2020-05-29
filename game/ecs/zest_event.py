@@ -10,6 +10,8 @@ Test that event manager.
 
 import unittest
 
+from veredi.zest import zmake
+
 from .event import EventManager
 
 
@@ -39,12 +41,16 @@ class EventThree:
 class Test_Events(unittest.TestCase):
 
     def setUp(self):
-        self.events = EventManager()
-        self.events_recvd = {}
+        self.config          = zmake.config()
+        self.events          = EventManager(self.config)
+        self.events_recvd    = {}
         self.handlers_called = {}
 
     def tearDown(self):
-        self.events = None
+        self.config          = None
+        self.events          = None
+        self.events_recvd    = None
+        self.handlers_called = None
 
     def event_handler_one(self, event):
         slot = self.events_recvd.setdefault(event.id, [])

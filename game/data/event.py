@@ -16,6 +16,8 @@ from veredi.base.context import (VerediContext,
                                  DataGameContext,
                                  DataLoadContext,
                                  DataSaveContext)
+from ..ecs.base.identity import (MonotonicId,
+                                 ComponentId)
 from ..ecs.event import Event
 
 
@@ -56,23 +58,44 @@ from ..ecs.event import Event
 # ------------------------------------------------------------------------------
 
 
+class DataEvent(Event):
+    pass
+
+
 # ------------------------------------------------------------------------------
 # General Data Events
 # ------------------------------------------------------------------------------
 
-class DataLoadRequest(Event):
+class DataLoadRequest(DataEvent):
     pass
 
 
-class DataSaveRequest(Event):
+class DataSaveRequest(DataEvent):
     pass
 
 
-class DataLoadedEvent(Event):
-    pass
+class DataLoadedEvent(DataEvent):
+    def __init__(self,
+                 id:           Union[int, MonotonicId],
+                 type:         Union[int, enum.Enum],
+                 context:      VerediContext,
+                 component_id: Union[int, ComponentId]) -> None:
+        self.set(id, type, context, component_id)
+
+    def set(self,
+            id:           Union[int, MonotonicId],
+            type:         Union[int, enum.Enum],
+            context:      VerediContext,
+            component_id: Union[int, ComponentId]) -> None:
+        super().set(id, type, context)
+        self.component_id = component_id
+
+    def reset(self) -> None:
+        super().reset()
+        self.component_id = ComponentId.INVALID
 
 
-class DataSavedEvent(Event):
+class DataSavedEvent(DataEvent):
     pass
 
 
@@ -80,18 +103,18 @@ class DataSavedEvent(Event):
 # Serialization / Repository Events
 # ------------------------------------------------------------------------------
 
-class DeserializedEvent(Event):
+class DeserializedEvent(DataEvent):
     def __init__(self,
-                 id:      int,
+                 id:      Union[int, MonotonicId],
                  type:    Union[int, enum.Enum],
-                 context: Optional[VerediContext] = None,
+                 context: VerediContext,
                  data:    Optional[TextIOBase]    = None) -> None:
         self.set(id, type, context, data)
 
     def set(self,
-            id:      int,
+            id:      Union[int, MonotonicId],
             type:    Union[int, enum.Enum],
-            context: Optional[VerediContext],
+            context: VerediContext,
             data:    Optional[TextIOBase]) -> None:
         super().set(id, type, context)
         self.data = data
@@ -101,7 +124,7 @@ class DeserializedEvent(Event):
         self.data = None
 
 
-class SerializedEvent(Event):
+class SerializedEvent(DataEvent):
     pass
 
 
@@ -109,18 +132,18 @@ class SerializedEvent(Event):
 # Codec Events
 # ------------------------------------------------------------------------------
 
-class DecodedEvent(Event):
+class DecodedEvent(DataEvent):
     def __init__(self,
-                 id:      int,
+                 id:      Union[int, MonotonicId],
                  type:    Union[int, enum.Enum],
-                 context: Optional[VerediContext] = None,
-                 data:    list                    = None) -> None:
+                 context: VerediContext,
+                 data:    list = None) -> None:
         self.set(id, type, context, data)
 
     def set(self,
-            id:      int,
+            id:      Union[int, MonotonicId],
             type:    Union[int, enum.Enum],
-            context: Optional[VerediContext],
+            context: VerediContext,
             data:    list) -> None:
         super().set(id, type, context)
         self.data = data
@@ -130,6 +153,6 @@ class DecodedEvent(Event):
         self.data = None
 
 
-class EncodedEvent(Event):
+class EncodedEvent(DataEvent):
     pass
 

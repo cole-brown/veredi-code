@@ -26,6 +26,8 @@ import enum
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
+from veredi.data.config.config import Configuration
+
 from .base.identity import (MonotonicIdGenerator,
                             ComponentId,
                             EntityId)
@@ -68,11 +70,11 @@ class EntityManager(EcsManagerWithEvents):
     '''
 
     def __init__(self,
+                 config:        Optional[Configuration],
                  event_manager:     Optional[EventManager],
                  component_manager: ComponentManager) -> None:
         '''Initializes this thing.'''
-        # TODO: Pools instead of allowing stuff to be allocated/deallocated?
-
+        self._config:            Configuration            = config
         self._event_manager:     EventManager             = event_manager
         self._component_manager: ComponentManager         = component_manager
 
@@ -80,8 +82,8 @@ class EntityManager(EcsManagerWithEvents):
         self._entity_create:     Set[EntityId]            = set()
         self._entity_destroy:    Set[EntityId]            = set()
 
+        # TODO: Pool instead of allowing stuff to be allocated/deallocated?
         self._entity:            Dict[EntityId, 'Entity'] = {}
-        # self._entity_type?
 
         self._toolbox = EntityTools(self, component_manager)
 
@@ -247,6 +249,7 @@ class EntityManager(EcsManagerWithEvents):
             except EntityError as error:
                 log.exception(
                     error,
+                    None,
                     "EntityError in creation() for entity_id {}.",
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
@@ -290,7 +293,8 @@ class EntityManager(EcsManagerWithEvents):
             except EntityError as error:
                 log.exception(
                     error,
-                    "EntityError in creation() for entity_id {}.",
+                    None,
+                    "EntityError in destruction() for entity_id {}.",
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
 

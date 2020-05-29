@@ -11,7 +11,10 @@ Tests for the CodecSystem class.
 import unittest
 from io import StringIO
 
+from veredi.zest import zmake
+from veredi.data.config.config import Configuration
 from veredi.base.context import UnitTestContext
+
 from .system import CodecSystem
 from ..event import (DeserializedEvent, DataSaveRequest,
                      DecodedEvent, EncodedEvent)
@@ -57,14 +60,16 @@ health:
 class Test_CodecSystem(unittest.TestCase):
 
     def setUp(self):
-        self.codec = CodecSystem(1)
-        self.event_manager = EventManager()
-        self.events = []
+        self.codec         = CodecSystem(1)
+        self.config        = zmake.config()
+        self.event_manager = EventManager(self.config)
+        self.events        = []
 
     def tearDown(self):
-        self.codec = None
+        self.codec         = None
+        self.config        = None
         self.event_manager = None
-        self.events = None
+        self.events        = None
 
     def sub_decoded(self):
         self.event_manager.subscribe(DecodedEvent, self.event_decoded)

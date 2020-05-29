@@ -18,12 +18,6 @@ from veredi.base.exceptions import VerediError
 # Exceptions
 # ------------------------------------------------------------------------------
 
-class SystemError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With context data.'''
-        super().__init__(message, cause, context)
-
-
 class TickError(SystemError):
     def __init__(self, message, cause, context):
         '''With context data.'''
