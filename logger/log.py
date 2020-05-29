@@ -268,7 +268,7 @@ def exception(err: Exception,
 
     stacklevel = get_stack_level(kwargs)
     if not msg:
-        "Exception caught. type: {}, str: {}"
+        msg = "Exception caught. type: {}, str: {}"
         args = [log_msg_err_type, log_msg_err_str]
     else:
         msg += " (Exception type: {err_type}, str: {err_str})"

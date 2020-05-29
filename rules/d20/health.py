@@ -61,10 +61,10 @@ class HealthComponent(DataComponent):
         'health': {
             'current': ['hit-points', 'permanent'],
             'maximum': ['hit-points'],
+            'unconscious': ['hit-points'],
+            'death': ['hit-points'],
+            'resistance': [],
         },
-        'unconscious': ['hit-points'],
-        'death': ['hit-points'],
-        'resistance': [],
     }
 
     # def __init__(self,
@@ -75,7 +75,7 @@ class HealthComponent(DataComponent):
     #     '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
     #     super().__init__(cid, *args, **kwargs)
 
-    def _verify(self, requirements) -> None:  # TODO: type of `requirements`.
+    def _verify(self) -> None:  # TODO: pass in `requirements`.
         '''
         Verifies our data against a template/requirements data set.
         '''
@@ -93,18 +93,17 @@ class HealthComponent(DataComponent):
     def _verify_key(self,
                     key: str,
                     data: Collection[str],
-                    keys: Union[Collection[str], MutableMapping[str, str]]) -> None:
+                    sub_keys: Union[Collection[str], MutableMapping[str, str]]) -> None:
         # Get this one...
         self._verify_exists(key, data)
 
         # ...then go one deeper.
-        for each in keys:
-            sub_data = data[key]
-            if isinstance(keys, list):
+        sub_data = data[key]
+        for each in sub_keys:
+            if isinstance(sub_keys, list):
                 self._verify_exists(each, sub_data)
             else:
-                next_level = keys[key]
-                self._verify_key(each, sub_data, keys[each])
+                self._verify_key(each, sub_data, sub_keys.get(each, ()))
 
     def _verify_exists(self,
                        key: str,

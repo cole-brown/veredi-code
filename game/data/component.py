@@ -97,8 +97,8 @@ class DataComponent(Component):
 
     def __init__(self,
                  cid: ComponentId,
-                 data: MutableMapping[str, Any],
                  *args: Any,
+                 data: MutableMapping[str, Any] = None,
                  **kwargs: Any) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
         # §-TODO-§ [2020-05-26]: stuff here.
@@ -118,7 +118,7 @@ class DataComponent(Component):
     def persistent(self):
         return self._persistent
 
-    def _verify(self, requirements) -> None:  # TODO: type of `requirements`.
+    def _verify(self) -> None:  # TODO: pass in `requirements`.
         '''
         Verifies our data against a template/requirements data set.
 
@@ -131,7 +131,7 @@ class DataComponent(Component):
         # here to do the verification?
         raise NotImplementedError
 
-    def _from_data(data: MutableMapping[str, Any]):
+    def _from_data(self, data: MutableMapping[str, Any]):
         '''
         Do any data processing needed for readying this component for use based
         on new data.

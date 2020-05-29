@@ -243,6 +243,7 @@ class SystemManager(EcsManagerWithEvents):
 
         # Stuff event, component managers into kwargs in case system wants them
         # on init.
+
         system = sys_class(sid, *args,
                            event_manager=self._event_manager,
                            component_manager=self._component_manager,

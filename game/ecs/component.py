@@ -156,8 +156,11 @@ class ComponentManager(EcsManagerWithEvents):
         '''
         component = None
         try:
-            component = config.create_registered(dotted_str, context,
-                                                 *args, **kwargs)
+            component = self._config.create_registered(dotted_str,
+                                                       context,
+                                                       cid,
+                                                       *args,
+                                                       **kwargs)
         except Exception as error:
             raise log.exception(
                 error,
@@ -217,7 +220,13 @@ class ComponentManager(EcsManagerWithEvents):
 
         # Choose what kind of creating we're doing.
         component = None
-        if Component in dotted_str_or_type.mro():
+        by_type = False
+        try:
+            by_type = Component in dotted_str_or_type.mro()
+        except AttributeError:
+            by_type = False
+
+        if by_type:
             component = self._create_by_type(cid, dotted_str_or_type,
                                              context, *args, **kwargs)
         else:
