@@ -8,7 +8,7 @@ Logging utilities for Veredi.
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
+from typing import Union, Type, Optional, Any, Mapping
 import logging
 import datetime
 import math
@@ -16,16 +16,26 @@ import sys
 import os
 import enum
 
-# Framework
-
-# Our Stuff
-
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
 FMT_DATETIME = '%Y-%m-%d %H:%M:%S.{msecs:03d}%z'  # Yeah, this is fun.
+
+# Could use logging.Formatter and set like so:
+# FMT_DATETIME = '%Y-%m-%d %H:%M:%S'
+# FMT_MSEC = '%s.%03d'
+#     ...
+#     formatter = logging.Formatter(fmt=FMT_LINE_HUMAN,
+#                             datefmt=FMT_DATETIME,
+#                             style=STYLE)
+#     formatter.default_time_format = FMT_DATETIME
+#     formatter.default_msec_format = FMT_MSEC
+#     ...
+# But that would miss out on being able to stuff our msecs inside of the
+# datetime str like I want...
+
 STYLE = '{'
 
 # https://docs.python.org/3/library/logging.html#logrecord-attributes
@@ -50,14 +60,14 @@ class Level(enum.IntEnum):
     CRITICAL = logging.CRITICAL
 
     @staticmethod
-    def valid(lvl):
+    def valid(lvl: Union['Level', int]) -> bool:
         for known in Level:
             if lvl == known:
                 return True
         return False
 
     @staticmethod
-    def to_logging(lvl):
+    def to_logging(lvl: Union['Level', int]) -> int:
         return int(lvl)
 
 DEFAULT_LEVEL = Level.INFO
@@ -76,7 +86,7 @@ logger = None
 # Logger Code
 # -----------------------------------------------------------------------------
 
-def init(level=DEFAULT_LEVEL):
+def init(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
     global initialized
     if initialized:
         return
@@ -102,7 +112,8 @@ def init(level=DEFAULT_LEVEL):
 
     initialized = True
 
-def set_level(level=DEFAULT_LEVEL):
+
+def set_level(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
     '''Change logger's log level. Options are:
       - log.CRITICAL
       - log.ERROR
@@ -120,7 +131,7 @@ def set_level(level=DEFAULT_LEVEL):
     logger.setLevel(Level.to_logging(level))
 
 
-def will_output(level):
+def will_output(level: Union[Level, int]) -> bool:
     '''
     Returns true if supplied `level` is high enough to output a log.
     '''
@@ -132,7 +143,9 @@ def will_output(level):
 class BestTimeFmt(logging.Formatter):
     converter = datetime.datetime.fromtimestamp
 
-    def formatTime(self, record, fmt_date=None):
+    def formatTime(self,
+                   record: logging.LogRecord,
+                   fmt_date: str = None):
         converted = self.converter(record.created)
         if fmt_date:
             time_str = converted.strftime(fmt_date)
@@ -143,19 +156,25 @@ class BestTimeFmt(logging.Formatter):
         return string
 
 
-def brace_message(fmt, *args, **kwargs):
+def brace_message(fmt: str,
+                  *args: Any, **kwargs: Mapping[str, Any]) -> str:
     # print(f"bm:: fmt: {fmt}, args: {args}, kwa: {kwargs}")
     return fmt.format(*args, **kwargs)
 
 
-def get_stack_level(kwargs):
+def get_stack_level(kwargs: Mapping[str, Any]) -> int:
+    '''
+    Returns kwargs['stacklevel'] if it exists, or default (of 2).
+    '''
     retval = 2
     if kwargs:
         retval = kwargs.pop('stacklevel', 2)
     return retval
 
 
-def debug(msg, *args, **kwargs):
+def debug(msg: str,
+          *args: Any,
+          **kwargs: Any) -> None:
     stacklevel = get_stack_level(kwargs)
     logger.debug(
         brace_message(
@@ -164,7 +183,9 @@ def debug(msg, *args, **kwargs):
         stacklevel=stacklevel)
 
 
-def info(msg, *args, **kwargs):
+def info(msg: str,
+          *args: Any,
+          **kwargs: Any) -> None:
     stacklevel = get_stack_level(kwargs)
     logger.info(
         brace_message(
@@ -173,7 +194,9 @@ def info(msg, *args, **kwargs):
         stacklevel=stacklevel)
 
 
-def warning(msg, *args, **kwargs):
+def warning(msg: str,
+            *args: Any,
+            **kwargs: Any) -> None:
     stacklevel = get_stack_level(kwargs)
     logger.warning(
         brace_message(
@@ -182,7 +205,9 @@ def warning(msg, *args, **kwargs):
         stacklevel=stacklevel)
 
 
-def error(msg, *args, **kwargs):
+def error(msg: str,
+          *args: Any,
+          **kwargs: Any) -> None:
     stacklevel = get_stack_level(kwargs)
     logger.error(
         brace_message(
@@ -191,8 +216,21 @@ def error(msg, *args, **kwargs):
         stacklevel=stacklevel)
 
 
-def exception(err, msg=None, *args, **kwargs):
+def exception(err: Exception,
+              wrap_type: Optional[Type['VerediError']],
+              msg:       Optional[str],
+              *args:     Any,
+              context:   Optional['VerediContext'] = None,
+              **kwargs:  Any) -> None:
     '''
+    The exception this logs is:
+      - if err is not None
+           err
+        else
+           wrap_type(<our log msg pre logging.Formatter>,
+                    None,
+                    context)
+
     Log the exception at ERROR level. If no `msg` supplied, will use:
         msg = "Exception caught. type: {}, str: {}"
         args = [type(err), str(err)]
@@ -200,23 +238,55 @@ def exception(err, msg=None, *args, **kwargs):
       msg += " (Exception type: {err_type}, str: {err_str})"
       kwargs['err_type'] = type(err)
       kwargs['err_type'] = str(err)
+
+    can piggy-back easier.
+    Then returns either:
+      - if wrap_type is None:
+          err (the input error)
+      - else:
+          wrap_type(<our log msg pre logging.Formatter>,
+                    err,
+                    context)
+    This way you can:
+    except SomeError as error:
+        raise log.exception(
+            error,
+            SomeVerediError,
+            "Cannot frobnicate {} from {}. {} instead.",
+            source, target, nonFrobMunger,
+            context=self.context
+        ) from error
     '''
+    log_msg_err_type = None
+    log_msg_err_str = None
+    if err is not None:
+        log_msg_err_type = type(err)
+        log_msg_err_str = str(err)
+    else:
+        log_msg_err_type = wrap_type
+        log_msg_err_str = None
+
     stacklevel = get_stack_level(kwargs)
     if not msg:
         "Exception caught. type: {}, str: {}"
-        args = [type(err), str(err)]
+        args = [log_msg_err_type, log_msg_err_str]
     else:
         msg += " (Exception type: {err_type}, str: {err_str})"
-        kwargs['err_type'] = type(err)
-        kwargs['err_str'] = str(err)
-    logger.error(
-        brace_message(
-            msg,
-            *args, **kwargs),
-        stacklevel=stacklevel)
+        kwargs['err_type'] = log_msg_err_type
+        kwargs['err_str'] = log_msg_err_str
+
+    log_msg = brace_message(msg, *args, **kwargs),
+    logger.error(log_msg,
+                 stacklevel=stacklevel)
+
+    if wrap_type:
+        return wrap_type(log_msg, err, context)
+    return err
 
 
-def critical(msg, *args, **kwargs):
+def critical(msg: str,
+             *args: Any,
+             **kwargs: Any) -> None:
     stacklevel = get_stack_level(kwargs)
     logger.critical(
         brace_message(

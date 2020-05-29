@@ -12,32 +12,34 @@ That is, it is the start and end point of loads and saves.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Optional, Set, Type, Union, Iterable
+from typing import Any, Optional, Set, Type, Union, Iterable, Mapping
 
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
 
 # Game / ECS Stuff
-from ...ecs.event import EventManager
-from ...ecs.time import TimeManager
+from ..ecs.event import EventManager
+from ..ecs.time import TimeManager
+from ..ecs.component import ComponentManager
 
-from ...ecs.const import (SystemTick,
-                          SystemPriority,
-                          DebugFlag)
+from ..ecs.const import (SystemTick,
+                         SystemPriority,
+                         DebugFlag)
 
-from ...ecs.base.identity import (ComponentId,
-                                  EntityId,
-                                  SystemId)
-from ...ecs.base.system import (System,
-                                SystemLifeCycle)
-from ...ecs.base.component import Component
+from ..ecs.base.identity import (ComponentId,
+                                 EntityId,
+                                 SystemId)
+from ..ecs.base.system import (System,
+                               SystemLifeCycle,
+                               SystemError)
+from ..ecs.base.component import Component
 
 # Events
 # Do we need these system events?
-from ...ecs.system import (SystemEvent,
-                           SystemLifeEvent)
-from ..event import (
+from ..ecs.system import (SystemEvent,
+                          SystemLifeEvent)
+from .event import (
     # Our events
     DataLoadRequest,
     DataSaveRequest,
@@ -46,6 +48,9 @@ from ..event import (
     # Our subscriptions
     DecodedEvent,
     SerializedEvent)
+
+# Our friendly component.
+from .component import DataComponent
 
 
 # -----------------------------------------------------------------------------
@@ -59,9 +64,11 @@ from ..event import (
 
 class DataSystem(System):
     def __init__(self,
-                 sid: SystemId,
-                 *args: Any,
-                 **kwargs: Any) -> None:
+                 sid:               SystemId,
+                 *args:             Any,
+                 event_manager:     EventManager     = None,
+                 component_manager: ComponentManager = None,
+                 **kwargs:          Any) -> None:
         super().__init__(sid, *args, **kwargs)
 
         # ---
@@ -73,7 +80,9 @@ class DataSystem(System):
         # Apoptosis will be our end-of-game saving.
         # ---
 
-        self._event_manager: Optional[EventManager] = None
+        self._event_manager: Optional[EventManager] = event_manager
+
+        self._component_manager: Optional[EventManager] = component_manager
 
     # --------------------------------------------------------------------------
     # System Registration / Definition
@@ -150,43 +159,92 @@ class DataSystem(System):
 
         return self._health()
 
+    def request_creation(self,
+                         doc: Mapping[str, Any],
+                         event: DecodedEvent) -> ComponentId:
+        '''
+        Asks ComponentManager to create this doc from this event,
+        whatever it is.
+
+        Returns created component's ComponentId or ComponentId.INVALID
+        '''
+        leeloo_dallas = doc.get('meta', None)
+        multipass =  leeloo_dallas.get('registry', None)
+        if not multipass:
+            raise log.exception(
+                SystemError(
+                    f"{self.__class__.__name__} has no ComponentManager.",
+                    None,
+                    event.context),
+                None,
+                "{} could not create anything from event {}. "
+                "args: {}, kwargs: {}, context: {}",
+                self.__class__.__name__,
+                event, args, kwargs, context
+            ) from error
+
+
+        retval = self._component_manager.create()
+        return retval
+
     def event_decoded(self, event: DecodedEvent) -> None:
         '''
         Decoded data needs to be put into game. Once that's done, trigger a
         DataLoadedEvent.
         '''
-        pass
+        if not self._component_manager:
+            raise log.exception(
+                SystemError(
+                    f"{self.__class__.__name__} has no ComponentManager.",
+                    None,
+                    event.context),
+                None,
+                "{} could not create anything from event {}. "
+                "args: {}, kwargs: {}, context: {}",
+                self.__class__.__name__,
+                event, args, kwargs, context
+            )
 
         # Check metadata doc?
         #   - Use version to get correct component class?
         #   - Or not... just use each component's meta.registry?
 
-        # For each doc:
-        #   if component
-        #     check meta.registry
-        #     Ask ComponentManager to construct component if registered?
-        #       - Verify data maybe?
-        #     Ask someone to attach to an entity?
-        #
-        # Do DecodedEvent.
+        # Walk list of data... try to figure out which ones we should
+        # try to create.
+        cid = ComponentId.INVALID
+        for doc in event.data:
+            try:
+                if 'doc-type' in doc and doc['doc-type'] == 'component':
+                    cid = request_creation(doc, event)
+            except SystemError:
+                # Ignore these - bubble up.
+                raise
+            except VerediError:
+                # Chain/wrap in a SystemError.
+                msg = (f"{self.__class__.__name__} failed when trying "
+                       "to create from data. event: {event}, "
+                       "args: {args}, kwargs: {kwargs}, context: {context}")
+                raise log.exception(
+                    SystemError(msg, None, event.context),
+                    None,
+                    msg)
 
-
-        # context = self._repository.context.merge(event.context)
-        #
-        # # Ask my repository for this data.
-        # # Load data info is in the request context.
-        # deserialized = self._repository.load(context)
-        # # Get back deserialized data stream.
-        #
-        # # Take our repository load result and set into DeserializedEvent.
-        # # Then have EventManager fire off event for whoever wants the next step.
-        # self.event(self._event_manager,
-        #            DeserializedEvent,
-        #            event.id,
-        #            event.type,
-        #            context,
-        #            False,
-        #            data=deserialized)
+            # Ask someone to attach to... something? An entity? Actually, no.
+            # That should be in the event itself. We should just pass it along
+            # into the DataLoadedEvent.
+            #
+            # Have EventManager create and fire off event for whoever wants the
+            # next step.
+            if cid != ComponentId.INVALID:
+                self.event(self._event_manager,
+                           DataLoadedEvent,
+                           # This is who it's for, assuming we've successfully
+                           # chained it the whole way through.
+                           event.id,
+                           event.type,
+                           event.context,
+                           False,
+                           component_id=cid)
 
     def event_serialized(self, event: SerializedEvent) -> None:
         '''

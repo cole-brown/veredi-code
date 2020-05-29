@@ -160,16 +160,17 @@ class FileBareRepository(base.BaseRepository):
                     data_stream.close()
                 data_stream = None
                 raise
-            except Exception as err:
+            except Exception as error:
                 # Complain that we found an exception we don't handle.
-                # ...then let it bubble up as-is.
-                log.exception(err,
-                              "Error loading data from file. context: {}",
-                              context)
+                # ...then let it bubble up.
                 if data_stream and not data_stream.closed:
                     data_stream.close()
                 data_stream = None
-                raise
+                raise log.exception(
+                    error,
+                    LoadError,
+                    "Error loading data from file. context: {}",
+                    context=context) from error
 
         return data_stream
 
@@ -312,14 +313,15 @@ class FileTreeRepository(base.BaseRepository):
                 raise
             except Exception as err:
                 # Complain that we found an exception we don't handle.
-                # ...then let it bubble up as-is.
-                log.exception(err,
-                              "Error loading data from file. context: {}",
-                              context)
+                # ...then let it bubble up.
                 if data_stream and not data_stream.closed:
                     data_stream.close()
                 data_stream = None
-                raise
+                raise log.exception(
+                    error,
+                    LoadError,
+                    "Error loading data from file. context: {}",
+                    context=context) from error
 
         return data_stream
 
@@ -523,14 +525,15 @@ class FileTreeTemplates(FileTreeRepository):
                 raise
             except Exception as err:
                 # Complain that we found an exception we don't handle.
-                # ...then let it bubble up as-is.
-                log.exception(err,
-                              "Error loading data from file. context: {}",
-                              context)
+                # ...then let it bubble up.
                 if data_stream and not data_stream.closed:
                     data_stream.close()
                 data_stream = None
-                raise
+                raise log.exception(
+                    error,
+                    LoadError,
+                    "Error loading data from file. context: {}",
+                    context=context) from error
 
         return data_stream
 

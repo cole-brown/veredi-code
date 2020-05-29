@@ -11,6 +11,7 @@ Tests for engine.py (The Game Itself).
 import unittest
 
 from veredi.base.const import VerediHealth
+from veredi.zest import zmake
 
 from . import engine
 
@@ -184,13 +185,21 @@ class SysNoReq(SysTest):
 class Test_Engine(unittest.TestCase):
 
     def setUp(self):
+        self.config     = zmake.config()
         self.time_mgr   = TimeManager()
-        self.event_mgr  = EventManager()
-        self.comp_mgr   = ComponentManager(self.event_mgr)
-        self.entity_mgr = EntityManager(self.event_mgr, self.comp_mgr)
-        self.system_mgr = SystemManager(self.event_mgr, DebugFlag.UNIT_TESTS)
+        self.event_mgr  = EventManager(self.config)
+        self.comp_mgr   = ComponentManager(self.config,
+                                           self.event_mgr)
+        self.entity_mgr = EntityManager(self.config,
+                                        self.event_mgr,
+                                        self.comp_mgr)
+        self.system_mgr = SystemManager(self.config,
+                                        self.event_mgr,
+                                        self.comp_mgr,
+                                        DebugFlag.UNIT_TESTS)
 
-        self.engine = engine.Engine(None, None, None,
+        self.engine = engine.Engine(None, None,
+                                    self.config,
                                     self.event_mgr,
                                     self.time_mgr,
                                     self.comp_mgr,
@@ -199,18 +208,18 @@ class Test_Engine(unittest.TestCase):
                                     DebugFlag.UNIT_TESTS)
 
     def tearDown(self):
-        self.event_mgr = None
-        self.time_mgr = None
-        self.comp_mgr = None
+        self.config     = None
+        self.event_mgr  = None
+        self.time_mgr   = None
+        self.comp_mgr   = None
         self.entity_mgr = None
         self.system_mgr = None
-        self.engine = None
+        self.engine     = None
 
     def create_entities(self):
         def mkcmp(comp):
-            # This is a cheat - not going through comp_mgr... So I should
-            # probably stop and do it non-cheaty soon...
-            return self.comp_mgr.create(comp)
+            # Can only create by Component Type, this way (sans context).
+            return self.comp_mgr.create(comp, None)
 
         comps_1_2_x = set([mkcmp(CompOne), mkcmp(CompTwo)])
         comps_1_x_x = set([mkcmp(CompOne)])

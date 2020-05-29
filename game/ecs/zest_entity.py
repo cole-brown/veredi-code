@@ -10,6 +10,8 @@ Tests for entity.py (EntityManager class).
 
 import unittest
 
+from veredi.zest import zmake
+
 from .event import EventManager
 from .component import (ComponentManager,
                         ComponentEvent,
@@ -52,16 +54,18 @@ class Test_EntityManager(unittest.TestCase):
     _TYPE_DONT_CARE = 1
 
     def setUp(self):
-        self.event_mgr  = None
+        self.config    = zmake.config()
+        self.event_mgr = None
         self.finish_setUp()
 
     def finish_setUp(self):
-        self.comp_mgr   = ComponentManager(self.event_mgr)
-        self.entity_mgr = EntityManager(self.event_mgr, self.comp_mgr)
+        self.comp_mgr   = ComponentManager(self.config, self.event_mgr)
+        self.entity_mgr = EntityManager(self.config, self.event_mgr, self.comp_mgr)
 
         self.events_recv = {}
 
     def tearDown(self):
+        self.config      = None
         self.event_mgr   = None
         self.comp_mgr    = None
         self.entity_mgr  = None
@@ -357,6 +361,7 @@ class Test_EntityManager_Events(Test_EntityManager):
     def setUp(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.
-        self.event_mgr = EventManager()
+        self.config    = zmake.config()
+        self.event_mgr = EventManager(self.config)
         self.finish_setUp()
         self.register_events()

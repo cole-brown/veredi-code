@@ -14,7 +14,9 @@ import re
 import enum
 
 from veredi.logger import log
-from veredi.base.context import PersistentContext, DataBareContext
+from veredi.base.context import (VerediContext,
+                                 PersistentContext,
+                                 DataBareContext)
 from veredi.base.const import VerediHealth
 
 from .. import exceptions
@@ -117,6 +119,38 @@ class Configuration:
         '''
         return self._context
 
+
+    # --------------------------------------------------------------------------
+    # Registry Mediation
+    # --------------------------------------------------------------------------
+    def create_registered(dotted_str: str,
+                          context: Optional[VerediContext],
+                          *args: Any,
+                          **kwargs: Any) -> Any:
+        '''
+        Mediator between any game systems that don't care about any deep
+        knowledge of veredi basics. Pass in a 'dotted' registration string,
+        like: "veredi.rules.d11.health", and we will ask our registry to create
+        it.
+
+        Catches all exceptions and rewraps outside errors in a VerediError.
+        '''
+        try:
+            retval = registry.create()
+        except VerediError:
+            # Ignore these and subclasses - bubble up.
+            raise
+        except Exception as error:
+            raise log.exception(
+                error,
+                VerediError,
+                "Configuration could not create '{}'. "
+                "args: {}, kwargs: {}, context: {}",
+                dotted_str, args, kwargs, context
+            ) from error
+
+        return retval
+
     # --------------------------------------------------------------------------
     # Config Data
     # --------------------------------------------------------------------------
@@ -199,24 +233,26 @@ class Configuration:
                 data = None
                 raise
             except Exception as error:
+                data = None
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up as-is.
-                log.exception(error, "Unhandled exception! type: {}, str: {}",
-                              type(error), str(error))
-                data = None
-                raise
+                raise log.exception(
+                    error,
+                    VerediError,
+                    "Unhandled exception! type: {}, str: {}",
+                    type(error), str(error)) from error
 
         return VerediHealth.HEALTHY
 
     def _load_doc(self, document: codec.CodecOutput) -> None:
         if isinstance(document, list):
-            log.error("TODO: How do we deal with list document? {}: {}",
-                      type(document),
-                      str(document))
-            raise exceptions.LoadError("TODO: How do we deal with list document? "
-                                       f"{type(document)}: {str(document)}",
-                                       None,
-                                       self.context)
+                raise log.exception(
+                    error,
+                    exceptions.LoadError,
+                    "TODO: How do we deal with list document? {}: {}",
+                    type(document),
+                    str(document),
+                    context=self.context)
 
         elif (isinstance(document, dict)
               and CodecKeys.DOC_TYPE.value in document):
@@ -226,13 +262,13 @@ class Configuration:
             self._config[doc_type] = document
 
         else:
-            log.error("Unknown document while loading! "
-                      "Does it have a '{}' field? "
-                      "{}: {}",
-                      CodecKeys.DOC_TYPE.value,
-                      type(document),
-                      str(document))
-            raise exceptions.LoadError(f"Unknown document while loading! "
-                                       f"{type(document)}: {str(document)}",
-                                       None,
-                                       self.context)
+            raise log.exception(
+                error,
+                exceptions.LoadError,
+                "Unknown document while loading! "
+                "Does it have a '{}' field? "
+                "{}: {}",
+                CodecKeys.DOC_TYPE.value,
+                type(document),
+                str(document),
+                context=self.context)

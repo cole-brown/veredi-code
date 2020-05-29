@@ -25,6 +25,8 @@ from typing import Union, Type, Iterable, Optional, Set, List, Any
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
+from veredi.base.context import VerediContext
+from veredi.data.config.config import Configuration
 
 from .base.identity import MonotonicIdGenerator, ComponentId
 from .base.component import (Component,
@@ -55,18 +57,20 @@ class ComponentManager(EcsManagerWithEvents):
     Manages the life cycles of components.
     '''
 
-    def __init__(self, event_manager: Optional[EventManager]) -> None:
+    def __init__(self,
+                 config:        Optional[Configuration],
+                 event_manager: Optional[EventManager]) -> None:
         '''Initializes this thing.'''
-        # TODO: Pools instead of allowing stuff to be allocated/deallocated?
-
         self._component_id:      MonotonicIdGenerator = MonotonicIdGenerator(ComponentId)
         self._component_create:  Set[ComponentId]     = set()
         self._component_destroy: Set[ComponentId]     = set()
 
+        # TODO: Pools instead of allowing stuff to be allocated/deallocated?
         self._component_by_id:   Dict[ComponentId, Component]           = {}
         self._component_by_type: Dict[Type[Component], List[Component]] = {}
 
         self._event_manager:     EventManager         = event_manager
+        self._config:            Configuration        = config
 
     def subscribe(self, event_manager: EventManager) -> VerediHealth:
         '''
@@ -135,20 +139,103 @@ class ComponentManager(EcsManagerWithEvents):
         '''
         return self._component_by_id.get(component_id, None)
 
+    def _create_by_registry(self,
+                            cid: ComponentId,
+                            dotted_str: str,
+                            context: Optional[VerediContext],
+                            *args: Any,
+                            **kwargs: Any) -> ComponentId:
+        '''
+        Checks the registry for the Component by string and tries
+        to create it.
+
+        Returns the component created or None if it cannot create
+        the component.
+
+        Raises VerediError or subclasses.
+        '''
+        component = None
+        try:
+            component = config.create_registered(dotted_str, context,
+                                                 *args, **kwargs)
+        except Exception as error:
+            raise log.exception(
+                error,
+                ComponentError,
+                "Exception during Component creation for would-be "
+                "component_id {}. dotted_str: {}, args: {}, "
+                "kwargs: {}, context: {}",
+                cid, dotted_str, args, kwargs, context
+            ) from error
+
+        return component
+
+    def _create_by_type(self,
+                        cid: ComponentId,
+                        comp_class: Type[Component],
+                        context: Optional[VerediContext],
+                        *args: Any,
+                        **kwargs: Any) -> ComponentId:
+        '''
+        Creates a component of type `comp_class` with the supplied args.
+
+        Returns the component created or None if it cannot create
+        the component.
+
+        Raises VerediError or subclasses.
+        '''
+        component = None
+        try:
+            component = comp_class(cid, *args, **kwargs)
+        except Exception as error:
+            raise log.exception(
+                error,
+                ComponentError,
+                "Exception during Component creation for would-be "
+                "component_id {}. comp_class: {}, args: {}, "
+                "kwargs: {}, context: {}",
+                cid, comp_class, args, kwargs, context
+            ) from error
+
+        return component
+
     def create(self,
-               comp_class: Type[Component],
+               dotted_str_or_type: Union[str, Type[Component]],
+               context: Optional[VerediContext],
                *args: Any,
                **kwargs: Any) -> ComponentId:
         '''
         Creates a component with the supplied args. This is the start of
         the life cycle of the component.
 
-        Returns the component id.
+        Returns the component id or ComponentId.INVALID it cannot
+        create the component.
 
         Component will be cycled to ALIVE during the CREATION tick.
         '''
         cid = self._component_id.next()
-        component = comp_class(cid, *args, **kwargs)
+
+        # Choose what kind of creating we're doing.
+        component = None
+        if Component in dotted_str_or_type.mro():
+            component = self._create_by_type(cid, dotted_str_or_type,
+                                             context, *args, **kwargs)
+        else:
+            component = self._create_by_registry(cid, dotted_str_or_type,
+                                                 context, *args, **kwargs)
+
+        # Die if we created nothing.
+        if component is None:
+            raise log.exception(
+                None,
+                ComponentError,
+                "Exception during Component creation for would-be "
+                "component_id {}. comp_class: {}, args: {}, "
+                "kwargs: {}, context: {}",
+                cid, comp_class, args, kwargs, context
+            ) from error
+
+        # Finish adding since we created something.
         self._add(cid, component)
         self._component_create.add(cid)
         component._life_cycled(ComponentLifeCycle.CREATING)
@@ -161,6 +248,7 @@ class ComponentManager(EcsManagerWithEvents):
                    None, False)
 
         return cid
+
 
     def destroy(self, component_id: ComponentId) -> None:
         '''
@@ -210,6 +298,7 @@ class ComponentManager(EcsManagerWithEvents):
             except ComponentError as error:
                 log.exception(
                     error,
+                    None,
                     "ComponentError in creation() for component_id {}.",
                     component_id)
                 # TODO: put this component in... jail or something? Delete?
@@ -252,9 +341,11 @@ class ComponentManager(EcsManagerWithEvents):
             except ComponentError as error:
                 log.exception(
                     error,
-                    "ComponentError in creation() for component_id {}.",
+                    None,
+                    "ComponentError in destruction() for component_id {}.",
                     component_id)
-                # TODO: put this component in... jail or something? Delete?
+                # TODO: put this component in... jail or something?
+                # Delete harder?
 
             # And fire off an event for DEAD.
             self.event(self._event_manager,

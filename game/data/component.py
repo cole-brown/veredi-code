@@ -8,15 +8,16 @@ Data component - a component that has persistent data on it.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Union, Iterable
+from typing import Any, Union, Iterable, MutableMapping
 # import enum
 # import re
 # import decimal
 
 from veredi.data.exceptions import (DataNotPresentError,
                                     DataRestrictedError)
-from ..ecs.base import (Component,
-                        ComponentError)
+from ..ecs.base.component   import (Component,
+                                    ComponentError)
+from ..ecs.base.identity import ComponentId
 
 
 # -----------------------------------------------------------------------------
@@ -96,7 +97,7 @@ class DataComponent(Component):
 
     def __init__(self,
                  cid: ComponentId,
-                 data: Dict[str, Any],
+                 data: MutableMapping[str, Any],
                  *args: Any,
                  **kwargs: Any) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
@@ -104,14 +105,14 @@ class DataComponent(Component):
 
         # All persistent data should go here, or be gathered up in return value
         # of persistent property.
-        self._persistent: Dict[str, Any] = data or {}
+        self._persistent: MutableMapping[str, Any] = data or {}
         # Flag for indicating that this component wants its
         # persistent data saved.
-        self._dirty:      bool           = False
+        self._dirty:      bool                     = False
 
         super().__init__(cid, *args, **kwargs)
+        self._from_data(data)
         self._verify()
-        self._from_data()
 
     @property
     def persistent(self):
@@ -130,16 +131,16 @@ class DataComponent(Component):
         # here to do the verification?
         raise NotImplementedError
 
-    def _from_data(self):
+    def _from_data(data: MutableMapping[str, Any]):
         '''
         Do any data processing needed for readying this component for use based
         on new data.
         '''
-        raise NotImplementedError
+        self._persistent = data
 
     def _to_data(self):
         '''
         Do any data processing needed for readying this component for
         serialization on new data.
         '''
-        raise NotImplementedError
+        return self._persistent

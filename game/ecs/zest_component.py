@@ -10,6 +10,8 @@ Tests for component.py (ComponentManager class).
 
 import unittest
 
+from veredi.zest import zmake
+
 from .event import EventManager
 from .component import (ComponentManager,
                         ComponentEvent,
@@ -49,17 +51,19 @@ class CompThree(Component):
 class Test_ComponentManager(unittest.TestCase):
 
     def setUp(self):
+        self.config    = zmake.config()
         self.event_mgr = None
         self.finish_setUp()
 
     def finish_setUp(self):
-        self.comp_mgr = ComponentManager(self.event_mgr)
+        self.comp_mgr = ComponentManager(self.config, self.event_mgr)
 
         self.events_recv = {}
 
     def tearDown(self):
+        self.config    = None
         self.event_mgr = None
-        self.comp_mgr = None
+        self.comp_mgr  = None
 
         self.events_recv = None
 
@@ -87,7 +91,7 @@ class Test_ComponentManager(unittest.TestCase):
         self.assertEqual(self.comp_mgr._component_id.peek(),
                          ComponentId.INVALID)
 
-        cid = self.comp_mgr.create(CompOne)
+        cid = self.comp_mgr.create(CompOne, None)
         self.assertNotEqual(cid, ComponentId.INVALID)
 
         self.assertEqual(len(self.comp_mgr._component_create), 1)
@@ -126,7 +130,7 @@ class Test_ComponentManager(unittest.TestCase):
         self.assertEqual(self.comp_mgr._component_id.peek(),
                          ComponentId.INVALID)
 
-        cid = self.comp_mgr.create(CompTwo, x=1, y=2)
+        cid = self.comp_mgr.create(CompTwo, None, x=1, y=2)
         self.assertNotEqual(cid, ComponentId.INVALID)
 
         # Component should exist and have its args assigned.
@@ -149,7 +153,7 @@ class Test_ComponentManager(unittest.TestCase):
         self.assertEqual(len(self.comp_mgr._component_create), 0)
         self.assertEqual(len(self.comp_mgr._component_destroy), 0)
 
-        cid = self.comp_mgr.create(CompOne)
+        cid = self.comp_mgr.create(CompOne, None)
         # Now we should have a create...
         self.assertNotEqual(cid, ComponentId.INVALID)
         self.assertEqual(len(self.comp_mgr._component_create), 1)
@@ -185,7 +189,7 @@ class Test_ComponentManager(unittest.TestCase):
             self.assertIsNone(event.context)
 
     def test_creation(self):
-        cid = self.comp_mgr.create(CompOne)
+        cid = self.comp_mgr.create(CompOne, None)
         self.assertNotEqual(cid, ComponentId.INVALID)
 
         # Component should exist and be in CREATING state now...
@@ -227,7 +231,7 @@ class Test_ComponentManager(unittest.TestCase):
             self.assertIsNone(event.context)
 
     def test_destruction(self):
-        cid = self.comp_mgr.create(CompOne)
+        cid = self.comp_mgr.create(CompOne, None)
         self.assertNotEqual(cid, ComponentId.INVALID)
 
         # Component should exist and be in CREATING state now...
@@ -278,6 +282,7 @@ class Test_ComponentManager_Events(Test_ComponentManager):
     def setUp(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.
-        self.event_mgr = EventManager()
+        self.config    = zmake.config()
+        self.event_mgr = EventManager(self.config)
         self.finish_setUp()
         self.register_events()

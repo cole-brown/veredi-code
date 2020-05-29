@@ -11,6 +11,7 @@ Tests for the RepositorySystem class.
 import unittest
 from io import StringIO
 
+from veredi.zest import zmake
 from veredi.base.context import (UnitTestContext,
                                  DataLoadContext,
                                  DataSaveContext,
@@ -20,7 +21,7 @@ from ..event import (SerializedEvent, DeserializedEvent,
                      EncodedEvent, DataLoadRequest)
 from ...ecs.event import EventManager
 
-from veredi.zest import zest
+from veredi.zest import zpath
 
 
 # -----------------------------------------------------------------------------
@@ -40,16 +41,18 @@ from veredi.zest import zest
 class Test_RepoSystem(unittest.TestCase):
 
     def setUp(self):
-        self.path = zest.repository_file_tree()
-        self.repo = RepositorySystem(1, repository_base=self.path)
-        self.event_manager = EventManager()
-        self.events = []
+        self.path          = zpath.repository_file_tree()
+        self.repo          = RepositorySystem(1, repository_base=self.path)
+        self.config        = zmake.config()
+        self.event_manager = EventManager(self.config)
+        self.events        = []
 
     def tearDown(self):
-        self.path = None
-        self.repo = None
+        self.path          = None
+        self.repo          = None
+        self.config        = None
         self.event_manager = None
-        self.events = None
+        self.events        = None
 
     def sub_deserialized(self):
         self.event_manager.subscribe(DeserializedEvent, self.event_deserialized)

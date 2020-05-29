@@ -11,6 +11,7 @@ Tests for SystemManager.
 import unittest
 
 from veredi.base.const import VerediHealth
+from veredi.zest import zmake
 
 from .event import EventManager
 from .time import TimeManager
@@ -180,19 +181,27 @@ class Test_SystemManager(unittest.TestCase):
         self.finish_setUp()
 
     def finish_setUp(self):
+        self.config     = zmake.config()
         self.time_mgr   = TimeManager()
-        self.comp_mgr   = ComponentManager(self.event_mgr)
-        self.entity_mgr = EntityManager(self.event_mgr, self.comp_mgr)
-        self.system_mgr = SystemManager(self.event_mgr, DebugFlag.UNIT_TESTS)
+        self.comp_mgr   = ComponentManager(self.config,
+                                           self.event_mgr)
+        self.entity_mgr = EntityManager(self.config,
+                                        self.event_mgr,
+                                        self.comp_mgr)
+        self.system_mgr = SystemManager(self.config,
+                                        self.event_mgr,
+                                        self.comp_mgr,
+                                        DebugFlag.UNIT_TESTS)
 
         self.events_recv = {}
 
     def tearDown(self):
-        self.time_mgr   = None
-        self.event_mgr  = None
-        self.comp_mgr   = None
-        self.entity_mgr = None
-        self.system_mgr = None
+        self.config      = None
+        self.time_mgr    = None
+        self.event_mgr   = None
+        self.comp_mgr    = None
+        self.entity_mgr  = None
+        self.system_mgr  = None
         self.events_recv = None
 
     def register_events(self):
@@ -453,6 +462,7 @@ class Test_SystemManager_Events(Test_SystemManager):
     def setUp(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.
-        self.event_mgr = EventManager()
+        self.config    = zmake.config()
+        self.event_mgr = EventManager(self.config)
         self.finish_setUp()
         self.register_events()

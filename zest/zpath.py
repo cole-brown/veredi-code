@@ -72,12 +72,12 @@ def repository_file_tree() -> Optional[pathlib.Path]:
 # Configuration
 # ------------------------------------------------------------------------------
 
-def config(name: str) -> Optional[pathlib.Path]:
+def config(filepath: Union[pathlib.Path, str, None]) -> Optional[pathlib.Path]:
     '''
     Returns pathlib.Path to config test data.
     '''
     path = retval(rooted('config'))
-    if not name:
+    if not filepath:
         return path
-    path = path / name
+    path = path / filepath
     return retval(path)

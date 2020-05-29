@@ -1,0 +1,26 @@
+--- !metadata
+record-type: veredi.config
+version: 2020-05-26
+
+source: veredi.config
+author: Cole Brown
+date:   2020-05-26
+
+system: configuration
+name: veredi.config
+display-name: Veredi Configuration
+
+
+--- !configuration
+
+game:
+  repository: veredi.repository.file-tree
+  codec: veredi.codec.yaml
+  directory: ..
+
+template:
+  repository: veredi.repository.file-tree
+  codec: veredi.codec.yaml
+  directory: ..
+
+# and more?

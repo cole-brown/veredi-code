@@ -17,7 +17,7 @@ from veredi.logger import log
 from . import config
 from ..codec.base import CodecKeys, CodecDocuments
 
-from veredi.zest import zest
+from veredi.zest import zpath, zmake
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -31,8 +31,8 @@ from veredi.zest import zest
 class Test_Configuration(unittest.TestCase):
 
     def setUp(self):
-        self.path = zest.config('default.yaml')
-        self.config = config.Configuration(self.path)
+        self.path = zpath.config('unit-test-target.yaml')
+        self.config = zmake.config(self.path, None, None)
 
     def tearDown(self):
         self.data_root = None
