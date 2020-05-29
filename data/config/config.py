@@ -14,6 +14,7 @@ import re
 import enum
 
 from veredi.logger import log
+from veredi.base.exceptions import VerediError
 from veredi.base.context import (VerediContext,
                                  PersistentContext,
                                  DataBareContext)
@@ -123,7 +124,8 @@ class Configuration:
     # --------------------------------------------------------------------------
     # Registry Mediation
     # --------------------------------------------------------------------------
-    def create_registered(dotted_str: str,
+    def create_registered(self,
+                          dotted_str: str,
                           context: Optional[VerediContext],
                           *args: Any,
                           **kwargs: Any) -> Any:
@@ -136,14 +138,17 @@ class Configuration:
         Catches all exceptions and rewraps outside errors in a VerediError.
         '''
         try:
-            retval = registry.create()
+            retval = registry.create(dotted_str,
+                                     *args,
+                                     context=context,
+                                     **kwargs)
         except VerediError:
             # Ignore these and subclasses - bubble up.
             raise
         except Exception as error:
             raise log.exception(
                 error,
-                VerediError,
+                exceptions.ConfigError,
                 "Configuration could not create '{}'. "
                 "args: {}, kwargs: {}, context: {}",
                 dotted_str, args, kwargs, context

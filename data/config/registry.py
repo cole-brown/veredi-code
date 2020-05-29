@@ -78,19 +78,29 @@ def create(dotted_keys_str: str,
     "repository.player.file-tree"), passing it args and kwargs.
 
     '''
-    try:
-        registration = _REGISTRY
-        for key in dotted_keys_str.split('.'):
-            if registration is None:
-                break
-            # This can throw the KeyError...
+    registration = _REGISTRY
+    split_keys = dotted_keys_str.split('.')
+    i = 0
+    for key in split_keys:
+        if registration is None:
+            break
+        # This can throw the KeyError...
+        try:
             registration = registration[key]
-
-        # TODO: Check for if this is callable?
-        return registration(*args, **kwargs)
-
-    except KeyError as error:
-        raise exceptions.ConfigError(
-                f"Registry has nothing under the keys: {dotted_keys_str}",
+        except KeyError as error:
+            raise log.exception(
                 error,
-                {'keys': dotted_keys_str}) from error
+                exceptions.ConfigError,
+                "Registry has nothing at: {}",
+                split_keys[ : i + 1 ]) from error
+
+        i += 1
+
+    try:
+        return registration(*args, **kwargs)
+    except TypeError as error:
+        raise log.exception(
+            error,
+            exceptions.ConfigError,
+            "Registry failed creating via '{}' with: args: {}, kwargs: {}",
+            registration, args, kwargs) from error

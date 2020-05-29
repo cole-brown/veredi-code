@@ -12,7 +12,6 @@ import unittest
 from io import StringIO
 
 from veredi.zest import zmake
-from veredi.data.config.config import Configuration
 from veredi.base.context import UnitTestContext
 
 from .system import CodecSystem

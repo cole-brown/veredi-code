@@ -17,6 +17,7 @@ from typing import Any, Optional, Set, Type, Union, Iterable, Mapping
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
+from veredi.base.exceptions import VerediError
 
 # Game / ECS Stuff
 from ..ecs.event import EventManager
@@ -66,8 +67,6 @@ class DataSystem(System):
     def __init__(self,
                  sid:               SystemId,
                  *args:             Any,
-                 event_manager:     EventManager     = None,
-                 component_manager: ComponentManager = None,
                  **kwargs:          Any) -> None:
         super().__init__(sid, *args, **kwargs)
 
@@ -80,10 +79,6 @@ class DataSystem(System):
         # Apoptosis will be our end-of-game saving.
         # ---
 
-        self._event_manager: Optional[EventManager] = event_manager
-
-        self._component_manager: Optional[EventManager] = component_manager
-
     # --------------------------------------------------------------------------
     # System Registration / Definition
     # --------------------------------------------------------------------------
@@ -94,17 +89,6 @@ class DataSystem(System):
         this should run. Highest priority goes firstest.
         '''
         return SystemPriority.DATA_REQ
-
-    def required(self) -> Optional[Iterable[Component]]:
-        '''
-        Returns the Component types this system /requires/ in order to function
-        on an entity.
-
-        e.g. Perhaps a Combat system /requires/ Health and Defense components,
-        and uses others like Position, Attack... This function should only
-        return Health and Defense.
-        '''
-        return self._components
 
     # --------------------------------------------------------------------------
     # System Death
@@ -142,18 +126,19 @@ class DataSystem(System):
             # We rely on events to function, so we're not any good now...
             return self._health()
 
-        # Repository subs to:
+        # DataSystem subs to:
         # - DecodedEvent
-        #   The data needs to be stuffed into a component or something and
-        #   attached to an entity or something.
-        #   - Repository creates a DataLoadedEvent once it has done this.
+        #   The data has been interpreted into Python/Veredi. Now it needs to be
+        #   stuffed into a component or something and attached to an entity or
+        #   something.
+        #   - We create a DataLoadedEvent once this is done.
         self._event_manager.subscribe(DecodedEvent,
                                       self.event_decoded)
 
-        # Repository subs to:
+        # DataSystem subs to:
         # - SerializedEvent
         #   Once data is serialized to repo, we want to say it's been saved.
-        #   - Repository creates an DataSavedEvent once it has done this.
+        #   - We'll creates a DataSavedEvent to do this.
         self._event_manager.subscribe(SerializedEvent,
                                       self.event_serialized)
 
@@ -172,19 +157,18 @@ class DataSystem(System):
         multipass =  leeloo_dallas.get('registry', None)
         if not multipass:
             raise log.exception(
-                SystemError(
-                    f"{self.__class__.__name__} has no ComponentManager.",
-                    None,
-                    event.context),
                 None,
+                SystemError,
                 "{} could not create anything from event {}. "
                 "args: {}, kwargs: {}, context: {}",
                 self.__class__.__name__,
-                event, args, kwargs, context
+                event, context
             ) from error
 
-
-        retval = self._component_manager.create()
+        # Create this registered component from their "multipass" with this data.
+        retval = self._component_manager.create(multipass,
+                                                event.context,
+                                                data=doc)
         return retval
 
     def event_decoded(self, event: DecodedEvent) -> None:
@@ -194,15 +178,12 @@ class DataSystem(System):
         '''
         if not self._component_manager:
             raise log.exception(
-                SystemError(
-                    f"{self.__class__.__name__} has no ComponentManager.",
-                    None,
-                    event.context),
                 None,
-                "{} could not create anything from event {}. "
-                "args: {}, kwargs: {}, context: {}",
+                SystemError,
+                "{} could not create anything from event {} - it has no "
+                "ContextManager. context: {}",
                 self.__class__.__name__,
-                event, args, kwargs, context
+                event, event.context
             )
 
         # Check metadata doc?
@@ -215,19 +196,21 @@ class DataSystem(System):
         for doc in event.data:
             try:
                 if 'doc-type' in doc and doc['doc-type'] == 'component':
-                    cid = request_creation(doc, event)
+                    cid = self.request_creation(doc, event)
             except SystemError:
                 # Ignore these - bubble up.
                 raise
-            except VerediError:
+            except VerediError as error:
                 # Chain/wrap in a SystemError.
-                msg = (f"{self.__class__.__name__} failed when trying "
-                       "to create from data. event: {event}, "
-                       "args: {args}, kwargs: {kwargs}, context: {context}")
                 raise log.exception(
-                    SystemError(msg, None, event.context),
-                    None,
-                    msg)
+                    error,
+                    SystemError,
+                    "{} failed when trying "
+                    "to create from data. event: {}, "
+                    "context: {}",
+                    self.__class__.__name__, event,
+                    event.context,
+                    context=event.context) from error
 
             # Ask someone to attach to... something? An entity? Actually, no.
             # That should be in the event itself. We should just pass it along

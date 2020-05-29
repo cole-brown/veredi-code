@@ -25,6 +25,9 @@ from .component import (Component,
                         ComponentError)
 from .entity import Entity
 
+from ..event import EventManager
+from ..component import ComponentManager
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -57,13 +60,18 @@ class System:
     def __init__(self,
                  sid: SystemId,
                  *args: Any,
+                 event_manager:     EventManager     = None,
+                 component_manager: ComponentManager = None,
                  **kwargs: Any) -> None:
 
-        self._system_id:  SystemId                       = sid
-        self._life_cycle: SystemLifeCycle                = SystemLifeCycle.INVALID
+        self._system_id:         SystemId                       = sid
+        self._life_cycle:        SystemLifeCycle                = SystemLifeCycle.INVALID
 
-        self._components: Optional[Set[Type[Component]]] = None
-        self._ticks:      Optional[SystemTick]           = None
+        self._components:        Optional[Set[Type[Component]]] = None
+        self._ticks:             Optional[SystemTick]           = None
+
+        self._event_manager:     Optional[EventManager]         = event_manager
+        self._component_manager: Optional[EventManager]         = component_manager
 
     @property
     def id(self) -> SystemId:

@@ -8,7 +8,8 @@ Events related to game data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Optional, Set, Type, Union
+from typing import (Optional, Any, Type, Union,
+                    Set, MutableMapping, Mapping, Iterable)
 from io import TextIOBase
 import enum
 
@@ -61,6 +62,12 @@ from ..ecs.event import Event
 class DataEvent(Event):
     pass
 
+    # def create_args(self) -> Iterable:
+    #     return ()
+    #
+    # def create_kwargs(self) -> Mapping[str, Any]:
+    #     return {'data': self.data}
+
 
 # ------------------------------------------------------------------------------
 # General Data Events
@@ -93,7 +100,6 @@ class DataLoadedEvent(DataEvent):
     def reset(self) -> None:
         super().reset()
         self.component_id = ComponentId.INVALID
-
 
 class DataSavedEvent(DataEvent):
     pass
