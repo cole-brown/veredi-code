@@ -101,7 +101,7 @@ class DataComponent(Component):
                  data: MutableMapping[str, Any] = None,
                  **kwargs: Any) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
-        # Â§-TODO-Â§ [2020-05-26]: stuff here.
+        # §-TODO-§ [2020-05-26]: stuff here.
 
         # All persistent data should go here, or be gathered up in return value
         # of persistent property.
@@ -127,7 +127,7 @@ class DataComponent(Component):
           - DataRestrictedError (VerediError)
           - NotImplementedError - temporarily
         '''
-        # Â§-TODO-Â§ [2020-05-26]: Use component-template, component-requirements
+        # §-TODO-§ [2020-05-26]: Use component-template, component-requirements
         # here to do the verification?
         raise NotImplementedError
 

@@ -248,7 +248,7 @@ class DataSystem(System):
 
         # context = self._repository.context.merge(event.context)
         #
-        # # Â§-TODO-Â§ [2020-05-22]: Encode it.
+        # # §-TODO-§ [2020-05-22]: Encode it.
         # raise NotImplementedError
         # serialized = None
         #

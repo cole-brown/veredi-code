@@ -70,7 +70,7 @@ def _init_args(parser):
 
     # parser.set_defaults(func=cmd_base)
 
-    # Â§-TODO-Â§ [2020-04-21]: repository pattern type
+    # §-TODO-§ [2020-04-21]: repository pattern type
     #   e..g.? "file/yaml", "db/sqlite3"?
 
 
@@ -84,7 +84,7 @@ def _init_subcommands(parser):
       argparse.ArgumentParser with arguments added
 
     '''
-    # Â§-TODO-Â§ [2020-04-21]: this?
+    # §-TODO-§ [2020-04-21]: this?
     subparsers = parser.add_subparsers(help='sub-command help')
     #  - title - title for the sub-parser group in help output; by default
     #            “subcommands” if description is provided, otherwise uses title

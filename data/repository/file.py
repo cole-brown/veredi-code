@@ -39,7 +39,7 @@ from . import base
 
 PathType = NewType('PathType', Union[str, pathlib.Path])
 
-# Â§-TODO-Â§ [2020-05-23]: other file repos...
+# §-TODO-§ [2020-05-23]: other file repos...
 #   FileTreeDiffRepository - for saving history for players
 
 
@@ -535,7 +535,7 @@ class FileTreeTemplates(FileTreeRepository):
                    config_keys: Optional[Iterable[ConfigKeys]]) -> None:
         pass
 
-    # Â§-TODO-Â§ [2020-05-26]: pass in config for set_up.
+    # §-TODO-§ [2020-05-26]: pass in config for set_up.
     def set_up(self, codec: BaseCodec) -> None:
         '''
         Initialize our template registry.
