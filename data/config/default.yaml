@@ -14,13 +14,15 @@ display-name: Veredi Configuration
 --- !configuration
 
 game:
-  repository: veredi.repository.file-tree
+  repository:
+    type: veredi.repository.file-tree
+    directory: /var/veredi/repository/file-tree
   codec: veredi.codec.yaml
-  directory: test/game/repository/file-tree
 
 template:
-  repository: veredi.repository.file-tree
+  repository:
+    type: veredi.repository.file-tree
+    directory: /etc/veredi/templates/file-tree
   codec: veredi.codec.yaml
-  directory: test/game/template/file-tree
 
 # and more?
