@@ -12,8 +12,8 @@ import unittest
 from io import StringIO
 
 from veredi.zest import zmake
-from veredi.base.context import (UnitTestContext,
-                                 DataLoadContext,
+from veredi.base.context import UnitTestContext
+from veredi.data.context import (DataLoadContext,
                                  DataSaveContext,
                                  DataGameContext)
 from .system import RepositorySystem

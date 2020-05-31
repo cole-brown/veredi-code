@@ -10,8 +10,6 @@ All your Exceptions are belong to these classes.
 
 from typing import Optional
 
-from .context import VerediContext
-
 
 # ------------------------------------------------------------------------------
 # Exceptions
@@ -21,7 +19,7 @@ class VerediError(Exception):
     def __init__(self,
                  message: str,
                  cause: Optional[Exception],
-                 context: Optional[VerediContext]):
+                 context: Optional['VerediContext']):
         '''Context data included.'''
         self.message = message
         self.cause   = cause
@@ -41,6 +39,15 @@ class KeyError(VerediError):
     def __init__(self,
                  message: str,
                  cause: Optional[Exception],
-                 context: Optional[VerediContext]):
+                 context: Optional['VerediContext']):
+        '''With context data.'''
+        super().__init__(message, cause, context)
+
+
+class ContextError(VerediError):
+    def __init__(self,
+                 message: str,
+                 cause: Optional[Exception],
+                 context: Optional['VerediContext']):
         '''With context data.'''
         super().__init__(message, cause, context)

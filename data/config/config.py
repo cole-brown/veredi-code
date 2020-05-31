@@ -16,8 +16,8 @@ import enum
 from veredi.logger import log
 from veredi.base.exceptions import VerediError
 from veredi.base.context import (VerediContext,
-                                 PersistentContext,
-                                 DataBareContext)
+                                 PersistentContext)
+from veredi.data.context import DataBareContext
 from veredi.base.const import VerediHealth
 
 from .. import exceptions

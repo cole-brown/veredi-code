@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Helper class for managing context dicts for e.g. error messages.
+Helper classes for managing contexts for events, error messages, etc.
 '''
 
 # -----------------------------------------------------------------------------
@@ -14,6 +14,7 @@ import uuid
 import copy
 
 from veredi.logger import log
+from .exceptions import ContextError
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -127,6 +128,30 @@ class VerediContext:
         return self._ensure()
 
     # --------------------------------------------------------------------------
+    # Stuff / Things
+    # --------------------------------------------------------------------------
+
+    def add(self,
+            key: Any,
+            value: Any) -> None:
+        '''
+        Adds to our sub-context.
+
+        That is, this is a shortcut for:
+          self.sub[key] = value
+        with added checks.
+        '''
+        sub = self.sub
+        if key in sub:
+            log.error("Skipping add key '{}' to our sub-context - the key "
+                      "already exists. desired value: {}, current value: {}, "
+                      "subcontext: {}",
+                      key, value, sub[key],
+                      sub)
+            return
+        sub[key] = value
+
+    # --------------------------------------------------------------------------
     # Getters / Mergers
     # --------------------------------------------------------------------------
 
@@ -146,6 +171,20 @@ class VerediContext:
         '''
         if other is None:
             merge_with = {}
+        elif other is self:
+            raise log.exception(
+                None,
+                ContextError,
+                "Cannot merge our context with ourself.",
+                context=self)
+        elif isinstance(other, PersistentContext):
+            raise log.exception(
+                None,
+                ContextError,
+                "Cannot merge our context into a PersistentContext."
+                "Us: {}, Other(merge-to): {}",
+                self, other,
+                context=self)
         elif isinstance(other, dict):
             # This was for catching any "a context is a dict" places that still
             # existed back when VerediContext was created. It can probably be
@@ -177,6 +216,11 @@ class VerediContext:
     # To String
     # --------------------------------------------------------------------------
 
+    def _pretty(self):
+        from veredi.logger import pretty
+        return pretty.indented(f"{self.__class__.__name__}:\n"
+                               + pprint.pformat(self._get()))
+
     def __str__(self):
         return f"{self.__class__.__name__}: {str(self._get())}"
 
@@ -185,125 +229,6 @@ class VerediContext:
 
     def __repr__(self):
         return f"<{self.__repr_name__()}: {str(self._get())}>"
-
-
-# ------------------------------------------------------------------------------
-# Data Context
-# ------------------------------------------------------------------------------
-
-class BaseDataContext(VerediContext):
-    def __repr_name__(self):
-        return 'DataCtx'
-
-
-class DataBareContext(BaseDataContext):
-    def __init__(self,
-                 name: str,
-                 key:  str,
-                 load: Optional[List[Any]] = None,
-                 starting_context: Optional[Dict[str, Any]] = None) -> None:
-        '''
-        Initialize DataBareContext with name, key, and some list called 'load'.
-        '''
-        super().__init__(name, key, starting_context)
-        self._load = load
-        self.sub['load'] = load
-
-    @property
-    def load(self):
-        return self._load
-
-    def __repr_name__(self):
-        return 'DBareCtx'
-
-
-# §-TODO-§ [2020-05-30]: Move these to game folder?
-class DataGameContext(BaseDataContext):
-
-    @enum.unique
-    class Type(enum.Enum):
-        PLAYER  = 'player'
-        MONSTER = 'monster'
-        NPC     = 'npc'
-        ITEM    = 'item'
-        # etc...
-
-        def __str__(self):
-            return str(self.value).lower()
-
-    REQUEST_LOAD = 'load-request'
-    REQUEST_SAVE = 'save-request'
-
-    REQUEST_TYPE = 'type'
-    REQUEST_CAMPAIGN = 'campaign'
-    REQUEST_KEYS = {
-        Type.PLAYER:  [ 'user',     'player'  ],
-        Type.MONSTER: [ 'family',   'monster' ],
-        Type.NPC:     [ 'family',   'npc'     ],
-        Type.ITEM:    [ 'category', 'item'    ],
-    }
-
-    def __init__(self,
-                 name:     str,
-                 key:      str,
-                 type:     'DataGameContext.Type',
-                 campaign: str,
-                 starting_context: Optional[Dict[str, Any]] = None) -> None:
-        '''
-        Initialize DataGameContext with name, key, and type.
-        '''
-        super().__init__(name, key, starting_context)
-        self._type = type
-
-        # Save our request type, request keys into our context.
-        ctx = self.sub
-        for key in self.data_keys:
-            ctx[key] = None
-
-        ctx[self.REQUEST_TYPE] = str(type)
-        ctx[self.REQUEST_CAMPAIGN] = campaign
-
-    @property
-    def type(self) -> 'DataGameContext.Type':
-        return self._type
-
-    @property
-    def campaign(self) -> str:
-        return self.sub[self.REQUEST_CAMPAIGN]
-
-    @property
-    def data_keys(self) -> List[str]:
-        return self.REQUEST_KEYS[self.type]
-
-    @property
-    def data_values(self) -> List[str]:
-        return [self.sub.get(key, None) for key in self.data_keys]
-
-
-class DataLoadContext(DataGameContext):
-    def __init__(self,
-                 name:     str,
-                 type:     'DataGameContext.Type',
-                 campaign: str,
-                 starting_context: Optional[Dict[str, Any]] = None) -> None:
-        super().__init__(name, self.REQUEST_LOAD,
-                         type, campaign, starting_context)
-
-    def __repr_name__(self):
-        return 'DLCtx'
-
-
-class DataSaveContext(DataGameContext):
-    def __init__(self,
-                 name:     str,
-                 type:     'DataGameContext.Type',
-                 campaign: str,
-                 starting_context: Optional[Dict[str, Any]] = None) -> None:
-        super().__init__(name, self.REQUEST_SAVE,
-                         type, campaign, starting_context)
-
-    def __repr_name__(self):
-        return 'DSCtx'
 
 
 # ------------------------------------------------------------------------------
@@ -337,6 +262,8 @@ class PersistentContext(VerediContext):
     This is for e.g. systems and other things that are persistent/long lived but
     have context and want to send it to errors or merge it with events or what
     have you.
+
+    PersistentContexts cannot merge from other contexts, not even
 
     This class should always let the other context 'win' the merge. So e.g. a
     DataLoadContext merged with this should be a DataLoadContext. And this

@@ -20,8 +20,8 @@ import hashlib
 from veredi.logger import log
 from veredi.data.config.config import Configuration, ConfigKeys
 from veredi.base.context import (VerediContext,
-                                 PersistentContext,
-                                 BaseDataContext)
+                                 PersistentContext)
+from veredi.data.context import BaseDataContext
 
 from .. import exceptions
 # from ..codec import json

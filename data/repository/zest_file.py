@@ -12,8 +12,8 @@ import unittest
 import os
 import pathlib
 
-from veredi.base.context import (VerediContext,
-                                 DataGameContext,
+from veredi.base.context import VerediContext
+from veredi.data.context import (DataGameContext,
                                  DataLoadContext,
                                  DataSaveContext)
 from .file import FileTreeRepository
