@@ -111,7 +111,7 @@ class JsonCodec(BaseCodec):
           - exceptions.LoadError
             - wrapping a library error?
         '''
-        # Â§-TODO-Â§ [2020-05-22]: decode_all
+        # §-TODO-§ [2020-05-22]: decode_all
         raise NotImplementedError("TODO: this")
 
     def _load_all(self,
@@ -126,5 +126,5 @@ class JsonCodec(BaseCodec):
           - exceptions.LoadError
             - wrapped lib/module errors
         '''
-        # Â§-TODO-Â§ [2020-05-22]: load_all
+        # §-TODO-§ [2020-05-22]: load_all
         raise NotImplementedError("TODO: this")

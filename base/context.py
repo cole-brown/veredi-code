@@ -20,6 +20,16 @@ from veredi.logger import log
 # -----------------------------------------------------------------------------
 
 
+# §-TODO-§ [2020-05-31]:
+# Move more specific contexts (e.g. DataContexts out to a more specific place?)
+
+# §-TODO-§ [2020-05-31]:   - context rework?
+# §-TODO-§ [2020-05-31]:   - what do PersistentContexts pull from context that is used to create them?
+# §-TODO-§ [2020-05-31]:   - Only pass around context - stuff construction data into it?
+#    - Remove *args, **kwargs from my classes entirely?
+#    - Leave in things passing along or creating things blindly (e.g. registry.create)
+
+
 # -----------------------------------------------------------------------------
 # Actual Contexts
 # -----------------------------------------------------------------------------
@@ -80,7 +90,7 @@ class VerediContext:
         Sets our context's key (aka the context dict key for our subcontext
         data dict) (e.g. "YamlCodec" context key is "codec").
         '''
-        context = self.get()
+        context = self._get()
         sub_context = context.pop(self._key, None)
         self._key = value
         context[self._key] = sub_context
@@ -105,8 +115,9 @@ class VerediContext:
         self.data[key] = value
 
     # --------------------------------------------------------------------------
-    # Sub-Context Square Brackets!
+    # Sub-Context Square Brackets! (context.sub['hi'])
     # --------------------------------------------------------------------------
+    # Also just for, like, getting at the sub-context data.
 
     @property
     def sub(self) -> Dict[str, Any]:
@@ -119,17 +130,7 @@ class VerediContext:
     # Getters / Mergers
     # --------------------------------------------------------------------------
 
-    def subcontext(self, key=None) -> Optional[Dict[str, Any]]:
-        '''
-        Returns context[key], or if key is None, returns our subcontext.
-        '''
-        if key is None:
-            key = self.key
-
-        context = self.get()
-        return context.get(key, None)
-
-    def get(self) -> Dict[str, str]:
+    def _get(self) -> Dict[str, str]:
         '''
         Returns our context dictionary. If it doesn't exist, creates it with
         our bare sub-entry.
@@ -146,12 +147,15 @@ class VerediContext:
         if other is None:
             merge_with = {}
         elif isinstance(other, dict):
+            # This was for catching any "a context is a dict" places that still
+            # existed back when VerediContext was created. It can probably be
+            # deleted someday.
             raise TypeError('Context needs to merge with Context, not dict. '
                             f'{str(self)} merge with: {str(other)}')
         else:
-            merge_with = other.get()
+            merge_with = other._get()
 
-        context = self.get()
+        context = self._get()
         # Turn view of keys into list so we can change dictionary as we go.
         for key in list(context.keys()):
             merge_key = key
@@ -174,13 +178,13 @@ class VerediContext:
     # --------------------------------------------------------------------------
 
     def __str__(self):
-        return f"{self.__class__.__name__}: {str(self.get())}"
+        return f"{self.__class__.__name__}: {str(self._get())}"
 
     def __repr_name__(self):
         return self.__class__.__name__[:1] + 'Ctx'
 
     def __repr__(self):
-        return f"<{self.__repr_name__()}: {str(self.get())}>"
+        return f"<{self.__repr_name__()}: {str(self._get())}>"
 
 
 # ------------------------------------------------------------------------------
@@ -252,7 +256,7 @@ class DataGameContext(BaseDataContext):
         self._type = type
 
         # Save our request type, request keys into our context.
-        ctx = self.subcontext()
+        ctx = self.sub
         for key in self.data_keys:
             ctx[key] = None
 
@@ -289,7 +293,6 @@ class DataLoadContext(DataGameContext):
         return 'DLCtx'
 
 
-
 class DataSaveContext(DataGameContext):
     def __init__(self,
                  name:     str,
@@ -318,7 +321,7 @@ class UnitTestContext(VerediContext):
                           test_name + '.' + test_name),
                          'unit-testing',
                          starting_context)
-        ctx_data = self.get()
+        ctx_data = self._get()
         ctx_data[self.key] = data
 
     def __repr_name__(self):
@@ -356,9 +359,9 @@ class PersistentContext(VerediContext):
             raise TypeError('Context needs to copy-to with Context, not dict. '
                             f'{str(self)} copy-to: {str(other)}')
         else:
-            copy_to = other.get()
+            copy_to = other._get()
 
-        context = self.get()
+        context = self._get()
         for key in context:
             copy_key = key
             if key in copy_to:
@@ -393,9 +396,9 @@ class PersistentContext(VerediContext):
                             'Context, not dict. '
                             f'{str(self)} other: {str(other)}')
         else:
-            import_from = other.get()
+            import_from = other._get()
 
-        context = self.get()
+        context = self._get()
         for key in import_from:
             copy_key = key
             if key in context:
@@ -419,7 +422,7 @@ class PersistentContext(VerediContext):
         '''
         other = other_class(self.name, self.key,
                             *args,
-                            starting_context=copy.deepcopy(self.get()),
+                            starting_context=copy.deepcopy(self._get()),
                             **kwargs)
 
         return other
@@ -429,10 +432,10 @@ class PersistentContext(VerediContext):
     # --------------------------------------------------------------------------
 
     def __str__(self):
-        return f"{self.__class__.__name__}: {str(self.get())}"
+        return f"{self.__class__.__name__}: {str(self._get())}"
 
     def __repr_name__(self):
         return self.__class__.__name__[:3] + 'Ctx'
 
     def __repr__(self):
-        return f"<{self.__repr_name__()}: {str(self.get())}>"
+        return f"<{self.__repr_name__()}: {str(self._get())}>"

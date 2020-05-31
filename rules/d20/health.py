@@ -79,7 +79,7 @@ class HealthComponent(DataComponent):
         '''
         Verifies our data against a template/requirements data set.
         '''
-        # Â§-TODO-Â§ [2020-05-26]: verify against template/reqs.
+        # §-TODO-§ [2020-05-26]: verify against template/reqs.
         # For now, simpler verify...
 
         if not self._persistent:

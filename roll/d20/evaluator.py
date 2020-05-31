@@ -154,7 +154,7 @@ class Outputter:
         for branch in Outputter._walk(root):
             operator = branch.expr_str(options)
             branch_output = []
-            # Â§-TODO-Â§ [2020-04-27]: hm... need a dict or something for the
+            # §-TODO-§ [2020-04-27]: hm... need a dict or something for the
             # strings? Like for saving a branch, then getting it back next step
             # to fold into the final output? Or can I just walk and push things?
             for child in branch.children:
