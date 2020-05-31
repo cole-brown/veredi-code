@@ -58,7 +58,7 @@ from ..event import (
 # Code
 # -----------------------------------------------------------------------------
 
-# Â§-TODO-Â§ [2020-05-22]: Saving/Loading system...
+# §-TODO-§ [2020-05-22]: Saving/Loading system...
 # DirtyFlagSystem: looks for a dirty flag, fires off encode events?
 #   - or name it DataSaveSystem?
 #   - or name it DataSystem?
@@ -83,7 +83,7 @@ class CodecSystem(System):
         # # Apoptosis will be our end-of-game saving.
         # ---
 
-        # Â§-TODO-Â§ [2020-05-30]: remove this - set up unit/integration/whatever
+        # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
         # tests with our test configs.
         if not self._codec:
             # TODO: Event to ask ConfigSystem what the specific codec is?
@@ -202,7 +202,7 @@ class CodecSystem(System):
         '''
         context = self._codec.context.merge(event.context)
 
-        # Â§-TODO-Â§ [2020-05-22]: Encode it.
+        # §-TODO-§ [2020-05-22]: Encode it.
         raise NotImplementedError
         encoded = None
 

@@ -53,7 +53,7 @@ from ..event import (
 # Code
 # -----------------------------------------------------------------------------
 
-# Â§-TODO-Â§ [2020-05-22]: Saving/Loading system...
+# §-TODO-§ [2020-05-22]: Saving/Loading system...
 # DirtyFlagSystem: looks for a dirty flag, fires off encode events?
 #   - or name it DataSaveSystem?
 #   - or name it DataSystem?
@@ -78,7 +78,7 @@ class RepositorySystem(System):
         # # Apoptosis will be our end-of-game saving.
         # ---
 
-        # Â§-TODO-Â§ [2020-05-30]: remove this - set up unit/integration/whatever
+        # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
         # tests with our test configs.
         if not self._repository:
             # TODO: Event to ask ConfigSystem what the specific repository is?
@@ -199,7 +199,7 @@ class RepositorySystem(System):
         '''
         context = self._repository.context.merge(event.context)
 
-        # Â§-TODO-Â§ [2020-05-22]: Encode it.
+        # §-TODO-§ [2020-05-22]: Encode it.
         raise NotImplementedError
         serialized = None
 
