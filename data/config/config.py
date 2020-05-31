@@ -32,7 +32,7 @@ THIS_DIR = pathlib.Path(__file__).resolve().parent
 DEFAULT_NAME = "default.yaml"
 
 
-# §-TODO-§ [2020-05-30]: replace with some other way of verifying?..
+# Â§-TODO-Â§ [2020-05-30]: replace with some other way of verifying?..
 # This is growing a bit fast?
 @enum.unique
 class ConfigKeys(enum.Enum):
@@ -272,7 +272,7 @@ class Configuration:
     # Load Config Stuff
     # --------------------------------------------------------------------------
 
-    # §-TODO-§ [2020-05-06]: Change data into stuff we can use.
+    # Â§-TODO-Â§ [2020-05-06]: Change data into stuff we can use.
     # Classes and suchlike...
     def _set_up(self) -> VerediHealth:
         '''Raises ConfigError'''

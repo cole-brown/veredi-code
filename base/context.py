@@ -213,7 +213,7 @@ class DataBareContext(BaseDataContext):
         return 'DBareCtx'
 
 
-# §-TODO-§ [2020-05-30]: Move these to game folder?
+# Â§-TODO-Â§ [2020-05-30]: Move these to game folder?
 class DataGameContext(BaseDataContext):
 
     @enum.unique
