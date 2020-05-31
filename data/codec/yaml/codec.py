@@ -9,13 +9,14 @@ Aka YAML Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, NewType, List, Dict, TextIO, Any
+from typing import Optional, Union, Iterable, NewType, List, Dict, TextIO, Any
 import yaml
 
 from veredi.logger import log
 from veredi.base.context import VerediContext
 
 from veredi.data.config.registry import register
+from veredi.data.config.config import Configuration, ConfigKeys
 from veredi.data import exceptions
 
 from ..base import BaseCodec, CodecOutput
@@ -42,10 +43,21 @@ class YamlCodec(BaseCodec):
     _CONTEXT_NAME = 'yaml'
     _CONTEXT_KEY  = 'codec'
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 context:      Optional[VerediContext]        = None,
+                 config:       Optional[Configuration]        = None,
+                 config_keys:  Optional[Iterable[ConfigKeys]] = None) -> None:
         super().__init__(YamlCodec._CODEC_NAME,
                          YamlCodec._CONTEXT_NAME,
-                         YamlCodec._CONTEXT_KEY)
+                         YamlCodec._CONTEXT_KEY,
+                         context,
+                         config,
+                         config_keys)
+
+    def _configure(self,
+                   config:      Optional[Configuration],
+                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+        pass
 
     def decode(self,
                stream: TextIO,

@@ -102,5 +102,5 @@ def create(dotted_keys_str: str,
         raise log.exception(
             error,
             exceptions.ConfigError,
-            "Registry failed creating via '{}' with: args: {}, kwargs: {}",
+            "Registry failed creating '{}' with: args: {}, kwargs: {}",
             registration, args, kwargs) from error

@@ -22,7 +22,9 @@ import enum
 
 from veredi.logger import log
 from veredi.data.config.registry import register
-from veredi.base.context import (PersistentContext,
+from veredi.data.config.config import Configuration, ConfigKeys
+from veredi.base.context import (VerediContext,
+                                 PersistentContext,
                                  DataBareContext,
                                  DataGameContext)
 from veredi.data.codec.base import BaseCodec
@@ -37,7 +39,7 @@ from . import base
 
 PathType = NewType('PathType', Union[str, pathlib.Path])
 
-# §-TODO-§ [2020-05-23]: other file repos...
+# Â§-TODO-Â§ [2020-05-23]: other file repos...
 #   FileTreeDiffRepository - for saving history for players
 
 
@@ -121,16 +123,38 @@ class FileBareRepository(base.BaseRepository):
     _REPLACEMENT = '_'
 
     def __init__(self,
-                 path_safing_fn: Optional[Callable[[str], str]] = None
+                 path_safing_fn: Optional[Callable[[str], str]] = None,
+                 context:        Optional[VerediContext]        = None,
+                 config:         Optional[Configuration]        = None,
+                 config_keys:    Optional[Iterable[ConfigKeys]] = None
             ) -> None:
-        super().__init__(self._REPO_NAME, self._CONTEXT_NAME, self._CONTEXT_KEY)
-
+        self._root = None
         # Use user-defined or set to our default.
         self.fn_path_safing = path_safing_fn or self._to_human_readable
+
+        super().__init__(self._REPO_NAME,
+                         self._CONTEXT_NAME,
+                         self._CONTEXT_KEY,
+                         context,
+                         config,
+                         config_keys)
+
+    def _configure(self,
+                   config:      Optional[Configuration],
+                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+        pass
 
     # --------------------------------------------------------------------------
     # Load Methods
     # --------------------------------------------------------------------------
+
+    @property
+    def root(self) -> pathlib.Path:
+        '''
+        Returns the root of the repository.
+        '''
+        log.debug("root is: {}", self._root)
+        return self._root
 
     def load(self,
              context: DataBareContext) -> TextIOBase:
@@ -184,6 +208,7 @@ class FileBareRepository(base.BaseRepository):
         Turns data repo keys in the context into an id we can use to retrieve
         the data. Keys are safe and ready to go.
         '''
+        self._root = context.load.parent
         return context.load
 
     def _id_to_path(self,
@@ -224,8 +249,8 @@ class FileBareRepository(base.BaseRepository):
     # --------------------------------------------------------------------------
     @staticmethod
     def _to_human_readable(string: str) -> str:
-        return FileTreeRepository._HUMAN_SAFE.sub(
-            FileTreeRepository._REPLACEMENT,
+        return FileBareRepository._HUMAN_SAFE.sub(
+            FileBareRepository._REPLACEMENT,
             string)
 
     # --------------------------------------------------------------------------
@@ -252,20 +277,52 @@ class FileTreeRepository(base.BaseRepository):
     _REPLACEMENT = '_'
 
     def __init__(self,
-                 directory: PathType,
-                 path_safing_fn: Optional[Callable[[str], str]] = None
+                 directory:      Optional[PathType]             = None,
+                 path_safing_fn: Optional[Callable[[str], str]] = None,
+                 context:        Optional[VerediContext]        = None,
+                 config:         Optional[Configuration]        = None,
+                 config_keys:    Optional[Iterable[ConfigKeys]] = None
             ) -> None:
-        super().__init__(self._REPO_NAME, self._CONTEXT_NAME, self._CONTEXT_KEY)
+        self._root = None
 
-        # Resolve into an absolute path.
-        self.root = pathlib.Path(directory).resolve()
+        # Unit-test / override
+        if directory:
+            self._root = pathlib.Path(directory).resolve()
 
         # Use user-defined or set to our default.
         self.fn_path_safing = path_safing_fn or self._to_human_readable
 
+        super().__init__(self._REPO_NAME,
+                         self._CONTEXT_NAME,
+                         self._CONTEXT_KEY,
+                         context,
+                         config,
+                         config_keys)
+
+    def _configure(self,
+                   config:      Optional[Configuration],
+                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+        '''
+        Allows repos to grab anything from the config data that they need to
+        set up themselves.
+        '''
+        self._root = config.path(ConfigKeys.GAME,
+                                 ConfigKeys.REPO,
+                                 ConfigKeys.DIR)
+        log.debug("Set my root to: {}", self.root)
+        log.debug("Set my root to: {}", self.root)
+
     # --------------------------------------------------------------------------
     # Load Methods
     # --------------------------------------------------------------------------
+
+    @property
+    def root(self) -> pathlib.Path:
+        '''
+        Returns the root of the repository.
+        '''
+        log.debug("root is: {}", self._root)
+        return self._root
 
     def load(self,
              context: DataGameContext) -> TextIOBase:
@@ -454,15 +511,31 @@ class FileTreeRepository(base.BaseRepository):
 @register('veredi', 'repository', 'templates', 'file-tree')
 class FileTreeTemplates(FileTreeRepository):
 
+    _REPO_NAME   = 'file-tree'
+    _CONTEXT_NAME = 'file-tree'
+    _CONTEXT_KEY  = 'templates'
+
     def __init__(self,
-                 directory: PathType,
-                 path_safing_fn: Optional[Callable[[str], str]] = None
+                 directory:      Optional[PathType]             = None,
+                 path_safing_fn: Optional[Callable[[str], str]] = None,
+                 context:        Optional[VerediContext]        = None,
+                 config:         Optional[Configuration]        = None,
+                 config_keys:    Optional[Iterable[ConfigKeys]] = None
             ) -> None:
-        super().__init__(directory, path_safing_fn)
+        super().__init__(directory,
+                         path_safing_fn,
+                         context,
+                         config,
+                         config_keys)
 
         self._registry: Dict[str, pathlib.Path] = {}
 
-    # §-TODO-§ [2020-05-26]: pass in config for set_up.
+    def _configure(self,
+                   config:      Optional[Configuration],
+                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+        pass
+
+    # Â§-TODO-Â§ [2020-05-26]: pass in config for set_up.
     def set_up(self, codec: BaseCodec) -> None:
         '''
         Initialize our template registry.

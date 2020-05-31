@@ -64,12 +64,13 @@ class SystemManager(EcsManagerWithEvents):
                  debug_flags:       Optional[DebugFlag]) -> None:
         '''Initializes this thing.'''
         self._debug:             Optional[DebugFlag]        = debug_flags
+        self._config:            Optional[Configuration]    = config
         self._event_manager:     Optional[EventManager]     = event_manager
         self._component_manager: Optional[ComponentManager] = component_manager
 
-        self._system_id:      MonotonicIdGenerator     = MonotonicIdGenerator(SystemId)
-        self._system_create:  Set[SystemId]            = set()
-        self._system_destroy: Set[SystemId]            = set()
+        self._system_id:      MonotonicIdGenerator = MonotonicIdGenerator(SystemId)
+        self._system_create:  Set[SystemId]        = set()
+        self._system_destroy: Set[SystemId]        = set()
 
         # TODO: Pool instead of allowing stuff to be allocated/deallocated?
         self._system:         Dict[SystemId, System]   = {}
@@ -111,7 +112,12 @@ class SystemManager(EcsManagerWithEvents):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return VerediHealth.HEALTY
+        for sid in self._system:
+            system = self._system[sid]
+            if system:
+                system.subscribe(event_manager)
+
+        return VerediHealth.HEALTHY
 
     def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
@@ -119,6 +125,9 @@ class SystemManager(EcsManagerWithEvents):
         '''
         # Mark every ent for destruction, then run destruction.
         for sid in self._system:
+            system = self._system[sid]
+            if system:
+                system.apoptosis(time)
             self.destroy(sid)
         self.destruction(time)
 
@@ -245,6 +254,7 @@ class SystemManager(EcsManagerWithEvents):
         # on init.
 
         system = sys_class(sid, *args,
+                           config=self._config,
                            event_manager=self._event_manager,
                            component_manager=self._component_manager,
                            **kwargs)

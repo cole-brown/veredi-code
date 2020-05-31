@@ -113,7 +113,7 @@ class Test_CodecSystem(unittest.TestCase):
             self.event_manager.publish()
             self.assertTrue(self.events)
 
-            # §-TODO-§ [2020-05-22]: test what we got back!
+            # Â§-TODO-Â§ [2020-05-22]: test what we got back!
             received = self.events[0]
             self.assertIsNotNone(received)
             self.assertEqual(type(received), DecodedEvent)

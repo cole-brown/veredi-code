@@ -152,7 +152,8 @@ class VerediContext:
             merge_with = other.get()
 
         context = self.get()
-        for key in context:
+        # Turn view of keys into list so we can change dictionary as we go.
+        for key in list(context.keys()):
             merge_key = key
             if key in merge_with:
                 log.error(
@@ -212,6 +213,7 @@ class DataBareContext(BaseDataContext):
         return 'DBareCtx'
 
 
+# §-TODO-§ [2020-05-30]: Move these to game folder?
 class DataGameContext(BaseDataContext):
 
     @enum.unique

@@ -13,7 +13,7 @@ from typing import Any, Optional, Set, Type, Union, Iterable
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
-from veredi.data.config import registry
+from veredi.data.config.config import Configuration, ConfigKeys
 from veredi.data.codec.base import BaseCodec
 from veredi.base.context import VerediContext
 
@@ -68,6 +68,8 @@ class CodecSystem(System):
                  sid: SystemId,
                  *args: Any,
                  **kwargs: Any) -> None:
+
+        self._codec: Optional[BaseCodec] = None
         super().__init__(sid, *args, **kwargs)
 
         # ---
@@ -81,17 +83,26 @@ class CodecSystem(System):
         # # Apoptosis will be our end-of-game saving.
         # ---
 
-        self._event_manager: Optional[EventManager] = None
-
-        # TODO: Event to ask ConfigSystem what the specific codec is?
-        # Maybe that's what we need a SET_UP tick for?
-        # self._codec: Optional[BaseCodec] = None
-        from veredi.data.codec.yaml.codec import YamlCodec
-        self._codec: Optional[BaseCodec] = YamlCodec()
+        # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
+        # tests with our test configs.
+        if not self._codec:
+            # TODO: Event to ask ConfigSystem what the specific codec is?
+            # Maybe that's what we need a SET_UP tick for?
+            # self._codec: Optional[BaseCodec] = None
+            from veredi.data.codec.yaml.codec import YamlCodec
+            self._codec: Optional[BaseCodec] = YamlCodec()
 
     # --------------------------------------------------------------------------
-    # System Registration / Definition
+    # System Set Up
     # --------------------------------------------------------------------------
+
+    def _configure(self, config: Configuration) -> None:
+        '''
+        Make our repo from config data.
+        '''
+        self._codec = config.make(None,
+                                  ConfigKeys.GAME,
+                                  ConfigKeys.CODEC)
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
