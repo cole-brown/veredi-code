@@ -9,12 +9,13 @@ Aka ___ Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, NewType, List, Dict, TextIO, Any
+from typing import Optional, Union, Iterable, NewType, List, Dict, TextIO, Any
 from abc import ABC, abstractmethod
 import enum
 
 from veredi.data import exceptions
 from veredi.base.context import VerediContext
+from veredi.data.config.config import Configuration, ConfigKeys
 
 
 # -----------------------------------------------------------------------------
@@ -25,30 +26,6 @@ CodecOutput = NewType('CodecOutput',
                       Union[List[Any], Dict[str, Any], None])
 
 
-@enum.unique
-class CodecKeys(enum.Enum):
-    INVALID = None
-    DOC_TYPE = 'doc-type'
-
-
-@enum.unique
-class CodecDocuments(enum.Enum):
-    INVALID = None
-    METADATA = 'metadata'
-    CONFIG = 'configuration'
-    # etc...
-
-    def get(string: str) -> Optional['CodecDocuments']:
-        '''
-        Convert a string into a CodecDocuments enum value. Returns None if no
-        conversion is found. Isn't smart - no case insensitivity or anything.
-        Only compares input against our enum /values/.
-        '''
-        for each in CodecDocuments:
-            if string == each.value:
-                return each
-        return None
-
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
@@ -57,9 +34,12 @@ class CodecDocuments(enum.Enum):
 # @register('veredi', 'codec', 'CodecSubclass')
 class BaseCodec(ABC):
     def __init__(self,
-                 codec_name: str,
+                 codec_name:   str,
                  context_name: str,
-                 context_key: str) -> None:
+                 context_key:  str,
+                 context:      Optional[VerediContext]        = None,
+                 config:       Optional[Configuration]        = None,
+                 config_keys:  Optional[Iterable[ConfigKeys]] = None) -> None:
         '''
         `codec_name` should be short and will be lowercased. It should probably
         be like a filename extension, e.g. 'yaml', 'json'.
@@ -68,6 +48,9 @@ class BaseCodec(ABC):
         '''
         self._context = VerediContext(context_name, context_key)
         self._name = codec_name.lower()
+
+        if config:
+            self._configure(config, config_keys)
 
     # --------------------------------------------------------------------------
     # Codec Properties/Methods
@@ -95,6 +78,16 @@ class BaseCodec(ABC):
     # --------------------------------------------------------------------------
     # Abstract Methods
     # --------------------------------------------------------------------------
+
+    @abstractmethod
+    def _configure(self,
+                   config:      Optional[Configuration],
+                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+        '''
+        Allows repos to grab anything from the config data that they need to
+        set up themselves.
+        '''
+        raise NotImplementedError
 
     @abstractmethod
     def decode(self,

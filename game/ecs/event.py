@@ -11,10 +11,11 @@ Event Manager. Pub/Sub style. Subscribe to events by class type.
 from typing import Callable, Type, Any, Union, Optional
 import enum
 
-from . import exceptions
 from veredi.base.const import VerediHealth
 from veredi.data.config.config import Configuration
+from veredi.logger import log
 
+from . import exceptions
 from .manager import EcsManager
 from .base.identity import MonotonicId
 from veredi.base.context import VerediContext
@@ -36,7 +37,7 @@ class EcsManagerWithEvents(EcsManager):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return VerediHealth.HEALTY
+        return VerediHealth.HEALTHY
 
     def event(self,
               event_manager:              'EventManager',
@@ -143,6 +144,8 @@ class EventManager(EcsManager):
         Subscribe to all events triggered for `target_class` and any of its
         sub-classes.
         '''
+        log.debug("Adding subscriber {} for event {}.",
+                  handler_fn, target_class)
         subs = self._subscriptions.setdefault(target_class, [])
         subs.append(handler_fn)
 
@@ -174,6 +177,9 @@ class EventManager(EcsManager):
         Try not to `requires_immediate_publish` too much... it interrupts game
         flow/timing/whatever.
         '''
+        log.debug("Received {} for publishing {}.",
+                  event,
+                  "IMMEDIATELY" if requires_immediate_publish else "later")
         if requires_immediate_publish:
             self._push(event)
             return
@@ -184,14 +190,26 @@ class EventManager(EcsManager):
         Pushes one event to all of its subscribers.
         '''
         # Push for each class, parent classes, multiple inheritance stuff, etc.
+        has_subs = False
         for push_type in event.__class__.__mro__:
-            for notice in self._subscriptions.get(push_type, ()):
+            subs = self._subscriptions.get(push_type, ())
+            if subs:
+                log.debug("Pushing {} to its {} subcribers.",
+                          event, push_type)
+            for notice in subs:
+                has_subs = True
                 notice(event)
+
+        if not has_subs:
+            log.debug("Tried to push {}, but it has no subscribers.",
+                      event)
 
     def publish(self) -> None:
         '''
         Publishes all queued up events to any subscribers.
         '''
+        log.debug("Publishing {} events...",
+                  len(self._events))
         for each in self._events:
             self._push(each)
         self._events.clear()

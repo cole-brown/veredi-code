@@ -13,7 +13,7 @@ from typing import Any, Optional, Set, Type, Union, Iterable
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
-from veredi.data.config import registry
+from veredi.data.config.config import Configuration, ConfigKeys
 from veredi.data.repository.base import BaseRepository
 
 # Game / ECS Stuff
@@ -53,7 +53,7 @@ from ..event import (
 # Code
 # -----------------------------------------------------------------------------
 
-# Â§-TODO-Â§ [2020-05-22]: Saving/Loading system...
+# §-TODO-§ [2020-05-22]: Saving/Loading system...
 # DirtyFlagSystem: looks for a dirty flag, fires off encode events?
 #   - or name it DataSaveSystem?
 #   - or name it DataSystem?
@@ -63,6 +63,8 @@ class RepositorySystem(System):
                  sid: SystemId,
                  *args: Any,
                  **kwargs: Any) -> None:
+
+        self._repository = None
         super().__init__(sid, *args, **kwargs)
 
         # ---
@@ -76,18 +78,28 @@ class RepositorySystem(System):
         # # Apoptosis will be our end-of-game saving.
         # ---
 
-        self._event_manager: Optional[EventManager] = None
-
-        # TODO: Event to ask ConfigSystem what the specific repository is?
-        # Maybe that's what we need a SET_UP tick for?
-        # self._repository: Optional[BaseRepository] = None
-        from veredi.data.repository.file import FileTreeRepository
-        self._repository = FileTreeRepository(kwargs.get('repository_base',
-                                                         None))
+        # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
+        # tests with our test configs.
+        if not self._repository:
+            # TODO: Event to ask ConfigSystem what the specific repository is?
+            # Maybe that's what we need a SET_UP tick for?
+            # self._repository: Optional[BaseRepository] = None
+            from veredi.data.repository.file import FileTreeRepository
+            self._repository = FileTreeRepository(kwargs.get('repository_base',
+                                                             None))
 
     # --------------------------------------------------------------------------
-    # System Registration / Definition
+    # System Set Up
     # --------------------------------------------------------------------------
+
+    def _configure(self, config: Configuration) -> None:
+        '''
+        Make our repo from config data.
+        '''
+        self._repository = config.make(None,
+                                       ConfigKeys.GAME,
+                                       ConfigKeys.REPO,
+                                       ConfigKeys.TYPE)
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
@@ -187,7 +199,7 @@ class RepositorySystem(System):
         '''
         context = self._repository.context.merge(event.context)
 
-        # Â§-TODO-Â§ [2020-05-22]: Encode it.
+        # §-TODO-§ [2020-05-22]: Encode it.
         raise NotImplementedError
         serialized = None
 

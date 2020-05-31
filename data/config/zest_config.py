@@ -15,7 +15,7 @@ from datetime import date
 from veredi.logger import log
 
 from . import config
-from ..codec.base import CodecKeys, CodecDocuments
+from veredi.data.repository.file import FileTreeRepository
 
 from veredi.zest import zpath, zmake
 
@@ -31,8 +31,8 @@ from veredi.zest import zpath, zmake
 class Test_Configuration(unittest.TestCase):
 
     def setUp(self):
-        self.path = zpath.config('unit-test-target.yaml')
-        self.config = zmake.config(self.path, None, None)
+        self.path = zpath.config('test-target.yaml')
+        self.config = zmake.config(zpath.TestType.UNIT, self.path, None, None)
 
     def tearDown(self):
         self.data_root = None
@@ -47,30 +47,49 @@ class Test_Configuration(unittest.TestCase):
 
     def test_config_metadata(self):
         self.assertTrue(self.config._config)
-        self.assertEqual(self.config.get(CodecDocuments.METADATA,
-                                         'record-type'),
-                         'veredi.config')
-        self.assertEqual(self.config.get(CodecDocuments.METADATA,
-                                         'version'),
+        with log.LoggingManager.full_blast():
+            self.assertEqual(self.config.get(config.ConfigDocuments.METADATA,
+                                             config.ConfigKeys.REC),
+                             'veredi.config')
+        self.assertEqual(self.config.get(config.ConfigDocuments.METADATA,
+                                         config.ConfigKeys.VERSION),
                          date(2020, 5, 26))
-        self.assertEqual(self.config.get(CodecDocuments.METADATA,
-                                         'author'),
+        self.assertEqual(self.config.get(config.ConfigDocuments.METADATA,
+                                         config.ConfigKeys.AUTHOR),
                          'Cole Brown')
 
     def test_config_configdata(self):
         self.assertTrue(self.config._config)
-        self.assertEqual(self.config.get(CodecDocuments.CONFIG,
-                                         'doc-type'),
+        self.assertEqual(self.config.get(config.ConfigDocuments.CONFIG,
+                                         config.ConfigKeys.DOC),
                          'configuration')
-        self.assertEqual(self.config.get(CodecDocuments.CONFIG,
-                                         'game', 'repository'),
+        self.assertEqual(self.config.get(config.ConfigDocuments.CONFIG,
+                                         config.ConfigKeys.GAME,
+                                         config.ConfigKeys.REPO,
+                                         config.ConfigKeys.TYPE),
                          'veredi.repository.file-tree')
-        self.assertEqual(self.config.get(CodecDocuments.CONFIG,
-                                         'game', 'codec'),
+        self.assertEqual(self.config.get(config.ConfigDocuments.CONFIG,
+                                         config.ConfigKeys.GAME,
+                                         config.ConfigKeys.REPO,
+                                         config.ConfigKeys.DIR),
+                         'test-target-repo/file-tree')
+        self.assertEqual(self.config.get(config.ConfigDocuments.CONFIG,
+                                         config.ConfigKeys.GAME,
+                                         config.ConfigKeys.CODEC),
                          'veredi.codec.yaml')
-        self.assertEqual(self.config.get(CodecDocuments.CONFIG,
-                                         'game', 'directory'),
-                         'test/game/repository/file-tree')
+
+    def test_config_make_repo(self):
+
+        self.assertTrue(self.config._config)
+
+        with log.LoggingManager.ignored():
+            repo = self.config.make(None,
+                                    config.ConfigKeys.GAME,
+                                    config.ConfigKeys.REPO,
+                                    config.ConfigKeys.TYPE)
+
+        self.assertTrue(repo)
+        self.assertIsInstance(repo, FileTreeRepository)
 
 
 

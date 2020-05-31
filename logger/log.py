@@ -113,6 +113,12 @@ def init(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
     initialized = True
 
 
+def get_level() -> Level:
+    '''Returns current log level of logger, translated into Level enum.'''
+    level = Level(logger.level)
+    return level
+
+
 def set_level(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
     '''Change logger's log level. Options are:
       - log.CRITICAL
@@ -293,6 +299,65 @@ def critical(msg: str,
             msg,
             *args, **kwargs),
         stacklevel=stacklevel)
+
+
+# ------------------------------------------------------------------------------
+# Logging Context Manager
+# ------------------------------------------------------------------------------
+# A context manager for unit testing/debugging that will
+# turn up log level then turn it back to where it was when done.
+# e.g.:
+#   with log.manage.full_blast():
+#       something_weird_happening()
+# Also:
+#   with log.manage.disabled():
+#       something_log_spammy_we_dont_care_about_right_now()
+
+class LoggingManager:
+    def __init__(self, level: Level, no_op: bool = False):
+        self._desired = level
+        self._original = get_level()
+        self._do_nothing = no_op
+
+    def __enter__(self):
+        if self._do_nothing:
+            return
+
+        self._original = get_level()
+        set_level(self._desired)
+
+    def __exit__(self, type, value, traceback):
+        '''We do the same thing, regardless of an exception or not.'''
+        if self._do_nothing:
+            return
+
+        set_level(self._original)
+
+    # ---
+    # Specific Manager Types...
+    # ---
+    @staticmethod
+    def full_blast():
+        '''
+        This one sets logging to most verbose level - DEBUG.
+        '''
+        return LoggingManager(Level.DEBUG)
+
+    @staticmethod
+    def disabled():
+        '''
+        This one sets logging to least verbose level - CRITICAL.
+        '''
+        # §-TODO-§ [2020-05-30]: more 'disabled' than this?
+        return LoggingManager(Level.CRITICAL)
+
+    @staticmethod
+    def ignored():
+        '''
+        This one does nothing.
+        '''
+        return LoggingManager(Level.CRITICAL, no_op=True)
+
 
 
 # ------------------------------------------------------------------------------

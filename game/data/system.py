@@ -195,7 +195,12 @@ class DataSystem(System):
         cid = ComponentId.INVALID
         for doc in event.data:
             try:
+                if 'record-type' in doc:
+                    log.debug("Processing event {}, rec: {}, doc: {}.", event, doc['record-type'], doc['doc-type'])
+                else:
+                    log.debug("Processing event {}, rec: {}, doc: {}.", event, None, doc['doc-type'])
                 if 'doc-type' in doc and doc['doc-type'] == 'component':
+                    log.debug("Found component; requesting creation.")
                     cid = self.request_creation(doc, event)
             except SystemError:
                 # Ignore these - bubble up.

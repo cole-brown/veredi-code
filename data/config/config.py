@@ -23,13 +23,6 @@ from veredi.base.const import VerediHealth
 from .. import exceptions
 from . import registry
 
-from ..repository.base import BaseRepository
-
-# For reading our config file:
-from ..repository.file import FileBareRepository
-from ..codec.base import BaseCodec, CodecOutput, CodecKeys, CodecDocuments
-from ..codec.yaml import codec
-
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -39,31 +32,63 @@ THIS_DIR = pathlib.Path(__file__).resolve().parent
 DEFAULT_NAME = "default.yaml"
 
 
+# §-TODO-§ [2020-05-30]: replace with some other way of verifying?..
+# This is growing a bit fast?
 @enum.unique
 class ConfigKeys(enum.Enum):
     INVALID  = None
 
     # level 0
+    REC      = 'record-type'
+    VERSION  = 'version'
+    AUTHOR   = 'author'
+    DOC      = 'doc-type'  # meta-key - not in the actual data
     GAME     = 'game'
     TEMPLATE = 'template'
 
     # level 1
     REPO     = 'repository'
     CODEC    = 'codec'
-    DIR      = 'directory'
 
     # etc...
+    TYPE     = 'type'
+    DIR      = 'directory'
 
     def get(string: str) -> Optional['ConfigKeys']:
         '''
-        Convert a string into a CodecDocuments enum value. Returns None if no
+        Convert a string into a ConfigKeys enum value. Returns None if no
         conversion is found. Isn't smart - no case insensitivity or anything.
         Only compares input against our enum /values/.
         '''
-        for each in CodecDocuments:
+        for each in ConfigKeys:
             if string == each.value:
                 return each
         return None
+
+
+@enum.unique
+class ConfigDocuments(enum.Enum):
+    INVALID = None
+    METADATA = 'metadata'
+    CONFIG = 'configuration'
+    # etc...
+
+    def get(string: str) -> Optional['ConfigDocuments']:
+        '''
+        Convert a string into a ConfigDocuments enum value. Returns None if no
+        conversion is found. Isn't smart - no case insensitivity or anything.
+        Only compares input against our enum /values/.
+        '''
+        for each in ConfigDocuments:
+            if string == each.value:
+                return each
+        return None
+
+
+@enum.unique
+class CodecKeys(enum.Enum):
+    INVALID = None
+    DOC_TYPE = 'doc-type'
 
 
 # -----------------------------------------------------------------------------
@@ -90,12 +115,23 @@ class Configuration:
 
     def __init__(self,
                  config_path:  Optional[pathlib.Path]   = None,
-                 config_repo:  Optional[BaseRepository] = None,
-                 config_codec: Optional[BaseCodec]      = None):
+                 config_repo:  Optional['BaseRepository'] = None,
+                 config_codec: Optional['BaseCodec']      = None):
         '''Raises LoadError and ConfigError'''
-        self._path    = config_path or default_path()
-        self._repo    = config_repo or FileBareRepository(self._path)
-        self._codec   = config_codec or codec.YamlCodec()
+        self._path = config_path or default_path()
+
+        # Avoid a circular import
+        self._repo = config_repo
+        if not self._repo:
+            from ..repository.file import FileBareRepository
+            self._repo = FileBareRepository(self._path)
+
+        # Avoid a circular import
+        self._codec = config_codec
+        if not self._codec:
+            from ..codec.yaml import codec
+            self._codec = codec.YamlCodec()
+
 
         # Setup our context, import repo & codec's.
         self._context = PersistentContext('configuration', 'configuration')
@@ -156,12 +192,47 @@ class Configuration:
 
         return retval
 
+    def make(self,
+             context:  Optional[VerediContext],
+             *keys:    ConfigKeys) -> Optional[Any]:
+        '''
+        Gets value from these keys in our config data, then tries to have our
+        registry create that value.
+
+        e.g. config.make(ConfigKeys.GAME, ConfigKeys.REPO)
+
+        Returns thing created using keys or None.
+        '''
+        config_val = self.get(ConfigDocuments.CONFIG, *keys)
+        if config_val is None:
+            log.debug("Make requested for: {}. But we have no config "
+                      "value for that. context: {}",
+                      keys, context)
+            return None
+
+        if not context:
+            context = self.context
+
+        log.debug("Make requested for: {}. context: {}", keys, context)
+
+        # Assume their relevant data is one key higher up...
+        # e.g. if we're making the thing under keys (GAME, REPO, TYPE),
+        # then the repository we're making will want (GAME, REPO) as its
+        # root so it can get, say, DIRECTORY.
+        config_root=list(keys[:-1])
+        ret_val = self.create_registered(config_val,
+                                         context,
+                                         config=self,
+                                         config_keys=config_root)
+        log.debug("Made: {} from {}. context: {}", ret_val, keys, context)
+        return ret_val
+
     # --------------------------------------------------------------------------
     # Config Data
     # --------------------------------------------------------------------------
 
     def get(self,
-            doc_type: CodecDocuments,
+            doc_type: ConfigDocuments,
             *keys:    ConfigKeys) -> Optional[Any]:
         '''
         Get a configuration thingy from us given some keys use to walk into our
@@ -171,17 +242,31 @@ class Configuration:
         Returns None if couldn't find doc_type or a key in our config data.
         '''
         # Get document type data first.
-        data = self._config.get(doc_type, None)
+        doc_data = self._config.get(doc_type, None)
+        data = doc_data
         if data is None:
+            log.debug("No doc_type {} in our config data {}.",
+                      doc_type, self._config)
             return None
 
         # Now hunt for the keys they wanted...
         for key in keys:
-            data = data.get(key, None)
+            data = data.get(key.value, None)
             if data is None:
+                log.debug("No data for key {} in keys {} "
+                          "in our config data {}.",
+                          key, keys, doc_data)
                 return None
 
         return data
+
+    def path(self,
+            *keys: ConfigKeys) -> Optional[Any]:
+        '''
+        Get a field from the configuration data and return it as a pathlib.Path.
+        '''
+        value = self.get(ConfigDocuments.CONFIG, *keys)
+        return self._repo.root.joinpath(value).resolve()
 
     # --------------------------------------------------------------------------
     # Load Config Stuff
@@ -249,7 +334,7 @@ class Configuration:
 
         return VerediHealth.HEALTHY
 
-    def _load_doc(self, document: codec.CodecOutput) -> None:
+    def _load_doc(self, document: 'codec.CodecOutput') -> None:
         if isinstance(document, list):
                 raise log.exception(
                     error,
@@ -263,7 +348,7 @@ class Configuration:
               and CodecKeys.DOC_TYPE.value in document):
             # Save these to our config dict under their doc-type key.
             doc_type_str = document[CodecKeys.DOC_TYPE.value]
-            doc_type = CodecDocuments.get(doc_type_str)
+            doc_type = ConfigDocuments.get(doc_type_str)
             self._config[doc_type] = document
 
         else:

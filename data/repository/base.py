@@ -9,7 +9,7 @@ various backend implementations (db, file, etc).
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Dict
+from typing import Optional, Iterable
 from abc import ABC, abstractmethod
 
 from io import TextIOBase
@@ -18,8 +18,9 @@ import re
 import hashlib
 
 from veredi.logger import log
-from veredi.data.config.registry import register
-from veredi.base.context import (PersistentContext,
+from veredi.data.config.config import Configuration, ConfigKeys
+from veredi.base.context import (VerediContext,
+                                 PersistentContext,
                                  BaseDataContext)
 
 from .. import exceptions
@@ -39,9 +40,12 @@ from ..codec import yaml
 class BaseRepository(ABC):
 
     def __init__(self,
-                 repo_name: str,
+                 repo_name:    str,
                  context_name: str,
-                 context_key: str) -> None:
+                 context_key:  str,
+                 context:      Optional[VerediContext]        = None,
+                 config:       Optional[Configuration]        = None,
+                 config_keys:  Optional[Iterable[ConfigKeys]] = None) -> None:
         '''
         `repo_name` should be short-ish and will be lowercased. It should
         probably be, like, 'file', 'mysql', 'sqlite3' etc...
@@ -50,6 +54,8 @@ class BaseRepository(ABC):
         '''
         self._context = PersistentContext(context_name, context_key)
         self._name = repo_name.lower()
+        if config:
+            self._configure(config, config_keys)
 
     # --------------------------------------------------------------------------
     # Repo Properties/Methods
@@ -77,6 +83,16 @@ class BaseRepository(ABC):
     # --------------------------------------------------------------------------
     # Abstract Methods
     # --------------------------------------------------------------------------
+
+    @abstractmethod
+    def _configure(self,
+                   config:      Optional[Configuration],
+                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+        '''
+        Allows repos to grab anything from the config data that they need to
+        set up themselves.
+        '''
+        pass
 
     @abstractmethod
     def load(self,

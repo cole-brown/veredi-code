@@ -16,7 +16,7 @@ from veredi.logger import pretty
 from veredi.data.config.registry import register
 from veredi.data import exceptions
 
-from ..base import CodecKeys
+from veredi.data.config.config import CodecKeys
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -121,7 +121,7 @@ class VerediYamlTag(VerediYamlObject):
 # YAML... Tag?
 # ------------------------------------------------------------------------------
 
-# §-TODO-§ [2020-05-21]: Decided which to keep if these three remain the same:
+# Â§-TODO-Â§ [2020-05-21]: Decided which to keep if these three remain the same:
 # VerediYamlObject, VerediYamlTag, VerediYamlEntry
 class VerediYamlEntry(VerediYamlObject):
     # ---

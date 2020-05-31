@@ -60,8 +60,9 @@ class System:
     def __init__(self,
                  sid: SystemId,
                  *args: Any,
-                 event_manager:     EventManager     = None,
-                 component_manager: ComponentManager = None,
+                 config:            Optional[Configuration]    = None,
+                 event_manager:     Optional[EventManager]     = None,
+                 component_manager: Optional[ComponentManager] = None,
                  **kwargs: Any) -> None:
 
         self._system_id:         SystemId                       = sid
@@ -72,6 +73,9 @@ class System:
 
         self._event_manager:     Optional[EventManager]         = event_manager
         self._component_manager: Optional[EventManager]         = component_manager
+
+        if config:
+            self._configure(config)
 
     @property
     def id(self) -> SystemId:
@@ -96,8 +100,15 @@ class System:
         self._life_cycle = new_state
 
     # --------------------------------------------------------------------------
-    # System Registration / Definition
+    # System Set Up
     # --------------------------------------------------------------------------
+
+    def _configure(self, config: Configuration) -> None:
+        '''
+        Allows systems to grab anything from the config data that they need to
+        set up themselves.
+        '''
+        pass
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
@@ -147,7 +158,7 @@ class System:
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return VerediHealth.HEALTY
+        return VerediHealth.HEALTHY
 
     def event(self,
               event_manager:              'EventManager',

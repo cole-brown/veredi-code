@@ -220,7 +220,7 @@ class TimeManager:
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        return VerediHealth.HEALTY
+        return VerediHealth.HEALTHY
 
     def apoptosis(self) -> VerediHealth:
         '''
