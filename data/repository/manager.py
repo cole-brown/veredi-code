@@ -17,7 +17,7 @@ from .base import BaseRepository
 # -----------------------------------------------------------------------------
 
 
-# Â§-TODO-Â§ [2020-05-26]: delete this file?
+# §-TODO-§ [2020-05-26]: delete this file?
 
 
 
@@ -32,7 +32,7 @@ class RepositoryManager:
 
     '''
 
-    # Â§-TODO-Â§ [2020-05-26]: Take in config data, not already-constructed repos.
+    # §-TODO-§ [2020-05-26]: Take in config data, not already-constructed repos.
     def __init__(self,
                  repositories: Iterable[BaseRepository]):
         '''

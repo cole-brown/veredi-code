@@ -26,7 +26,7 @@ from . import base
 # Base yaml.YAMLObject?
 # ------------------------------------------------------------------------------
 
-# Â§-TODO-Â§ [2020-05-21]: YAML something or other so we can barf out context in
+# §-TODO-§ [2020-05-21]: YAML something or other so we can barf out context in
 # our errors? Or should we be throwing YAML errors instead of Veredi errors?
 
 
