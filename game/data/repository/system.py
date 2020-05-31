@@ -176,7 +176,7 @@ class RepositorySystem(System):
         Request for data to be loaded. We must ask the repo for it and pack it
         into a DeserializedEvent.
         '''
-        context = self._repository.context.merge(event.context)
+        context = self._repository.context.push(event.context)
 
         # Ask my repository for this data.
         # Load data info is in the request context.
@@ -197,7 +197,7 @@ class RepositorySystem(System):
         '''
         Data is encoded and now must be saved.
         '''
-        context = self._repository.context.merge(event.context)
+        context = self._repository.context.push(event.context)
 
         # §-TODO-§ [2020-05-22]: Encode it.
         raise NotImplementedError

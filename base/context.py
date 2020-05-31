@@ -8,7 +8,7 @@ Helper classes for managing contexts for events, error messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, Optional, Any, List, Type
+from typing import Optional, Any, Type, MutableMapping, Dict, List
 import enum
 import uuid
 import copy
@@ -42,7 +42,7 @@ class VerediContext:
     def __init__(self,
                  name: str,
                  key: str,
-                 starting_context: Optional[Dict[str, Any]] = None) -> None:
+                 starting_context: Optional[MutableMapping[str, Any]] = None) -> None:
         if starting_context:
             self.data = starting_context
         else:
@@ -163,54 +163,92 @@ class VerediContext:
         sub_context = self._ensure()
         return self.data
 
-    def merge(self,
-              other: Optional['VerediContext']) -> 'VerediContext':
+    def push(self,
+             other: Optional['VerediContext']) -> 'VerediContext':
         '''
-        Merge our context into other's context, then set our's to their's
-        (not a deep copy, currently).
+        Push our context into 'other'. Merges all our top-level keys, not just
+        our subcontext.
+
+        Assignment/shallow copy.
+
+        Returns `other`.
         '''
-        if other is None:
-            merge_with = {}
-        elif other is self:
+        self._merge(self, other, 'push', 'to')
+        return other
+
+    def pull(self,
+             other: Optional['VerediContext']) -> 'VerediContext':
+        '''
+        Pulls the other's context into our's. Merges all of other's top-level
+        keys, not just their subcontext.
+
+        Assignment/shallow copy.
+
+        Returns `self`.
+        '''
+        self._merge(other, self, 'pull', 'from')
+
+    def _merge(self,
+               m_from:      Optional['VerediContext'],
+               m_to:        Optional['VerediContext'],
+               verb:        str,
+               preposition: str) -> None:
+        '''
+        Merge 'from' context into 'to' context.
+
+        Assignment/shallow copy (not deep copy, currently).
+        '''
+        if m_from is None or m_to is None:
             raise log.exception(
                 None,
                 ContextError,
-                "Cannot merge our context with ourself.",
+                "Cannot {} a 'None' context. from: {}, to: {}",
+                verb, m_from, m_to,
                 context=self)
-        elif isinstance(other, PersistentContext):
+        elif m_to is m_from:
             raise log.exception(
                 None,
                 ContextError,
-                "Cannot merge our context into a PersistentContext."
-                "Us: {}, Other(merge-to): {}",
-                self, other,
+                "Cannot {} something with itself. from: {}, to: {}",
+                verb, m_from, m_to,
                 context=self)
-        elif isinstance(other, dict):
+        elif isinstance(m_to, PersistentContext):
+            raise log.exception(
+                None,
+                ContextError,
+                "Cannot {} {} a PersistentContext. from: {}, to: {}",
+                verb, preposition, m_from, m_to,
+                context=self)
+        elif isinstance(m_from, dict) or isinstance(m_to, dict):
             # This was for catching any "a context is a dict" places that still
             # existed back when VerediContext was created. It can probably be
             # deleted someday.
-            raise TypeError('Context needs to merge with Context, not dict. '
-                            f'{str(self)} merge with: {str(other)}')
-        else:
-            merge_with = other._get()
+            raise TypeError('Context needs to merge with Context, not dict. ',
+                            m_from, m_other)
 
-        context = self._get()
+        d_from = m_from._get()
+        d_to   = m_to._get()
+        self._merge_dicts(d_from, d_to, verb, preposition)
+
+    def _merge_dicts(self,
+                     d_from:      Dict[str, Any],
+                     d_to:        Dict[str, Any],
+                     verb:        str,
+                     preposition: str) -> None:
+
         # Turn view of keys into list so we can change dictionary as we go.
-        for key in list(context.keys()):
+        for key in d_from:
             merge_key = key
-            if key in merge_with:
+            if key in d_to:
                 log.error(
-                    "Merging dictionaries with key conflict: mine: {context}, "
-                    "merge_with: {merge_with}. My keys will get random values "
-                    "appended to de-conflict, but this could cause issues "
-                    "further along.",
-                    context=context,
-                    merge_with=merge_with)
+                    "Key conflict in context '{}' operation. "
+                    "Source key will get random string appended to de-conflict,"
+                    "but this could cause issues further along."
+                    "from: {}, to: {}",
+                    verb, d_from, d_to,
+                    context=self)
                 merge_key += '-' + uuid.uuid4().hex[:6]
-            merge_with[merge_key] = context[key]
-
-        self.data = merge_with
-        return self
+            d_to[merge_key] = d_from[key]
 
     # --------------------------------------------------------------------------
     # To String
@@ -236,18 +274,20 @@ class VerediContext:
 # ------------------------------------------------------------------------------
 
 class UnitTestContext(VerediContext):
-    def __init__(self, test_class, test_name,
-                 data, starting_context = None) -> None:
+    def __init__(self,
+                 test_class:       str,
+                 test_name:        str,
+                 data:             MutableMapping[str, Any],
+                 starting_context: MutableMapping[str, Any] = None) -> None:
         '''
-        Initialize Context with test name.
+        Initialize Context with test class/name.
         '''
-        super().__init__((test_class
-                          if not test_name else
-                          test_name + '.' + test_name),
+        super().__init__(test_class + '.' + test_name,
                          'unit-testing',
                          starting_context)
-        ctx_data = self._get()
-        ctx_data[self.key] = data
+        # Set our sub-context to the provided data.
+        ctx = self._get()
+        ctx[self.key] = data
 
     def __repr_name__(self):
         return 'UTCtx'
@@ -263,91 +303,61 @@ class PersistentContext(VerediContext):
     have context and want to send it to errors or merge it with events or what
     have you.
 
-    PersistentContexts cannot merge from other contexts, not even
-
-    This class should always let the other context 'win' the merge. So e.g. a
-    DataLoadContext merged with this should be a DataLoadContext. And this
-    merged with a DataLoadContext should also be a DataLoadContext.
-
-    Also, this should not take on its merged cousin's context. It is not really
-    a merge but a put.
+    PersistentContexts cannot pull() from other contexts - pull() only raises an
+    exception.
     '''
 
-    def merge(self,
-              other: Optional['VerediContext']) -> 'VerediContext':
+    def pull(self,
+             other: Optional['VerediContext']) -> 'VerediContext':
         '''
-        Not really a merge for PersistentContext!!!
-
-        Put our context into other's context.
+        Not allowed for PersistentContexts!
         '''
-        if other is None:
-            copy_to = {}
-        elif isinstance(other, dict):
-            raise TypeError('Context needs to copy-to with Context, not dict. '
-                            f'{str(self)} copy-to: {str(other)}')
-        else:
-            copy_to = other._get()
+        raise TypeError("PersistentContexts do not support 'pull()'. "
+                        "Try pull_to_sub() instead?",
+                        self, other)
 
-        context = self._get()
-        for key in context:
-            copy_key = key
-            if key in copy_to:
-                log.error(
-                    "Merging dictionaries with key conflict: mine: {context}, "
-                    "copy_to: {copy_to}. My keys will get random values "
-                    "appended to de-conflict, but this could cause issues "
-                    "further along.",
-                    context=context,
-                    copy_to=copy_to)
-                copy_key += '-' + uuid.uuid4().hex[:6]
-            copy_to[copy_key] = context[key]
-
-        # Do not set ours to theirs. Leave us as-is for the next
-        # ephemeral context.
-        # self.data = copy_to
-
-        # Also do not return ourself. Return the other one as it may have
-        # sub-class specific stuff it still needs to do.
-        return other
-
-    def import_to_sub(self,
-                      other: Optional['VerediContext']) -> None:
+    def pull_to_sub(self,
+                    other: Optional['VerediContext']) -> None:
         '''
         Pulls another context into our /sub/-context.
+
+        /Is/ a deepcopy.
+
+        Returns self.
         '''
-        import_from = None
+        d_from = None
         if other is None:
             return
         elif isinstance(other, dict):
-            raise TypeError('Context needs to import from another '
-                            'Context, not dict. '
-                            f'{str(self)} other: {str(other)}')
+            # This was for catching any "a context is a dict" places that still
+            # existed back when VerediContext was created. It can probably be
+            # deleted someday.
+            raise TypeError('Context needs to pull from another Context, '
+                            'not dict.',
+                            m_from, m_other)
         else:
-            import_from = other._get()
+            d_from = other._get()
 
-        context = self._get()
-        for key in import_from:
-            copy_key = key
-            if key in context:
-                log.error(
-                    "Merging dictionaries with key conflict: mine: {context}, "
-                    "import_from: {import_from}. Import key will get random "
-                    "values appended to de-conflict, but this could cause "
-                    "issues further along.",
-                    context=context,
-                    import_from=import_from)
-                copy_key += '-' + uuid.uuid4().hex[:6]
-            context[copy_key] = copy.deepcopy(import_from[key])
+        self._merge_dicts(copy.deepcopy(d_from),
+                          self.sub,
+                          'sub-pull',
+                          'from')
+
+        return other
 
     def spawn(self,
-              other_class: Optional[Type['VerediContext']],
-              *args: Any,
-              **kwargs: Any) -> None:
+              other_class:  Optional[Type['VerediContext']],
+              spawned_name: str,
+              spawned_key:  str,
+              *args:        Any,
+              **kwargs:     Any) -> None:
         '''
-        Makes a new instance of the passed in type w/ our context overwriting
-        its own.
+        Makes a new instance of the passed in type w/ a deep copy of our context
+        overwriting its own.
+
+        Returns spawned context.
         '''
-        other = other_class(self.name, self.key,
+        other = other_class(spawned_name, spawned_key,
                             *args,
                             starting_context=copy.deepcopy(self._get()),
                             **kwargs)

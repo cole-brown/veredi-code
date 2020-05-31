@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 import enum
 
 from veredi.data import exceptions
-from veredi.base.context import VerediContext
+from veredi.base.context import VerediContext, PersistentContext
 from veredi.data.config.config import Configuration, ConfigKeys
 
 
@@ -46,7 +46,7 @@ class BaseCodec(ABC):
 
         `context_name` and `context_key` are used for Event and Error context.
         '''
-        self._context = VerediContext(context_name, context_key)
+        self._context = PersistentContext(context_name, context_key)
         self._name = codec_name.lower()
 
         if config:

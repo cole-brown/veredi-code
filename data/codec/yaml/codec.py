@@ -103,7 +103,7 @@ class YamlCodec(BaseCodec):
             raise exceptions.LoadError(
                 "Loading yaml from stream resulted in no data:",
                 None,
-                self.context.merge(input_context)) from error
+                self.context.push(input_context)) from error
 
         # TODO: Here is where we'd check metadata for versions and stuff?
 
@@ -152,14 +152,14 @@ class YamlCodec(BaseCodec):
         try:
             data = yaml.safe_load(stream)
         except yaml.YAMLError as error:
-            ctx = self.context.merge(input_context)
-            log.error('YAML failed while loading the data. {} {}',
-                      error.__class__.__qualname__,
-                      ctx)
+            ctx = self.context.push(input_context)
             data = None
-            raise exceptions.LoadError("Error loading yaml from stream:",
-                                       error,
-                                       ctx) from error
+            raise log.exception(
+                error,
+                exceptions.LoadError,
+                'YAML failed while loading the data. {}',
+                ctx,
+                context=ctx) from error
         return data
 
     def _load_all(self,
@@ -186,14 +186,14 @@ class YamlCodec(BaseCodec):
             data = yaml.safe_load_all(stream)
             # print(f"{self.__class__.__name__}.decode_all: data = {data}")
         except yaml.YAMLError as error:
-            ctx = self.context.merge(input_context)
-            log.error('YAML failed while loading the file. {} {}',
-                      error.__class__.__qualname__,
-                      ctx)
+            ctx = self.context.push(input_context)
             data = None
-            raise exceptions.LoadError("Error loading yaml from stream:",
-                                       error,
-                                       ctx) from error
+            raise log.exception(
+                error,
+                exceptions.LoadError,
+                'YAML failed while loading all the data. {}',
+                ctx,
+                context=ctx) from error
 
         # safe_load_all() returns a generator. We don't want a generator... We
         # need to get the data out of the stream before the stream goes bye bye,

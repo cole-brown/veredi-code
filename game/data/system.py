@@ -246,7 +246,7 @@ class DataSystem(System):
         # it's done now?
 
 
-        # context = self._repository.context.merge(event.context)
+        # context = self._repository.context.push(event.context)
         #
         # # §-TODO-§ [2020-05-22]: Encode it.
         # raise NotImplementedError

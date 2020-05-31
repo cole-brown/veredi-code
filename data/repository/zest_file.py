@@ -65,7 +65,7 @@ class Test_FileTreeRepo(unittest.TestCase):
             raise exceptions.LoadError(
                 f"No DataGameContext.Type to ID conversion for: {type}",
                 None,
-                self.context.merge(context))
+                self.context.pull(context))
 
         return ctx, path
 
