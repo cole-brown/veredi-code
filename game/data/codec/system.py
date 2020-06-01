@@ -86,7 +86,7 @@ class CodecSystem(System):
         # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
         # tests with our test configs.
         if not self._codec:
-            # TODO: Event to ask ConfigSystem what the specific codec is?
+            # §-TODO-§: Event to ask ConfigSystem what the specific codec is?
             # Maybe that's what we need a SET_UP tick for?
             # self._codec: Optional[BaseCodec] = None
             from veredi.data.codec.yaml.codec import YamlCodec
@@ -180,7 +180,7 @@ class CodecSystem(System):
         '''
         # Get deserialized data stream from event.
         serial = event.data
-        context = self._codec.context.merge(event.context)
+        context = self._codec.context.push(event.context)
 
         # Send into my codec for decoding.
         decoded = self._codec.decode_all(serial, context)
@@ -200,7 +200,7 @@ class CodecSystem(System):
         '''
         Data wants saved. It must be encoded first.
         '''
-        context = self._codec.context.merge(event.context)
+        context = self._codec.context.push(event.context)
 
         # §-TODO-§ [2020-05-22]: Encode it.
         raise NotImplementedError

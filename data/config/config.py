@@ -132,12 +132,11 @@ class Configuration:
             from ..codec.yaml import codec
             self._codec = codec.YamlCodec()
 
-
         # Setup our context, import repo & codec's.
         self._context = PersistentContext('configuration', 'configuration')
         self._context.sub['path'] = str(self._path)
-        self._context.import_to_sub(self._repo.context)
-        self._context.import_to_sub(self._codec.context)
+        self._context.pull_to_sub(self._repo.context)
+        self._context.pull_to_sub(self._codec.context)
 
         # Our storage of the config data itself.
         self._config = {}
@@ -305,7 +304,10 @@ class Configuration:
         '''
         # Spawn a context from what we know, and ask the config repo to load
         # something based on that.
-        ctx = self.context.spawn(DataBareContext, self._path)
+        ctx = self.context.spawn(DataBareContext,
+                                 self.context.name,
+                                 self.context.key,
+                                 self._path)
         with self._repo.load(ctx) as stream:
             # Decode w/ codec.
             # Can raise an error - we'll let it.

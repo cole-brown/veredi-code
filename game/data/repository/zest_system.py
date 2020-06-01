@@ -101,7 +101,7 @@ class Test_RepoSystem(unittest.TestCase):
             raise exceptions.LoadError(
                 f"No DataGameContext.Type to ID conversion for: {type}",
                 None,
-                self.context.merge(context))
+                ctx)
 
         return ctx, path
 

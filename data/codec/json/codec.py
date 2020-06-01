@@ -70,7 +70,7 @@ class JsonCodec(BaseCodec):
             raise exceptions.LoadError(
                 f"Error loading json from stream: {path}",
                 error,
-                self.context.merge(input_context)) from error
+                self.context.push(input_context)) from error
         return data
 
     def _load(self,
@@ -99,7 +99,7 @@ class JsonCodec(BaseCodec):
             raise exceptions.LoadError(
                 f"Error loading json from stream: {path}",
                 error,
-                self.context.merge(input_context)) from error
+                self.context.push(input_context)) from error
         return data
 
     def decode_all(self,

@@ -171,7 +171,7 @@ class FileBareRepository(base.BaseRepository):
             raise exceptions.LoadError(
                 f"Cannot load file. Path/file does not exist: {str(load_path)}",
                 None,
-                self.context.merge(context))
+                self.context.push(context))
 
         data_stream = None
         with load_path.open('r') as file_stream:
@@ -239,7 +239,7 @@ class FileBareRepository(base.BaseRepository):
             raise exceptions.LoadError(
                 "No path safing function set! Cannot create file paths. ",
                 None,
-                self.context.merge(context)) from error
+                self.context.push(context)) from error
 
         return self.fn_path_safing(str(unsafe))
 
@@ -346,7 +346,7 @@ class FileTreeRepository(base.BaseRepository):
                     f"directory: {directory}, glob: {glob}, "
                     f"matches: {sorted(directory.glob(glob))}",
                     None,
-                    self.context.merge(context))
+                    self.context.push(context))
             file_path = match
 
         if file_path is None:
@@ -355,7 +355,7 @@ class FileTreeRepository(base.BaseRepository):
                 f"directory: {directory}, glob: {glob}, "
                 f"matches: {sorted(directory.glob(glob))}",
                 None,
-                self.context.merge(context))
+                self.context.push(context))
 
         data_stream = None
         with file_path.open('r') as file_stream:
@@ -411,7 +411,7 @@ class FileTreeRepository(base.BaseRepository):
             raise exceptions.LoadError(
                 f"No DataGameContext.Type to ID conversion for: {load_type}",
                 None,
-                self.context.merge(context))
+                self.context.push(context))
 
     def _id_keys(self,
                  load_type: DataGameContext.Type,
@@ -484,7 +484,7 @@ class FileTreeRepository(base.BaseRepository):
             raise exceptions.LoadError(
                 "No path safing function set! Cannot create file paths. ",
                 None,
-                self.context.merge(context)) from error
+                self.context.push(context)) from error
 
         return self.fn_path_safing(str(unsafe))
 
@@ -574,7 +574,7 @@ class FileTreeTemplates(FileTreeRepository):
                     f"directory: {directory}, glob: {glob}, "
                     f"matches: {sorted(directory.glob(glob))}",
                     None,
-                    self.context.merge(context))
+                    self.context.push(context))
             file_path = match
 
         if file_path is None:
@@ -583,7 +583,7 @@ class FileTreeTemplates(FileTreeRepository):
                 f"directory: {directory}, glob: {glob}, "
                 f"matches: {sorted(directory.glob(glob))}",
                 None,
-                self.context.merge(context))
+                self.context.push(context))
 
         data_stream = None
         with file_path.open('r') as file_stream:
@@ -639,7 +639,7 @@ class FileTreeTemplates(FileTreeRepository):
             raise exceptions.LoadError(
                 f"No DataGameContext.Type to ID conversion for: {load_type}",
                 None,
-                self.context.merge(context))
+                self.context.push(context))
 
     def _id_keys(self,
                  load_type: DataGameContext.Type,
@@ -712,7 +712,7 @@ class FileTreeTemplates(FileTreeRepository):
             raise exceptions.LoadError(
                 "No path safing function set! Cannot create file paths. ",
                 None,
-                self.context.merge(context)) from error
+                self.context.push(context)) from error
 
         return self.fn_path_safing(str(unsafe))
 
