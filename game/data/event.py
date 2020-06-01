@@ -13,8 +13,8 @@ from typing import (Optional, Any, Type, Union,
 from io import TextIOBase
 import enum
 
-from veredi.base.context import (VerediContext,
-                                 DataGameContext,
+from veredi.base.context import VerediContext
+from veredi.data.context import (DataGameContext,
                                  DataLoadContext,
                                  DataSaveContext)
 from ..ecs.base.identity import (MonotonicId,

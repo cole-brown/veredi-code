@@ -24,8 +24,8 @@ from veredi.logger import log
 from veredi.data.config.registry import register
 from veredi.data.config.config import Configuration, ConfigKeys
 from veredi.base.context import (VerediContext,
-                                 PersistentContext,
-                                 DataBareContext,
+                                 PersistentContext)
+from veredi.data.context import (DataBareContext,
                                  DataGameContext)
 from veredi.data.codec.base import BaseCodec
 

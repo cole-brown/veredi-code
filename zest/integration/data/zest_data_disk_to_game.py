@@ -22,7 +22,7 @@ import unittest
 
 from veredi.logger                      import log
 from veredi.base.const                  import VerediHealth
-from veredi.base.context                import DataGameContext, DataLoadContext
+from veredi.data.context                import DataGameContext, DataLoadContext
 from veredi.zest                        import zmake, zpath
 
 from veredi.game.ecs.time               import TimeManager
