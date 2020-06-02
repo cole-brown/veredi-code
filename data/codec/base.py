@@ -15,7 +15,7 @@ import enum
 
 from veredi.data import exceptions
 from veredi.base.context import VerediContext, PersistentContext
-from veredi.data.config.config import Configuration, ConfigKeys
+from veredi.data.config.context import ConfigContext
 
 
 # -----------------------------------------------------------------------------
@@ -35,22 +35,22 @@ CodecOutput = NewType('CodecOutput',
 class BaseCodec(ABC):
     def __init__(self,
                  codec_name:   str,
-                 context_name: str,
-                 context_key:  str,
-                 context:      Optional[VerediContext]        = None,
-                 config:       Optional[Configuration]        = None,
-                 config_keys:  Optional[Iterable[ConfigKeys]] = None) -> None:
+                 self_context_name: str,
+                 self_context_key:  str,
+                 config_context:    Optional[VerediContext] = None) -> None:
         '''
         `codec_name` should be short and will be lowercased. It should probably
         be like a filename extension, e.g. 'yaml', 'json'.
 
-        `context_name` and `context_key` are used for Event and Error context.
+        `self_context_name` and `self_context_key` are for /my/ context  -
+        used for Event and Error contexts.
+
+        `config_context` is the context being used to set us up.
         '''
-        self._context = PersistentContext(context_name, context_key)
+        self._context = PersistentContext(self_context_name, self_context_key)
         self._name = codec_name.lower()
 
-        if config:
-            self._configure(config, config_keys)
+        self._configure(config_context)
 
     # --------------------------------------------------------------------------
     # Codec Properties/Methods
@@ -81,10 +81,9 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def _configure(self,
-                   config:      Optional[Configuration],
-                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+                   context: Optional[ConfigContext]) -> None:
         '''
-        Allows repos to grab anything from the config data that they need to
+        Allows codecs to grab anything from the config data that they need to
         set up themselves.
         '''
         raise NotImplementedError

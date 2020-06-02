@@ -19,6 +19,8 @@ from veredi.base.const import VerediHealth
 from veredi import mathing
 from . import exceptions
 
+from .event import EcsManagerWithEvents
+
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
@@ -188,13 +190,10 @@ class MonotonicTimer:
         return self._current - self._start
 
 
-class TimeManager:
+class TimeManager(EcsManagerWithEvents):
     '''
     This class has the potential to be saved to data fields. Let it control its
     timezones. Convert to user-friendly elsewhere.
-
-    NOTE: IMITATES / DUCK-TYPES EcsManagerWithEvents, almost. Doesn't include
-    the 'TimeManager' in whatever functions have it, as... well. I am Time.
     '''
     _DEFAULT_TICK_STEP = decimal.Decimal(6)
     _DEFAULT_TIMEOUT_SEC = 10
@@ -214,13 +213,6 @@ class TimeManager:
                                          "non-zero, positive amount.",
                                          None, None)
         self.tick  = Tick(tick_amount)
-
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
-        '''
-        Subscribe to any life-long event subscriptions here. Can hold on to
-        event_manager if need to sub/unsub more dynamically.
-        '''
-        return VerediHealth.HEALTHY
 
     def apoptosis(self) -> VerediHealth:
         '''

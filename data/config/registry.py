@@ -8,11 +8,12 @@ Bit of a Factory thing going on here...
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Callable, Type, Any
+from typing import Optional, Union, Type, Any, Callable
 import functools
 
 from veredi.logger import log
 from .. import exceptions
+from veredi.base.context import VerediContext
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -26,23 +27,42 @@ _REGISTRY = {}
 
 
 # Decorator way of doing factory registration. Note that we will only get
-# classes that are imported, when they are imported. We don't know about any
-# that are sitting around waiting to be imported. If needed, we can fix that by
-# importing things in their folder's __init__.py.
+# classes/funcs that are imported, when they are imported. We don't know about
+# any that are sitting around waiting to be imported. If needed, we can fix that
+# by importing things in their folder's __init__.py.
 
 # First, a lil' decorator factory to take our args and make the decorator...
 def register(*args: str) -> Callable[..., Type[Any]]:
-    # Now make the actual class decorator...
-    def register_decorator(cls: Type[Any]) -> Type[Any]:
+    '''
+    Property for registering a class or function with the registry.
+
+    e.g. for a class:
+      @register('veredi', 'example', 'example-class')
+      class Example:
+        pass
+
+    e.g. for a function:
+      @register('veredi', 'example', 'function')
+      def example(arg0, arg1, **kwargs):
+        pass
+    '''
+
+    # Now make the actual decorator...
+    def register_decorator(
+                cls_or_func: Union[Type[Any], Callable[..., Type[Any]]]
+            ) -> Type[Any]:
         # Pull final key off of list so we don't make too many dictionaries.
+        name = str(cls_or_func)
         try:
             config_name = args[-1]
-        except IndexError:
-            log.warning("Need to know what to register this ({}) as. "
-                        "E.g. @register('foo', 'bar'). Got no args: {}",
-                        cls.__name__, args,
-                        stacklevel=3)
-            raise
+        except IndexError as error:
+            raise log.exception(
+                error,
+                exceptions.RegistyError,
+                "Need to know what to register this ({}) as. "
+                "E.g. @register('foo', 'bar'). Got no args: {}",
+                name, args,
+                stacklevel=3)
 
         registration = _REGISTRY
         length = len(args)
@@ -57,26 +77,30 @@ def register(*args: str) -> Callable[..., Type[Any]]:
                         "'{}' with this '{}'",
                         args,
                         str(registration[config_name]),
-                        str(cls),
+                        name,
                         stacklevel=3)
         else:
-            log.debug("Registered: keys: {}, class '{}'",
-                        args,
-                        str(cls),  # cls.__name__,
-                        stacklevel=3)
-        registration[config_name] = cls
+            log.debug("Registered: keys: {}, value '{}'",
+                      args,
+                      name,
+                      stacklevel=3)
+        registration[config_name] = cls_or_func
 
-        return cls
+        return cls_or_func
 
     return register_decorator
 
 
-def create(dotted_keys_str: str,
-           *args: Any,
-           **kwargs: Any):
-    '''Create a registered class from the dot-separated keys (e.g.
+def get(dotted_keys_str: str,
+        context: Optional[VerediContext],
+        # Leave (k)args for others.
+        *args: Any,
+        **kwargs: Any) -> Any:
+    '''
+    Returns a registered class/func from the dot-separated keys (e.g.
     "repository.player.file-tree"), passing it args and kwargs.
 
+    Context just used for errors/exceptions.
     '''
     registration = _REGISTRY
     split_keys = dotted_keys_str.split('.')
@@ -90,17 +114,41 @@ def create(dotted_keys_str: str,
         except KeyError as error:
             raise log.exception(
                 error,
-                exceptions.ConfigError,
+                exceptions.RegistryError,
                 "Registry has nothing at: {}",
                 split_keys[ : i + 1 ]) from error
 
         i += 1
 
+    return registration
+
+
+def create(dotted_keys_str: str,
+           context: Optional[VerediContext],
+           # Leave (k)args for others.
+           *args: Any,
+           **kwargs: Any) -> Any:
+    '''
+    Create a registered class from the dot-separated keys (e.g.
+    "repository.player.file-tree"), passing it args and kwargs.
+    '''
+    entry = get(dotted_keys_str, context)
+
     try:
-        return registration(*args, **kwargs)
+        # Leave (k)args for others.
+        return entry(context, *args, **kwargs)
     except TypeError as error:
+        # NOTE: Something to the tune of:
+        #    TypeError: __init__() got multiple values for argument...
+        # Probably means your *args are too long, or an arg got swapped in the entry().
+        # e.g.:
+        #   args: (001,)
+        #   kwargs: {'data': {...}}
+        #   entry -> JeffCls.__init__(data, id, extra=None)
+        #     - This dies cuz data was set to '001', then kwargs also had a 'data'.
         raise log.exception(
             error,
             exceptions.ConfigError,
-            "Registry failed creating '{}' with: args: {}, kwargs: {}",
-            registration, args, kwargs) from error
+            # Leave (k)args for others.
+            "Registry failed creating '{}' with: args: {}, kwargs: {},  context: {}",
+            entry, args, kwargs, context) from error

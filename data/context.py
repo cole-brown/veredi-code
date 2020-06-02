@@ -15,7 +15,7 @@ import copy
 
 from veredi.logger import log
 from veredi.base.exceptions import ContextError
-from veredi.base.context import VerediContext
+from veredi.base.context import VerediContext, EphemerealContext
 
 
 # -----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ from veredi.base.context import VerediContext
 # Data Context
 # ------------------------------------------------------------------------------
 
-class BaseDataContext(VerediContext):
+class BaseDataContext(EphemerealContext):
     def __repr_name__(self):
         return 'DataCtx'
 
@@ -36,12 +36,11 @@ class DataBareContext(BaseDataContext):
     def __init__(self,
                  name: str,
                  key:  str,
-                 load: Optional[List[Any]] = None,
-                 starting_context: Optional[Dict[str, Any]] = None) -> None:
+                 load: Optional[List[Any]] = None) -> None:
         '''
         Initialize DataBareContext with name, key, and some list called 'load'.
         '''
-        super().__init__(name, key, starting_context)
+        super().__init__(name, key)
         self._load = load
         self.sub['load'] = load
 
@@ -82,12 +81,11 @@ class DataGameContext(BaseDataContext):
                  name:     str,
                  key:      str,
                  type:     'DataGameContext.Type',
-                 campaign: str,
-                 starting_context: Optional[Dict[str, Any]] = None) -> None:
+                 campaign: str) -> None:
         '''
         Initialize DataGameContext with name, key, and type.
         '''
-        super().__init__(name, key, starting_context)
+        super().__init__(name, key)
         self._type = type
 
         # Save our request type, request keys into our context.
@@ -117,12 +115,11 @@ class DataGameContext(BaseDataContext):
 
 class DataLoadContext(DataGameContext):
     def __init__(self,
-                 name:     str,
-                 type:     'DataGameContext.Type',
-                 campaign: str,
-                 starting_context: Optional[Dict[str, Any]] = None) -> None:
-        super().__init__(name, self.REQUEST_LOAD,
-                         type, campaign, starting_context)
+                 name:        str,
+                 ignored_key: str,
+                 type:        'DataGameContext.Type',
+                 campaign:    str) -> None:
+        super().__init__(name, self.REQUEST_LOAD, type, campaign)
 
     def __repr_name__(self):
         return 'DLCtx'
@@ -130,12 +127,10 @@ class DataLoadContext(DataGameContext):
 
 class DataSaveContext(DataGameContext):
     def __init__(self,
-                 name:     str,
-                 type:     'DataGameContext.Type',
-                 campaign: str,
-                 starting_context: Optional[Dict[str, Any]] = None) -> None:
-        super().__init__(name, self.REQUEST_SAVE,
-                         type, campaign, starting_context)
+                 name:    str,
+                 type:    'DataGameContext.Type',
+                 campaign: str) -> None:
+        super().__init__(name, self.REQUEST_SAVE, type, campaign)
 
     def __repr_name__(self):
         return 'DSCtx'

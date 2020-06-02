@@ -16,7 +16,7 @@ from veredi.logger import log
 from veredi.base.context import VerediContext
 
 from veredi.data.config.registry import register
-from veredi.data.config.config import Configuration, ConfigKeys
+from veredi.data.config.context import ConfigContext
 from veredi.data import exceptions
 
 from ..base import BaseCodec, CodecOutput
@@ -44,19 +44,15 @@ class YamlCodec(BaseCodec):
     _CONTEXT_KEY  = 'codec'
 
     def __init__(self,
-                 context:      Optional[VerediContext]        = None,
-                 config:       Optional[Configuration]        = None,
-                 config_keys:  Optional[Iterable[ConfigKeys]] = None) -> None:
+                 context: Optional[VerediContext] = None) -> None:
         super().__init__(YamlCodec._CODEC_NAME,
                          YamlCodec._CONTEXT_NAME,
                          YamlCodec._CONTEXT_KEY,
-                         context,
-                         config,
-                         config_keys)
+                         context)
 
     def _configure(self,
-                   config:      Optional[Configuration],
-                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+                   context: Optional[ConfigContext]) -> None:
+        '''Don't need anything from context, currently.'''
         pass
 
     def decode(self,
@@ -100,10 +96,12 @@ class YamlCodec(BaseCodec):
 
         data = self._load_all(stream, input_context)
         if not data:
-            raise exceptions.LoadError(
-                "Loading yaml from stream resulted in no data:",
+            raise log.exception(
                 None,
-                self.context.push(input_context)) from error
+                exceptions.LoadError,
+                "Loading yaml from stream resulted in no data: {}",
+                stream,
+                context=self.context.push(input_context))
 
         # TODO: Here is where we'd check metadata for versions and stuff?
 

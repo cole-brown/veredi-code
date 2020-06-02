@@ -12,12 +12,16 @@ import unittest
 import os
 import pathlib
 
-from veredi.base.context import VerediContext
+from veredi.logger import log
+
+from veredi.data.config.config import ConfigDocument, ConfigKey
+from veredi.data.config.context import ConfigContext
 from veredi.data.context import (DataGameContext,
                                  DataLoadContext,
                                  DataSaveContext)
-from .file import FileTreeRepository
+from .file import FileTreeRepository, to_human_readable
 from veredi.zest import zpath
+from veredi.zest import zmake
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -31,15 +35,43 @@ from veredi.zest import zpath
 class Test_FileTreeRepo(unittest.TestCase):
 
     def setUp(self):
+        self.debug = False
         self.path = zpath.repository_file_tree()
-        self.repo = FileTreeRepository(self.path)
+        self.config = zmake.config()
+        self.context = ConfigContext(self.path,
+                                     self.config)
+
+        # Finish set-up. Inject stuff repo needs to init proper.
+        self.context.ut_inject(path=self.path)
+        self.config.ut_inject(self.path,
+                              ConfigDocument.CONFIG,
+                              ConfigKey.GAME,
+                              ConfigKey.REPO,
+                              ConfigKey.DIR)
+
+        # §-TODO-§ [2020-06-01]: Register these, have config read dotted and get
+        # from registry.
+        self.config.ut_inject('veredi.sanitize.human.path-safe',
+                              ConfigDocument.CONFIG,
+                              ConfigKey.GAME,
+                              ConfigKey.REPO,
+                              ConfigKey.SANITIZE)
+
+        # Should be enough info to make our repo now.
+        self.repo = FileTreeRepository(self.context)
 
     def tearDown(self):
+        self.debug = False
         self.repo = None
         self.path = None
 
     def context_load(self, type):
-        ctx = DataLoadContext('unit-testing', type, 'test-campaign')
+        ctx = None
+        with log.LoggingManager.on_or_off(self.debug):
+            ctx = self.context.spawn(DataLoadContext,
+                                     'unit-testing', None,
+                                     type,
+                                     'test-campaign')
         path = self.path / 'test-campaign'
         if type == DataGameContext.Type.PLAYER:
             ctx.sub['user'] = 'u/jeff'
@@ -74,8 +106,9 @@ class Test_FileTreeRepo(unittest.TestCase):
         self.assertTrue(self.path)
         self.assertTrue(os.path.isdir(self.path))
 
-    def do_load_test(self, load_type):
-        context, path = self.context_load(load_type)
+    def do_load_test(self, load_type, debug=False):
+        with log.LoggingManager.on_or_off(debug):
+            context, path = self.context_load(load_type)
         self.assertTrue(path.parent.exists())
 
         loaded_stream = self.repo.load(context)
@@ -101,4 +134,4 @@ class Test_FileTreeRepo(unittest.TestCase):
         self.do_load_test(DataGameContext.Type.NPC)
 
     def test_load_item(self):
-        self.do_load_test(DataGameContext.Type.ITEM)
+        self.do_load_test(DataGameContext.Type.ITEM, True)

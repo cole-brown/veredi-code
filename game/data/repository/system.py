@@ -13,7 +13,9 @@ from typing import Any, Optional, Set, Type, Union, Iterable
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
-from veredi.data.config.config import Configuration, ConfigKeys
+from veredi.base.context import VerediContext
+from veredi.data.config.config import Configuration, ConfigKey
+from veredi.data.config.context import ConfigContext
 from veredi.data.repository.base import BaseRepository
 
 # Game / ECS Stuff
@@ -53,19 +55,13 @@ from ..event import (
 # Code
 # -----------------------------------------------------------------------------
 
-# §-TODO-§ [2020-05-22]: Saving/Loading system...
-# DirtyFlagSystem: looks for a dirty flag, fires off encode events?
-#   - or name it DataSaveSystem?
-#   - or name it DataSystem?
-
 class RepositorySystem(System):
-    def __init__(self,
-                 sid: SystemId,
-                 *args: Any,
-                 **kwargs: Any) -> None:
 
+    def _configure(self, context: VerediContext) -> None:
+        '''
+        Make our repo from config data.
+        '''
         self._repository = None
-        super().__init__(sid, *args, **kwargs)
 
         # ---
         # Ticking Stuff
@@ -77,29 +73,23 @@ class RepositorySystem(System):
         #                            | SystemTick.DESTRUCTION) # In-game saving.
         # # Apoptosis will be our end-of-game saving.
         # ---
+        if context:
+            config = ConfigContext.config(context)
+            if config:
+                self._repository = config.make(None,
+                                               ConfigKey.GAME,
+                                               ConfigKey.REPO,
+                                               ConfigKey.TYPE)
 
         # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
         # tests with our test configs.
         if not self._repository:
-            # TODO: Event to ask ConfigSystem what the specific repository is?
+            # §-TODO-§: Event to ask ConfigSystem what the specific repository is?
             # Maybe that's what we need a SET_UP tick for?
             # self._repository: Optional[BaseRepository] = None
             from veredi.data.repository.file import FileTreeRepository
             self._repository = FileTreeRepository(kwargs.get('repository_base',
                                                              None))
-
-    # --------------------------------------------------------------------------
-    # System Set Up
-    # --------------------------------------------------------------------------
-
-    def _configure(self, config: Configuration) -> None:
-        '''
-        Make our repo from config data.
-        '''
-        self._repository = config.make(None,
-                                       ConfigKeys.GAME,
-                                       ConfigKeys.REPO,
-                                       ConfigKeys.TYPE)
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
@@ -149,7 +139,7 @@ class RepositorySystem(System):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        self._event_manager = event_manager
+        super().subscribe(event_manager)
         if not self._event_manager:
             self._event_manager = False
             # We rely on events to function, so we're not any good now...
@@ -185,13 +175,11 @@ class RepositorySystem(System):
 
         # Take our repository load result and set into DeserializedEvent.
         # Then have EventManager fire off event for whoever wants the next step.
-        self.event(self._event_manager,
-                   DeserializedEvent,
-                   event.id,
-                   event.type,
-                   context,
-                   False,
-                   data=deserialized)
+        event = DeserializedEvent(event.id, event.type, context,
+                                  data=deserialized)
+
+        self._event_notify(event,
+                           False)
 
     def event_encoded(self, event: EncodedEvent) -> None:
         '''
@@ -204,13 +192,11 @@ class RepositorySystem(System):
         serialized = None
 
         # Done; fire off event for whoever wants the next step.
-        self.event(self._event_manager,
-                   SerializedEvent,
-                   event.id,
-                   event.type,
-                   context,
-                   False,
-                   data=serialized)
+        event = SerializedEvent(event.id, event.type, context,
+                                data=serialized)
+
+        self._event_notify(event,
+                           False)
 
     # --------------------------------------------------------------------------
     # Game Update Loop/Tick Functions

@@ -17,11 +17,14 @@ game:
   repository:
     type: veredi.repository.file-tree
     directory: ../repository/file-tree
+    sanitize: veredi.sanitize.human.path-safe
   codec: veredi.codec.yaml
 
 template:
-  repository: veredi.repository.file-tree
+  repository:
+    type: veredi.repository.file-tree
+    directory: ../repository/file-tree
+    sanitize: veredi.sanitize.human.path-safe
   codec: veredi.codec.yaml
-  directory: ../repository/file-tree
 
 # and more?

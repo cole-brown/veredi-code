@@ -18,10 +18,10 @@ import re
 import hashlib
 
 from veredi.logger import log
-from veredi.data.config.config import Configuration, ConfigKeys
 from veredi.base.context import (VerediContext,
                                  PersistentContext)
 from veredi.data.context import BaseDataContext
+from veredi.data.config.context import ConfigContext
 
 from .. import exceptions
 # from ..codec import json
@@ -40,22 +40,22 @@ from ..codec import yaml
 class BaseRepository(ABC):
 
     def __init__(self,
-                 repo_name:    str,
-                 context_name: str,
-                 context_key:  str,
-                 context:      Optional[VerediContext]        = None,
-                 config:       Optional[Configuration]        = None,
-                 config_keys:  Optional[Iterable[ConfigKeys]] = None) -> None:
+                 repo_name:         str,
+                 self_context_name: str,
+                 self_context_key:  str,
+                 config_context:    Optional[ConfigContext] = None) -> None:
         '''
         `repo_name` should be short-ish and will be lowercased. It should
         probably be, like, 'file', 'mysql', 'sqlite3' etc...
 
-        `context_name` and `context_key` are used for Event and Error context.
+        `self_context_name` and `self_context_key` are for /my/ context -
+        used for Event and Error contexts.
+
+        `config_context` is the context being used to create us.
         '''
-        self._context = PersistentContext(context_name, context_key)
+        self._context = PersistentContext(self_context_name, self_context_key)
         self._name = repo_name.lower()
-        if config:
-            self._configure(config, config_keys)
+        self._configure(config_context)
 
     # --------------------------------------------------------------------------
     # Repo Properties/Methods
@@ -86,8 +86,7 @@ class BaseRepository(ABC):
 
     @abstractmethod
     def _configure(self,
-                   config:      Optional[Configuration],
-                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+                   context: Optional[ConfigContext]) -> None:
         '''
         Allows repos to grab anything from the config data that they need to
         set up themselves.

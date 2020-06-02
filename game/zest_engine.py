@@ -11,7 +11,8 @@ Tests for engine.py (The Game Itself).
 import unittest
 
 from veredi.base.const import VerediHealth
-from veredi.zest import zmake
+from veredi.zest import zpath, zmake, zontext
+from veredi.base.context import UnitTestContext
 
 from . import engine
 
@@ -61,8 +62,8 @@ class CompThree(Component):
 
 
 class SysTest(System):
-    def __init__(self, system_id, *args, **kwargs):
-        super().__init__(system_id, *args, **kwargs)
+    def _configure(self,
+                   context):
         self.ents_seen = {
             SystemTick.TIME:        set(),
             SystemTick.CREATION:    set(),
@@ -135,8 +136,9 @@ class SysTest(System):
 
 
 class SysJeff(SysTest):
-    def __init__(self, system_id, *args, **kwargs):
-        super().__init__(system_id, *args, **kwargs)
+    def _configure(self,
+                   context):
+        super()._configure(context)
         self._ticks = (SystemTick.PRE
                        | SystemTick.STANDARD
                        | SystemTick.POST)
@@ -149,9 +151,18 @@ class SysJeff(SysTest):
 
 
 class SysJill(SysTest):
-    def __init__(self, system_id, *args, x=None, y=None, **kwargs):
-        super().__init__(system_id, *args, x=None, y=None, **kwargs)
+    def _configure(self,
+                   context):
+        super()._configure(context)
         self._ticks = SystemTick.STANDARD
+        sub = context.sub
+        if 'system' in sub:
+            self.x = sub['system']['x']
+            self.y = sub['system']['y']
+        else:
+            self.x = None
+            self.y = None
+
 
     def priority(self):
         return SystemPriority.HIGH
@@ -161,8 +172,9 @@ class SysJill(SysTest):
 
 
 class SysNoTick(SysTest):
-    def __init__(self, system_id, *args, **kwargs):
-        super().__init__(system_id, *args, **kwargs)
+    def _configure(self,
+                   context):
+        super()._configure(context)
         self._ticks = None
 
     def priority(self):
@@ -170,8 +182,9 @@ class SysNoTick(SysTest):
 
 
 class SysNoReq(SysTest):
-    def __init__(self, system_id, *args, **kwargs):
-        super().__init__(system_id, *args, **kwargs)
+    def _configure(self,
+                   context):
+        super()._configure(context)
         self._ticks = None
 
     def required(self):
@@ -185,7 +198,11 @@ class SysNoReq(SysTest):
 class Test_Engine(unittest.TestCase):
 
     def setUp(self):
-        self.config     = zmake.config()
+        self.debug             = False
+        self.config            = zmake.config()
+        self.context           = zontext.test(self.__class__.__name__,
+                                              'setUp',
+                                              config=self.config)
         self.time_mgr   = TimeManager()
         self.event_mgr  = EventManager(self.config)
         self.comp_mgr   = ComponentManager(self.config,
@@ -226,10 +243,19 @@ class Test_Engine(unittest.TestCase):
         comps_1_2_3 = set([mkcmp(CompOne), mkcmp(CompTwo), mkcmp(CompThree)])
         comps_x_2_3 = set([                mkcmp(CompTwo), mkcmp(CompThree)])
 
-        self.ent_1_2_x = self.entity_mgr.create(1, comps_1_2_x)
-        self.ent_1_x_x = self.entity_mgr.create(2, comps_1_x_x)
-        self.ent_1_2_3 = self.entity_mgr.create(1, comps_1_2_3)
-        self.ent_x_2_3 = self.entity_mgr.create(3, comps_x_2_3)
+        sub = self.context.sub
+
+        sub.setdefault('entity', {})['components'] = comps_1_2_x
+        self.ent_1_2_x = self.entity_mgr.create(1, self.context)
+
+        sub['entity']['components'] = comps_1_x_x
+        self.ent_1_x_x = self.entity_mgr.create(2, self.context)
+        sub['entity']['components'] = comps_1_2_3
+        self.ent_1_2_3 = self.entity_mgr.create(1, self.context)
+        sub['entity']['components'] = comps_x_2_3
+        self.ent_x_2_3 = self.entity_mgr.create(3, self.context)
+
+        sub.pop('entity')
 
         self.ent_ids = {
             self.ent_1_2_x,
@@ -238,17 +264,26 @@ class Test_Engine(unittest.TestCase):
             self.ent_x_2_3,
         }
 
-    def create_systems(self, *args):
+    def create_system(self, sys_type, *args, **kwargs):
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'test_create',
+            {}
+            if not kwargs else
+            {'system': kwargs})
+
+        sid = self.system_mgr.create(sys_type,
+                                     context)
+        return sid
+
+    def create_systems(self, *args, **kwargs):
         sids = []
         for each in args:
             if isinstance(each, tuple):
-                sids.append(self.system_mgr.create(each[0], *each[1:]))
+                sids.append(self.create_system(each[0], self.context,
+                                               *each[1:], **each[2:]))
             else:
-                sids.append(self.system_mgr.create(each))
-
-#        # Create stuff.
-#        self.jeff_id = self.system_mgr.create(SysJeff)
-#        self.jill_id = self.system_mgr.create(SysJill)
+                sids.append(self.create_system(each, self.context))
 
         return sids
 

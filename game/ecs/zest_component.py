@@ -11,6 +11,7 @@ Tests for component.py (ComponentManager class).
 import unittest
 
 from veredi.zest import zmake
+from veredi.base.context import UnitTestContext
 
 from .event import EventManager
 from .component import (ComponentManager,
@@ -33,11 +34,14 @@ from .base.component import (ComponentLifeCycle,
 class CompOne(Component):
     pass
 
+
 class CompTwo(CompOne):
-    def __init__(self, component_id, *args, x=None, y=None, **kwargs):
-        super().__init__(component_id, *args, **kwargs)
-        self.x = x
-        self.y = y
+
+    def _configure(self,
+                   context):
+        self.x = context.sub['unit-test-args']['x']
+        self.y = context.sub['unit-test-args']['y']
+
 
 class CompThree(Component):
     pass
@@ -130,7 +134,12 @@ class Test_ComponentManager(unittest.TestCase):
         self.assertEqual(self.comp_mgr._component_id.peek(),
                          ComponentId.INVALID)
 
-        cid = self.comp_mgr.create(CompTwo, None, x=1, y=2)
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'test_create_args',
+            {'unit-test-args': {'x': 1, 'y':2}})
+
+        cid = self.comp_mgr.create(CompTwo, context)
         self.assertNotEqual(cid, ComponentId.INVALID)
 
         # Component should exist and have its args assigned.

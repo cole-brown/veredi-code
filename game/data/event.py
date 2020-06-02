@@ -101,8 +101,31 @@ class DataLoadedEvent(DataEvent):
         super().reset()
         self.component_id = ComponentId.INVALID
 
+    # --------------------------------------------------------------------------
+    # To String
+    # --------------------------------------------------------------------------
+
+    def _str_name(self, name: Optional[str] = None):
+        name = name or self.__class__.__name__
+        return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
+
+    def __repr_name__(self):
+        return "DLdEvent"
+
+
 class DataSavedEvent(DataEvent):
-    pass
+
+    # --------------------------------------------------------------------------
+    # To String
+    # --------------------------------------------------------------------------
+
+    def _str_name(self, name: Optional[str] = None):
+        name = name or self.__class__.__name__
+        return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
+
+    def __repr_name__(self):
+        return "DSdEvent"
+
 
 
 # ------------------------------------------------------------------------------
@@ -128,6 +151,39 @@ class DeserializedEvent(DataEvent):
     def reset(self) -> None:
         super().reset()
         self.data = None
+
+    # --------------------------------------------------------------------------
+    # To String
+    # --------------------------------------------------------------------------
+
+    def _str_data(self):
+        return ('None'
+                if not self.data else
+                ('Closed Stream' if self.data.closed else 'Open Stream'))
+
+    def _repr_data(self):
+        return ('None'
+                if not self.data else
+                ('closed' if self.data.closed else 'open'))
+
+    def _pretty(self):
+        from veredi.logger import pretty
+        return (f"{self._str_name()}:\n"
+                + f"  data:  {self._str_data()}\n"
+                + "  context:\n"
+                + pretty.indented(self._context._pretty(), indent=4))
+
+    def __str__(self):
+        return (f"{self._str_name()}: data: {self._str_data()}, "
+                f"context: {str(self._context)}")
+
+    def __repr_name__(self):
+        return "DesEvent"
+
+    def __repr__(self):
+        return (f"<{self._str_name(self.__repr_name__())}: "
+                f"data: {self._repr_data()}, "
+                f"context: {str(self._context)}>")
 
 
 class SerializedEvent(DataEvent):
@@ -158,6 +214,38 @@ class DecodedEvent(DataEvent):
         super().reset()
         self.data = None
 
+    # --------------------------------------------------------------------------
+    # To String
+    # --------------------------------------------------------------------------
+
+    def _str_data(self):
+        return ('None'
+                if not self.data else
+                str(self.data))
+
+    def _repr_data(self):
+        return ('None'
+                if not self.data else
+                repr(self.data))
+
+    def _pretty(self):
+        from veredi.logger import pretty
+        return (f"{self._str_name()}:\n"
+                + f"  data:  {self._str_data()}\n"
+                + "  context:\n"
+                + pretty.indented(self._context._pretty(), indent=4))
+
+    def __str__(self):
+        return (f"{self._str_name()}: data: {self._str_data()}, "
+                f"context: {str(self._context)}")
+
+    def __repr_name__(self):
+        return "DesEvent"
+
+    def __repr__(self):
+        return (f"<{self._str_name(self.__repr_name__())}: "
+                f"data: {self._repr_data()}, "
+                f"context: {str(self._context)}>")
 
 class EncodedEvent(DataEvent):
     pass

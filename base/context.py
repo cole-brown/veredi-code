@@ -20,44 +20,92 @@ from .exceptions import ContextError
 # Constants
 # -----------------------------------------------------------------------------
 
-
-# §-TODO-§ [2020-05-31]:
-# Move more specific contexts (e.g. DataContexts out to a more specific place?)
-
-# §-TODO-§ [2020-05-31]:   - context rework?
-# §-TODO-§ [2020-05-31]:   - what do PersistentContexts pull from context that is used to create them?
-# §-TODO-§ [2020-05-31]:   - Only pass around context - stuff construction data into it?
+# Â§-TODO-Â§ [2020-05-31]:   - Only pass around context - stuff construction data into it?
 #    - Remove *args, **kwargs from my classes entirely?
 #    - Leave in things passing along or creating things blindly (e.g. registry.create)
 
+# Â§-TODO-Â§ [2020-05-31]: See about every 'VerediContext'...
+#   - Should it be PersistentContext?
+#   - Should it be EphemerealContext?
+
+
+@enum.unique
+class CodeKey(enum.Enum):
+    '''
+    Code systems that want to tuck things into contexts can use these as their
+    top-level key.
+    '''
+
+    REPO = enum.auto()
+    '''RepoSystem or Repo itself can store things here. e.g. data stream from
+    deserializing data.'''
+
+    CODEC = enum.auto()
+    '''CodecSystem or Codec itself can store things here. e.g. data
+    object(s) from decoding.'''
+
+
+# §-TODO-§ [2020-06-02]: should I bother with this for pushing/pulling dicts?
+@enum.unique
+class Conflict(enum.Enum):
+    '''
+    Indicates which way a conflict should be resolved.
+    '''
+
+    SENDER_WINS = enum.auto()
+    '''Sender's key/value overwrites receiver's.'''
+
+    RECEIVER_WINS = enum.auto()
+    '''Sender's key/value gets dropped.'''
+
+    SENDER_MUNGED = enum.auto()
+    '''Sender's key gets munged by random postfix, then munged-key/value are
+    added to receiver.'''
+
+    RECEIVER_MUNGED = enum.auto()
+    '''Receiver's key gets munged by random postfix, then sender's key/value are
+    added to receiver.'''
+
 
 # -----------------------------------------------------------------------------
-# Actual Contexts
+# Base Context
 # -----------------------------------------------------------------------------
 
 class VerediContext:
+    '''
+    Base Context. You do not want this one. You want a PersistentContext or an
+    EphemerealContext, which are the two main subclasses.
+    '''
 
     _KEY_NAME = 'name'
 
     def __init__(self,
                  name: str,
-                 key: str,
-                 starting_context: Optional[MutableMapping[str, Any]] = None) -> None:
-        if starting_context:
-            self.data = starting_context
-        else:
-            self.data = {}
+                 key: str) -> None:
+#                  starting_context: Optional[MutableMapping[str, Any]] = None) -> None:
+#         if starting_context:
+#             self.data = starting_context
+#         else:
+#             self.data = {}
+        self.data  = {}
         self._name = name
         self._key  = key
 
-    def _ensure(self) -> Dict[str, Any]:
+    def _ensure(self, top_key: Any = None) -> Dict[str, Any]:
         '''
         Make sure our subcontext exists (and by extension, our context).
         Returns our subcontext entry of the context dict.
+
+        if top_key is None, ensures our subcontext (self.key) exists.
         '''
+        if not top_key:
+            top_key = self.key
+
         self.data = self.data or {}
-        sub_context = self.data.setdefault(self.key, {})
-        if self._KEY_NAME not in sub_context:
+        sub_context = self.data.setdefault(top_key, {})
+        # Ensure our name if we're ensuring our subcontext.
+        if (top_key is self.key
+                and self._KEY_NAME not in sub_context):
             sub_context[self._KEY_NAME] = self.name
         return sub_context
 
@@ -123,9 +171,15 @@ class VerediContext:
     @property
     def sub(self) -> Dict[str, Any]:
         '''
-        My specific subcontext. Creates if it doesn't exist yet.
+        Returns my specific subcontext. Creates if it doesn't exist yet.
         '''
         return self._ensure()
+
+    def code(self, key: CodeKey):
+        '''
+        Returns a specific CodeKey subcontext. Creates if it doesn't exist yet.
+        '''
+        return self._ensure(key)
 
     # --------------------------------------------------------------------------
     # Stuff / Things
@@ -151,6 +205,34 @@ class VerediContext:
             return
         sub[key] = value
 
+    def sub_add(self,
+                ctx_key: Any,
+                sub_key: Any,
+                value: Any) -> None:
+        '''
+        Adds to a sub-context.
+
+        That is, this is a shortcut for:
+          context[ctx_key][sub_key] = value
+        with added checks.
+        '''
+        ctx = self._get()
+        if ctx_key not in ctx:
+            log.error("Skipping sub_add for keys '{}', '{}' to context - "
+                      "the key '{}' does not exists in the context. desired value: {}."
+                      "context: {}",
+                      ctx_key, sub_key, ctx_key, value, ctx)
+            return
+
+        sub = ctx[ctx_key]
+        if sub_key in sub:
+            log.error("Skipping add key '{}' to the '{}' sub-context - the key "
+                      "already exists. desired value: {}, current value: {}, "
+                      "subcontext: {}",
+                      sub_key, ctx_key, value, sub[sub_key], sub)
+            return
+        sub[key] = value
+
     # --------------------------------------------------------------------------
     # Getters / Mergers
     # --------------------------------------------------------------------------
@@ -164,7 +246,8 @@ class VerediContext:
         return self.data
 
     def push(self,
-             other: Optional['VerediContext']) -> 'VerediContext':
+             other: Optional['VerediContext'],
+             conflict: Conflict = Conflict.SENDER_MUNGED) -> 'VerediContext':
         '''
         Push our context into 'other'. Merges all our top-level keys, not just
         our subcontext.
@@ -173,11 +256,12 @@ class VerediContext:
 
         Returns `other`.
         '''
-        self._merge(self, other, 'push', 'to')
+        self._merge(self, other, conflict, 'push', 'to')
         return other
 
     def pull(self,
-             other: Optional['VerediContext']) -> 'VerediContext':
+             other: Optional['VerediContext'],
+             conflict: Conflict = Conflict.SENDER_MUNGED) -> 'VerediContext':
         '''
         Pulls the other's context into our's. Merges all of other's top-level
         keys, not just their subcontext.
@@ -186,11 +270,43 @@ class VerediContext:
 
         Returns `self`.
         '''
-        self._merge(other, self, 'pull', 'from')
+        self._merge(other, self, conflict, 'pull', 'from')
+
+    def pull_to_sub(self,
+                    other: Optional['VerediContext'],
+                    conflict: Conflict = Conflict.SENDER_MUNGED) -> None:
+        '''
+        Pulls another context into our /sub/-context.
+
+        Not a deep copy, currently. Could be - used to be.
+
+        Returns self.
+        '''
+        d_from = None
+        if other is None:
+            return
+        elif isinstance(other, dict):
+            # This was for catching any "a context is a dict" places that still
+            # existed back when VerediContext was created. It can probably be
+            # deleted someday.
+            raise TypeError('Context needs to pull from another Context, '
+                            'not dict.',
+                            other)
+        else:
+            d_from = other._get()
+
+        self._merge_dicts(d_from,
+                          self.sub,
+                          conflict,
+                          'sub-pull',
+                          'from')
+
+        return other
 
     def _merge(self,
                m_from:      Optional['VerediContext'],
                m_to:        Optional['VerediContext'],
+               conflict:    Conflict,
                verb:        str,
                preposition: str) -> None:
         '''
@@ -228,27 +344,92 @@ class VerediContext:
 
         d_from = m_from._get()
         d_to   = m_to._get()
-        self._merge_dicts(d_from, d_to, verb, preposition)
+        self._merge_dicts(d_from, d_to, conflict, verb, preposition)
 
     def _merge_dicts(self,
                      d_from:      Dict[str, Any],
                      d_to:        Dict[str, Any],
+                     conflict:    Conflict,
                      verb:        str,
                      preposition: str) -> None:
 
         # Turn view of keys into list so we can change dictionary as we go.
         for key in d_from:
-            merge_key = key
             if key in d_to:
-                log.error(
-                    "Key conflict in context '{}' operation. "
-                    "Source key will get random string appended to de-conflict,"
-                    "but this could cause issues further along."
-                    "from: {}, to: {}",
-                    verb, d_from, d_to,
-                    context=self)
-                merge_key += '-' + uuid.uuid4().hex[:6]
-            d_to[merge_key] = d_from[key]
+                self._deflict(d_to, key, d_from[key], verb, preposition)
+            else:
+                d_to[key] = d_from[key]
+
+    def _deflict(self,
+                 d_to:         Dict[str, Any],
+                 key_sender:   str,
+                 value_sender: Any,
+                 verb:         str,
+                 preposition:  str) -> None:
+
+        # Overwrite options are easy enough.
+        if Conflict.SENDER_WINS:
+            log.warning(
+                "{}: Sender and Receiver have same key: {}. "
+                "De-conflicting keys by overwriting receiver's value."
+                "Values before overwrite: currently: {}, overwrite-to: {}",
+                verb, key_sender,
+                d_to[key_sender], value_sender,
+                context=self)
+            d_to[key_sender] = value_sender
+            return
+
+        elif Conflict.RECEIVER_WINS:
+            log.warning(
+                "{}: Sender and Receiver have same key: {}. "
+                "De-conflicting keys by ignoring sender's value."
+                "Values: currently: {}, ignoring: {}",
+                verb, key_sender, d_to[key_sender], value_sender,
+                context=self)
+            return
+
+        # Munging options still to do - can only do those to strings.
+        if not isinstance(key_sender, str):
+            raise log.exception(
+                TypeError(
+                    "Cannot munge-to-deconflict keys that are not strings.",
+                    key_sender),
+                ContextError,
+                "{}: Cannot munge-to-deconflict keys that are not strings. "
+                "sender[{}] = {}, vs receiver[{}] = {}",
+                verb, key_sender, value_sender, key_sender, d_to[key_sender],
+                context=self)
+
+        if Conflict.SENDER_MUNGED:
+            log.warning(
+                "{}: Sender and Receiver have same key: {}. "
+                "Sender's key will get random string appended to de-conflict,"
+                "but this could cause issues further along."
+                "sender[{}] = {}, vs receiver[{}] = {}",
+                verb, key_sender,
+                key_sender, value_sender, key_sender, d_to[key_sender],
+                context=self)
+
+            key_munged = key_sender + '-' + uuid.uuid4().hex[:6]
+            # Add sender's value to munged key.
+            d_to[key_munged] = value_sender
+
+        elif Conflict.SENDER_MUNGED:
+            log.warning(
+                "{}: Sender and Receiver have same key: {}. "
+                "Receiver's key will get random string appended to de-conflict,"
+                "but this could cause issues further along."
+                "sender[{}] = {}, vs receiver[{}] = {}",
+                verb, key_sender,
+                key_sender, value_sender, key_sender, d_to[key_sender],
+                context=self)
+
+            key_munged = key_sender + '-' + uuid.uuid4().hex[:6]
+            # Move receiver's value to munged key.
+            old_value = d_to.pop(key_sender)
+            d_to[key_munged] = old_value
+            # Add sender to original key.
+            d_to[key_sender] = value_sender
 
     # --------------------------------------------------------------------------
     # To String
@@ -270,10 +451,17 @@ class VerediContext:
 
 
 # ------------------------------------------------------------------------------
+# Short-Term Context
+# ------------------------------------------------------------------------------
+class EphemerealContext(VerediContext):
+    pass
+
+
+# ------------------------------------------------------------------------------
 # Unit-Testing Context
 # ------------------------------------------------------------------------------
 
-class UnitTestContext(VerediContext):
+class UnitTestContext(EphemerealContext):
     def __init__(self,
                  test_class:       str,
                  test_name:        str,
@@ -283,18 +471,30 @@ class UnitTestContext(VerediContext):
         Initialize Context with test class/name.
         '''
         super().__init__(test_class + '.' + test_name,
-                         'unit-testing',
-                         starting_context)
-        # Set our sub-context to the provided data.
-        ctx = self._get()
-        ctx[self.key] = data
+                         'unit-testing')
+
+        # Set starting context.
+        if starting_context:
+            self.data = starting_context
+        else:
+            self.data = {}
+
+        # Ensure our sub-context and ingest the provided data.
+        sub = self._ensure()
+        # Munge any starting_context/defaults with what was specifically
+        # supplied as the subcontext data.
+        self._merge_dicts(data,
+                          sub,
+                          Conflict.RECEIVER_MUNGED,
+                          'UnitTestContext.init.pull',
+                          'from')
 
     def __repr_name__(self):
         return 'UTCtx'
 
 
 # -----------------------------------------------------------------------------
-# Context Mimic / Interface
+# Long-Term Context
 # -----------------------------------------------------------------------------
 
 class PersistentContext(VerediContext):
@@ -316,51 +516,28 @@ class PersistentContext(VerediContext):
                         "Try pull_to_sub() instead?",
                         self, other)
 
-    def pull_to_sub(self,
-                    other: Optional['VerediContext']) -> None:
-        '''
-        Pulls another context into our /sub/-context.
-
-        /Is/ a deepcopy.
-
-        Returns self.
-        '''
-        d_from = None
-        if other is None:
-            return
-        elif isinstance(other, dict):
-            # This was for catching any "a context is a dict" places that still
-            # existed back when VerediContext was created. It can probably be
-            # deleted someday.
-            raise TypeError('Context needs to pull from another Context, '
-                            'not dict.',
-                            m_from, m_other)
-        else:
-            d_from = other._get()
-
-        self._merge_dicts(copy.deepcopy(d_from),
-                          self.sub,
-                          'sub-pull',
-                          'from')
-
-        return other
-
     def spawn(self,
               other_class:  Optional[Type['VerediContext']],
               spawned_name: str,
-              spawned_key:  str,
+              spawned_key:  Optional[str],
               *args:        Any,
               **kwargs:     Any) -> None:
         '''
-        Makes a new instance of the passed in type w/ a deep copy of our context
-        overwriting its own.
+        Makes a new instance of the passed in type w/ our context pushed to its
+        own.
+
+        Not a deep copy, currently. Could be - used to be.
 
         Returns spawned context.
         '''
+        log.debug("Spawning: {} with name: {}, key: {}, args: {}, kwargs: {}",
+                  other_class, spawned_name, spawned_key, args, kwargs,
+                  context=self)
         other = other_class(spawned_name, spawned_key,
                             *args,
-                            starting_context=copy.deepcopy(self._get()),
                             **kwargs)
+
+        self.push(other, True)
 
         return other
 

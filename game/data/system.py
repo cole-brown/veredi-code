@@ -18,6 +18,7 @@ from typing import Any, Optional, Set, Type, Union, Iterable, Mapping
 from veredi.logger import log
 from veredi.base.const import VerediHealth
 from veredi.base.exceptions import VerediError
+from veredi.base.context import VerediContext
 
 # Game / ECS Stuff
 from ..ecs.event import EventManager
@@ -64,11 +65,11 @@ from .component import DataComponent
 # -----------------------------------------------------------------------------
 
 class DataSystem(System):
-    def __init__(self,
-                 sid:               SystemId,
-                 *args:             Any,
-                 **kwargs:          Any) -> None:
-        super().__init__(sid, *args, **kwargs)
+
+    def _configure(self, context: VerediContext) -> None:
+        '''
+        Make our repo from config data.
+        '''
 
         # ---
         # Ticking Stuff
@@ -78,6 +79,11 @@ class DataSystem(System):
         self._ticks: SystemTick = (SystemTick.ALL & ~SystemTick.STANDARD)
         # Apoptosis will be our end-of-game saving.
         # ---
+
+        # ---
+        # Context Stuff
+        # ---
+        # No context stuff for us.
 
     # --------------------------------------------------------------------------
     # System Registration / Definition
@@ -120,6 +126,8 @@ class DataSystem(System):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
+        super().subscribe(event_manager)
+
         self._event_manager = event_manager
         if not self._event_manager:
             self._event_manager = False
@@ -224,15 +232,9 @@ class DataSystem(System):
             # Have EventManager create and fire off event for whoever wants the
             # next step.
             if cid != ComponentId.INVALID:
-                self.event(self._event_manager,
-                           DataLoadedEvent,
-                           # This is who it's for, assuming we've successfully
-                           # chained it the whole way through.
-                           event.id,
-                           event.type,
-                           event.context,
-                           False,
-                           component_id=cid)
+                event = DataLoadedEvent(event.id, event.type, event.context,
+                                        component_id=cid)
+                self._event_notify(event)
 
     def event_serialized(self, event: SerializedEvent) -> None:
         '''
@@ -253,13 +255,9 @@ class DataSystem(System):
         # serialized = None
         #
         # # Done; fire off event for whoever wants the next step.
-        # self.event(self._event_manager,
-        #            SerializedEvent,
-        #            event.id,
-        #            event.type,
-        #            context,
-        #            False,
-        #            data=serialized)
+        # event = SerializedEvent(event.id, event.type, event.context,
+        #                         component_id=cid)
+        # self._event_notify(event)
 
     # --------------------------------------------------------------------------
     # Game Update Loop/Tick Functions

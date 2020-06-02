@@ -13,6 +13,7 @@ from typing import (Optional, Iterable, Set, Any, NewType,
 import enum
 
 from veredi.logger import log
+from veredi.base.context import VerediContext
 from .identity import (ComponentId,
                        EntityId)
 from .component import (Component,
@@ -91,11 +92,10 @@ class Entity:
         klass.__get_component_fn = getter
 
     def __init__(self,
-                 eid:      EntityId,
-                 tid:      EntityTypeId,
-                 tools:    EntityTools,
-                 *args:    Any,
-                 **kwargs: Any) -> None:
+                 context: Optional[VerediContext],
+                 eid:     EntityId,
+                 tid:     EntityTypeId,
+                 tools:   EntityTools) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!'''
         self._entity_id:  EntityId        = eid
         self._type_id:    EntityTypeId    = tid
@@ -106,17 +106,19 @@ class Entity:
         #  - only hold on to component ids.
         #  - have getters go ask ComponentManager for component?
         self._components : Dict[Type[Component], Component] = {}
-        for arg in args:
-            if isinstance(arg, Iterable):
-                for each in arg:
-                    if isinstance(each, (ComponentId, Component)):
-                        self._add(each)
-            elif isinstance(arg, (ComponentId, Component)):
-                self._add(arg)
-            # else:
-            #     # No other use for arg right now...
 
-        # No use for kwargs right now...
+        self._configure(context)
+
+    def _configure(self, context: Optional[VerediContext]) -> None:
+        '''
+        Any more set up needed to do to entity based on context.
+        '''
+        if not context or not 'entity' in context.sub:
+            return
+
+        for comp in context.sub['entity'].get('components', ()):
+            if isinstance(comp, (ComponentId, Component)):
+                self._add(comp)
 
     @property
     def id(self) -> EntityId:

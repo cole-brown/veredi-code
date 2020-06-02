@@ -11,7 +11,8 @@ Tests for SystemManager.
 import unittest
 
 from veredi.base.const import VerediHealth
-from veredi.zest import zmake
+from veredi.zest import zmake, zontext
+from veredi.base.context import UnitTestContext
 
 from .event import EventManager
 from .time import TimeManager
@@ -60,8 +61,7 @@ class CompThree(Component):
 
 
 class SysTest(System):
-    def __init__(self, system_id, *args, **kwargs):
-        super().__init__(system_id, *args, **kwargs)
+    def _conifgure(self, context):
         self.ents_seen = {
             SystemTick.TIME:        set(),
             SystemTick.CREATION:    set(),
@@ -134,8 +134,8 @@ class SysTest(System):
 
 
 class SysJeff(SysTest):
-    def __init__(self, system_id, *args, **kwargs):
-        super().__init__(system_id, *args, **kwargs)
+    def _configure(self,
+                   context):
         self._ticks = (SystemTick.PRE
                        | SystemTick.STANDARD
                        | SystemTick.POST)
@@ -148,11 +148,11 @@ class SysJeff(SysTest):
 
 
 class SysJill(SysTest):
-    def __init__(self, system_id, *args, x=None, y=None, **kwargs):
-        super().__init__(system_id, *args, **kwargs)
-        self._ticks = SystemTick.STANDARD
-        self.x = x
-        self.y = y
+
+    def _configure(self,
+                   context):
+        self.x = context.sub['system']['x']
+        self.y = context.sub['system']['y']
 
     def priority(self):
         return SystemPriority.HIGH
@@ -239,6 +239,18 @@ class Test_SystemManager(unittest.TestCase):
             self.ent_x_2_3,
         }
 
+    def create_system(self, sys_type, **kwargs):
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'test_create',
+            {}
+            if not kwargs else
+            {'system': kwargs})
+
+        sid = self.system_mgr.create(sys_type,
+                                     context)
+        return sid
+
     def saw_ents(self, sys, tick, ent_ids):
         seen_ids = set()
         for id in ent_ids:
@@ -258,7 +270,7 @@ class Test_SystemManager(unittest.TestCase):
         self.assertEqual(self.system_mgr._system_id.peek(),
                          SystemId.INVALID)
 
-        sid = self.system_mgr.create(SysJeff)
+        sid = self.create_system(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
 
         self.assertEqual(len(self.system_mgr._system_create), 1)
@@ -297,7 +309,7 @@ class Test_SystemManager(unittest.TestCase):
         self.assertEqual(self.system_mgr._system_id.peek(),
                          SystemId.INVALID)
 
-        sid = self.system_mgr.create(SysJill, x=1, y=2)
+        sid = self.create_system(SysJill, x=1, y=2)
         self.assertNotEqual(sid, SystemId.INVALID)
 
         # System should exist and have its args assigned.
@@ -320,7 +332,7 @@ class Test_SystemManager(unittest.TestCase):
         self.assertEqual(len(self.system_mgr._system_create), 0)
         self.assertEqual(len(self.system_mgr._system_destroy), 0)
 
-        sid = self.system_mgr.create(SysJeff)
+        sid = self.create_system(SysJeff)
         # Now we should have a create...
         self.assertNotEqual(sid, SystemId.INVALID)
         self.assertEqual(len(self.system_mgr._system_create), 1)
@@ -356,7 +368,7 @@ class Test_SystemManager(unittest.TestCase):
             self.assertIsNone(event.context)
 
     def test_creation(self):
-        sid = self.system_mgr.create(SysJeff)
+        sid = self.create_system(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
 
         # System should exist and be in CREATING state now...
@@ -398,7 +410,7 @@ class Test_SystemManager(unittest.TestCase):
             self.assertIsNone(event.context)
 
     def test_destruction(self):
-        sid = self.system_mgr.create(SysJeff)
+        sid = self.create_system(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
 
         # System should exist and be in CREATING state now...
@@ -445,17 +457,19 @@ class Test_SystemManager(unittest.TestCase):
             self.assertIsNone(event.context)
 
     def test_scheduling(self):
-        sid = self.system_mgr.create(SysFour)
+        sid = self.create_system(SysFour)
         self.assertNotEqual(sid, SystemId.INVALID)
 
-        sid = self.system_mgr.create(SysJeff)
+        sid = self.create_system(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
 
-        sid = self.system_mgr.create(SysThree)
+        sid = self.create_system(SysThree)
         self.assertNotEqual(sid, SystemId.INVALID)
 
-        sid = self.system_mgr.create(SysJeff)
+        sid = self.create_system(SysJill, x=1, y=2)
         self.assertNotEqual(sid, SystemId.INVALID)
+
+        # §-TODO-§ [2020-06-01]: Did I... Forget to finish this?
 
 
 class Test_SystemManager_Events(Test_SystemManager):

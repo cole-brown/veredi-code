@@ -48,45 +48,51 @@ class Test_Configuration(unittest.TestCase):
     def test_config_metadata(self):
         self.assertTrue(self.config._config)
         with log.LoggingManager.full_blast():
-            self.assertEqual(self.config.get(config.ConfigDocuments.METADATA,
-                                             config.ConfigKeys.REC),
+            self.assertEqual(self.config.get_by_doc(
+                config.ConfigDocument.METADATA,
+                config.ConfigKey.REC),
                              'veredi.config')
-        self.assertEqual(self.config.get(config.ConfigDocuments.METADATA,
-                                         config.ConfigKeys.VERSION),
-                         date(2020, 5, 26))
-        self.assertEqual(self.config.get(config.ConfigDocuments.METADATA,
-                                         config.ConfigKeys.AUTHOR),
-                         'Cole Brown')
+            self.assertEqual(self.config.get_by_doc(
+                config.ConfigDocument.METADATA,
+                config.ConfigKey.VERSION),
+                             date(2020, 5, 26))
+            self.assertEqual(self.config.get_by_doc(
+                config.ConfigDocument.METADATA,
+                config.ConfigKey.AUTHOR),
+                             'Cole Brown')
 
     def test_config_configdata(self):
         self.assertTrue(self.config._config)
-        self.assertEqual(self.config.get(config.ConfigDocuments.CONFIG,
-                                         config.ConfigKeys.DOC),
+        self.assertEqual(self.config.get(config.ConfigKey.DOC),
                          'configuration')
-        self.assertEqual(self.config.get(config.ConfigDocuments.CONFIG,
-                                         config.ConfigKeys.GAME,
-                                         config.ConfigKeys.REPO,
-                                         config.ConfigKeys.TYPE),
+        self.assertEqual(self.config.get_by_doc(
+            config.ConfigDocument.CONFIG,
+            config.ConfigKey.GAME,
+            config.ConfigKey.REPO,
+            config.ConfigKey.TYPE),
                          'veredi.repository.file-tree')
-        self.assertEqual(self.config.get(config.ConfigDocuments.CONFIG,
-                                         config.ConfigKeys.GAME,
-                                         config.ConfigKeys.REPO,
-                                         config.ConfigKeys.DIR),
+        self.assertEqual(self.config.get(config.ConfigKey.GAME,
+                                         config.ConfigKey.REPO,
+                                         config.ConfigKey.TYPE),
+                         'veredi.repository.file-tree')
+        self.assertEqual(self.config.get(config.ConfigKey.GAME,
+                                         config.ConfigKey.REPO,
+                                         config.ConfigKey.DIR),
                          'test-target-repo/file-tree')
-        self.assertEqual(self.config.get(config.ConfigDocuments.CONFIG,
-                                         config.ConfigKeys.GAME,
-                                         config.ConfigKeys.CODEC),
+        self.assertEqual(self.config.get(config.ConfigKey.GAME,
+                                         config.ConfigKey.CODEC),
                          'veredi.codec.yaml')
 
     def test_config_make_repo(self):
+        debug = False
 
         self.assertTrue(self.config._config)
 
-        with log.LoggingManager.ignored():
+        with log.LoggingManager.on_or_off(debug):
             repo = self.config.make(None,
-                                    config.ConfigKeys.GAME,
-                                    config.ConfigKeys.REPO,
-                                    config.ConfigKeys.TYPE)
+                                    config.ConfigKey.GAME,
+                                    config.ConfigKey.REPO,
+                                    config.ConfigKey.TYPE)
 
         self.assertTrue(repo)
         self.assertIsInstance(repo, FileTreeRepository)

@@ -22,8 +22,9 @@ import unittest
 
 from veredi.logger                      import log
 from veredi.base.const                  import VerediHealth
+from veredi.base.context                import UnitTestContext
 from veredi.data.context                import DataGameContext, DataLoadContext
-from veredi.zest                        import zmake, zpath
+from veredi.zest                        import zpath, zmake, zontext
 
 from veredi.game.ecs.time               import TimeManager
 from veredi.game.ecs.event              import EventManager
@@ -62,7 +63,12 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
 
     def setUp(self):
         self.events         = []
-        self.config         = zmake.config(zpath.TestType.INTEGRATION)
+        self.debug             = False
+        self.config            = zmake.config(zpath.TestType.INTEGRATION)
+        self.context           = zontext.real_config(self.__class__.__name__,
+                                                     'setUp',
+                                                     config=self.config,
+                                                     test_type=zpath.TestType.INTEGRATION)
         self.time_manager   = TimeManager()
         self.event_manager  = EventManager(self.config)
         self.comp_manager   = ComponentManager(self.config,
@@ -74,12 +80,15 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
                                             self.event_manager,
                                             self.comp_manager,
                                             DebugFlag.UNIT_TESTS)
-        self.create_systems(RepositorySystem, CodecSystem, DataSystem)
+        with log.LoggingManager.on_or_off(self.debug):
+            self.create_systems(RepositorySystem, CodecSystem, DataSystem)
 
     def tearDown(self):
+        self.debug          = False
         self.apoptosis()
         self.events         = None
         self.config         = None
+        self.context        = None
         self.time_manager   = None
         self.event_manager  = None
         self.comp_manager   = None
@@ -93,7 +102,20 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
         self.entity_manager.apoptosis(self.time_manager)
         self.system_manager.apoptosis(self.time_manager)
 
-    def create_systems(self, *args):
+    def create_system(self, sys_type, *args, **kwargs):
+        sub = self.context.sub
+        if kwargs:
+            sub['system'] = kwargs
+        else:
+            sub.pop('system', None)
+
+        sid = self.system_manager.create(sys_type,
+                                         self.context)
+
+        sub.pop('system', None)
+        return sid
+
+    def create_systems(self, *args, **kwargs):
         '''
         e.g.:
           self.create_systems(SomeSystem)
@@ -103,21 +125,18 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
         sids = []
         for each in args:
             if isinstance(each, tuple):
-                sids.append(self.system_manager.create(each[0], *each[1:]))
+                sids.append(self.create_system(each[0], self.context,
+                                               *each[1:], **each[2:]))
             else:
-                sids.append(self.system_manager.create(each))
+                sids.append(self.create_system(each, self.context))
 
         return sids
 
     def sub_loaded(self):
         self.event_manager.subscribe(DataLoadedEvent, self.event_loaded)
 
-    def set_up_subs(self, debug=False):
-        log_lvl_mgr = (log.LoggingManager.full_blast()
-                       if debug else
-                       log.LoggingManager.ignored())
-
-        with log_lvl_mgr:
+    def set_up_subs(self):
+        with log.LoggingManager.on_or_off(self.debug):
             # Let all our pieces set up their subs.
             self.time_manager.subscribe(self.event_manager)
             self.comp_manager.subscribe(self.event_manager)
@@ -131,7 +150,10 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
         self.events.append(event)
 
     def load_request(self, type):
-        ctx = DataLoadContext('unit-testing', type, 'test-campaign')
+        ctx = self.context.spawn(DataLoadContext,
+                                 'unit-testing', None,
+                                 type,
+                                 'test-campaign')
         if type == DataGameContext.Type.MONSTER:
             ctx.sub['family'] = 'dragon'
             ctx.sub['monster'] = 'aluminum dragon'
@@ -148,7 +170,7 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
 
         return event
 
-    def make_it_so(self, event, num_publishes=3, debug=False):
+    def make_it_so(self, event, num_publishes=3):
         '''
         Notifies the event for immediate action. Which /should/ cause something
         to process it and queue up an event. So we publish() in order to get
@@ -156,11 +178,7 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
         queue up another. So we'll publish as many times as asked. Then assert
         we ended up with an event in our self.events list.
         '''
-        log_lvl_mgr = (log.LoggingManager.full_blast()
-                       if debug else
-                       log.LoggingManager.ignored())
-
-        with log_lvl_mgr:
+        with log.LoggingManager.on_or_off(self.debug):
             self.event_manager.notify(event, True)
 
             for each in range(num_publishes):
@@ -177,15 +195,14 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
         self.assertTrue(self.system_manager)
 
     def test_set_up(self):
-        full_debug = False
-        self.set_up_subs(debug=full_debug)
+        self.set_up_subs()
 
         # Make our request event.
         request = self.load_request(DataGameContext.Type.MONSTER)
         self.assertFalse(self.events)
 
         # Ask for our aluminum_dragon to be loaded.
-        self.make_it_so(request, debug=full_debug)
+        self.make_it_so(request)
         self.assertTrue(self.events)
         self.assertEqual(len(self.events), 1)
 

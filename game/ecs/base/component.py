@@ -9,9 +9,11 @@ subclass...
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import NewType, Any, Union, Type, Iterable
+from typing import Any, Optional, Union, Type, NewType, Iterable
 import enum
 
+from veredi.base.context import VerediContext
+from veredi.data.config.context import ConfigContext
 from .exceptions import ComponentError
 from .identity import ComponentId
 
@@ -52,12 +54,21 @@ class Component:
     '''
 
     def __init__(self,
-                 cid: ComponentId,
-                 *args: Any,
-                 **kwargs: Any) -> None:
+                 context: Optional[VerediContext],
+                 cid:     ComponentId) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
         self._comp_id = cid
         self._life_cycle = ComponentLifeCycle.INVALID
+
+        self._configure(context)
+
+    def _configure(self,
+                   context: Optional[ConfigContext]) -> None:
+        '''
+        Allows components to grab, from the context/config, anything that
+        they need to set up themselves.
+        '''
+        pass
 
     @property
     def id(self) -> ComponentId:
