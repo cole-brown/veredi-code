@@ -15,7 +15,7 @@ import copy
 
 from veredi.logger import log
 from veredi.base.exceptions import ContextError
-from veredi.base.context import VerediContext, EphemerealContext
+from veredi.base.context import EphemerealContext
 
 
 # -----------------------------------------------------------------------------

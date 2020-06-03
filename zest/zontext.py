@@ -12,7 +12,7 @@ from typing import Optional, Union, Any, Dict
 import pathlib
 
 from . import zpath, zmake
-from veredi.base.context import VerediContext, UnitTestContext
+from veredi.base.context import UnitTestContext
 from veredi.data.config.context import ConfigContext
 from veredi.data.config.config import Configuration, ConfigDocument, ConfigKey
 from veredi.data.repository.base import BaseRepository

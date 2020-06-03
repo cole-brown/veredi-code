@@ -8,7 +8,7 @@ Helper classes for managing contexts for events, error messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Type, MutableMapping, Dict, List
+from typing import Optional, Union, Any, Type, MutableMapping, Dict, List
 import enum
 import uuid
 import copy
@@ -19,14 +19,6 @@ from .exceptions import ContextError
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# Â§-TODO-Â§ [2020-05-31]:   - Only pass around context - stuff construction data into it?
-#    - Remove *args, **kwargs from my classes entirely?
-#    - Leave in things passing along or creating things blindly (e.g. registry.create)
-
-# Â§-TODO-Â§ [2020-05-31]: See about every 'VerediContext'...
-#   - Should it be PersistentContext?
-#   - Should it be EphemerealContext?
 
 
 @enum.unique
@@ -45,9 +37,8 @@ class CodeKey(enum.Enum):
     object(s) from decoding.'''
 
 
-# §-TODO-§ [2020-06-02]: should I bother with this for pushing/pulling dicts?
 @enum.unique
-class Conflict(enum.Enum):
+class Conflict(enum.Flag):
     '''
     Indicates which way a conflict should be resolved.
     '''
@@ -66,6 +57,9 @@ class Conflict(enum.Enum):
     '''Receiver's key gets munged by random postfix, then sender's key/value are
     added to receiver.'''
 
+    QUIET = enum.auto()
+    '''Do not log conflicts.'''
+
 
 # -----------------------------------------------------------------------------
 # Base Context
@@ -82,11 +76,6 @@ class VerediContext:
     def __init__(self,
                  name: str,
                  key: str) -> None:
-#                  starting_context: Optional[MutableMapping[str, Any]] = None) -> None:
-#         if starting_context:
-#             self.data = starting_context
-#         else:
-#             self.data = {}
         self.data  = {}
         self._name = name
         self._key  = key
@@ -247,7 +236,7 @@ class VerediContext:
 
     def push(self,
              other: Optional['VerediContext'],
-             conflict: Conflict = Conflict.SENDER_MUNGED) -> 'VerediContext':
+             resolution: Conflict = Conflict.SENDER_MUNGED) -> 'VerediContext':
         '''
         Push our context into 'other'. Merges all our top-level keys, not just
         our subcontext.
@@ -256,12 +245,14 @@ class VerediContext:
 
         Returns `other`.
         '''
-        self._merge(self, other, conflict, 'push', 'to')
+        if not isinstance(resolution, Conflict):
+            raise TypeError("nope.")
+        self._merge(self, other, resolution, 'push', 'to')
         return other
 
     def pull(self,
              other: Optional['VerediContext'],
-             conflict: Conflict = Conflict.SENDER_MUNGED) -> 'VerediContext':
+             resolution: Conflict = Conflict.SENDER_MUNGED) -> 'VerediContext':
         '''
         Pulls the other's context into our's. Merges all of other's top-level
         keys, not just their subcontext.
@@ -270,11 +261,11 @@ class VerediContext:
 
         Returns `self`.
         '''
-        self._merge(other, self, conflict, 'pull', 'from')
+        self._merge(other, self, resolution, 'pull', 'from')
 
     def pull_to_sub(self,
-                    other: Optional['VerediContext'],
-                    conflict: Conflict = Conflict.SENDER_MUNGED) -> None:
+                    other: Union['VerediContext', Dict[str, Any], None],
+                    resolution: Conflict = Conflict.SENDER_MUNGED) -> None:
         '''
         Pulls another context into our /sub/-context.
 
@@ -286,18 +277,13 @@ class VerediContext:
         if other is None:
             return
         elif isinstance(other, dict):
-            # This was for catching any "a context is a dict" places that still
-            # existed back when VerediContext was created. It can probably be
-            # deleted someday.
-            raise TypeError('Context needs to pull from another Context, '
-                            'not dict.',
-                            other)
+            d_from = other
         else:
             d_from = other._get()
 
         self._merge_dicts(d_from,
                           self.sub,
-                          conflict,
+                          resolution,
                           'sub-pull',
                           'from')
 
@@ -306,7 +292,7 @@ class VerediContext:
     def _merge(self,
                m_from:      Optional['VerediContext'],
                m_to:        Optional['VerediContext'],
-               conflict:    Conflict,
+               resolution:    Conflict,
                verb:        str,
                preposition: str) -> None:
         '''
@@ -344,47 +330,51 @@ class VerediContext:
 
         d_from = m_from._get()
         d_to   = m_to._get()
-        self._merge_dicts(d_from, d_to, conflict, verb, preposition)
+        self._merge_dicts(d_from, d_to, resolution, verb, preposition)
 
     def _merge_dicts(self,
                      d_from:      Dict[str, Any],
                      d_to:        Dict[str, Any],
-                     conflict:    Conflict,
+                     resolution:  Conflict,
                      verb:        str,
                      preposition: str) -> None:
 
         # Turn view of keys into list so we can change dictionary as we go.
         for key in d_from:
             if key in d_to:
-                self._deflict(d_to, key, d_from[key], verb, preposition)
+                self._deflict(resolution, d_to, key, d_from[key], verb, preposition)
             else:
                 d_to[key] = d_from[key]
 
     def _deflict(self,
+                 resolution:   Conflict,
                  d_to:         Dict[str, Any],
                  key_sender:   str,
                  value_sender: Any,
                  verb:         str,
                  preposition:  str) -> None:
 
+        quiet = (resolution & Conflict.QUIET) == Conflict.QUIET
+        resolution = resolution & ~Conflict.QUIET
+
         # Overwrite options are easy enough.
-        if Conflict.SENDER_WINS:
+        if resolution == Conflict.SENDER_WINS:
             log.warning(
-                "{}: Sender and Receiver have same key: {}. "
-                "De-conflicting keys by overwriting receiver's value."
+                "{}({}): Sender and Receiver have same key: {}. "
+                "De-conflicting keys by overwriting receiver's value. "
                 "Values before overwrite: currently: {}, overwrite-to: {}",
-                verb, key_sender,
+                verb, resolution, key_sender,
                 d_to[key_sender], value_sender,
                 context=self)
             d_to[key_sender] = value_sender
             return
 
-        elif Conflict.RECEIVER_WINS:
+        elif resolution == Conflict.RECEIVER_WINS:
             log.warning(
-                "{}: Sender and Receiver have same key: {}. "
-                "De-conflicting keys by ignoring sender's value."
+                "{}({}): Sender and Receiver have same key: {}. "
+                "De-conflicting keys by ignoring sender's value. "
                 "Values: currently: {}, ignoring: {}",
-                verb, key_sender, d_to[key_sender], value_sender,
+                verb, resolution, key_sender, d_to[key_sender], value_sender,
                 context=self)
             return
 
@@ -395,18 +385,18 @@ class VerediContext:
                     "Cannot munge-to-deconflict keys that are not strings.",
                     key_sender),
                 ContextError,
-                "{}: Cannot munge-to-deconflict keys that are not strings. "
+                "{}({}): Cannot munge-to-deconflict keys that are not strings. "
                 "sender[{}] = {}, vs receiver[{}] = {}",
-                verb, key_sender, value_sender, key_sender, d_to[key_sender],
-                context=self)
+                verb, resolution, key_sender, value_sender, key_sender,
+                d_to[key_sender], context=self)
 
-        if Conflict.SENDER_MUNGED:
+        if resolution == Conflict.SENDER_MUNGED:
             log.warning(
-                "{}: Sender and Receiver have same key: {}. "
-                "Sender's key will get random string appended to de-conflict,"
-                "but this could cause issues further along."
+                "{}({}): Sender and Receiver have same key: {}. "
+                "Sender's key will get random string appended to de-conflict, "
+                "but this could cause issues further along. "
                 "sender[{}] = {}, vs receiver[{}] = {}",
-                verb, key_sender,
+                verb, resolution, key_sender,
                 key_sender, value_sender, key_sender, d_to[key_sender],
                 context=self)
 
@@ -414,13 +404,13 @@ class VerediContext:
             # Add sender's value to munged key.
             d_to[key_munged] = value_sender
 
-        elif Conflict.SENDER_MUNGED:
+        elif resolution == Conflict.SENDER_MUNGED:
             log.warning(
-                "{}: Sender and Receiver have same key: {}. "
+                "{}({}): Sender and Receiver have same key: {}. "
                 "Receiver's key will get random string appended to de-conflict,"
-                "but this could cause issues further along."
+                "but this could cause issues further along. "
                 "sender[{}] = {}, vs receiver[{}] = {}",
-                verb, key_sender,
+                verb, resolution, key_sender,
                 key_sender, value_sender, key_sender, d_to[key_sender],
                 context=self)
 
@@ -537,7 +527,11 @@ class PersistentContext(VerediContext):
                             *args,
                             **kwargs)
 
-        self.push(other, True)
+        if other.key == self.key:
+            other.pull_to_sub(self.sub, Conflict.RECEIVER_MUNGED)
+            other.pull(self, Conflict.RECEIVER_MUNGED | Conflict.QUIET)
+        else:
+            other.pull(self, Conflict.RECEIVER_MUNGED)
 
         return other
 

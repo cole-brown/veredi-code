@@ -31,15 +31,14 @@ from veredi.zest import zpath, zmake
 class Test_Configuration(unittest.TestCase):
 
     def setUp(self):
+        self.debug = False
         self.path = zpath.config('test-target.yaml')
         self.config = zmake.config(zpath.TestType.UNIT, self.path, None, None)
 
     def tearDown(self):
-        self.data_root = None
-        self.name_user = None
-        self.name_player = None
-        self.name_campaign = None
-        self.data = None
+        self.debug = False
+        self.path = None
+        self.config = None
 
     def test_init(self):
         self.assertIsNotNone(self.path)
