@@ -22,6 +22,7 @@ from veredi.base.const      import VerediHealth
 
 from .. import exceptions
 from .  import registry
+from .hierarchy import Document, Hierarchy, MetadataHierarchy, ConfigHierarchy
 
 
 # -----------------------------------------------------------------------------
@@ -30,66 +31,6 @@ from .  import registry
 
 THIS_DIR = pathlib.Path(__file__).resolve().parent
 DEFAULT_NAME = "default.yaml"
-
-
-# Â§-TODO-Â§ [2020-05-30]: replace with some other way of verifying?..
-# This is growing a bit fast?
-@enum.unique
-class ConfigKey(enum.Enum):
-    INVALID  = None
-
-    # level 0
-    REC      = 'record-type'
-    VERSION  = 'version'
-    AUTHOR   = 'author'
-    DOC      = 'doc-type'  # meta-key - not in the actual data
-    GAME     = 'game'
-    TEMPLATE = 'template'
-
-    # level 1
-    REPO     = 'repository'
-    CODEC    = 'codec'
-
-    # etc...
-    TYPE     = 'type'
-    DIR      = 'directory'
-    SANITIZE = 'sanitize'
-
-    def get(string: str) -> Optional['ConfigKey']:
-        '''
-        Convert a string into a ConfigKey enum value. Returns None if no
-        conversion is found. Isn't smart - no case insensitivity or anything.
-        Only compares input against our enum /values/.
-        '''
-        for each in ConfigKey:
-            if string == each.value:
-                return each
-        return None
-
-
-@enum.unique
-class ConfigDocument(enum.Enum):
-    INVALID = None
-    METADATA = 'metadata'
-    CONFIG = 'configuration'
-    # etc...
-
-    def get(string: str) -> Optional['ConfigDocument']:
-        '''
-        Convert a string into a ConfigDocument enum value. Returns None if no
-        conversion is found. Isn't smart - no case insensitivity or anything.
-        Only compares input against our enum /values/.
-        '''
-        for each in ConfigDocument:
-            if string == each.value:
-                return each
-        return None
-
-
-@enum.unique
-class CodecKey(enum.Enum):
-    INVALID = None
-    DOC_TYPE = 'doc-type'
 
 
 # -----------------------------------------------------------------------------
@@ -244,12 +185,12 @@ class Configuration:
 
     def make(self,
              context:   Optional[VerediContext],
-             *keychain: ConfigKey) -> Optional[Any]:
+             *keychain: str) -> Optional[Any]:
         '''
         Gets value from these keychain in our config data, then tries to have
         our registry create that value.
 
-        e.g. config.make(ConfigKey.GAME, ConfigKey.REPO)
+        e.g. config.make('data', 'game', 'repository')
 
         Returns thing created using keychain or None.
         '''
@@ -284,8 +225,32 @@ class Configuration:
     # Config Data
     # --------------------------------------------------------------------------
 
+    def get_data(self,
+                 *keychain: str) -> Optional[Any]:
+        '''
+        Get a configuration thingy from us given some keychain use to walk into
+        our config data in 'data' entry.
+
+        Returns data found at end keychain.
+        Returns None if couldn't find a key in our config data.
+        '''
+        return self.get('data',
+                        *keychain)
+
+    def get_rules(self,
+                  *keychain: str) -> Optional[Any]:
+        '''
+        Get a configuration thingy from us given some keychain use to walk into
+        our config data in 'rules' entry.
+
+        Returns data found at end keychain.
+        Returns None if couldn't find a key in our config data.
+        '''
+        return self.get('rules',
+                        *keychain)
+
     def get(self,
-            *keychain: ConfigKey) -> Optional[Any]:
+            *keychain: str) -> Optional[Any]:
         '''
         Get a configuration thingy from us given some keychain use to walk into
         our config data.
@@ -293,12 +258,21 @@ class Configuration:
         Returns data found at end keychain.
         Returns None if couldn't find a key in our config data.
         '''
-        return self.get_by_doc(ConfigDocument.CONFIG,
+        return self.get_by_doc(Document.CONFIG,
                                *keychain)
 
     def get_by_doc(self,
-                   doc_type:  ConfigDocument,
-                   *keychain: ConfigKey) -> Optional[Any]:
+                   doc_type:  Document,
+                   *keychain: str) -> Optional[Any]:
+
+        hierarchy = Document.hierarchy(doc_type)
+        if not hierarchy.valid(*keychain):
+            raise log.exception(
+                None,
+                exceptions.ConfigError,
+                "Invalid keychain '{}' for {} document type. See its Hierarchy "
+                "class for proper layout.",
+                keychain, doc_type)
 
         # Get document type data first.
         doc_data = self._config.get(doc_type, None)
@@ -310,7 +284,7 @@ class Configuration:
 
         # Now hunt for the keychain they wanted...
         for key in keychain:
-            data = data.get(key.value, None)
+            data = data.get(key, None)
             if data is None:
                 log.debug("No data for key {} in keychain {} "
                           "in our config data {}.",
@@ -399,10 +373,10 @@ class Configuration:
                     context=self.context)
 
         elif (isinstance(document, dict)
-              and CodecKey.DOC_TYPE.value in document):
+              and Hierarchy.VKEY_DOC_TYPE in document):
             # Save these to our config dict under their doc-type key.
-            doc_type_str = document[CodecKey.DOC_TYPE.value]
-            doc_type = ConfigDocument.get(doc_type_str)
+            doc_type_str = document[Hierarchy.VKEY_DOC_TYPE]
+            doc_type = Document.get(doc_type_str)
             self._config[doc_type] = document
 
         else:
@@ -412,7 +386,7 @@ class Configuration:
                 "Unknown document while loading! "
                 "Does it have a '{}' field? "
                 "{}: {}",
-                CodecKey.DOC_TYPE.value,
+                Hierarchy.VKEY_DOC_TYPE,
                 type(document),
                 str(document),
                 context=self.context)
@@ -423,8 +397,8 @@ class Configuration:
 
     def ut_inject(self,
                   value:     Any,
-                  doc_type:  ConfigDocument,
-                  *keychain: ConfigKey) -> None:
+                  doc_type:  Document,
+                  *keychain: str) -> None:
         # Get document type data first.
         doc_data = self._config.get(doc_type, None)
         data = doc_data
@@ -435,7 +409,7 @@ class Configuration:
 
         # Now hunt for/create the keychain they wanted...
         for key in keychain[:-1]:
-            data = data.setdefault(key.value, {})
+            data = data.setdefault(key, {})
 
         # And set the key.
-        data[keychain[-1].value] = value
+        data[keychain[-1]] = value

@@ -125,8 +125,11 @@ class ConfigContext(PersistentContext):
                   *args:     Any,
                   **kwargs:  Any) -> None:
         '''
-        Raises a ConfigError with message built from msg, args, kwargs and
-        with supplied context.
+        Calls log.exception() to raise a ConfigError with message built from
+        msg, args, kwargs and with supplied context.
+
+        Sets stack level one more than usual so that caller of this should be
+        the stacktrace of the exception.
         '''
         # An extra stacklevel should get us back to whoever called us...
         raise log.exception(

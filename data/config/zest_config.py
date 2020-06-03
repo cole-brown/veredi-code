@@ -15,6 +15,8 @@ from datetime import date
 from veredi.logger import log
 
 from . import config
+from . import hierarchy
+
 from veredi.data.repository.file import FileTreeRepository
 
 from veredi.zest import zpath, zmake
@@ -48,38 +50,53 @@ class Test_Configuration(unittest.TestCase):
         self.assertTrue(self.config._config)
         with log.LoggingManager.full_blast():
             self.assertEqual(self.config.get_by_doc(
-                config.ConfigDocument.METADATA,
-                config.ConfigKey.REC),
+                hierarchy.Document.METADATA,
+                'record-type'),
                              'veredi.config')
             self.assertEqual(self.config.get_by_doc(
-                config.ConfigDocument.METADATA,
-                config.ConfigKey.VERSION),
+                hierarchy.Document.METADATA,
+                'version'),
                              date(2020, 5, 26))
             self.assertEqual(self.config.get_by_doc(
-                config.ConfigDocument.METADATA,
-                config.ConfigKey.AUTHOR),
+                hierarchy.Document.METADATA,
+                'author'),
                              'Cole Brown')
 
     def test_config_configdata(self):
         self.assertTrue(self.config._config)
-        self.assertEqual(self.config.get(config.ConfigKey.DOC),
+        self.assertEqual(self.config.get('doc-type'),
                          'configuration')
         self.assertEqual(self.config.get_by_doc(
-            config.ConfigDocument.CONFIG,
-            config.ConfigKey.GAME,
-            config.ConfigKey.REPO,
-            config.ConfigKey.TYPE),
+            hierarchy.Document.CONFIG,
+            'data',
+            'game',
+            'repository',
+            'type'),
                          'veredi.repository.file-tree')
-        self.assertEqual(self.config.get(config.ConfigKey.GAME,
-                                         config.ConfigKey.REPO,
-                                         config.ConfigKey.TYPE),
+        self.assertEqual(self.config.get('data',
+                                         'game',
+                                         'repository',
+                                         'type'),
                          'veredi.repository.file-tree')
-        self.assertEqual(self.config.get(config.ConfigKey.GAME,
-                                         config.ConfigKey.REPO,
-                                         config.ConfigKey.DIR),
+        self.assertEqual(self.config.get_data('game',
+                                              'repository',
+                                              'type'),
+                         'veredi.repository.file-tree')
+        self.assertEqual(self.config.get('data',
+                                         'game',
+                                         'repository',
+                                         'directory'),
                          'test-target-repo/file-tree')
-        self.assertEqual(self.config.get(config.ConfigKey.GAME,
-                                         config.ConfigKey.CODEC),
+        self.assertEqual(self.config.get_data('game',
+                                              'repository',
+                                              'directory'),
+                         'test-target-repo/file-tree')
+        self.assertEqual(self.config.get('data',
+                                         'game',
+                                         'codec'),
+                         'veredi.codec.yaml')
+        self.assertEqual(self.config.get_data('game',
+                                              'codec'),
                          'veredi.codec.yaml')
 
     def test_config_make_repo(self):
@@ -89,9 +106,10 @@ class Test_Configuration(unittest.TestCase):
 
         with log.LoggingManager.on_or_off(debug):
             repo = self.config.make(None,
-                                    config.ConfigKey.GAME,
-                                    config.ConfigKey.REPO,
-                                    config.ConfigKey.TYPE)
+                                    'data',
+                                    'game',
+                                    'repository',
+                                    'type')
 
         self.assertTrue(repo)
         self.assertIsInstance(repo, FileTreeRepository)

@@ -15,8 +15,8 @@ from veredi.logger import log
 from veredi.logger import pretty
 from veredi.data.config.registry import register
 from veredi.data import exceptions
+from veredi.data.config.hierarchy import Hierarchy
 
-from veredi.data.config.config import CodecKey
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -47,7 +47,7 @@ class VerediYamlDocument(yaml.YAMLObject):
         Returns a (key, value) tuple for putting in a dictionary
         or something somewhere.
         '''
-        target[CodecKey.DOC_TYPE.value] = self.yaml_tag[1:]
+        target[Hierarchy.VKEY_DOC_TYPE] = self.yaml_tag[1:]
 
     def decode(self):
         '''

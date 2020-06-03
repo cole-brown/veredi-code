@@ -13,6 +13,7 @@ import pathlib
 
 from . import zpath
 from veredi.data.config.config import Configuration
+from veredi.data.config import hierarchy
 from veredi.data.repository.base import BaseRepository
 from veredi.data.codec.base import BaseCodec
 
@@ -44,9 +45,10 @@ def config(test_type:    zpath.TestType                 = zpath.TestType.UNIT,
 
     if repo_path:
         config.ut_inject(str(path),
-                         ConfigDocument.CONFIG,
-                         ConfigKey.GAME,
-                         ConfigKey.REPO,
-                         ConfigKey.DIR)
+                         hierarchy.Document.CONFIG,
+                         'data',
+                         'game',
+                         'repository',
+                         'directory')
 
     return config

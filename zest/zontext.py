@@ -14,7 +14,8 @@ import pathlib
 from . import zpath, zmake
 from veredi.base.context import UnitTestContext
 from veredi.data.config.context import ConfigContext
-from veredi.data.config.config import Configuration, ConfigDocument, ConfigKey
+from veredi.data.config.config import Configuration
+from veredi.data.config.hierarchy import Document
 from veredi.data.repository.base import BaseRepository
 from veredi.data.codec.base import BaseCodec
 
@@ -73,9 +74,10 @@ def codec(klass_name:   str,
 
     # Inject specific codec for unit test.
     config.ut_inject('veredi.codec.yaml',
-                     ConfigDocument.CONFIG,
-                     ConfigKey.GAME,
-                     ConfigKey.CODEC)
+                     Document.CONFIG,
+                     'data',
+                     'game',
+                     'codec')
 
     return context
 
@@ -99,21 +101,24 @@ def repo(klass_name:   str,
 
     # Inject specific codec for unit test.
     config.ut_inject('veredi.repository.file-tree',
-                     ConfigDocument.CONFIG,
-                     ConfigKey.GAME,
-                     ConfigKey.REPO,
-                     ConfigKey.TYPE)
+                     Document.CONFIG,
+                     'data',
+                     'game',
+                     'repository',
+                     'type')
 
     config.ut_inject(str(path),
-                     ConfigDocument.CONFIG,
-                     ConfigKey.GAME,
-                     ConfigKey.REPO,
-                     ConfigKey.DIR)
+                     Document.CONFIG,
+                     'data',
+                     'game',
+                     'repository',
+                     'directory')
 
     config.ut_inject('veredi.sanitize.human.path-safe',
-                     ConfigDocument.CONFIG,
-                     ConfigKey.GAME,
-                     ConfigKey.REPO,
-                     ConfigKey.SANITIZE)
+                     Document.CONFIG,
+                     'data',
+                     'game',
+                     'repository',
+                     'sanitize')
 
     return context

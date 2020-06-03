@@ -13,18 +13,29 @@ display-name: Veredi Configuration
 
 --- !configuration
 
-game:
-  repository:
-    type: veredi.repository.file-tree
-    directory: ../repository/file-tree
-    sanitize: veredi.sanitize.human.path-safe
-  codec: veredi.codec.yaml
+data:
+  game:
+    repository:
+      type: veredi.repository.file-tree
+      directory: ../repository/file-tree
+      sanitize: veredi.sanitize.human.path-safe
+    codec: veredi.codec.yaml
 
-template:
-  repository:
-    type: veredi.repository.file-tree
-    directory: ../repository/file-tree
-    sanitize: veredi.sanitize.human.path-safe
-  codec: veredi.codec.yaml
+  template:
+    repository:
+      type: veredi.repository.file-tree
+      directory: ../repository/file-tree
+      sanitize: veredi.sanitize.human.path-safe
+    codec: veredi.codec.yaml
+
+rules:
+  type: veredi.rules.d20
+  ability: veredi.rules.d20.ability
+  health: veredi.rules.d20.health
+  movement: veredi.rules.d20.movement
+  skill: veredi.rules.d20.skill
+  combat:
+    offensive: veredi.rules.d20.combat.offensive
+    defensive: veredi.rules.d20.combat.defensive
 
 # and more?
