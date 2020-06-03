@@ -106,8 +106,8 @@ class Test_FileTreeRepo(unittest.TestCase):
         self.assertTrue(self.path)
         self.assertTrue(os.path.isdir(self.path))
 
-    def do_load_test(self, load_type, debug=False):
-        with log.LoggingManager.on_or_off(debug):
+    def do_load_test(self, load_type):
+        with log.LoggingManager.on_or_off(self.debug):
             context, path = self.context_load(load_type)
         self.assertTrue(path.parent.exists())
 
@@ -134,4 +134,4 @@ class Test_FileTreeRepo(unittest.TestCase):
         self.do_load_test(DataGameContext.Type.NPC)
 
     def test_load_item(self):
-        self.do_load_test(DataGameContext.Type.ITEM, True)
+        self.do_load_test(DataGameContext.Type.ITEM)

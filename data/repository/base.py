@@ -18,8 +18,7 @@ import re
 import hashlib
 
 from veredi.logger import log
-from veredi.base.context import (VerediContext,
-                                 PersistentContext)
+from veredi.base.context import PersistentContext
 from veredi.data.context import BaseDataContext
 from veredi.data.config.context import ConfigContext
 
@@ -76,7 +75,7 @@ class BaseRepository(ABC):
     @property
     def context(self):
         '''
-        Will be the VerediContext this class.
+        Will be the context of this class.
         '''
         return self._context
 

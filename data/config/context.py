@@ -82,7 +82,7 @@ class ConfigContext(PersistentContext):
     # --------------------------------------------------------------------------
 
     @classmethod
-    def path(klass: Type[VerediContext],
+    def path(klass: Type['ConfigContext'],
              context: VerediContext) -> Optional[pathlib.Path]:
         '''
         Checks for a PATH link in config's spot in this context.
@@ -94,7 +94,7 @@ class ConfigContext(PersistentContext):
         return path
 
     @classmethod
-    def config(klass: Type[VerediContext],
+    def config(klass: Type['ConfigContext'],
                context: VerediContext) -> Optional['Configuration']:
         '''
         Checks for a CONFIG link in config's spot in this context.
@@ -106,7 +106,7 @@ class ConfigContext(PersistentContext):
         return config
 
     @classmethod
-    def keychain(klass: Type[VerediContext],
+    def keychain(klass: Type['ConfigContext'],
                  context: VerediContext) -> Optional[Iterable[Any]]:
         '''
         Checks for a KEYCHAIN link in config's spot in this context.
@@ -118,7 +118,7 @@ class ConfigContext(PersistentContext):
         return keychain
 
     @classmethod
-    def exception(klass:     Type[VerediContext],
+    def exception(klass:     Type['ConfigContext'],
                   context:   VerediContext,
                   source:    Optional[Exception],
                   msg:       Optional[str],
@@ -133,7 +133,7 @@ class ConfigContext(PersistentContext):
             source,
             ContextError,
             msg, *args, **kwargs,
-            context=self,
+            context=context,
             stacklevel=3)
 
     # --------------------------------------------------------------------------
