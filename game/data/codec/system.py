@@ -15,7 +15,6 @@ from veredi.logger import log
 from veredi.base.const import VerediHealth
 from veredi.base.context import VerediContext
 from veredi.data.config.context import ConfigContext
-from veredi.data.config.config import ConfigKey
 from veredi.data.codec.base import BaseCodec
 
 # Game / ECS Stuff
@@ -86,8 +85,9 @@ class CodecSystem(System):
             config = ConfigContext.config(context)
             if config:
                 self._codec = config.make(None,
-                                          ConfigKey.GAME,
-                                          ConfigKey.CODEC)
+                                          'data',
+                                          'game',
+                                          'codec')
 
         # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
         # tests with our test configs.

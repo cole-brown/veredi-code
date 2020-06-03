@@ -14,7 +14,7 @@ import pathlib
 
 from veredi.logger import log
 
-from veredi.data.config.config import ConfigDocument, ConfigKey
+from veredi.data.config.hierarchy import Document
 from veredi.data.config.context import ConfigContext
 from veredi.data.context import (DataGameContext,
                                  DataLoadContext,
@@ -44,18 +44,20 @@ class Test_FileTreeRepo(unittest.TestCase):
         # Finish set-up. Inject stuff repo needs to init proper.
         self.context.ut_inject(path=self.path)
         self.config.ut_inject(self.path,
-                              ConfigDocument.CONFIG,
-                              ConfigKey.GAME,
-                              ConfigKey.REPO,
-                              ConfigKey.DIR)
+                              Document.CONFIG,
+                              'data',
+                              'game',
+                              'repository',
+                              'directory')
 
         # §-TODO-§ [2020-06-01]: Register these, have config read dotted and get
         # from registry.
         self.config.ut_inject('veredi.sanitize.human.path-safe',
-                              ConfigDocument.CONFIG,
-                              ConfigKey.GAME,
-                              ConfigKey.REPO,
-                              ConfigKey.SANITIZE)
+                              Document.CONFIG,
+                              'data',
+                              'game',
+                              'repository',
+                              'sanitize')
 
         # Should be enough info to make our repo now.
         self.repo = FileTreeRepository(self.context)

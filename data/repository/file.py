@@ -22,7 +22,7 @@ import enum
 
 from veredi.logger import log
 from veredi.data.config.registry import register
-from veredi.data.config.config import Configuration, ConfigKey
+from veredi.data.config.config import Configuration
 
 from veredi.base.context import VerediContext
 from veredi.data.context import (DataBareContext,
@@ -191,9 +191,9 @@ class FileBareRepository(base.BaseRepository):
         # inject/partially-load something to see if we can get options into
         # here now...
         path_safing_fn = None
-        path_safing = config.get(ConfigKey.GAME,
-                                 ConfigKey.REPO,
-                                 ConfigKey.SANITIZE)
+        path_safing = config.get_data('game',
+                                      'repository',
+                                      'sanitize')
         if path_safing:
             path_safing_fn = config.get_registered(path_safing,
                                                    context)
@@ -343,16 +343,19 @@ class FileTreeRepository(base.BaseRepository):
                 "supplied context.",
                 self.__class__.__name__)
 
+        # Start at ConfigContext's path...
         self._root = ConfigContext.path(context)
-        self._root = self._root / pathlib_cast(config.get(ConfigKey.GAME,
-                                                          ConfigKey.REPO,
-                                                          ConfigKey.DIR))
+        # ...add config's repo path on top of it (in case it's a relative path).
+        self._root = self._root / pathlib_cast(config.get_data('game',
+                                                               'repository',
+                                                               'directory'))
+        # resolve to turn into absolute path and remove ".."s and stuff.
         self._root = self._root.resolve()
 
         path_safing_fn = None
-        path_safing = config.get(ConfigKey.GAME,
-                                 ConfigKey.REPO,
-                                 ConfigKey.SANITIZE)
+        path_safing = config.get_data('game',
+                                      'repository',
+                                      'sanitize')
         if path_safing:
             path_safing_fn = config.get_registered(path_safing,
                                                    context)

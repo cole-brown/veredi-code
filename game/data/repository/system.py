@@ -14,7 +14,7 @@ from typing import Any, Optional, Set, Type, Union, Iterable
 from veredi.logger import log
 from veredi.base.const import VerediHealth
 from veredi.base.context import VerediContext
-from veredi.data.config.config import Configuration, ConfigKey
+from veredi.data.config.config import Configuration
 from veredi.data.config.context import ConfigContext
 from veredi.data.repository.base import BaseRepository
 
@@ -77,9 +77,10 @@ class RepositorySystem(System):
             config = ConfigContext.config(context)
             if config:
                 self._repository = config.make(None,
-                                               ConfigKey.GAME,
-                                               ConfigKey.REPO,
-                                               ConfigKey.TYPE)
+                                               'data',
+                                               'game',
+                                               'repository',
+                                               'type')
 
         # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
         # tests with our test configs.
