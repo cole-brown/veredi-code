@@ -13,15 +13,15 @@ import pathlib
 import re
 import enum
 
-from veredi.logger import log
+from veredi.logger          import log
 from veredi.base.exceptions import VerediError
-from veredi.base.context import (VerediContext,
-                                 PersistentContext)
-from veredi.data.context import DataBareContext
-from veredi.base.const import VerediHealth
+from veredi.base.context    import VerediContext, EphemerealContext
+from veredi.data.context    import DataBareContext
+from .context               import ConfigContext
+from veredi.base.const      import VerediHealth
 
 from .. import exceptions
-from . import registry
+from .  import registry
 
 
 # -----------------------------------------------------------------------------
@@ -32,10 +32,10 @@ THIS_DIR = pathlib.Path(__file__).resolve().parent
 DEFAULT_NAME = "default.yaml"
 
 
-# §-TODO-§ [2020-05-30]: replace with some other way of verifying?..
+# Â§-TODO-Â§ [2020-05-30]: replace with some other way of verifying?..
 # This is growing a bit fast?
 @enum.unique
-class ConfigKeys(enum.Enum):
+class ConfigKey(enum.Enum):
     INVALID  = None
 
     # level 0
@@ -53,40 +53,41 @@ class ConfigKeys(enum.Enum):
     # etc...
     TYPE     = 'type'
     DIR      = 'directory'
+    SANITIZE = 'sanitize'
 
-    def get(string: str) -> Optional['ConfigKeys']:
+    def get(string: str) -> Optional['ConfigKey']:
         '''
-        Convert a string into a ConfigKeys enum value. Returns None if no
+        Convert a string into a ConfigKey enum value. Returns None if no
         conversion is found. Isn't smart - no case insensitivity or anything.
         Only compares input against our enum /values/.
         '''
-        for each in ConfigKeys:
+        for each in ConfigKey:
             if string == each.value:
                 return each
         return None
 
 
 @enum.unique
-class ConfigDocuments(enum.Enum):
+class ConfigDocument(enum.Enum):
     INVALID = None
     METADATA = 'metadata'
     CONFIG = 'configuration'
     # etc...
 
-    def get(string: str) -> Optional['ConfigDocuments']:
+    def get(string: str) -> Optional['ConfigDocument']:
         '''
-        Convert a string into a ConfigDocuments enum value. Returns None if no
+        Convert a string into a ConfigDocument enum value. Returns None if no
         conversion is found. Isn't smart - no case insensitivity or anything.
         Only compares input against our enum /values/.
         '''
-        for each in ConfigDocuments:
+        for each in ConfigDocument:
             if string == each.value:
                 return each
         return None
 
 
 @enum.unique
-class CodecKeys(enum.Enum):
+class CodecKey(enum.Enum):
     INVALID = None
     DOC_TYPE = 'doc-type'
 
@@ -120,26 +121,33 @@ class Configuration:
         '''Raises LoadError and ConfigError'''
         self._path = config_path or default_path()
 
-        # Avoid a circular import
-        self._repo = config_repo
-        if not self._repo:
-            from ..repository.file import FileBareRepository
-            self._repo = FileBareRepository(self._path)
-
-        # Avoid a circular import
-        self._codec = config_codec
-        if not self._codec:
-            from ..codec.yaml import codec
-            self._codec = codec.YamlCodec()
-
-        # Setup our context, import repo & codec's.
-        self._context = PersistentContext('configuration', 'configuration')
-        self._context.sub['path'] = str(self._path)
-        self._context.pull_to_sub(self._repo.context)
-        self._context.pull_to_sub(self._codec.context)
-
         # Our storage of the config data itself.
         self._config = {}
+
+        try:
+            # Setup our context, import repo & codec's.
+            # Also includes a handy back-link to this Configuration.
+            self._context = ConfigContext(self._path,
+                                          self)
+
+            # Avoid a circular import
+            self._repo = config_repo
+            if not self._repo:
+                from ..repository.file import FileBareRepository
+                self._repo = FileBareRepository(self._context)
+
+            # Avoid a circular import
+            self._codec = config_codec
+            if not self._codec:
+                from ..codec.yaml import codec
+                self._codec = codec.YamlCodec(self._context)
+
+            self._context.finish_init(self._repo.context,
+                                      self._codec.context)
+        except Exception as e:
+            raise log.exception(e,
+                                VerediError,
+                                "Found an exception when creating...") from e
 
         self._load()
         self._set_up()
@@ -155,12 +163,55 @@ class Configuration:
         '''
         return self._context
 
-
     # --------------------------------------------------------------------------
     # Registry Mediation
     # --------------------------------------------------------------------------
+    def get_registered(self,
+                       dotted_str: str,
+                       *args: Any,
+                       context: Optional[VerediContext] = None,
+                       **kwargs: Any) -> Any:
+        '''
+        Mediator between any systems that don't care about any deep knowledge of
+        veredi basics. Pass in a 'dotted' registration string, like:
+        "veredi.rules.d11.health", and we will ask our registry to pass it back
+        to the caller.
+
+        Context is not required - will be included in errors/exceptions.
+
+        Catches all exceptions and rewraps outside errors in a VerediError.
+        '''
+        if not dotted_str:
+            raise log.exception(
+                None,
+                exceptions.ConfigError,
+                "Need a dotted_str in order to get anything from registry. "
+                "dotted_str: {}, args: {}, kwargs: {}, context: {}",
+                dotted_str, args, kwargs, context
+            )
+
+        try:
+            retval = registry.get(dotted_str,
+                                  context,
+                                  *args,
+                                  **kwargs)
+        except VerediError:
+            # Ignore these and subclasses - bubble up.
+            raise
+        except Exception as error:
+            raise log.exception(
+                error,
+                exceptions.ConfigError,
+                "Configuration could not get '{}'. "
+                "args: {}, kwargs: {}, context: {}",
+                dotted_str, args, kwargs, context
+            ) from error
+
+        return retval
+
     def create_registered(self,
                           dotted_str: str,
+                          # Leave (k)args for people who are not me...
                           context: Optional[VerediContext],
                           *args: Any,
                           **kwargs: Any) -> Any:
@@ -174,8 +225,8 @@ class Configuration:
         '''
         try:
             retval = registry.create(dotted_str,
+                                     context,
                                      *args,
-                                     context=context,
                                      **kwargs)
         except VerediError:
             # Ignore these and subclasses - bubble up.
@@ -192,38 +243,41 @@ class Configuration:
         return retval
 
     def make(self,
-             context:  Optional[VerediContext],
-             *keys:    ConfigKeys) -> Optional[Any]:
+             context:   Optional[VerediContext],
+             *keychain: ConfigKey) -> Optional[Any]:
         '''
-        Gets value from these keys in our config data, then tries to have our
-        registry create that value.
+        Gets value from these keychain in our config data, then tries to have
+        our registry create that value.
 
-        e.g. config.make(ConfigKeys.GAME, ConfigKeys.REPO)
+        e.g. config.make(ConfigKey.GAME, ConfigKey.REPO)
 
-        Returns thing created using keys or None.
+        Returns thing created using keychain or None.
         '''
-        config_val = self.get(ConfigDocuments.CONFIG, *keys)
+        config_val = self.get(*keychain)
         if config_val is None:
             log.debug("Make requested for: {}. But we have no config "
                       "value for that. context: {}",
-                      keys, context)
+                      keychain, context)
             return None
 
         if not context:
-            context = self.context
+            context = self.context.spawn(EphemerealContext,
+                                         self.context.name,
+                                         self.context.key)
+        else:
+            context.pull(self.context)
 
-        log.debug("Make requested for: {}. context: {}", keys, context)
+        context.add(ConfigContext.Link.KEYCHAIN, list(keychain[:-1]))
+        log.debug("Make requested for: {}. context: {}",
+                  keychain, context)
 
         # Assume their relevant data is one key higher up...
-        # e.g. if we're making the thing under keys (GAME, REPO, TYPE),
+        # e.g. if we're making the thing under keychain (GAME, REPO, TYPE),
         # then the repository we're making will want (GAME, REPO) as its
         # root so it can get, say, DIRECTORY.
-        config_root=list(keys[:-1])
         ret_val = self.create_registered(config_val,
-                                         context,
-                                         config=self,
-                                         config_keys=config_root)
-        log.debug("Made: {} from {}. context: {}", ret_val, keys, context)
+                                         context)
+        log.debug("Made: {} from {}. context: {}", ret_val, keychain, context)
         return ret_val
 
     # --------------------------------------------------------------------------
@@ -231,15 +285,21 @@ class Configuration:
     # --------------------------------------------------------------------------
 
     def get(self,
-            doc_type: ConfigDocuments,
-            *keys:    ConfigKeys) -> Optional[Any]:
+            *keychain: ConfigKey) -> Optional[Any]:
         '''
-        Get a configuration thingy from us given some keys use to walk into our
-        config data.
+        Get a configuration thingy from us given some keychain use to walk into
+        our config data.
 
-        Returns data found at end of doc_type, keys chain.
-        Returns None if couldn't find doc_type or a key in our config data.
+        Returns data found at end keychain.
+        Returns None if couldn't find a key in our config data.
         '''
+        return self.get_by_doc(ConfigDocument.CONFIG,
+                               *keychain)
+
+    def get_by_doc(self,
+                   doc_type:  ConfigDocument,
+                   *keychain: ConfigKey) -> Optional[Any]:
+
         # Get document type data first.
         doc_data = self._config.get(doc_type, None)
         data = doc_data
@@ -248,30 +308,22 @@ class Configuration:
                       doc_type, self._config)
             return None
 
-        # Now hunt for the keys they wanted...
-        for key in keys:
+        # Now hunt for the keychain they wanted...
+        for key in keychain:
             data = data.get(key.value, None)
             if data is None:
-                log.debug("No data for key {} in keys {} "
+                log.debug("No data for key {} in keychain {} "
                           "in our config data {}.",
-                          key, keys, doc_data)
+                          key, keychain, doc_data)
                 return None
 
         return data
-
-    def path(self,
-            *keys: ConfigKeys) -> Optional[Any]:
-        '''
-        Get a field from the configuration data and return it as a pathlib.Path.
-        '''
-        value = self.get(ConfigDocuments.CONFIG, *keys)
-        return self._repo.root.joinpath(value).resolve()
 
     # --------------------------------------------------------------------------
     # Load Config Stuff
     # --------------------------------------------------------------------------
 
-    # §-TODO-§ [2020-05-06]: Change data into stuff we can use.
+    # Â§-TODO-Â§ [2020-05-06]: Change data into stuff we can use.
     # Classes and suchlike...
     def _set_up(self) -> VerediHealth:
         '''Raises ConfigError'''
@@ -347,10 +399,10 @@ class Configuration:
                     context=self.context)
 
         elif (isinstance(document, dict)
-              and CodecKeys.DOC_TYPE.value in document):
+              and CodecKey.DOC_TYPE.value in document):
             # Save these to our config dict under their doc-type key.
-            doc_type_str = document[CodecKeys.DOC_TYPE.value]
-            doc_type = ConfigDocuments.get(doc_type_str)
+            doc_type_str = document[CodecKey.DOC_TYPE.value]
+            doc_type = ConfigDocument.get(doc_type_str)
             self._config[doc_type] = document
 
         else:
@@ -360,7 +412,30 @@ class Configuration:
                 "Unknown document while loading! "
                 "Does it have a '{}' field? "
                 "{}: {}",
-                CodecKeys.DOC_TYPE.value,
+                CodecKey.DOC_TYPE.value,
                 type(document),
                 str(document),
                 context=self.context)
+
+    # --------------------------------------------------------------------------
+    # Unit Testing
+    # --------------------------------------------------------------------------
+
+    def ut_inject(self,
+                  value:     Any,
+                  doc_type:  ConfigDocument,
+                  *keychain: ConfigKey) -> None:
+        # Get document type data first.
+        doc_data = self._config.get(doc_type, None)
+        data = doc_data
+        if data is None:
+            log.debug("No doc_type {} in our config data {}.",
+                      doc_type, self._config)
+            return None
+
+        # Now hunt for/create the keychain they wanted...
+        for key in keychain[:-1]:
+            data = data.setdefault(key.value, {})
+
+        # And set the key.
+        data[keychain[-1].value] = value

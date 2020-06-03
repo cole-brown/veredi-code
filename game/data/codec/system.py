@@ -13,9 +13,10 @@ from typing import Any, Optional, Set, Type, Union, Iterable
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
-from veredi.data.config.config import Configuration, ConfigKeys
-from veredi.data.codec.base import BaseCodec
 from veredi.base.context import VerediContext
+from veredi.data.config.context import ConfigContext
+from veredi.data.config.config import ConfigKey
+from veredi.data.codec.base import BaseCodec
 
 # Game / ECS Stuff
 from ...ecs.event import EventManager
@@ -58,19 +59,17 @@ from ..event import (
 # Code
 # -----------------------------------------------------------------------------
 
-# §-TODO-§ [2020-05-22]: Saving/Loading system...
-# DirtyFlagSystem: looks for a dirty flag, fires off encode events?
-#   - or name it DataSaveSystem?
-#   - or name it DataSystem?
-
 class CodecSystem(System):
-    def __init__(self,
-                 sid: SystemId,
-                 *args: Any,
-                 **kwargs: Any) -> None:
 
+    # --------------------------------------------------------------------------
+    # System Set Up
+    # --------------------------------------------------------------------------
+
+    def _configure(self, context: VerediContext) -> None:
+        '''
+        Make our repo from config data.
+        '''
         self._codec: Optional[BaseCodec] = None
-        super().__init__(sid, *args, **kwargs)
 
         # ---
         # Ticking Stuff
@@ -83,6 +82,13 @@ class CodecSystem(System):
         # # Apoptosis will be our end-of-game saving.
         # ---
 
+        if context:
+            config = ConfigContext.config(context)
+            if config:
+                self._codec = config.make(None,
+                                          ConfigKey.GAME,
+                                          ConfigKey.CODEC)
+
         # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
         # tests with our test configs.
         if not self._codec:
@@ -91,18 +97,6 @@ class CodecSystem(System):
             # self._codec: Optional[BaseCodec] = None
             from veredi.data.codec.yaml.codec import YamlCodec
             self._codec: Optional[BaseCodec] = YamlCodec()
-
-    # --------------------------------------------------------------------------
-    # System Set Up
-    # --------------------------------------------------------------------------
-
-    def _configure(self, config: Configuration) -> None:
-        '''
-        Make our repo from config data.
-        '''
-        self._codec = config.make(None,
-                                  ConfigKeys.GAME,
-                                  ConfigKeys.CODEC)
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
@@ -152,7 +146,7 @@ class CodecSystem(System):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        self._event_manager = event_manager
+        super().subscribe(event_manager)
         if not self._event_manager:
             self._event_manager = False
             # We rely on events to function, so we're not any good now...
@@ -188,13 +182,13 @@ class CodecSystem(System):
         # Take codec data result (just a python dict?) and set into DecodedEvent
         # data/context/whatever. Then have EventManager fire off event for
         # whoever wants the next step.
-        self.event(self._event_manager,
-                   DecodedEvent,
-                   event.id,
-                   event.type,
-                   context,
-                   False,
-                   data=decoded)
+        event = DecodedEvent(event.id,
+                             event.type,
+                             context,
+                             data=decoded)
+
+        self._event_notify(event,
+                           False)
 
     def event_data_save_request(self, event: DataSaveRequest) -> None:
         '''
@@ -207,13 +201,13 @@ class CodecSystem(System):
         encoded = None
 
         # Done; fire off event for whoever wants the next step.
-        self.event(self._event_manager,
-                   EncodedEvent,
-                   event.id,
-                   event.type,
-                   context,
-                   False,
-                   data=encoded)
+        event = EncodedEvent(event.id,
+                             event.type,
+                             context,
+                             data=encoded)
+
+        self._event_notify(event,
+                           False)
 
     # --------------------------------------------------------------------------
     # Game Update Loop/Tick Functions

@@ -37,29 +37,37 @@ class EcsManagerWithEvents(EcsManager):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
+        self._event_manager = event_manager
+
         return VerediHealth.HEALTHY
 
-    def event(self,
-              event_manager:              'EventManager',
-              event_class:                Type['Event'],
-              owner_id:                   int,
-              type:                       Union[int, enum.Enum],
-              context:                    Optional[VerediContext],
-              requires_immediate_publish: bool,
-              *args:                      Any,
-              **kwargs:                   Any) -> None:
+    def _event_create(self,
+                      event_class:                Type['Event'],
+                      owner_id:                   int,
+                      type:                       Union[int, enum.Enum],
+                      context:                    Optional[VerediContext],
+                      requires_immediate_publish: bool) -> None:
         '''
-        Calls event_manager.create() if event_manager is not none.
+        Calls self._event_manager.create() if self._event_manager is not none.
         '''
-        if not event_manager:
+        if not self._event_manager:
             return
-        event_manager.create(event_class,
-                             owner_id,
-                             type,
-                             context,
-                             requires_immediate_publish,
-                             *args,
-                             **kwargs)
+        self._event_manager.create(event_class,
+                                   owner_id,
+                                   type,
+                                   context,
+                                   requires_immediate_publish)
+
+    def _event_notify(self,
+                      event:                      'Event',
+                      requires_immediate_publish: bool) -> None:
+        '''
+        Calls self._event_manager.notify() if self._event_manager is not none.
+        '''
+        if not self._event_manager:
+            return
+        self._event_manager.notify(event,
+                                   requires_immediate_publish)
 
 
 # -----------------------------------------------------------------------------
@@ -70,42 +78,25 @@ class Event:
     def __init__(self,
                  id: Union[int, MonotonicId],
                  type: Union[int, enum.Enum],
-                 *args: Any,
-                 context: Optional[VerediContext] = None,
-                 **kwargs: Any) -> None:
-        self.set(id, type, context, *args, **kwargs)
+                 context: Optional[VerediContext] = None) -> None:
+        self.set(id, type, context)
 
     def set(self,
             id: Union[int, MonotonicId],
             type: Union[int, enum.Enum],
-            context: VerediContext,
-            *args: Any,
-            **kwargs: Any) -> None:
+            context: VerediContext) -> None:
         self._id      = id
         self._type    = type
         self._context = context
 
-        if not self._context:
-            for each in args:
-                if isinstance(each, VerediContext):
-                    if not self._context:
-                        self._context = each
-                    else:
-                        raise exceptions.EventError(
-                            "Too many contexts for event. Already found: "
-                            f"{self._context}. Also just found:"
-                            f"{each}.",
-                            None,
-                            self._context)
-
         # Don't have a requirement for context right now.
-        # raise exceptions.EventError(
-        #     "Too many contexts for event. Already found: "
-        #     f"{self._context}. Also just found:"
-        #     f"{each}.",
-        #     None,
-        #     self._context):
-
+        # if not self._context:
+        #     raise exceptions.EventError(
+        #         "Need a context for event. None provided."
+        #         f"{self._context}. Also just found:"
+        #         f"{each}.",
+        #         None,
+        #         self._context)
 
     def reset(self) -> None:
         self._id      = None
@@ -124,10 +115,33 @@ class Event:
     def context(self) -> int:
         return self._context
 
+    # --------------------------------------------------------------------------
+    # To String
+    # --------------------------------------------------------------------------
+
+    def _str_name(self, name: Optional[str] = None):
+        name = name or self.__class__.__name__
+        return f"{name}[id:{self.id},t:{self.type}]"
+
+
+    def _pretty(self):
+        from veredi.logger import pretty
+        return (f"{self._str_name()}:\n  context:\n" +
+                pretty.indented(self._context._pretty(), indent=4))
+
+    def __str__(self):
+        return f"{self._str_name()}: {str(self._context)}"
+
+    def __repr_name__(self):
+        return self.__class__.__name__
+
+    def __repr__(self):
+        return f"<{self._str_name(self.__repr_name__())}: {repr(self._context)}>"
+
 
 # ----------------------------"Party Coordinator"?------------------------------
 # --                   "Event Manager" seems so formal...                     --
-# --------------------------------(ah well...)----------------------------------
+# --------------------------------(oh well...)----------------------------------
 
 class EventManager(EcsManager):
     def __init__(self,
@@ -154,20 +168,17 @@ class EventManager(EcsManager):
                owner_id:                   int,
                type:                       Union[int, enum.Enum],
                context:                    Optional[VerediContext],
-               requires_immediate_publish: bool,
-               *args:                      Any,
-               **kwargs:                   Any) -> None:
+               requires_immediate_publish: bool) -> None:
         '''
         Creates a managed Event from parameters, then calls notify().
         '''
-        event = event_class(owner_id, type, context, *args, **kwargs)
+        event = event_class(owner_id, type, context)
         self.notify(event, requires_immediate_publish)
 
     def notify(self,
                event: Any,
                requires_immediate_publish: bool = False) -> None:
-        '''
-        Called when an entity, component, system, or whatever wants to notify
+        '''Called when an entity, component, system, or whatever wants to notify
         potential subscribers of an event that just happened.
 
         If `requires_immediate_publish` is set to True, the EventManager will
@@ -176,6 +187,10 @@ class EventManager(EcsManager):
 
         Try not to `requires_immediate_publish` too much... it interrupts game
         flow/timing/whatever.
+
+        Note: you are turning over lifecycle management of the event to
+        EventManager.
+
         '''
         log.debug("Received {} for publishing {}.",
                   event,

@@ -22,11 +22,13 @@ import enum
 
 from veredi.logger import log
 from veredi.data.config.registry import register
-from veredi.data.config.config import Configuration, ConfigKeys
-from veredi.base.context import (VerediContext,
-                                 PersistentContext)
+from veredi.data.config.config import Configuration, ConfigKey
+
+from veredi.base.context import VerediContext
 from veredi.data.context import (DataBareContext,
                                  DataGameContext)
+from veredi.data.config.context import ConfigContext
+
 from veredi.data.codec.base import BaseCodec
 
 from .. import exceptions
@@ -105,9 +107,48 @@ PathType = NewType('PathType', Union[str, pathlib.Path])
 #   - typing input?
 
 
+# ---
+# Path Safing Consts
+# ---
+
+_HUMAN_SAFE = re.compile(r'[^\w\d-]')
+_REPLACEMENT = '_'
+
+
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
+
+# -------------------------------Just Functions.--------------------------------
+# --                            Paths In General                              --
+# ------------------------------------------------------------------------------
+
+def pathlib_cast(str_or_path: PathType) -> pathlib.Path:
+    return pathlib.Path(str_or_path)
+
+
+# --------------------------------------------------------------------------
+# Path Safing Option:
+#   "us?#:er" -> "us___er"
+# --------------------------------------------------------------------------
+@register('veredi', 'sanitize', 'human', 'path-safe')
+def to_human_readable(path: PathType) -> pathlib.Path:
+    return pathlib_cast(_HUMAN_SAFE.sub(_REPLACEMENT,
+                                        path))
+
+# --------------------------------------------------------------------------
+# Path Safing Option:
+#   "us?#:er" ->
+#     'b3b31a87f6cca2e4d8e7909395c4b4fd0a5ee73b739b54eb3aeff962697ca603'
+# --------------------------------------------------------------------------
+@register('veredi', 'sanitize', 'hashed', 'sha256')
+def to_hashed(path: PathType) -> pathlib.Path:
+    return pathlib_cast(hashlib.sha256(path.encode()).hexdigest())
+
+
+# ----------------------------Bare File Repository------------------------------
+# --                        Load a file specifically.                         --
+# ------------------------------------------------------------------------------
 
 @register('veredi', 'repository', 'file-bare')
 class FileBareRepository(base.BaseRepository):
@@ -116,33 +157,50 @@ class FileBareRepository(base.BaseRepository):
     _CONTEXT_NAME = 'file-bare'
     _CONTEXT_KEY  = 'repository'
 
-    # ---
-    # Path Names
-    # ---
-    _HUMAN_SAFE = re.compile(r'[^\w\d-]')
-    _REPLACEMENT = '_'
-
     def __init__(self,
-                 path_safing_fn: Optional[Callable[[str], str]] = None,
-                 context:        Optional[VerediContext]        = None,
-                 config:         Optional[Configuration]        = None,
-                 config_keys:    Optional[Iterable[ConfigKeys]] = None
-            ) -> None:
+                 config_context: Optional[ConfigContext] = None) -> None:
+        # Bare context doesn't have a root until it loads something from
+        # somewhere. Then that directory is its root.
         self._root = None
-        # Use user-defined or set to our default.
-        self.fn_path_safing = path_safing_fn or self._to_human_readable
 
         super().__init__(self._REPO_NAME,
                          self._CONTEXT_NAME,
                          self._CONTEXT_KEY,
-                         context,
-                         config,
-                         config_keys)
+                         config_context)
 
     def _configure(self,
-                   config:      Optional[Configuration],
-                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
-        pass
+                   context: Optional[ConfigContext]) -> None:
+        '''
+        Allows repos to grab anything from the config data that they need to
+        set up themselves.
+        '''
+        config = ConfigContext.config(context)
+        if not config:
+            raise ConfigContext.exception(
+                context,
+                None,
+                "Cannot configure {} without a Configuration in the "
+                "supplied context.",
+                self.__class__.__name__)
+
+        # Bare context doesn't have a root until it loads something from
+        # somewhere. Then that directory is its root.
+        self._root = None
+
+        # Config probably isn't much set up right now. May need to
+        # inject/partially-load something to see if we can get options into
+        # here now...
+        path_safing_fn = None
+        path_safing = config.get(ConfigKey.GAME,
+                                 ConfigKey.REPO,
+                                 ConfigKey.SANITIZE)
+        if path_safing:
+            path_safing_fn = config.get_registered(path_safing,
+                                                   context)
+        self.fn_path_safing = path_safing_fn or to_human_readable
+
+        log.debug("Set my root to: {}", self.root)
+        log.debug("Set my path-safing to: {}", self.fn_path_safing)
 
     # --------------------------------------------------------------------------
     # Load Methods
@@ -163,8 +221,8 @@ class FileBareRepository(base.BaseRepository):
 
         Returns io stream.
         '''
-        ids = self._id(context)
-        load_path = self._id_to_path(ids, context)
+        load_id = self._id(context)
+        load_path = self._id_to_path(load_id, context)
 
         # load_path should be exact - no globbing.
         if not load_path.exists():
@@ -203,7 +261,7 @@ class FileBareRepository(base.BaseRepository):
     # --------------------------------------------------------------------------
 
     def _id(self,
-            context:     DataGameContext) -> List[str]:
+            context:     DataGameContext) -> pathlib.Path:
         '''
         Turns data repo keys in the context into an id we can use to retrieve
         the data. Keys are safe and ready to go.
@@ -212,19 +270,12 @@ class FileBareRepository(base.BaseRepository):
         return context.load
 
     def _id_to_path(self,
-                    id:      Union[str, pathlib.Path],
+                    load_id: PathType,
                     context: DataGameContext) -> None:
         '''
         Turn identity stuff into filepath components.
         '''
-        return self._pathlib_cast(id)
-
-    # --------------------------------------------------------------------------
-    # Paths In General
-    # --------------------------------------------------------------------------
-
-    def _pathlib_cast(self, string: PathType) -> pathlib.Path:
-        return pathlib.Path(string)
+        return pathlib_cast(load_id)
 
     # --------------------------------------------------------------------------
     # Path Safing
@@ -232,7 +283,7 @@ class FileBareRepository(base.BaseRepository):
 
     def _safe_path(self,
                    unsafe: PathType,
-                   context: Optional[DataGameContext] = None) -> str:
+                   context: Optional[DataGameContext] = None) -> pathlib.Path:
         '''Makes `unsafe` safe with self.fn_path_safing. '''
 
         if not self.fn_path_safing:
@@ -241,27 +292,12 @@ class FileBareRepository(base.BaseRepository):
                 None,
                 self.context.push(context)) from error
 
-        return self.fn_path_safing(str(unsafe))
+        return self.fn_path_safing(unsafe)
 
-    # --------------------------------------------------------------------------
-    # Path Safing Option:
-    #   "us?#:er" -> "us___er"
-    # --------------------------------------------------------------------------
-    @staticmethod
-    def _to_human_readable(string: str) -> str:
-        return FileBareRepository._HUMAN_SAFE.sub(
-            FileBareRepository._REPLACEMENT,
-            string)
 
-    # --------------------------------------------------------------------------
-    # Path Safing Option:
-    #   "us?#:er" ->
-    #     'b3b31a87f6cca2e4d8e7909395c4b4fd0a5ee73b739b54eb3aeff962697ca603'
-    # --------------------------------------------------------------------------
-    @staticmethod
-    def _to_hashed(string: str) -> str:
-        return hashlib.sha256(string.encode()).hexdigest()
-
+# ----------------------------File Tree Repository------------------------------
+# --       Load a file given context information and a base directory.        --
+# ------------------------------------------------------------------------------
 
 @register('veredi', 'repository', 'file-tree')
 class FileTreeRepository(base.BaseRepository):
@@ -277,40 +313,53 @@ class FileTreeRepository(base.BaseRepository):
     _REPLACEMENT = '_'
 
     def __init__(self,
-                 directory:      Optional[PathType]             = None,
-                 path_safing_fn: Optional[Callable[[str], str]] = None,
-                 context:        Optional[VerediContext]        = None,
-                 config:         Optional[Configuration]        = None,
-                 config_keys:    Optional[Iterable[ConfigKeys]] = None
-            ) -> None:
+                 context: Optional[VerediContext] = None) -> None:
         self._root = None
 
-        # Unit-test / override
-        if directory:
-            self._root = pathlib.Path(directory).resolve()
+#        # Unit-test / override
+#        if directory:
+#            self._root = pathlib.Path(directory).resolve()
 
-        # Use user-defined or set to our default.
-        self.fn_path_safing = path_safing_fn or self._to_human_readable
+#        # Use user-defined or set to our default.
+#        self.fn_path_safing = path_safing_fn or to_human_readable
 
         super().__init__(self._REPO_NAME,
                          self._CONTEXT_NAME,
                          self._CONTEXT_KEY,
-                         context,
-                         config,
-                         config_keys)
+                         context)
 
     def _configure(self,
-                   config:      Optional[Configuration],
-                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+                   context: Optional[ConfigContext]) -> None:
         '''
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
-        self._root = config.path(ConfigKeys.GAME,
-                                 ConfigKeys.REPO,
-                                 ConfigKeys.DIR)
+        config = ConfigContext.config(context) # Configuration obj
+        if not config:
+            raise ConfigContext.exception(
+                context,
+                None,
+                "Cannot configure {} without a Configuration in the "
+                "supplied context.",
+                self.__class__.__name__)
+
+        self._root = ConfigContext.path(context)
+        self._root = self._root / pathlib_cast(config.get(ConfigKey.GAME,
+                                                          ConfigKey.REPO,
+                                                          ConfigKey.DIR))
+        self._root = self._root.resolve()
+
+        path_safing_fn = None
+        path_safing = config.get(ConfigKey.GAME,
+                                 ConfigKey.REPO,
+                                 ConfigKey.SANITIZE)
+        if path_safing:
+            path_safing_fn = config.get_registered(path_safing,
+                                                   context)
+        self.fn_path_safing = path_safing_fn or to_human_readable
+
         log.debug("Set my root to: {}", self.root)
-        log.debug("Set my root to: {}", self.root)
+        log.debug("Set my path-safing to: {}", self.fn_path_safing)
 
     # --------------------------------------------------------------------------
     # Load Methods
@@ -386,16 +435,16 @@ class FileTreeRepository(base.BaseRepository):
     # Identification ("Leeloo Dallas, Multi-Pass")
     # --------------------------------------------------------------------------
 
-    def _id_accum(self, string: str, accum: List[str]) -> None:
-        accum.append(self._safe_path(string.lower()))
+    def _id_accum(self, path: PathType, accum: List[PathType]) -> None:
+        accum.append(self._safe_path(path.lower()))
 
     def _id_type(self,
                  load_type: DataGameContext.Type,
                  context:   DataGameContext,
-                 out_ids:   List[str]) -> None:
+                 out_ids:   List[PathType]) -> None:
         '''
-        Convert the DataGameContext.Type enum into part of the id usable for getting
-        data from this repo.
+        Convert the DataGameContext.Type enum into part of the id usable for
+        getting data from this repo.
 
         Appends the conversion to the `out_ids` list.
         '''
@@ -416,7 +465,7 @@ class FileTreeRepository(base.BaseRepository):
     def _id_keys(self,
                  load_type: DataGameContext.Type,
                  context:   DataGameContext,
-                 out_ids:   List[str]) -> None:
+                 out_ids:   List[PathType]) -> None:
         '''
         Turns each context.data_values element into part of the id for getting a
         datum from this repo.
@@ -428,7 +477,7 @@ class FileTreeRepository(base.BaseRepository):
 
     def _id(self,
             type:        DataGameContext.Type,
-            context:     DataGameContext) -> List[str]:
+            context:     DataGameContext) -> List[PathType]:
         '''
         Turns data repo keys in the context into an id we can use to retrieve
         the data. Keys are safe and ready to go.
@@ -444,32 +493,39 @@ class FileTreeRepository(base.BaseRepository):
         return ids
 
     def _id_to_path(self,
-                    ids:     List[str],
-                    context: DataGameContext) -> None:
+                    ids:     List[PathType],
+                    context: DataGameContext) -> pathlib.Path:
         '''
         Turn identity stuff into filepath components.
         '''
-        return self._rooted_path(*self._ext_glob(ids))
+        return self.rooted_path(*self._ext_glob(ids))
 
     # --------------------------------------------------------------------------
     # Paths In General
     # --------------------------------------------------------------------------
 
-    def _ext_glob(self, elements: List[str]) -> List[str]:
-        '''Concatenates extensions glob onto last path element is list.'''
-        if elements:
-            elements[-1] = elements[-1] + ".*"
-        return elements
-
-    def _rooted_path(self, *args: PathType) -> pathlib.Path:
+    def rooted_path(self, *args: PathType) -> pathlib.Path:
         '''
         Assumes args are already safe, joins them all to `self.root` and returns
         the pathlib.Path.
         '''
         return self.root.joinpath(*args)
 
-    def _pathlib_cast(self, string: PathType) -> pathlib.Path:
-        return pathlib.Path(string)
+    def _ext_glob(self, elements: List[PathType]) -> List[PathType]:
+        '''Concatenates extensions glob onto last path element is list.'''
+        if not elements:
+            return elements
+
+        last = elements[-1]
+        try:
+            # pathlib.Path?
+            last = last.with_suffix(".*")
+        except AttributeError:
+            # str then?
+            last = elements[-1] + ".*"
+
+        elements[-1] = last
+        return elements
 
     # --------------------------------------------------------------------------
     # Path Safing
@@ -477,7 +533,7 @@ class FileTreeRepository(base.BaseRepository):
 
     def _safe_path(self,
                    unsafe: PathType,
-                   context: Optional[DataGameContext] = None) -> str:
+                   context: Optional[DataGameContext] = None) -> pathlib.Path:
         '''Makes `unsafe` safe with self.fn_path_safing. '''
 
         if not self.fn_path_safing:
@@ -486,251 +542,15 @@ class FileTreeRepository(base.BaseRepository):
                 None,
                 self.context.push(context)) from error
 
-        return self.fn_path_safing(str(unsafe))
-
-    # --------------------------------------------------------------------------
-    # Path Safing Option:
-    #   "us?#:er" -> "us___er"
-    # --------------------------------------------------------------------------
-    @staticmethod
-    def _to_human_readable(string: str) -> str:
-        return FileTreeRepository._HUMAN_SAFE.sub(
-            FileTreeRepository._REPLACEMENT,
-            string)
-
-    # --------------------------------------------------------------------------
-    # Path Safing Option:
-    #   "us?#:er" ->
-    #     'b3b31a87f6cca2e4d8e7909395c4b4fd0a5ee73b739b54eb3aeff962697ca603'
-    # --------------------------------------------------------------------------
-    @staticmethod
-    def _to_hashed(string: str) -> str:
-        return hashlib.sha256(string.encode()).hexdigest()
+        return self.fn_path_safing(unsafe)
 
 
-@register('veredi', 'repository', 'templates', 'file-tree')
-class FileTreeTemplates(FileTreeRepository):
 
-    _REPO_NAME   = 'file-tree'
-    _CONTEXT_NAME = 'file-tree'
-    _CONTEXT_KEY  = 'templates'
 
-    def __init__(self,
-                 directory:      Optional[PathType]             = None,
-                 path_safing_fn: Optional[Callable[[str], str]] = None,
-                 context:        Optional[VerediContext]        = None,
-                 config:         Optional[Configuration]        = None,
-                 config_keys:    Optional[Iterable[ConfigKeys]] = None
-            ) -> None:
-        super().__init__(directory,
-                         path_safing_fn,
-                         context,
-                         config,
-                         config_keys)
-
-        self._registry: Dict[str, pathlib.Path] = {}
-
-    def _configure(self,
-                   config:      Optional[Configuration],
-                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
-        pass
-
-    # §-TODO-§ [2020-05-26]: pass in config for set_up.
-    def set_up(self, codec: BaseCodec) -> None:
-        '''
-        Initialize our template registry.
-        '''
-        # Walk directory tree.
-
-        # Open each file, read it, decode it.
-
-        # For each document in decoded data...
-
-        # Register it if we see meta.registry key.
-
-    # --------------------------------------------------------------------------
-    # Load Methods
-    # --------------------------------------------------------------------------
-
-    def load(self,
-             context: DataGameContext) -> TextIOBase:
-        '''
-        Loads data from repository based on `load_id`, `load_type`.
-
-        Returns io stream.
-        '''
-        ids = self._id(context.type,
-                       context)
-        pattern_path = self._id_to_path(ids, context)
-
-        # Use path to find a file match.
-        directory = pattern_path.parent
-        glob = pattern_path.name
-        file_path = None
-        for match in directory.glob(glob):
-            if file_path is not None:
-                raise exceptions.LoadError(
-                    f"Too many matches for loading file by id: "
-                    f"directory: {directory}, glob: {glob}, "
-                    f"matches: {sorted(directory.glob(glob))}",
-                    None,
-                    self.context.push(context))
-            file_path = match
-
-        if file_path is None:
-            raise exceptions.LoadError(
-                f"Zero matches for loading file by id: "
-                f"directory: {directory}, glob: {glob}, "
-                f"matches: {sorted(directory.glob(glob))}",
-                None,
-                self.context.push(context))
-
-        data_stream = None
-        with file_path.open('r') as file_stream:
-            # Can raise an error - we'll let it.
-            try:
-                data_stream = StringIO(file_stream.read(None))
-            except exceptions.LoadError:
-                # Let this one bubble up as-is.
-                if data_stream and not data_stream.closed:
-                    data_stream.close()
-                data_stream = None
-                raise
-            except Exception as err:
-                # Complain that we found an exception we don't handle.
-                # ...then let it bubble up.
-                if data_stream and not data_stream.closed:
-                    data_stream.close()
-                data_stream = None
-                raise log.exception(
-                    error,
-                    LoadError,
-                    "Error loading data from file. context: {}",
-                    context=context) from error
-
-        return data_stream
-
-    # --------------------------------------------------------------------------
-    # Identification ("Leeloo Dallas, Multi-Pass")
-    # --------------------------------------------------------------------------
-
-    def _id_accum(self, string: str, accum: List[str]) -> None:
-        accum.append(self._safe_path(string.lower()))
-
-    def _id_type(self,
-                 load_type: DataGameContext.Type,
-                 context:   DataGameContext,
-                 out_ids:   List[str]) -> None:
-        '''
-        Convert the DataGameContext.Type enum into part of the id usable for getting
-        data from this repo.
-
-        Appends the conversion to the `out_ids` list.
-        '''
-        if load_type == DataGameContext.Type.PLAYER:
-            self._id_accum('players', out_ids)
-        elif load_type == DataGameContext.Type.MONSTER:
-            self._id_accum('monsters', out_ids)
-        elif load_type == DataGameContext.Type.NPC:
-            self._id_accum('npcs', out_ids)
-        elif load_type == DataGameContext.Type.ITEM:
-            self._id_accum('items', out_ids)
-        else:
-            raise exceptions.LoadError(
-                f"No DataGameContext.Type to ID conversion for: {load_type}",
-                None,
-                self.context.push(context))
-
-    def _id_keys(self,
-                 load_type: DataGameContext.Type,
-                 context:   DataGameContext,
-                 out_ids:   List[str]) -> None:
-        '''
-        Turns each context.data_values element into part of the id for getting a
-        datum from this repo.
-
-        Appends the conversions to the `out_ids` list.
-        '''
-        for id_element in context.data_values:
-            self._id_accum(id_element, out_ids)
-
-    def _id(self,
-            type:        DataGameContext.Type,
-            context:     DataGameContext) -> List[str]:
-        '''
-        Turns data repo keys in the context into an id we can use to retrieve
-        the data. Keys are safe and ready to go.
-        '''
-        ids = []
-        self._id_accum(context.campaign, ids)
-        self._id_type(type,
-                      context,
-                      ids)
-        self._id_keys(type,
-                      context,
-                      ids)
-        return ids
-
-    def _id_to_path(self,
-                    ids:     List[str],
-                    context: DataGameContext) -> None:
-        '''
-        Turn identity stuff into filepath components.
-        '''
-        return self._rooted_path(*self._ext_glob(ids))
-
-    # --------------------------------------------------------------------------
-    # Paths In General
-    # --------------------------------------------------------------------------
-
-    def _ext_glob(self, elements: List[str]) -> List[str]:
-        '''Concatenates extensions glob onto last path element is list.'''
-        if elements:
-            elements[-1] = elements[-1] + ".*"
-        return elements
-
-    def _rooted_path(self, *args: PathType) -> pathlib.Path:
-        '''
-        Assumes args are already safe, joins them all to `self.root` and returns
-        the pathlib.Path.
-        '''
-        return self.root.joinpath(*args)
-
-    def _pathlib_cast(self, string: PathType) -> pathlib.Path:
-        return pathlib.Path(string)
-
-    # --------------------------------------------------------------------------
-    # Path Safing
-    # --------------------------------------------------------------------------
-
-    def _safe_path(self,
-                   unsafe: PathType,
-                   context: Optional[DataGameContext] = None) -> str:
-        '''Makes `unsafe` safe with self.fn_path_safing. '''
-
-        if not self.fn_path_safing:
-            raise exceptions.LoadError(
-                "No path safing function set! Cannot create file paths. ",
-                None,
-                self.context.push(context)) from error
-
-        return self.fn_path_safing(str(unsafe))
-
-    # --------------------------------------------------------------------------
-    # Path Safing Option:
-    #   "us?#:er" -> "us___er"
-    # --------------------------------------------------------------------------
-    @staticmethod
-    def _to_human_readable(string: str) -> str:
-        return FileTreeRepository._HUMAN_SAFE.sub(
-            FileTreeRepository._REPLACEMENT,
-            string)
-
-    # --------------------------------------------------------------------------
-    # Path Safing Option:
-    #   "us?#:er" ->
-    #     'b3b31a87f6cca2e4d8e7909395c4b4fd0a5ee73b739b54eb3aeff962697ca603'
-    # --------------------------------------------------------------------------
-    @staticmethod
-    def _to_hashed(string: str) -> str:
-        return hashlib.sha256(string.encode()).hexdigest()
+# §-TODO-§ [2020-06-01]: templates repo?
+# @register('veredi', 'repository', 'templates', 'file-tree')
+# class FileTreeTemplates(FileTreeRepository):
+#
+#     _REPO_NAME   = 'file-tree'
+#     _CONTEXT_NAME = 'file-tree'
+#     _CONTEXT_KEY  = 'templates'

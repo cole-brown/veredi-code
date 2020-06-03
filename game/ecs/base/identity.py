@@ -47,7 +47,7 @@ class MonotonicId(int):
     INVALID = 0
     _format = '{:03d}'
 
-    def __new__(klass, value, *args, allow=False, **kwargs):
+    def __new__(klass, value, allow=False):
         if not allow:
             # Just make all constructed return INVALID.
             return super().__new__(klass, klass.INVALID)

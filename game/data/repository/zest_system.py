@@ -11,7 +11,7 @@ Tests for the RepositorySystem class.
 import unittest
 from io import StringIO
 
-from veredi.zest import zmake
+from veredi.zest import zpath, zmake, zontext
 from veredi.base.context import UnitTestContext
 from veredi.data.context import (DataLoadContext,
                                  DataSaveContext,
@@ -41,18 +41,24 @@ from veredi.zest import zpath
 class Test_RepoSystem(unittest.TestCase):
 
     def setUp(self):
-        self.path          = zpath.repository_file_tree()
-        self.repo          = RepositorySystem(1, repository_base=self.path)
+        self.debug         = False
         self.config        = zmake.config()
+        self.context       = zontext.repo(self.__class__.__name__,
+                                          'setUp',
+                                          config=self.config)
+        self.repo          = RepositorySystem(self.context, 1)
         self.event_manager = EventManager(self.config)
         self.events        = []
+        self.path          = self.repo._repository.root
 
     def tearDown(self):
-        self.path          = None
-        self.repo          = None
+        self.debug         = False
         self.config        = None
+        self.context       = None
+        self.repo          = None
         self.event_manager = None
         self.events        = None
+        self.path          = None
 
     def sub_deserialized(self):
         self.event_manager.subscribe(DeserializedEvent, self.event_deserialized)
@@ -75,7 +81,10 @@ class Test_RepoSystem(unittest.TestCase):
         self.assertTrue(self.events)
 
     def context_load(self, type):
-        ctx = DataLoadContext('unit-testing', type, 'test-campaign')
+        ctx = self.context.spawn(DataLoadContext,
+                                 'unit-testing', None,
+                                 type,
+                                 'test-campaign')
         path = self.path / 'test-campaign'
         if type == DataGameContext.Type.PLAYER:
             ctx.sub['user'] = 'u/jeff'

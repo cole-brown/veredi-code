@@ -26,6 +26,7 @@ import enum
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
+from veredi.base.context import VerediContext
 from veredi.data.config.config import Configuration
 
 from .base.identity import (MonotonicIdGenerator,
@@ -87,13 +88,6 @@ class EntityManager(EcsManagerWithEvents):
 
         self._toolbox = EntityTools(self, component_manager)
 
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
-        '''
-        Subscribe to any life-long event subscriptions here. Can hold on to
-        event_manager if need to sub/unsub more dynamically.
-        '''
-        return VerediHealth.HEALTHY
-
     def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
@@ -136,8 +130,7 @@ class EntityManager(EcsManagerWithEvents):
 
     def create(self,
                type_id: EntityTypeId,
-               *args: Any,
-               **kwargs: Any) -> EntityId:
+               context: Optional[VerediContext]) -> EntityId:
         '''
         Creates an entity with the supplied args. This is the start of
         the life cycle of the entity.
@@ -148,17 +141,15 @@ class EntityManager(EcsManagerWithEvents):
         '''
         eid = self._entity_id.next()
 
-        entity = Entity(eid, type_id, self._toolbox,
-                        *args, **kwargs)
+        entity = Entity(context, eid, type_id, self._toolbox)
         self._entity[eid] = entity
         self._entity_create.add(eid)
         entity._life_cycled(EntityLifeCycle.CREATING)
 
-        self.event(self._event_manager,
-                   EntityLifeEvent,
-                   eid,
-                   EntityLifeCycle.CREATING,
-                   None, False)
+        self._event_create(EntityLifeEvent,
+                           eid,
+                           EntityLifeCycle.CREATING,
+                           None, False)
 
         return eid
 
@@ -176,11 +167,10 @@ class EntityManager(EcsManagerWithEvents):
         entity._life_cycle = EntityLifeCycle.DESTROYING
         self._entity_destroy.add(entity.id)
 
-        self.event(self._event_manager,
-                   EntityLifeEvent,
-                   entity_id,
-                   EntityLifeCycle.DESTROYING,
-                   None, False)
+        self._event_create(EntityLifeEvent,
+                           entity_id,
+                           EntityLifeCycle.DESTROYING,
+                           None, False)
 
     def add(self, entity_id: EntityId, *components: Component) -> None:
         '''
@@ -195,11 +185,10 @@ class EntityManager(EcsManagerWithEvents):
             return
         entity._add_all(components)
 
-        self.event(self._event_manager,
-                   EntityEvent,
-                   entity_id,
-                   EntityEventType.COMPONENT_ADD,
-                   None, False)
+        self._event_create(EntityEvent,
+                           entity_id,
+                           EntityEventType.COMPONENT_ADD,
+                           None, False)
 
     def remove(self, entity_id: EntityId, *components: CompIdOrType) -> None:
         '''
@@ -216,11 +205,10 @@ class EntityManager(EcsManagerWithEvents):
             return
         entity._remove_all(components)
 
-        self.event(self._event_manager,
-                   EntityEvent,
-                   entity_id,
-                   EntityEventType.COMPONENT_REMOVE,
-                   None, False)
+        self._event_create(EntityEvent,
+                           entity_id,
+                           EntityEventType.COMPONENT_REMOVE,
+                           None, False)
 
     # --------------------------------------------------------------------------
     # Game Loop: Component/Entity Life Cycle Updates
@@ -254,11 +242,10 @@ class EntityManager(EcsManagerWithEvents):
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
 
-            self.event(self._event_manager,
-                       EntityLifeEvent,
-                       entity_id,
-                       EntityLifeCycle.ALIVE,
-                       None, False)
+            self._event_create(EntityLifeEvent,
+                               entity_id,
+                               EntityLifeCycle.ALIVE,
+                               None, False)
 
         # Done with iteration - clear the adds.
         self._entity_create.clear()
@@ -298,11 +285,10 @@ class EntityManager(EcsManagerWithEvents):
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
 
-            self.event(self._event_manager,
-                       EntityLifeEvent,
-                       entity_id,
-                       EntityLifeCycle.DEAD,
-                       None, False)
+            self._event_create(EntityLifeEvent,
+                               entity_id,
+                               EntityLifeCycle.DEAD,
+                               None, False)
 
         # Done with iteration - clear the removes.
         self._entity_destroy.clear()

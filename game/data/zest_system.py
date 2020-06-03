@@ -10,8 +10,9 @@ Tests for the DataSystem class.
 
 import unittest
 
-from veredi.zest import zmake
+from veredi.zest import zpath, zmake, zontext
 from veredi.base.context import UnitTestContext
+from veredi.logger import log
 
 from ..ecs.event import EventManager
 from ..ecs.base.identity import ComponentId
@@ -85,17 +86,24 @@ class Test_DataSystem(unittest.TestCase):
     '''
 
     def setUp(self):
+        self.debug             = False
         self.config            = zmake.config()
+        self.context           = zontext.test(self.__class__.__name__,
+                                              'setUp',
+                                              config=self.config)
         self.event_manager     = EventManager(self.config)
         self.component_manager = ComponentManager(self.config,
                                                   self.event_manager)
-        self.system            = DataSystem(1,
+        self.system            = DataSystem(self.context,
+                                            1,
                                             event_manager=self.event_manager,
                                             component_manager=self.component_manager)
         self.events            = []
 
     def tearDown(self):
+        self.debug             = False
         self.config            = None
+        self.context           = None
         self.event_manager     = None
         self.component_manager = None
         self.system            = None
@@ -130,18 +138,21 @@ class Test_DataSystem(unittest.TestCase):
     def test_event_loaded(self):
         self.set_up_subs()
 
+        ctx = self.context.spawn(
+            UnitTestContext,
+            self.__class__.__name__,
+            'test_event_deserialize',
+            {'unit-testing': "Manually created DecodedEvent."})
         decode_event = DecodedEvent(
             42,
             0xDEADBEEF,
-            UnitTestContext(
-                self.__class__.__name__,
-                'Test_DataSystem.test_event_deserialize',
-                {'unit-testing': "Manually created DecodedEvent."}),
+            ctx,
             data=test_data)
 
         self.assertTrue(decode_event)
         self.assertFalse(self.events)
-        self.make_it_so(decode_event)
+        with log.LoggingManager.on_or_off(self.debug):
+            self.make_it_so(decode_event)
 
         self.assertEqual(len(self.events), 1)
         self.assertIsInstance(self.events[0], DataLoadedEvent)

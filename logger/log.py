@@ -333,18 +333,37 @@ class LoggingManager:
 
         set_level(self._original)
 
+    def bookend(self, start):
+        if start:
+            print("\n\n\n")
+        print("================================================================================")
+        print("================================================================================")
+        print("================================================================================")
+        if not start:
+            print("\n\n\n")
+
     # ---
     # Specific Manager Types...
     # ---
     @staticmethod
-    def full_blast():
+    def on_or_off(enabled: bool) -> 'LoggingManager':
+        '''
+        Returns either a full_blast() manager or an ignored() manager,
+        depending on `enabled`.
+        '''
+        if enabled:
+            return LoggingManager.full_blast()
+        return LoggingManager.ignored()
+
+    @staticmethod
+    def full_blast() -> 'LoggingManager':
         '''
         This one sets logging to most verbose level - DEBUG.
         '''
         return LoggingManager(Level.DEBUG)
 
     @staticmethod
-    def disabled():
+    def disabled() -> 'LoggingManager':
         '''
         This one sets logging to least verbose level - CRITICAL.
         '''
@@ -352,7 +371,7 @@ class LoggingManager:
         return LoggingManager(Level.CRITICAL)
 
     @staticmethod
-    def ignored():
+    def ignored() -> 'LoggingManager':
         '''
         This one does nothing.
         '''

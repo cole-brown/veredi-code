@@ -14,6 +14,7 @@ import decimal
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
+from veredi.base.context import VerediContext
 from veredi.data.config.config import Configuration
 
 from .base.identity import (MonotonicIdGenerator,
@@ -64,7 +65,10 @@ class SystemManager(EcsManagerWithEvents):
                  debug_flags:       Optional[DebugFlag]) -> None:
         '''Initializes this thing.'''
         self._debug:             Optional[DebugFlag]        = debug_flags
+
+        # §-TODO-§ [2020-06-01]: get rid of this class's link to config?
         self._config:            Optional[Configuration]    = config
+
         self._event_manager:     Optional[EventManager]     = event_manager
         self._component_manager: Optional[ComponentManager] = component_manager
 
@@ -238,8 +242,7 @@ class SystemManager(EcsManagerWithEvents):
 
     def create(self,
                sys_class: Type[System],
-               *args: Any,
-               **kwargs: Any) -> SystemId:
+               context:   Optional[VerediContext]) -> SystemId:
         '''
         Creates a system with the supplied args. This is the start of
         the life cycle of the system.
@@ -253,20 +256,18 @@ class SystemManager(EcsManagerWithEvents):
         # Stuff event, component managers into kwargs in case system wants them
         # on init.
 
-        system = sys_class(sid, *args,
-                           config=self._config,
+        system = sys_class(context,
+                           sid,
                            event_manager=self._event_manager,
-                           component_manager=self._component_manager,
-                           **kwargs)
+                           component_manager=self._component_manager)
         self._system[sid] = system
         self._system_create.add(sid)
         system._life_cycled(SystemLifeCycle.CREATING)
 
-        self.event(self._event_manager,
-                   SystemLifeEvent,
-                   sid,
-                   SystemLifeCycle.CREATING,
-                   None, False)
+        self._event_create(SystemLifeEvent,
+                           sid,
+                           SystemLifeCycle.CREATING,
+                           None, False)
 
         return sid
 
@@ -284,11 +285,10 @@ class SystemManager(EcsManagerWithEvents):
         system._life_cycle = SystemLifeCycle.DESTROYING
         self._system_destroy.add(system.id)
 
-        self.event(self._event_manager,
-                   SystemLifeEvent,
-                   system_id,
-                   SystemLifeCycle.DESTROYING,
-                   None, False)
+        self._event_create(SystemLifeEvent,
+                           system_id,
+                           SystemLifeCycle.DESTROYING,
+                           None, False)
 
     # --------------------------------------------------------------------------
     # Game Loop: Component/System Life Cycle Updates
@@ -321,11 +321,10 @@ class SystemManager(EcsManagerWithEvents):
                     system_id)
                 # TODO: put this system in... jail or something? Delete?
 
-            self.event(self._event_manager,
-                       SystemLifeEvent,
-                       system_id,
-                       SystemLifeCycle.ALIVE,
-                       None, False)
+            self._event_create(SystemLifeEvent,
+                               system_id,
+                               SystemLifeCycle.ALIVE,
+                               None, False)
 
         self._reschedule = True
         return VerediHealth.HEALTHY
@@ -362,11 +361,10 @@ class SystemManager(EcsManagerWithEvents):
                     system_id)
                 # TODO: put this system in... jail or something? Delete?
 
-            self.event(self._event_manager,
-                       SystemLifeEvent,
-                       system_id,
-                       SystemLifeCycle.DEAD,
-                       None, False)
+            self._event_create(SystemLifeEvent,
+                               system_id,
+                               SystemLifeCycle.DEAD,
+                               None, False)
 
         # Done with iteration - clear the removes.
         self._system_destroy.clear()

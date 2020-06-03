@@ -67,14 +67,6 @@ class HealthComponent(DataComponent):
         },
     }
 
-    # def __init__(self,
-    #              cid: ComponentId,
-    #              data: MutableMapping[str, Any],
-    #              *args: Any,
-    #              **kwargs: Any) -> None:
-    #     '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
-    #     super().__init__(cid, *args, **kwargs)
-
     def _verify(self) -> None:  # TODO: pass in `requirements`.
         '''
         Verifies our data against a template/requirements data set.
@@ -112,47 +104,3 @@ class HealthComponent(DataComponent):
             raise DataNotPresentError(
                 f"Key '{key}' not found in our data (in {container}).",
                 None, None)
-
-
-
-# class HitPoints(DataClass):
-#     _KEY_BASE = 'hit-points'
-#
-#     _REQUIRED_KEYS = {
-#         'current',
-#         'maximum',
-#         'unconscious',
-#         'death',
-#     }
-#
-#     def __init__(self, *args: str, **kwargs: str) -> None:
-#         super().__init__(self._KEY_BASE, self._REQUIRED_KEYS, **self.raw_data)
-#
-#     def adjust(self, amount: Union[int, decimal.Decimal], *tags: str) -> decimal.Decimal:
-#         self.current += amount
-#         return self.current
-#
-#     def reset(self, *tags: str) -> decimal.Decimal:
-#         self.current = self.maximum
-#         return self.current
-#
-#     @property
-#     def state(self) -> HealthState:
-#         state = HealthState.INVALID
-#
-#         # General States: ALIVE, DEAD, UNCONSCIOUS (mostly dead)
-#         if self.current > self.unconscious:
-#             state = state.set(HealthState.ALIVE)
-#         elif self.current < self.death:
-#             state = state.set(HealthState.DEAD)
-#         else:
-#             state = state.set(HealthState.UNCONSCIOUS)
-#
-#         # Bonus States: Alive, but half health or less.
-#         if state.has(HealthState.ALIVE) and self.current < (self.maximum // 2):
-#             state = state.set(HealthState.HALF)
-#
-#         if state != HealthState.INVALID:
-#             state = state.unset(HealthState.INVALID)
-#
-#         return state

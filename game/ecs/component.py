@@ -72,13 +72,6 @@ class ComponentManager(EcsManagerWithEvents):
         self._event_manager:     EventManager         = event_manager
         self._config:            Configuration        = config
 
-    def subscribe(self, event_manager: EventManager) -> VerediHealth:
-        '''
-        Subscribe to any life-long event subscriptions here. Can hold on to
-        event_manager if need to sub/unsub more dynamically.
-        '''
-        return VerediHealth.HEALTHY
-
     def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
@@ -145,6 +138,7 @@ class ComponentManager(EcsManagerWithEvents):
                             context: Optional[VerediContext],
                             *args: Any,
                             **kwargs: Any) -> ComponentId:
+
         '''
         Checks the registry for the Component by string and tries
         to create it.
@@ -179,6 +173,7 @@ class ComponentManager(EcsManagerWithEvents):
                         context: Optional[VerediContext],
                         *args: Any,
                         **kwargs: Any) -> ComponentId:
+
         '''
         Creates a component of type `comp_class` with the supplied args.
 
@@ -189,15 +184,14 @@ class ComponentManager(EcsManagerWithEvents):
         '''
         component = None
         try:
-            component = comp_class(cid, *args, **kwargs)
+            component = comp_class(context, cid, *args, **kwargs)
         except Exception as error:
             raise log.exception(
                 error,
                 ComponentError,
                 "Exception during Component creation for would-be "
-                "component_id {}. comp_class: {}, args: {}, "
-                "kwargs: {}, context: {}",
-                cid, comp_class, args, kwargs, context
+                "component_id {}. comp_class: {}, context: {}",
+                cid, comp_class, context
             ) from error
 
         return component
@@ -250,11 +244,10 @@ class ComponentManager(EcsManagerWithEvents):
         component._life_cycled(ComponentLifeCycle.CREATING)
 
         # And fire off an event for CREATING.
-        self.event(self._event_manager,
-                   ComponentLifeEvent,
-                   cid,
-                   ComponentLifeCycle.CREATING,
-                   None, False)
+        self._event_create(ComponentLifeEvent,
+                           cid,
+                           ComponentLifeCycle.CREATING,
+                           None, False)
 
         return cid
 
@@ -274,11 +267,10 @@ class ComponentManager(EcsManagerWithEvents):
         self._component_destroy.add(component.id)
 
         # And fire off an event for DESTROYING.
-        self.event(self._event_manager,
-                   ComponentLifeEvent,
-                   component_id,
-                   ComponentLifeCycle.DESTROYING,
-                   None, False)
+        self._event_create(ComponentLifeEvent,
+                           component_id,
+                           ComponentLifeCycle.DESTROYING,
+                           None, False)
 
     # --------------------------------------------------------------------------
     # Game Loop: Component Life Cycle Updates
@@ -313,11 +305,10 @@ class ComponentManager(EcsManagerWithEvents):
                 # TODO: put this component in... jail or something? Delete?
 
             # And fire off an event for ALIVE.
-            self.event(self._event_manager,
-                       ComponentLifeEvent,
-                       component_id,
-                       ComponentLifeCycle.ALIVE,
-                       None, False)
+            self._event_create(ComponentLifeEvent,
+                               component_id,
+                               ComponentLifeCycle.ALIVE,
+                               None, False)
 
         # Done with iteration - clear the adds.
         self._component_create.clear()
@@ -357,11 +348,10 @@ class ComponentManager(EcsManagerWithEvents):
                 # Delete harder?
 
             # And fire off an event for DEAD.
-            self.event(self._event_manager,
-                       ComponentLifeEvent,
-                       component_id,
-                       ComponentLifeCycle.DEAD,
-                       None, False)
+            self._event_create(ComponentLifeEvent,
+                               component_id,
+                               ComponentLifeCycle.DEAD,
+                               None, False)
 
         # Done with iteration - clear the removes.
         self._component_destroy.clear()

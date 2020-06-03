@@ -18,6 +18,12 @@ from veredi.base.exceptions import VerediError
 # Exceptions
 # ------------------------------------------------------------------------------
 
+class RegistryError(VerediError):
+    def __init__(self, message, cause, context):
+        '''With user context data.'''
+        super().__init__(message, cause, context)
+
+
 class LoadError(VerediError):
     def __init__(self, message, cause, context):
         '''With user context data.'''

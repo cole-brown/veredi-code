@@ -11,8 +11,9 @@ Tests for the CodecSystem class.
 import unittest
 from io import StringIO
 
-from veredi.zest import zmake
-from veredi.base.context import UnitTestContext
+from veredi.logger import log
+from veredi.zest import zmake, zontext
+from veredi.base.context import UnitTestContext, CodeKey
 
 from .system import CodecSystem
 from ..event import (DeserializedEvent, DataSaveRequest,
@@ -59,7 +60,10 @@ health:
 class Test_CodecSystem(unittest.TestCase):
 
     def setUp(self):
-        self.codec         = CodecSystem(1)
+        self.debug = False
+        context = zontext.codec(self.__class__.__name__,
+                                'setUp')
+        self.codec         = CodecSystem(context, 1)
         self.config        = zmake.config()
         self.event_manager = EventManager(self.config)
         self.events        = []
@@ -105,7 +109,7 @@ class Test_CodecSystem(unittest.TestCase):
                     self.__class__.__name__,
                     'test_event_deserialize',
                     {'unit-testing': "string 'test-data' in zest_system.py"}),
-                stream)
+                data=stream)
             self.assertTrue(event)
             self.event_manager.notify(event, True)
             # CodecSystem will reply with its own event (not immediately

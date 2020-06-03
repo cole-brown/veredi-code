@@ -36,11 +36,11 @@ class CompTwo(component.Component):
 class SysJeff(system.System):
     last_tick = system.SystemTick.DESTRUCTION
 
-    def __init__(self, system_id, *args, **kwargs):
-        super().__init__(self, system_id, *args, **kwargs)
-        self._ticks = (const.SystemTick.PRE
-                       | const.SystemTick.STANDARD
-                       | const.SystemTick.POST)
+    def _configure(self,
+                   context):
+        self._ticks = (system.SystemTick.PRE
+                       | system.SystemTick.STANDARD
+                       | system.SystemTick.POST)
 
     def priority(self):
         return const.SystemPriority.MEDIUM + 13
@@ -93,7 +93,7 @@ class SysJill(system.System):
 class Test_System(unittest.TestCase):
 
     def setUp(self):
-        self.sys = SysJeff(1)
+        self.sys = SysJeff(None, 1)
 
     def tearDown(self):
         self.sys = None
@@ -104,7 +104,7 @@ class Test_System(unittest.TestCase):
     def test_priority(self):
         self.assertEqual(self.sys.priority(), const.SystemPriority.MEDIUM + 13)
 
-        sys2 = SysJill(2)
+        sys2 = SysJill(None, 2)
 
         self.assertEqual(sys2.priority(), const.SystemPriority.HIGH)
 

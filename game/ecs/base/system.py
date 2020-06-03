@@ -14,7 +14,7 @@ import enum
 from veredi.logger import log
 from veredi.base.const import VerediHealth
 from veredi.base.context import VerediContext
-from veredi.data.config.config import Configuration
+from veredi.data.config.context import ConfigContext
 
 from ..const import SystemTick, SystemPriority
 from .exceptions import SystemError
@@ -58,12 +58,10 @@ class SystemLifeCycle(enum.Enum):
 
 class System:
     def __init__(self,
-                 sid: SystemId,
-                 *args: Any,
-                 config:            Optional[Configuration]    = None,
+                 context:           Optional[VerediContext],
+                 sid:               SystemId,
                  event_manager:     Optional[EventManager]     = None,
-                 component_manager: Optional[ComponentManager] = None,
-                 **kwargs: Any) -> None:
+                 component_manager: Optional[ComponentManager] = None) -> None:
 
         self._system_id:         SystemId                       = sid
         self._life_cycle:        SystemLifeCycle                = SystemLifeCycle.INVALID
@@ -74,8 +72,7 @@ class System:
         self._event_manager:     Optional[EventManager]         = event_manager
         self._component_manager: Optional[EventManager]         = component_manager
 
-        if config:
-            self._configure(config)
+        self._configure(context)
 
     @property
     def id(self) -> SystemId:
@@ -103,10 +100,11 @@ class System:
     # System Set Up
     # --------------------------------------------------------------------------
 
-    def _configure(self, config: Configuration) -> None:
+    def _configure(self,
+                   context: Optional[ConfigContext]) -> None:
         '''
-        Allows systems to grab anything from the config data that they need to
-        set up themselves.
+        Allows systems to grab, from the context/config, anything that
+        they need to set up themselves.
         '''
         pass
 
@@ -158,30 +156,37 @@ class System:
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
+        self._event_manager = event_manager
+
         return VerediHealth.HEALTHY
 
-    def event(self,
-              event_manager:              'EventManager',
-              event_class:                Type['Event'],
-              owner_id:                   int,
-              type:                       Union[int, enum.Enum],
-              context:                    Optional[VerediContext],
-              requires_immediate_publish: bool,
-              *args:                      Any,
-              **kwargs:                   Any) -> None:
+    def _event_create(self,
+                      event:                      Type['Event'],
+                      owner_id:                   int,
+                      type:                       Union[int, enum.Enum],
+                      context:                    Optional[VerediContext],
+                      requires_immediate_publish: bool = False) -> None:
         '''
-        Calls event_manager.create() if event_manager exists.
+        Calls self._event_manager.create() if self._event_manager is not none.
         '''
-        if not event_manager:
+        if not self._event_manager:
             return
-        event_manager.create(
-            event_class,
-            owner_id,
-            type,
-            context,
-            requires_immediate_publish,
-            *args,
-            **kwargs)
+        self._event_manager.create(event_class,
+                                   owner_id,
+                                   type,
+                                   context,
+                                   requires_immediate_publish)
+
+    def _event_notify(self,
+                      event:                      'Event',
+                      requires_immediate_publish: bool = False) -> None:
+        '''
+        Calls self._event_manager.notify() if self._event_manager is not none.
+        '''
+        if not self._event_manager:
+            return
+        self._event_manager.notify(event,
+                                   requires_immediate_publish)
 
     # --------------------------------------------------------------------------
     # Game Update Loop/Tick Functions

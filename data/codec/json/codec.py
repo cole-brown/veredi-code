@@ -14,7 +14,7 @@ import json
 
 from veredi.logger import log
 from veredi.data.config.registry import register
-from veredi.data.config.config import Configuration, ConfigKeys
+from veredi.data.config.context import ConfigContext
 from veredi.data import exceptions
 
 from ..base import BaseCodec, CodecOutput
@@ -35,20 +35,17 @@ class JsonCodec(BaseCodec):
     _CONTEXT_NAME = 'json'
     _CONTEXT_KEY  = 'codec'
 
+
     def __init__(self,
-                 context:      Optional[VerediContext]        = None,
-                 config:       Optional[Configuration]        = None,
-                 config_keys:  Optional[Iterable[ConfigKeys]] = None) -> None:
+                 context: Optional[VerediContext] = None) -> None:
         super().__init__(JsonCodec._CODEC_NAME,
                          JsonCodec._CONTEXT_NAME,
                          JsonCodec._CONTEXT_KEY,
-                         context,
-                         config,
-                         config_keys)
+                         context)
 
     def _configure(self,
-                   config:      Optional[Configuration],
-                   config_keys: Optional[Iterable[ConfigKeys]]) -> None:
+                   context: Optional[ConfigContext]) -> None:
+        '''Don't need anything from context, currently.'''
         pass
 
     def decode(self,
