@@ -123,7 +123,6 @@ class Event:
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type}]"
 
-
     def _pretty(self):
         from veredi.logger import pretty
         return (f"{self._str_name()}:\n  context:\n" +

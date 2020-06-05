@@ -146,7 +146,9 @@ class Entity:
         '''
         self._life_cycle = new_state
 
-    def get(self, id_or_type: CompIdOrType) -> Optional[Component]:
+    def get(self,
+            id_or_type:     CompIdOrType,
+            allow_disabled: bool = False) -> Optional[Component]:
         '''
         Gets a component from this entity by ComponentId or ComponentType. Will
         return the component instance or None.
@@ -163,6 +165,11 @@ class Entity:
                 # Make sure it's ours...
                 my_comp = self._components.get(type(component), None)
                 if my_comp and component == my_comp:
+                    # If we don't want disabled, and this one isn't enabled (and
+                    # is therefore disabled), there isn't one for you to have.
+                    if not allow_disabled and not component.enabled:
+                        # Go away.
+                        return None
                     return component
 
         # Fall thorough - ain't got that one.

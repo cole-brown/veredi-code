@@ -113,7 +113,7 @@ class EntityManager(EcsManagerWithEvents):
             entity = self._entity[id]
             # ...and if this entity has all of the required components,
             # yield it as a value.
-            if entity and entity.contains(required_components):
+            if entity and entity.enabled and entity.contains(required_components):
                 yield entity
 
     # --------------------------------------------------------------------------

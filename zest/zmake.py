@@ -12,10 +12,20 @@ from typing import Union, Optional
 import pathlib
 
 from . import zpath
-from veredi.data.config.config import Configuration
-from veredi.data.config import hierarchy
+
+# Config Stuff
+from veredi.data.config.config   import Configuration
+from veredi.data.config          import hierarchy
 from veredi.data.repository.base import BaseRepository
-from veredi.data.codec.base import BaseCodec
+from veredi.data.codec.base      import BaseCodec
+
+# Meeting Stuff
+from veredi.game.ecs.const       import DebugFlag
+from veredi.game.ecs.base.system import Meeting
+from veredi.game.ecs.time        import TimeManager
+from veredi.game.ecs.event       import EventManager
+from veredi.game.ecs.component   import ComponentManager
+from veredi.game.ecs.entity      import EntityManager
 
 
 # -----------------------------------------------------------------------------
@@ -52,3 +62,26 @@ def config(test_type:    zpath.TestType                 = zpath.TestType.UNIT,
                          'directory')
 
     return config
+
+
+# ------------------------------------------------------------------------------
+# Meeting of Managers
+# ------------------------------------------------------------------------------
+def meeting(test_type:         zpath.TestType             = zpath.TestType.UNIT,
+            configuration:     Optional[Configuration]    = None,
+            time_manager:      Optional[TimeManager]      = None,
+            event_manager:     Optional[EventManager]     = None,
+            component_manager: Optional[ComponentManager] = None,
+            entity_manager:    Optional[EntityManager]    = None,
+            debug_flags:       Optional[DebugFlag]        = None) -> None:
+
+    config    = configuration     or config(test_type)
+    time      = time_manager      or TimeManager()
+    event     = event_manager     or EventManager()
+    component = component_manager or ComponentManager(config,
+                                                      event)
+    entity    = entity_manager    or EntityManager(config,
+                                                   event,
+                                                   component)
+
+    return Meeting(time, event, component, entity, debug_flags)

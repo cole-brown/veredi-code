@@ -8,7 +8,8 @@ Data component - a component that has persistent data on it.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Iterable, MutableMapping
+from typing import (Optional, Union, Any,
+                    Iterable, Collection, Container, MutableMapping)
 # import enum
 # import re
 # import decimal
@@ -61,8 +62,10 @@ class DataComponent(Component):
         pass
 
     def _config_data(self, data: MutableMapping[str, Any] = None) -> None:
-
-            # All persistent data should go here, or be gathered up in return value
+        '''
+        Configure our data into whatever it needs to be for runtime.
+        '''
+        # All persistent data should go here, or be gathered up in return value
         # of persistent property.
         self._persistent: MutableMapping[str, Any] = data or {}
         # Flag for indicating that this component wants its
@@ -75,10 +78,6 @@ class DataComponent(Component):
         self._from_data(data)
         self._verify()
 
-    @property
-    def persistent(self):
-        return self._persistent
-
     def _verify(self) -> None:  # §-TODO-§: pass in `requirements`.
         '''
         Verifies our data against a template/requirements data set.
@@ -90,7 +89,46 @@ class DataComponent(Component):
         '''
         # §-TODO-§ [2020-05-26]: Use component-template, component-requirements
         # here to do the verification?
-        raise NotImplementedError
+        # For now, simpler verify...
+
+        if not self._persistent:
+            raise DataNotPresentError(
+                "No data supplied.",
+                None, None)
+
+        for key in self._REQ_KEYS:
+            self._verify_key(key, self._persistent, self._REQ_KEYS[key])
+
+    def _verify_key(self,
+                    key: str,
+                    data: Collection[str],
+                    sub_keys: Union[Collection[str], MutableMapping[str, str]]) -> None:
+        # Get this one...
+        self._verify_exists(key, data)
+
+        # ...then go one deeper.
+        sub_data = data[key]
+        for each in sub_keys:
+            if isinstance(sub_keys, list):
+                self._verify_exists(each, sub_data)
+            else:
+                self._verify_key(each, sub_data, sub_keys.get(each, ()))
+
+    def _verify_exists(self,
+                       key: str,
+                       container: Container[str]) -> None:
+        if key not in container:
+            raise DataNotPresentError(
+                f"Key '{key}' not found in our data (in {container}).",
+                None, None)
+
+    # --------------------------------------------------------------------------
+    # Persistent Data
+    # --------------------------------------------------------------------------
+
+    @property
+    def persistent(self):
+        return self._persistent
 
     def _from_data(self, data: MutableMapping[str, Any]):
         '''

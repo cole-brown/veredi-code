@@ -46,8 +46,10 @@ class Test_RepoSystem(unittest.TestCase):
         self.context       = zontext.repo(self.__class__.__name__,
                                           'setUp',
                                           config=self.config)
-        self.repo          = RepositorySystem(self.context, 1)
         self.event_manager = EventManager(self.config)
+        self.managers      = zmake.meeting(configuration=self.config,
+                                           event_manager=self.event_manager)
+        self.repo          = RepositorySystem(self.context, 1, self.managers)
         self.events        = []
         self.path          = self.repo._repository.root
 
@@ -125,7 +127,7 @@ class Test_RepoSystem(unittest.TestCase):
         self.assertTrue(self.event_manager._subscriptions)
 
         self.assertEqual(self.event_manager,
-                         self.repo._event_manager)
+                         self.repo._manager.event)
 
     def test_event_load_req(self):
         self.set_up_subs()

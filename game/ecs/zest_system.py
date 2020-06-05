@@ -189,8 +189,10 @@ class Test_SystemManager(unittest.TestCase):
                                         self.event_mgr,
                                         self.comp_mgr)
         self.system_mgr = SystemManager(self.config,
+                                        self.time_mgr,
                                         self.event_mgr,
                                         self.comp_mgr,
+                                        self.entity_mgr,
                                         DebugFlag.UNIT_TESTS)
 
         self.events_recv = {}
