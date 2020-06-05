@@ -63,9 +63,11 @@ class Test_CodecSystem(unittest.TestCase):
         self.debug = False
         context = zontext.codec(self.__class__.__name__,
                                 'setUp')
-        self.codec         = CodecSystem(context, 1)
         self.config        = zmake.config()
         self.event_manager = EventManager(self.config)
+        self.managers      = zmake.meeting(configuration=self.config,
+                                           event_manager=self.event_manager)
+        self.codec         = CodecSystem(context, 1, self.managers)
         self.events        = []
 
     def tearDown(self):
@@ -94,7 +96,7 @@ class Test_CodecSystem(unittest.TestCase):
         self.assertTrue(self.event_manager._subscriptions)
 
         self.assertEqual(self.event_manager,
-                         self.codec._event_manager)
+                         self.codec._manager.event)
 
     def test_event_deserialize(self):
         self.set_up_subs()

@@ -72,6 +72,17 @@ class DataSystem(System):
         '''
 
         # ---
+        # Health Stuff
+        # ---
+        self._required_managers:    Optional[Set[Type[EcsManager]]] = {
+            TimeManager,
+            EventManager,
+            ComponentManager
+        }
+        self._health_meter_update:  Optional[Decimal] = None
+        self._health_meter_event:   Optional[Decimal] = None
+
+        # ---
         # Ticking Stuff
         # ---
         self._components: Optional[Set[Type[Component]]] = [DataComponent]
@@ -97,27 +108,6 @@ class DataSystem(System):
         return SystemPriority.DATA_REQ
 
     # --------------------------------------------------------------------------
-    # System Death
-    # --------------------------------------------------------------------------
-
-    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
-        '''
-        Game is ending gracefully. Do graceful end-of-the-world stuff...
-        '''
-        return VerediHealth.APOPTOSIS
-
-    def _health(self, current_health=VerediHealth.HEALTHY):
-        if self._event_manager is False:
-            # We rely on events to function, so we're bad if it doesn't exist.
-            return VerediHealth.UNHEALTHY
-        if not self._event_manager:
-            # We rely on EventManager to function, and we don't have it, but we
-            # haven't confirmed it doesn't exist yet...
-            return VerediHealth.PENDING
-
-        return current_health
-
-    # --------------------------------------------------------------------------
     # Events
     # --------------------------------------------------------------------------
 
@@ -128,29 +118,23 @@ class DataSystem(System):
         '''
         super().subscribe(event_manager)
 
-        self._event_manager = event_manager
-        if not self._event_manager:
-            self._event_manager = False
-            # We rely on events to function, so we're not any good now...
-            return self._health()
-
         # DataSystem subs to:
         # - DecodedEvent
         #   The data has been interpreted into Python/Veredi. Now it needs to be
         #   stuffed into a component or something and attached to an entity or
         #   something.
         #   - We create a DataLoadedEvent once this is done.
-        self._event_manager.subscribe(DecodedEvent,
+        self._manager.event.subscribe(DecodedEvent,
                                       self.event_decoded)
 
         # DataSystem subs to:
         # - SerializedEvent
         #   Once data is serialized to repo, we want to say it's been saved.
         #   - We'll creates a DataSavedEvent to do this.
-        self._event_manager.subscribe(SerializedEvent,
+        self._manager.event.subscribe(SerializedEvent,
                                       self.event_serialized)
 
-        return self._health()
+        return self._health_check()
 
     def request_creation(self,
                          doc: Mapping[str, Any],
@@ -174,7 +158,7 @@ class DataSystem(System):
             ) from error
 
         # Create this registered component from their "multipass" with this data.
-        retval = self._component_manager.create(multipass,
+        retval = self._manager.component.create(multipass,
                                                 event.context,
                                                 data=doc)
         return retval
@@ -184,15 +168,16 @@ class DataSystem(System):
         Decoded data needs to be put into game. Once that's done, trigger a
         DataLoadedEvent.
         '''
-        if not self._component_manager:
-            raise log.exception(
-                None,
-                SystemError,
-                "{} could not create anything from event {} - it has no "
-                "ContextManager. context: {}",
-                self.__class__.__name__,
-                event, event.context
-            )
+        # Doctor checkup.
+        if not self._healthy():
+            self._health_meter_event = self._health_log(
+                self._health_meter_event,
+                log.Level.WARNING,
+                "HEALTH({}): Dropping event {} - our system health "
+                "isn't good enough to process.",
+                self.health, event,
+                context=event.context)
+            return
 
         # Check metadata doc?
         #   - Use version to get correct component class?
@@ -240,6 +225,17 @@ class DataSystem(System):
         '''
         Data is serialized. Now we can trigger DataSavedEvent.
         '''
+        # Doctor checkup.
+        if not self._healthy():
+            self._health_meter_event = self._health_log(
+                self._health_meter_event,
+                log.Level.WARNING,
+                "HEALTH({}): Dropping event {} - our system health "
+                "isn't good enough to process.",
+                self.health, event,
+                context=event.context)
+            return
+
         pass
 
         # Clear out any dirty or save flag?
@@ -272,9 +268,20 @@ class DataSystem(System):
         Generic tick function. We do the same thing every tick state we process
         so do it all here.
         '''
+        # Doctor checkup.
+        if not self._healthy():
+            self._health_meter_update = self._health_log(
+                self._health_meter_update,
+                log.Level.WARNING,
+                "HEALTH({}): Skipping ticks - our system health "
+                "isn't good enough to process.",
+                self.health, event,
+                context=event.context)
+            return self._health_check()
+
         # §-TODO-§ [2020-05-26]: this
 
         # Do DataLoadRequest / DataSaveRequest?
         # Or is DataLoadRequest an event we should subscribe to?
 
-        return self._health()
+        return self._health_check()

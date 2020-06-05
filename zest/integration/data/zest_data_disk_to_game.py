@@ -77,8 +77,10 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
                                             self.event_manager,
                                             self.comp_manager)
         self.system_manager = SystemManager(self.config,
+                                            self.time_manager,
                                             self.event_manager,
                                             self.comp_manager,
+                                            self.entity_manager,
                                             DebugFlag.UNIT_TESTS)
         with log.LoggingManager.on_or_off(self.debug):
             self.create_systems(RepositorySystem, CodecSystem, DataSystem)

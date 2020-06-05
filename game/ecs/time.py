@@ -8,11 +8,13 @@ Timing info for game.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Tuple
 
 from datetime import datetime, timezone
 import time as py_time
+
 import decimal
+from decimal import Decimal
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
@@ -25,8 +27,8 @@ from .event import EcsManagerWithEvents
 # Constants
 # -----------------------------------------------------------------------------
 
-# We will convert any of these into decimal.Decimal
-TickTypes = Union[decimal.Decimal, int, float, str]
+# We will convert any of these into Decimal
+TickTypes = Union[Decimal, int, float, str]
 
 
 # -----------------------------------------------------------------------------
@@ -50,8 +52,8 @@ class Tick:
         # Vars
         # ---
         curr_secs = curr_secs or 0
-        self._seconds = decimal.Decimal(curr_secs)
-        self._tick_amt = decimal.Decimal(tick_amount)
+        self._seconds = Decimal(curr_secs)
+        self._tick_amt = Decimal(tick_amount)
 
         self._num_ticks = 0
 
@@ -74,26 +76,26 @@ class Tick:
         # And leave that context set, as we want that one usually.
 
     @property
-    def seconds(self) -> decimal.Decimal:
+    def seconds(self) -> Decimal:
         return self._seconds
 
     @seconds.setter
     def seconds(self, value: TickTypes) -> None:
         decimal.setcontext(self._context_extended)
-        self._seconds = decimal.Decimal(value)
+        self._seconds = Decimal(value)
         decimal.setcontext(self._context_basic)
 
     @property
-    def tick_amt(self) -> decimal.Decimal:
+    def tick_amt(self) -> Decimal:
         return self._tick_amt
 
     @tick_amt.setter
     def tick_amt(self, value: TickTypes) -> None:
         decimal.setcontext(self._context_extended)
-        self._tick_amt = decimal.Decimal(value)
+        self._tick_amt = Decimal(value)
         decimal.setcontext(self._context_basic)
 
-    def step(self) -> decimal.Decimal:
+    def step(self) -> Decimal:
         '''
         Add `self._tick_amt` seconds to the Tick counter.
         Positive, negative, whatever.
@@ -195,8 +197,10 @@ class TimeManager(EcsManagerWithEvents):
     This class has the potential to be saved to data fields. Let it control its
     timezones. Convert to user-friendly elsewhere.
     '''
-    _DEFAULT_TICK_STEP = decimal.Decimal(6)
+    _DEFAULT_TICK_STEP = Decimal(6)
     _DEFAULT_TIMEOUT_SEC = 10
+
+    _METER_TIMEOUT_SEC = _DEFAULT_TICK_STEP * 4
 
     def __init__(self, tick_amount: Optional[TickTypes] = None) -> None:
         super().__init__()
@@ -260,7 +264,7 @@ class TimeManager(EcsManagerWithEvents):
     # Ticking Time
     # ---
 
-    def step(self) -> decimal.Decimal:
+    def step(self) -> Decimal:
         return self.tick.step()
 
     # ---
@@ -268,7 +272,7 @@ class TimeManager(EcsManagerWithEvents):
     # ---
 
     @property
-    def seconds(self) -> decimal.Decimal:
+    def seconds(self) -> Decimal:
         return self.tick.seconds
 
     @seconds.setter
@@ -290,3 +294,27 @@ class TimeManager(EcsManagerWithEvents):
     @datetime.setter
     def datetime(self, value: datetime) -> None:
         self.clock.datetime = value
+
+    # ---
+    # Logging Despamifier Help
+    # ---
+    def metered(self, meter: Optional[Decimal]) -> Tuple[bool, Decimal]:
+        '''
+        Takes in a `metered` value from last call.
+        Returns a tuple of:
+          - bool:  True if meter is up and you can do a thing.
+                   False if you should keep not doing a thing.
+          - value: Meter value from last time we said you could do a thing.
+                   You don't have to care about this; just keep passing and
+                   updating it like:
+                     do_the_thing, idk = self._time_manager.metered(idk)
+                     if do_the_thing:
+                         self.the_thing()
+        '''
+        if not meter:
+            return True, self.seconds
+
+        now = self.seconds
+        if now > meter + self._METER_TIMEOUT_SEC:
+            return True, now
+        return False, meter

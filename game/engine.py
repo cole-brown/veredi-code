@@ -151,7 +151,10 @@ class Engine:
                                                             self.event,
                                                             self.component)
         self.system    = system_manager    or SystemManager(self.config,
+                                                            self.time,
                                                             self.event,
+                                                            self.component,
+                                                            self.entity,
                                                             self._debug)
         # TODO: give these folks a back-link to me? Or the Event system for
         # regstration step???

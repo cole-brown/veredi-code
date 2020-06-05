@@ -8,30 +8,38 @@ Base class for game update loop systems.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import NewType, Optional, Iterable, Set, Union, Any, Type
+from typing import Optional, Union, Type, NewType, Any, Tuple, Iterable, Set
 import enum
+import decimal
 
-from veredi.logger import log
-from veredi.base.const import VerediHealth
-from veredi.base.context import VerediContext
+from veredi.logger              import log
+from veredi.base.const          import VerediHealth
+from veredi.base.context        import VerediContext
 from veredi.data.config.context import ConfigContext
 
-from ..const import SystemTick, SystemPriority
-from .exceptions import SystemError
-from .identity import (ComponentId,
-                       EntityId,
-                       SystemId)
-from .component import (Component,
-                        ComponentError)
-from .entity import Entity
+from ..const                    import SystemTick, SystemPriority, DebugFlag
+from .exceptions                import SystemError
+from .identity                  import (ComponentId,
+                                        EntityId,
+                                        SystemId)
+from .component                 import (Component,
+                                        ComponentError)
+from .entity                    import Entity
 
-from ..event import EventManager
-from ..component import ComponentManager
+from ..manager                  import EcsManager
+from ..time                     import TimeManager
+from ..event                    import EventManager
+from ..component                import ComponentManager
+from ..entity                   import EntityManager
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+# ---
+# System's Life Cycle State
+# ---
 
 @enum.unique
 class SystemLifeCycle(enum.Enum):
@@ -52,26 +60,160 @@ class SystemLifeCycle(enum.Enum):
         )
 
 
+# ---
+# Helper class to hold onto stuff we use and pass into created Systems.
+# ---
+
+class Meeting:
+    '''
+    ...cuz managers are always in meetings, obviously.
+
+    Helper class to hold onto stuff we use and pass into created Systems.
+    '''
+    def __init__(self,
+                 time_manager:      Optional[TimeManager],
+                 event_manager:     Optional[EventManager],
+                 component_manager: Optional[ComponentManager],
+                 entity_manager:    Optional[EntityManager],
+                 debug_flags:       Optional[DebugFlag]) -> None:
+        self._debug:             Optional[DebugFlag]        = debug_flags
+        self._time_manager:      Optional[TimeManager]      = time_manager
+        self._event_manager:     Optional[EventManager]     = event_manager
+        self._component_manager: Optional[ComponentManager] = component_manager
+        self._entity_manager:    Optional[EntityManager]    = entity_manager
+
+    def healthy(self,
+                required_set: Optional[Set[Type[EcsManager]]]) -> VerediHealth:
+        '''
+        Returns HEALTHY if all required managers are attending the meeting.
+        Returns UNHEALTHY if a required manager is explicitly absent
+        (that is, we have it set to False).
+        Returns PENDING if a required manager is implicitly absent
+        (that is, we have it as a Falsy value like None).
+        '''
+        # If nothing is required, ok.
+        if not required_set:
+            return VerediHealth.HEALTHY
+
+        # Fail if any required are not present.
+        if TimeManager in required_set and not self._time_manager:
+            return (VerediHealth.UNHEALTHY
+                    if self._event_manager is False else
+                    VerediHealth.PENDING)
+        if EventManager in required_set and not self._event_manager:
+            return (VerediHealth.UNHEALTHY
+                    if self._event_manager is False else
+                    VerediHealth.PENDING)
+        if ComponentManager in required_set and not self._component_manager:
+            return (VerediHealth.UNHEALTHY
+                    if self._event_manager is False else
+                    VerediHealth.PENDING)
+        if EntityManager in required_set and not self._entity_manager:
+            return (VerediHealth.UNHEALTHY
+                    if self._event_manager is False else
+                    VerediHealth.PENDING)
+
+        # Otherwise we're good.
+        return VerediHealth.HEALTHY
+
+    @property
+    def time(self) -> Union[TimeManager, bool, None]:
+        '''
+        Returns TimeManager. If this returns 'False' (as opposed to
+        None/Falsy), that is explicitly stating the explicit absense of a
+        TimeManager.
+        '''
+        # Stupid code-wise, but I want to explicitly state that False is the
+        # explicit absense of a TimeManager.
+        if self._time_manager is False:
+            return False
+        return self._time_manager
+
+    @property
+    def event(self) -> Union[EventManager, bool, None]:
+        '''
+        Returns EventManager. If this returns 'False' (as opposed to
+        None/Falsy), that is explicitly stating the explicit absense of an
+        EventManager.
+        '''
+        # Stupid code-wise, but I want to explicitly state that False is the
+        # explicit absense of an EventManager.
+        if self._event_manager is False:
+            return False
+        return self._event_manager
+
+    @property
+    def component(self) -> Union[ComponentManager, bool, None]:
+        '''
+        Returns ComponentManager. If this returns 'False' (as opposed to
+        None/Falsy), that is explicitly stating the explicit absense of a
+        ComponentManager.
+        '''
+        # Stupid code-wise, but I want to explicitly state that False is the
+        # explicit absense of a ComponentManager.
+        if self._component_manager is False:
+            return False
+        return self._component_manager
+
+    @property
+    def entity(self) -> Union[EntityManager, bool, None]:
+        '''
+        Returns EntityManager. If this returns 'False' (as opposed to
+        None/Falsy), that is explicitly stating the explicit absense of an
+        EntityManager.
+        '''
+        # Stupid code-wise, but I want to explicitly state that False is the
+        # explicit absense of an EntityManager.
+        if self._entity_manager is False:
+            return False
+        return self._entity_manager
+
+
 # ------------------------------------------------------------------------------
 # Code
 # ------------------------------------------------------------------------------
 
 class System:
     def __init__(self,
-                 context:           Optional[VerediContext],
-                 sid:               SystemId,
-                 event_manager:     Optional[EventManager]     = None,
-                 component_manager: Optional[ComponentManager] = None) -> None:
+                 context:  Optional[VerediContext],
+                 sid:      SystemId,
+                 managers: 'Meeting') -> None:
 
-        self._system_id:         SystemId                       = sid
-        self._life_cycle:        SystemLifeCycle                = SystemLifeCycle.INVALID
+        self._system_id:  SystemId                       = sid
+        self._life_cycle: SystemLifeCycle                = SystemLifeCycle.INVALID
 
-        self._components:        Optional[Set[Type[Component]]] = None
-        self._ticks:             Optional[SystemTick]           = None
+        self._components: Optional[Set[Type[Component]]] = None
+        self._ticks:      Optional[SystemTick]           = None
 
-        self._event_manager:     Optional[EventManager]         = event_manager
-        self._component_manager: Optional[EventManager]         = component_manager
+        self._manager:    'Meeting'                      = managers
 
+        # ---
+        # Self-Health Set Up
+        # ---
+        # If we get in a not-healthy state, we'll start just dropping inputs.
+        self._health_state:      VerediHealth      = VerediHealth.HEALTHY
+        self._required_managers: Optional[Set[Type[EcsManager]]] = None
+
+        # Systems can set up logging meters like this for use with
+        # self._health_log(). E.g.:
+        # self._health_meter_update:  Optional[Decimal] = None
+        # self._health_meter_event:   Optional[Decimal] = None
+        # Then call self._health_log() like, say...
+        #     # Doctor checkup.
+        #     if not self._healthy():
+        #         self._health_meter_update = self._health_log(
+        #             self._health_meter_update,
+        #             log.Level.WARNING,
+        #             "HEALTH({}): Skipping ticks - our system health "
+        #             "isn't good enough to process.",
+        #             self._state, event,
+        #             context=event.context)
+        #         return
+
+        # ---
+        # Final init set up/configuration from context/config and
+        # system-specific stuff.
+        # ---
         self._configure(context)
 
     @property
@@ -126,26 +268,68 @@ class System:
     def sort_key(system: 'System') -> Union[SystemPriority, int]:
         return system.priority()
 
-    def required(self) -> Optional[Iterable[Component]]:
-        '''
-        Returns the Component types this system /requires/ in order to function
-        on an entity.
-
-        e.g. Perhaps a Combat system /requires/ Health and Defense components,
-        and uses others like Position, Attack... This function should only
-        return Health and Defense.
-        '''
-        return self._components
-
     # --------------------------------------------------------------------------
-    # System Death
+    # System Death / Health
     # --------------------------------------------------------------------------
 
     def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
+        self._health_state = VerediHealth.APOPTOSIS
         return VerediHealth.APOPTOSIS
+
+    @property
+    def health(self) -> VerediHealth:
+        return self._health_state
+
+    def _healthy(self) -> bool:
+        '''
+        Are we in a runnable state?
+        '''
+        return self._health_state.good
+
+    def _health_check(self, current_health=VerediHealth.HEALTHY) -> VerediHealth:
+        '''
+        Tracks our system health. Returns either `current_health` or something
+        worse from what all we track.
+        '''
+        manager_health = self._manager.healthy(self._required_managers)
+        if not manager_health.good:
+            self._health_state = VerediHealth.set(manager_health,
+                                                  self._health_state)
+            # We rely on those managers to function, so we're bad if
+            # they don't exist.
+            return self.health
+
+        # Set our state to whatever's worse and return that.
+        # §-TODO-§ [2020-06-04]: Eventually maybe a gradient of health so one
+        # bad thing doesn't knock us offline?
+        self._health_state = VerediHealth.worse(current_health,
+                                                self._health_state)
+        return self.health
+
+    def _health_log(self,
+                    log_meter: decimal.Decimal,
+                    log_level: log.Level,
+                    msg:       str,
+                    *args:     Any,
+                    **kwargs:  Any):
+        '''
+        Do a metered health log if meter allows. Will log out at `log_level`.
+
+        WARNING is a good default. Not using an optional param so args/kwargs
+        are more explicitly separated.
+        '''
+        output_log, maybe_updated_meter = self._manager.time.metered(log_meter)
+        if output_log:
+            log.at_level(log_level,
+                         "HEALTH({}): Skipping ticks - our system health "
+                         "isn't good enough to process.",
+                         self.health, event,
+                         context=event.context)
+        return maybe_updated_meter
+
 
     # --------------------------------------------------------------------------
     # Events
@@ -156,7 +340,24 @@ class System:
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        self._event_manager = event_manager
+        # Sanity checks...
+        if (event_manager
+                and self._manager and self._manager.event
+                and self._manager.event is not event_manager):
+            raise log.exception(None,
+                                SystemError,
+                                "subscribe() received an EventManager which is "
+                                "different from its saved EventManager from "
+                                "initialization. ours: {}, supplied: {}",
+                                self._manager.event, event_manager)
+
+        if (self._required_managers and EventManager in self._required_managers
+                and not self._manager.event):
+            raise log.exception(None,
+                                SystemError,
+                                "System has no event manager to subscribe to "
+                                "but requires one.",
+                                self._manager.event, event_manager)
 
         return VerediHealth.HEALTHY
 
@@ -167,11 +368,11 @@ class System:
                       context:                    Optional[VerediContext],
                       requires_immediate_publish: bool = False) -> None:
         '''
-        Calls self._event_manager.create() if self._event_manager is not none.
+        Calls our EventManager.create(), if we have an EventManager.
         '''
-        if not self._event_manager:
+        if not self._manager.event:
             return
-        self._event_manager.create(event_class,
+        self._manager.event.create(event_class,
                                    owner_id,
                                    type,
                                    context,
@@ -181,11 +382,11 @@ class System:
                       event:                      'Event',
                       requires_immediate_publish: bool = False) -> None:
         '''
-        Calls self._event_manager.notify() if self._event_manager is not none.
+        Calls our EventManager.notify(), if we have an EventManager.
         '''
-        if not self._event_manager:
+        if not self._manager.event:
             return
-        self._event_manager.notify(event,
+        self._manager.event.notify(event,
                                    requires_immediate_publish)
 
     # --------------------------------------------------------------------------
@@ -201,6 +402,28 @@ class System:
         '''
         return self._ticks is not None and self._ticks.has(tick)
 
+    def required(self) -> Optional[Iterable[Component]]:
+        '''
+        Returns the Component types this system /requires/ in order to function
+        on an entity.
+
+        e.g. Perhaps a Combat system /requires/ Health and Defense components,
+        and uses others like Position, Attack... This function should only
+        return Health and Defense.
+        '''
+        return self._components
+
+    def _wanted_entities(self,
+                         tick:          SystemTick,
+                         time_mgr:      'TimeManager',
+                         component_mgr: 'ComponentManager',
+                         entity_mgr:    'EntityManager') -> VerediHealth:
+        '''
+        Loop over entities that have self.required().
+        '''
+        for entity in entity_mgr.each_with(self.required()):
+            yield entity
+
     def update_tick(self,
                     tick:          SystemTick,
                     time_mgr:      'TimeManager',
@@ -209,7 +432,7 @@ class System:
         '''
         Calls the correct update function for the tick state.
 
-        Returns SystemHegalth value.
+        Returns VerediHealth value.
         '''
         if tick is SystemTick.TIME:
             return self._update_time(time_mgr, component_mgr, entity_mgr)

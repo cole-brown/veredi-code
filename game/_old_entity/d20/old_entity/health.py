@@ -55,9 +55,9 @@ class AttrDict(dict):
 
 
 class DataClass(AttrDict):
-    _RESTRICTED_KEYS = set(
+    _RESTRICTED_KEYS = {
         DataClass.make_regex(r'raw', DataClass._SEPARATORS, r'data'),
-        )
+    }
 
     @staticmethod
     def make_regex(*args: str) -> str:

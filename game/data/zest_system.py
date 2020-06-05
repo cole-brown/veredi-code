@@ -94,10 +94,12 @@ class Test_DataSystem(unittest.TestCase):
         self.event_manager     = EventManager(self.config)
         self.component_manager = ComponentManager(self.config,
                                                   self.event_manager)
+        self.managers          = zmake.meeting(configuration=self.config,
+                                               event_manager=self.event_manager,
+                                               component_manager=self.component_manager)
         self.system            = DataSystem(self.context,
                                             1,
-                                            event_manager=self.event_manager,
-                                            component_manager=self.component_manager)
+                                            self.managers)
         self.events            = []
 
     def tearDown(self):

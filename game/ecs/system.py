@@ -12,28 +12,31 @@ from typing import Optional, Iterable, Set, Union, Any, Type
 import enum
 import decimal
 
-from veredi.logger import log
-from veredi.base.const import VerediHealth
-from veredi.base.context import VerediContext
+from veredi.logger             import log
+from veredi.base.const         import VerediHealth
+from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 
-from .base.identity import (MonotonicIdGenerator,
-                            ComponentId,
-                            EntityId,
-                            SystemId)
-from .base.component import (Component,
-                             ComponentError)
-from .base.entity import Entity
-from .base.system import (System,
-                          SystemLifeCycle)
+from .base.identity            import (MonotonicIdGenerator,
+                                       ComponentId,
+                                       EntityId,
+                                       SystemId)
+from .base.component           import (Component,
+                                       ComponentError)
+from .base.entity              import Entity
+from .base.system              import (System,
+                                       SystemLifeCycle,
+                                       Meeting)
 
-from veredi.base.exceptions import VerediError
-from .base.exceptions import ComponentError, EntityError, SystemError
-from .exceptions import TickError
+from veredi.base.exceptions    import VerediError
+from .base.exceptions          import ComponentError, EntityError, SystemError
+from .exceptions               import TickError
 
-from .const import SystemTick, SystemPriority, DebugFlag
-from .event import EcsManagerWithEvents, EventManager, Event
-from .component import ComponentManager
+from .const                    import SystemTick, SystemPriority, DebugFlag
+from .time                     import TimeManager
+from .event                    import EcsManagerWithEvents, EventManager, Event
+from .component                import ComponentManager
+from .entity                   import EntityManager
 
 
 # -----------------------------------------------------------------------------
@@ -58,19 +61,31 @@ class SystemManager(EcsManagerWithEvents):
     Manages the life cycles of entities/components.
     '''
 
+    # --------------------------------------------------------------------------
+    # Init / Set Up
+    # --------------------------------------------------------------------------
+
     def __init__(self,
                  config:            Optional[Configuration],
+                 time_manager:      Optional[TimeManager],
                  event_manager:     Optional[EventManager],
                  component_manager: Optional[ComponentManager],
+                 entity_manager:    Optional[EntityManager],
                  debug_flags:       Optional[DebugFlag]) -> None:
         '''Initializes this thing.'''
-        self._debug:             Optional[DebugFlag]        = debug_flags
+        self._debug:          Optional[DebugFlag]        = debug_flags
 
         # §-TODO-§ [2020-06-01]: get rid of this class's link to config?
-        self._config:            Optional[Configuration]    = config
+        self._config:         Optional[Configuration]    = config
 
-        self._event_manager:     Optional[EventManager]     = event_manager
-        self._component_manager: Optional[ComponentManager] = component_manager
+        # Need to keep EventManager in self._event_manager to conform
+        # to EcsManagerWithEvents interface.
+        self._event_manager:  Optional[EventManager] = event_manager
+        self._manager:        Meeting                = Meeting(time_manager,
+                                                               event_manager,
+                                                               component_manager,
+                                                               entity_manager,
+                                                               debug_flags)
 
         self._system_id:      MonotonicIdGenerator = MonotonicIdGenerator(SystemId)
         self._system_create:  Set[SystemId]        = set()
@@ -258,8 +273,7 @@ class SystemManager(EcsManagerWithEvents):
 
         system = sys_class(context,
                            sid,
-                           event_manager=self._event_manager,
-                           component_manager=self._component_manager)
+                           self._manager)
         self._system[sid] = system
         self._system_create.add(sid)
         system._life_cycled(SystemLifeCycle.CREATING)

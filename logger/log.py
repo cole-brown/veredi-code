@@ -8,7 +8,7 @@ Logging utilities for Veredi.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Type, Optional, Any, Mapping
+from typing import Union, Type, Optional, Any, Mapping, MutableMapping
 import logging
 import datetime
 import math
@@ -168,7 +168,7 @@ def brace_message(fmt: str,
     return fmt.format(*args, **kwargs)
 
 
-def get_stack_level(kwargs: Mapping[str, Any]) -> int:
+def pop_stack_level(kwargs: Mapping[str, Any]) -> int:
     '''
     Returns kwargs['stacklevel'] if it exists, or default (of 2).
     '''
@@ -177,11 +177,35 @@ def get_stack_level(kwargs: Mapping[str, Any]) -> int:
         retval = kwargs.pop('stacklevel', 2)
     return retval
 
+def set_stack_level(
+        level: int,
+        kwargs: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
+    '''
+    Adds or sets 'stacklevel' in kwargs.
+    '''
+    if not kwargs:
+        kwargs = {}
+    kwargs['stacklevel'] = level
+    return kwargs
+
+
+def incr_stack_level(
+    kwargs: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
+    '''
+    Adds or sets 'stacklevel' in kwargs.
+    '''
+    if not kwargs:
+        kwargs = {}
+    stacklevel = pop_stack_level(kwargs)
+    stacklevel += 1
+    set_stack_level(stacklevel, kwargs)
+    return kwargs
+
 
 def debug(msg: str,
           *args: Any,
           **kwargs: Any) -> None:
-    stacklevel = get_stack_level(kwargs)
+    stacklevel = pop_stack_level(kwargs)
     logger.debug(
         brace_message(
             msg,
@@ -192,7 +216,7 @@ def debug(msg: str,
 def info(msg: str,
           *args: Any,
           **kwargs: Any) -> None:
-    stacklevel = get_stack_level(kwargs)
+    stacklevel = pop_stack_level(kwargs)
     logger.info(
         brace_message(
             msg,
@@ -203,7 +227,7 @@ def info(msg: str,
 def warning(msg: str,
             *args: Any,
             **kwargs: Any) -> None:
-    stacklevel = get_stack_level(kwargs)
+    stacklevel = pop_stack_level(kwargs)
     logger.warning(
         brace_message(
             msg,
@@ -214,7 +238,7 @@ def warning(msg: str,
 def error(msg: str,
           *args: Any,
           **kwargs: Any) -> None:
-    stacklevel = get_stack_level(kwargs)
+    stacklevel = pop_stack_level(kwargs)
     logger.error(
         brace_message(
             msg,
@@ -272,7 +296,7 @@ def exception(err: Exception,
         log_msg_err_type = wrap_type
         log_msg_err_str = None
 
-    stacklevel = get_stack_level(kwargs)
+    stacklevel = pop_stack_level(kwargs)
     if not msg:
         msg = "Exception caught. type: {}, str: {}"
         args = [log_msg_err_type, log_msg_err_str]
@@ -293,12 +317,39 @@ def exception(err: Exception,
 def critical(msg: str,
              *args: Any,
              **kwargs: Any) -> None:
-    stacklevel = get_stack_level(kwargs)
+    stacklevel = pop_stack_level(kwargs)
     logger.critical(
         brace_message(
             msg,
             *args, **kwargs),
         stacklevel=stacklevel)
+
+
+def at_level(level: 'Level',
+             msg: str,
+             *args: Any,
+             **kwargs: Any) -> None:
+    kwargs = incr_stack_level(kwargs)
+    log_fn = None
+    if level == Level.NOTSET:
+        log.exception(ValueError("Cannot log at NOTSET level.",
+                                 msg, args, kwargs),
+                      None,
+                      msg,
+                      args,
+                      kwargs)
+    elif level == Level.DEBUG:
+        log_fn = debug
+    elif level == Level.INFO:
+        log_fn = info
+    elif level == Level.WARNING:
+        log_fn = warning
+    elif level == Level.ERROR:
+        log_fn = error
+    elif level == Level.CRITICAL:
+        log_fn = critical
+
+    log_fn(msg, *args, **kwargs)
 
 
 # ------------------------------------------------------------------------------

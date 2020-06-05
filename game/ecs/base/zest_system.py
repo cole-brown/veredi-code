@@ -48,10 +48,10 @@ class SysJeff(system.System):
     def required(self):
         return {CompOne, CompTwo}
 
-    def update_pre(self,
-                   time,
-                   sys_entities,
-                   sys_time):
+    def _update_pre(self,
+                    time,
+                    sys_entities,
+                    sys_time):
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
@@ -59,20 +59,20 @@ class SysJeff(system.System):
         last_tick = const.SystemTick.PRE
         return VerediHealth.HEALTHY
 
-    def update(self,
-               time,
-               sys_entities,
-               sys_time):
+    def _update(self,
+                time,
+                sys_entities,
+                sys_time):
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
         last_tick = const.SystemTick.STANDARD
         return VerediHealth.FATAL
 
-    def update_post(self,
-                    time,
-                    sys_entities,
-                    sys_time):
+    def _update_post(self,
+                     time,
+                     sys_entities,
+                     sys_time):
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
@@ -93,7 +93,7 @@ class SysJill(system.System):
 class Test_System(unittest.TestCase):
 
     def setUp(self):
-        self.sys = SysJeff(None, 1)
+        self.sys = SysJeff(None, 1, None)
 
     def tearDown(self):
         self.sys = None
@@ -104,7 +104,7 @@ class Test_System(unittest.TestCase):
     def test_priority(self):
         self.assertEqual(self.sys.priority(), const.SystemPriority.MEDIUM + 13)
 
-        sys2 = SysJill(None, 2)
+        sys2 = SysJill(None, 2, None)
 
         self.assertEqual(sys2.priority(), const.SystemPriority.HIGH)
 
@@ -122,12 +122,12 @@ class Test_System(unittest.TestCase):
     def test_tick(self):
         self.assertTrue(self.sys.last_tick, const.SystemTick.DESTRUCTION)
 
-        self.sys.update_pre(1.0, None, None)
+        self.sys._update_pre(1.0, None, None)
         self.assertTrue(self.sys.last_tick, const.SystemTick.PRE)
 
-        self.sys.update(1.0, None, None)
+        self.sys._update(1.0, None, None)
         self.assertTrue(self.sys.last_tick, const.SystemTick.STANDARD)
 
-        health = self.sys.update_post(1.0, None, None)
+        health = self.sys._update_post(1.0, None, None)
         self.assertTrue(self.sys.last_tick, const.SystemTick.POST)
         self.assertTrue(health, VerediHealth.HEALTHY)
