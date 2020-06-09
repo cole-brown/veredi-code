@@ -22,6 +22,8 @@ from ..ecs.base.component   import (Component,
                                     ComponentError)
 from ..ecs.base.identity import ComponentId
 
+# Data Stuff
+from veredi.data.codec.adapter.dict import DataDict, KeyGroup, KeyGroupMarker
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -67,18 +69,20 @@ class DataComponent(Component):
         '''
         # All persistent data should go here, or be gathered up in return value
         # of persistent property.
-        self._persistent: MutableMapping[str, Any] = data or {}
+        self._persistent = None
+
         # Flag for indicating that this component wants its
         # persistent data saved.
-        self._dirty:      bool                     = False
+        self._dirty = False
 
         # ---
         # Data Init Section for subclasses.
         # ---
+        # Verify on raw data, then call our init data function?
+        self._verify(data)
         self._from_data(data)
-        self._verify()
 
-    def _verify(self) -> None:  # §-TODO-§: pass in `requirements`.
+    def _verify(self, data) -> None:  # §-TODO-§: pass in `requirements`.
         '''
         Verifies our data against a template/requirements data set.
 
@@ -91,13 +95,13 @@ class DataComponent(Component):
         # here to do the verification?
         # For now, simpler verify...
 
-        if not self._persistent:
+        if not data:
             raise DataNotPresentError(
                 "No data supplied.",
                 None, None)
 
         for key in self._REQ_KEYS:
-            self._verify_key(key, self._persistent, self._REQ_KEYS[key])
+            self._verify_key(key, data, self._REQ_KEYS[key])
 
     def _verify_key(self,
                     key: str,
@@ -135,7 +139,7 @@ class DataComponent(Component):
         Do any data processing needed for readying this component for use based
         on new data.
         '''
-        self._persistent = data
+        self._persistent = DataDict(data)
 
     def _to_data(self):
         '''

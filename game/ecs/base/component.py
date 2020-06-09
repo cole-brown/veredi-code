@@ -100,12 +100,14 @@ class Component:
         )
 
     def __repr__(self):
-        return (
-            '<v.comp:'
-            f"{self.__class__.__name__}"
-            f"[id:{self.id:03d}, "
-            f"{repr(self.life_cycle)}]>"
-        )
+        comp_str  = f"{self.__class__.__name__}"
+        if self.id is None:
+            comp_str += f"[id:{None}, "
+        else:
+            comp_str += f"[id:{self.id:03d}, "
+        comp_str += f"{repr(self.life_cycle)}]"
+
+        return "<v.comp:" + comp_str + ">"
 
 
     # TODO: __str__

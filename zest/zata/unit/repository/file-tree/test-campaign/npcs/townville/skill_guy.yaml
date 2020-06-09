@@ -1,0 +1,64 @@
+--- !metadata
+record-type: veredi.unit-test.skill
+version: 2020-06-04
+
+source: veredi.unit-test
+author: Cole Brown
+date:   2020-06-04
+
+system: unit-test
+name: veredi.unit-test.skill
+display-name: Veredi D20 Skill Unit Test
+
+
+--- !component
+
+meta:
+  registry: veredi.rules.d20.skill.component
+
+skill:
+  acrobatics:
+    class: false
+    ranks: 9
+  climb:
+    class: false
+    ranks: 1
+  handle-animal:
+    class: false
+    ranks: 1
+  intimidate:
+    class: false
+    ranks: 9
+  !grouped knowledge:
+    local:
+      class: false
+      ranks: 1
+    nature:
+      class: false
+      ranks: 4
+  perception:
+    class: false
+    ranks: 9
+  !grouped profession:
+    !user.defined mercernary:
+      display-name: !user.defined Professional Mercernary
+      class: false
+      ranks: 0
+  ride:
+    class: false
+    ranks: 0
+  sense-motive:
+    class: false
+    ranks: 0
+  stealth:
+    class: false
+    ranks: 0
+  survival:
+    class: false
+    ranks: 2
+  swim:
+    class: false
+    ranks: 4
+  use-magic-device:
+    class: false
+    ranks: 1

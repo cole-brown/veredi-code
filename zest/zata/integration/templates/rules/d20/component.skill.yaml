@@ -1,0 +1,130 @@
+--- !metadata
+record-type: veredi.component.definition
+version: 2020-05-26
+
+source: veredi.templates
+author: Cole Brown
+date:   2020-06-04
+
+system: d20
+name: veredi.rules.d20.health
+display-name: Veredi D20 Skill Component
+
+
+--- !component.template/example/reqirements
+
+meta:
+  registry: veredi.rules.d20.skill
+
+skill:
+  acrobatics:
+    class: false
+    ranks: 0
+  appraise:
+    class: false
+    ranks: 0
+  bluff:
+    class: false
+    ranks: 0
+  climb:
+    class: false
+    ranks: 0
+  craft:
+    type: ''
+    class: false
+    ranks: 0
+  diplomacy:
+    class: false
+    ranks: 0
+  disable-device:
+    class: false
+    ranks: 0
+    # display-name: "Disable Device"
+  disguise:
+    class: false
+    ranks: 0
+  escape-artist:
+    class: false
+    ranks: 0
+  fly:
+    class: false
+    ranks: 0
+  handle-animal:
+    class: false
+    ranks: 0
+  heal:
+    class: false
+    ranks: 0
+  intimidate:
+    class: false
+    ranks: 0
+  !grouped knowledge:
+    - name: arcana
+      class: false
+      ranks: 0
+    - name: dungeoneering
+      class: false
+      ranks: 0
+    - name: engineering
+      class: false
+      ranks: 0
+    - name: geography
+      class: false
+      ranks: 0
+    - name: history
+      class: false
+      ranks: 0
+    - name: local
+      class: false
+      ranks: 0
+    - name: nature
+      class: false
+      ranks: 0
+    - name: nobility
+      class: false
+      ranks: 0
+    - name: planes
+      class: false
+      ranks: 0
+    - name: religion
+      class: false
+      ranks: 0
+  linguistics:
+    class: false
+    ranks: 0
+  perception:
+    class: false
+    ranks: 0
+  perform:
+    class: false
+    ranks: 0
+    type: ''
+  !grouped profession:
+    - name: !user.defined placeholder
+      display-name: !user.defined placeholder
+      class: false
+      ranks: 0
+  ride:
+    class: false
+    ranks: 0
+  sense-motive:
+    class: false
+    ranks: 0
+  sleight-of-hand:
+    class: false
+    ranks: 0
+  spellcraft:
+    class: false
+    ranks: 0
+  stealth:
+    class: false
+    ranks: 0
+  survival:
+    class: false
+    ranks: 0
+  swim:
+    class: false
+    ranks: 0
+  use-magic-device:
+    class: false
+    ranks: 0
