@@ -95,7 +95,7 @@ def get(dotted_keys_str: str,
         context: Optional[VerediContext],
         # Leave (k)args for others.
         *args: Any,
-        **kwargs: Any) -> Any:
+        **kwargs: Any) -> Union[Type, Callable]:
     '''
     Returns a registered class/func from the dot-separated keys (e.g.
     "repository.player.file-tree"), passing it args and kwargs.
@@ -119,6 +119,14 @@ def get(dotted_keys_str: str,
                 split_keys[ : i + 1 ]) from error
 
         i += 1
+
+    if isinstance(registration, dict):
+        raise log.exception(
+            None,
+            exceptions.RegistryError,
+            "Registry for '{}' is not at a leaf - still has entries to go: {}",
+            dotted_keys_str,
+            registration)
 
     return registration
 

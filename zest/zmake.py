@@ -67,6 +67,7 @@ def config(test_type:    zpath.TestType                 = zpath.TestType.UNIT,
 # ------------------------------------------------------------------------------
 # Meeting of Managers
 # ------------------------------------------------------------------------------
+
 def meeting(test_type:         zpath.TestType             = zpath.TestType.UNIT,
             configuration:     Optional[Configuration]    = None,
             time_manager:      Optional[TimeManager]      = None,
@@ -77,7 +78,7 @@ def meeting(test_type:         zpath.TestType             = zpath.TestType.UNIT,
 
     config    = configuration     or config(test_type)
     time      = time_manager      or TimeManager()
-    event     = event_manager     or EventManager()
+    event     = event_manager     or EventManager(config)
     component = component_manager or ComponentManager(config,
                                                       event)
     entity    = entity_manager    or EntityManager(config,
