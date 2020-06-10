@@ -9,7 +9,7 @@ Aka YAML Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Iterable, NewType, List, Dict, TextIO, Any
+from typing import Optional, TextIO, Any
 import yaml
 
 from veredi.logger import log
@@ -21,6 +21,7 @@ from veredi.data import exceptions
 
 from ..base import BaseCodec, CodecOutput
 
+# import these so they register with PyYAML.
 from . import function
 from . import document
 from . import component
@@ -194,6 +195,6 @@ class YamlCodec(BaseCodec):
                 context=ctx) from error
 
         # safe_load_all() returns a generator. We don't want a generator... We
-        # need to get the data out of the stream before the stream goes bye bye,
-        # so turn it into a list.
+        # need to get the data out of the stream before the stream goes bye
+        # bye, so turn it into a list.
         return list(data)

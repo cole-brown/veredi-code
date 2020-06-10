@@ -17,7 +17,7 @@ display-name: Veredi Integration-Testing Data Load Path
 --- !component
 
 meta:
-  registry: veredi.rules.d20.health
+  registry: veredi.rules.d20.health.component
 
 
 health:

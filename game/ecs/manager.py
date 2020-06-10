@@ -8,9 +8,11 @@ Manager interface for ECS managers.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Type, Iterable, Optional, Set, Any
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .time import TimeManager
+    from .event import EventManager
 
-from veredi.logger import log
 from veredi.base.const import VerediHealth
 
 
@@ -34,7 +36,7 @@ class EcsManager:
         '''
         return VerediHealth.APOPTOSIS
 
-    def subscribe(self, event_manager: 'veredi.game.ecs.EventManager') -> VerediHealth:
+    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.

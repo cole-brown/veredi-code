@@ -8,10 +8,14 @@ Configuration file reader/writer for Veredi games.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, Optional, Any, List
+from typing import (TYPE_CHECKING,
+                    Optional, Any)
+if TYPE_CHECKING:
+    from veredi.data.repository.base import BaseRepository
+    from veredi.data.codec.base import BaseCodec
+    from .codec import CodecOutput
+
 import pathlib
-import re
-import enum
 
 from veredi.logger          import log
 from veredi.base.exceptions import VerediError
@@ -22,7 +26,7 @@ from veredi.base.const      import VerediHealth
 
 from .. import exceptions
 from .  import registry
-from .hierarchy import Document, Hierarchy, MetadataHierarchy, ConfigHierarchy
+from .hierarchy import Document, Hierarchy
 
 
 # -----------------------------------------------------------------------------
@@ -93,9 +97,9 @@ class Configuration:
         self._load()
         self._set_up()
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Context Properties/Methods
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def context(self):
@@ -104,17 +108,17 @@ class Configuration:
         '''
         return self._context
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Registry Mediation
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_registered(self,
                        dotted_str: str,
                        *args: Any,
                        context: Optional[VerediContext] = None,
                        **kwargs: Any) -> Any:
         '''
-        Mediator between any systems that don't care about any deep knowledge of
-        veredi basics. Pass in a 'dotted' registration string, like:
+        Mediator between any systems that don't care about any deep knowledge
+        of veredi basics. Pass in a 'dotted' registration string, like:
         "veredi.rules.d11.health", and we will ask our registry to pass it back
         to the caller.
 
@@ -221,9 +225,9 @@ class Configuration:
         log.debug("Made: {} from {}. context: {}", ret_val, keychain, context)
         return ret_val
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Config Data
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def get_data(self,
                  *keychain: str) -> Optional[Any]:
@@ -270,8 +274,8 @@ class Configuration:
             raise log.exception(
                 None,
                 exceptions.ConfigError,
-                "Invalid keychain '{}' for {} document type. See its Hierarchy "
-                "class for proper layout.",
+                "Invalid keychain '{}' for {} document type. See its "
+                "Hierarchy class for proper layout.",
                 keychain, doc_type)
 
         # Get document type data first.
@@ -293,9 +297,9 @@ class Configuration:
 
         return data
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Load Config Stuff
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     # Â§-TODO-Â§ [2020-05-06]: Change data into stuff we can use.
     # Classes and suchlike...
@@ -348,10 +352,8 @@ class Configuration:
 
             except exceptions.LoadError:
                 # Let this one bubble up as-is.
-                data = None
                 raise
             except Exception as error:
-                data = None
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up as-is.
                 raise log.exception(
@@ -362,15 +364,15 @@ class Configuration:
 
         return VerediHealth.HEALTHY
 
-    def _load_doc(self, document: 'codec.CodecOutput') -> None:
+    def _load_doc(self, document: 'CodecOutput') -> None:
         if isinstance(document, list):
-                raise log.exception(
-                    error,
-                    exceptions.LoadError,
-                    "TODO: How do we deal with list document? {}: {}",
-                    type(document),
-                    str(document),
-                    context=self.context)
+            raise log.exception(
+                None,
+                exceptions.LoadError,
+                "TODO: How do we deal with list document? {}: {}",
+                type(document),
+                str(document),
+                context=self.context)
 
         elif (isinstance(document, dict)
               and Hierarchy.VKEY_DOC_TYPE in document):
@@ -381,7 +383,7 @@ class Configuration:
 
         else:
             raise log.exception(
-                error,
+                None,
                 exceptions.LoadError,
                 "Unknown document while loading! "
                 "Does it have a '{}' field? "
@@ -391,9 +393,9 @@ class Configuration:
                 str(document),
                 context=self.context)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Unit Testing
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def ut_inject(self,
                   value:     Any,

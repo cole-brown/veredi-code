@@ -11,15 +11,14 @@ Tests for the CodecSystem class.
 import unittest
 from io import StringIO
 
-from veredi.logger import log
 from veredi.zest import zmake, zontext
-from veredi.base.context import UnitTestContext, CodeKey
+from veredi.base.context import UnitTestContext
 
 from .system import CodecSystem
 from ..event import (DeserializedEvent, DataSaveRequest,
                      DecodedEvent, EncodedEvent)
 from ...ecs.event import EventManager
-from ...ecs import const
+
 
 # -----------------------------------------------------------------------------
 # Constants

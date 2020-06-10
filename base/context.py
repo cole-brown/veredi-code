@@ -8,10 +8,9 @@ Helper classes for managing contexts for events, error messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Type, MutableMapping, Dict, List
+from typing import Optional, Union, Any, Type, MutableMapping, Dict
 import enum
 import uuid
-import copy
 
 from veredi.logger import log
 from .exceptions import ContextError
@@ -21,20 +20,20 @@ from .exceptions import ContextError
 # -----------------------------------------------------------------------------
 
 
-@enum.unique
-class CodeKey(enum.Enum):
-    '''
-    Code systems that want to tuck things into contexts can use these as their
-    top-level key.
-    '''
+# @enum.unique
+# class CodeKey(enum.Enum):
+#     '''
+#     Code systems that want to tuck things into contexts can use these as
+#     their top-level key.
+#     '''
 
-    REPO = enum.auto()
-    '''RepoSystem or Repo itself can store things here. e.g. data stream from
-    deserializing data.'''
+#     REPO = enum.auto()
+#     '''RepoSystem or Repo itself can store things here. e.g. data stream from
+#     deserializing data.'''
 
-    CODEC = enum.auto()
-    '''CodecSystem or Codec itself can store things here. e.g. data
-    object(s) from decoding.'''
+#     CODEC = enum.auto()
+#     '''CodecSystem or Codec itself can store things here. e.g. data
+#     object(s) from decoding.'''
 
 
 @enum.unique
@@ -54,8 +53,8 @@ class Conflict(enum.Flag):
     added to receiver.'''
 
     RECEIVER_MUNGED = enum.auto()
-    '''Receiver's key gets munged by random postfix, then sender's key/value are
-    added to receiver.'''
+    '''Receiver's key gets munged by random postfix, then sender's key/value
+    are added to receiver.'''
 
     QUIET = enum.auto()
     '''Do not log conflicts.'''
@@ -134,9 +133,9 @@ class VerediContext:
         context[self._key] = sub_context
         self.data = context
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Square Brackets! (context['key'] accessors)
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def __getitem__(self, key):
         '''
@@ -148,13 +147,14 @@ class VerediContext:
                     key: str,
                     value: str):
         '''
-        General, top level `context[key] = value`. Not the specific sub-context!
+        General, top level `context[key] = value`.
+        Not the specific sub-context!
         '''
         self.data[key] = value
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Sub-Context Square Brackets! (context.sub['hi'])
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Also just for, like, getting at the sub-context data.
 
     @property
@@ -170,9 +170,9 @@ class VerediContext:
         '''
         return self._ensure(key)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Stuff / Things
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def add(self,
             key: Any,
@@ -208,30 +208,31 @@ class VerediContext:
         ctx = self._get()
         if ctx_key not in ctx:
             log.error("Skipping sub_add for keys '{}', '{}' to context - "
-                      "the key '{}' does not exists in the context. desired value: {}."
-                      "context: {}",
+                      "the key '{}' does not exists in the context. "
+                      "desired value: {}. context: {}",
                       ctx_key, sub_key, ctx_key, value, ctx)
             return
 
         sub = ctx[ctx_key]
         if sub_key in sub:
-            log.error("Skipping add key '{}' to the '{}' sub-context - the key "
-                      "already exists. desired value: {}, current value: {}, "
-                      "subcontext: {}",
+            log.error("Skipping add key '{}' to the '{}' sub-context - "
+                      "the key already exists. desired value: {}, "
+                      "current value: {}, subcontext: {}",
                       sub_key, ctx_key, value, sub[sub_key], sub)
             return
-        sub[key] = value
 
-    # --------------------------------------------------------------------------
+        sub[sub_key] = value
+
+    # -------------------------------------------------------------------------
     # Getters / Mergers
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _get(self) -> Dict[str, str]:
         '''
         Returns our context dictionary. If it doesn't exist, creates it with
         our bare sub-entry.
         '''
-        sub_context = self._ensure()
+        self._ensure()
         return self.data
 
     def push(self,
@@ -326,7 +327,7 @@ class VerediContext:
             # existed back when VerediContext was created. It can probably be
             # deleted someday.
             raise TypeError('Context needs to merge with Context, not dict. ',
-                            m_from, m_other)
+                            m_from, m_to)
 
         d_from = m_from._get()
         d_to   = m_to._get()
@@ -342,7 +343,8 @@ class VerediContext:
         # Turn view of keys into list so we can change dictionary as we go.
         for key in d_from:
             if key in d_to:
-                self._deflict(resolution, d_to, key, d_from[key], verb, preposition)
+                self._deflict(resolution, d_to, key, d_from[key],
+                              verb, preposition)
             else:
                 d_to[key] = d_from[key]
 
@@ -359,23 +361,26 @@ class VerediContext:
 
         # Overwrite options are easy enough.
         if resolution == Conflict.SENDER_WINS:
-            log.warning(
-                "{}({}): Sender and Receiver have same key: {}. "
-                "De-conflicting keys by overwriting receiver's value. "
-                "Values before overwrite: currently: {}, overwrite-to: {}",
-                verb, resolution, key_sender,
-                d_to[key_sender], value_sender,
-                context=self)
+            if not quiet:
+                log.warning(
+                    "{}({}): Sender and Receiver have same key: {}. "
+                    "De-conflicting keys by overwriting receiver's value. "
+                    "Values before overwrite: currently: {}, overwrite-to: {}",
+                    verb, resolution, key_sender,
+                    d_to[key_sender], value_sender,
+                    context=self)
             d_to[key_sender] = value_sender
             return
 
         elif resolution == Conflict.RECEIVER_WINS:
-            log.warning(
-                "{}({}): Sender and Receiver have same key: {}. "
-                "De-conflicting keys by ignoring sender's value. "
-                "Values: currently: {}, ignoring: {}",
-                verb, resolution, key_sender, d_to[key_sender], value_sender,
-                context=self)
+            if not quiet:
+                log.warning(
+                    "{}({}): Sender and Receiver have same key: {}. "
+                    "De-conflicting keys by ignoring sender's value. "
+                    "Values: currently: {}, ignoring: {}",
+                    verb, resolution, key_sender,
+                    d_to[key_sender], value_sender,
+                    context=self)
             return
 
         # Munging options still to do - can only do those to strings.
@@ -385,34 +390,36 @@ class VerediContext:
                     "Cannot munge-to-deconflict keys that are not strings.",
                     key_sender),
                 ContextError,
-                "{}({}): Cannot munge-to-deconflict keys that are not strings. "
-                "sender[{}] = {}, vs receiver[{}] = {}",
+                "{}({}): Cannot munge-to-deconflict keys that are "
+                "not strings. sender[{}] = {}, vs receiver[{}] = {}",
                 verb, resolution, key_sender, value_sender, key_sender,
                 d_to[key_sender], context=self)
 
         if resolution == Conflict.SENDER_MUNGED:
-            log.warning(
-                "{}({}): Sender and Receiver have same key: {}. "
-                "Sender's key will get random string appended to de-conflict, "
-                "but this could cause issues further along. "
-                "sender[{}] = {}, vs receiver[{}] = {}",
-                verb, resolution, key_sender,
-                key_sender, value_sender, key_sender, d_to[key_sender],
-                context=self)
+            if not quiet:
+                log.warning(
+                    "{}({}): Sender and Receiver have same key: {}. "
+                    "Sender's key will get random string appended to "
+                    "de-conflict, but this could cause issues further along. "
+                    "sender[{}] = {}, vs receiver[{}] = {}",
+                    verb, resolution, key_sender,
+                    key_sender, value_sender, key_sender, d_to[key_sender],
+                    context=self)
 
             key_munged = key_sender + '-' + uuid.uuid4().hex[:6]
             # Add sender's value to munged key.
             d_to[key_munged] = value_sender
 
         elif resolution == Conflict.SENDER_MUNGED:
-            log.warning(
-                "{}({}): Sender and Receiver have same key: {}. "
-                "Receiver's key will get random string appended to de-conflict,"
-                "but this could cause issues further along. "
-                "sender[{}] = {}, vs receiver[{}] = {}",
-                verb, resolution, key_sender,
-                key_sender, value_sender, key_sender, d_to[key_sender],
-                context=self)
+            if not quiet:
+                log.warning(
+                    "{}({}): Sender and Receiver have same key: {}. "
+                    "Receiver's key will get random string appended to "
+                    "de-conflict, but this could cause issues further along. "
+                    "sender[{}] = {}, vs receiver[{}] = {}",
+                    verb, resolution, key_sender,
+                    key_sender, value_sender, key_sender, d_to[key_sender],
+                    context=self)
 
             key_munged = key_sender + '-' + uuid.uuid4().hex[:6]
             # Move receiver's value to munged key.
@@ -421,14 +428,15 @@ class VerediContext:
             # Add sender to original key.
             d_to[key_sender] = value_sender
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _pretty(self):
         from veredi.logger import pretty
+        from pprint import pformat
         return pretty.indented(f"{self.__class__.__name__}:\n"
-                               + pprint.pformat(self._get()))
+                               + pformat(self._get()))
 
     def __str__(self):
         return f"{self.__class__.__name__}: {str(self._get())}"
@@ -440,16 +448,16 @@ class VerediContext:
         return f"<{self.__repr_name__()}: {str(self._get())}>"
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Short-Term Context
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 class EphemerealContext(VerediContext):
     pass
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Unit-Testing Context
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class UnitTestContext(EphemerealContext):
     def __init__(self,
@@ -489,12 +497,12 @@ class UnitTestContext(EphemerealContext):
 
 class PersistentContext(VerediContext):
     '''
-    This is for e.g. systems and other things that are persistent/long lived but
-    have context and want to send it to errors or merge it with events or what
-    have you.
+    This is for e.g. systems and other things that are persistent/long lived
+    but have context and want to send it to errors or merge it with events or
+    what have you.
 
-    PersistentContexts cannot pull() from other contexts - pull() only raises an
-    exception.
+    PersistentContexts cannot pull() from other contexts - pull() only raises
+    an exception.
     '''
 
     def pull(self,
@@ -535,9 +543,9 @@ class PersistentContext(VerediContext):
 
         return other
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def __str__(self):
         return f"{self.__class__.__name__}: {str(self._get())}"

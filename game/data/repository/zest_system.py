@@ -9,10 +9,8 @@ Tests for the RepositorySystem class.
 # -----------------------------------------------------------------------------
 
 import unittest
-from io import StringIO
 
-from veredi.zest import zpath, zmake, zontext
-from veredi.base.context import UnitTestContext
+from veredi.zest import zmake, zontext
 from veredi.data.context import (DataLoadContext,
                                  DataSaveContext,
                                  DataGameContext)
@@ -20,8 +18,7 @@ from .system import RepositorySystem
 from ..event import (SerializedEvent, DeserializedEvent,
                      EncodedEvent, DataLoadRequest)
 from ...ecs.event import EventManager
-
-from veredi.zest import zpath
+from veredi.data.exceptions import LoadError
 
 
 # -----------------------------------------------------------------------------
@@ -63,7 +60,8 @@ class Test_RepoSystem(unittest.TestCase):
         self.path          = None
 
     def sub_deserialized(self):
-        self.event_manager.subscribe(DeserializedEvent, self.event_deserialized)
+        self.event_manager.subscribe(DeserializedEvent,
+                                     self.event_deserialized)
 
     def set_up_subs(self):
         self.sub_deserialized()
@@ -109,7 +107,7 @@ class Test_RepoSystem(unittest.TestCase):
             # hand-craft the expected escaped/safed path
             path = path / 'items' / 'weapon' / 'sword__ok.yaml'
         else:
-            raise exceptions.LoadError(
+            raise LoadError(
                 f"No DataGameContext.Type to ID conversion for: {type}",
                 None,
                 ctx)

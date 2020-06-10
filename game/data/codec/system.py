@@ -8,8 +8,8 @@ System for Encoding & Decoding data (components?) for the Game.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Optional, Set, Type, Union, Iterable
-
+from typing import Optional, Set, Type, Union
+from decimal import Decimal
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
@@ -18,28 +18,15 @@ from veredi.data.config.context import ConfigContext
 from veredi.data.codec.base import BaseCodec
 
 # Game / ECS Stuff
+from ...ecs.manager import EcsManager
 from ...ecs.event import EventManager
 from ...ecs.time import TimeManager
-from ...ecs.component import (ComponentManager,
-                              ComponentEvent,
-                              ComponentLifeEvent)
 
-from ...ecs.const import (SystemTick,
-                          SystemPriority,
-                          DebugFlag)
+from ...ecs.const import SystemPriority
 
-from ...ecs.base.identity import (ComponentId,
-                                  EntityId,
-                                  SystemId)
-from ...ecs.base.component import (Component,
-                                   ComponentError)
-from ...ecs.base.system import (System,
-                                SystemLifeCycle)
+from ...ecs.base.system import System
 
 # Events
-# Do we need these system events?
-from ...ecs.system import (SystemEvent,
-                           SystemLifeEvent)
 from ..event import (
     # Our events
     DecodedEvent,
@@ -60,9 +47,9 @@ from ..event import (
 
 class CodecSystem(System):
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # System Set Up
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _configure(self, context: VerediContext) -> None:
         '''
@@ -82,12 +69,7 @@ class CodecSystem(System):
         # ---
         # Ticking Stuff
         # Don't think I need any, actually. Think we're entirely event-driven.
-        # ---
-        # self._components: Optional[Set[Type[Component]]] = None
-        # self._ticks: SystemTick = (SystemTick.SET_UP         # Initial loading.
-        #                            | SystemTick.TIME         # In-game loading.
-        #                            | SystemTick.DESTRUCTION) # In-game saving.
-        # # Apoptosis will be our end-of-game saving.
+        # Apoptosis will be our end-of-game saving.
         # ---
 
         if context:
@@ -98,8 +80,8 @@ class CodecSystem(System):
                                           'game',
                                           'codec')
 
-        # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
-        # tests with our test configs.
+        # §-TODO-§ [2020-05-30]: remove this - set up
+        # unit/integration/whatever tests with our test configs.
         if not self._codec:
             # §-TODO-§: Event to ask ConfigSystem what the specific codec is?
             # Maybe that's what we need a SET_UP tick for?
@@ -114,9 +96,9 @@ class CodecSystem(System):
         '''
         return SystemPriority.DATA_CODEC
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
@@ -163,9 +145,9 @@ class CodecSystem(System):
         # Send into my codec for decoding.
         decoded = self._codec.decode_all(serial, context)
 
-        # Take codec data result (just a python dict?) and set into DecodedEvent
-        # data/context/whatever. Then have EventManager fire off event for
-        # whoever wants the next step.
+        # Take codec data result (just a python dict?) and set into
+        # DecodedEvent data/context/whatever. Then have EventManager fire off
+        # event for whoever wants the next step.
         event = DecodedEvent(event.id,
                              event.type,
                              context,

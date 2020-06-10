@@ -25,9 +25,9 @@ from . import tree
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------Tree--------------------------------------
-# --                          Abstract / Base Class                           --
-# ------------------------------------------------------------------------------
+# ------------------------------------Tree-------------------------------------
+# --                          Abstract / Base Class                          --
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 # Test::Node (The OG Tree)
@@ -63,24 +63,25 @@ class Test_Node(unittest.TestCase):
         self.value0 = None
         self.value1 = None
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Misc
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def test_value(self):
         self.assertIsNone(self.node0.value)
         self.assertEqual(self.node0._value, self.node0.value)
 
-        with self.assertRaises(AttributeError) as context:
+        with self.assertRaises(AttributeError):
             self.node1.value = 1
         # self.assertEqual(str(context.exception), "can't set attribute")
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Comparison
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def test_node_equal(self):
-        # Make equivalent strings (but not the same string by 2 different names)
+        # Make equivalent strings
+        # (but not the same string by 2 different names)
         self.set_values("a string",
                         "a {}".format("string"))
         self.assertEqual(self.value0, self.value1)
@@ -103,7 +104,8 @@ class Test_Node(unittest.TestCase):
 
         self.assertNotEqual(self.value0, self.value1)
 
-        # Ok, nodes set up to have non-equivalent values now. Check != operator.
+        # Ok, nodes set up to have non-equivalent values now.
+        # Check != operator.
         self.assertNotEqual(self.node0.value, self.node1.value)
         self.assertNotEqual(self.node0,       self.node1)
         self.assertTrue(self.node0 != self.node1)
@@ -114,7 +116,8 @@ class Test_Node(unittest.TestCase):
 
         self.assertTrue(self.value0 < self.value1)
 
-        # Ok, nodes set up to have non-equivalent values now. Check != operator.
+        # Ok, nodes set up to have non-equivalent values now.
+        # Check < operator.
         self.assertTrue(self.node0.value < self.node1.value)
         self.assertTrue(self.node0       < self.node1)
 
@@ -124,7 +127,8 @@ class Test_Node(unittest.TestCase):
 
         self.assertTrue(self.value1 > self.value0)
 
-        # Ok, nodes set up to have non-equivalent values now. Check != operator.
+        # Ok, nodes set up to have non-equivalent values now.
+        # Check > operator.
         self.assertTrue(self.node1.value > self.node0.value)
         self.assertTrue(self.node1       > self.node0)
 
@@ -134,7 +138,8 @@ class Test_Node(unittest.TestCase):
 
         self.assertTrue(self.value0 <= self.value1)
 
-        # Ok, nodes set up to have non-equivalent values now. Check != operator.
+        # Ok, nodes set up to have non-equivalent values now.
+        # Check <= operator.
         self.assertTrue(self.node0.value <= self.node1.value)
         self.assertTrue(self.node0       <= self.node1)
 
@@ -144,13 +149,14 @@ class Test_Node(unittest.TestCase):
 
         self.assertTrue(self.value1 >= self.value0)
 
-        # Ok, nodes set up to have non-equivalent values now. Check != operator.
+        # Ok, nodes set up to have non-equivalent values now.
+        # Check >= operator.
         self.assertTrue(self.node1.value >= self.node0.value)
         self.assertTrue(self.node1       >= self.node0)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Mathing
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def test_node_add(self):
         self.set_values()
         self.assert_node_values()
@@ -215,9 +221,9 @@ class Test_Node(unittest.TestCase):
         self.assertEqual(expected, self.node0 ** self.node1)
 
 
-# ------------------------------------Tree--------------------------------------
-# --                            Leaf Node Classes                             --
-# ------------------------------------------------------------------------------
+# ------------------------------------Tree-------------------------------------
+# --                            Leaf Node Classes                            --
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 # Test::Leaf (of Node)
@@ -253,9 +259,9 @@ class Test_Leaf(unittest.TestCase):
         self.value0 = None
         self.value1 = None
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Mathamagics
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def test_neg(self):
         self.set_values()
@@ -301,9 +307,9 @@ class Test_Dice(unittest.TestCase):
         self.dice0 = None
         self.dice1 = None
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Roll 'em
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def test_roll_dice(self):
         self.dice0._eval()
@@ -349,9 +355,9 @@ class Test_Constant(unittest.TestCase):
         self.value0 = None
         self.value1 = None
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Test that nothing happens in a specific way...
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def test_roll_const(self):
         # Constants should already have their value assigned after creation, as
@@ -364,7 +370,8 @@ class Test_Constant(unittest.TestCase):
         self.const0._eval()
         self.const1.eval()
 
-        # Nothing should have changed after evaluation, as they are... constant.
+        # Nothing should have changed after evaluation, as they are...
+        # constant.
         self.assertEqual(self.value0, self.const0.value)
         self.assertEqual(self.value1, self.const1.value)
         self.assertEqual(self.value0, self.const0)
@@ -395,9 +402,9 @@ class Test_Variable(unittest.TestCase):
         self.value0 = None
         self.value1 = None
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Test... the placeholder holds its place?
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def test_roll_var(self):
         # Variables should just be a name until we know what to do with
@@ -405,15 +412,15 @@ class Test_Variable(unittest.TestCase):
         # So they shouldn't have a value just yet.
         self.assertEqual(None, self.var0.value)
         self.assertEqual(None, self.var1.value)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             self.assertEqual(None, self.var0)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             self.assertEqual(None, self.var1)
         self.assertNotEqual(self.value0, self.var0.value)
         self.assertNotEqual(self.value1, self.var1.value)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             self.assertNotEqual(self.value0, self.var0)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             self.assertNotEqual(self.value1, self.var1)
 
         # But they should have their name.
@@ -435,9 +442,9 @@ class Test_Variable(unittest.TestCase):
         self.assertNotEqual(self.value1, self.var1)
 
 
-# ------------------------------------Tree--------------------------------------
-# --                             Branch Classes                               --
-# ------------------------------------------------------------------------------
+# ------------------------------------Tree-------------------------------------
+# --                             Branch Classes                              --
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 # Test::Branch (of Node)
@@ -446,7 +453,7 @@ class Test_Variable(unittest.TestCase):
 class Test_Branch(unittest.TestCase):
 
     def test_eval(self):
-        with self.assertRaises(AttributeError) as context:
+        with self.assertRaises(AttributeError):
             # Branch base class shouldn't be able to eval successfully...
             branch = tree.Branch(None)
             branch.eval()
@@ -459,7 +466,7 @@ class Test_Branch(unittest.TestCase):
 class Test_OperatorMath(unittest.TestCase):
 
     def test_eval(self):
-        with self.assertRaises(TypeError) as context:
+        with self.assertRaises(TypeError):
             # OperatorMath base class shouldn't be able to eval successfully...
             branch = tree.OperatorMath(None, None, None)
             branch.eval()
@@ -488,7 +495,7 @@ class Test_OperatorAdd(unittest.TestCase):
 
     def test_add(self):
         self.assertIsNone(self.add.value)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             # raises an error before it's eval'd
             self.assertEqual(0, self.add)
 
@@ -522,7 +529,7 @@ class Test_OperatorSub(unittest.TestCase):
 
     def test_sub(self):
         self.assertEqual(None, self.sub.value)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             # raises an error before it's eval'd
             self.assertEqual(0, self.sub)
 
@@ -556,7 +563,7 @@ class Test_OperatorMult(unittest.TestCase):
 
     def test_mult(self):
         self.assertEqual(None, self.mult.value)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             # raises an error before it's eval'd
             self.assertEqual(0, self.mult)
 
@@ -590,7 +597,7 @@ class Test_OperatorDiv(unittest.TestCase):
 
     def test_div(self):
         self.assertEqual(None, self.div.value)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             # raises an error before it's eval'd
             self.assertEqual(0, self.div)
 
@@ -624,7 +631,7 @@ class Test_OperatorMod(unittest.TestCase):
 
     def test_mod(self):
         self.assertEqual(None, self.mod.value)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             # raises an error before it's eval'd
             self.assertEqual(0, self.mod)
 
@@ -658,7 +665,7 @@ class Test_OperatorPow(unittest.TestCase):
 
     def test_pow(self):
         self.assertEqual(None, self.pow.value)
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(ValueError):
             # raises an error before it's eval'd
             self.assertEqual(0, self.pow)
 
@@ -669,9 +676,9 @@ class Test_OperatorPow(unittest.TestCase):
         self.assertEqual(expected, self.pow)
 
 
-# --------------------------------Unit Testing----------------------------------
-# --                      Main Command Line Entry Point                       --
-# ------------------------------------------------------------------------------
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
     unittest.main()

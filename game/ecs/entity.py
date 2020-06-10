@@ -4,16 +4,18 @@
 Entity's Life Cycle System. Manages adding, removing entities to a
 scene in a safe manner.
 
-Do not hold onto Entities, Components, etc. They /can/ be destroyed at any time,
-leaving you holding a dead object. Only keep the EntityId or ComponentId, then
-ask its manager. If the manager returns None, the Entity/Component does not
-exist anymore.
+Do not hold onto Entities, Components, etc. They /can/ be destroyed at any
+time, leaving you holding a dead object. Only keep the EntityId or ComponentId,
+then ask its manager. If the manager returns None, the Entity/Component does
+not exist anymore.
 
 Inspired by:
   - Entity Component System design pattern
   - personal pain and suffering
-  - mecs: https://github.com/patrick-finke/mecs
-  - EntityComponentSystem: https://github.com/tobias-stein/EntityComponentSystem
+  - mecs:
+    https://github.com/patrick-finke/mecs
+  - EntityComponentSystem:
+    https://github.com/tobias-stein/EntityComponentSystem
 '''
 
 
@@ -21,7 +23,11 @@ Inspired by:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Type, Iterable, Optional, Set, Any
+from typing import (TYPE_CHECKING,
+                    Type, Iterable, Optional, Set, Dict)
+if TYPE_CHECKING:
+    from .time import TimeManager
+
 import enum
 
 from veredi.logger import log
@@ -30,14 +36,13 @@ from veredi.base.context import VerediContext
 from veredi.data.config.config import Configuration
 
 from .base.identity import (MonotonicIdGenerator,
-                            ComponentId,
                             EntityId)
 from .base.component import (Component,
-                             ComponentError,
                              CompIdOrType)
 from .base.entity import (EntityTypeId,
                           Entity,
                           EntityLifeCycle,
+                          EntityError,
                           EntityTools)
 from .event import EcsManagerWithEvents, EventManager, Event
 from .component import ComponentManager
@@ -75,16 +80,17 @@ class EntityManager(EcsManagerWithEvents):
                  event_manager:     Optional[EventManager],
                  component_manager: ComponentManager) -> None:
         '''Initializes this thing.'''
-        self._config:            Configuration            = config
-        self._event_manager:     EventManager             = event_manager
-        self._component_manager: ComponentManager         = component_manager
+        self._config:            Configuration        = config
+        self._event_manager:     EventManager         = event_manager
+        self._component_manager: ComponentManager     = component_manager
 
-        self._entity_id:         MonotonicIdGenerator     = MonotonicIdGenerator(EntityId)
-        self._entity_create:     Set[EntityId]            = set()
-        self._entity_destroy:    Set[EntityId]            = set()
+        self._entity_id:         MonotonicIdGenerator = MonotonicIdGenerator(
+            EntityId)
+        self._entity_create:     Set[EntityId]        = set()
+        self._entity_destroy:    Set[EntityId]        = set()
 
         # TODO: Pool instead of allowing stuff to be allocated/deallocated?
-        self._entity:            Dict[EntityId, 'Entity'] = {}
+        self._entity:            Dict[EntityId, Entity] = {}
 
         self._toolbox = EntityTools(self, component_manager)
 
@@ -99,11 +105,12 @@ class EntityManager(EcsManagerWithEvents):
 
         return super().apoptosis(time)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # API: Entity Collection Iteration
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
-    def each_with(self, required_components: Set[Type[Component]]) -> Iterable[Entity]:
+    def each_with(self, required_components: Set[Type[Component]]
+                  ) -> Iterable[Entity]:
         '''
         Returns a generator that will return each entity that contains all
         components required.
@@ -113,12 +120,14 @@ class EntityManager(EcsManagerWithEvents):
             entity = self._entity[id]
             # ...and if this entity has all of the required components,
             # yield it as a value.
-            if entity and entity.enabled and entity.contains(required_components):
+            if (entity
+                    and entity.enabled
+                    and entity.contains(required_components)):
                 yield entity
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # API: Component/Entity Management
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def get(self, entity_id: EntityId) -> Optional[Entity]:
         '''
@@ -210,9 +219,9 @@ class EntityManager(EcsManagerWithEvents):
                            EntityEventType.COMPONENT_REMOVE,
                            None, False)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Game Loop: Component/Entity Life Cycle Updates
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def creation(self,
                  time: 'TimeManager') -> VerediHealth:

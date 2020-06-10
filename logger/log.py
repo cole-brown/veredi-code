@@ -8,12 +8,20 @@ Logging utilities for Veredi.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Type, Optional, Any, Mapping, MutableMapping
+from typing import (TYPE_CHECKING,
+                    Union,
+                    Type,
+                    Optional,
+                    Any,
+                    Mapping,
+                    MutableMapping)
+if TYPE_CHECKING:
+    from veredi.base.context import VerediContext
+    from veredi.base.exceptions import VerediError
+
 import logging
 import datetime
 import math
-import sys
-import os
 import enum
 
 
@@ -46,6 +54,7 @@ FMT_LINE_HUMAN = (
 
 LOGGER_NAME = "veredi"
 
+
 # ---
 # Log Levels
 # ---
@@ -70,12 +79,13 @@ class Level(enum.IntEnum):
     def to_logging(lvl: Union['Level', int]) -> int:
         return int(lvl)
 
+
 DEFAULT_LEVEL = Level.INFO
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Variables
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 initialized = False
 
@@ -131,7 +141,7 @@ def set_level(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
 
     '''
     if not Level.valid(level):
-        log.error("Invalid log level {}. Ignoring.", level)
+        error("Invalid log level {}. Ignoring.", level)
         return
 
     logger.setLevel(Level.to_logging(level))
@@ -177,6 +187,7 @@ def pop_stack_level(kwargs: Mapping[str, Any]) -> int:
         retval = kwargs.pop('stacklevel', 2)
     return retval
 
+
 def set_stack_level(
         level: int,
         kwargs: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
@@ -190,7 +201,7 @@ def set_stack_level(
 
 
 def incr_stack_level(
-    kwargs: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
+        kwargs: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     '''
     Adds or sets 'stacklevel' in kwargs.
     '''
@@ -214,8 +225,8 @@ def debug(msg: str,
 
 
 def info(msg: str,
-          *args: Any,
-          **kwargs: Any) -> None:
+         *args: Any,
+         **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
     logger.info(
         brace_message(
@@ -332,12 +343,12 @@ def at_level(level: 'Level',
     kwargs = incr_stack_level(kwargs)
     log_fn = None
     if level == Level.NOTSET:
-        log.exception(ValueError("Cannot log at NOTSET level.",
-                                 msg, args, kwargs),
-                      None,
-                      msg,
-                      args,
-                      kwargs)
+        exception(ValueError("Cannot log at NOTSET level.",
+                             msg, args, kwargs),
+                  None,
+                  msg,
+                  args,
+                  kwargs)
     elif level == Level.DEBUG:
         log_fn = debug
     elif level == Level.INFO:
@@ -352,9 +363,9 @@ def at_level(level: 'Level',
     log_fn(msg, *args, **kwargs)
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Logging Context Manager
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # A context manager for unit testing/debugging that will
 # turn up log level then turn it back to where it was when done.
 # e.g.:
@@ -387,9 +398,12 @@ class LoggingManager:
     def bookend(self, start):
         if start:
             print("\n\n\n")
-        print("================================================================================")
-        print("================================================================================")
-        print("================================================================================")
+        print("========================================"
+              "========================================")
+        print("========================================"
+              "========================================")
+        print("========================================"
+              "========================================")
         if not start:
             print("\n\n\n")
 
@@ -429,10 +443,9 @@ class LoggingManager:
         return LoggingManager(Level.CRITICAL, no_op=True)
 
 
-
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Module Setup
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 if not initialized:
     init()

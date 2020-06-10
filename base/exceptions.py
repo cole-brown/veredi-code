@@ -8,12 +8,14 @@ All your Exceptions are belong to these classes.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+if TYPE_CHECKING:
+    from .context import VerediContext
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Exceptions
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class VerediError(Exception):
     def __init__(self,

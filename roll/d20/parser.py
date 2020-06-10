@@ -16,7 +16,7 @@ Some code used from Lark's calc example:
 # Python
 
 # Dice Grammer Parser
-import lark # Lark, Transformer, Visitor, v_args
+import lark  # Lark, Transformer, Visitor, v_args
 
 # Veredi
 from . import tree
@@ -101,9 +101,9 @@ class Parser:
         return parsed.pretty()
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Lark Tree -> Veredi d20 Tree
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # v_args: inline=True:
 #   Methods given *args instead of a list by Lark.
@@ -113,20 +113,20 @@ class Parser:
 #     assign_vars(self, items)
 # NOTE: Should not be used for large lists of args. But all of mine are just
 # one or two items.
-#@lark.v_args(inline=True)
+# @lark.v_args(inline=True)
 class Transformer(lark.Transformer):
     '''Transforms a lexed/parsed tree into a Veredi roll tree.'''
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Constructor
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def __init__(self):
         self.vars = {}
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Leaves
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     # Replace leaf nodes with their classes.
 
@@ -169,9 +169,9 @@ class Transformer(lark.Transformer):
     def number(self, value):
         return tree.Constant(float(value))
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Operators: Unary
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     # Replace Unary nodes with their leaf (acted on by the unary operator).
 
@@ -185,9 +185,9 @@ class Transformer(lark.Transformer):
         value.pos()
         return value
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Operators: Binary
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     # Replace these branches with our branch nodes.
 
@@ -234,6 +234,3 @@ if __name__ == '__main__':
     print(roll_tree)
     print("\nTransformed, pretty:")
     print(roll_tree.pretty())
-
-    evaluator = Evaluator()
-    print("Eval'd:", evaluator.eval(roll_tree))

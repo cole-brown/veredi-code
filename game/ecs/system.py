@@ -8,9 +8,7 @@ Base class for game update loop systems.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Iterable, Set, Union, Any, Type
-import enum
-import decimal
+from typing import Optional, Set, Type, Dict, List
 
 from veredi.logger             import log
 from veredi.base.const         import VerediHealth
@@ -18,21 +16,15 @@ from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 
 from .base.identity            import (MonotonicIdGenerator,
-                                       ComponentId,
-                                       EntityId,
                                        SystemId)
-from .base.component           import (Component,
-                                       ComponentError)
-from .base.entity              import Entity
 from .base.system              import (System,
                                        SystemLifeCycle,
                                        Meeting)
 
 from veredi.base.exceptions    import VerediError
-from .base.exceptions          import ComponentError, EntityError, SystemError
-from .exceptions               import TickError
+from .base.exceptions          import SystemErrorV
 
-from .const                    import SystemTick, SystemPriority, DebugFlag
+from .const                    import SystemTick, DebugFlag
 from .time                     import TimeManager
 from .event                    import EcsManagerWithEvents, EventManager, Event
 from .component                import ComponentManager
@@ -44,9 +36,9 @@ from .entity                   import EntityManager
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Code
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class SystemEvent(Event):
     pass
@@ -61,9 +53,9 @@ class SystemManager(EcsManagerWithEvents):
     Manages the life cycles of entities/components.
     '''
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Init / Set Up
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def __init__(self,
                  config:            Optional[Configuration],
@@ -81,13 +73,15 @@ class SystemManager(EcsManagerWithEvents):
         # Need to keep EventManager in self._event_manager to conform
         # to EcsManagerWithEvents interface.
         self._event_manager:  Optional[EventManager] = event_manager
-        self._manager:        Meeting                = Meeting(time_manager,
-                                                               event_manager,
-                                                               component_manager,
-                                                               entity_manager,
-                                                               debug_flags)
+        self._manager:        Meeting                = Meeting(
+            time_manager,
+            event_manager,
+            component_manager,
+            entity_manager,
+            debug_flags)
 
-        self._system_id:      MonotonicIdGenerator = MonotonicIdGenerator(SystemId)
+        self._system_id:      MonotonicIdGenerator = MonotonicIdGenerator(
+            SystemId)
         self._system_create:  Set[SystemId]        = set()
         self._system_destroy: Set[SystemId]        = set()
 
@@ -97,15 +91,14 @@ class SystemManager(EcsManagerWithEvents):
         self._reschedule:     bool                     = False
         # self._health = {} # TODO: impl this? or put in game class?
 
-
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Debugging
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def debug_flagged(self, desired) -> bool:
         '''
-        Returns true if SystemManager's debug flags are set to something and that
-        something has the desired flag. Returns false otherwise.
+        Returns true if SystemManager's debug flags are set to something and
+        that something has the desired flag. Returns false otherwise.
         '''
         return self._debug and self._debug.has(desired)
 
@@ -122,9 +115,9 @@ class SystemManager(EcsManagerWithEvents):
         '''
         self._debug = value
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # EcsManagerWithEvents Interface
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
@@ -152,9 +145,9 @@ class SystemManager(EcsManagerWithEvents):
 
         return super().apoptosis(time)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # API: System Collection Iteration
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _update_schedule(self) -> None:
         '''
@@ -196,13 +189,14 @@ class SystemManager(EcsManagerWithEvents):
                 continue
 
             if self.debug_flagged(DebugFlag.LOG_TICK):
-                log.debug("SystemManager.update({tick}, {time:05.6f}): {system}",
-                          tick=tick,
-                          time=time.seconds,
-                          system=system)
+                log.debug(
+                    "SystemManager.update({tick}, {time:05.6f}): {system}",
+                    tick=tick,
+                    time=time.seconds,
+                    system=system)
 
-            # Try/catch each system, so they don't kill each other with a single
-            # repeating exception.
+            # Try/catch each system, so they don't kill each other with a
+            # single repeating exception.
             try:
                 system.update_tick(tick, time, component, entity)
 
@@ -243,9 +237,9 @@ class SystemManager(EcsManagerWithEvents):
                         "during {} tick (time={}).",
                         str(system), tick, time.seconds)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # API: Component/System Management
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def get(self, system_id: SystemId) -> Optional[System]:
         '''
@@ -304,9 +298,9 @@ class SystemManager(EcsManagerWithEvents):
                            SystemLifeCycle.DESTROYING,
                            None, False)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Game Loop: Component/System Life Cycle Updates
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def creation(self,
                  time: 'TimeManager') -> VerediHealth:
@@ -328,10 +322,10 @@ class SystemManager(EcsManagerWithEvents):
                 # Bump it to alive now.
                 system._life_cycled(SystemLifeCycle.ALIVE)
 
-            except SystemError as error:
+            except SystemErrorV as error:
                 log.exception(
                     error,
-                    "SystemError in creation() for system_id {}.",
+                    "SystemErrorV in creation() for system_id {}.",
                     system_id)
                 # TODO: put this system in... jail or something? Delete?
 
@@ -368,10 +362,10 @@ class SystemManager(EcsManagerWithEvents):
                 # ...and forget about it.
                 self._system.pop(system_id, None)
 
-            except SystemError as error:
+            except SystemErrorV as error:
                 log.exception(
                     error,
-                    "SystemError in creation() for system_id {}.",
+                    "SystemErrorV in creation() for system_id {}.",
                     system_id)
                 # TODO: put this system in... jail or something? Delete?
 

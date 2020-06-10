@@ -7,14 +7,14 @@ author: Cole Brown
 date:   2020-06-04
 
 system: d20
-name: veredi.rules.d20.health
+name: veredi.rules.d20.skill
 display-name: Veredi D20 Skill Component
 
 
 --- !component.template/example/reqirements
 
 meta:
-  registry: veredi.rules.d20.skill
+  registry: veredi.rules.d20.skill.component
 
 skill:
   acrobatics:

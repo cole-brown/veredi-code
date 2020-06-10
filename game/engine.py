@@ -8,24 +8,19 @@ A game of something or other.
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
-from typing import Callable, Optional, Iterable, Set
-import enum
-import decimal
+from typing import Optional
 
 # Error Handling
 from veredi.logger import log
 
 from veredi.base.exceptions import VerediError
-from .ecs.base.exceptions import ComponentError, EntityError, SystemError
-from .ecs.exceptions import TickError, EventError
 
 # Other More Basic Stuff
 from veredi.base.const import VerediHealth
 from veredi.data.config.config import Configuration
 
 # ECS Managers & Systems
-from .ecs.const import SystemTick, SystemPriority, DebugFlag
+from .ecs.const import SystemTick, DebugFlag
 from .ecs.entity import EntityManager
 from .ecs.component import ComponentManager
 from .ecs.system import SystemManager
@@ -33,15 +28,7 @@ from .ecs.time import TimeManager
 from .ecs.event import EventManager
 
 # ECS Minions
-from .ecs.base.identity import (ComponentId,
-                                EntityId,
-                                SystemId)
-from .ecs.base.component import Component
 from .ecs.base.entity import Entity
-from .ecs.base.system import System
-
-# Game Data
-from veredi.data.repository.manager import RepositoryManager
 
 
 # -----------------------------------------------------------------------------
@@ -50,8 +37,103 @@ from veredi.data.repository.manager import RepositoryManager
 
 
 # -----------------------------------------------------------------------------
-# Code
+# General Notes
 # -----------------------------------------------------------------------------
+
+# combat? time?
+#   timing phase - touch stuff that deals with times, make buffs fall off, etc.
+#   recalc - hp and stats
+
+# combat
+#   turn
+#     preparation # better word?
+#       - spells and stuff that are 'at the start of your turn'
+#     actions
+#     consequences # better word?
+#       - spells and stuff that are 'at the end of your turn'
+
+
+# TODO: This stuff?
+
+# ------------------
+# Engine Management
+# ------------------
+
+# add player to session
+#   invite?
+# add player to game/campaign
+#   invite?
+# add monster(s)
+# add other stuff... items, currency...
+# remove *
+#   cancel invite?
+
+
+# ------------------
+# Combat
+# ------------------
+
+# start encounter/fight
+#   initiatives - let players roll if they desired, or auto
+# end encounter/fight
+# round:
+#   next/prev? - go there but don't change things
+#   undo/redo? - follow trail of actions to do/undo things
+# turn:
+#   next/prev?
+#   undo/redo?
+# give loot
+# give xp
+
+
+# ------------------
+# Most of these are probably campaign/dm/session/player things...
+# ------------------
+
+# ---
+# Session.Location?
+# ---
+
+# party location in: universe, region, local group, galaxy, region, system,
+# region, planet, region, subregion, continent, etc etc...
+#  - they can split the party, so...
+
+# encounter locations?
+
+# points of interest...
+#   stuff there: NPCs, treasure, dungeons, encounters, shops, whatever
+#   DM notes
+
+# ---
+# Session.Time
+# ---
+# time related things for Session
+#  - in game: curr datetime, datetime for each session, duration of
+#    each session, etc...
+#  - IRL: ditto
+
+# ---
+# Campaign.Time
+# ---
+# time related things for whole campaign...
+#   - in game: start datetime, curr datetime, etc?
+#   - IRL: ditto
+
+# ---
+# DM
+# ---
+# any and all DM actions/interactions not covered already
+
+# ---
+# Monsters
+# ---
+# any and all NPC/Monster actions/interactions not covered already...
+
+# ---
+# Players
+# ---
+# any and all Player actions/interactions not covered already
+
 
 # Game is:
 #   manager of whole shebang
@@ -79,7 +161,8 @@ from veredi.data.repository.manager import RepositoryManager
 # an encounter or battle or social situation or skill challenge maybe?
 
 
-# Campaign: setting of game. saved state of game. ids of entities/systems tied to game
+# Campaign: setting of game. saved state of game. ids of entities/systems tied
+# to game
 
 # Setting: d20 or whatever?
 #   - "rule-set"?
@@ -94,18 +177,18 @@ from veredi.data.repository.manager import RepositoryManager
 
 # System: a thing that triggers off of component(s) to update an entity
 
-#
-
-
-
 # NOTE: Owner is DM. But someone else could be DM too...
 #     : Maybe a session DM list or something to keep track?
 #     : Can a player be a DM too (e.g. to help newbie DM)?
 #       - At the same time as they're playing?
 
-#
 # NOTE: DM is god. They must be able to change everything, ideally on a
 # temporary OR permanent basis.
+
+
+# -----------------------------------------------------------------------------
+# Code
+# -----------------------------------------------------------------------------
 
 class Engine:
     '''
@@ -185,9 +268,9 @@ class Engine:
         '''
         self._debug = value
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Game Start/Stop
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _should_stop(self):
         return self._health.should_die
@@ -212,11 +295,12 @@ class Engine:
         '''
         Graceful game shutdown.
         '''
-        # Should I fire off an event, or should I call directly? I think both...
-        # In fact, I will only call directly and EventManager can do the big
-        # overall event if it wants.
+        # Should I fire off an event, or should I call directly? Both? Have
+        # Engine only call Managers directly and EventManager can do a big
+        # event if it wants.
 
-        # Ordering matters. We want the systems that depend on things to go after those things.
+        # Ordering matters. We want the systems that depend on things to go
+        # after those things.
         # E.g. EntityManager depends on ComponentManager, so it goes after.
         # E.g. They all might want updated time.
         health = self.time.apoptosis()
@@ -251,9 +335,9 @@ class Engine:
 
         return VerediHealth.APOPTOSIS
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Pre-Game Loading Loop
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def setting_up(self):
         return (not self._should_stop()
                 and not self.time.is_timed_out(self.time._DEFAULT_TIMEOUT_SEC))
@@ -297,7 +381,8 @@ class Engine:
                 raise log.exception(
                     error,
                     None,
-                    "Engine's tick() received an error of type '{}' at time {}.",
+                    "Engine's tick() received an error of type '{}' "
+                    "at time {}.",
                     type(error), now_secs) from error
             else:
                 log.exception(
@@ -313,32 +398,42 @@ class Engine:
                 raise log.exception(
                     error,
                     None,
-                    "Engine's tick() received an unknown exception at time {}.",
+                    "Engine's tick() received an unknown exception "
+                    "at time {}.",
                     now_secs) from error
             else:
                 log.exception(
                     error,
                     None,
-                    "Engine's tick() received an unknown exception at time {}.",
+                    "Engine's tick() received an unknown exception "
+                    "at time {}.",
                     now_secs)
 
-        except:
+        # ---
+        # pycodestyle E722 - bare 'except'
+        # ---
+        # I do want this catch-all here; it's the highest level of the game's
+        # run-time. We want our engine to know all the errors that everything
+        # it's running produces.
+        #
+        # In any case, always re-raise. It is probably something important that
+        # we shouldn't (?) catch like SystemExit, KeyboardInterrupt,
+        # GeneratorExit...
+        # ---
+        except:  # noqa E722
             # TODO: health thingy
-            # Plow on ahead anyways or raise due to debug flags.
-            if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise log.exception(
-                    error,
-                    None,
-                    "Engine's tick() received a _very_ "
-                    "unknown exception at time {}.",
-                    now_secs) from error
-            else:
-                log.exception(
-                    error,
-                    None,
-                    "Engine's tick() received a _very_ "
-                    "unknown exception at time {}.",
-                    now_secs)
+
+            # Always log in catch-all?
+            # For now anyways.
+            log.error(
+                None,
+                VerediError,
+                "Engine's tick() received a _very_ "
+                "unknown exception at time {}.",
+                now_secs)
+
+            # Always re-raise in catch-all.
+            raise
 
     def _update_time(self) -> None:
         # Time is first. Because it is time.
@@ -403,116 +498,5 @@ class Engine:
         self.system.update(SystemTick.DESTRUCTION, self.time,
                            self.component, self.entity)
 
-
     # TODO: Check return values of system ticks and kill off any that are
     # unhealthy too much?
-
-    # ---  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-    # -
-    # ---
-    # -------
-    # -----------
-    #        TODO: Turn Entity/Player into an ECS instead.
-    # -----------
-    # -------
-    # ---
-    # -
-    # ---  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-
-        # ---
-        # Tick Order:
-        #   (change at your own peril!)
-        #                                                             (dooooom!)
-        # ---
-
-        # combat? time?
-        #   timing phase - touch stuff that deals with times, make buffs fall off, etc.
-        #   recalc - hp and stats
-
-        # combat
-        #   turn
-        #     preparation # better word?
-        #       - spells and stuff that are 'at the start of your turn'
-        #     actions
-        #     consequences # better word?
-        #       - spells and stuff that are 'at the end of your turn'
-
-
-    # TODO: This stuff?
-
-    # --------------------------------------------------------------------------
-    # Engine Management
-    # --------------------------------------------------------------------------
-
-    # add player to session
-    #   invite?
-    # add player to game/campaign
-    #   invite?
-    # add monster(s)
-    # add other stuff... items, currency...
-    # remove *
-    #   cancel invite?
-
-
-    # --------------------------------------------------------------------------
-    # Combat
-    # --------------------------------------------------------------------------
-
-    # start encounter/fight
-    #   initiatives - let players roll if they desired, or auto
-    # end encounter/fight
-    # round:
-    #   next/prev? - go there but don't change things
-    #   undo/redo? - follow trail of actions to do/undo things
-    # turn:
-    #   next/prev?
-    #   undo/redo?
-    # give loot
-    # give xp
-
-
-    # --------------------------------------------------------------------------
-    # Most of these are probably campaign/dm/session/player things...
-    # --------------------------------------------------------------------------
-
-    # ---
-    # Session.Location?
-    # ---
-
-    # party location in: universe, region, local group, galaxy, region, system, region, planet, region, subregion, continent, etc etc...
-    #  - they can split the party, so...
-
-    # encounter locations?
-
-    # points of interest...
-    #   stuff there: NPCs, treasure, dungeons, encounters, shops, whatever
-    #   DM notes
-
-    # ---
-    # Session.Time
-    # ---
-    # time related things for Session
-    #  - in game: curr datetime, datetime for each session, duration of each session, etc...
-    #  - IRL: ditto
-
-    # ---
-    # Campaign.Time
-    # ---
-    # time related things for whole campaign...
-    #   - in game: start datetime, curr datetime, etc?
-    #   - IRL: ditto
-
-    # ---
-    # DM
-    # ---
-    # any and all DM actions/interactions not covered already
-
-    # ---
-    # Monsters
-    # ---
-    # any and all NPC/Monster actions/interactions not covered already...
-
-    # ---
-    # Players
-    # ---
-    # any and all Player actions/interactions not covered already

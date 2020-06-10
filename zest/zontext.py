@@ -8,7 +8,7 @@ Context Helpers for unit test data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Dict
+from typing import Optional, Union
 import pathlib
 
 from . import zpath, zmake
@@ -16,8 +16,6 @@ from veredi.base.context import UnitTestContext
 from veredi.data.config.context import ConfigContext
 from veredi.data.config.config import Configuration
 from veredi.data.config.hierarchy import Document
-from veredi.data.repository.base import BaseRepository
-from veredi.data.codec.base import BaseCodec
 
 
 # -----------------------------------------------------------------------------
@@ -25,15 +23,16 @@ from veredi.data.codec.base import BaseCodec
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # General Unit Test Context
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def test(klass_name:   str,
          func_name:    str,
          repo_path:    Optional[pathlib.Path] = None,
          config:       Optional[Configuration] = None,
-         test_type:    Optional[zpath.TestType] = zpath.TestType.UNIT) -> UnitTestContext:
+         test_type:    Optional[zpath.TestType] = zpath.TestType.UNIT
+         ) -> UnitTestContext:
     '''
     Creates a context for general tests of `test_type`.
     '''
@@ -47,7 +46,8 @@ def real_config(klass_name:   str,
                 config_path:  Union[str, pathlib.Path] = None,
                 repo_path:    Optional[pathlib.Path] = None,
                 config:       Optional[Configuration] = None,
-                test_type:    Optional[zpath.TestType] = zpath.TestType.UNIT) -> UnitTestContext:
+                test_type:    Optional[zpath.TestType] = zpath.TestType.UNIT
+                ) -> UnitTestContext:
     '''
     Creates a context for general tests of `test_type`.
     '''
@@ -57,13 +57,14 @@ def real_config(klass_name:   str,
     return config.context
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Codec Context
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def codec(klass_name:   str,
           func_name:    str,
-          test_type:    Optional[zpath.TestType] = zpath.TestType.UNIT) -> UnitTestContext:
+          test_type:    Optional[zpath.TestType] = zpath.TestType.UNIT
+          ) -> UnitTestContext:
     '''
     Creates a context for codec test of `test_type`.
     '''
@@ -82,14 +83,15 @@ def codec(klass_name:   str,
     return context
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Repository Context
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def repo(klass_name:   str,
          func_name:    str,
          config:       Optional[Configuration] = None,
-         test_type:    Optional[zpath.TestType] = zpath.TestType.UNIT) -> UnitTestContext:
+         test_type:    Optional[zpath.TestType] = zpath.TestType.UNIT
+         ) -> UnitTestContext:
     '''
     Creates a context for repo test of `test_type`.
     '''

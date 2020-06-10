@@ -10,8 +10,9 @@ Tests for the Skill system, events, and components.
 
 import unittest
 
-from veredi.zest import zpath, zmake, zontext, zload
+from veredi.zest import zload
 from veredi.base.context import UnitTestContext
+from veredi.data.execeptions import LoadError
 from veredi.logger import log
 
 from veredi.game.ecs.base.identity import ComponentId, EntityId
@@ -22,7 +23,6 @@ from veredi.data.context import DataGameContext, DataLoadContext
 from .system import SkillSystem
 from .event import SkillRequest, SkillResult
 from .component import SkillComponent
-
 
 
 # -----------------------------------------------------------------------------
@@ -82,7 +82,7 @@ class Test_SkillSystem(unittest.TestCase):
         context = UnitTestContext(
             self.__class__.__name__,
             'test_create',
-            {}) # no initial sub-context
+            {})  # no initial sub-context
 
         # Set up an entity to load the component on to.
         eid = self.managers.entity.create(_TYPE_DONT_CARE,
@@ -137,7 +137,7 @@ class Test_SkillSystem(unittest.TestCase):
             ctx.sub['family'] = 'Townville'
             ctx.sub['npc'] = 'Skill Guy'
         else:
-            raise exceptions.LoadError(
+            raise LoadError(
                 f"No DataGameContext.Type to ID conversion for: {type}",
                 None,
                 ctx)
@@ -182,7 +182,7 @@ class Test_SkillSystem(unittest.TestCase):
         context = UnitTestContext(
             self.__class__.__name__,
             'skill_request',
-            {}) # no initial sub-context
+            {})  # no initial sub-context
         # ctx = self.context.spawn(EphemerealContext,
         #                          'unit-testing', None)
 
@@ -210,7 +210,7 @@ class Test_SkillSystem(unittest.TestCase):
     def test_skill_req_standard(self):
         self.set_up_subs()
         entity = self.create_entity()
-        component = self.load(entity)
+        self.load(entity)
         # Throw away loading events.
         self.clear_events()
 
@@ -231,7 +231,7 @@ class Test_SkillSystem(unittest.TestCase):
     def test_skill_req_grouped(self):
         self.set_up_subs()
         entity = self.create_entity()
-        component = self.load(entity)
+        self.load(entity)
         # Throw away loading events.
         self.clear_events()
 

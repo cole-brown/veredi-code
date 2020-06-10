@@ -9,16 +9,13 @@ Helper for unit test data.
 # -----------------------------------------------------------------------------
 
 from typing import Union, Optional, Type, NewType, Tuple, Iterable, List
-import pathlib
 
 from veredi.logger import log
-from .             import zpath, zmake, zontext
+from .             import zmake, zontext
 from .zpath        import TestType
 
 # Config Stuff
 from veredi.data.config.config          import Configuration
-from veredi.data.repository.base        import BaseRepository
-from veredi.data.codec.base             import BaseCodec
 
 # Meeting Stuff
 from veredi.game.ecs.const              import DebugFlag
@@ -44,9 +41,10 @@ SysCreateType = NewType('SysCreateType',
                         Union[Type[System],
                               Tuple[Type[System], VerediContext]])
 
-# ------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
 # Helpers for loader()
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def create_system(system_manager: SystemManager,
                   context: VerediContext,
@@ -101,22 +99,26 @@ def create_systems(system_manager: SystemManager,
     return sids
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Enough to load some data from the zata dir related to `test_type`.
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-def set_up(test_name_class:   str,
-           test_name_func:    str,
-           enable_debug_logs: bool,
-           desired_systems:   Optional[Iterable[SysCreateType]] = None,
-           test_type:         TestType                          = TestType.UNIT,
-           configuration:     Optional[Configuration]    = None,
-           time_manager:      Optional[TimeManager]      = None,
-           event_manager:     Optional[EventManager]     = None,
-           component_manager: Optional[ComponentManager] = None,
-           entity_manager:    Optional[EntityManager]    = None,
-           system_manager:    Optional[SystemManager]    = None,
-           debug_flags:       Optional[DebugFlag]        = None
+def set_up(
+        test_name_class:   str,
+        test_name_func:    str,
+        enable_debug_logs: bool,
+        desired_systems:   Optional[Iterable[SysCreateType]] = None,
+        test_type:         Optional[TestType]                = TestType.UNIT,
+        configuration:     Optional[Configuration]           = None,
+        time_manager:      Optional[TimeManager]             = None,
+        event_manager:     Optional[EventManager]            = None,
+        component_manager: Optional[ComponentManager]        = None,
+        entity_manager:    Optional[EntityManager]           = None,
+        system_manager:    Optional[SystemManager]           = None,
+        debug_flags:       Optional[DebugFlag]               = None
+        # This closing paren is a fucked up way to make pycodestyle happy...
+        # May need to get flake8 so I can "# noqa" this one.
+        # Oh. This comment itself lets me do whatever I want now. Yay.
         ) -> Tuple[Meeting, VerediContext, List[SystemId]]:
     '''
     Creates config, managers, if not supplied (via zmake.meeting).

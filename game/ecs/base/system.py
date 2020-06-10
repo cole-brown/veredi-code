@@ -8,7 +8,7 @@ Base class for game update loop systems.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Type, NewType, Any, Tuple, Iterable, Set
+from typing import Optional, Union, Type, Any, Iterable, Set
 import enum
 import decimal
 
@@ -18,17 +18,14 @@ from veredi.base.context        import VerediContext
 from veredi.data.config.context import ConfigContext
 
 from ..const                    import SystemTick, SystemPriority, DebugFlag
-from .exceptions                import SystemError
-from .identity                  import (ComponentId,
-                                        EntityId,
-                                        SystemId)
-from .component                 import (Component,
-                                        ComponentError)
-from .entity                    import Entity
+from .exceptions                import SystemErrorV
+from ..exceptions               import TickError
+from .identity                  import SystemId
+from .component                 import Component
 
 from ..manager                  import EcsManager
 from ..time                     import TimeManager
-from ..event                    import EventManager
+from ..event                    import EventManager, Event
 from ..component                import ComponentManager
 from ..entity                   import EntityManager
 
@@ -70,6 +67,7 @@ class Meeting:
 
     Helper class to hold onto stuff we use and pass into created Systems.
     '''
+
     def __init__(self,
                  time_manager:      Optional[TimeManager],
                  event_manager:     Optional[EventManager],
@@ -169,9 +167,9 @@ class Meeting:
         return self._entity_manager
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Code
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class System:
     def __init__(self,
@@ -179,8 +177,8 @@ class System:
                  sid:      SystemId,
                  managers: 'Meeting') -> None:
 
+        self._life_cycle: SystemLifeCycle = SystemLifeCycle.INVALID
         self._system_id:  SystemId                       = sid
-        self._life_cycle: SystemLifeCycle                = SystemLifeCycle.INVALID
 
         self._components: Optional[Set[Type[Component]]] = None
         self._ticks:      Optional[SystemTick]           = None
@@ -191,7 +189,7 @@ class System:
         # Self-Health Set Up
         # ---
         # If we get in a not-healthy state, we'll start just dropping inputs.
-        self._health_state:      VerediHealth      = VerediHealth.HEALTHY
+        self._health_state: VerediHealth = VerediHealth.HEALTHY
         self._required_managers: Optional[Set[Type[EcsManager]]] = None
 
         # Systems can set up logging meters like this for use with
@@ -222,7 +220,7 @@ class System:
 
     @property
     def enabled(self) -> bool:
-        return self._life_cycle == ComponentLifeCycle.ALIVE
+        return self._life_cycle == SystemLifeCycle.ALIVE
 
     @property
     def life_cycle(self) -> SystemLifeCycle:
@@ -238,9 +236,9 @@ class System:
         '''
         self._life_cycle = new_state
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # System Set Up
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _configure(self,
                    context: Optional[ConfigContext]) -> None:
@@ -268,9 +266,9 @@ class System:
     def sort_key(system: 'System') -> Union[SystemPriority, int]:
         return system.priority()
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # System Death / Health
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
@@ -289,7 +287,8 @@ class System:
         '''
         return self._health_state.good
 
-    def _health_check(self, current_health=VerediHealth.HEALTHY) -> VerediHealth:
+    def _health_check(self,
+                      current_health=VerediHealth.HEALTHY) -> VerediHealth:
         '''
         Tracks our system health. Returns either `current_health` or something
         worse from what all we track.
@@ -325,17 +324,15 @@ class System:
         if output_log:
             log.at_level(log_level,
                          "HEALTH({}): Skipping ticks - our system health "
-                         "isn't good enough to process.",
-                         self.health, event,
-                         context=event.context)
+                         "isn't good enough to process. args: {}, kwargs: {}",
+                         self.health, args, kwargs)
         return maybe_updated_meter
 
-
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
+    def subscribe(self, event_manager: EventManager) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
@@ -345,16 +342,16 @@ class System:
                 and self._manager and self._manager.event
                 and self._manager.event is not event_manager):
             raise log.exception(None,
-                                SystemError,
-                                "subscribe() received an EventManager which is "
-                                "different from its saved EventManager from "
-                                "initialization. ours: {}, supplied: {}",
+                                SystemErrorV,
+                                "subscribe() received an EventManager which "
+                                "is different from its saved EventManager "
+                                "from initialization. ours: {}, supplied: {}",
                                 self._manager.event, event_manager)
 
         if (self._required_managers and EventManager in self._required_managers
                 and not self._manager.event):
             raise log.exception(None,
-                                SystemError,
+                                SystemErrorV,
                                 "System has no event manager to subscribe to "
                                 "but requires one.",
                                 self._manager.event, event_manager)
@@ -362,7 +359,7 @@ class System:
         return VerediHealth.HEALTHY
 
     def _event_create(self,
-                      event:                      Type['Event'],
+                      event_class:                Type[Event],
                       owner_id:                   int,
                       type:                       Union[int, enum.Enum],
                       context:                    Optional[VerediContext],
@@ -389,9 +386,9 @@ class System:
         self._manager.event.notify(event,
                                    requires_immediate_publish)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def wants_update_tick(self,
                           tick: SystemTick,
@@ -454,14 +451,14 @@ class System:
 
         else:
             # This, too, should be treated as a VerediHealth.FATAL...
-            raise exceptions.TickError(
+            raise TickError(
                 "{} does not have an update_tick handler for {}.",
                 self.__class__.__name__, tick)
 
     def _update_time(self,
-                     time_mgr:      'TimeManager',
-                     component_mgr: 'ComponentManager',
-                     entity_mgr:    'EntityManager') -> VerediHealth:
+                     time_mgr:      TimeManager,
+                     component_mgr: ComponentManager,
+                     entity_mgr:    EntityManager) -> VerediHealth:
         '''
         First in Game update loop. Systems should use this rarely as the game
         time clock itself updates in this part of the loop.
@@ -469,18 +466,18 @@ class System:
         return VerediHealth.FATAL
 
     def _update_creation(self,
-                         time_mgr:      'TimeManager',
-                         component_mgr: 'ComponentManager',
-                         entity_mgr:    'EntityManager') -> VerediHealth:
+                         time_mgr:      TimeManager,
+                         component_mgr: ComponentManager,
+                         entity_mgr:    EntityManager) -> VerediHealth:
         '''
         Before Standard upate. Creation part of life cycles managed here.
         '''
         return VerediHealth.FATAL
 
     def _update_pre(self,
-                    time_mgr:      'TimeManager',
-                    component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> VerediHealth:
+                    time_mgr:      TimeManager,
+                    component_mgr: ComponentManager,
+                    entity_mgr:    EntityManager) -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
@@ -488,18 +485,18 @@ class System:
         return VerediHealth.FATAL
 
     def _update(self,
-                time_mgr:      'TimeManager',
-                component_mgr: 'ComponentManager',
-                entity_mgr:    'EntityManager') -> VerediHealth:
+                time_mgr:      TimeManager,
+                component_mgr: ComponentManager,
+                entity_mgr:    EntityManager) -> VerediHealth:
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
         return VerediHealth.FATAL
 
     def _update_post(self,
-                     time_mgr:      'TimeManager',
-                     component_mgr: 'ComponentManager',
-                     entity_mgr:    'EntityManager') -> VerediHealth:
+                     time_mgr:      TimeManager,
+                     component_mgr: ComponentManager,
+                     entity_mgr:    EntityManager) -> VerediHealth:
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
@@ -507,9 +504,9 @@ class System:
         return VerediHealth.FATAL
 
     def _update_destruction(self,
-                            time_mgr:      'TimeManager',
-                            component_mgr: 'ComponentManager',
-                            entity_mgr:    'EntityManager') -> VerediHealth:
+                            time_mgr:      TimeManager,
+                            component_mgr: ComponentManager,
+                            entity_mgr:    EntityManager) -> VerediHealth:
         '''
         Final upate. Death/deletion part of life cycles managed here.
         '''

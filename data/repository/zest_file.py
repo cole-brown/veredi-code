@@ -10,16 +10,16 @@ Tests for the FileTreeRepository.
 
 import unittest
 import os
-import pathlib
 
 from veredi.logger import log
 
+from veredi.data.exceptions import LoadError
 from veredi.data.config.hierarchy import Document
 from veredi.data.config.context import ConfigContext
 from veredi.data.context import (DataGameContext,
                                  DataLoadContext,
                                  DataSaveContext)
-from .file import FileTreeRepository, to_human_readable
+from .file import FileTreeRepository
 from veredi.zest import zpath
 from veredi.zest import zmake
 
@@ -50,8 +50,8 @@ class Test_FileTreeRepo(unittest.TestCase):
                               'repository',
                               'directory')
 
-        # §-TODO-§ [2020-06-01]: Register these, have config read dotted and get
-        # from registry.
+        # §-TODO-§ [2020-06-01]: Register these, have config read dotted and
+        # get from registry.
         self.config.ut_inject('veredi.sanitize.human.path-safe',
                               Document.CONFIG,
                               'data',
@@ -96,10 +96,10 @@ class Test_FileTreeRepo(unittest.TestCase):
             # hand-craft the expected escaped/safed path
             path = path / 'items' / 'weapon' / 'sword__ok.yaml'
         else:
-            raise exceptions.LoadError(
+            raise LoadError(
                 f"No DataGameContext.Type to ID conversion for: {type}",
                 None,
-                self.context.pull(context))
+                self.context.pull(ctx))
 
         return ctx, path
 

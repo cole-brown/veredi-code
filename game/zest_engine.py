@@ -11,31 +11,21 @@ Tests for engine.py (The Game Itself).
 import unittest
 
 from veredi.base.const import VerediHealth
-from veredi.zest import zpath, zmake, zontext
+from veredi.zest import zmake, zontext
 from veredi.base.context import UnitTestContext
 
 from . import engine
 
 from .ecs.event import EventManager
 from .ecs.time import TimeManager
-from .ecs.component import (ComponentManager,
-                            ComponentEvent,
-                            ComponentLifeEvent)
-from .ecs.entity import (EntityManager,
-                         EntityEvent,
-                         EntityLifeEvent)
-from .ecs.system import (SystemManager,
-                         SystemEvent,
-                         SystemLifeEvent)
+from .ecs.component import ComponentManager
+from .ecs.entity import EntityManager
+from .ecs.system import SystemManager
 from .ecs.const import SystemTick, SystemPriority, DebugFlag
 
-from .ecs.base.identity import (ComponentId,
-                                EntityId,
-                                SystemId)
 from .ecs.base.component import (Component,
                                  ComponentLifeCycle)
-from .ecs.base.entity import (Entity,
-                              EntityLifeCycle)
+from .ecs.base.entity import EntityLifeCycle
 from .ecs.base.system import (System,
                               SystemLifeCycle)
 
@@ -162,7 +152,6 @@ class SysJill(SysTest):
         else:
             self.x = None
             self.y = None
-
 
     def priority(self):
         return SystemPriority.HIGH
@@ -332,7 +321,8 @@ class Test_Engine(unittest.TestCase):
             self.assertEqual(sys.life_cycle, SystemLifeCycle.ALIVE)
 
         self.assertEqual(self.system_mgr._schedule,
-                         [self.system_mgr.get(jill_id), self.system_mgr.get(jeff_id)])
+                         [self.system_mgr.get(jill_id),
+                          self.system_mgr.get(jeff_id)])
 
     def test_empty_engine_tick(self):
         # Tick an empty engine.
@@ -458,8 +448,6 @@ class Test_Engine(unittest.TestCase):
         tick = SystemTick.DESTRUCTION
         self.assertEqual(self.saw_ents(jill, tick, self.ent_ids),
                          expected_ids)
-
-
 
     # TODO: Test that a system barfing exceptions all over the place doesn't
     # kill the engine.

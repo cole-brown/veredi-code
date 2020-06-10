@@ -56,7 +56,7 @@ class SysJeff(system.System):
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
         '''
-        last_tick = const.SystemTick.PRE
+        self.last_tick = const.SystemTick.PRE
         return VerediHealth.HEALTHY
 
     def _update(self,
@@ -66,7 +66,7 @@ class SysJeff(system.System):
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
-        last_tick = const.SystemTick.STANDARD
+        self.last_tick = const.SystemTick.STANDARD
         return VerediHealth.FATAL
 
     def _update_post(self,
@@ -77,12 +77,12 @@ class SysJeff(system.System):
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
         '''
-        last_tick = const.SystemTick.POST
+        self.last_tick = const.SystemTick.POST
         return VerediHealth.FATAL
 
 
 class SysJill(system.System):
-     def priority(self):
+    def priority(self):
         return const.SystemPriority.HIGH
 
 

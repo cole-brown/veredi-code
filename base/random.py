@@ -33,6 +33,7 @@ class Random(_random.Random):
 
 class NotRandom(Random):
     '''Not-Random-at-All Randomness'''
+
     def __init__(self, num_gen=None, seeding=None):
         super().__init__(seeding)
         self.generator = (num_gen
@@ -51,9 +52,9 @@ class NotRandom(Random):
             index += 1
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Singleton Setup
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # These will share state, but that's how Python's random module works.
 
@@ -81,11 +82,18 @@ getstate = _inst.getstate
 setstate = _inst.setstate
 getrandbits = _inst.getrandbits
 
+
 # Have forks get their own seeds.
 if hasattr(_os, "fork"):
     _os.register_at_fork(after_in_child=_inst.seed)
 
+
 def singleton(instance):
+    global seed, random, uniform, triangular, randint, choice, randrange
+    global sample, shuffle, choices, normalvariate, lognormvariate
+    global expovariate, vonmisesvariate, gammavariate, gauss, betavariate
+    global paretovariate, weibullvariate, getstate, setstate, getrandbits
+
     _inst = instance
     seed = _inst.seed
     random = _inst.random

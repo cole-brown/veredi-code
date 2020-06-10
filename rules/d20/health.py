@@ -9,16 +9,10 @@ health, hit points, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Union, Iterable, Collection, MutableMapping, Container
 import enum
-# import re
-# import decimal
 
 from veredi.data.config.registry import register
 
-from veredi.data.exceptions         import (DataNotPresentError,
-                                            DataRestrictedError)
-from veredi.game.ecs.base.component import ComponentError
 from veredi.game.data.component     import DataComponent
 
 
@@ -49,7 +43,7 @@ class HealthState(enum.Flag):
         return self & ~flag
 
 
-@register('veredi', 'rules', 'd20', 'health')
+@register('veredi', 'rules', 'd20', 'health', 'component')
 class HealthComponent(DataComponent):
     '''
     Component with persistent data for health, hit points, etc.

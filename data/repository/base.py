@@ -9,22 +9,14 @@ various backend implementations (db, file, etc).
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Iterable
+from typing import Optional
 from abc import ABC, abstractmethod
 
 from io import TextIOBase
-import os
-import re
-import hashlib
 
-from veredi.logger import log
 from veredi.base.context import PersistentContext
 from veredi.data.context import BaseDataContext
 from veredi.data.config.context import ConfigContext
-
-from .. import exceptions
-# from ..codec import json
-from ..codec import yaml
 
 
 # -----------------------------------------------------------------------------
@@ -56,21 +48,21 @@ class BaseRepository(ABC):
         self._name = repo_name.lower()
         self._configure(config_context)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Repo Properties/Methods
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def name(self) -> str:
         '''
-        Should be short-ish and will be lowercased. It should probably be, like,
-        'file', 'mysql', 'sqlite3' etc...
+        Should be short-ish and will be lowercased. It should probably be,
+        like, 'file', 'mysql', 'sqlite3' etc...
         '''
         return self._name
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Context Properties/Methods
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def context(self):
@@ -79,9 +71,9 @@ class BaseRepository(ABC):
         '''
         return self._context
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Abstract Methods
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @abstractmethod
     def _configure(self,

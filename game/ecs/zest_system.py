@@ -11,30 +11,21 @@ Tests for SystemManager.
 import unittest
 
 from veredi.base.const import VerediHealth
-from veredi.zest import zmake, zontext
+from veredi.zest import zmake
 from veredi.base.context import UnitTestContext
 
 from .event import EventManager
 from .time import TimeManager
-from .component import (ComponentManager,
-                        ComponentEvent,
-                        ComponentLifeEvent)
-from .entity import (EntityManager,
-                     EntityEvent,
-                     EntityEventType,
-                     EntityLifeEvent)
+from .component import ComponentManager
+from .entity import EntityManager
 from .system import (SystemManager,
                      SystemEvent,
                      SystemLifeEvent)
 
 from .const import SystemTick, SystemPriority, DebugFlag
 
-from .base.identity import (ComponentId,
-                            EntityId,
-                            SystemId)
-from .base.component import (Component,
-                             ComponentError)
-from .base.entity import Entity
+from .base.identity import SystemId
+from .base.component import Component
 from .base.system import (System,
                           SystemLifeCycle)
 
@@ -338,7 +329,7 @@ class Test_SystemManager(unittest.TestCase):
         # Now we should have a create...
         self.assertNotEqual(sid, SystemId.INVALID)
         self.assertEqual(len(self.system_mgr._system_create), 1)
-        self.clear_events() # don't care about create event
+        self.clear_events()  # don't care about create event
         # ...a destroy...
         self.system_mgr.destroy(sid)
         self.assertEqual(len(self.system_mgr._system_destroy), 1)
@@ -379,7 +370,7 @@ class Test_SystemManager(unittest.TestCase):
         self.assertEqual(system.id, sid)
         self.assertEqual(system.life_cycle,
                          SystemLifeCycle.CREATING)
-        self.clear_events() # don't care about create event
+        self.clear_events()  # don't care about create event
 
         # Tick past creation to get new system finished.
         self.system_mgr.creation(None)
@@ -424,7 +415,7 @@ class Test_SystemManager(unittest.TestCase):
 
         # Now (ask for) destroy!
         self.system_mgr.destroy(sid)
-        self.clear_events() # don't care about create/destroy event
+        self.clear_events()  # don't care about create/destroy event
 
         # Tick past destruction to get poor new system DEAD.
         self.system_mgr.destruction(None)

@@ -8,10 +8,12 @@ Helper classes for managing contexts for events, error messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Type, MutableMapping, Iterable, Dict, List
+from typing import (TYPE_CHECKING,
+                    Optional, Any, Type, Iterable)
+if TYPE_CHECKING:
+    from .config import Configuration
+
 import enum
-import uuid
-import copy
 import pathlib
 
 from veredi.logger import log
@@ -23,7 +25,6 @@ from veredi.base.context import VerediContext, PersistentContext
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
 
 
 # -----------------------------------------------------------------------------
@@ -52,7 +53,6 @@ class ConfigContext(PersistentContext):
         PATH = enum.auto()
         '''A pathlib.Path to somewhere.'''
 
-
     def __init__(self,
                  path:        pathlib.Path,
                  back_link:   'Configuration',
@@ -77,9 +77,9 @@ class ConfigContext(PersistentContext):
         self.pull_to_sub(repo_ctx)
         self.pull_to_sub(codec_ctx)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Config-Specific Stuff
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @classmethod
     def path(klass: Type['ConfigContext'],
@@ -139,9 +139,9 @@ class ConfigContext(PersistentContext):
             context=context,
             stacklevel=3)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Unit Testing
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def ut_inject(self,
                   path:     Optional[pathlib.Path]    = None,
                   config:   Optional['Configuration'] = None,
@@ -159,9 +159,9 @@ class ConfigContext(PersistentContext):
         if keychain is not None:
             config_data[self.Link.KEYCHAIN] = keychain
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def __repr_name__(self):
         return 'CfgCtx'

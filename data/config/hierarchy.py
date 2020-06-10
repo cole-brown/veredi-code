@@ -8,15 +8,10 @@ Keys for accessing Configuration Data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Type, Any, Dict, List
-import copy
-import pathlib
+from typing import Optional, Type, Any, Dict
 import enum
 
-from veredi.logger          import log
-from veredi.base.exceptions import VerediError
-from veredi.base.context    import VerediContext, EphemerealContext
-from .context               import ConfigContext
+from veredi.logger import log
 
 from .. import exceptions
 
@@ -103,9 +98,9 @@ class Hierarchy:
     These are the actual keys and must be defined by sub-classes.
     '''
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Functions
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @classmethod
     def sanity(klass: Type['Hierarchy']) -> None:
@@ -123,8 +118,8 @@ class Hierarchy:
     @classmethod
     def valid(klass: Type['Hierarchy'], *keychain: str) -> bool:
         '''
-        Returns True if keychain walk defined by `*keychain` is valid for layout
-        defined by class' _KEYS.
+        Returns True if keychain walk defined by `*keychain` is valid for
+        layout defined by class' _KEYS.
         '''
         try:
             klass.sanity()
@@ -138,7 +133,6 @@ class Hierarchy:
 
         # Else it should be in the actual keys.
         return klass._valid_for_keys(klass._KEYS, *keychain)
-
 
     @classmethod
     def _valid_for_keys(klass: Type['Hierarchy'],

@@ -10,11 +10,7 @@ Tests for the DataDict and KeyGroup classes.
 
 import unittest
 
-from veredi.zest import zpath, zmake, zontext, zload
-from veredi.base.context import UnitTestContext
-from veredi.logger import log
-
-from .dict import DataDict, KeyGroup, KeyGroupMarker
+from .dict import DataDict, KeyGroupMarker
 
 
 # -----------------------------------------------------------------------------

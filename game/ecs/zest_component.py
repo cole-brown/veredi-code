@@ -19,8 +19,8 @@ from .component import (ComponentManager,
                         ComponentLifeEvent)
 from .base.identity import ComponentId
 from .base.component import (ComponentLifeCycle,
-                             Component,
-                             ComponentError)
+                             Component)
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -137,7 +137,7 @@ class Test_ComponentManager(unittest.TestCase):
         context = UnitTestContext(
             self.__class__.__name__,
             'test_create_args',
-            {'unit-test-args': {'x': 1, 'y':2}})
+            {'unit-test-args': {'x': 1, 'y': 2}})
 
         cid = self.comp_mgr.create(CompTwo, context)
         self.assertNotEqual(cid, ComponentId.INVALID)
@@ -166,7 +166,7 @@ class Test_ComponentManager(unittest.TestCase):
         # Now we should have a create...
         self.assertNotEqual(cid, ComponentId.INVALID)
         self.assertEqual(len(self.comp_mgr._component_create), 1)
-        self.clear_events() # don't care about create event
+        self.clear_events()  # don't care about create event
         # ...a destroy...
         self.comp_mgr.destroy(cid)
         self.assertEqual(len(self.comp_mgr._component_destroy), 1)
@@ -207,7 +207,7 @@ class Test_ComponentManager(unittest.TestCase):
         self.assertEqual(component.id, cid)
         self.assertEqual(component.life_cycle,
                          ComponentLifeCycle.CREATING)
-        self.clear_events() # don't care about create event
+        self.clear_events()  # don't care about create event
 
         # Tick past creation to get new component finished.
         self.comp_mgr.creation(None)
@@ -252,7 +252,7 @@ class Test_ComponentManager(unittest.TestCase):
 
         # Now (ask for) destroy!
         self.comp_mgr.destroy(cid)
-        self.clear_events() # don't care about create/destroy event
+        self.clear_events()  # don't care about create/destroy event
 
         # Tick past destruction to get poor new component DEAD.
         self.comp_mgr.destruction(None)
