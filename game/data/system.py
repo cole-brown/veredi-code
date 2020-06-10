@@ -21,7 +21,7 @@ from veredi.base.exceptions import VerediError
 from veredi.base.context    import VerediContext
 
 # Game / ECS Stuff
-from ..ecs.managers         import EcsManager
+from ..ecs.manager          import EcsManager
 from ..ecs.event            import EventManager
 from ..ecs.time             import TimeManager
 from ..ecs.component        import ComponentManager

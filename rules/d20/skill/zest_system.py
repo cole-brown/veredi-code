@@ -12,7 +12,7 @@ import unittest
 
 from veredi.zest import zload
 from veredi.base.context import UnitTestContext
-from veredi.data.execeptions import LoadError
+from veredi.data.exceptions import LoadError
 from veredi.logger import log
 
 from veredi.game.ecs.base.identity import ComponentId, EntityId
