@@ -30,22 +30,22 @@ if TYPE_CHECKING:
 
 import enum
 
-from veredi.logger import log
-from veredi.base.const import VerediHealth
-from veredi.base.context import VerediContext
+from veredi.logger             import log
+from veredi.base.const         import VerediHealth
+from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 
-from .base.identity import (MonotonicIdGenerator,
-                            EntityId)
-from .base.component import (Component,
-                             CompIdOrType)
-from .base.entity import (EntityTypeId,
-                          Entity,
-                          EntityLifeCycle,
-                          EntityError,
-                          EntityTools)
-from .event import EcsManagerWithEvents, EventManager, Event
-from .component import ComponentManager
+from .base.exceptions          import EntityError
+from .base.identity            import (MonotonicIdGenerator,
+                                       EntityId)
+from .base.component           import (Component,
+                                       CompIdOrType)
+from .base.entity              import (EntityTypeId,
+                                       Entity,
+                                       EntityLifeCycle,
+                                       EntityTools)
+from .event                    import EcsManagerWithEvents, EventManager, Event
+from .component                import ComponentManager
 
 
 # -----------------------------------------------------------------------------

@@ -15,7 +15,7 @@ from functools import reduce
 
 # Our Stuff
 from veredi.base import random
-from .utils import FormatOptions
+from .const import FormatOptions
 
 # -----------------------------------------------------------------------------
 # Constants

@@ -17,7 +17,7 @@ from collections import deque
 
 # Our Stuff
 from . import tree
-from .utils import FormatOptions
+from .const import FormatOptions
 
 # -----------------------------------------------------------------------------
 # Constants

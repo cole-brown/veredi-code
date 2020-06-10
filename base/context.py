@@ -20,22 +20,6 @@ from .exceptions import ContextError
 # -----------------------------------------------------------------------------
 
 
-# @enum.unique
-# class CodeKey(enum.Enum):
-#     '''
-#     Code systems that want to tuck things into contexts can use these as
-#     their top-level key.
-#     '''
-
-#     REPO = enum.auto()
-#     '''RepoSystem or Repo itself can store things here. e.g. data stream from
-#     deserializing data.'''
-
-#     CODEC = enum.auto()
-#     '''CodecSystem or Codec itself can store things here. e.g. data
-#     object(s) from decoding.'''
-
-
 @enum.unique
 class Conflict(enum.Flag):
     '''
@@ -163,12 +147,6 @@ class VerediContext:
         Returns my specific subcontext. Creates if it doesn't exist yet.
         '''
         return self._ensure()
-
-    def code(self, key: CodeKey):
-        '''
-        Returns a specific CodeKey subcontext. Creates if it doesn't exist yet.
-        '''
-        return self._ensure(key)
 
     # -------------------------------------------------------------------------
     # Stuff / Things

@@ -33,11 +33,11 @@ from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 
+from .base.exceptions          import ComponentError
 from .base.identity            import (MonotonicIdGenerator,
                                        ComponentId)
 from .base.component           import (Component,
-                                       ComponentLifeCycle,
-                                       ComponentError)
+                                       ComponentLifeCycle)
 from .event                    import (EcsManagerWithEvents,
                                        EventManager,
                                        Event)

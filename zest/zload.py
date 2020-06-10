@@ -117,7 +117,7 @@ def set_up(
         system_manager:    Optional[SystemManager]           = None,
         debug_flags:       Optional[DebugFlag]               = None
         # This closing paren is a fucked up way to make pycodestyle happy...
-        # May need to get flake8 so I can "# noqa" this one.
+        # May need to get flake8 so I can "# noqa" this one?
         # Oh. This comment itself lets me do whatever I want now. Yay.
         ) -> Tuple[Meeting, VerediContext, List[SystemId]]:
     '''
@@ -132,7 +132,6 @@ def set_up(
     Returns:
       Tuple[Meeting, VerediContext, SystemManager, List[SystemId]]
     '''
-
     with log.LoggingManager.on_or_off(enable_debug_logs):
         if not configuration:
             log.debug("zload.loader creating Configuration...")
