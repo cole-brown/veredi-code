@@ -8,8 +8,13 @@ An entity is just a grab bag of Components with an EntityId associated to it.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (Optional, Iterable, Set, Any, NewType,
+from typing import (TYPE_CHECKING,
+                    Optional, Iterable, Set, Any, NewType,
                     Dict, Union, Type, Callable)
+if TYPE_CHECKING:
+    from ..entity import EntityManager
+    from ..component import ComponentManager
+
 import enum
 
 from veredi.logger import log
@@ -26,6 +31,11 @@ from .component import (Component,
 
 EntityTypeId = NewType('EntityTypeId', int)
 INVALID_ENTITY_TYPE_ID = EntityTypeId(0)
+
+
+GetCompFn = NewType('GetCompFn',
+                    Optional[Callable[[ComponentId], Optional[Component]]])
+
 
 @enum.unique
 class EntityLifeCycle(enum.Enum):
@@ -55,18 +65,18 @@ class EntityTools:
     Holds pointers back to stuff like: EntityManager, ComponentManager.
     '''
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Constructor
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def __init__(self,
                  entity_mgr:    'EntityManager',
                  component_mgr: 'ComponentManager'):
         self._entity_manager    = entity_mgr
         self._component_manager = component_mgr
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Accessors for the two managers.
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def entity_manager(self):
@@ -84,11 +94,12 @@ class Entity:
     basically.
     '''
 
-    __get_component_fn : Optional[Callable[[ComponentId], Optional[Component]]] = None
+    # TODO: Do we want a direct link to ComponentManager instead?
+    __get_component_fn: GetCompFn  = None
 
     @classmethod
     def set_comp_getter(klass: 'Entity',
-                        getter: Optional[Callable[[ComponentId], Optional[Component]]]):
+                        getter: GetCompFn):
         klass.__get_component_fn = getter
 
     def __init__(self,
@@ -113,7 +124,7 @@ class Entity:
         '''
         Any more set up needed to do to entity based on context.
         '''
-        if not context or not 'entity' in context.sub:
+        if not context or 'entity' not in context.sub:
             return
 
         for comp in context.sub['entity'].get('components', ()):
@@ -165,8 +176,9 @@ class Entity:
                 # Make sure it's ours...
                 my_comp = self._components.get(type(component), None)
                 if my_comp and component == my_comp:
-                    # If we don't want disabled, and this one isn't enabled (and
-                    # is therefore disabled), there isn't one for you to have.
+                    # If we don't want disabled, and this one isn't enabled
+                    # (and is therefore disabled), there isn't one for you to
+                    # have.
                     if not allow_disabled and not component.enabled:
                         # Go away.
                         return None
@@ -256,9 +268,9 @@ class Entity:
         for each in components:
             self._remove(each)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Python Interfaces (hashable, ==, 'in')
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     # def __hash__(self):
     #     '''
@@ -269,7 +281,8 @@ class Entity:
 
     def __eq__(self, other: Any):
         '''
-        Entity == Entity is just an id equality check. Otherwise uses id() func.
+        Entity == Entity is just an EntityId equality check.
+        Otherwise uses python's id() func, the 'is' keyword, or something.
         '''
         if isinstance(other, Entity):
             return self.id == other.id

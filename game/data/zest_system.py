@@ -10,15 +10,13 @@ Tests for the DataSystem class.
 
 import unittest
 
-from veredi.zest import zpath, zmake, zontext
+from veredi.zest import zmake, zontext
 from veredi.base.context import UnitTestContext
 from veredi.logger import log
 
 from ..ecs.event import EventManager
 from ..ecs.base.identity import ComponentId
-from ..ecs.component import (ComponentManager,
-                             ComponentEvent,
-                             ComponentLifeEvent)
+from ..ecs.component import ComponentManager
 
 from .system import DataSystem
 from .event import DecodedEvent, DataLoadedEvent
@@ -35,7 +33,7 @@ from veredi.rules.d20 import health
 test_data = [
     {
         'doc-type': 'metadata',
-        'author': f"__file__ and its authors",
+        'author': f"{__file__} and its authors",
     },
 
     {
@@ -43,7 +41,7 @@ test_data = [
         'doc-type': 'component',
 
         'meta': {
-            'registry': 'veredi.rules.d20.health',
+            'registry': 'veredi.rules.d20.health.component',
         },
 
         'health': {
@@ -68,8 +66,8 @@ test_data = [
                 ],
                 'hit-points': 21,
             },
-            'unconscious': { 'hit-points': 0 },
-            'death': { 'hit-points': 0 },
+            'unconscious': {'hit-points': 0},
+            'death': {'hit-points': 0},
             'resistance': {},
         }
     },
@@ -94,9 +92,12 @@ class Test_DataSystem(unittest.TestCase):
         self.event_manager     = EventManager(self.config)
         self.component_manager = ComponentManager(self.config,
                                                   self.event_manager)
-        self.managers          = zmake.meeting(configuration=self.config,
-                                               event_manager=self.event_manager,
-                                               component_manager=self.component_manager)
+
+        self.managers          = zmake.meeting(
+            configuration=self.config,
+            event_manager=self.event_manager,
+            component_manager=self.component_manager)
+
         self.system            = DataSystem(self.context,
                                             1,
                                             self.managers)
@@ -168,7 +169,8 @@ class Test_DataSystem(unittest.TestCase):
         self.assertIsInstance(component, health.HealthComponent)
 
         data_source = test_data[1]
-        self.assertIn('health', data_source)  # make sure we are checking our correct part of
+        # Make sure we are checking our correct part of data.
+        self.assertIn('health', data_source)
 
         data_processed = component.persistent
         self.assertEqual(data_source, data_processed)

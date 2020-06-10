@@ -9,11 +9,9 @@ Aka ___ Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Iterable, NewType, List, Dict, TextIO, Any
+from typing import Optional, Union, NewType, Any, List, Dict, TextIO
 from abc import ABC, abstractmethod
-import enum
 
-from veredi.data import exceptions
 from veredi.base.context import VerediContext, PersistentContext
 from veredi.data.config.context import ConfigContext
 
@@ -52,9 +50,9 @@ class BaseCodec(ABC):
 
         self._configure(config_context)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Codec Properties/Methods
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def name(self) -> str:
@@ -64,9 +62,9 @@ class BaseCodec(ABC):
         '''
         return self._name
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Context Properties/Methods
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def context(self) -> VerediContext:
@@ -75,9 +73,9 @@ class BaseCodec(ABC):
         '''
         return self._context
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Abstract Methods
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @abstractmethod
     def _configure(self,

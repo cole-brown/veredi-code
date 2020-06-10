@@ -9,7 +9,6 @@ Bit of a Factory thing going on here...
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Union, Type, Any, Callable
-import functools
 
 from veredi.logger import log
 from .. import exceptions
@@ -28,8 +27,8 @@ _REGISTRY = {}
 
 # Decorator way of doing factory registration. Note that we will only get
 # classes/funcs that are imported, when they are imported. We don't know about
-# any that are sitting around waiting to be imported. If needed, we can fix that
-# by importing things in their folder's __init__.py.
+# any that are sitting around waiting to be imported. If needed, we can fix
+# that by importing things in their folder's __init__.py.
 
 # First, a lil' decorator factory to take our args and make the decorator...
 def register(*args: str) -> Callable[..., Type[Any]]:
@@ -49,8 +48,8 @@ def register(*args: str) -> Callable[..., Type[Any]]:
 
     # Now make the actual decorator...
     def register_decorator(
-                cls_or_func: Union[Type[Any], Callable[..., Type[Any]]]
-            ) -> Type[Any]:
+            cls_or_func: Union[Type[Any], Callable[..., Type[Any]]]
+            ) -> Type[Any]:  # noqa E123
         # Pull final key off of list so we don't make too many dictionaries.
         name = str(cls_or_func)
         try:
@@ -116,7 +115,7 @@ def get(dotted_keys_str: str,
                 error,
                 exceptions.RegistryError,
                 "Registry has nothing at: {}",
-                split_keys[ : i + 1 ]) from error
+                split_keys[: i + 1]) from error
 
         i += 1
 
@@ -148,15 +147,18 @@ def create(dotted_keys_str: str,
     except TypeError as error:
         # NOTE: Something to the tune of:
         #    TypeError: __init__() got multiple values for argument...
-        # Probably means your *args are too long, or an arg got swapped in the entry().
+        # Probably means your *args are too long, or an arg got swapped in
+        # the entry().
         # e.g.:
         #   args: (001,)
         #   kwargs: {'data': {...}}
         #   entry -> JeffCls.__init__(data, id, extra=None)
-        #     - This dies cuz data was set to '001', then kwargs also had a 'data'.
+        #     - This dies cuz data was set to '001', then kwargs also
+        #       had a 'data'.
         raise log.exception(
             error,
             exceptions.ConfigError,
             # Leave (k)args for others.
-            "Registry failed creating '{}' with: args: {}, kwargs: {},  context: {}",
+            "Registry failed creating '{}' with: args: {}, "
+            "kwargs: {},  context: {}",
             entry, args, kwargs, context) from error

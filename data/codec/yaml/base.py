@@ -8,13 +8,10 @@ Base classes for Veredi YAML formatted files.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Dict, MutableMapping, Type, Any
+from typing import Any, Type, MutableMapping
 import yaml
 
-from veredi.logger import log
 from veredi.logger import pretty
-from veredi.data.config.registry import register
-from veredi.data import exceptions
 from veredi.data.config.hierarchy import Hierarchy
 
 
@@ -23,9 +20,9 @@ from veredi.data.config.hierarchy import Hierarchy
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # YAML Doc Types
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class VerediYamlDocument(yaml.YAMLObject):
     yaml_loader = yaml.SafeLoader
@@ -71,9 +68,9 @@ class VerediYamlDocument(yaml.YAMLObject):
         return f"{self.__class__.__name__}:\n{self.__dict__}"
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # YAML Object?
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class VerediYamlObject(yaml.YAMLObject):
     yaml_loader = yaml.SafeLoader
@@ -92,9 +89,9 @@ class VerediYamlObject(yaml.YAMLObject):
         return cls(node.value)
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # YAML... Tag?
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class VerediYamlTag(VerediYamlObject):
     # ---
@@ -117,12 +114,12 @@ class VerediYamlTag(VerediYamlObject):
         return f"<{self.__class__.__name__}: {self.tag}>"
 
 
-# ------------------------------------------------------------------------------
-# YAML... Tag?
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# YAML... Entry?
+# -----------------------------------------------------------------------------
 
-# §-TODO-§ [2020-05-21]: Decided which to keep if these three remain the same:
-# VerediYamlObject, VerediYamlTag, VerediYamlEntry
+# §-TODO-§ [2020-05-21]: Decided which to keep if these three remain the
+# same: VerediYamlObject, VerediYamlTag, VerediYamlEntry
 class VerediYamlEntry(VerediYamlObject):
     # ---
     # Set This in Subclasses!
@@ -144,9 +141,9 @@ class VerediYamlEntry(VerediYamlObject):
         return f"<{self.__class__.__name__}: {self.data}>"
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Requirements Objects
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class VerediYamlRequirement(VerediYamlTag):
     # Set in subclasses!
@@ -163,7 +160,8 @@ class VerediYamlRequirement(VerediYamlTag):
         Return Truthy if the `check` value is valid for this
         field's requirements.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.valid() not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.valid() not implemented.")
 
     def normalize(self):
         '''
@@ -172,4 +170,5 @@ class VerediYamlRequirement(VerediYamlTag):
         This function should get the initial value from self.tag, and save its
         normalized result there as well.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.normalize() not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.normalize() not implemented.")

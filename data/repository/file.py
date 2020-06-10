@@ -9,27 +9,21 @@ various backend implementations (db, file, etc).
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Dict, NewType, Iterable, Union, Optional, Callable, List
+from typing import NewType, Union, Optional, List
 
 import pathlib
-import os
 
 import re
 import hashlib
 from io import StringIO, TextIOBase
 
-import enum
-
 from veredi.logger import log
 from veredi.data.config.registry import register
-from veredi.data.config.config import Configuration
 
 from veredi.base.context import VerediContext
 from veredi.data.context import (DataBareContext,
                                  DataGameContext)
 from veredi.data.config.context import ConfigContext
-
-from veredi.data.codec.base import BaseCodec
 
 from .. import exceptions
 from . import base
@@ -44,69 +38,6 @@ PathType = NewType('PathType', Union[str, pathlib.Path])
 # §-TODO-§ [2020-05-23]: other file repos...
 #   FileTreeDiffRepository - for saving history for players
 
-
-# File Tree:
-#   <root>/
-#     <campaign>/
-#       <type>/
-#         <stuff>/
-#           <things>/
-#             <file>.<ext>
-#
-# Example File Tree:
-#   /var/veredi/data/file-tree/
-#     forgotten_campaign/
-#       players/
-#         username/
-#           player_name.ext
-#       monsters/
-#         session-id?/
-#           monster_name.ext
-#       items/
-#         something to break 'em up.../
-#           ring_of_honor.ext
-#
-# So... need... a tuple of junk.
-#   type: int/enum -> str?
-#   extra:
-#     - players: user name, player name, campaign name?, file name?, ext
-#     - monsters: monster name, campaign name?, session name?, file name?, ext
-#     - items: category name, item name..., file name?, ext
-#
-# So... data request should have...
-#   context = {
-#       load-request: {
-#           ...
-#           type: DataGameContext.Type.PLAYERS,
-#           campaign: 'forgotten campaign'
-#           keys: ['user', 'player']
-#           user: 'user jeff',
-#           player: 'jeff the farmer lizardman',
-#       }
-#       ...
-#   }
-#   context = {
-#       load-request: {
-#           ...
-#           type: DataGameContext.Type.MONSTERS,
-#           campaign: 'forgotten campaign'
-#           keys: ['family', 'monster']
-#           family: 'dragon',
-#           moster: 'aluminum dragon',
-#       }
-#       ...
-#   }
-#
-# But I doubt I have that much info, do I?
-#   Maybe? Could load all db keys for a game or something?
-#
-# Player load data from user object...
-# Monster load data from... campaign/session/dm typing input?
-# Item load data from...
-#   - things that own the item?
-#   - typing input?
-
-
 # ---
 # Path Safing Consts
 # ---
@@ -119,9 +50,9 @@ _REPLACEMENT = '_'
 # Code
 # -----------------------------------------------------------------------------
 
-# -------------------------------Just Functions.--------------------------------
-# --                            Paths In General                              --
-# ------------------------------------------------------------------------------
+# -------------------------------Just Functions.-------------------------------
+# --                            Paths In General                             --
+# -----------------------------------------------------------------------------
 
 def pathlib_cast(str_or_path: PathType) -> pathlib.Path:
     return pathlib.Path(str_or_path)
@@ -136,6 +67,7 @@ def to_human_readable(path: PathType) -> pathlib.Path:
     return pathlib_cast(_HUMAN_SAFE.sub(_REPLACEMENT,
                                         path))
 
+
 # --------------------------------------------------------------------------
 # Path Safing Option:
 #   "us?#:er" ->
@@ -146,9 +78,9 @@ def to_hashed(path: PathType) -> pathlib.Path:
     return pathlib_cast(hashlib.sha256(path.encode()).hexdigest())
 
 
-# ----------------------------Bare File Repository------------------------------
-# --                        Load a file specifically.                         --
-# ------------------------------------------------------------------------------
+# ----------------------------Bare File Repository-----------------------------
+# --                        Load a file specifically.                        --
+# -----------------------------------------------------------------------------
 
 @register('veredi', 'repository', 'file-bare')
 class FileBareRepository(base.BaseRepository):
@@ -202,9 +134,9 @@ class FileBareRepository(base.BaseRepository):
         log.debug("Set my root to: {}", self.root)
         log.debug("Set my path-safing to: {}", self.fn_path_safing)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Load Methods
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def root(self) -> pathlib.Path:
@@ -226,10 +158,12 @@ class FileBareRepository(base.BaseRepository):
 
         # load_path should be exact - no globbing.
         if not load_path.exists():
-            raise exceptions.LoadError(
-                f"Cannot load file. Path/file does not exist: {str(load_path)}",
+            raise log.exception(
                 None,
-                self.context.push(context))
+                exceptions.LoadError,
+                "Cannot load file. Path/file does not exist: {}",
+                str(load_path),
+                context=self.context.push(context))
 
         data_stream = None
         with load_path.open('r') as file_stream:
@@ -250,15 +184,15 @@ class FileBareRepository(base.BaseRepository):
                 data_stream = None
                 raise log.exception(
                     error,
-                    LoadError,
+                    exceptions.LoadError,
                     "Error loading data from file. context: {}",
                     context=context) from error
 
         return data_stream
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Identification ("Leeloo Dallas, Multi-Pass")
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _id(self,
             context:     DataGameContext) -> pathlib.Path:
@@ -277,9 +211,9 @@ class FileBareRepository(base.BaseRepository):
         '''
         return pathlib_cast(load_id)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Path Safing
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _safe_path(self,
                    unsafe: PathType,
@@ -287,17 +221,18 @@ class FileBareRepository(base.BaseRepository):
         '''Makes `unsafe` safe with self.fn_path_safing. '''
 
         if not self.fn_path_safing:
-            raise exceptions.LoadError(
-                "No path safing function set! Cannot create file paths. ",
+            raise log.exception(
                 None,
-                self.context.push(context)) from error
+                exceptions.LoadError,
+                "No path safing function set! Cannot create file paths. ",
+                context=self.context.push(context))
 
         return self.fn_path_safing(unsafe)
 
 
-# ----------------------------File Tree Repository------------------------------
-# --       Load a file given context information and a base directory.        --
-# ------------------------------------------------------------------------------
+# ----------------------------File Tree Repository-----------------------------
+# --       Load a file given context information and a base directory.       --
+# -----------------------------------------------------------------------------
 
 @register('veredi', 'repository', 'file-tree')
 class FileTreeRepository(base.BaseRepository):
@@ -334,7 +269,7 @@ class FileTreeRepository(base.BaseRepository):
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
-        config = ConfigContext.config(context) # Configuration obj
+        config = ConfigContext.config(context)  # Configuration obj
         if not config:
             raise ConfigContext.exception(
                 context,
@@ -345,11 +280,12 @@ class FileTreeRepository(base.BaseRepository):
 
         # Start at ConfigContext's path...
         self._root = ConfigContext.path(context)
-        # ...add config's repo path on top of it (in case it's a relative path).
+        # ...add config's repo path on top of it
+        # (in case it's a relative path).
         self._root = self._root / pathlib_cast(config.get_data('game',
                                                                'repository',
                                                                'directory'))
-        # resolve to turn into absolute path and remove ".."s and stuff.
+        # Resolve to turn into absolute path and remove ".."s and stuff.
         self._root = self._root.resolve()
 
         path_safing_fn = None
@@ -364,9 +300,9 @@ class FileTreeRepository(base.BaseRepository):
         log.debug("Set my root to: {}", self.root)
         log.debug("Set my path-safing to: {}", self.fn_path_safing)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Load Methods
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def root(self) -> pathlib.Path:
@@ -420,7 +356,7 @@ class FileTreeRepository(base.BaseRepository):
                     data_stream.close()
                 data_stream = None
                 raise
-            except Exception as err:
+            except Exception as error:
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up.
                 if data_stream and not data_stream.closed:
@@ -428,15 +364,15 @@ class FileTreeRepository(base.BaseRepository):
                 data_stream = None
                 raise log.exception(
                     error,
-                    LoadError,
+                    exceptions.LoadError,
                     "Error loading data from file. context: {}",
                     context=context) from error
 
         return data_stream
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Identification ("Leeloo Dallas, Multi-Pass")
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _id_accum(self, path: PathType, accum: List[PathType]) -> None:
         accum.append(self._safe_path(path.lower()))
@@ -470,8 +406,8 @@ class FileTreeRepository(base.BaseRepository):
                  context:   DataGameContext,
                  out_ids:   List[PathType]) -> None:
         '''
-        Turns each context.data_values element into part of the id for getting a
-        datum from this repo.
+        Turns each context.data_values element into part of the id for getting
+        a datum from this repo.
 
         Appends the conversions to the `out_ids` list.
         '''
@@ -503,14 +439,14 @@ class FileTreeRepository(base.BaseRepository):
         '''
         return self.rooted_path(*self._ext_glob(ids))
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Paths In General
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def rooted_path(self, *args: PathType) -> pathlib.Path:
         '''
-        Assumes args are already safe, joins them all to `self.root` and returns
-        the pathlib.Path.
+        Assumes args are already safe, joins them all to `self.root` and
+        returns the pathlib.Path.
         '''
         return self.root.joinpath(*args)
 
@@ -530,9 +466,9 @@ class FileTreeRepository(base.BaseRepository):
         elements[-1] = last
         return elements
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Path Safing
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _safe_path(self,
                    unsafe: PathType,
@@ -540,15 +476,18 @@ class FileTreeRepository(base.BaseRepository):
         '''Makes `unsafe` safe with self.fn_path_safing. '''
 
         if not self.fn_path_safing:
-            raise exceptions.LoadError(
-                "No path safing function set! Cannot create file paths. ",
+            raise log.exception(
                 None,
-                self.context.push(context)) from error
+                exceptions.LoadError,
+                "No path safing function set! Cannot create file paths.",
+                context=self.context.push(context))
 
         return self.fn_path_safing(unsafe)
 
 
-
+# ----------------------------File Tree Templates------------------------------
+# --               Files for Defining Components and Stuff.                  --
+# -----------------------------------------------------------------------------
 
 # §-TODO-§ [2020-06-01]: templates repo?
 # @register('veredi', 'repository', 'templates', 'file-tree')

@@ -14,7 +14,7 @@ display-name: Veredi D20 Health Component
 --- !component.example
 
 meta:
-  registry: veredi.rules.d20.health
+  registry: veredi.rules.d20.health.component
 
 
 health:

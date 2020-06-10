@@ -9,10 +9,10 @@ Aka JSON Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Iterable, NewType, List, Dict, TextIO
+from typing import Optional, Any, TextIO
 import json
 
-from veredi.logger import log
+from veredi.base.context import VerediContext
 from veredi.data.config.registry import register
 from veredi.data.config.context import ConfigContext
 from veredi.data import exceptions
@@ -35,9 +35,8 @@ class JsonCodec(BaseCodec):
     _CONTEXT_NAME = 'json'
     _CONTEXT_KEY  = 'codec'
 
-
     def __init__(self,
-                 context: Optional[VerediContext] = None) -> None:
+                 context: Optional[ConfigContext] = None) -> None:
         super().__init__(JsonCodec._CODEC_NAME,
                          JsonCodec._CONTEXT_NAME,
                          JsonCodec._CONTEXT_KEY,
@@ -65,7 +64,7 @@ class JsonCodec(BaseCodec):
         except json.JSONDecodeError as error:
             data = None
             raise exceptions.LoadError(
-                f"Error loading json from stream: {path}",
+                f"Error loading json from stream: {stream}",
                 error,
                 self.context.push(input_context)) from error
         return data
@@ -94,7 +93,7 @@ class JsonCodec(BaseCodec):
         except json.JSONDecodeError as error:
             data = None
             raise exceptions.LoadError(
-                f"Error loading json from stream: {path}",
+                f"Error loading json from stream: {stream}",
                 error,
                 self.context.push(input_context)) from error
         return data

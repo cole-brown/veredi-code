@@ -27,8 +27,10 @@ from .event import EventManager
 class EventOne:
     id = 1
 
+
 class EventTwo(EventOne):
     id = 2
+
 
 class EventThree:
     id = 3
@@ -95,9 +97,9 @@ class Test_Events(unittest.TestCase):
         event = EventOne()
         self.events.notify(event)
         # Event should not be published yet.
-        with self.assertRaises(KeyError) as context:
+        with self.assertRaises(KeyError):
             self.events_recvd[event.id]
-        with self.assertRaises(KeyError) as context:
+        with self.assertRaises(KeyError):
             self.handlers_called[1]
 
         self.events.publish()
@@ -133,9 +135,9 @@ class Test_Events(unittest.TestCase):
         self.events.notify(event3)
         self.events.publish()
 
-        # Since I'm lazy and all events just get appended to recvd, we'll have a
-        # duplicate as EventTwo is a subclass of EventOne and triggers handlers
-        # for both.
+        # Since I'm lazy and all events just get appended to recvd, we'll have
+        # a duplicate as EventTwo is a subclass of EventOne and triggers
+        # handlers for both.
         self.assertEqual(self.events_recvd[event1.id],
                          [event1])
         self.assertEqual(self.events_recvd[event2.id],

@@ -4,16 +4,18 @@
 Component Manager. Manages life cycle of components, which should generally
 follow the life cycle of their entity.
 
-Do not hold onto Entities, Components, etc. They /can/ be destroyed at any time,
-leaving you holding a dead object. Only keep the EntityId or ComponentId, then
-ask its manager. If the manager returns None, the Entity/Component does not
-exist anymore.
+Do not hold onto Entities, Components, etc. They /can/ be destroyed at any
+time, leaving you holding a dead object. Only keep the EntityId or ComponentId,
+then ask its manager. If the manager returns None, the Entity/Component does
+not exist anymore.
 
 Inspired by:
   - Entity Component System design pattern
   - personal pain and suffering
-  - mecs: https://github.com/patrick-finke/mecs
-  - EntityComponentSystem: https://github.com/tobias-stein/EntityComponentSystem
+  - mecs:
+      https://github.com/patrick-finke/mecs
+  - EntityComponentSystem:
+      https://github.com/tobias-stein/EntityComponentSystem
 '''
 
 
@@ -21,18 +23,24 @@ Inspired by:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Type, Iterable, Optional, Set, List, Any
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Type, Any, Iterable, Set, List, Dict)
+if TYPE_CHECKING:
+    from .timem import TimeManager
 
-from veredi.logger import log
-from veredi.base.const import VerediHealth
-from veredi.base.context import VerediContext
+from veredi.logger             import log
+from veredi.base.const         import VerediHealth
+from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 
-from .base.identity import MonotonicIdGenerator, ComponentId
-from .base.component import (Component,
-                             ComponentLifeCycle,
-                             ComponentError)
-from .event import EcsManagerWithEvents, EventManager, Event
+from .base.identity            import (MonotonicIdGenerator,
+                                       ComponentId)
+from .base.component           import (Component,
+                                       ComponentLifeCycle,
+                                       ComponentError)
+from .event                    import (EcsManagerWithEvents,
+                                       EventManager,
+                                       Event)
 
 
 # -----------------------------------------------------------------------------
@@ -61,7 +69,8 @@ class ComponentManager(EcsManagerWithEvents):
                  config:        Optional[Configuration],
                  event_manager: Optional[EventManager]) -> None:
         '''Initializes this thing.'''
-        self._component_id:      MonotonicIdGenerator = MonotonicIdGenerator(ComponentId)
+        self._component_id:      MonotonicIdGenerator = MonotonicIdGenerator(
+            ComponentId)
         self._component_create:  Set[ComponentId]     = set()
         self._component_destroy: Set[ComponentId]     = set()
 
@@ -106,9 +115,9 @@ class ComponentManager(EcsManagerWithEvents):
             # Don't care if it's already not there.
             pass
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # API: Component Collection Iteration
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def each_of_type(self, comp_type: Type[Component]) -> Iterable[Component]:
         '''
@@ -121,9 +130,9 @@ class ComponentManager(EcsManagerWithEvents):
             for component in self._component_by_type[type]:
                 yield component
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # API: Component/Component Management
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def get(self, component_id: ComponentId) -> Optional[Component]:
         '''
@@ -138,7 +147,6 @@ class ComponentManager(EcsManagerWithEvents):
                             context: Optional[VerediContext],
                             *args: Any,
                             **kwargs: Any) -> ComponentId:
-
         '''
         Checks the registry for the Component by string and tries
         to create it.
@@ -173,7 +181,6 @@ class ComponentManager(EcsManagerWithEvents):
                         context: Optional[VerediContext],
                         *args: Any,
                         **kwargs: Any) -> ComponentId:
-
         '''
         Creates a component of type `comp_class` with the supplied args.
 
@@ -233,10 +240,10 @@ class ComponentManager(EcsManagerWithEvents):
                 None,
                 ComponentError,
                 "Exception during Component creation for would-be "
-                "component_id {}. comp_class: {}, args: {}, "
+                "component_id {}. str_or_type: {}, args: {}, "
                 "kwargs: {}, context: {}",
-                cid, comp_class, args, kwargs, context
-            ) from error
+                cid, dotted_str_or_type, args, kwargs, context
+            )
 
         # Finish adding since we created something.
         self._add(cid, component)
@@ -251,11 +258,10 @@ class ComponentManager(EcsManagerWithEvents):
 
         return cid
 
-
     def destroy(self, component_id: ComponentId) -> None:
         '''
-        Cycles component to DESTROYING now... This is the 'end' of the life cycle
-        of the component.
+        Cycles component to DESTROYING now... This is the 'end' of the life
+        cycle of the component.
 
         Component will be fully removed from our pools on the DESTRUCTION tick.
         '''
@@ -272,9 +278,9 @@ class ComponentManager(EcsManagerWithEvents):
                            ComponentLifeCycle.DESTROYING,
                            None, False)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Game Loop: Component Life Cycle Updates
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def creation(self,
                  time: 'TimeManager') -> VerediHealth:

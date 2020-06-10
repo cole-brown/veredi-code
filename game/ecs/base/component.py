@@ -9,12 +9,11 @@ subclass...
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Optional, Union, Type, NewType, Iterable
+from typing import Optional, Union, Type
 import enum
 
 from veredi.base.context import VerediContext
 from veredi.data.config.context import ConfigContext
-from .exceptions import ComponentError
 from .identity import ComponentId
 
 
@@ -23,6 +22,7 @@ from .identity import ComponentId
 # -----------------------------------------------------------------------------
 
 CompIdOrType = Union[ComponentId, Type['Component']]
+
 
 @enum.unique
 class ComponentLifeCycle(enum.Enum):
@@ -108,41 +108,3 @@ class Component:
         comp_str += f"{repr(self.life_cycle)}]"
 
         return "<v.comp:" + comp_str + ">"
-
-
-    # TODO: __str__
-    # TODO: __repr__
-
-
-#     # --------------------------------------------------------------------------
-#     # Set Interface (hashable, equals)
-#     # --------------------------------------------------------------------------
-#
-#     def __hash__(self):
-#         '''Set/Dict interface.
-#
-#         Redefining so that Components are singleton - only one per class
-#         allowed. This doesn't prevent an Entity from having, say, HealthClass
-#         and HealthSubClass, but at least it's a sanity check.
-#         '''
-#         # Hash of (sub)class itself, not any instance.
-#         # All (sub)class instances will be considered 'equal' this way for
-#         # e.g. set, dict operations.
-#         return hash(self.__class__)
-#
-#     def __eq__(self, other: Any):
-#         '''Set/Dict interface.
-#
-#         Redefining so that Components are singleton - only one per class
-#         allowed. This doesn't prevent an Entity from having, say, HealthClass
-#         and HealthSubClass, but at least it's a sanity check.
-#         '''
-#         # Hash of (sub)class itself, not any instance.
-#         # All (sub)class instances will be considered 'equal' this way for
-#         # e.g. set, dict operations.
-#         other_hash = None
-#         if isinstance(other, Component):
-#             other_hash = Component.hashed(other)
-#         else:
-#             other_hash = hash(other)
-#         return hash(self) == other_hash

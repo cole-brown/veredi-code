@@ -8,35 +8,24 @@ System for Encoding & Decoding data (components?) for the Game.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Optional, Set, Type, Union, Iterable
+from typing import Optional, Set, Type, Union
+from decimal import Decimal
 
-
-from veredi.logger import log
-from veredi.base.const import VerediHealth
-from veredi.base.context import VerediContext
-from veredi.data.config.config import Configuration
+from veredi.logger              import log
+from veredi.base.const          import VerediHealth
+from veredi.base.context        import VerediContext
 from veredi.data.config.context import ConfigContext
-from veredi.data.repository.base import BaseRepository
 
 # Game / ECS Stuff
-from ...ecs.event import EventManager
-from ...ecs.time import TimeManager
+from ...ecs.manager             import EcsManager
+from ...ecs.event               import EventManager
+from ...ecs.time                import TimeManager
 
-from ...ecs.const import (SystemTick,
-                          SystemPriority,
-                          DebugFlag)
+from ...ecs.const               import SystemPriority
 
-from ...ecs.base.identity import (ComponentId,
-                                  EntityId,
-                                  SystemId)
-from ...ecs.base.system import (System,
-                                SystemLifeCycle)
-from ...ecs.base.component import Component
+from ...ecs.base.system         import System
 
 # Events
-# Do we need these system events?
-from ...ecs.system import (SystemEvent,
-                           SystemLifeEvent)
 from ..event import (
     # Our events
     SerializedEvent,
@@ -75,12 +64,7 @@ class RepositorySystem(System):
         # ---
         # Ticking Stuff
         # Don't think I need any, actually. Think we're entirely event-driven.
-        # ---
-        # self._components: Optional[Set[Type[Component]]] = None
-        # self._ticks: SystemTick = (SystemTick.SET_UP         # Initial loading.
-        #                            | SystemTick.TIME         # In-game loading.
-        #                            | SystemTick.DESTRUCTION) # In-game saving.
-        # # Apoptosis will be our end-of-game saving.
+        # Apoptosis will be our end-of-game saving.
         # ---
         if context:
             config = ConfigContext.config(context)
@@ -91,16 +75,6 @@ class RepositorySystem(System):
                                                'repository',
                                                'type')
 
-        # §-TODO-§ [2020-05-30]: remove this - set up unit/integration/whatever
-        # tests with our test configs.
-        if not self._repository:
-            # §-TODO-§: Event to ask ConfigSystem what the specific repository is?
-            # Maybe that's what we need a SET_UP tick for?
-            # self._repository: Optional[BaseRepository] = None
-            from veredi.data.repository.file import FileTreeRepository
-            self._repository = FileTreeRepository(kwargs.get('repository_base',
-                                                             None))
-
     def priority(self) -> Union[SystemPriority, int]:
         '''
         Returns a SystemPriority (or int) for when, relative to other systems,
@@ -108,9 +82,9 @@ class RepositorySystem(System):
         '''
         return SystemPriority.DATA_REPO
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
@@ -158,8 +132,8 @@ class RepositorySystem(System):
         deserialized = self._repository.load(context)
         # Get back deserialized data stream.
 
-        # Take our repository load result and set into DeserializedEvent.
-        # Then have EventManager fire off event for whoever wants the next step.
+        # Take our repository load result and set into DeserializedEvent. Then
+        # have EventManager fire off event for whoever wants the next step.
         event = DeserializedEvent(event.id, event.type, context,
                                   data=deserialized)
 

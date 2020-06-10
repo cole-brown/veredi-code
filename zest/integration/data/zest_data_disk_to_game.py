@@ -1,6 +1,7 @@
 # coding: utf-8
 
-'''Integration Test for data load path.
+'''
+Integration Test for data load path.
 
 Start with the data "saved" and "in the repository" (i.e. a file on disk).
 Create a DataLoadedEvent and kick it off, then sit back and wait for our
@@ -9,9 +10,8 @@ happen.
 
 We will end up with a Component and verify its data.
 
-This Integration Test avoids using the game Engine. All this is event-driven and
-doesn't really need the engine.
-
+This Integration Test avoids using the game Engine. All this is event-driven
+and doesn't really need the engine.
 '''
 
 # -----------------------------------------------------------------------------
@@ -21,9 +21,8 @@ doesn't really need the engine.
 import unittest
 
 from veredi.logger                      import log
-from veredi.base.const                  import VerediHealth
-from veredi.base.context                import UnitTestContext
 from veredi.data.context                import DataGameContext, DataLoadContext
+from veredi.data.exceptions             import LoadError
 from veredi.zest                        import zpath, zmake, zontext
 
 from veredi.game.ecs.time               import TimeManager
@@ -33,12 +32,7 @@ from veredi.game.ecs.entity             import EntityManager
 from veredi.game.ecs.system             import SystemManager
 from veredi.game.ecs.const              import DebugFlag
 
-from veredi.game.ecs.base.identity      import (ComponentId,
-                                                EntityId,
-                                                SystemId)
-from veredi.game.ecs.base.component     import Component
-from veredi.game.ecs.base.entity        import Entity
-from veredi.game.ecs.base.system        import System
+from veredi.game.ecs.base.identity      import ComponentId
 
 from veredi.game.data.system            import DataSystem
 from veredi.game.data.repository.system import RepositorySystem
@@ -63,12 +57,14 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
 
     def setUp(self):
         self.events         = []
-        self.debug             = False
-        self.config            = zmake.config(zpath.TestType.INTEGRATION)
-        self.context           = zontext.real_config(self.__class__.__name__,
-                                                     'setUp',
-                                                     config=self.config,
-                                                     test_type=zpath.TestType.INTEGRATION)
+        self.debug          = False
+        self.config         = zmake.config(zpath.TestType.INTEGRATION)
+        self.context        = zontext.real_config(
+            self.__class__.__name__,
+            'setUp',
+            config=self.config,
+            test_type=zpath.TestType.INTEGRATION)
+
         self.time_manager   = TimeManager()
         self.event_manager  = EventManager(self.config)
         self.comp_manager   = ComponentManager(self.config,
@@ -160,7 +156,7 @@ class Test_DataLoad_DiskToGame(unittest.TestCase):
             ctx.sub['family'] = 'dragon'
             ctx.sub['monster'] = 'aluminum dragon'
         else:
-            raise exceptions.LoadError(
+            raise LoadError(
                 f"No DataGameContext.Type to ID conversion for: {type}",
                 None,
                 ctx)

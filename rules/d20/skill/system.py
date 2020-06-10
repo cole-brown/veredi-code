@@ -19,12 +19,18 @@ That is the bardic/rougish homeworld.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Optional, Set, Type, Union, Iterable, Mapping
+# ---
+# Typing
+# ---
+from typing import Optional, Set, Type, Union
+from veredi.game.ecs.manager import EcsManager
+from decimal import Decimal
 
-
+# ---
+# Code
+# ---
 from veredi.logger                  import log
 from veredi.base.const              import VerediHealth
-from veredi.base.exceptions         import VerediError
 from veredi.base.context            import VerediContext
 from veredi.data.config.context     import ConfigContext
 from veredi.data.config.registry    import register
@@ -36,15 +42,10 @@ from veredi.game.ecs.component      import ComponentManager
 from veredi.game.ecs.entity         import EntityManager
 
 from veredi.game.ecs.const          import (SystemTick,
-                                            SystemPriority,
-                                            DebugFlag)
+                                            SystemPriority)
 
-from veredi.game.ecs.base.identity  import (ComponentId,
-                                            EntityId,
-                                            SystemId)
-from veredi.game.ecs.base.system    import (System,
-                                            SystemLifeCycle,
-                                            SystemError)
+from veredi.game.ecs.base.identity  import ComponentId
+from veredi.game.ecs.base.system    import System
 from veredi.game.ecs.base.component import Component
 
 
@@ -99,7 +100,7 @@ class SkillSystem(System):
         # ---
         # Context Stuff
         # ---
-        config = ConfigContext.config(context) # Configuration obj
+        config = ConfigContext.config(context)  # Configuration obj
         if not config:
             raise ConfigContext.exception(
                 context,
@@ -108,9 +109,9 @@ class SkillSystem(System):
                 "supplied context.",
                 self.__class__.__name__)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # System Registration / Definition
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
@@ -120,9 +121,9 @@ class SkillSystem(System):
         # Trying out MEDIUM... why not?
         return SystemPriority.MEDIUM
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
@@ -170,7 +171,8 @@ class SkillSystem(System):
         component = entity.get(SkillComponent)
         if not component:
             # Component disappeared, and that's ok.
-            log.info("Dropping event {} - no SkillComponent for it on entity: {}",
+            log.info("Dropping event {} - no SkillComponent for "
+                     "it on entity: {}",
                      event, entity,
                      context=event.context)
             # §-TODO-§ [2020-06-04]: a health thing? e.g.
@@ -190,9 +192,9 @@ class SkillSystem(System):
                                      skill=event.skill, amount=amount)
             self._event_notify(next_event)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _update(self,
                 tick:          SystemTick,
@@ -210,8 +212,7 @@ class SkillSystem(System):
                 log.Level.WARNING,
                 "HEALTH({}): Skipping ticks - our system health "
                 "isn't good enough to process.",
-                self.health, event,
-                context=event.context)
+                self.health)
             return self._health_check()
 
         for entity in self._wanted_entities(tick, time_mgr,

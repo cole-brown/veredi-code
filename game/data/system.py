@@ -12,35 +12,31 @@ That is, it is the start and end point of loads and saves.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Optional, Set, Type, Union, Iterable, Mapping
+from typing import Any, Optional, Set, Type, Union, Mapping
+from decimal import Decimal
 
-
-from veredi.logger import log
-from veredi.base.const import VerediHealth
+from veredi.logger          import log
+from veredi.base.const      import VerediHealth
 from veredi.base.exceptions import VerediError
-from veredi.base.context import VerediContext
+from veredi.base.context    import VerediContext
 
 # Game / ECS Stuff
-from ..ecs.event import EventManager
-from ..ecs.time import TimeManager
-from ..ecs.component import ComponentManager
+from ..ecs.managers         import EcsManager
+from ..ecs.event            import EventManager
+from ..ecs.time             import TimeManager
+from ..ecs.component        import ComponentManager
+from ..ecs.entity           import EntityManager
 
-from ..ecs.const import (SystemTick,
-                         SystemPriority,
-                         DebugFlag)
+from ..ecs.const            import (SystemTick,
+                                    SystemPriority)
 
-from ..ecs.base.identity import (ComponentId,
-                                 EntityId,
-                                 SystemId)
-from ..ecs.base.system import (System,
-                               SystemLifeCycle,
-                               SystemError)
-from ..ecs.base.component import Component
+from ..ecs.base.identity    import ComponentId
+from ..ecs.base.system      import (System,
+                                    SystemErrorV)
+from ..ecs.base.component   import Component
 
 # Events
 # Do we need these system events?
-from ..ecs.system import (SystemEvent,
-                          SystemLifeEvent)
 from .event import (
     # Our events
     DataLoadRequest,
@@ -96,9 +92,9 @@ class DataSystem(System):
         # ---
         # No context stuff for us.
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # System Registration / Definition
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
@@ -107,11 +103,11 @@ class DataSystem(System):
         '''
         return SystemPriority.DATA_REQ
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
+    def subscribe(self, event_manager: EventManager) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
@@ -120,9 +116,9 @@ class DataSystem(System):
 
         # DataSystem subs to:
         # - DecodedEvent
-        #   The data has been interpreted into Python/Veredi. Now it needs to be
-        #   stuffed into a component or something and attached to an entity or
-        #   something.
+        #   The data has been interpreted into Python/Veredi. Now it needs to
+        #   be stuffed into a component or something and attached to an entity
+        #   or something.
         #   - We create a DataLoadedEvent once this is done.
         self._manager.event.subscribe(DecodedEvent,
                                       self.event_decoded)
@@ -150,14 +146,15 @@ class DataSystem(System):
         if not multipass:
             raise log.exception(
                 None,
-                SystemError,
+                SystemErrorV,
                 "{} could not create anything from event {}. "
                 "args: {}, kwargs: {}, context: {}",
                 self.__class__.__name__,
-                event, context
-            ) from error
+                event, event.context
+            )
 
-        # Create this registered component from their "multipass" with this data.
+        # Create this registered component from their "multipass"
+        # with this data.
         retval = self._manager.component.create(multipass,
                                                 event.context,
                                                 data=doc)
@@ -189,20 +186,26 @@ class DataSystem(System):
         for doc in event.data:
             try:
                 if 'record-type' in doc:
-                    log.debug("Processing event {}, rec: {}, doc: {}.", event, doc['record-type'], doc['doc-type'])
+                    log.debug("Processing event {}, rec: {}, doc: {}.",
+                              event,
+                              doc['record-type'],
+                              doc['doc-type'])
                 else:
-                    log.debug("Processing event {}, rec: {}, doc: {}.", event, None, doc['doc-type'])
+                    log.debug("Processing event {}, rec: {}, doc: {}.",
+                              event,
+                              None,
+                              doc['doc-type'])
                 if 'doc-type' in doc and doc['doc-type'] == 'component':
                     log.debug("Found component; requesting creation.")
                     cid = self.request_creation(doc, event)
-            except SystemError:
+            except SystemErrorV:
                 # Ignore these - bubble up.
                 raise
             except VerediError as error:
-                # Chain/wrap in a SystemError.
+                # Chain/wrap in a SystemErrorV.
                 raise log.exception(
                     error,
-                    SystemError,
+                    SystemErrorV,
                     "{} failed when trying "
                     "to create from data. event: {}, "
                     "context: {}",
@@ -238,11 +241,10 @@ class DataSystem(System):
 
         pass
 
-        # Clear out any dirty or save flag?
+        # TODO: Clear out any dirty or save flag?
 
-        # Do DataSavedEvent to alert whoever asked for the save that
+        # TODO: Do DataSavedEvent to alert whoever asked for the save that
         # it's done now?
-
 
         # context = self._repository.context.push(event.context)
         #
@@ -255,15 +257,15 @@ class DataSystem(System):
         #                         component_id=cid)
         # self._event_notify(event)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def update_tick(self,
                     tick:          SystemTick,
-                    time_mgr:      'TimeManager',
-                    component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> VerediHealth:
+                    time_mgr:      TimeManager,
+                    component_mgr: ComponentManager,
+                    entity_mgr:    EntityManager) -> VerediHealth:
         '''
         Generic tick function. We do the same thing every tick state we process
         so do it all here.
@@ -275,8 +277,7 @@ class DataSystem(System):
                 log.Level.WARNING,
                 "HEALTH({}): Skipping ticks - our system health "
                 "isn't good enough to process.",
-                self.health, event,
-                context=event.context)
+                self.health)
             return self._health_check()
 
         # §-TODO-§ [2020-05-26]: this

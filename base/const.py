@@ -12,9 +12,9 @@ each other.
 import enum
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Health
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 @enum.unique
 class VerediHealth(enum.IntEnum):
@@ -23,9 +23,9 @@ class VerediHealth(enum.IntEnum):
     some ECS manager functions, and other not-exactly-game systems.
     '''
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Manually setting values so that VerediHealth.worst() is easier.
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     # Leave invalid at zero since that's default int.
     INVALID   = 0
@@ -46,8 +46,8 @@ class VerediHealth(enum.IntEnum):
 
     # Pending is more certain than INVALID, but still some quantum state.
     PENDING   = 10
-    '''System is uncertain... Probably waiting on something (e.g. subscribe() so
-    it can know if vital-to-it EventManager exists).'''
+    '''System is uncertain... Probably waiting on something (e.g. subscribe()
+    so it can know if vital-to-it EventManager exists).'''
 
     _GOOD_HEALTH_THRESHOLD = 19
     '''External Folks should not use this - this is just for
@@ -80,8 +80,8 @@ class VerediHealth(enum.IntEnum):
         '''
         Given `a` and `b`, returns the worse health of the two.
         '''
-        # We've set up the enum values so that the worse off your health is, the
-        # lower the number it's assigned.
+        # We've set up the enum values so that the worse off your health is,
+        # the lower the number it's assigned.
         return (a if a.value < b.value else b)
 
     def set(a: 'VerediHealth',
@@ -96,10 +96,9 @@ class VerediHealth(enum.IntEnum):
         if b is VerediHealth.INVALID:
             return a
 
-        # We've set up the enum values so that the worse off your health is, the
-        # lower the number it's assigned.
+        # We've set up the enum values so that the worse off your health is,
+        # the lower the number it's assigned.
         return (a if a.value < b.value else b)
-
 
 
 # -----------------------------------------------------------------------------

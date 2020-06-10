@@ -14,12 +14,12 @@ from datetime import date
 
 from veredi.logger import log
 
-from . import config
 from . import hierarchy
 
 from veredi.data.repository.file import FileTreeRepository
 
 from veredi.zest import zpath, zmake
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -49,30 +49,34 @@ class Test_Configuration(unittest.TestCase):
     def test_config_metadata(self):
         self.assertTrue(self.config._config)
         with log.LoggingManager.full_blast():
-            self.assertEqual(self.config.get_by_doc(
-                hierarchy.Document.METADATA,
-                'record-type'),
-                             'veredi.config')
-            self.assertEqual(self.config.get_by_doc(
-                hierarchy.Document.METADATA,
-                'version'),
-                             date(2020, 5, 26))
-            self.assertEqual(self.config.get_by_doc(
-                hierarchy.Document.METADATA,
-                'author'),
-                             'Cole Brown')
+            self.assertEqual(
+                self.config.get_by_doc(
+                    hierarchy.Document.METADATA,
+                    'record-type'),
+                'veredi.config')
+            self.assertEqual(
+                self.config.get_by_doc(
+                    hierarchy.Document.METADATA,
+                    'version'),
+                date(2020, 5, 26))
+            self.assertEqual(
+                self.config.get_by_doc(
+                    hierarchy.Document.METADATA,
+                    'author'),
+                'Cole Brown')
 
     def test_config_configdata(self):
         self.assertTrue(self.config._config)
         self.assertEqual(self.config.get('doc-type'),
                          'configuration')
-        self.assertEqual(self.config.get_by_doc(
-            hierarchy.Document.CONFIG,
-            'data',
-            'game',
-            'repository',
-            'type'),
-                         'veredi.repository.file-tree')
+        self.assertEqual(
+            self.config.get_by_doc(
+                hierarchy.Document.CONFIG,
+                'data',
+                'game',
+                'repository',
+                'type'),
+            'veredi.repository.file-tree')
         self.assertEqual(self.config.get('data',
                                          'game',
                                          'repository',
@@ -115,10 +119,9 @@ class Test_Configuration(unittest.TestCase):
         self.assertIsInstance(repo, FileTreeRepository)
 
 
-
-# --------------------------------Unit Testing----------------------------------
-# --                      Main Command Line Entry Point                       --
-# ------------------------------------------------------------------------------
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
     # log.set_level(log.Level.DEBUG)

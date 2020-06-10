@@ -24,15 +24,16 @@ from .utils import FormatOptions
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Veredi d20 tree -> evaluate all nodes -> Veredi d20 tree w/ values/total
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class Evaluator:
     @staticmethod
     def _walk(root):
         '''
-        Generator that walks the tree, yielding each node in depth-first manner.
+        Generator that walks the tree, yielding each node in
+        depth-first manner.
         '''
         visited = set()
         # FIFO queue of nodes to be procecssed still
@@ -47,8 +48,8 @@ class Evaluator:
         # ---
         while queue:
             subtree = queue.pop()
-            # Does this node look familiar? Should we bother with it? (Are there
-            # even roll trees with loops or clones?)
+            # Does this node look familiar? Should we bother with it?
+            # (Are there even roll trees with loops or clones?)
             if id(subtree) in visited:
                 continue
 
@@ -83,15 +84,16 @@ class Evaluator:
         return total
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Veredi -> Text
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class Outputter:
     @staticmethod
     def _walk(root, branch_only=True):
         '''
-        Generator that walks the tree, yielding each node in depth-first manner.
+        Generator that walks the tree, yielding each node in
+        depth-first manner.
         '''
         visited = set()
         # FIFO queue of nodes to be procecssed still
@@ -106,8 +108,8 @@ class Outputter:
         # ---
         while queue:
             subtree = queue.pop()
-            # Does this node look familiar? Should we bother with it? (Are there
-            # even roll trees with loops or clones?)
+            # Does this node look familiar? Should we bother with it?
+            # (Are there even roll trees with loops or clones?)
             if id(subtree) in visited:
                 continue
 
@@ -156,7 +158,8 @@ class Outputter:
             branch_output = []
             # §-TODO-§ [2020-04-27]: hm... need a dict or something for the
             # strings? Like for saving a branch, then getting it back next step
-            # to fold into the final output? Or can I just walk and push things?
+            # to fold into the final output? Or can I just walk and push
+            # things?
             for child in branch.children:
                 if branch_output:
                     branch_output.append(operator)
@@ -173,9 +176,9 @@ class Outputter:
         return last + " = " + str(root.value)
 
 
-# -----------------------------------Veredi-------------------------------------
-# --                             Text -> Veredi                               --
-# ------------------------------------------------------------------------------
+# -----------------------------------Veredi------------------------------------
+# --                             Text -> Veredi                              --
+# -----------------------------------------------------------------------------
 
 # def parse_input(input):
 #     ast = Parser.parse(input)

@@ -12,7 +12,7 @@ a DB or JSON comes along they can just implement to the same thing.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, NewType, Mapping, Iterable, Tuple
+from typing import Optional, Union, Any, NewType, Mapping, Dict, Iterable, Tuple
 from collections import abc
 import re
 
@@ -33,9 +33,9 @@ _UD_HASH = 'UserDefined'
 # §-TODO-§ [2020-06-08]: Do I want python errors or VerediErrors raised here?
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Keys
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ---
 # Grouping
@@ -51,8 +51,8 @@ class KeyGroupMarker(abc.Hashable):
       },
     }
 
-    They can parse/translate 'knowledge' into this diet class, and DataDict will
-    finish up for them:
+    They can parse/translate 'knowledge' into this diet class, and DataDict
+    will finish up for them:
     {
       'shenanigans': {...},
       KeyGroupMarker('knowledge'): {
@@ -63,6 +63,7 @@ class KeyGroupMarker(abc.Hashable):
     Pass that into a DataDict and it will pull the marker-key and its value out
     and turn them into a KeyGroup proper.
     '''
+
     def __init__(self, key: str) -> None:
         self._name: str = key
         self._hash: Tuple[str, str] = (_KG_HASH, self._name)
@@ -80,8 +81,8 @@ class KeyGroupMarker(abc.Hashable):
 
     def __eq__(self, other):
         '''
-        Define equality by hash in order to compare KeyGroupMarkers to KeyGroups
-        and vice versa.
+        Define equality by hash in order to compare KeyGroupMarkers to
+        KeyGroups and vice versa.
         '''
         return hash(self) == hash(other)
 
@@ -143,17 +144,22 @@ class KeyGroup(abc.MutableMapping, abc.Hashable):
         If no `re_claim`, the claim will be:
             '^' + name + '.*$'
 
-        NOTE: `re_sub_key` that are re.Patterns should kindly use (or bitwise or
-        into their own flags) the KeyGroup.RE_FLAGS.
+        NOTE: `re_sub_key` that are re.Patterns should kindly use (or bitwise
+        or into their own flags) the KeyGroup.RE_FLAGS.
         If no `re_sub_key`, the pattern will be:
             KeyGroup.RE_SUB_KEY_FMT.format(name=name)
 
           SUB-NOTE: Sub-key's match is in the second group! First group
           contains key's name!
         '''
-        self._name: str = name.name if isinstance(name, KeyGroupMarker) else name
-        '''Our name/key. E.g. for the "Knowledge (Weird Things), Knowledge(Etc)"
-        group, that would be "Knowledge."'''
+
+        self._name: str = (name.name
+                           if isinstance(name, KeyGroupMarker) else
+                           name)
+        '''
+        Our name/key. E.g. for the "Knowledge (Weird Things), Knowledge(Etc)"
+        group, that would be "Knowledge."
+        '''
 
         self._hash: Tuple[str, str] = (_KG_HASH, self._name)
         '''Our values we care about for hashing purposes - shouldn't change
@@ -199,7 +205,7 @@ class KeyGroup(abc.MutableMapping, abc.Hashable):
         # ---
         if isinstance(re_sub_key, str):
             self._re_sub_key = re.compile(re_sub_key,
-                                             re.IGNORECASE)
+                                          re.IGNORECASE)
         elif isinstance(re_sub_key, re.Pattern):
             self._re_sub_key = re_sub_key
         else:
@@ -315,8 +321,8 @@ class KeyGroup(abc.MutableMapping, abc.Hashable):
 
     def __eq__(self, other):
         '''
-        Define equality by hash in order to compare KeyGroupMarkers to KeyGroups
-        and vice versa.
+        Define equality by hash in order to compare KeyGroupMarkers to
+        KeyGroups and vice versa.
         '''
         return hash(self) == hash(other)
 
@@ -334,10 +340,11 @@ class KeyGroup(abc.MutableMapping, abc.Hashable):
 
 class UserDefinedMarker(abc.Hashable):
     '''
-    An element that usually has a rule/data-defined name should instead have one
-    defined by user in this instance. E.g.:
+    An element that usually has a rule/data-defined name should instead have
+    one defined by user in this instance. E.g.:
       - Profession skills can have the specific profession defined by user.
     '''
+
     def __init__(self, key: str) -> None:
         self._name: str = key
         self._hash: Tuple[str, str] = (_UD_HASH, self._name)
@@ -370,19 +377,21 @@ class UserDefinedMarker(abc.Hashable):
         return (f"<{type(self).__name__}({self._name})>")
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Mappings
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class DataDict(abc.MutableMapping):
     '''
     Custom dictionary class to deal with some oddities like key groups. A
-    KeyGroup of e.g. 'knowledge' should know what it contains, and should answer
-    "Yep." if the dictionary says, "Hey, any 'knowledge (weird things)' in me?"
+    KeyGroup of e.g. 'knowledge' should know what it contains, and should
+    answer "Yep." if the dictionary says, "Hey, any 'knowledge (weird things)'
+    in me?"
 
     So to do this, the dictionary should know what keys to just check cuz
     they're e.g. strings and what to prod a little deeper into.
     '''
+
     def __init__(self,
                  data: Mapping[DDKey, Any] = {}) -> None:
         self._mapping = {}
@@ -413,7 +422,7 @@ class DataDict(abc.MutableMapping):
                 return each[key]
 
         raise log.exception(KeyError("Key is not in mapping or KeyGroups.",
-                                      key),
+                                     key),
                             exceptions.LoadError,
                             "Key {} is not in mapping or KeyGroups. "
                             "map: {}, groups: {}",
@@ -478,7 +487,6 @@ class DataDict(abc.MutableMapping):
     def update_group(self,
                      key: KeyGroupMarker,
                      value: Mapping[str, Any]) -> None:
-        match_indexes = []
         # Find any existing group and remove...
         # Can do this because of how hash/eq is implement in
         # KeyGroups and KeyGroupMarkers.
@@ -562,7 +570,7 @@ class DataDictIterator(abc.Iterable):
         if not self._group_iter:
             self._group_index += 1
             if self._group_index < self._group_len:
-                self._group_iter = iter(grouping[self._group_index])
+                self._group_iter = iter(self._group[self._group_index])
             else:
                 self._group_iter = None
 
@@ -576,5 +584,3 @@ class DataDictIterator(abc.Iterable):
 
         # Falling through to here means we're all done.
         raise StopIteration
-
-

@@ -1,20 +1,14 @@
 # coding: utf-8
 
-'''Small utilities that don't have a better place or a large enough grouping
-for another module.
-
+'''
+Constants, Enums, and Stuff for roll.d20 module.
 '''
 
 # -----------------------------------------------------------------------------
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
 import enum
-
-# Framework
-
-# Our Stuff
 
 
 # -----------------------------------------------------------------------------

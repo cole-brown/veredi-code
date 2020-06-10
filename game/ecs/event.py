@@ -8,26 +8,30 @@ Event Manager. Pub/Sub style. Subscribe to events by class type.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Callable, Type, Any, Union, Optional
+from typing import (TYPE_CHECKING,
+                    Callable, Type, Any, Union, Optional)
+if TYPE_CHECKING:
+    from .const import SystemTick
+    from .time import TimeManager
+
 import enum
 
-from veredi.base.const import VerediHealth
+from veredi.base.const         import VerediHealth
 from veredi.data.config.config import Configuration
-from veredi.logger import log
+from veredi.logger             import log
 
-from . import exceptions
-from .manager import EcsManager
-from .base.identity import MonotonicId
-from veredi.base.context import VerediContext
+from .manager                  import EcsManager
+from .base.identity            import MonotonicId
+from veredi.base.context       import VerediContext
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Manager Interface Subclass
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class EcsManagerWithEvents(EcsManager):
     # TODO: init that pulls in event_manager to self._event_manager?
@@ -115,9 +119,9 @@ class Event:
     def context(self) -> int:
         return self._context
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _str_name(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
@@ -135,12 +139,13 @@ class Event:
         return self.__class__.__name__
 
     def __repr__(self):
-        return f"<{self._str_name(self.__repr_name__())}: {repr(self._context)}>"
+        return (f"<{self._str_name(self.__repr_name__())}: "
+                f"{repr(self._context)}>")
 
 
-# ----------------------------"Party Coordinator"?------------------------------
-# --                   "Event Manager" seems so formal...                     --
-# --------------------------------(oh well...)----------------------------------
+# ----------------------------"Party Coordinator"?-----------------------------
+# --                   "Event Manager" seems so formal...                    --
+# --------------------------------(oh well...)---------------------------------
 
 class EventManager(EcsManager):
     def __init__(self,
@@ -177,7 +182,8 @@ class EventManager(EcsManager):
     def notify(self,
                event: Any,
                requires_immediate_publish: bool = False) -> None:
-        '''Called when an entity, component, system, or whatever wants to notify
+        '''
+        Called when an entity, component, system, or whatever wants to notify
         potential subscribers of an event that just happened.
 
         If `requires_immediate_publish` is set to True, the EventManager will
@@ -189,7 +195,6 @@ class EventManager(EcsManager):
 
         Note: you are turning over lifecycle management of the event to
         EventManager.
-
         '''
         log.debug("Received {} for publishing {}.",
                   event,

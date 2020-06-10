@@ -33,15 +33,16 @@ from veredi.game.ecs.entity      import EntityManager
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Configuration
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def config(test_type:    zpath.TestType                 = zpath.TestType.UNIT,
            config_path:  Union[pathlib.Path, str, None] = None,
            config_repo:  Optional[BaseRepository]       = None,
            config_codec: Optional[BaseCodec]            = None,
-           repo_path:    Union[pathlib.Path, str, None] = None) -> Configuration:
+           repo_path:    Union[pathlib.Path, str, None] = None
+           ) -> Configuration:
     '''
     Creates a configuration with the requested config file path.
     If name is Falsy, uses 'zest/config/config.testing.yaml'.
@@ -64,25 +65,31 @@ def config(test_type:    zpath.TestType                 = zpath.TestType.UNIT,
     return config
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Meeting of Managers
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-def meeting(test_type:         zpath.TestType             = zpath.TestType.UNIT,
-            configuration:     Optional[Configuration]    = None,
-            time_manager:      Optional[TimeManager]      = None,
-            event_manager:     Optional[EventManager]     = None,
-            component_manager: Optional[ComponentManager] = None,
-            entity_manager:    Optional[EntityManager]    = None,
-            debug_flags:       Optional[DebugFlag]        = None) -> None:
+def meeting(
+        test_type:         zpath.TestType             = zpath.TestType.UNIT,
+        configuration:     Optional[Configuration]    = None,
+        time_manager:      Optional[TimeManager]      = None,
+        event_manager:     Optional[EventManager]     = None,
+        component_manager: Optional[ComponentManager] = None,
+        entity_manager:    Optional[EntityManager]    = None,
+        debug_flags:       Optional[DebugFlag]        = None) -> None:
+    '''
+    Creates a Meeting of EcsManagers using inputs, or creating defaults for
+    things that aren't provided.
 
-    config    = configuration     or config(test_type)
-    time      = time_manager      or TimeManager()
-    event     = event_manager     or EventManager(config)
-    component = component_manager or ComponentManager(config,
-                                                      event)
-    entity    = entity_manager    or EntityManager(config,
-                                                   event,
-                                                   component)
+    If no configuration, uses zmake.config(test_type)
+    '''
+    configuration = configuration     or config(test_type)
+    time          = time_manager      or TimeManager()
+    event         = event_manager     or EventManager(config)
+    component     = component_manager or ComponentManager(config,
+                                                          event)
+    entity        = entity_manager    or EntityManager(config,
+                                                       event,
+                                                       component)
 
     return Meeting(time, event, component, entity, debug_flags)

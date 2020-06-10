@@ -22,9 +22,9 @@ from .utils import FormatOptions
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Base-most class for tree (leaves, branches, everything).
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class Node:
     '''Base-most class for tree (leaves, branches, everything).'''
@@ -40,9 +40,9 @@ class Node:
 
     def __repr__(self):
         return str(self)
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Properties
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def value(self):
@@ -52,30 +52,31 @@ class Node:
     # def value(self, new_value):
     #     self._value = new_value
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Evaluate
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def eval(self):
-        '''Evaluate this tree node (roll dice, add children together, whatever).
+        '''
+        Evaluate this tree node (roll dice, add children together, whatever).
         '''
         self._eval()
         return self.value
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Single-Line Math/Roll Expression String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def expr_str(self, options=None):
-        '''String for this node's math expression representation.
-        No context - just this node.
-
+        '''
+        String for this node's math expression representation. No context -
+        just this node.
         '''
         return self._expr_str(options)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Maths
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def __add__(self, other):
         if self._value is None:
@@ -87,7 +88,8 @@ class Node:
 
     def __sub__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot subtract; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot subtract; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value - other._value
@@ -95,7 +97,8 @@ class Node:
 
     def __mul__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot multiply; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot multiply; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value * other._value
@@ -103,7 +106,8 @@ class Node:
 
     def __truediv__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot true-divide; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot true-divide; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value / other._value
@@ -111,7 +115,8 @@ class Node:
 
     def __floordiv__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot floor-divide; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot floor-divide; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value // other._value
@@ -119,7 +124,8 @@ class Node:
 
     def __mod__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot modulo; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot modulo; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value % other._value
@@ -127,22 +133,23 @@ class Node:
 
     def __pow__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot power; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot power; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value ** other._value
         return self._value ** other
 
-
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Comparisons
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     # # TODO [2020-04-25]: May need to compare tags and such...
 
     def __lt__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot less-than; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot less-than; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value < other._value
@@ -150,7 +157,8 @@ class Node:
 
     def __gt__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot greater-than; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot greater-than; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value > other._value
@@ -158,7 +166,8 @@ class Node:
 
     def __le__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot less-than-or-equal; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot less-than-or-equal; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value <= other._value
@@ -166,7 +175,8 @@ class Node:
 
     def __ge__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot greater-than-or-equal; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot greater-than-or-equal; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value >= other._value
@@ -174,7 +184,8 @@ class Node:
 
     def __eq__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot equal; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot equal; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value == other._value
@@ -182,7 +193,8 @@ class Node:
 
     def __ne__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot not-equal; {str(self)} has a value of None.")
+            raise ValueError(f"Cannot not-equal; {str(self)} has a "
+                             "value of None.")
 
         if isinstance(other, Node):
             return self._value != other._value
@@ -196,9 +208,9 @@ class Node:
 class Leaf(Node):
     '''Leaf node of parsed tree. Dice, constants, vars, etc.'''
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Constructor
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def __init__(self, tags=None):
         super().__init__(tags)
@@ -206,9 +218,9 @@ class Leaf(Node):
         # 1 == positive, -1 == negative
         self._sign = 1
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def __str__(self):
         return self.__class__.__name__
@@ -219,9 +231,9 @@ class Leaf(Node):
     def _pretty_name(self):
         return str(self)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Unary Operators
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def neg(self):
         '''
@@ -236,18 +248,18 @@ class Leaf(Node):
         # self._sign = self._sign * 1
         pass
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To Final Value
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _eval(self):
         # TODO [2020-04-23]: make this an abstract base class and force
         # children to implement this
         pass
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Leaf Actuals
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class Dice(Leaf):
 
@@ -267,7 +279,7 @@ class Dice(Leaf):
             f"{'=' + str(self.roll) if self.roll is not None else ''}"
             f"{'==' + str(self.value) if self.value is not None else ''}"
             f")"
-            )
+        )
 
     def _eval(self):
         # Roll each die, record result.
@@ -333,7 +345,7 @@ class Constant(Leaf):
             f"{'-' if self._sign < 0 else ''}"
             f"{self._value}"
             f")"
-            )
+        )
 
     def _eval(self):
         # We already have our (constant) value and
@@ -368,7 +380,7 @@ class Variable(Leaf):
             f"{'-' if self._sign < 0 else ''}"
             f"{self.name}"
             f")"
-            )
+        )
 
     def _eval(self):
         # TODO [2020-04-23]: Dunno where this will eval from...
@@ -383,7 +395,8 @@ class Variable(Leaf):
             return ''
 
         output = []
-        name_fmt = options.any(FormatOptions.INITIAL, FormatOptions.INTERMEDIATE)
+        name_fmt = options.any(FormatOptions.INITIAL,
+                               FormatOptions.INTERMEDIATE)
         if name_fmt:
             if not self.name:
                 output.append(self.NULL_SIGN)
@@ -407,10 +420,9 @@ class Variable(Leaf):
         return str_out
 
 
-
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Tree Node
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class Branch(Node):
     def __init__(self, children, tags=None):
@@ -437,12 +449,13 @@ class Branch(Node):
         return f"{self.__class__.__name__}"
 
     def _pretty(self, level, indent_str):
-        '''Returns a line of str fragments to concat into one pretty branch line
+        '''
+        Returns a line of str fragments to concat into one pretty branch line
         output.
-
         '''
         # Leaf or junk in our tree. Just print it.
-        if len(self.children) == 1 and not isinstance(self.children[0], Branch):
+        if (len(self.children) == 1
+                and not isinstance(self.children[0], Branch)):
             return [indent_str * level, self._pretty_name(), '\n']
 
         # Else print me then my children.
@@ -474,12 +487,13 @@ class Branch(Node):
         self._value = reduce(self._act_on_children, self.children)
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Mathmatic Operations
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class OperatorMath(Branch):
     '''Base class for math nodes.'''
+
     def __init__(self, children, operator, op_str, tags=None):
         super().__init__(children, tags)
         self.__operator = operator
@@ -570,7 +584,7 @@ class OperatorDiv(OperatorMath):
 
 class OperatorMod(OperatorMath):
     STR_ASCII = '%'
-    STR_UNICODE = '%' # Modulo doesn't have a math symbol...
+    STR_UNICODE = '%'  # Modulo doesn't have a math symbol...
 
     def __init__(self, children, tags=None):
         super().__init__(children,
@@ -584,7 +598,8 @@ class OperatorMod(OperatorMath):
 
 class OperatorPow(OperatorMath):
     STR_ASCII = '^'
-    # Be nice to super-script the 'power-of' component, but that is complicated.
+    # It would be nice to super-script the 'power-of' component, but
+    # that is complicated... maybe?
     STR_UNICODE = '^'
 
     def __init__(self, children, tags=None):

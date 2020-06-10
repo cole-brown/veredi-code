@@ -32,6 +32,7 @@ class TestType(enum.Enum):
     def path(self) -> pathlib.Path:
         return self.value
 
+
 # -----------------------------------------------------------------------------
 # Helper
 # -----------------------------------------------------------------------------
@@ -55,9 +56,9 @@ def rooted(test_type: TestType,
     return retval(test_type.path().joinpath(*relative))
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Codecs
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def codec(test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:
     '''
@@ -66,9 +67,9 @@ def codec(test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:
     return retval(rooted(test_type, 'codec'))
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Repositories
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def repository(test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:
     '''
@@ -77,16 +78,17 @@ def repository(test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:
     return retval(rooted(test_type, 'repository'))
 
 
-def repository_file_tree(test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:
+def repository_file_tree(test_type: TestType = TestType.UNIT
+                         ) -> Optional[pathlib.Path]:
     '''
     Returns pathlib.Path to FileTreeRepository test data.
     '''
     return retval(rooted(test_type, 'repository', 'file-tree'))
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Configuration
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def config(filepath: Union[pathlib.Path, str, None],
            test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:

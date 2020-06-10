@@ -9,17 +9,12 @@ Skills Component
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Iterable, MutableMapping
-import enum
+from typing import Optional, Any, Mapping, MutableMapping, Dict
 
 from veredi.logger                  import log
-from veredi.base.context            import VerediContext
 from veredi.data.config.context     import ConfigContext
 from veredi.data.config.registry    import register
 
-from veredi.data.exceptions         import (DataNotPresentError,
-                                            DataRestrictedError)
-from veredi.game.ecs.base.component import ComponentError
 from veredi.game.data.component     import DataComponent
 
 # -----------------------------------------------------------------------------
@@ -37,8 +32,8 @@ class SkillComponent(DataComponent):
     Component with skill numbers, probably other stuff...
     '''
 
-    # §-TODO-§ [2020-06-04]: Some sort of rules config file where this sort of
-    # thing would live?
+    # §-TODO-§ [2020-06-04]: Some sort of rules config file where this sort
+    # of thing would live?
     _CLASS_BONUS = 3
 
     # TEMP: a way to verify we got something, and to verify we're using the
@@ -48,9 +43,9 @@ class SkillComponent(DataComponent):
         'skill': [],
     }
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Init Stuff
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _configure(self,
                    context: Optional[ConfigContext]) -> None:
@@ -75,9 +70,9 @@ class SkillComponent(DataComponent):
         actual_data = data['skill']
         super()._from_data(actual_data)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Skill or Whatever Queue
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # §-TODO-§ [2020-06-04]: QueueComponent Interface to inherit from?
 
     @property
@@ -85,25 +80,25 @@ class SkillComponent(DataComponent):
         return bool(self._queued)
 
     @property
-    def queued(self):  # TODO: returns..... SkillRequestEvent? Or what? -> ???:
+    def queued(self):  # TODO: returns... SkillRequestEvent? Or what?
         '''Peek at queued skill/whetever.'''
         return self._queued
 
     @property
-    def dequeue(self):  # TODO: returns..... SkillRequestEvent? Or what? -> ???:
+    def dequeue(self):  # TODO: returns... SkillRequestEvent? Or what?
         '''Pop and return queued skill/whetever.'''
         retval = self._queued
         self._queued = None
         return retval
 
     @queued.setter
-    def enqueue(self, value):  # TODO: value is..... SkillRequestEvent? Or what?
+    def enqueue(self, value):  # TODO: value is... SkillRequestEvent? Or what?
         '''Set queued attack/whetever.'''
         self._queued = value
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Public API
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def is_class(self, skill: str) -> bool:
         '''
@@ -139,9 +134,9 @@ class SkillComponent(DataComponent):
         # ... other things eventually probably
         return (ranks + klass)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Skill Stuff
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _skill(self, name: str) -> Dict[str, Any]:
         '''
@@ -177,4 +172,3 @@ class SkillComponent(DataComponent):
         Get ranks invested in `skill`.
         '''
         return entry.get('ranks', 0)
-

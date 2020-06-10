@@ -8,14 +8,12 @@ Events related to game data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (Optional, Any, Type, Union,
-                    Set, MutableMapping, Mapping, Iterable)
+from typing import Optional, Union
 from io import TextIOBase
 import enum
 
 from veredi.base.context import VerediContext
-from veredi.data.context import (DataGameContext,
-                                 DataLoadContext,
+from veredi.data.context import (DataLoadContext,
                                  DataSaveContext)
 from ..ecs.base.identity import (MonotonicId,
                                  ComponentId)
@@ -56,7 +54,7 @@ from ..ecs.event import Event
 #    │                       - data/save subs
 #    ├ Data Saved Event      - data/save owns
 #    │                       - data/save pubs
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 class DataEvent(Event):
@@ -69,9 +67,9 @@ class DataEvent(Event):
     #     return {'data': self.data}
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # General Data Events
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class DataLoadRequest(DataEvent):
     pass
@@ -85,7 +83,7 @@ class DataLoadedEvent(DataEvent):
     def __init__(self,
                  id:           Union[int, MonotonicId],
                  type:         Union[int, enum.Enum],
-                 context:      VerediContext,
+                 context:      DataLoadContext,  # or just VerediContext?
                  component_id: Union[int, ComponentId]) -> None:
         self.set(id, type, context, component_id)
 
@@ -101,9 +99,9 @@ class DataLoadedEvent(DataEvent):
         super().reset()
         self.component_id = ComponentId.INVALID
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _str_name(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
@@ -115,9 +113,9 @@ class DataLoadedEvent(DataEvent):
 
 class DataSavedEvent(DataEvent):
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _str_name(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
@@ -127,10 +125,9 @@ class DataSavedEvent(DataEvent):
         return "DSdEvent"
 
 
-
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Serialization / Repository Events
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class DeserializedEvent(DataEvent):
     def __init__(self,
@@ -152,9 +149,9 @@ class DeserializedEvent(DataEvent):
         super().reset()
         self.data = None
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _str_data(self):
         return ('None'
@@ -190,22 +187,22 @@ class SerializedEvent(DataEvent):
     pass
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Codec Events
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class DecodedEvent(DataEvent):
     def __init__(self,
                  id:      Union[int, MonotonicId],
                  type:    Union[int, enum.Enum],
-                 context: VerediContext,
+                 context: DataLoadContext,  # or just VerediContext?
                  data:    list = None) -> None:
         self.set(id, type, context, data)
 
     def set(self,
             id:      Union[int, MonotonicId],
             type:    Union[int, enum.Enum],
-            context: VerediContext,
+            context: DataLoadContext,  # or just VerediContext?
             data:    list) -> None:
         super().set(id, type, context)
         self.data = data
@@ -214,9 +211,9 @@ class DecodedEvent(DataEvent):
         super().reset()
         self.data = None
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # To String
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def _str_data(self):
         return ('None'
@@ -247,6 +244,6 @@ class DecodedEvent(DataEvent):
                 f"data: {self._repr_data()}, "
                 f"context: {str(self._context)}>")
 
+
 class EncodedEvent(DataEvent):
     pass
-

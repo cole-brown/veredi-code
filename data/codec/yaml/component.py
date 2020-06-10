@@ -11,7 +11,6 @@ YAML library subclasses for encoding/decoding components.
 import yaml
 from pydoc import locate  # For str->type.
 
-from veredi.logger import log
 from veredi.data import exceptions
 from veredi import mathing
 
@@ -23,17 +22,17 @@ from ..adapter.dict import KeyGroupMarker, UserDefinedMarker
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Base yaml.YAMLObject?
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-# §-TODO-§ [2020-05-21]: YAML something or other so we can barf out context in
-# our errors? Or should we be throwing YAML errors instead of Veredi errors?
+# §-TODO-§ [2020-05-21]: YAML something or other so we can barf out context
+# in our errors? Or should we be throwing YAML errors instead of Veredi errors?
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Document Types
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class DocComponent(base.VerediYamlDocument):
     yaml_tag = '!component'
@@ -51,9 +50,9 @@ class DocComponentRequirements(base.VerediYamlDocument):
     yaml_tag = '!component.requirements'
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Template Objects
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ---
 # Property
@@ -112,7 +111,9 @@ class PropertyPsuedo(base.VerediYamlTag):
 #     state = loader.construct_scalar(node)
 #     instance.__init__(state)
 #
-# yaml.add_constructor(EntryGroup.yaml_tag, grouped_constructor, Loader=yaml.SafeLoader)
+# yaml.add_constructor(EntryGroup.yaml_tag,
+#                      grouped_constructor,
+#                      Loader=yaml.SafeLoader)
 
 
 # Constructor for our KeyGroupMarker adapter class.
@@ -126,9 +127,11 @@ def grouped_constructor(loader, node):
     instance.__init__(name)
     return instance
 
+
 yaml.add_constructor('!grouped',
                      grouped_constructor,
                      Loader=yaml.SafeLoader)
+
 
 # Constructor for our UserDefinedMarker adapter class.
 def user_defined_constructor(loader, node):
@@ -141,14 +144,15 @@ def user_defined_constructor(loader, node):
     instance.__init__(name)
     return instance
 
+
 yaml.add_constructor('!user.defined',
                      user_defined_constructor,
                      Loader=yaml.SafeLoader)
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Requirements Objects
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # ---
 # Fallback Value
@@ -167,6 +171,7 @@ class Fallback(base.VerediYamlRequirement):
                 f"got: '{self.tag}' of type '{type(self.tag)}'",
                 None, None)
 
+
 # ---
 # Optionals
 # ---
@@ -180,8 +185,8 @@ class Optional(base.VerediYamlRequirement):
             self.tag = value
         else:
             raise exceptions.DataRequirementsError(
-                f"'{self.yaml_tag}' requires a string for denoting conditions, "
-                f"got: '{self.tag}' of type '{type(self.tag)}'",
+                f"'{self.yaml_tag}' requires a string for denoting "
+                f"conditions, got: '{self.tag}' of type '{type(self.tag)}'",
                 None, None)
 
 
@@ -214,8 +219,8 @@ class OptionalInt(Optional):
 
     def normalize(self):
         '''
-        Attempts to normalize self.tag, throws DataRequirementsError if it finds
-        something invalid.
+        Attempts to normalize self.tag, throws DataRequirementsError if it
+        finds something invalid.
         '''
         value = self.tag
         if value is None:
@@ -260,7 +265,6 @@ class OptionalInt(Optional):
         # Ok... finally done; save our normalized value back to instance var.
         self.tag = value
 
-
     def _valid_amount(self, amount):
         return self._valid_comparison(amount, self.tag)
 
@@ -286,8 +290,9 @@ class OptionalFromComponent(Optional):
         pass
 
     def valid(self, check):
-        return (value is not None
-                and isinstance(value, str))
+        return (check is not None
+                and isinstance(check, str))
+
 
 class OptionalFromComponents(Optional):
     yaml_tag = '!optional.from.components'
@@ -301,8 +306,8 @@ class OptionalFromComponents(Optional):
         pass
 
     def valid(self, check):
-        return (value is not None
-                and isinstance(value, str))
+        return (check is not None
+                and isinstance(check, str))
 
 
 class OptionalEntries(Optional):

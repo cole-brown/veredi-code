@@ -16,7 +16,6 @@ $ ./veredi.py help
 # Python
 # ---
 import argparse
-import os
 
 # ---
 # Veredi: Misc
@@ -97,8 +96,8 @@ def _init_subcommands(parser):
     #           by default the name of the program and any positional arguments
     #           before the subparser argument
     #
-    #  - parser_class - class which will be used to create sub-parser instances,
-    #                   by default the class of the current parser
+    #  - parser_class - Class which will be used to create sub-parser
+    #                   instances, by default the class of the current parser
     #                   (e.g. ArgumentParser)
     #
     #  - action - the basic type of action to be taken when this argument is
@@ -113,7 +112,8 @@ def _init_subcommands(parser):
     #  - help - help for sub-parser group in help output, by default None
     #
     #  - metavar - string presenting available sub-commands in help; by default
-    #              it is None and presents sub-commands in form {cmd1, cmd2, ..}
+    #              it is None and presents sub-commands in
+    #              form {cmd1, cmd2, ..}
 
     _init_cmd_roll(subparsers)
     _init_cmd_session(subparsers)
@@ -137,8 +137,8 @@ def _init_cmd_session(subparsers):
 
     roll_parser = subparsers.add_parser(
         'session',
-        help=("Loads a game's/session's data (players, etc). Then takes a dice "
-              "expression (e.g. '3d20 + $str_mod + d6 - d10 / 2'), "
+        help=("Loads a game's/session's data (players, etc). Then takes a "
+              "dice expression (e.g. '3d20 + $str_mod + d6 - d10 / 2'), "
               "rolls the dice, does the math, and returns the results."))
 
     # Arg for type/system (e.g. d20)?
@@ -158,7 +158,11 @@ def _init_cmd_session(subparsers):
                              help='Name of game/campaign.')
 
     roll_parser.add_argument('expression', nargs='*')
-    roll_parser.set_defaults(func=cmd_session)
+    roll_parser.set_defaults(func=_not_implemented)  # cmd_session)
+
+
+def _not_implemented(*args, **kwargs):
+    raise NotImplementedError("_not_implemented called with:", args, kwargs)
 
 
 def _init_parser():
@@ -189,17 +193,17 @@ def _parse_args(parser):
     return parser.parse_args()
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Other Setup Functions
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def _init_logging():
     log.init()
     log.debug("test?")
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Sub-command Entry Points
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # def cmd_base(args):
 #     print("Veredi has nothing to do...")
@@ -213,43 +217,44 @@ def cmd_roll(args):
     print("rolled:", parse_input(expression))
 
 
-def cmd_session(args):
-    import veredi.game.session
-    import veredi.repository.player
-    # from veredi.roll.d20.parser import parse_input
+# def cmd_session(args):
+#     import veredi.game.session
+#     import veredi.repository.player
+#     # from veredi.roll.d20.parser import parse_input
 
-    # ---
-    # Repository Setup
-    # ---
-    root_data_dir = os.path.join(os.getcwd(),
-                                 "..",  # Test dir is sibling of veredi code dir
-                                 "test",
-                                 "data",
-                                 "repository",
-                                 "file",
-                                 "json")
-    root_human_dir = os.path.join(root_data_dir,
-                                  "human")
-    root_hashed_dir = os.path.join(root_data_dir,
-                                   "hashed")
-    repo_human = repository.player.PlayerRepository_FileJson(
-        root_human_dir,
-        repository.player.PathNameOption.HUMAN_SAFE)
+#     # ---
+#     # Repository Setup
+#     # ---
+#     root_data_dir = os.path.join(
+#         os.getcwd(),
+#         "..",  # Test dir is sibling of veredi code dir
+#         "test",
+#         "data",
+#         "repository",
+#         "file",
+#         "json")
+#     root_human_dir = os.path.join(root_data_dir,
+#                                   "human")
+#     root_hashed_dir = os.path.join(root_data_dir,
+#                                    "hashed")
+#     repo_human = repository.player.PlayerRepository_FileJson(
+#         root_human_dir,
+#         repository.player.PathNameOption.HUMAN_SAFE)
 
-    # ---
-    # Session Setup
-    # ---
-    players = [("us1!{er", "jeff")]
-    session = game.session.Session("some-forgotten-campaign",
-                                   players,
-                                   repo_human)
+#     # ---
+#     # Session Setup
+#     # ---
+#     players = [("us1!{er", "jeff")]
+#     session = game.session.Session("some-forgotten-campaign",
+#                                    players,
+#                                    repo_human)
 
-    # ---
-    # Roll one thing and throw it all away! ^_^
-    # ---
-    expression = ' '.join(args.expression)
-    print("input: ", expression)
-    print("rolled:", session.roll("jeff", expression))
+#     # ---
+#     # Roll one thing and throw it all away! ^_^
+#     # ---
+#     expression = ' '.join(args.expression)
+#     print("input: ", expression)
+#     print("rolled:", session.roll("jeff", expression))
 
 
 # -----------------------------------Veredi------------------------------------

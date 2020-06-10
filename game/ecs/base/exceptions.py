@@ -14,9 +14,9 @@ All your Exceptions are belong to these classes.
 from veredi.base.exceptions import VerediError
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Exceptions
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class ComponentError(VerediError):
     def __init__(self, message, cause, context):
@@ -30,7 +30,11 @@ class EntityError(VerediError):
         super().__init__(message, cause, context)
 
 
-class SystemError(VerediError):
+class SystemErrorV(VerediError):
+    '''
+    ...Stupid python built-in SystemError...
+    '''
+
     def __init__(self, message, cause, context):
         '''With context data.'''
         super().__init__(message, cause, context)

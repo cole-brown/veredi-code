@@ -14,17 +14,13 @@ from veredi.zest import zmake
 from veredi.base.context import UnitTestContext
 
 from .event import EventManager
-from .component import (ComponentManager,
-                        ComponentEvent,
-                        ComponentLifeEvent)
+from .component import ComponentManager
 from .entity import (EntityManager,
                      EntityEvent,
                      EntityEventType,
                      EntityLifeEvent)
-from .base.identity import (ComponentId,
-                            EntityId)
-from .base.component import (Component,
-                             ComponentError)
+from .base.identity import EntityId
+from .base.component import Component
 from .base.entity import (Entity,
                           EntityLifeCycle)
 
@@ -40,8 +36,10 @@ from .base.entity import (Entity,
 class CompOne(Component):
     pass
 
+
 class CompTwo(Component):
     pass
+
 
 class CompThree(Component):
     pass
@@ -60,8 +58,11 @@ class Test_EntityManager(unittest.TestCase):
         self.finish_setUp()
 
     def finish_setUp(self):
-        self.comp_mgr   = ComponentManager(self.config, self.event_mgr)
-        self.entity_mgr = EntityManager(self.config, self.event_mgr, self.comp_mgr)
+        self.comp_mgr   = ComponentManager(self.config,
+                                           self.event_mgr)
+        self.entity_mgr = EntityManager(self.config,
+                                        self.event_mgr,
+                                        self.comp_mgr)
 
         self.events_recv = {}
 
@@ -161,7 +162,7 @@ class Test_EntityManager(unittest.TestCase):
         # Now we should have a create...
         self.assertEqual(len(self.entity_mgr._entity), 1)
         self.assertEqual(len(self.entity_mgr._entity_create), 1)
-        self.clear_events() # don't care about create event
+        self.clear_events()  # don't care about create event
         # ...a destroy...
         self.entity_mgr.destroy(eid)
         self.assertEqual(len(self.entity_mgr._entity_destroy), 1)
@@ -205,7 +206,7 @@ class Test_EntityManager(unittest.TestCase):
         self.assertIsInstance(entity,
                               Entity)
         self.assertTrue(entity.contains({CompOne, CompTwo}))
-        self.clear_events() # don't care about previous events
+        self.clear_events()  # don't care about previous events
 
         # Now we add a third
         self.entity_mgr.add(eid, CompThree(2, None))
@@ -249,7 +250,7 @@ class Test_EntityManager(unittest.TestCase):
         self.assertIsInstance(entity,
                               Entity)
         self.assertTrue(entity.contains({CompOne, CompTwo}))
-        self.clear_events() # don't care about create event
+        self.clear_events()  # don't care about create event
 
         # Now we remove one...
         self.entity_mgr.remove(eid, type(comp2))
@@ -296,7 +297,7 @@ class Test_EntityManager(unittest.TestCase):
         self.assertEqual(entity.id, eid)
         self.assertEqual(entity.life_cycle,
                          EntityLifeCycle.CREATING)
-        self.clear_events() # don't care about create event
+        self.clear_events()  # don't care about create event
 
         # Tick past creation to get new entity finished.
         self.entity_mgr.creation(None)
@@ -343,7 +344,7 @@ class Test_EntityManager(unittest.TestCase):
 
         # Now (ask for) destroy!
         self.entity_mgr.destroy(eid)
-        self.clear_events() # don't care about create/destroy event
+        self.clear_events()  # don't care about create/destroy event
 
         # Now (actually do) destroy!
         self.entity_mgr.destruction(None)

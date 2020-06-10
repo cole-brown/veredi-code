@@ -9,11 +9,9 @@ Tests for the generic System class.
 # -----------------------------------------------------------------------------
 
 from datetime import datetime, timezone
-import decimal
 import unittest
 
 from . import time
-from . import exceptions
 
 # -----------------------------------------------------------------------------
 # Constants

@@ -67,7 +67,8 @@ class Tick:
         decimal.getcontext().prec = self._PRECISION
         self._context_extended = decimal.getcontext()
 
-        # BasicContext is better for debugging... has more signal traps enabled.
+        # BasicContext is better for debugging...
+        # has more signal traps enabled.
         decimal.setcontext(decimal.BasicContext)
         # Tune it to millisecond precision
         decimal.getcontext().prec = self._PRECISION
@@ -121,6 +122,8 @@ class Tick:
 class Clock:
     '''
     Keeps a time stamp & time zone. I.e. wall clock/calendar time.
+    This is not a real, actual clock. It gets ticked manually and
+    ignores IRL time.
     '''
 
     def __init__(self,
@@ -139,7 +142,7 @@ class Clock:
                                       microsecond=0)
         return game_time.timestamp()
 
-    def tick(step: float) -> float:
+    def tick(self, step: float) -> float:
         self.time_stamp += step
         return self.time_stamp
 
@@ -156,6 +159,7 @@ class MonotonicTimer:
     '''
     Uses time.monotonic() to track elapsed time.
     '''
+
     def __init__(self):
         self.reset()
 
@@ -177,7 +181,9 @@ class MonotonicTimer:
 
     @property
     def timing(self):
-        '''Not stopped and have a start time means probably timing something.'''
+        '''
+        Not stopped and have a start time means probably timing something.
+        '''
         return (self._start and not self._end)
 
     @property
@@ -213,9 +219,9 @@ class TimeManager(EcsManagerWithEvents):
         if tick_amount <= 0:
             log.error("tick_amount should be `None` or a "
                       "non-zero, positive amount.")
-            raise exceptions.SystemError("tick_amount should be `None` or a "
-                                         "non-zero, positive amount.",
-                                         None, None)
+            raise exceptions.SystemErrorV("tick_amount should be `None` or a "
+                                          "non-zero, positive amount.",
+                                          None, None)
         self.tick  = Tick(tick_amount)
 
     def apoptosis(self) -> VerediHealth:

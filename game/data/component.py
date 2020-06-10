@@ -9,21 +9,17 @@ Data component - a component that has persistent data on it.
 # -----------------------------------------------------------------------------
 
 from typing import (Optional, Union, Any,
-                    Iterable, Collection, Container, MutableMapping)
-# import enum
-# import re
-# import decimal
+                    Collection, Container, MutableMapping)
 
 from veredi.base.context import VerediContext
 from veredi.data.config.context import ConfigContext
-from veredi.data.exceptions import (DataNotPresentError,
-                                    DataRestrictedError)
-from ..ecs.base.component   import (Component,
-                                    ComponentError)
+from veredi.data.exceptions import DataNotPresentError
+from ..ecs.base.component   import Component
 from ..ecs.base.identity import ComponentId
 
 # Data Stuff
-from veredi.data.codec.adapter.dict import DataDict, KeyGroup, KeyGroupMarker
+from veredi.data.codec.adapter.dict import DataDict
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -91,9 +87,9 @@ class DataComponent(Component):
           - DataRestrictedError (VerediError)
           - NotImplementedError - temporarily
         '''
-        # §-TODO-§ [2020-05-26]: Use component-template, component-requirements
-        # here to do the verification?
-        # For now, simpler verify...
+        # §-TODO-§ [2020-05-26]: Use component-template,
+        # component-requirements here to do the verification? For now, simpler
+        # verify...
 
         if not data:
             raise DataNotPresentError(
@@ -106,7 +102,8 @@ class DataComponent(Component):
     def _verify_key(self,
                     key: str,
                     data: Collection[str],
-                    sub_keys: Union[Collection[str], MutableMapping[str, str]]) -> None:
+                    sub_keys: Union[Collection[str], MutableMapping[str, str]]
+                    ) -> None:
         # Get this one...
         self._verify_exists(key, data)
 
@@ -126,9 +123,9 @@ class DataComponent(Component):
                 f"Key '{key}' not found in our data (in {container}).",
                 None, None)
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Persistent Data
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def persistent(self):
