@@ -20,9 +20,9 @@ from veredi.game.data.event import DataLoadedEvent, DataLoadRequest
 from veredi.game.data.component import DataComponent
 from veredi.data.context import DataGameContext, DataLoadContext
 
-from .system import SkillSystem
-from .event import SkillRequest, SkillResult
-from .component import SkillComponent
+from .system import IdentitySystem
+from .event import CodeIdentityRequest, IdentityResult
+from .component import IdentityComponent
 
 
 # -----------------------------------------------------------------------------
@@ -34,10 +34,16 @@ from .component import SkillComponent
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_SkillSystem(unittest.TestCase):
+class Test_IdentitySystem(unittest.TestCase):
     '''
-    Test our SkillSystem with some on-disk data.
+    Test our IdentitySystem with some on-disk data.
     '''
+
+    ID_DATA = {
+        'name': 'test-jeff',
+        'display-name': 'Test Jeff',
+        'title': 'Titular',
+    }
 
     def setUp(self):
         self.debug               = False
@@ -49,8 +55,8 @@ class Test_SkillSystem(unittest.TestCase):
                                                 self.debug)
         sid                      = zload.create_system(self.system_manager,
                                                        self.context,
-                                                       SkillSystem)
-        self.skill               = self.system_manager.get(sid)
+                                                       IdentitySystem)
+        self.identity               = self.system_manager.get(sid)
         self.events              = []
 
     def tearDown(self):
@@ -58,12 +64,11 @@ class Test_SkillSystem(unittest.TestCase):
         self.managers       = None
         self.context        = None
         self.system_manager = None
-        self.skill          = None
+        self.identity       = None
         self.events         = None
 
     def sub_events(self):
-        self.managers.event.subscribe(DataLoadedEvent, self.event_loaded)
-        self.managers.event.subscribe(SkillResult, self.event_skill_res)
+        self.managers.event.subscribe(IdentityResult, self.event_identity_res)
 
     def set_up_subs(self):
         self.sub_events()
@@ -72,7 +77,7 @@ class Test_SkillSystem(unittest.TestCase):
     def event_loaded(self, event):
         self.events.append(event)
 
-    def event_skill_res(self, event):
+    def event_identity_res(self, event):
         self.events.append(event)
 
     def clear_events(self):
@@ -128,69 +133,69 @@ class Test_SkillSystem(unittest.TestCase):
         self.assertTrue(self.events)
         self.assertEqual(len(self.events), expected_events)
 
-    def load_request(self, entity_id, type):
-        ctx = self.context.spawn(DataLoadContext,
-                                 'unit-testing', None,
-                                 type,
-                                 'test-campaign')
-        if type == DataGameContext.Type.NPC:
-            ctx.sub['family'] = 'Townville'
-            ctx.sub['npc'] = 'Skill Guy'
-        else:
-            raise LoadError(
-                f"No DataGameContext.Type to ID conversion for: {type}",
-                None,
-                ctx)
+    # def load_request(self, entity_id, type):
+    #     ctx = self.context.spawn(DataLoadContext,
+    #                              'unit-testing', None,
+    #                              type,
+    #                              'test-campaign')
+    #     if type == DataGameContext.Type.NPC:
+    #         ctx.sub['family'] = 'Townville'
+    #         ctx.sub['npc'] = 'Identity Guy'
+    #     else:
+    #         raise LoadError(
+    #             f"No DataGameContext.Type to ID conversion for: {type}",
+    #             None,
+    #             ctx)
 
-        event = DataLoadRequest(
-            id,
-            ctx.type,
-            ctx)
+    #     event = DataLoadRequest(
+    #         id,
+    #         ctx.type,
+    #         ctx)
 
-        return event
+    #     return event
 
-    def load(self, entity):
-        # Make the load request event for our entity.
-        request = self.load_request(entity.id,
-                                    DataGameContext.Type.NPC)
-        self.assertFalse(self.events)
+    # def load(self, entity):
+    #     # Make the load request event for our entity.
+    #     request = self.load_request(entity.id,
+    #                                 DataGameContext.Type.NPC)
+    #     self.assertFalse(self.events)
 
-        # Ask for our Skill Guy data to be loaded.
-        with log.LoggingManager.on_or_off(self.debug):
-            self.make_it_so(request)
-        self.assertTrue(self.events)
-        self.assertEqual(len(self.events), 1)
+    #     # Ask for our Identity Guy data to be loaded.
+    #     with log.LoggingManager.on_or_off(self.debug):
+    #         self.make_it_so(request)
+    #     self.assertTrue(self.events)
+    #     self.assertEqual(len(self.events), 1)
 
-        # We should get an event for load finished.
-        self.assertEqual(len(self.events), 1)
-        self.assertIsInstance(self.events[0], DataLoadedEvent)
-        event = self.events[0]
-        cid = event.component_id
-        self.assertNotEqual(cid, ComponentId.INVALID)
-        component = self.managers.component.get(cid)
-        self.assertIsInstance(component, DataComponent)
-        self.assertIsInstance(component, SkillComponent)
+    #     # We should get an event for load finished.
+    #     self.assertEqual(len(self.events), 1)
+    #     self.assertIsInstance(self.events[0], DataLoadedEvent)
+    #     event = self.events[0]
+    #     cid = event.component_id
+    #     self.assertNotEqual(cid, ComponentId.INVALID)
+    #     component = self.managers.component.get(cid)
+    #     self.assertIsInstance(component, DataComponent)
+    #     self.assertIsInstance(component, IdentityComponent)
 
-        # Stuff it on our entity
-        self.managers.entity.add(entity.id, component)
-        # Make sure component got attached to entity.
-        self.assertIn(SkillComponent, entity)
+    #     # Stuff it on our entity
+    #     self.managers.entity.add(entity.id, component)
+    #     # Make sure component got attached to entity.
+    #     self.assertIn(IdentityComponent, entity)
 
-        return component
+    #     return component
 
-    def skill_request(self, entity, skill):
+    def identity_request_code(self, entity, id_data):
         context = UnitTestContext(
             self.__class__.__name__,
-            'skill_request',
+            'identity_request',
             {})  # no initial sub-context
         # ctx = self.context.spawn(EphemerealContext,
         #                          'unit-testing', None)
 
-        event = SkillRequest(
+        event = CodeIdentityRequest(
             entity.id,
             entity.type_id,
             context,
-            skill)
+            id_data)
 
         return event
 
@@ -198,53 +203,66 @@ class Test_SkillSystem(unittest.TestCase):
         self.assertTrue(self.managers)
         self.assertTrue(self.context)
         self.assertTrue(self.system_manager)
-        self.assertTrue(self.skill)
+        self.assertTrue(self.identity)
 
-    def test_load(self):
+    # def test_load(self):
+    #     self.set_up_subs()
+    #     entity = self.create_entity()
+    #     self.assertTrue(entity)
+    #     component = self.load(entity)
+    #     self.assertTrue(component)
+
+    def test_identity_req_code(self):
         self.set_up_subs()
         entity = self.create_entity()
-        self.assertTrue(entity)
-        component = self.load(entity)
-        self.assertTrue(component)
-
-    def test_skill_req_standard(self):
-        self.set_up_subs()
-        entity = self.create_entity()
-        self.load(entity)
         # Throw away loading events.
         self.clear_events()
 
-        request = self.skill_request(entity, "Acrobatics")
+        request = self.identity_request_code(entity, self.ID_DATA)
         with log.LoggingManager.on_or_off(self.debug):
             self.trigger_events(request)
 
         result = self.events[0]
-        self.assertIsInstance(result, SkillResult)
-        self.assertEqual(result.skill.lower(), request.skill.lower())
+        self.assertIsInstance(result, IdentityResult)
+        self.assertEqual(result.identity.lower(), request.identity.lower())
         # request and result should be both for our entity
         self.assertEqual(result.id, request.id)
         self.assertEqual(result.id, entity.id)
 
-        # Skill Guy should have Nine Acrobatics.
-        self.assertEqual(result.amount, 9)
+        # Check out the component.
+        cid_event = result.component_id
+        self.assertNotEqual(cid_event, ComponentId.INVALID)
+        component_event = self.managers.component.get(cid_event)
+        self.assertIsInstance(component_event, DataComponent)
+        self.assertIsInstance(component_event, IdentityComponent)
 
-    def test_skill_req_grouped(self):
-        self.set_up_subs()
-        entity = self.create_entity()
-        self.load(entity)
-        # Throw away loading events.
-        self.clear_events()
+        component_entity = entity.get(IdentityComponent)
+        self.assertIsInstance(component_entity, DataComponent)
+        self.assertIsInstance(component_entity, IdentityComponent)
+        self.assertEqual(component_event.id, component_entity.id)
+        self.assertIs(component_event, component_entity)
 
-        request = self.skill_request(entity, "knowledge (nature)")
-        with log.LoggingManager.on_or_off(self.debug):
-            self.trigger_events(request)
+        # Now our guy should have his name?
+        self.assertTrue(component_entity.name, 'test-jeff')
+        self.assertTrue(component_entity.display_name, 'Test Jeff')
 
-        result = self.events[0]
-        self.assertIsInstance(result, SkillResult)
-        self.assertEqual(result.skill.lower(), request.skill.lower())
-        # request and result should be both for our entity
-        self.assertEqual(result.id, request.id)
-        self.assertEqual(result.id, entity.id)
+    # def test_identity_req_load(self):
+    #     self.set_up_subs()
+    #     entity = self.create_entity()
+    #     self.load(entity)
+    #     # Throw away loading events.
+    #     self.clear_events()
 
-        # Skill Guy should have Four Nature Knowledges.
-        self.assertEqual(result.amount, 4)
+    #     request = self.identity_request(entity, "knowledge (nature)")
+    #     with log.LoggingManager.on_or_off(self.debug):
+    #         self.trigger_events(request)
+
+    #     result = self.events[0]
+    #     self.assertIsInstance(result, IdentityResult)
+    #     self.assertEqual(result.identity.lower(), request.identity.lower())
+    #     # request and result should be both for our entity
+    #     self.assertEqual(result.id, request.id)
+    #     self.assertEqual(result.id, entity.id)
+
+    #     # Identity Guy should have Four Nature Knowledges.
+    #     self.assertEqual(result.amount, 4)

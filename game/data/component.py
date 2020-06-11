@@ -11,11 +11,14 @@ Data component - a component that has persistent data on it.
 from typing import (Optional, Union, Any,
                     Collection, Container, MutableMapping)
 
-from veredi.base.context import VerediContext
-from veredi.data.config.context import ConfigContext
-from veredi.data.exceptions import DataNotPresentError
-from ..ecs.base.component   import Component
-from ..ecs.base.identity import ComponentId
+from veredi.logger                  import log
+from veredi.data.config.registry    import register
+
+from veredi.base.context            import VerediContext
+from veredi.data.config.context     import ConfigContext
+from veredi.data.exceptions         import DataNotPresentError
+from ..ecs.base.component           import Component
+from ..ecs.base.identity            import ComponentId
 
 # Data Stuff
 from veredi.data.codec.adapter.dict import DataDict

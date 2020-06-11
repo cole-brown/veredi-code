@@ -125,7 +125,7 @@ class SkillSystem(System):
     # Events
     # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
+    def subscribe(self, event_manager: EventManager) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
@@ -198,9 +198,9 @@ class SkillSystem(System):
 
     def _update(self,
                 tick:          SystemTick,
-                time_mgr:      'TimeManager',
-                component_mgr: 'ComponentManager',
-                entity_mgr:    'EntityManager') -> VerediHealth:
+                time_mgr:      TimeManager,
+                component_mgr: ComponentManager,
+                entity_mgr:    EntityManager) -> VerediHealth:
         '''
         Generic tick function. We do the same thing every tick state we process
         so do it all here.
