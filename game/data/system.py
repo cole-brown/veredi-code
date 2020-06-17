@@ -12,7 +12,7 @@ That is, it is the start and end point of loads and saves.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Optional, Set, Type, Union, Mapping
+from typing import Optional, Any, Set, Type, Union, Mapping
 from decimal import Decimal
 
 from veredi.logger          import log

@@ -210,7 +210,7 @@ def _init_logging():
 
 
 def cmd_roll(args):
-    from veredi.roll.d20.parser import parse_input
+    from veredi.math.d20.parser import parse_input
 
     expression = ' '.join(args.expression)
     print("input: ", expression)

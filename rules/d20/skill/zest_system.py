@@ -118,7 +118,7 @@ class Test_SkillSystem(unittest.TestCase):
         self.assertTrue(expected_events >= 0)
 
         with log.LoggingManager.on_or_off(self.debug):
-            self.make_it_so(event)
+            self.make_it_so(event, num_publishes)
 
         if expected_events == 0:
             self.assertFalse(self.events)

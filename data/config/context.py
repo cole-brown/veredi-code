@@ -63,8 +63,18 @@ class ConfigContext(PersistentContext):
         super().__init__(name, key)
 
         # Make sure the path is a directory.
-        path = path if path.is_dir() else path.parent
-        self.add(self.Link.PATH,   path)
+        if path is None:
+            raise log.exception(
+                None,
+                ContextError,
+                "ConfigContext needs a path to __init__ properly.")
+        elif path is False:
+            # Current way of allowing a NoFileConfig...
+            # §-TODO-§ [2020-06-16]: Better way.
+            pass
+        else:
+            path = path if path.is_dir() else path.parent
+            self.add(self.Link.PATH,   path)
         self.add(self.Link.CONFIG, back_link)
 
     def finish_init(self,

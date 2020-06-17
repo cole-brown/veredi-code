@@ -18,7 +18,7 @@ from decimal import Decimal
 
 from veredi.logger import log
 from veredi.base.const import VerediHealth
-from veredi import mathing
+from veredi.math import mathing
 from . import exceptions
 
 from .event import EcsManagerWithEvents

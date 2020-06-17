@@ -121,6 +121,9 @@ class VerediContext:
     # Square Brackets! (context['key'] accessors)
     # -------------------------------------------------------------------------
 
+    def __contains__(self, key: str) -> bool:
+        return key in self.data
+
     def __getitem__(self, key):
         '''
         General, top level `context[key]`. Not the specific sub-context!

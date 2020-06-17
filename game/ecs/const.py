@@ -50,6 +50,16 @@ class SystemTick(enum.Flag):
     '''Tick where systems load stuff they care about from data and get all set
     up and stuff.'''
 
+    INTRA_SYSTEM = enum.auto()
+    '''
+    Tick where systems talk to each other about finishing set up. E.g. Command
+    registration happens here.
+
+    NOTE: Systems may not need to subscribe to this to take advantage - events
+    may happen for them. E.g. Command registration happens as events and only
+    InputSystem needs to run on this tick for registration to succeed.
+    '''
+
     # ---
     # Game-Loop Ticks
     # ---
