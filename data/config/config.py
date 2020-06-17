@@ -60,9 +60,9 @@ class Configuration:
     '''Config data for how a game will run and what stuff it will use.'''
 
     def __init__(self,
-                 config_path:  Optional[pathlib.Path]   = None,
+                 config_path:  Optional[pathlib.Path]     = None,
                  config_repo:  Optional['BaseRepository'] = None,
-                 config_codec: Optional['BaseCodec']      = None):
+                 config_codec: Optional['BaseCodec']      = None) -> None:
         '''Raises LoadError and ConfigError'''
         self._path = config_path or default_path()
 

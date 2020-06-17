@@ -79,6 +79,9 @@ class EcsManagerWithEvents(EcsManager):
 # -----------------------------------------------------------------------------
 
 class Event:
+    TYPE_NONE = 0
+    '''A "Don't care" for the event.type field.'''
+
     def __init__(self,
                  id: Union[int, MonotonicId],
                  type: Union[int, enum.Enum],

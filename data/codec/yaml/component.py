@@ -12,7 +12,7 @@ import yaml
 from pydoc import locate  # For str->type.
 
 from veredi.data import exceptions
-from veredi import mathing
+from veredi.math import mathing
 
 from . import base
 from ..adapter.dict import KeyGroupMarker, UserDefinedMarker

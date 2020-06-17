@@ -8,13 +8,11 @@ Tree base classes for a d20 roll tree.
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
 from functools import reduce
 
-# Framework
-
-# Our Stuff
 from veredi.base import random
+
+from ..parser import MathTree
 from .const import FormatOptions
 
 # -----------------------------------------------------------------------------
@@ -26,7 +24,7 @@ from .const import FormatOptions
 # Base-most class for tree (leaves, branches, everything).
 # -----------------------------------------------------------------------------
 
-class Node:
+class Node(MathTree):
     '''Base-most class for tree (leaves, branches, everything).'''
 
     # NULL_SIGN = '\u2205'
@@ -175,8 +173,8 @@ class Node:
 
     def __ge__(self, other):
         if self._value is None:
-            raise ValueError(f"Cannot greater-than-or-equal; {str(self)} has a "
-                             "value of None.")
+            raise ValueError(f"Cannot greater-than-or-equal; {str(self)} has "
+                             "a value of None.")
 
         if isinstance(other, Node):
             return self._value >= other._value

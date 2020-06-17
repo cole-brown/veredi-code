@@ -84,7 +84,7 @@ class Test_Parser(unittest.TestCase):
         # Make sure it's only a var token in there?
         self.assertEqual(1, len(lark_tree.children))
         self.assertEqual(lark_tree.data, "var")
-        self.assertEqual(lark_tree.children[0].type, "NAME")
+        self.assertEqual(lark_tree.children[0].type, "NAME_LAX")
         self.assertEqual(lark_tree.children[0].value, "jeff")
 
         lark_tree = parser.Parser.parse("$jeff")
@@ -95,7 +95,7 @@ class Test_Parser(unittest.TestCase):
         # Make sure it's only a var token in there?
         self.assertEqual(1, len(lark_tree.children))
         self.assertEqual(lark_tree.data, "var")
-        self.assertEqual(lark_tree.children[0].type, "NAME")
+        self.assertEqual(lark_tree.children[0].type, "NAME_STRICT")
         self.assertEqual(lark_tree.children[0].value, "jeff")
 
     def test_func(self):
@@ -108,7 +108,7 @@ class Test_Parser(unittest.TestCase):
         # Make sure it's only a var token in there?
         self.assertEqual(3, len(lark_tree.children))
         self.assertEqual(lark_tree.data, "func")
-        self.assertEqual(lark_tree.children[0].type, "NAME")
+        self.assertEqual(lark_tree.children[0].type, "NAME_FUNC")
         self.assertEqual(lark_tree.children[0].value, "max")
         self.assertEqual(lark_tree.children[1].data, "int")
         self.assertEqual(lark_tree.children[1].children[0].type, "INT")
@@ -280,7 +280,7 @@ class Test_Parser(unittest.TestCase):
         self.assertEqual(2, len(lark_tree.children))
         self.assertEqual(lark_tree.data, "assign_var")
 
-        self.assertEqual(lark_tree.children[0].type, "NAME")
+        self.assertEqual(lark_tree.children[0].type, "NAME_LAX")
         self.assertEqual(lark_tree.children[0].value, "jeff")
 
         self.assertEqual(1, len(lark_tree.children[1].children))

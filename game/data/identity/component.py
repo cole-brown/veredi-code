@@ -77,13 +77,13 @@ class IdentityComponent(DataComponent):
     # -------------------------------------------------------------------------
 
     @property
-    def display_name(self) -> str:
+    def display(self) -> str:
         '''
         Returns our best data for a display name.
         '''
         # §-TODO-§ [2020-06-11]: Options for, like, full vs short/formal vs
         # informal vs nickname?
-        name = (self._persistent.get('display_name', None) or
+        name = (self._persistent.get('display-name', None) or
                 self._persistent.get('name', None))
         return name
 
@@ -93,3 +93,31 @@ class IdentityComponent(DataComponent):
         Returns our best data for a non-display name.
         '''
         return self._persistent.get('name', None)
+
+    @property
+    def user(self) -> str:
+        '''
+        Returns 'user' (username if a PC) if it has one, else None.
+        '''
+        return self._persistent.get('user', None)
+
+    @property
+    def player(self) -> str:
+        '''
+        Returns 'player' (player's name if a PC) if it has one, else None.
+        '''
+        return self._persistent.get('player', None)
+
+    @property
+    def log_player(self) -> str:
+        '''
+        Returns: player if exists, else name.
+        '''
+        return self.player or self.name
+
+    @property
+    def log_user(self) -> str:
+        '''
+        Returns: user if exists, else name.
+        '''
+        return self.user or self.name

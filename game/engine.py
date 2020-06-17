@@ -338,8 +338,17 @@ class Engine:
     # -------------------------------------------------------------------------
     # Pre-Game Loading Loop
     # -------------------------------------------------------------------------
-    def setting_up(self):
-        return (not self._should_stop()
+    def setting_up(self, health: VerediHealth) -> bool:
+        '''
+        Still setting up while:
+          - `health` for setup tick is not above 'VerediHealth.good' value.
+          - `health` for setup tick is not a 'VerediHealth.should_die' value.
+          - Engine is not in a state that should stop it.
+          - Time has not run out for set_up.
+        '''
+        return (not health.good
+                and not health.should_die
+                and not self._should_stop()
                 and not self.time.is_timed_out(self.time._DEFAULT_TIMEOUT_SEC))
 
     def set_up(self):
@@ -348,8 +357,10 @@ class Engine:
         retval = VerediHealth.HEALTHY
         self.time.start_timeout()
         while self.setting_up(retval):
-            self.system.update(SystemTick.SET_UP, self.time,
-                               self.component, self.entity)
+            retval = self.system.update(SystemTick.SET_UP,
+                                        self.time,
+                                        self.component,
+                                        self.entity)
             self.event.update(SystemTick.SET_UP, self.time)
 
     # -------------------------------------------------------------------------

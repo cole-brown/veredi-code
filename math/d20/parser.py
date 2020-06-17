@@ -13,13 +13,14 @@ Some code used from Lark's calc example:
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
-
-# Dice Grammer Parser
 import lark  # Lark, Transformer, Visitor, v_args
 
-# Veredi
-from . import tree
+from veredi.logger               import log
+from veredi.data.config.registry import register
+
+from ..parser                    import MathParser, MathTree
+
+from .                           import tree
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -33,8 +34,10 @@ from . import tree
 grammar = '''
 // Lark needs either start node in grammar or explicit start in costructor.
 ?start: sum
-      | NAME "=" sum            -> assign_var
+      | NAME_LAX "=" sum            -> assign_var
 
+// ---
+// Maths
 // Lowest priority maths first.
 ?sum: product
       | sum "+" product         -> add
@@ -57,19 +60,39 @@ grammar = '''
         | "(" sum ")"
         | func
 
-// function is func name and list of params (one or more)
-func: NAME "(" [sum ("," sum)*] ")"
+// ---
+// Funcs & Vars
+// Function is func name and list of params (one or more).
+func: NAME_FUNC "(" [sum ("," sum)*] ")"
 
-var: "$" NAME
-   | "${" NAME "}"
+var: "$" NAME_STRICT
+   | "${" NAME_LAX "}"
 
-// Alias out to die/dice instead of optional amount
+// ---
+// Alias out to die/dice instead of optional amount.
 // Lets me know more explicitly which is which.
 ?roll: ("d"|"D") INT            -> die
      | INT ("d"|"D") INT        -> dice
 
-%import common.CNAME            -> NAME
-%import common.ESCAPED_STRING   -> STRING
+// ---
+// Names:
+//  - Strict can exist more on their own.
+//  - Lark's CNAMEs are used for functions (allows names like C functions).
+//  - Lax Names have to be folded into another something (e.g. ${a-b})
+
+NAME_LAX: LETTER (LETTER | DIGIT | " " | ":" | "(" | "_" | "-")* (LETTER | ")")
+
+NAME_STRICT: WORD
+
+NAME_FUNC: CNAME
+
+
+// ---
+// Lark imports and ignores
+%import common.LETTER
+%import common.DIGIT
+%import common.WORD
+%import common.CNAME
 %import common.NUMBER
 %import common.INT
 
@@ -208,6 +231,46 @@ class Transformer(lark.Transformer):
 
     def pow(self, children):
         return tree.OperatorPow(children)
+
+
+# -----------------------------------------------------------------------------
+# Input String -> Veredi d20 Tree
+# -----------------------------------------------------------------------------
+
+@register('veredi', 'math', 'd20', 'parser')
+class D20Parser(MathParser):
+    '''
+    MathParser interface implementation. Wraps up the lark parsing and
+    tranformation operations for getting from a string to some valid d20 math
+    tree.
+    '''
+
+    # Nothing to do for __init__/_configure. We don't even need an instance of
+    # ourselves to do anything right now, though that could change.
+
+    def parse(self, string: str) -> MathTree:
+        '''
+        Parse input `string` and return the resultant MathTree, or None if
+        parsing/transforming failed at some point.
+        '''
+        log.debug("parse input: '{}'", string)
+
+        syntax_tree = Parser.parse(string)
+        log.debug("Parser (lark) output: \n{}",
+                  Parser.format(syntax_tree))
+
+        # §-TODO-§ [2020-06-13]: Do we want transformer to hold onto vars
+        # like it does or try to make a static class like Parser?
+
+        # Make a new transformer for each parse run as it holds on to
+        # var names?
+        xform = Transformer()
+        math_tree = xform.transform(syntax_tree)
+        log.debug("Math Tree: \n{}",
+                  math_tree.pretty())
+
+        # Return parsed, transformed, un-evaluated math tree.
+        return math_tree
 
 
 # -----------------------------------Veredi------------------------------------

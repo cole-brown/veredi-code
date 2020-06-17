@@ -28,4 +28,11 @@ data:
       sanitize: veredi.sanitize.human.path-safe
     codec: veredi.codec.yaml
 
+input:
+  type: veredi.input.system
+  command: veredi.input.commander
+  parser:
+    math: veredi.math.d20.parser
+
+
 # and more?

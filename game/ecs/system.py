@@ -173,7 +173,7 @@ class SystemManager(EcsManagerWithEvents):
                tick: SystemTick,
                time: 'TimeManager',
                component: 'ComponentManager',
-               entity: 'EntityManager') -> None:
+               entity: 'EntityManager') -> VerediHealth:
         '''
         Engine calls us for each update tick, and we'll call all our
         game systems.
@@ -181,6 +181,8 @@ class SystemManager(EcsManagerWithEvents):
         # Update schedule at start of the tick, if it needs it.
         if tick == SystemTick.TIME:
             self._update_schedule()
+
+        worst_health = VerediHealth.HEALTHY
 
         # TODO: self._schedule[tick] is a priority/topographical tree or
         # something that doesn't pop off members each loop?
@@ -198,7 +200,10 @@ class SystemManager(EcsManagerWithEvents):
             # Try/catch each system, so they don't kill each other with a
             # single repeating exception.
             try:
-                system.update_tick(tick, time, component, entity)
+                # Update worst_health var with this system's tick return value.
+                worst_health = VerediHealth.set(
+                    worst_health,
+                    system.update_tick(tick, time, component, entity))
 
             except VerediError as error:
                 # TODO: health thingy

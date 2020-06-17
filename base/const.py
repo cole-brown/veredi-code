@@ -75,6 +75,7 @@ class VerediHealth(enum.IntEnum):
         '''
         return self.value > VerediHealth._GOOD_HEALTH_THRESHOLD.value
 
+    @staticmethod
     def worse(a: 'VerediHealth',
               b: 'VerediHealth') -> 'VerediHealth':
         '''
@@ -84,6 +85,7 @@ class VerediHealth(enum.IntEnum):
         # the lower the number it's assigned.
         return (a if a.value < b.value else b)
 
+    @staticmethod
     def set(a: 'VerediHealth',
             b: 'VerediHealth') -> 'VerediHealth':
         '''

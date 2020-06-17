@@ -214,6 +214,14 @@ class ConfigHierarchy(Hierarchy):
                 'defensive': Info.LEAF,
             },
         },
+
+        'input': {
+            'type': Info.LEAF,
+            'command': Info.LEAF,
+            'parser': {
+                'math': Info.LEAF,
+            },
+        },
     }
     '''
     Layout of configuration document.

@@ -431,7 +431,15 @@ class System:
 
         Returns VerediHealth value.
         '''
-        if tick is SystemTick.TIME:
+        if tick is SystemTick.SET_UP:
+            return self._update_set_up(time_mgr, component_mgr, entity_mgr)
+
+        elif tick is SystemTick.INTRA_SYSTEM:
+            return self._update_intra_system(time_mgr,
+                                             component_mgr,
+                                             entity_mgr)
+
+        elif tick is SystemTick.TIME:
             return self._update_time(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.CREATION:
@@ -447,13 +455,38 @@ class System:
             return self._update_post(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.DESTRUCTION:
-            return self._update_destruction(time_mgr, component_mgr, entity_mgr)
+            return self._update_destruction(time_mgr,
+                                            component_mgr,
+                                            entity_mgr)
 
         else:
             # This, too, should be treated as a VerediHealth.FATAL...
             raise TickError(
                 "{} does not have an update_tick handler for {}.",
                 self.__class__.__name__, tick)
+
+    def _update_set_up(self,
+                       time_mgr:      TimeManager,
+                       component_mgr: ComponentManager,
+                       entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        First in set-up loop. Systems should use this to load and initialize
+        stuff that takes multiple cycles or is otherwise unwieldy
+        during __init__.
+        '''
+        return VerediHealth.FATAL
+
+    def _update_intra_sys(self,
+                          time_mgr:      TimeManager,
+                          component_mgr: ComponentManager,
+                          entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        Part of the set-up ticks. Systems should use this for any
+        system-to-system setup. For examples:
+          - System.subscribe() gets called here.
+          - Command registration happens here.
+        '''
+        return VerediHealth.FATAL
 
     def _update_time(self,
                      time_mgr:      TimeManager,
