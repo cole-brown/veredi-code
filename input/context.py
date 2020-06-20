@@ -9,16 +9,14 @@ Helper classes for managing contexts for events, error messages, etc.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, Type, Iterable)
-# if TYPE_CHECKING:
-#     from .config import Configuration
+                    Optional, Union, Type)
+if TYPE_CHECKING:
+    from veredi.game.ecs.base.identity import MonotonicId
 
 import enum
-# import pathlib
 
 from veredi.logger import log
 
-from veredi.base.exceptions import ContextError
 from veredi.base.context import (VerediContext,
                                  EphemerealContext,
                                  PersistentContext)
@@ -51,6 +49,13 @@ class InputUserContext(EphemerealContext):
         # Init our input str into place.
         InputSystemContext._set_input(self, full_input_safe)
 
+    # -------------------------------------------------------------------------
+    # To String
+    # -------------------------------------------------------------------------
+
+    def __repr_name__(self):
+        return 'InUsrCtx'
+
 
 # -----------------------------------------------------------------------------
 # InputSystem's Persistent Context
@@ -76,6 +81,17 @@ class InputSystemContext(PersistentContext):
         '''
         The full input string, after sanitizing/validating. Includes command
         name.
+        '''
+
+        ID = enum.auto()
+        '''
+        An ID of some sort from whatever caused an InputEvent.
+        E.g.: ComponentId, EntityId, SystemId
+        '''
+
+        TYPE = enum.auto()
+        '''
+        A TypeId of some sortfrom whatever caused an InputEvent.
         '''
 
         # KEYCHAIN = enum.auto()
@@ -160,6 +176,26 @@ class InputSystemContext(PersistentContext):
 
         return parcel.math
 
+    @classmethod
+    def id(klass: Type['InputSystemContext'],
+           context: VerediContext) -> Union[int, 'MonotonicId']:
+        '''
+        If there is an id, get it.
+        '''
+        input_ctx = context._get().get(klass.KEY, {})
+        ident = input_ctx.get(klass.Link.ID, None)
+        return ident
+
+    @classmethod
+    def type(klass: Type['InputSystemContext'],
+             context: VerediContext) -> Union[int, enum.Enum]:
+        '''
+        If there is a type id, get it.
+        '''
+        input_ctx = context._get().get(klass.KEY, {})
+        type_id = input_ctx.get(klass.Link.TYPE, None)
+        return type_id
+
     # @classmethod
     # def exception(klass:     Type['ConfigContext'],
     #               context:   VerediContext,
@@ -207,4 +243,4 @@ class InputSystemContext(PersistentContext):
     # -------------------------------------------------------------------------
 
     def __repr_name__(self):
-        return 'InCtx'
+        return 'InSysCtx'

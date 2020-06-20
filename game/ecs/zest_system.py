@@ -261,7 +261,7 @@ class Test_SystemManager(unittest.TestCase):
 
     def test_create(self):
         self.assertEqual(self.system_mgr._system_id.peek(),
-                         SystemId.INVALID)
+                         SystemId.INVALID.value)
 
         sid = self.create_system(SysJeff)
         self.assertNotEqual(sid, SystemId.INVALID)
@@ -300,7 +300,7 @@ class Test_SystemManager(unittest.TestCase):
 
     def test_create_args(self):
         self.assertEqual(self.system_mgr._system_id.peek(),
-                         SystemId.INVALID)
+                         SystemId.INVALID.value)
 
         sid = self.create_system(SysJill, x=1, y=2)
         self.assertNotEqual(sid, SystemId.INVALID)
@@ -317,7 +317,7 @@ class Test_SystemManager(unittest.TestCase):
 
     def test_destroy(self):
         self.assertEqual(self.system_mgr._system_id.peek(),
-                         SystemId.INVALID)
+                         SystemId.INVALID.value)
 
         sid = 1
         self.system_mgr.destroy(sid)
@@ -462,7 +462,7 @@ class Test_SystemManager(unittest.TestCase):
         sid = self.create_system(SysJill, x=1, y=2)
         self.assertNotEqual(sid, SystemId.INVALID)
 
-        # §-TODO-§ [2020-06-01]: Did I... Forget to finish this?
+        # TODO [2020-06-01]: Did I... Forget to finish this?
 
 
 class Test_SystemManager_Events(Test_SystemManager):

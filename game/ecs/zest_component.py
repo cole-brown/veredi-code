@@ -93,7 +93,7 @@ class Test_ComponentManager(unittest.TestCase):
 
     def test_create(self):
         self.assertEqual(self.comp_mgr._component_id.peek(),
-                         ComponentId.INVALID)
+                         ComponentId.INVALID.value)
 
         cid = self.comp_mgr.create(CompOne, None)
         self.assertNotEqual(cid, ComponentId.INVALID)
@@ -132,7 +132,7 @@ class Test_ComponentManager(unittest.TestCase):
 
     def test_create_args(self):
         self.assertEqual(self.comp_mgr._component_id.peek(),
-                         ComponentId.INVALID)
+                         ComponentId.INVALID.value)
 
         context = UnitTestContext(
             self.__class__.__name__,
@@ -154,7 +154,7 @@ class Test_ComponentManager(unittest.TestCase):
 
     def test_destroy(self):
         self.assertEqual(self.comp_mgr._component_id.peek(),
-                         ComponentId.INVALID)
+                         ComponentId.INVALID.value)
 
         cid = 1
         self.comp_mgr.destroy(cid)

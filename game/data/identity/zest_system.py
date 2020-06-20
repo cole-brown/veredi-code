@@ -12,13 +12,11 @@ import unittest
 
 from veredi.zest import zload
 from veredi.base.context import UnitTestContext
-from veredi.data.exceptions import LoadError
 from veredi.logger import log
 
 from veredi.game.ecs.base.identity import ComponentId, EntityId
-from veredi.game.data.event import DataLoadedEvent, DataLoadRequest
+from veredi.game.ecs.base.component import ComponentLifeCycle
 from veredi.game.data.component import DataComponent
-from veredi.data.context import DataGameContext, DataLoadContext
 
 from .system import IdentitySystem
 from .event import CodeIdentityRequest, IdentityResult
@@ -40,9 +38,11 @@ class Test_IdentitySystem(unittest.TestCase):
     '''
 
     ID_DATA = {
-        'name': 'test-jeff',
-        'display-name': 'Test Jeff',
-        'title': 'Titular',
+        'identity': {
+            'name': 'test-jeff',
+            'display-name': 'Test Jeff',
+            'title': 'Titular',
+        },
     }
 
     def setUp(self):
@@ -224,7 +224,6 @@ class Test_IdentitySystem(unittest.TestCase):
 
         result = self.events[0]
         self.assertIsInstance(result, IdentityResult)
-        self.assertEqual(result.identity.lower(), request.identity.lower())
         # request and result should be both for our entity
         self.assertEqual(result.id, request.id)
         self.assertEqual(result.id, entity.id)
@@ -235,8 +234,10 @@ class Test_IdentitySystem(unittest.TestCase):
         component_event = self.managers.component.get(cid_event)
         self.assertIsInstance(component_event, DataComponent)
         self.assertIsInstance(component_event, IdentityComponent)
+        component_event._life_cycle = ComponentLifeCycle.ALIVE
 
-        component_entity = entity.get(IdentityComponent)
+        with log.LoggingManager.on_or_off(self.debug):
+            component_entity = entity.get(IdentityComponent)
         self.assertIsInstance(component_entity, DataComponent)
         self.assertIsInstance(component_entity, IdentityComponent)
         self.assertEqual(component_event.id, component_entity.id)
@@ -266,3 +267,7 @@ class Test_IdentitySystem(unittest.TestCase):
 
     #     # Identity Guy should have Four Nature Knowledges.
     #     self.assertEqual(result.amount, 4)
+
+    def test_todo(self):
+        log.debug("TODO: Convert to zystem base class like Test_InputSystem")
+        self.assertTrue(True)

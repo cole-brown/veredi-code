@@ -163,6 +163,12 @@ class IdentitySystem(System):
         retval = self._manager.component.create(IdentityComponent,
                                                 event.context,
                                                 data=data)
+        # TODO [2020-06-20]: Make adding to entities part of create
+        # via a kwarg?
+        self._manager.entity.add(event.id, retval)
+
+        entity = self._manager.entity.get(event.id)
+
         return retval
 
     def event_identity_req(self, event: IdentityRequest) -> None:
@@ -188,7 +194,7 @@ class IdentitySystem(System):
             log.info("Dropping event {} - no entity for its id: {}",
                      event, event.id,
                      context=event.context)
-            # Â§-TODO-Â§ [2020-06-04]: a health thing? e.g.
+            # TODO [2020-06-04]: a health thing? e.g.
             # self._health_update(EntityDNE)
             return
 
@@ -223,11 +229,11 @@ class IdentitySystem(System):
                 self.health)
             return self._health_check()
 
-        print('todo: a identity tick thingy?')
+        log.critical('todo: a identity tick thingy?')
 
         # for entity in self._wanted_entities(tick, time_mgr,
         #                                     component_mgr, entity_mgr):
-        #     # Check if entity in turn order has a (identity) action queued up.
+        #     # Check if entity in turn order has a (identity) action queued up
         #     # Also make sure to check if entity/component still exist.
         #     if not entity:
         #         continue

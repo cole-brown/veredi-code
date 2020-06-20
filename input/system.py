@@ -23,7 +23,7 @@ Alot of Inputs.
 # Typing
 # ---
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type, Set, Tuple)
+                    Optional, Union, Type, Set)
 if TYPE_CHECKING:
     from veredi.game.ecs.component      import ComponentManager
     from veredi.game.ecs.entity         import EntityManager
@@ -48,15 +48,16 @@ from veredi.game.ecs.time           import TimeManager
 from veredi.game.ecs.const          import (SystemTick,
                                             SystemPriority)
 
-from veredi.game.ecs.base.identity  import ComponentId
 from veredi.game.ecs.base.system    import System
 from veredi.game.ecs.base.component import Component
-from veredi.game.identity.component import IdentityComponent
+from veredi.game.data.identity.component import IdentityComponent
 
-from .context import InputSystemContext, InputUserContext
+from .identity  import InputId
+from .context import InputSystemContext
 from . import sanitize
 from .parse import Parcel
-from .commander import Commander
+from .command.commander import Commander
+from .history.history import Historian
 
 # Input-Related Events & Components
 from .event                         import CommandInputEvent
@@ -67,7 +68,7 @@ from .event                         import CommandInputEvent
 # Constants
 # -----------------------------------------------------------------------------
 
-# §-TODO-§ [2020-06-11]: This or the Commander would be the place to capture
+# TODO [2020-06-11]: This or the Commander would be the place to capture
 # everything required for undo?
 
 
@@ -109,7 +110,8 @@ class InputSystem(System):
         # Context Stuff
         # ---
         self._context = InputSystemContext('veredi.input.system')
-        self._context.pull(context)
+        # Do I need anything from supplied (config)context?
+        # context.push(self._context)
 
         config = ConfigContext.config(context)  # Configuration obj
         if not config:
@@ -123,11 +125,16 @@ class InputSystem(System):
         # which will create our ruleset parsers from the context/config data
         # (e.g. a 'D11Parser' math parser).
         self._parsers: Parcel = Parcel(context)
-        # Our command sub-system.
+
+        # ---
+        # Our Sub-System Stuff
+        # ---
         self._commander: Commander = config.make(None,
                                                  'input',
-                                                 'parser',
                                                  'command')
+        self._historian: Historian = config.make(None,
+                                                 'input',
+                                                 'history')
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -154,7 +161,7 @@ class InputSystem(System):
 
         # InputSystem subs to:
         # - InputRequests
-        # Â§-TODO-Â§ [2020-06-04]: Is that a base class we can cover everything
+        # TODO [2020-06-04]: Is that a base class we can cover everything
         # easily under, or do we need more?
         self._manager.event.subscribe(CommandInputEvent,
                                       self.event_input_cmd)
@@ -182,7 +189,7 @@ class InputSystem(System):
             log.info("Dropping event {} - no entity for its id: {}",
                      event, event.id,
                      context=event.context)
-            # Â§-TODO-Â§ [2020-06-04]: a health thing? e.g.
+            # TODO [2020-06-04]: a health thing? e.g.
             # self._health_update(EntityDNE)
             return
         user = None
@@ -206,22 +213,26 @@ class InputSystem(System):
                      "Dropping event {} - input failed validation.",
                      event,
                      context=event.context)
-            # §-TODO-§ [2020-06-11]: Keep track of how many times user was
+            # TODO [2020-06-11]: Keep track of how many times user was
             # potentially naughty?
             return
 
+        # Create history, generate ID.
+        input_id = self._historian.add_text(entity, string_safe)
+
         # Get the command processed.
-        todo this
+        cmd_ctx = self.context.clone(input_id, string_safe)
+        status = self._commander.execute(string_safe, cmd_ctx)
+        # Update history w/ status.
+        self._historian.update_executed(input_id, status)
 
-        # TODO: fire off event for whoever's next?
+        if not status.success:
+            log.error("Failed to execute command: {}",
+                      string_safe,
+                      context=cmd_ctx)
+            return
 
-        # # Have EventManager create and fire off event for whoever wants the
-        # # next step.
-        # if component.id != ComponentId.INVALID:
-        #     next_event = InputResult(event.id, event.type, event.context,
-        #                              component_id=component.id,
-        #                              input=event.input, amount=amount)
-        #     self._event_notify(next_event)
+        # Else, success. And nothing more to do now at this point.
 
     # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions

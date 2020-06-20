@@ -89,7 +89,7 @@ class Commander:
     of their command processing in their own context
     '''
 
-    def __init__(self) -> None:
+    def __init__(self, context: VerediContext) -> None:
         '''
         Initialize Commander.
         '''

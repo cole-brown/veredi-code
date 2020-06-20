@@ -87,7 +87,7 @@ DEFAULT_LEVEL = Level.INFO
 # Variables
 # -----------------------------------------------------------------------------
 
-initialized = False
+__initialized = False
 
 logger = None
 
@@ -97,8 +97,8 @@ logger = None
 # -----------------------------------------------------------------------------
 
 def init(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
-    global initialized
-    if initialized:
+    global __initialized
+    if __initialized:
         return
 
     global logger
@@ -120,7 +120,7 @@ def init(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
 
     logger.addHandler(console_handler)
 
-    initialized = True
+    __initialized = True
 
 
 def get_level() -> Level:
@@ -447,5 +447,5 @@ class LoggingManager:
 # Module Setup
 # -----------------------------------------------------------------------------
 
-if not initialized:
+if not __initialized:
     init()

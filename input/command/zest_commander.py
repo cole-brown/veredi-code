@@ -11,8 +11,6 @@ Tests for the Commander sub-system, events, components, commands......
 import unittest
 
 from veredi.zest import zonfig
-from veredi.base.context import UnitTestContext
-from veredi.data.exceptions import LoadError
 from veredi.logger import log
 
 from veredi.game.ecs.event import EventManager
@@ -21,13 +19,11 @@ from veredi.data.config.hierarchy import Document
 # Just wanna get this dude registered.
 from veredi.math.d20.parser import MathParser
 
-from ..context import InputSystemContext, InputUserContext
-from ..parse import Parcel, Mather
+from ..context import InputSystemContext
+from ..parse import Parcel
 from .commander import Commander
-from .command import Command
-from .args import CommandArgType, CommandArg, CommandKwarg, CommandStatus
+from .args import CommandArgType, CommandStatus
 from .event import CommandRegistrationBroadcast, CommandRegisterReply
-from . import exceptions
 from . import const
 
 
@@ -68,9 +64,9 @@ class Test_Commander(unittest.TestCase):
         })
 
         self.event_manager     = EventManager(self.config)
-        self.commander         = Commander()
         self.parsers           = Parcel(self.config.context)
         self._context          = InputSystemContext(self.parsers)
+        self.commander         = Commander(self._context)
 
         self.reg_open          = False
         self.events            = []

@@ -24,9 +24,10 @@ Inspired by:
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Type, Iterable, Optional, Set, Dict)
+                    Optional, Union, Type, Iterable, Set, Dict)
 if TYPE_CHECKING:
     from .time import TimeManager
+    from veredi.base.identity import MonotonicIdGenerator
 
 import enum
 
@@ -36,14 +37,12 @@ from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 
 from .base.exceptions          import EntityError
-from .base.identity            import (MonotonicIdGenerator,
-                                       EntityId)
+from .base.identity            import ComponentId, EntityId
 from .base.component           import (Component,
                                        CompIdOrType)
 from .base.entity              import (EntityTypeId,
                                        Entity,
-                                       EntityLifeCycle,
-                                       EntityTools)
+                                       EntityLifeCycle)
 from .event                    import EcsManagerWithEvents, EventManager, Event
 from .component                import ComponentManager
 
@@ -80,19 +79,16 @@ class EntityManager(EcsManagerWithEvents):
                  event_manager:     Optional[EventManager],
                  component_manager: ComponentManager) -> None:
         '''Initializes this thing.'''
-        self._config:            Configuration        = config
-        self._event_manager:     EventManager         = event_manager
-        self._component_manager: ComponentManager     = component_manager
+        self._config:            Configuration          = config
+        self._event_manager:     EventManager           = event_manager
+        self._component_manager: ComponentManager       = component_manager
 
-        self._entity_id:         MonotonicIdGenerator = MonotonicIdGenerator(
-            EntityId)
-        self._entity_create:     Set[EntityId]        = set()
-        self._entity_destroy:    Set[EntityId]        = set()
+        self._entity_id:         'MonotonicIdGenerator' = EntityId.generator()
+        self._entity_create:     Set[EntityId]          = set()
+        self._entity_destroy:    Set[EntityId]          = set()
 
         # TODO: Pool instead of allowing stuff to be allocated/deallocated?
         self._entity:            Dict[EntityId, Entity] = {}
-
-        self._toolbox = EntityTools(self, component_manager)
 
     def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''
@@ -109,7 +105,8 @@ class EntityManager(EcsManagerWithEvents):
     # API: Entity Collection Iteration
     # -------------------------------------------------------------------------
 
-    def each_with(self, required_components: Set[Type[Component]]
+    def each_with(self,
+                  required_components: Set[Type[Component]]
                   ) -> Iterable[Entity]:
         '''
         Returns a generator that will return each entity that contains all
@@ -150,7 +147,7 @@ class EntityManager(EcsManagerWithEvents):
         '''
         eid = self._entity_id.next()
 
-        entity = Entity(context, eid, type_id, self._toolbox)
+        entity = Entity(context, eid, type_id, self._component_manager)
         self._entity[eid] = entity
         self._entity_create.add(eid)
         entity._life_cycled(EntityLifeCycle.CREATING)
@@ -181,7 +178,9 @@ class EntityManager(EcsManagerWithEvents):
                            EntityLifeCycle.DESTROYING,
                            None, False)
 
-    def add(self, entity_id: EntityId, *components: Component) -> None:
+    def add(self,
+            entity_id: EntityId,
+            *id_or_comp: Union[ComponentId, Component]) -> None:
         '''
         Add component(s) to an entity.
 
@@ -192,7 +191,7 @@ class EntityManager(EcsManagerWithEvents):
         entity = self.get(entity_id)
         if not entity:
             return
-        entity._add_all(components)
+        entity._add_all(id_or_comp)
 
         self._event_create(EntityEvent,
                            entity_id,

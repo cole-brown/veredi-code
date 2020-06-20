@@ -218,6 +218,7 @@ class ConfigHierarchy(Hierarchy):
         'input': {
             'type': Info.LEAF,
             'command': Info.LEAF,
+            'history': Info.LEAF,
             'parser': {
                 'math': Info.LEAF,
             },
