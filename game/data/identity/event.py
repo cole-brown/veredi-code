@@ -12,7 +12,7 @@ from typing import Optional, Union, Any, MutableMapping
 import enum
 
 from veredi.base.context import VerediContext
-from ..ecs.base.identity import MonotonicId, ComponentId
+from ...ecs.base.identity import MonotonicId, ComponentId
 from ..event import DataEvent
 
 

@@ -16,6 +16,7 @@ from veredi.data.exceptions import LoadError
 from veredi.logger import log
 
 from veredi.game.ecs.base.identity import ComponentId, EntityId
+from veredi.game.ecs.base.component import ComponentLifeCycle
 from veredi.game.data.event import DataLoadedEvent, DataLoadRequest
 from veredi.game.data.component import DataComponent
 from veredi.data.context import DataGameContext, DataLoadContext
@@ -171,8 +172,9 @@ class Test_SkillSystem(unittest.TestCase):
         self.assertIsInstance(component, DataComponent)
         self.assertIsInstance(component, SkillComponent)
 
-        # Stuff it on our entity
+        # Stuff it on our entity; make it enabled too.
         self.managers.entity.add(entity.id, component)
+        component._life_cycle = ComponentLifeCycle.ALIVE
         # Make sure component got attached to entity.
         self.assertIn(SkillComponent, entity)
 
@@ -248,3 +250,7 @@ class Test_SkillSystem(unittest.TestCase):
 
         # Skill Guy should have Four Nature Knowledges.
         self.assertEqual(result.amount, 4)
+
+    def test_todo(self):
+        log.debug("TODO: Convert to zystem base class like Test_InputSystem")
+        self.assertTrue(True)

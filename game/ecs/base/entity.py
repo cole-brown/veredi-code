@@ -12,7 +12,6 @@ from typing import (TYPE_CHECKING,
                     Optional, Iterable, Set, Any, NewType,
                     Dict, Union, Type, Callable)
 if TYPE_CHECKING:
-    from ..entity import EntityManager
     from ..component import ComponentManager
 
 import enum
@@ -60,33 +59,6 @@ class EntityLifeCycle(enum.Enum):
 # Code
 # -----------------------------------------------------------------------------
 
-class EntityTools:
-    '''
-    Holds pointers back to stuff like: EntityManager, ComponentManager.
-    '''
-
-    # -------------------------------------------------------------------------
-    # Constructor
-    # -------------------------------------------------------------------------
-    def __init__(self,
-                 entity_mgr:    'EntityManager',
-                 component_mgr: 'ComponentManager'):
-        self._entity_manager    = entity_mgr
-        self._component_manager = component_mgr
-
-    # -------------------------------------------------------------------------
-    # Accessors for the two managers.
-    # -------------------------------------------------------------------------
-
-    @property
-    def entity_manager(self):
-        return self._entity_manager
-
-    @property
-    def component_manager(self):
-        return self._component_manager
-
-
 class Entity:
     '''
     An Entity tracks its EntityId and life cycle, but primarily holds a
@@ -94,28 +66,21 @@ class Entity:
     basically.
     '''
 
-    # TODO: Do we want a direct link to ComponentManager instead?
-    __get_component_fn: GetCompFn  = None
-
-    @classmethod
-    def set_comp_getter(klass: 'Entity',
-                        getter: GetCompFn):
-        klass.__get_component_fn = getter
-
     def __init__(self,
-                 context: Optional[VerediContext],
-                 eid:     EntityId,
-                 tid:     EntityTypeId,
-                 tools:   EntityTools) -> None:
+                 context:           Optional[VerediContext],
+                 eid:               EntityId,
+                 tid:               EntityTypeId,
+                 component_manager: 'ComponentManager') -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!'''
-        self._entity_id:  EntityId        = eid
-        self._type_id:    EntityTypeId    = tid
-        self._life_cycle: EntityLifeCycle = EntityLifeCycle.INVALID
-        self._tools:      EntityTools     = tools
+        self._entity_id:         EntityId           = eid
+        self._type_id:           EntityTypeId       = tid
+        self._life_cycle:        EntityLifeCycle    = EntityLifeCycle.INVALID
+        self._component_manager: 'ComponentManager' = component_manager
 
         # TODO:
-        #  - only hold on to component ids.
-        #  - have getters go ask ComponentManager for component?
+        #  - Only hold on to component ids?
+        #  - Have getters go ask ComponentManager for component?
+        #  - This would make get-by-id O(n) instead of O(1)...
         self._components : Dict[Type[Component], Component] = {}
 
         self._configure(context)
@@ -133,7 +98,7 @@ class Entity:
 
     @property
     def id(self) -> EntityId:
-        return self._entity_id
+        return EntityId.INVALID if self._entity_id is None else self._entity_id
 
     @property
     def type_id(self) -> EntityTypeId:
@@ -157,6 +122,18 @@ class Entity:
         '''
         self._life_cycle = new_state
 
+    def comp_or_none(self,
+                     component: Component,
+                     allow_disabled: bool = False) -> Optional[Component]:
+        '''
+        Obeys or ignores `Component.enabled` based on `allow_disabled`.
+        Returns component or None.
+        '''
+        if not component.enabled:
+            # Only return disabled component if allowed to.
+            return component if allow_disabled else None
+        return component
+
     def get(self,
             id_or_type:     CompIdOrType,
             allow_disabled: bool = False) -> Optional[Component]:
@@ -166,23 +143,23 @@ class Entity:
         '''
         # Try to get by type first...
         component = self._components.get(id_or_type, None)
+        log.debug("Get component '{}' by type: {}",
+                  id_or_type, component)
         if component:
-            return component
+            return self.comp_or_none(component, allow_disabled)
 
         # Ok... id maybe?
-        if self.__get_component_fn:
-            component = self.__get_component_fn(id_or_type)
-            if component:
-                # Make sure it's ours...
-                my_comp = self._components.get(type(component), None)
-                if my_comp and component == my_comp:
-                    # If we don't want disabled, and this one isn't enabled
-                    # (and is therefore disabled), there isn't one for you to
-                    # have.
-                    if not allow_disabled and not component.enabled:
-                        # Go away.
-                        return None
-                    return component
+        component = self._component_manager.get(id_or_type)
+        if component:
+            # Make sure it's ours...
+            # TODO [2020-06-19]: compare by entity_id instead of getting again
+            # and comparing instance id?
+            my_comp = self._components.get(type(component), None)
+            if my_comp and component == my_comp:
+                # If we don't want disabled, and this one isn't enabled
+                # (and is therefore disabled), there isn't one for you to
+                # have.
+                return self.comp_or_none(component, allow_disabled)
 
         # Fall thorough - ain't got that one.
         return None
@@ -209,7 +186,7 @@ class Entity:
         '''
         component = id_or_comp
         if isinstance(id_or_comp, ComponentId):
-            component = self._tools.component_manager.get(id_or_comp)
+            component = self._component_manager.get(id_or_comp)
         if not component:
             log.error("Ignoring 'add' requested for a non-existing component. "
                       "ID or instance: {} -> {}",
@@ -227,13 +204,14 @@ class Entity:
                 "on entity. entity_id: {}, existing: {}, requested: {}",
                 self.id, existing, component)
 
-    def _add_all(self, components: Iterable[Component]) -> None:
+    def _add_all(self,
+                 id_or_comp: Iterable[Union[ComponentId, Component]]) -> None:
         '''
         DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
 
         Tries to add() all the supplied components to this entity.
         '''
-        for each in components:
+        for each in id_or_comp:
             self._add(each)
 
     def _remove(self, id_or_type: CompIdOrType) -> Optional[Component]:
@@ -242,20 +220,33 @@ class Entity:
 
         Removes a component from the entity.
         Returns component if found & removed, else None.
+
+        NOTE: returns component regardless of its `enabled` field.
         '''
+
         # Type passed in?
         component = self._components.pop(id_or_type, None)
         if component:
             return component
 
+        # Nothing /actually/ to do from now on - we didn't find it in our
+        # collection if we reach here, so... can't remove it? We'll mirror
+        # get()'s fallback, though, since we're returning the component?
+        #
+        # Probably not necessary since only EntityManager should call this.
+
         # Ok... id maybe?
-        if self.__get_component_fn:
-            component = self.__get_component_fn(id_or_type)
-            if component:
-                # Make sure it's ours...
-                my_comp = self._components.get(type(component), None)
-                if my_comp and component == my_comp:
-                    return component
+        component = self._component_manager.get(id_or_type)
+        if component:
+            # Make sure it's ours...
+            # TODO [2020-06-19]: compare by entity_id instead of getting again
+            # and comparing instance id?
+            my_comp = self._components.get(type(component), None)
+            if my_comp and component == my_comp:
+                # If we don't want disabled, and this one isn't enabled
+                # (and is therefore disabled), there isn't one for you to
+                # have.
+                return component
 
         return None
 
@@ -307,7 +298,7 @@ class Entity:
     def __str__(self):
         ent_str = (
             f"{self.__class__.__name__}"
-            f"[id:{self.id:03d}, "
+            f"[{self.id}, "
             f"type:{self.type_id:03d}, "
             f"{str(self.life_cycle)}]: "
         )
@@ -320,7 +311,7 @@ class Entity:
     def __repr__(self):
         ent_str = (
             f"{self.__class__.__name__}"
-            f"[id:{self.id:03d}, "
+            f"[{self.id}, "
             f"type:{self.type_id:03d}, "
             f"{repr(self.life_cycle)}]: "
         )

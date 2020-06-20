@@ -216,7 +216,7 @@ class System:
 
     @property
     def id(self) -> SystemId:
-        return self._system_id
+        return SystemId.INVALID if self._system_id is None else self._system_id
 
     @property
     def enabled(self) -> bool:
@@ -548,7 +548,7 @@ class System:
     def __str__(self):
         return (
             f"{self.__class__.__name__}"
-            f"[id:{self.id:03d}, "
+            f"[{self.id}, "
             f"{str(self.life_cycle)}]"
         )
 
@@ -556,6 +556,6 @@ class System:
         return (
             '<v.sys:'
             f"{self.__class__.__name__}"
-            f"[id:{self.id:03d}, "
+            f"[{self.id}, "
             f"{repr(self.life_cycle)}]>"
         )

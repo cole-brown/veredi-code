@@ -8,13 +8,7 @@ IDs for Entities, Components, and Systems.
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
-# import datetime
-
-# Framework
-
-# Our Stuff
-
+from veredi.base.identity import MonotonicId
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -22,67 +16,19 @@ IDs for Entities, Components, and Systems.
 
 
 # -----------------------------------------------------------------------------
-# Base
-# -----------------------------------------------------------------------------
-
-class MonotonicIdGenerator:
-    '''
-    Class that generates monotonically increasing IDs. Not random, not UUID...
-    just monotonically increasing.
-    '''
-
-    def __init__(self, id_class):
-        self._id_class = id_class
-        self._last_id = id_class.INVALID
-
-    def next(self):
-        self._last_id += 1
-        return self._id_class(self._last_id, allow=True)
-
-    def peek(self):
-        return self._last_id
-
-
-class MonotonicId(int):
-    INVALID = 0
-    _format = '{:03d}'
-
-    def __new__(klass, value, allow=False):
-        if not allow:
-            # Just make all constructed return INVALID.
-            return super().__new__(klass, klass.INVALID)
-        return super().__new__(klass, value)
-
-    def __add__(self, other):
-        raise NotImplementedError(f"{str(self)} cannot be added.")
-
-    def __sub__(self, other):
-        raise NotImplementedError(f"{str(self)} cannot be subtracted.")
-
-    def __mul__(self, other):
-        raise NotImplementedError(f"{str(self)} cannot be multiplied.")
-
-    def __div__(self, other):
-        raise NotImplementedError(f"{str(self)} cannot be divided.")
-
-    def __str__(self):
-        return (f'{self.__class__.__name__}:' + self._format).format(int(self))
-
-    def __repr__(self):
-        return ('id:' + self._format).format(int(self))
-
-
-# -----------------------------------------------------------------------------
 # ECS ID Types
 # -----------------------------------------------------------------------------
 
 class ComponentId(MonotonicId):
+    # Subclass has no new functionality.
     pass
 
 
 class EntityId(MonotonicId):
+    # Subclass has no new functionality.
     pass
 
 
 class SystemId(MonotonicId):
+    # Subclass has no new functionality.
     pass

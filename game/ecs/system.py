@@ -8,15 +8,18 @@ Base class for game update loop systems.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Set, Type, Dict, List
+from typing import (TYPE_CHECKING,
+                    Optional, Set, Type, Dict, List)
+if TYPE_CHECKING:
+    from veredi.base.identity import MonotonicIdGenerator
+
 
 from veredi.logger             import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 
-from .base.identity            import (MonotonicIdGenerator,
-                                       SystemId)
+from .base.identity            import SystemId
 from .base.system              import (System,
                                        SystemLifeCycle,
                                        Meeting)
@@ -80,10 +83,9 @@ class SystemManager(EcsManagerWithEvents):
             entity_manager,
             debug_flags)
 
-        self._system_id:      MonotonicIdGenerator = MonotonicIdGenerator(
-            SystemId)
-        self._system_create:  Set[SystemId]        = set()
-        self._system_destroy: Set[SystemId]        = set()
+        self._system_id:      'MonotonicIdGenerator' = SystemId.generator()
+        self._system_create:  Set[SystemId]          = set()
+        self._system_destroy: Set[SystemId]          = set()
 
         # TODO: Pool instead of allowing stuff to be allocated/deallocated?
         self._system:         Dict[SystemId, System]   = {}

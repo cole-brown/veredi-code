@@ -26,7 +26,8 @@ Inspired by:
 from typing import (TYPE_CHECKING,
                     Optional, Union, Type, Any, Iterable, Set, List, Dict)
 if TYPE_CHECKING:
-    from .timem import TimeManager
+    from .time import TimeManager
+    from veredi.base.identity import MonotonicIdGenerator
 
 from veredi.logger             import log
 from veredi.base.const         import VerediHealth
@@ -34,8 +35,7 @@ from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 
 from .base.exceptions          import ComponentError
-from .base.identity            import (MonotonicIdGenerator,
-                                       ComponentId)
+from .base.identity            import ComponentId
 from .base.component           import (Component,
                                        ComponentLifeCycle)
 from .event                    import (EcsManagerWithEvents,
@@ -69,8 +69,7 @@ class ComponentManager(EcsManagerWithEvents):
                  config:        Optional[Configuration],
                  event_manager: Optional[EventManager]) -> None:
         '''Initializes this thing.'''
-        self._component_id:      MonotonicIdGenerator = MonotonicIdGenerator(
-            ComponentId)
+        self._component_id:    'MonotonicIdGenerator' = ComponentId.generator()
         self._component_create:  Set[ComponentId]     = set()
         self._component_destroy: Set[ComponentId]     = set()
 

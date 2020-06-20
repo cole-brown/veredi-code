@@ -48,6 +48,14 @@ from veredi.game.ecs.base.identity  import ComponentId
 from veredi.game.ecs.base.system    import System
 from veredi.game.ecs.base.component import Component
 
+# Everything needed to participate in command registration.
+from veredi.input.command.reg       import (CommandRegistrationBroadcast,
+                                            CommandRegisterReply,
+                                            CommandPermission,
+                                            CommandArgType,
+                                            CommandStatus)
+from veredi.math.parser             import MathTree
+from veredi.input.context           import InputUserContext
 
 # Skill-Related Events & Components
 from .event                         import SkillRequest, SkillResult
@@ -133,13 +141,63 @@ class SkillSystem(System):
         super().subscribe(event_manager)
 
         # SkillSystem subs to:
+        # - CommandRegistrationBroadcast
         # - SkillRequests
-        # ยง-TODO-ยง [2020-06-04]: Is that a base class we can cover everything
-        # easily under, or do we need more?
+        self._manager.event.subscribe(CommandRegistrationBroadcast,
+                                      self.event_cmd_reg)
         self._manager.event.subscribe(SkillRequest,
                                       self.event_skill_req)
 
         return self._health_check()
+
+    def event_cmd_reg(self, event: CommandRegistrationBroadcast) -> None:
+        '''
+        Skill thingy requested to happen; please resolve.
+        '''
+        # Doctor checkup.
+        if not self._healthy():
+            self._health_meter_event = self._health_log(
+                self._health_meter_event,
+                log.Level.WARNING,
+                "HEALTH({}): Dropping event {} - our system health "
+                "isn't good enough to process.",
+                self.health, event,
+                context=event.context)
+            return
+
+        skill_check = CommandRegisterReply(event,
+                                           'skill',
+                                           CommandPermission.COMPONENT,
+                                           self.trigger_skill_req,
+                                           help='roll a skill check')
+        skill_check.permission_components(SkillComponent)
+        skill_check.add_arg('skill name', CommandArgType.VARIABLE)
+        skill_check.add_arg('additional math', CommandArgType.MATH,
+                            optional=True)
+
+        self._event_notify(skill_check)
+
+    def trigger_skill_req(self,
+                          math: MathTree,
+                          context: Optional[InputUserContext] = None
+                          ) -> CommandStatus:
+        '''
+        Skill Check command happened. Package it up into a SkillRequest event
+        for us to process later.
+        '''
+        # Doctor checkup.
+        if not self._healthy():
+            self._health_meter_event = self._health_log(
+                self._health_meter_event,
+                log.Level.WARNING,
+                "HEALTH({}): Dropping skill request trigger '{}', '{}' "
+                "- our system health isn't good enough to process.",
+                self.health, math,
+                context=context)
+            return
+
+        # ง-TODO-ง [2020-06-12]: this
+        raise NotImplementedError
 
     def event_skill_req(self, event: SkillRequest) -> None:
         '''
@@ -155,8 +213,6 @@ class SkillSystem(System):
                 self.health, event,
                 context=event.context)
             return
-
-        log.debug("Hello there. {}", event)
 
         eid = event.id
         entity = self._manager.entity.get(eid)

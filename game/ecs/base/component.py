@@ -72,7 +72,7 @@ class Component:
 
     @property
     def id(self) -> ComponentId:
-        return self._comp_id
+        return ComponentId.INVALID if self._comp_id is None else self._comp_id
 
     @property
     def enabled(self):
@@ -95,16 +95,14 @@ class Component:
     def __str__(self):
         return (
             f"{self.__class__.__name__}"
-            f"[id:{self.id:03d}, "
+            f"[{self.id}, "
             f"{str(self.life_cycle)}]"
         )
 
     def __repr__(self):
-        comp_str  = f"{self.__class__.__name__}"
-        if self.id is None:
-            comp_str += f"[id:{None}, "
-        else:
-            comp_str += f"[id:{self.id:03d}, "
-        comp_str += f"{repr(self.life_cycle)}]"
-
-        return "<v.comp:" + comp_str + ">"
+        return (
+            '<v.comp:'
+            f"{self.__class__.__name__}"
+            f"[{self.id}, "
+            f"{str(self.life_cycle)}]>"
+        )

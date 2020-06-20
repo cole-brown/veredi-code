@@ -71,7 +71,7 @@ def create_system(system_manager: SystemManager,
 
 def create_systems(system_manager: SystemManager,
                    context: VerediContext,
-                   *args: SysCreateType):
+                   *args: SysCreateType) -> List[SystemId]:
     '''
     Helper to create systems. Takes in either types or tuples of
     (type, context). Returns a list of SystemIds.
