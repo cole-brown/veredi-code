@@ -25,7 +25,7 @@ this.
 # -----------------------------------------------------------------------------
 # Permissions
 # -----------------------------------------------------------------------------
-# §-TODO-§ [2020-06-15]: Move to wherever permissions/authz lives once it lives
+# TODO [2020-06-15]: Move to wherever permissions/authz lives once it lives
 
 @enum.unique
 class CommandPermission(enum.Flag):

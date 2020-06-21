@@ -20,6 +20,8 @@ from veredi.base.metaclasses import InvalidProvider, ABC_InvalidProvider
 # Constants
 # -----------------------------------------------------------------------------
 
+# TODO [2020-06-20]: parent class for the init/new/init_invalid bullshit?
+
 
 # -----------------------------------------------------------------------------
 # IN-GAME, PER-SESSION:
@@ -203,25 +205,26 @@ class SerializableId(metaclass=ABC_InvalidProvider):
         '''
         if not klass._INVALID:
             # Make our invalid singleton instance.
-            klass._INVALID = super().__new__(klass,
-                                             klass._INVALID_VALUE)
+            klass._INVALID = klass(klass._INVALID_VALUE, True)
 
     def __new__(klass: Type['SerializableId'],
-                value: str,
+                value: Any,
                 allow: Optional[bool] = False) -> 'SerializableId':
         '''
         This is to prevent creating IDs willy-nilly.
         '''
-        if not klass._INVALID:
-            # Make our invalid singleton instance.
-            klass._init_invalid_()
-
         if not allow:
             # Just make all constructed return the INVALID singleton.
             return klass._INVALID
-        return super().__new__(klass, value)
 
-    def __init__(self, value: Any) -> None:
+        inst = super().__new__(klass)
+        # I guess this is magic bullshit cuz I don't need to init it with
+        # `value` but it still gets initialized with `value`?
+
+        # no need: inst.__init__(value)
+        return inst
+
+    def __init__(self, value: Any, allow: bool = False) -> None:
         '''
         Initialize our ID value.
         '''

@@ -37,7 +37,9 @@ from decimal import Decimal
 # ---
 from veredi.logger                  import log
 from veredi.base.const              import VerediHealth
-from veredi.base.context            import VerediContext
+from veredi.base.context            import (VerediContext,
+                                            EphemerealContext,
+                                            Conflict)
 from veredi.data.config.context     import ConfigContext
 from veredi.data.config.registry    import register
 
@@ -109,10 +111,6 @@ class InputSystem(System):
         # ---
         # Context Stuff
         # ---
-        self._context = InputSystemContext('veredi.input.system')
-        # Do I need anything from supplied (config)context?
-        # context.push(self._context)
-
         config = ConfigContext.config(context)  # Configuration obj
         if not config:
             raise ConfigContext.exception(
@@ -126,13 +124,23 @@ class InputSystem(System):
         # (e.g. a 'D11Parser' math parser).
         self._parsers: Parcel = Parcel(context)
 
+        # Create InputSystemContext now that we have enough info from config.
+        self._context = InputSystemContext(self._parsers,
+                                           self._manager,
+                                           'veredi.input.system')
+
         # ---
         # Our Sub-System Stuff
         # ---
+        # TODO [2020-06-21]: Do I want a "spawn sub-ctx as Ephemereal?" thing?
         self._commander: Commander = config.make(None,
                                                  'input',
                                                  'command')
-        self._historian: Historian = config.make(None,
+        subsysCtx = EphemerealContext(self._context.NAME,
+                                      self._context.KEY)
+        subsysCtx.pull_to_sub(self._context.sub,
+                              Conflict.SENDER_WINS | Conflict.QUIET)
+        self._historian: Historian = config.make(subsysCtx,
                                                  'input',
                                                  'history')
 
@@ -165,6 +173,9 @@ class InputSystem(System):
         # easily under, or do we need more?
         self._manager.event.subscribe(CommandInputEvent,
                                       self.event_input_cmd)
+
+        # Commander needs to sub too:
+        self._commander.subscribe(event_manager)
 
         return self._health_check()
 
@@ -204,8 +215,8 @@ class InputSystem(System):
                   user, player,
                   event.string_unsafe, event)
         string_safe, string_valid = sanitize.validate(event.string_unsafe,
-                                                      entity.user,
-                                                      entity.player,
+                                                      user,
+                                                      player,
                                                       event.context)
 
         if string_valid != sanitize.InputValid.VALID:
@@ -217,14 +228,26 @@ class InputSystem(System):
             # potentially naughty?
             return
 
+        command_safe = self._commander.maybe_command(string_safe)
+        if not command_safe:
+            log.info("Input from u:'{}' p:'{}': "
+                     "Dropping event {} - input failed `maybe_command()`.",
+                     event,
+                     context=event.context)
+            # TODO [2020-06-11]: Keep track of how many times user was
+            # potentially naughty?
+            return
+
         # Create history, generate ID.
         input_id = self._historian.add_text(entity, string_safe)
 
         # Get the command processed.
-        cmd_ctx = self.context.clone(input_id, string_safe)
-        status = self._commander.execute(string_safe, cmd_ctx)
+        cmd_ctx = self._context.clone(input_id, command_safe)
+        status = self._commander.execute(entity, command_safe, cmd_ctx)
         # Update history w/ status.
         self._historian.update_executed(input_id, status)
+
+        # TODO [2020-06-21]: Success/Failure OutputEvent?
 
         if not status.success:
             log.error("Failed to execute command: {}",
@@ -263,7 +286,7 @@ class InputSystem(System):
         # All we want to do is send out the command registration broadcast.
         # Then we want to not tick this again.
         self._event_notify(self._commander.registration(self.id,
-                                                        self.context))
+                                                        self._context))
         self._registration_broadcast = True
 
         return self._health_check()

@@ -170,8 +170,8 @@ class CommandStatus:
                              flags=flags)
 
     @staticmethod
-    def unknown_cmd_for_user(command_safe: str,
-                             reason: str) -> 'CommandStatus':
+    def unknown_for_user(command_safe: str,
+                         reason: str) -> 'CommandStatus':
         '''
         Create a CommandStatus object for an unknown command.
 
@@ -189,9 +189,9 @@ class CommandStatus:
         Create a CommandStatus object for a command that a user failed
         permission checks for.
 
-        This should probably be/be-very-close-to unknown_cmd_for_user().
+        This should probably be/be-very-close-to unknown_for_user().
         '''
-        return CommandStatus.unknown_cmd_for_user(command_safe, reason)
+        return CommandStatus.unknown_for_user(command_safe, reason)
 
     @staticmethod
     def parsing(command_safe: str,

@@ -32,7 +32,7 @@ TickTypes = Union[Decimal, int, float, str]
 
 
 # -----------------------------------------------------------------------------
-# Code
+# Game Time
 # -----------------------------------------------------------------------------
 
 class Tick:
@@ -155,6 +155,39 @@ class Clock:
         self.time_stamp = value.timestamp(self.time_zone)
 
 
+# -----------------------------------------------------------------------------
+# Machine / OS Time
+# -----------------------------------------------------------------------------
+
+class MachineTime:
+    '''
+    Time functions for non-game times.
+    '''
+
+    @property
+    def utcnow(self) -> datetime:
+        '''Current UTC datetime.'''
+        return datetime.utcnow()
+
+    @property
+    def monotonic_ns(self) -> int:
+        '''Python.time.monotonic_ns() -> int'''
+        return py_time.monotonic_ns()
+
+    @property
+    def unique(self) -> str:
+        '''Ugly, but unique. Maybe hash it before serving...'''
+        # Ignore the fractional seconds in datetime because monotonic_ns should
+        # cover us...
+        return (self.utcnow.isoformat(timespec='seconds')
+                + '.'
+                + str(self.monotonic_ns))
+
+
+# -----------------------------------------------------------------------------
+# Timer
+# -----------------------------------------------------------------------------
+
 class MonotonicTimer:
     '''
     Uses time.monotonic() to track elapsed time.
@@ -198,6 +231,10 @@ class MonotonicTimer:
         return self._current - self._start
 
 
+# --------------------------------TimeManager----------------------------------
+# --                               Dr. Time?                                 --
+# ------------------------------"Just the Time."-------------------------------
+
 class TimeManager(EcsManagerWithEvents):
     '''
     This class has the potential to be saved to data fields. Let it control its
@@ -223,6 +260,8 @@ class TimeManager(EcsManagerWithEvents):
                                           "non-zero, positive amount.",
                                           None, None)
         self.tick  = Tick(tick_amount)
+
+        self.machine = MachineTime()
 
     def apoptosis(self) -> VerediHealth:
         '''
@@ -274,7 +313,7 @@ class TimeManager(EcsManagerWithEvents):
         return self.tick.step()
 
     # ---
-    # Getters & Setters
+    # Getters & Setters - Game Time
     # ---
 
     @property
@@ -302,8 +341,15 @@ class TimeManager(EcsManagerWithEvents):
         self.clock.datetime = value
 
     # ---
+    # Getters - System Time
+    # ---
+
+    # Use self.machine.jeff()
+
+    # ---
     # Logging Despamifier Help
     # ---
+
     def metered(self, meter: Optional[Decimal]) -> Tuple[bool, Decimal]:
         '''
         Takes in a `metered` value from last call.

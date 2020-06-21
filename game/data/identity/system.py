@@ -167,8 +167,6 @@ class IdentitySystem(System):
         # via a kwarg?
         self._manager.entity.add(event.id, retval)
 
-        entity = self._manager.entity.get(event.id)
-
         return retval
 
     def event_identity_req(self, event: IdentityRequest) -> None:

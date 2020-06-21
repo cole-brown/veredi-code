@@ -97,7 +97,7 @@ class CommandRegisterReply(CommandEvent):
         '''Raises a CommandError if name is invalid (e.g. starts with the
         command prefix).'''
         self.name = name.strip().lower()
-        # §-TODO-§ [2020-06-14]: Regex check... also must start with letter.
+        # TODO [2020-06-14]: Regex check... also must start with letter.
         if self.name.startswith(const._TEXT_CMD_PREFIX):
             self.name = None
             raise log.exception(None,

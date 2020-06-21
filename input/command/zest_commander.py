@@ -65,7 +65,7 @@ class Test_Commander(unittest.TestCase):
 
         self.event_manager     = EventManager(self.config)
         self.parsers           = Parcel(self.config.context)
-        self._context          = InputSystemContext(self.parsers)
+        self._context          = InputSystemContext(self.parsers, None)
         self.commander         = Commander(self._context)
 
         self.reg_open          = False
@@ -99,7 +99,7 @@ class Test_Commander(unittest.TestCase):
     # -------------------------------------------------------------------------
 
     def user_input_ctx(self, input_str):
-        return self._context.clone(input_str)
+        return self._context.clone(None, input_str)
 
     def allow_registration(self):
         if self.reg_open:
@@ -236,7 +236,8 @@ class Test_Commander(unittest.TestCase):
 
         # Now ask for this to be executed. Should be a clean/valid input,
         # should have command name, should not have command prefix.
-        status = self.commander.execute(cmd_str,
+        status = self.commander.execute(None,
+                                        cmd_str,
                                         self.user_input_ctx(cmd_str))
 
         # In normal usage, we may need EventManager to publish() once or thrice
