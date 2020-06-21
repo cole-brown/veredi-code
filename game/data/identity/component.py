@@ -42,8 +42,18 @@ class IdentityComponent(DataComponent):
     # TEMP: a way to verify we got something, and to verify we're using the
     # verify() function...
     _REQ_KEYS = {
-        # Not sure about layout at all yet...
-        'identity': [],
+
+        'identity': [
+            # Required:
+            'name',
+            'group',
+
+            # Optional:
+            # 'display-name',
+            # 'player',
+            # 'user',
+            # 'owner',
+        ],
     }
 
     # -------------------------------------------------------------------------
@@ -73,15 +83,15 @@ class IdentityComponent(DataComponent):
         super()._from_data(actual_data)
 
     # -------------------------------------------------------------------------
-    # Properties
+    # Properties: General Entity Names
     # -------------------------------------------------------------------------
 
     @property
     def display(self) -> str:
         '''
-        Returns our best data for a display name.
+        Returns our entity's display name.
         '''
-        # §-TODO-§ [2020-06-11]: Options for, like, full vs short/formal vs
+        # TODO [2020-06-11]: Options for, like, full vs short/formal vs
         # informal vs nickname?
         name = (self._persistent.get('display-name', None) or
                 self._persistent.get('name', None))
@@ -90,23 +100,48 @@ class IdentityComponent(DataComponent):
     @property
     def name(self) -> str:
         '''
-        Returns our best data for a non-display name.
+        Returns our entity's non-display name.
         '''
         return self._persistent.get('name', None)
 
     @property
+    def group(self) -> str:
+        '''
+        Returns our entity's group or owner name.
+        '''
+        name = (self._persistent.get('group', None) or
+                self._persistent.get('owner', None))
+        return name
+
+    # -------------------------------------------------------------------------
+    # Properties: Player-Specific Names
+    # -------------------------------------------------------------------------
+
+    @property
     def user(self) -> str:
         '''
-        Returns 'user' (username if a PC) if it has one, else None.
+        Returns username if a PC and it has one, else None.
+
+        NOTE: this is user currently in control of Entity. May not be the usual
+        person playing the character (that is, the player's 'owner').
         '''
         return self._persistent.get('user', None)
 
     @property
     def player(self) -> str:
         '''
-        Returns 'player' (player's name if a PC) if it has one, else None.
+        Returns player's name if a PC and it has one, else None.
         '''
         return self._persistent.get('player', None)
+
+    @property
+    def owner(self) -> str:
+        '''
+        Returns our entity's owner name (username of main player if PC) if
+        it has one, else None.
+        '''
+        name = self._persistent.get('owner', None)
+        return name
 
     @property
     def log_player(self) -> str:
@@ -118,6 +153,6 @@ class IdentityComponent(DataComponent):
     @property
     def log_user(self) -> str:
         '''
-        Returns: user if exists, else name.
+        Returns: user if exists, else owner, else name.
         '''
-        return self.user or self.name
+        return self.user or self.owner or self.name

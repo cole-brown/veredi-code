@@ -40,7 +40,11 @@ class Test_IdentitySystem(unittest.TestCase):
     ID_DATA = {
         'identity': {
             'name': 'test-jeff',
+            'group': 'u/jeffe',
+
             'display-name': 'Test Jeff',
+            'user': 'u/jeffe',
+            'player': 'Test Jeff',
             'title': 'Titular',
         },
     }

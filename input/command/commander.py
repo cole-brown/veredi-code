@@ -39,9 +39,10 @@ from veredi.game.ecs.event          import EventManager
 # from veredi.game.ecs.entity         import EntityManager
 
 from veredi.game.ecs.base.identity  import SystemId
+from veredi.game.ecs.base.entity    import Entity
 # from veredi.game.ecs.base.system    import System
 # from veredi.game.ecs.base.component import Component
-# from veredi.game.identity.component import IdentityComponent
+from veredi.game.data.identity.component import IdentityComponent
 
 from .. import sanitize
 from . import const
@@ -104,7 +105,6 @@ class Commander:
         Gets the Commander set up to receive CommandCreate events during/after
         registration.
         '''
-
         # Commander subs to:
         # - CommandRegisterReply - for registration during set-up
         event_manager.subscribe(CommandRegisterReply,
@@ -168,12 +168,13 @@ class Commander:
         self._commands[event.name] = Command(event)
 
     # -------------------------------------------------------------------------
-    # Sub-Command Functions
-    #   (Called by the InputSystem)
+    # Helpers
     # -------------------------------------------------------------------------
 
-    def _log(context: Union[InputSystemContext, InputUserContext],
+    def _log(self,
+             context: Union[InputSystemContext, InputUserContext],
              level: log.Level,
+             entity: Entity,
              command_name: str,
              command_safe: str,
              message: str,
@@ -186,24 +187,51 @@ class Commander:
         Log's stack level (for method/class auto-print by logger) should be at
         level of caller of this function.
         '''
-
+        ident = None
+        if entity:
+            ident = entity.get(IdentityComponent)
+        ent_name = ident.name if ident else None
         cmd_info = {
-            'source0': context.source0,
-            'source1': context.source1,
+            'source': {
+                'name': ent_name,
+                'group': ident.group if ident else None,
+            },
             'name': command_name,
             'input': command_safe,
-            'permissions': context.permissions,
         }
 
         fmt_pre = "- command: '{}' invoked by '{}' - "
-        msg_pre = fmt_pre.format(command_name, context.source0)
+        msg_pre = fmt_pre.format(command_name, ent_name)
         msg_post = '\n' + pretty.indented(cmd_info)
 
-        log_fmt = msg_pre + message + msg_post
+        log_fmt = msg_pre + message + '{msg_post}'
+        kwargs['msg_post'] = msg_post
         log.incr_stack_level(kwargs)
-        log.at_level(level, log_fmt, args, kwargs)
+        log.at_level(level, log_fmt, *args, **kwargs)
+
+    # -------------------------------------------------------------------------
+    # Sub-Command Functions
+    #   (Called by the InputSystem)
+    # -------------------------------------------------------------------------
+
+    def maybe_command(self, string_safe: str) -> bool:
+        '''
+        Checks if string_safe starts with the command prefix
+        (`const._TEXT_CMD_PREFIX`).
+
+        If so, returns `command_safe` (`string_safe` minus its
+        `const._TEXT_CMD_PREFIX` prefix).
+
+        If not, returns None.
+        '''
+        # Assuming safe'd, so should also be trimmed/stripped.
+        if string_safe.startswith(const._TEXT_CMD_PREFIX):
+            return string_safe[len(const._TEXT_CMD_PREFIX):]
+
+        return None
 
     def execute(self,
+                entity: Entity,
                 command_safe: str,
                 context: InputUserContext) -> CommandStatus:
         '''
@@ -225,6 +253,7 @@ class Commander:
             # Nothing by that name. Log and fail out.
             self._log(context,
                       log.Level.INFO,
+                      entity,
                       name,
                       command_safe,
                       "Unknown or unregistered command '{}'. "
@@ -241,11 +270,12 @@ class Commander:
         if not allowed:
             self._log(context,
                       log.Level.INFO,
+                      entity,
                       name,
                       command_safe,
-                      "Insufficient permissions for command '{}'. "
+                      "Entity is not allowed to executed command '{}' ('{}'). "
                       "Will not process '{}'.",
-                      name, command_safe)
+                      name, cmd.permissions, command_safe)
             return CommandStatus.permissions(
                 command_safe,
                 "Unknown command '{}'".format(name))
@@ -255,6 +285,7 @@ class Commander:
         if not status.success:
             self._log(context,
                       log.Level.INFO,
+                      entity,
                       name,
                       command_safe,
                       "Parsing failed for command '{}'. "
@@ -268,6 +299,7 @@ class Commander:
         except CommandExecutionError as error:
             self._log(context,
                       log.Level.ERROR,
+                      entity,
                       name,
                       command_safe,
                       "Execution failed for command '{}', input: '{}'. "
@@ -276,6 +308,13 @@ class Commander:
                       error)
             # Reraise for our parent system to know about.
             raise
+
+        if status is None:
+            raise log.exception(None,
+                                CommandExecutionError,
+                                "Invoked command '{}' did not return status. "
+                                "input: '{}'",
+                                name, command_safe)
 
         # Did a thing; return whether it was a successful doing of a thing.
         return status

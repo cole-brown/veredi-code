@@ -423,7 +423,7 @@ class DataDict(abc.MutableMapping):
 
         raise log.exception(KeyError("Key is not in mapping or KeyGroups.",
                                      key),
-                            exceptions.LoadError,
+                            None,
                             "Key {} is not in mapping or KeyGroups. "
                             "map: {}, groups: {}",
                             key, self._mapping, self._grouping)
