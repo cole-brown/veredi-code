@@ -42,7 +42,7 @@ class Test_Commander(unittest.TestCase):
     '''
 
     def setUp(self):
-        self.debug = False
+        self.debugging = False
 
         self.config = zonfig.manual({
             Document.CONFIG: {
@@ -74,7 +74,7 @@ class Test_Commander(unittest.TestCase):
         self._set_up_subs()
 
     def tearDown(self):
-        self.debug             = False
+        self.debugging         = False
         self.config            = None
         self.event_manager     = None
         self.commander         = None
@@ -130,7 +130,7 @@ class Test_Commander(unittest.TestCase):
 
         Adjust num_publishes if you need to keep going from there.
         '''
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             self.event_manager.notify(event, True)
 
             for each in range(num_publishes):
@@ -141,7 +141,7 @@ class Test_Commander(unittest.TestCase):
         self.assertTrue(num_publishes > 0)
         self.assertTrue(expected_events >= 0)
 
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             self.make_it_so(event, num_publishes)
 
         if expected_events == 0:

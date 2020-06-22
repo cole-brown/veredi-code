@@ -41,7 +41,7 @@ class BaseSystemTest(unittest.TestCase):
     For testing classes where EcsManagers and events are needed.
     '''
 
-    def setUp(self):
+    def setUp(self) -> None:
         '''
         unittest.TestCase setUp function. Make one for your test class, and
         call stuff like so, possibly with more stuff:
@@ -50,7 +50,7 @@ class BaseSystemTest(unittest.TestCase):
         self.init_managers(...)
         self.init_system(...)
         '''
-        self.debug:          bool          = False
+        self.debugging:      bool          = False
         self.events:         List[Event]   = []
         self.managers:       Meeting       = None
         self.context:        VerediContext = None
@@ -69,7 +69,7 @@ class BaseSystemTest(unittest.TestCase):
          self.context,
          self.system_manager, _) = zload.set_up(self.__class__.__name__,
                                                 'setUp',
-                                                self.debug,
+                                                self.debugging,
                                                 test_type=test_type)
 
     def init_system_others(self, *sys_types: System) -> None:
@@ -94,7 +94,7 @@ class BaseSystemTest(unittest.TestCase):
                                   sys_type)
         self.system = self.system_manager.get(sid)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         '''
         unittest.TestCase tearDown function. Make one for your test class.
 
@@ -103,7 +103,7 @@ class BaseSystemTest(unittest.TestCase):
         super().tearDown()
         self.jeff = None  # <- or wherever you put your system in setUp().
         '''
-        self.debug          = False
+        self.debugging      = False
         self.events         = None
         self.managers       = None
         self.context        = None
@@ -114,7 +114,7 @@ class BaseSystemTest(unittest.TestCase):
     # Event Helpers / Handlers
     # -------------------------------------------------------------------------
 
-    def _sub_events_test(self):
+    def _sub_events_test(self) -> None:
         '''
         Subscribe to the events your want to be the (or just a)
         receiver/handler for here. Called from event_setup() for tests that
@@ -126,27 +126,29 @@ class BaseSystemTest(unittest.TestCase):
         '''
         pass
 
-    def _sub_events_systems(self):
+    def _sub_events_systems(self) -> None:
         '''
         This has all systems that SystemManager knows about (which /should/ be
         every single one) get their subscribe() call.
         '''
         self.system_manager.subscribe(self.managers.event)
 
-    def event_setup(self):
+    def event_setup(self) -> None:
         '''
         Rolls _sub_events_* into one call.
         '''
         self._sub_events_test()
         self._sub_events_systems()
 
-    def clear_events(self):
+    def clear_events(self) -> None:
         '''
         Clears out the `self.events` queue.
         '''
         self.events.clear()
 
-    def event_now(self, event, num_publishes=3):
+    def event_now(self,
+                  event:         Event,
+                  num_publishes: int = 3) -> None:
         '''
         Notifies the event for immediate action. Which /should/ cause something
         to process it and queue up an event? So we publish() in order to get
@@ -154,29 +156,32 @@ class BaseSystemTest(unittest.TestCase):
         queue up another. So we'll publish as many times as asked in
         `num_publishes`.
 
-        NOTE: This has a LoggingManager in it, so set self.debug to true if you
-        need to output all the logs during events.
+        NOTE: This has a LoggingManager in it, so set self.debugging to true if
+        you need to output all the logs during events.
         '''
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             self.managers.event.notify(event, True)
 
             for each in range(num_publishes):
                 self.managers.event.publish()
 
-    def trigger_events(self, event, num_publishes=3, expected_events=1):
+    def trigger_events(self,
+                       event:           Event,
+                       num_publishes:   int = 3,
+                       expected_events: int = 1) -> None:
         '''
         Sanity asserts on inputs, then we call event_now() to immediately
         trigger event and response. Then we check our events queue against
         `expected_events` (set to zero if you don't expect any).
 
-        NOTE: This has a LoggingManager in it, so set self.debug to true if you
-        need to output all the logs during events.
+        NOTE: This has a LoggingManager in it, so set self.debugging to true if
+        you need to output all the logs during events.
         '''
         self.assertTrue(event)
         self.assertTrue(num_publishes > 0)
         self.assertTrue(expected_events >= 0)
 
-        # This has a LoggingManager in it, so set self.debug to true if you
+        # This has a LoggingManager in it, so set self.debugging to true if you
         # need to output all the logs during events.
         self.event_now(event, num_publishes)
 

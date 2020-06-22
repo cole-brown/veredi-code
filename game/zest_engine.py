@@ -187,7 +187,7 @@ class SysNoReq(SysTest):
 class Test_Engine(unittest.TestCase):
 
     def setUp(self):
-        self.debug             = False
+        self.debugging         = False
         self.config            = zmake.config()
         self.context           = zontext.test(self.__class__.__name__,
                                               'setUp',
@@ -216,6 +216,7 @@ class Test_Engine(unittest.TestCase):
                                     DebugFlag.UNIT_TESTS)
 
     def tearDown(self):
+        self.debugging  = False
         self.config     = None
         self.event_mgr  = None
         self.time_mgr   = None
