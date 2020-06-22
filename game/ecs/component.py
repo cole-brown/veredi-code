@@ -24,7 +24,8 @@ Inspired by:
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type, Any, Iterable, Set, List, Dict)
+                    Optional, Union, Type, Any, NewType,
+                    Iterable, Set, List, Dict)
 if TYPE_CHECKING:
     from .time import TimeManager
     from veredi.base.identity import MonotonicIdGenerator
@@ -33,6 +34,7 @@ from veredi.logger             import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
+from veredi.base.null                import Null
 
 from .base.exceptions          import ComponentError
 from .base.identity            import ComponentId
@@ -46,6 +48,8 @@ from .event                    import (EcsManagerWithEvents,
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+CompOrNull = NewType('CompOrNull', Union[Component, Null])
 
 
 # -----------------------------------------------------------------------------
@@ -63,6 +67,36 @@ class ComponentLifeEvent(Event):
 class ComponentManager(EcsManagerWithEvents):
     '''
     Manages the life cycles of components.
+
+    Uses the Null Pattern object (veredi.base.null.Null) for components it
+    doesn't have so you can safely code, say:
+        for jeff_ent in all_jeff_entities:
+            name = jeff_ent.get(NameComponent).name or fallback_value
+            result = jeff_ent.get(ComplicatedComp).do_a_complicated_thing()
+            if not result.success:
+                log.info(...)
+            ...
+
+    The entities and components should be either: real or Null(), and so you'll
+    get either real returns or Null(). So no need to do all this:
+        for jeff_ent in all_jeff_entities:
+            if not jeff_ent:
+                continue
+            name_comp = jeff_ent.get(NameComponent)
+            if name_comp:
+                name = name_comp.name
+            else:
+                name = fallback_value
+            comp_comp = jeff_ent.get(ComplicatedComp)
+            if comp_comp:
+                result = comp_comp.do_a_complicated_thing()
+                if not result or not result.success:
+                    log.info(...)
+                else:
+                    ...
+            else:
+                ...
+            ...
     '''
 
     def __init__(self,
@@ -133,19 +167,23 @@ class ComponentManager(EcsManagerWithEvents):
     # API: Component/Component Management
     # -------------------------------------------------------------------------
 
-    def get(self, component_id: ComponentId) -> Optional[Component]:
+    def get(self, component_id: ComponentId) -> CompOrNull:
         '''
+        USES Null PATTERN!!!
+
         Get component from the component pool and return it. Component's
         LifeCycle is not checked so it might not be alive yet/anymore.
+
+        Returns the Component object or the Null() singleton object.
         '''
-        return self._component_by_id.get(component_id, None)
+        return self._component_by_id.get(component_id, Null())
 
     def _create_by_registry(self,
                             cid: ComponentId,
                             dotted_str: str,
                             context: Optional[VerediContext],
                             *args: Any,
-                            **kwargs: Any) -> ComponentId:
+                            **kwargs: Any) -> CompOrNull:
         '''
         Checks the registry for the Component by string and tries
         to create it.
@@ -179,7 +217,7 @@ class ComponentManager(EcsManagerWithEvents):
                         comp_class: Type[Component],
                         context: Optional[VerediContext],
                         *args: Any,
-                        **kwargs: Any) -> ComponentId:
+                        **kwargs: Any) -> CompOrNull:
         '''
         Creates a component of type `comp_class` with the supplied args.
 
@@ -234,14 +272,14 @@ class ComponentManager(EcsManagerWithEvents):
                                                  context, *args, **kwargs)
 
         # Die if we created nothing.
-        if component is None:
+        if not component:
             raise log.exception(
                 None,
                 ComponentError,
-                "Exception during Component creation for would-be "
-                "component_id {}. str_or_type: {}, args: {}, "
+                "Failed to create Component for would-be "
+                "component_id {}. got: {}, str_or_type: {}, args: {}, "
                 "kwargs: {}, context: {}",
-                cid, dotted_str_or_type, args, kwargs, context
+                cid, component, dotted_str_or_type, args, kwargs, context
             )
 
         # Finish adding since we created something.

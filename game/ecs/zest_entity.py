@@ -13,6 +13,7 @@ import unittest
 from veredi.logger import log
 from veredi.zest import zmake
 from veredi.base.context import UnitTestContext
+from veredi.base.null import Null
 
 from .event import EventManager
 from .component import (ComponentManager,
@@ -361,7 +362,7 @@ class Test_EntityManager(unittest.TestCase):
         self.entity_mgr.destruction(None)
 
         # EntityManager should no longer have them...
-        self.assertIsNone(self.entity_mgr.get(eid))
+        self.assertIs(self.entity_mgr.get(eid), Null())
         # ...and they should be dead (via our old handle).
         self.assertEqual(entity.life_cycle,
                          EntityLifeCycle.DEAD)
