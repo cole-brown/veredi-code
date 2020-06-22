@@ -12,6 +12,7 @@ import unittest
 
 from veredi.zest import zmake
 from veredi.base.context import UnitTestContext
+from veredi.base.null import Null
 
 from .event import EventManager
 from .component import (ComponentManager,
@@ -259,7 +260,7 @@ class Test_ComponentManager(unittest.TestCase):
 
         # Component should not exist as far as ComponentManager cares,
         # and be in DEAD state now.
-        self.assertIsNone(self.comp_mgr.get(cid))
+        self.assertIs(self.comp_mgr.get(cid), Null())
         self.assertIsNotNone(component)
         self.assertIsInstance(component,
                               CompOne)

@@ -24,7 +24,7 @@ Inspired by:
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type, Iterable, Set, Dict)
+                    Optional, Union, Type, NewType, Iterable, Set, Dict)
 if TYPE_CHECKING:
     from .time import TimeManager
     from veredi.base.identity import MonotonicIdGenerator
@@ -35,6 +35,7 @@ from veredi.logger             import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
+from veredi.base.null          import Null
 
 from .base.exceptions          import EntityError
 from .base.identity            import ComponentId, EntityId
@@ -57,6 +58,9 @@ class EntityEventType(enum.Enum):
     COMPONENT_REMOVE = enum.auto()
 
 
+EntityOrNull = NewType('EntityOrNull', Union[Entity, Null])
+
+
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
@@ -72,6 +76,36 @@ class EntityLifeEvent(Event):
 class EntityManager(EcsManagerWithEvents):
     '''
     Manages the life cycles of entities/components.
+
+    Uses the Null Pattern object (veredi.base.null.Null) for
+    entities/components it doesn't have so you can safely code, say:
+        for jeff_ent in all_jeff_entities:
+            name = jeff_ent.get(NameComponent).name or fallback_value
+            result = jeff_ent.get(ComplicatedComp).do_a_complicated_thing()
+            if not result.success:
+                log.info(...)
+            ...
+
+    The entities and components should be either: real or Null(), and so you'll
+    get either real returns or Null(). So no need to do all this:
+        for jeff_ent in all_jeff_entities:
+            if not jeff_ent:
+                continue
+            name_comp = jeff_ent.get(NameComponent)
+            if name_comp:
+                name = name_comp.name
+            else:
+                name = fallback_value
+            comp_comp = jeff_ent.get(ComplicatedComp)
+            if comp_comp:
+                result = comp_comp.do_a_complicated_thing()
+                if not result or not result.success:
+                    log.info(...)
+                else:
+                    ...
+            else:
+                ...
+            ...
     '''
 
     def __init__(self,
@@ -128,11 +162,15 @@ class EntityManager(EcsManagerWithEvents):
 
     def get(self, entity_id: EntityId) -> Optional[Entity]:
         '''
+        USES Null PATTERN!!!
+
         Get an existing/alive entity from the entity pool and return it.
 
         Does not care about current life cycle state of entity.
+
+        Returns the Component object or the Null() singleton object.
         '''
-        return self._entity.get(entity_id, None)
+        return self._entity.get(entity_id, Null())
 
     def create(self,
                type_id: EntityTypeId,
@@ -148,6 +186,15 @@ class EntityManager(EcsManagerWithEvents):
         eid = self._entity_id.next()
 
         entity = Entity(context, eid, type_id, self._component_manager)
+        if not entity:
+            raise log.exception(
+                None,
+                EntityError,
+                "Failed to create Entity for would-be "
+                "entity_id {}. got: {}, context: {}",
+                eid, entity, context
+            )
+
         self._entity[eid] = entity
         self._entity_create.add(eid)
         entity._life_cycled(EntityLifeCycle.CREATING)
