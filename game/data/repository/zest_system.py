@@ -38,7 +38,7 @@ from veredi.data.exceptions import LoadError
 class Test_RepoSystem(unittest.TestCase):
 
     def setUp(self):
-        self.debug         = False
+        self.debugging     = False
         self.config        = zmake.config()
         self.context       = zontext.repo(self.__class__.__name__,
                                           'setUp',
@@ -51,7 +51,7 @@ class Test_RepoSystem(unittest.TestCase):
         self.path          = self.repo._repository.root
 
     def tearDown(self):
-        self.debug         = False
+        self.debugging     = False
         self.config        = None
         self.context       = None
         self.repo          = None

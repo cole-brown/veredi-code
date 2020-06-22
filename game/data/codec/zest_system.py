@@ -59,7 +59,7 @@ health:
 class Test_CodecSystem(unittest.TestCase):
 
     def setUp(self):
-        self.debug = False
+        self.debugging = False
         context = zontext.codec(self.__class__.__name__,
                                 'setUp')
         self.config        = zmake.config()
@@ -70,6 +70,7 @@ class Test_CodecSystem(unittest.TestCase):
         self.events        = []
 
     def tearDown(self):
+        self.debugging     = False
         self.codec         = None
         self.config        = None
         self.event_manager = None

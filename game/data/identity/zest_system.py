@@ -50,13 +50,13 @@ class Test_IdentitySystem(unittest.TestCase):
     }
 
     def setUp(self):
-        self.debug               = False
+        self.debugging = False
 
         (self.managers,
          self.context,
          self.system_manager, _) = zload.set_up(self.__class__.__name__,
                                                 'setUp',
-                                                self.debug)
+                                                self.debugging)
         sid                      = zload.create_system(self.system_manager,
                                                        self.context,
                                                        IdentitySystem)
@@ -64,7 +64,7 @@ class Test_IdentitySystem(unittest.TestCase):
         self.events              = []
 
     def tearDown(self):
-        self.debug          = False
+        self.debugging      = False
         self.managers       = None
         self.context        = None
         self.system_manager = None
@@ -113,7 +113,7 @@ class Test_IdentitySystem(unittest.TestCase):
         queue up another. So we'll publish as many times as asked. Then assert
         we ended up with an event in our self.events list.
         '''
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             self.managers.event.notify(event, True)
 
             for each in range(num_publishes):
@@ -126,7 +126,7 @@ class Test_IdentitySystem(unittest.TestCase):
         self.assertTrue(num_publishes > 0)
         self.assertTrue(expected_events >= 0)
 
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             self.make_it_so(event, num_publishes)
 
         if expected_events == 0:
@@ -165,7 +165,7 @@ class Test_IdentitySystem(unittest.TestCase):
     #     self.assertFalse(self.events)
 
     #     # Ask for our Identity Guy data to be loaded.
-    #     with log.LoggingManager.on_or_off(self.debug):
+    #     with log.LoggingManager.on_or_off(self.debugging):
     #         self.make_it_so(request)
     #     self.assertTrue(self.events)
     #     self.assertEqual(len(self.events), 1)
@@ -223,7 +223,7 @@ class Test_IdentitySystem(unittest.TestCase):
         self.clear_events()
 
         request = self.identity_request_code(entity, self.ID_DATA)
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             self.trigger_events(request)
 
         result = self.events[0]
@@ -240,7 +240,7 @@ class Test_IdentitySystem(unittest.TestCase):
         self.assertIsInstance(component_event, IdentityComponent)
         component_event._life_cycle = ComponentLifeCycle.ALIVE
 
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             component_entity = entity.get(IdentityComponent)
         self.assertIsInstance(component_entity, DataComponent)
         self.assertIsInstance(component_entity, IdentityComponent)
@@ -259,7 +259,7 @@ class Test_IdentitySystem(unittest.TestCase):
     #     self.clear_events()
 
     #     request = self.identity_request(entity, "knowledge (nature)")
-    #     with log.LoggingManager.on_or_off(self.debug):
+    #     with log.LoggingManager.on_or_off(self.debugging):
     #         self.trigger_events(request)
 
     #     result = self.events[0]

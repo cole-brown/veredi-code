@@ -28,7 +28,7 @@ class Test_DataDict(unittest.TestCase):
     '''
 
     def setUp(self):
-        self.debug               = False
+        self.debugging = False
 
         self.raw_data = {
             'running': {
@@ -89,7 +89,7 @@ class Test_DataDict(unittest.TestCase):
         }
 
     def tearDown(self):
-        self.debug           = False
+        self.debugging       = False
         self.raw_data        = None
         self.expected_map    = None
         self.expected_groups = None
@@ -146,5 +146,5 @@ class Test_DataDict(unittest.TestCase):
 #         self.assertEqual(result.amount, 9)
 #         self.assertTrue(False)
 #
-# #         with log.LoggingManager.on_or_off(self.debug):
+# #         with log.LoggingManager.on_or_off(self.debugging):
 # #             self.make_it_so(skill_request)

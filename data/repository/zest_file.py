@@ -35,7 +35,7 @@ from veredi.zest import zmake
 class Test_FileTreeRepo(unittest.TestCase):
 
     def setUp(self):
-        self.debug = False
+        self.debugging = False
         self.path = zpath.repository_file_tree()
         self.config = zmake.config()
         self.context = ConfigContext(self.path,
@@ -63,13 +63,13 @@ class Test_FileTreeRepo(unittest.TestCase):
         self.repo = FileTreeRepository(self.context)
 
     def tearDown(self):
-        self.debug = False
+        self.debugging = False
         self.repo = None
         self.path = None
 
     def context_load(self, type):
         ctx = None
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             ctx = self.context.spawn(DataLoadContext,
                                      'unit-testing', None,
                                      type,
@@ -109,7 +109,7 @@ class Test_FileTreeRepo(unittest.TestCase):
         self.assertTrue(os.path.isdir(self.path))
 
     def do_load_test(self, load_type):
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             context, path = self.context_load(load_type)
         self.assertTrue(path.parent.exists())
 

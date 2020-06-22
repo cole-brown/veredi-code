@@ -33,12 +33,12 @@ from veredi.zest import zpath, zmake
 class Test_Configuration(unittest.TestCase):
 
     def setUp(self):
-        self.debug = False
+        self.debugging = False
         self.path = zpath.config('test-target.yaml')
         self.config = zmake.config(zpath.TestType.UNIT, self.path, None, None)
 
     def tearDown(self):
-        self.debug = False
+        self.debugging = False
         self.path = None
         self.config = None
 
@@ -104,11 +104,11 @@ class Test_Configuration(unittest.TestCase):
                          'veredi.codec.yaml')
 
     def test_config_make_repo(self):
-        debug = False
+        debugging = False
 
         self.assertTrue(self.config._config)
 
-        with log.LoggingManager.on_or_off(debug):
+        with log.LoggingManager.on_or_off(debugging):
             repo = self.config.make(None,
                                     'data',
                                     'game',

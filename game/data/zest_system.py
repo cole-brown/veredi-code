@@ -84,7 +84,7 @@ class Test_DataSystem(unittest.TestCase):
     '''
 
     def setUp(self):
-        self.debug             = False
+        self.debugging         = False
         self.config            = zmake.config()
         self.context           = zontext.test(self.__class__.__name__,
                                               'setUp',
@@ -104,7 +104,7 @@ class Test_DataSystem(unittest.TestCase):
         self.events            = []
 
     def tearDown(self):
-        self.debug             = False
+        self.debugging         = False
         self.config            = None
         self.context           = None
         self.event_manager     = None
@@ -154,7 +154,7 @@ class Test_DataSystem(unittest.TestCase):
 
         self.assertTrue(decode_event)
         self.assertFalse(self.events)
-        with log.LoggingManager.on_or_off(self.debug):
+        with log.LoggingManager.on_or_off(self.debugging):
             self.make_it_so(decode_event)
 
         self.assertEqual(len(self.events), 1)

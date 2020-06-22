@@ -115,7 +115,7 @@ def set_up(
         component_manager: Optional[ComponentManager]        = None,
         entity_manager:    Optional[EntityManager]           = None,
         system_manager:    Optional[SystemManager]           = None,
-        debug_flags:       Optional[DebugFlag]               = None
+        debug_flags:       Optional[DebugFlag]           = None,
         # This closing paren is a fucked up way to make pycodestyle happy...
         # May need to get flake8 so I can "# noqa" this one?
         # Oh. This comment itself lets me do whatever I want now. Yay.
