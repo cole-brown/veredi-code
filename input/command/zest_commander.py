@@ -13,6 +13,7 @@ import unittest
 from veredi.zest import zonfig
 from veredi.logger import log
 
+from veredi.base.null import Null
 from veredi.game.ecs.event import EventManager
 from veredi.data.config.hierarchy import Document
 
@@ -98,8 +99,8 @@ class Test_Commander(unittest.TestCase):
     # Helpers and Events
     # -------------------------------------------------------------------------
 
-    def user_input_ctx(self, input_str):
-        return self._context.clone(None, input_str)
+    def user_input_ctx(self, input_str, entity_id):
+        return self._context.clone(None, input_str, entity_id)
 
     def allow_registration(self):
         if self.reg_open:
@@ -238,7 +239,7 @@ class Test_Commander(unittest.TestCase):
         # should have command name, should not have command prefix.
         status = self.commander.execute(None,
                                         cmd_str,
-                                        self.user_input_ctx(cmd_str))
+                                        self.user_input_ctx(cmd_str, Null()))
 
         # In normal usage, we may need EventManager to publish() once or thrice
         # (or not), depending on the command. Here we're unit testing so we

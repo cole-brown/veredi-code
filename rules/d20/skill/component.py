@@ -32,7 +32,7 @@ class SkillComponent(DataComponent):
     Component with skill numbers, probably other stuff...
     '''
 
-    # §-TODO-§ [2020-06-04]: Some sort of rules config file where this sort
+    # TODO [2020-06-04]: Some sort of rules config file where this sort
     # of thing would live?
     _CLASS_BONUS = 3
 
@@ -73,7 +73,7 @@ class SkillComponent(DataComponent):
     # -------------------------------------------------------------------------
     # Skill or Whatever Queue
     # -------------------------------------------------------------------------
-    # §-TODO-§ [2020-06-04]: QueueComponent Interface to inherit from?
+    # TODO [2020-06-04]: QueueComponent Interface to inherit from?
 
     @property
     def has_action(self) -> bool:
@@ -162,7 +162,7 @@ class SkillComponent(DataComponent):
             return bonus
 
         if self._ranks(entry) > 0:
-            # �-TODO-� [2020-06-09]: d20 consts.py, or d20 const yaml config to
+            # TODO [2020-06-09]: d20 consts.py, or d20 const yaml config to
             # hold stuff like this magic number.
             bonus = 3
         return bonus

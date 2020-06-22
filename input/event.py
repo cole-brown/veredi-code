@@ -138,7 +138,7 @@ class OutputEvent(Event):
         '''
         Create an OutputEvent from the command status.
         '''
-        # ง-TODO-ง [2020-06-17]: OutputEvent from actual output, not from
+        # TODO [2020-06-17]: OutputEvent from actual output, not from
         # CommandStatus? Or should it be both?
         retval = OutputEvent(
             InputSystemContext.id(context),
@@ -178,5 +178,5 @@ class OutputEvent(Event):
         return "OutEvent"
 
 
-# ยง-TODO-ยง [2020-06-10]: Eventually, more events. When I have a UI or
+# TODO [2020-06-10]: Eventually, more events. When I have a UI or
 # something and can send more than just text...

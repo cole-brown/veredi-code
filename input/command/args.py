@@ -8,11 +8,19 @@ Constants for Commands, Command sub-system, Command events, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Optional, Any, Protocol, Type, Mapping
+from typing import (TYPE_CHECKING,
+                    Union, Optional, Any, Protocol, Type, Mapping)
+if TYPE_CHECKING:
+    from veredi.game.ecs.base.component import Component
+    from veredi.game.ecs.base.entity import Entity
+
+
 import enum
 
 
 from veredi.base.context import VerediContext
+
+from veredi.game.ecs.base.identity import EntityId
 
 from . import const
 from ..context import InputSystemContext, InputUserContext
@@ -155,7 +163,40 @@ class CommandStatus:
     # -------------------------------------------------------------------------
 
     # ---
-    # !FAILURES!
+    # FAILURES - For Systems Executing Commands
+    # ---
+
+    @staticmethod
+    def does_not_exist(entity_id: EntityId,
+                       entity: 'Entity',
+                       component: Type['Component'],
+                       component_type: Type['Component'],
+                       context: InputUserContext) -> 'CommandStatus':
+        '''
+        Create a CommandStatus object for an unknown command.
+
+        "For user" as this 'unknown' command could very well exist but maybe we
+        want to not acknowledge its existance due to the user not having
+        required permissions.
+        '''
+        flags = const.CommandFailure.NO_FAILURE
+        if not entity:
+            flags = const.CommandFailure.ENTITY_DNE
+        if entity and not component:
+            flags |= const.CommandFailure.COMPONENT_DNE
+
+        # TODO: should these be user-display strings?
+        reason = ('Entity or Component does not exist: '
+                  'id: {}, entity: {}, component: {}').format(entity_id,
+                                                              entity,
+                                                              component)
+        return CommandStatus(False,
+                             InputSystemContext.input(context),
+                             reason,
+                             flags=flags)
+
+    # ---
+    # FAILURES - Parsing, Input, Permissions
     # ---
 
     @staticmethod

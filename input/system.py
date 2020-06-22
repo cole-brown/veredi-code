@@ -242,7 +242,7 @@ class InputSystem(System):
         input_id = self._historian.add_text(entity, string_safe)
 
         # Get the command processed.
-        cmd_ctx = self._context.clone(input_id, command_safe)
+        cmd_ctx = self._context.clone(input_id, command_safe, entity.id)
         status = self._commander.execute(entity, command_safe, cmd_ctx)
         # Update history w/ status.
         self._historian.update_executed(input_id, status)
