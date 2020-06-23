@@ -12,12 +12,14 @@ from functools import reduce
 
 from veredi.base import random
 
-from ..parser import MathTree
+from ..parser import MathTree, NodeType
 from .const import FormatOptions
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+# TODO [2020-06-22]: typing hints
 
 
 # -----------------------------------------------------------------------------
@@ -27,28 +29,12 @@ from .const import FormatOptions
 class Node(MathTree):
     '''Base-most class for tree (leaves, branches, everything).'''
 
-    # NULL_SIGN = '\u2205'
-    # NULL_SIGN = '\N{EMPTY SET}'
-    NULL_SIGN = '∅'
-
-    def __init__(self, tags=None):
-        self._value = None
-        # tags, traits, whatever
-        self._tags = tags
+    def __init__(self, type, tags=None):
+        super().__init__(type, tags)
+        # ...anything else?
 
     def __repr__(self):
         return str(self)
-    # -------------------------------------------------------------------------
-    # Properties
-    # -------------------------------------------------------------------------
-
-    @property
-    def value(self):
-        return self._value
-
-    # @value.setter
-    # def value(self, new_value):
-    #     self._value = new_value
 
     # -------------------------------------------------------------------------
     # Evaluate
@@ -210,8 +196,8 @@ class Leaf(Node):
     # Constructor
     # -------------------------------------------------------------------------
 
-    def __init__(self, tags=None):
-        super().__init__(tags)
+    def __init__(self, type, tags=None):
+        super().__init__(NodeType.LEAF | type, tags)
 
         # 1 == positive, -1 == negative
         self._sign = 1
@@ -262,7 +248,7 @@ class Leaf(Node):
 class Dice(Leaf):
 
     def __init__(self, dice, faces, tags=None):
-        super().__init__(tags)
+        super().__init__(NodeType.RANDOM, tags)
 
         self.dice = dice
         self.faces = faces
@@ -332,7 +318,7 @@ class Dice(Leaf):
 class Constant(Leaf):
 
     def __init__(self, constant, tags=None):
-        super().__init__(tags)
+        super().__init__(NodeType.CONSTANT, tags)
 
         self._value = constant
 
@@ -367,7 +353,7 @@ class Constant(Leaf):
 class Variable(Leaf):
 
     def __init__(self, var, tags=None):
-        super().__init__(tags)
+        super().__init__(NodeType.VARIABLE, tags)
 
         self.name = var
 
@@ -423,9 +409,13 @@ class Variable(Leaf):
 # -----------------------------------------------------------------------------
 
 class Branch(Node):
-    def __init__(self, children, tags=None):
-        super().__init__(tags)
-        self.children = children
+    def __init__(self, children, type, tags=None):
+        super().__init__(NodeType.BRANCH | type, tags)
+        self._children = children
+
+    @property
+    def children(self):
+        return self._children
 
     def __str__(self):
         out = [f"{self.__class__.__name__}",
@@ -493,7 +483,7 @@ class OperatorMath(Branch):
     '''Base class for math nodes.'''
 
     def __init__(self, children, operator, op_str, tags=None):
-        super().__init__(children, tags)
+        super().__init__(children, NodeType.OPERATOR, tags)
         self.__operator = operator
         self.__operator_str = op_str
 

@@ -141,6 +141,16 @@ class CommandFailure(enum.Flag):
     # Actual Failures
     # ---
 
+    ENTITY_DNE = enum.auto()
+    '''
+    No Entity.
+    '''
+
+    COMPONENT_DNE = enum.auto()
+    '''
+    No Component.
+    '''
+
     UNKNOWN_CMD = enum.auto()
     '''
     For this specific user and their specific authz, Command does not exist /

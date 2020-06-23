@@ -9,15 +9,12 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
 import unittest
 
-# Framework
+from veredi.logger import log
 
-# Veredi
 from . import tree
-
-# Our Stuff
+from ..parser import NodeType
 
 
 # -----------------------------------------------------------------------------
@@ -36,10 +33,10 @@ from . import tree
 class Test_Node(unittest.TestCase):
 
     def setUp(self):
-        self.node0 = tree.Node()
+        self.node0 = tree.Node(NodeType.INVALID)
         self.value0 = 42
 
-        self.node1 = tree.Node()
+        self.node1 = tree.Node(NodeType.INVALID)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
@@ -71,7 +68,8 @@ class Test_Node(unittest.TestCase):
         self.assertIsNone(self.node0.value)
         self.assertEqual(self.node0._value, self.node0.value)
 
-        with self.assertRaises(AttributeError):
+        # Turn off log for this exception we expect.
+        with log.LoggingManager.disabled(), self.assertRaises(AttributeError):
             self.node1.value = 1
         # self.assertEqual(str(context.exception), "can't set attribute")
 
@@ -232,10 +230,10 @@ class Test_Node(unittest.TestCase):
 class Test_Leaf(unittest.TestCase):
 
     def setUp(self):
-        self.leaf0 = tree.Leaf()
+        self.leaf0 = tree.Leaf(NodeType.INVALID)
         self.value0 = 42
 
-        self.leaf1 = tree.Leaf()
+        self.leaf1 = tree.Leaf(NodeType.INVALID)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
@@ -455,7 +453,7 @@ class Test_Branch(unittest.TestCase):
     def test_eval(self):
         with self.assertRaises(AttributeError):
             # Branch base class shouldn't be able to eval successfully...
-            branch = tree.Branch(None)
+            branch = tree.Branch(None, NodeType.INVALID)
             branch.eval()
 
 
@@ -468,7 +466,7 @@ class Test_OperatorMath(unittest.TestCase):
     def test_eval(self):
         with self.assertRaises(TypeError):
             # OperatorMath base class shouldn't be able to eval successfully...
-            branch = tree.OperatorMath(None, None, None)
+            branch = tree.OperatorMath(None, NodeType.OPERATOR, None, None)
             branch.eval()
 
 

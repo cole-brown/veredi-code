@@ -11,17 +11,14 @@ Helper classes for managing contexts for events, error messages, etc.
 from typing import (TYPE_CHECKING,
                     Optional, Union, Type)
 if TYPE_CHECKING:
-    from veredi.game.ecs.base.identity import MonotonicId
-    from veredi.game.ecs.managers import Meeting
+    from veredi.base.identity import MonotonicId
+    from veredi.game.ecs.base.system import Meeting
 
 import enum
-
-from veredi.logger import log
 
 from veredi.base.context import (VerediContext,
                                  EphemerealContext,
                                  PersistentContext)
-from veredi.game.ecs.base.system import Meeting
 
 from .parse import Parcel, Mather
 from .identity import InputId
@@ -29,6 +26,47 @@ from .identity import InputId
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+@enum.unique
+class Link(enum.Enum):
+    PARSERS = enum.auto()
+    '''The Parser object(s).'''
+
+    # TODO [2020-06-21]- CONSTRUCTION ONLY?
+    MEETING = enum.auto()
+    '''The Meeting of Managers'''
+
+    INPUT_SAFE = enum.auto()
+    '''
+    The full input string, after sanitizing/validating. Includes command
+    name.
+    '''
+
+    INPUT_ID = enum.auto()
+    '''
+    An ID of some sort from whatever caused an InputEvent.
+    E.g.: ComponentId, EntityId, SystemId
+    '''
+
+    SOURCE_ID = enum.auto()
+    '''
+    An ID of some sort from whatever caused an InputEvent.
+    E.g.: ComponentId, EntityId, SystemId
+    '''
+
+    TYPE = enum.auto()
+    '''
+    A TypeId of some sortfrom whatever caused an InputEvent.
+    '''
+
+    # KEYCHAIN = enum.auto()
+    # '''
+    # Iterable of keys into something in the Configuration object that is
+    # important to the receiver of a context, probably.
+    # '''
+
+    # PATH = enum.auto()
+    # '''A pathlib.Path to somewhere.'''
 
 
 # -----------------------------------------------------------------------------
@@ -45,12 +83,50 @@ class InputUserContext(EphemerealContext):
     NAME = 'input'
     KEY  = 'input'
 
-    def __init__(self, name: str, key: str,
-                 input_id: InputId, full_input_safe: str) -> None:
+    def __init__(self,
+                 name: str, key: str,
+                 input_id: InputId, full_input_safe: str,
+                 source_id: 'MonotonicId') -> None:
         super().__init__(name, key)
 
         # Init our input str into place.
-        InputSystemContext._set_input(self, input_id, full_input_safe)
+        InputSystemContext._set_input(self,
+                                      input_id, full_input_safe,
+                                      source_id)
+
+    # -------------------------------------------------------------------------
+    # Input/Command-Specific Stuff
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def input_id(klass: Type['InputSystemContext'],
+                 context: VerediContext) -> Optional[str]:
+        '''
+        Checks for & returns our Input ID or InputId.INVALID.
+        '''
+        input_ctx = context._get().get(klass.KEY, {})
+        input_id = input_ctx.get(Link.INPUT_ID, InputId.INVALID)
+        return input_id
+
+    @classmethod
+    def source_id(klass: Type['InputSystemContext'],
+                  context: VerediContext) -> Union[int, 'MonotonicId']:
+        '''
+        If there is a source id (EntityId, whatever), get it.
+        '''
+        input_ctx = context._get().get(klass.KEY, {})
+        ident = input_ctx.get(Link.SOURCE_ID, None)
+        return ident
+
+    @classmethod
+    def type(klass: Type['InputSystemContext'],
+             context: VerediContext) -> Union[int, enum.Enum]:
+        '''
+        If there is a type id, get it.
+        '''
+        input_ctx = context._get().get(klass.KEY, {})
+        type_id = input_ctx.get(Link.TYPE, None)
+        return type_id
 
     # -------------------------------------------------------------------------
     # To String
@@ -75,59 +151,18 @@ class InputSystemContext(PersistentContext):
     NAME = 'input'
     KEY  = 'input'
 
-    @enum.unique
-    class Link(enum.Enum):
-        PARSERS = enum.auto()
-        '''The Parser object(s).'''
-
-        # TODO [2020-06-21]- CONSTRUCTION ONLY?
-        MEETING = enum.auto()
-        '''The Meeting of Managers'''
-
-        INPUT_SAFE = enum.auto()
-        '''
-        The full input string, after sanitizing/validating. Includes command
-        name.
-        '''
-
-        INPUT_ID = enum.auto()
-        '''
-        An ID of some sort from whatever caused an InputEvent.
-        E.g.: ComponentId, EntityId, SystemId
-        '''
-
-        SOURCE_ID = enum.auto()
-        '''
-        An ID of some sort from whatever caused an InputEvent.
-        E.g.: ComponentId, EntityId, SystemId
-        '''
-
-        TYPE = enum.auto()
-        '''
-        A TypeId of some sortfrom whatever caused an InputEvent.
-        '''
-
-        # KEYCHAIN = enum.auto()
-        # '''
-        # Iterable of keys into something in the Configuration object that is
-        # important to the receiver of a context, probably.
-        # '''
-
-        # PATH = enum.auto()
-        # '''A pathlib.Path to somewhere.'''
-
     def __init__(self,
                  parsers: Parcel,
-                 managers: Meeting,
+                 managers: 'Meeting',
                  name:    Optional[str] = None,
                  ) -> None:
         name = name or self.NAME
         super().__init__(name, self.KEY)
 
         # Make sure the path is a directory.
-        self.add(self.Link.PARSERS, parsers)
+        self.add(Link.PARSERS, parsers)
 
-        self.add(self.Link.MEETING, managers)
+        self.add(Link.MEETING, managers)
 
     # -------------------------------------------------------------------------
     # Spawn a Context for an Input Event
@@ -135,7 +170,8 @@ class InputSystemContext(PersistentContext):
 
     def clone(self,
               input_id: InputId,
-              full_input_safe: str) -> InputUserContext:
+              full_input_safe: str,
+              source_id: 'MonotonicId') -> InputUserContext:
         '''
         Make an InputUserContext for this specific `full_input_safe` user input
         that contains all the context of this InputSystemContext.
@@ -144,7 +180,8 @@ class InputSystemContext(PersistentContext):
                           InputUserContext.NAME,
                           InputUserContext.KEY,
                           input_id,
-                          full_input_safe)
+                          full_input_safe,
+                          source_id)
 
     # -------------------------------------------------------------------------
     # Sub-System Config Stuff
@@ -152,12 +189,12 @@ class InputSystemContext(PersistentContext):
 
     @classmethod
     def managers(klass: Type['InputSystemContext'],
-                 context: VerediContext) -> Optional[Meeting]:
+                 context: VerediContext) -> Optional['Meeting']:
         '''
         Checks for & returns the TimeManager, if in the context.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        managers = input_ctx.get(klass.Link.MEETING, None)
+        managers = input_ctx.get(Link.MEETING, None)
         return managers
 
     # -------------------------------------------------------------------------
@@ -168,13 +205,15 @@ class InputSystemContext(PersistentContext):
     def _set_input(klass: Type['InputSystemContext'],
                    context: InputUserContext,
                    input_id: InputId,
-                   input_safe: str) -> None:
+                   input_safe: str,
+                   source_id: 'MonotonicId') -> None:
         '''
         Set input str into `context` where InputSystemContext wants it.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        input_ctx[klass.Link.INPUT_ID] = input_id
-        input_ctx[klass.Link.INPUT_SAFE] = input_safe
+        input_ctx[Link.INPUT_ID] = input_id
+        input_ctx[Link.INPUT_SAFE] = input_safe
+        input_ctx[Link.SOURCE_ID] = source_id
 
     @classmethod
     def input(klass: Type['InputSystemContext'],
@@ -184,7 +223,7 @@ class InputSystemContext(PersistentContext):
         Includes the command name.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        input_str = input_ctx.get(klass.Link.INPUT_SAFE, None)
+        input_str = input_ctx.get(Link.INPUT_SAFE, None)
         return input_str
 
     @classmethod
@@ -194,28 +233,28 @@ class InputSystemContext(PersistentContext):
         Checks for & returns our Input ID or InputId.INVALID.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        input_id = input_ctx.get(klass.Link.INPUT_ID, InputId.INVALID)
+        input_id = input_ctx.get(Link.INPUT_ID, InputId.INVALID)
         return input_id
 
-    @classmethod
-    def source_id(klass: Type['InputSystemContext'],
-                  context: VerediContext) -> Union[int, 'MonotonicId']:
-        '''
-        If there is a source id (EntityId, whatever), get it.
-        '''
-        input_ctx = context._get().get(klass.KEY, {})
-        ident = input_ctx.get(klass.Link.SOURCE_ID, None)
-        return ident
+    # @classmethod
+    # def source_id(klass: Type['InputSystemContext'],
+    #               context: VerediContext) -> Union[int, 'MonotonicId']:
+    #     '''
+    #     If there is a source id (EntityId, whatever), get it.
+    #     '''
+    #     input_ctx = context._get().get(klass.KEY, {})
+    #     ident = input_ctx.get(Link.SOURCE_ID, None)
+    #     return ident
 
-    @classmethod
-    def type(klass: Type['InputSystemContext'],
-             context: VerediContext) -> Union[int, enum.Enum]:
-        '''
-        If there is a type id, get it.
-        '''
-        input_ctx = context._get().get(klass.KEY, {})
-        type_id = input_ctx.get(klass.Link.TYPE, None)
-        return type_id
+    # @classmethod
+    # def type(klass: Type['InputSystemContext'],
+    #          context: VerediContext) -> Union[int, enum.Enum]:
+    #     '''
+    #     If there is a type id, get it.
+    #     '''
+    #     input_ctx = context._get().get(klass.KEY, {})
+    #     type_id = input_ctx.get(Link.TYPE, None)
+    #     return type_id
 
     @classmethod
     def parsers(klass: Type['InputSystemContext'],
@@ -225,7 +264,7 @@ class InputSystemContext(PersistentContext):
         Returns None if not there.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        parcel = input_ctx.get(klass.Link.PARSERS, None)
+        parcel = input_ctx.get(Link.PARSERS, None)
         return parcel
 
     @classmethod
@@ -277,11 +316,11 @@ class InputSystemContext(PersistentContext):
     #     '''
     #     config_data = self._get().get(self.KEY, {})
     #     if path is not None:
-    #         config_data[self.Link.PATH] = path
+    #         config_data[Link.PATH] = path
     #     if config is not None:
-    #         config_data[self.Link.CONFIG] = config
+    #         config_data[Link.CONFIG] = config
     #     if keychain is not None:
-    #         config_data[self.Link.KEYCHAIN] = keychain
+    #         config_data[Link.KEYCHAIN] = keychain
 
     # -------------------------------------------------------------------------
     # To String

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 import enum
 
 from veredi.logger import log
+from veredi.base.null import Null
 from veredi.base.context import VerediContext
 from .identity import (ComponentId,
                        EntityId)
@@ -122,7 +123,7 @@ class Entity:
         '''
         self._life_cycle = new_state
 
-    def comp_or_none(self,
+    def comp_or_null(self,
                      component: Component,
                      allow_disabled: bool = False) -> Optional[Component]:
         '''
@@ -131,7 +132,7 @@ class Entity:
         '''
         if not component.enabled:
             # Only return disabled component if allowed to.
-            return component if allow_disabled else None
+            return component if allow_disabled else Null()
         return component
 
     def get(self,
@@ -139,14 +140,14 @@ class Entity:
             allow_disabled: bool = False) -> Optional[Component]:
         '''
         Gets a component from this entity by ComponentId or ComponentType. Will
-        return the component instance or None.
+        return the component instance or Null().
         '''
         # Try to get by type first...
         component = self._components.get(id_or_type, None)
         log.debug("Get component '{}' by type: {}",
                   id_or_type, component)
         if component:
-            return self.comp_or_none(component, allow_disabled)
+            return self.comp_or_null(component, allow_disabled)
 
         # Ok... id maybe?
         component = self._component_manager.get(id_or_type)
@@ -159,10 +160,10 @@ class Entity:
                 # If we don't want disabled, and this one isn't enabled
                 # (and is therefore disabled), there isn't one for you to
                 # have.
-                return self.comp_or_none(component, allow_disabled)
+                return self.comp_or_null(component, allow_disabled)
 
         # Fall thorough - ain't got that one.
-        return None
+        return Null()
 
     def contains(self,
                  comp_set: Set[CompIdOrType]) -> bool:

@@ -117,7 +117,7 @@ class CommandRegisterReply(CommandEvent):
         if self.permissions.has(const.CommandPermission.COMPONENT):
             self.permission_components = set()
 
-    def permission_components(self, *components: Component) -> None:
+    def set_permission_components(self, *components: Component) -> None:
         '''
         Set component types required by permissions. Raises a
         CommandRegisterError if permissions bit CommandPermission.COMPONENT is

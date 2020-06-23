@@ -8,19 +8,27 @@ Base Class for Integration Tests.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import List
+from typing import Union, List
 
 import unittest
 
+from veredi.base.null import Null
 from veredi.logger                      import log
 from veredi.zest                        import zload
 from veredi.zest.zpath                        import TestType
 
-from veredi.base.context import VerediContext
+from veredi.base.context import VerediContext, UnitTestContext
 from veredi.game.ecs.system             import SystemManager
 from veredi.game.ecs.base.system             import System, Meeting
+from veredi.game.ecs.base.entity             import (Entity, EntityLifeCycle)
+from veredi.game.ecs.base.identity             import EntityId
+from veredi.game.ecs.base.component             import (Component,
+                                                        ComponentLifeCycle)
 from veredi.game.ecs.event             import Event
 from veredi.game.data.event             import DataLoadedEvent
+
+from veredi.input.system       import InputSystem
+from veredi.input.command.reg       import CommandRegistrationBroadcast
 
 # from veredi.game.ecs.const              import DebugFlag
 
@@ -48,16 +56,18 @@ class IntegrationTest(unittest.TestCase):
         call stuff like so, possibly with more stuff:
 
         super().setUp()
-        self.init_managers(...)
+        self.init_required(...)
         self.init_system(...)
         '''
         self.debugging:      bool          = False
         self.events:         List[Event]   = []
+        self.reg_open:       CommandRegistrationBroadcast = None
         self.manager:        Meeting       = None
         self.context:        VerediContext = None
         self.system_manager: SystemManager = None
+        self.input_system:   InputSystem   = None
 
-    def init_managers(self) -> None:
+    def init_required(self) -> None:
         '''
         Calls zload.set_up to create Meeting of EcsManagers, a context from a
         config file, and a system_manager.
@@ -69,13 +79,22 @@ class IntegrationTest(unittest.TestCase):
                                                 self.debugging,
                                                 test_type=TestType.INTEGRATION)
 
+    def init_input(self) -> None:
+        '''
+        Creates/initializes InputSystem and registers for
+        CommandRegistrationBroadcast.
+        '''
+        self.input_system = self.init_a_system(InputSystem)
+        self.manager.event.subscribe(CommandRegistrationBroadcast,
+                                     self.event_cmd_reg)
+
     def init_many_systems(self, *sys_types: System) -> None:
         '''
         Initializes several systems you need but don't need to hang on to
         directly for your test.
 
         NOTE: Already created RepositorySystem, CodecSystem, DataSystem in
-        init_managers.
+        init_required.
         '''
         sids = zload.create_systems(self.system_manager,
                                     self.context,
@@ -95,9 +114,11 @@ class IntegrationTest(unittest.TestCase):
         self.debugging      = False
         self.apoptosis()
         self.events         = None
+        self.reg_open       = None
         self.manager        = None
         self.context        = None
         self.system_manager = None
+        self.input_system   = None
 
     def apoptosis(self) -> None:
         self.manager.time.apoptosis()
@@ -124,8 +145,8 @@ class IntegrationTest(unittest.TestCase):
         want to do events.
 
         e.g.:
-        self.manager.event.subscribe(CommandRegistrationBroadcast,
-                                     self.event_cmd_reg)
+        self.manager.event.subscribe(JeffEvent,
+                                     self.event_cmd_jeff)
         '''
         pass
 
@@ -209,6 +230,77 @@ class IntegrationTest(unittest.TestCase):
         class.
         '''
         self.events.append(event)
+
+    def event_cmd_reg(self, event):
+        self.assertIsInstance(event,
+                              CommandRegistrationBroadcast)
+        self.reg_open = event
+
+        self.make_commands(event)
+
+    # -------------------------------------------------------------------------
+    # Commands
+    # -------------------------------------------------------------------------
+
+    def allow_registration(self):
+        if self.reg_open:
+            return
+
+        event = self.input_system._commander.registration(
+            self.input_system.id,
+            self.input_system._context)
+        self.trigger_events(event,
+                            expected_events=0,
+                            num_publishes=1)
+        # Now registration is open.
+        self.assertTrue(self.reg_open)
+
+    def make_commands(self, event: CommandRegistrationBroadcast) -> None:
+        '''
+        Do things here to make your test's commands if you have any.
+        '''
+        self.assertIsInstance(event, CommandRegistrationBroadcast)
+
+    # -------------------------------------------------------------------------
+    # Create Things for Tests
+    # -------------------------------------------------------------------------
+
+    def create_entity(self) -> Entity:
+        '''
+        Creates an empty entity of type _TYPE_DONT_CARE.
+        '''
+        _TYPE_DONT_CARE = 1
+
+        # TODO [2020-06-01]: When we get to Entities-For-Realsies,
+        # probably change to an EntityContext or something...
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'test_create',
+            {})  # no initial sub-context
+
+        # Set up an entity to load the component on to.
+        eid = self.manager.entity.create(_TYPE_DONT_CARE,
+                                         context)
+        self.assertNotEqual(eid, EntityId.INVALID)
+        entity = self.manager.entity.get(eid)
+        self.assertTrue(entity)
+
+        return entity
+
+    def force_alive(self,
+                    *ents_or_comps: Union[Entity, Component, Null]) -> None:
+        '''
+        Forces each entity or component to be in the ALIVE part
+        of its life-cycle.
+        '''
+        for each in ents_or_comps:
+            # Set ents and comps to ALIVE, make sure rest are Null?
+            if isinstance(each, Entity):
+                each._life_cycle = EntityLifeCycle.ALIVE
+            elif isinstance(each, Component):
+                each._life_cycle = ComponentLifeCycle.ALIVE
+            else:
+                self.assertIs(each, Null())
 
     # -------------------------------------------------------------------------
     # Examples

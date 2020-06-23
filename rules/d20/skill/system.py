@@ -80,6 +80,10 @@ class SkillSystem(System):
         Make our stuff from context/config data.
         '''
 
+        # TODO [2020-06-22]: Load 'these words are skills' config file.
+        self._skill_names: Set[str] = set()
+        self._skill_names.add('perception')
+
         # ---
         # Health Stuff
         # ---
@@ -139,7 +143,6 @@ class SkillSystem(System):
         event_manager if need to sub/unsub more dynamically.
         '''
         super().subscribe(event_manager)
-
         # SkillSystem subs to:
         # - CommandRegistrationBroadcast
         # - SkillRequests
@@ -169,8 +172,8 @@ class SkillSystem(System):
                                            'skill',
                                            CommandPermission.COMPONENT,
                                            self.trigger_skill_req,
-                                           help='roll a skill check')
-        skill_check.permission_components(SkillComponent)
+                                           description='roll a skill check')
+        skill_check.set_permission_components(SkillComponent)
         skill_check.add_arg('skill name', CommandArgType.VARIABLE)
         skill_check.add_arg('additional math', CommandArgType.MATH,
                             optional=True)
@@ -196,8 +199,26 @@ class SkillSystem(System):
                 context=context)
             return
 
-        # �-TODO-� [2020-06-12]: this
-        raise NotImplementedError
+        eid = InputUserContext.source_id(context)
+        entity = self._manager.entity.get(eid)
+        component = entity.get(SkillComponent)
+        if not entity or not component:
+            log.info("Dropping 'skill' command - no entity or comp "
+                     "for its id: {}",
+                     eid,
+                     context=context)
+            return CommandStatus.entity_does_not_exist(eid,
+                                                       entity,
+                                                       component,
+                                                       SkillComponent,
+                                                       context)
+
+        # Get skill totals for each var that's a skill name.
+        for var in math.each_var():
+            if self.is_skill(var.name):
+                var.value = component.total(var.name)
+
+        return CommandStatus.successful(context)
 
     def event_skill_req(self, event: SkillRequest) -> None:
         '''
@@ -221,7 +242,7 @@ class SkillSystem(System):
             log.info("Dropping event {} - no entity for its id: {}",
                      event, eid,
                      context=event.context)
-            # §-TODO-§ [2020-06-04]: a health thing? e.g.
+            # TODO [2020-06-04]: a health thing? e.g.
             # self._health_update(EntityDNE)
             return
         component = entity.get(SkillComponent)
@@ -231,7 +252,7 @@ class SkillSystem(System):
                      "it on entity: {}",
                      event, entity,
                      context=event.context)
-            # §-TODO-§ [2020-06-04]: a health thing? e.g.
+            # TODO [2020-06-04]: a health thing? e.g.
             # self._health_update(ComponentDNE)
             return
 
@@ -295,3 +316,25 @@ class SkillSystem(System):
             print('todo: a skill thingy', action)
 
         return self._health_check()
+
+    # -------------------------------------------------------------------------
+    # Skill Names
+    # -------------------------------------------------------------------------
+
+    def is_skill(self, name: str) -> bool:
+        '''
+        Checks our list of known skills and returns true if this is probably a
+        skill we think.
+
+        `name` is expected to be lowercased.
+        '''
+        # If we have a skill name that `name` starts with, then yes.
+        # e.g.
+        #   'perception' starts with 'perception'
+        #   'knowledge (socks)' starts with 'knowledge'
+        for each in self._skill_names:
+            if name.startswith(each):
+                return True
+
+        # Otherwise no.
+        return False

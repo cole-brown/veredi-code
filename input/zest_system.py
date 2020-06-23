@@ -10,24 +10,23 @@ Tests for the Input system, events, and components.
 
 from veredi.zest.zystem import BaseSystemTest
 
-from veredi.logger import log
-from veredi.base.context import UnitTestContext
+from veredi.base.context                 import UnitTestContext
 
-from veredi.game.data.identity.system import IdentitySystem
+from veredi.game.data.identity.system    import IdentitySystem
 from veredi.game.data.identity.component import IdentityComponent
-from veredi.game.data.identity.event import CodeIdentityRequest
-from veredi.game.ecs.base.entity   import Entity
+from veredi.game.data.identity.event     import CodeIdentityRequest
+from veredi.game.ecs.base.entity         import Entity
 
-from .system import InputSystem
-from .identity  import InputId
-from .event import CommandInputEvent
-# from .component import InputComponent
+from .system                             import InputSystem
+from .identity                           import InputId
+from .event                              import CommandInputEvent
+# from .component                        import InputComponent
 
-from veredi.input.command.reg       import (CommandRegistrationBroadcast,
-                                            CommandRegisterReply,
-                                            CommandPermission,
-                                            CommandArgType,
-                                            CommandStatus)
+from veredi.input.command.reg            import (CommandRegistrationBroadcast,
+                                                 CommandRegisterReply,
+                                                 CommandPermission,
+                                                 CommandArgType,
+                                                 CommandStatus)
 
 
 # -----------------------------------------------------------------------------

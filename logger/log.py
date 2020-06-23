@@ -432,7 +432,7 @@ class LoggingManager:
         '''
         This one sets logging to least verbose level - CRITICAL.
         '''
-        # §-TODO-§ [2020-05-30]: more 'disabled' than this?
+        # TODO [2020-05-30]: more 'disabled' than this?
         return LoggingManager(Level.CRITICAL)
 
     @staticmethod
