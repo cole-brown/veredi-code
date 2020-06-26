@@ -9,24 +9,26 @@ Configuration file reader/writer for Veredi games.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any)
+                    Optional, Any, Mapping)
+from veredi.base.null import Nullable, Null
 if TYPE_CHECKING:
+    from veredi.base.context         import VerediContext
     from veredi.data.repository.base import BaseRepository
-    from veredi.data.codec.base import BaseCodec
-    from .codec import CodecOutput
+    from veredi.data.codec.base      import BaseCodec
+    from .codec                      import CodecOutput
 
 import pathlib
 
 from veredi.logger          import log
 from veredi.base.exceptions import VerediError
-from veredi.base.context    import VerediContext, EphemerealContext
 from veredi.data.context    import DataBareContext
-from .context               import ConfigContext
+from ..                     import background
 from veredi.base.const      import VerediHealth
 
-from .. import exceptions
-from .  import registry
-from .hierarchy import Document, Hierarchy
+from ..                     import exceptions
+from .                      import registry
+from .hierarchy             import Document, Hierarchy
+from .context               import ConfigContext
 
 
 # -----------------------------------------------------------------------------
@@ -59,6 +61,11 @@ def default_path() -> Optional[pathlib.Path]:
 class Configuration:
     '''Config data for how a game will run and what stuff it will use.'''
 
+    _DOTTED_NAME = 'veredi.data.config.config'
+
+    _CTX_KEY  = 'configuration'
+    _CTX_NAME = 'configuration'
+
     def __init__(self,
                  config_path:  Optional[pathlib.Path]     = None,
                  config_repo:  Optional['BaseRepository'] = None,
@@ -72,23 +79,23 @@ class Configuration:
         try:
             # Setup our context, import repo & codec's.
             # Also includes a handy back-link to this Configuration.
-            self._context = ConfigContext(self._path,
-                                          self)
+            background.config.init(self._path,
+                                   self)
 
             # Avoid a circular import
             self._repo = config_repo
             if not self._repo:
                 from ..repository.file import FileBareRepository
-                self._repo = FileBareRepository(self._context)
+                self._repo = FileBareRepository(Null())
 
             # Avoid a circular import
             self._codec = config_codec
             if not self._codec:
                 from ..codec.yaml import codec
-                self._codec = codec.YamlCodec(self._context)
+                self._codec = codec.YamlCodec(Null())
 
-            self._context.finish_init(self._repo.context,
-                                      self._codec.context)
+            self._set_background()
+
         except Exception as e:
             raise log.exception(e,
                                 VerediError,
@@ -101,12 +108,30 @@ class Configuration:
     # Context Properties/Methods
     # -------------------------------------------------------------------------
 
-    @property
-    def context(self):
+    def _set_background(self):
         '''
-        Will be the context dict for e.g. Events, Errors.
+        Sets our config info into the background context.
         '''
-        return self._context
+        self._bg = {
+            'name': self._DOTTED_NAME,
+        }
+        background.config.set(background.Name.CONFIG,
+                              self._bg,
+                              background.Ownership.SHARE)
+
+        # Set config's repo/codec too.
+        bg_data, bg_owner = (self._repo.background
+                             if self._repo else
+                             (None, background.Ownership.SHARE))
+        background.config.set(background.Name.REPO,
+                              bg_data,
+                              bg_owner)
+        bg_data, bg_owner = (self._codec.background
+                             if self._codec else
+                             (None, background.Ownership.SHARE))
+        background.config.set(background.Name.CODEC,
+                              bg_data,
+                              bg_owner)
 
     # -------------------------------------------------------------------------
     # Registry Mediation
@@ -114,7 +139,7 @@ class Configuration:
     def get_registered(self,
                        dotted_str: str,
                        *args: Any,
-                       context: Optional[VerediContext] = None,
+                       context: Optional['VerediContext'] = None,
                        **kwargs: Any) -> Any:
         '''
         Mediator between any systems that don't care about any deep knowledge
@@ -157,7 +182,7 @@ class Configuration:
     def create_registered(self,
                           dotted_str: str,
                           # Leave (k)args for people who are not me...
-                          context: Optional[VerediContext],
+                          context: Optional['VerediContext'],
                           *args: Any,
                           **kwargs: Any) -> Any:
         '''
@@ -188,8 +213,8 @@ class Configuration:
         return retval
 
     def make(self,
-             context:   Optional[VerediContext],
-             *keychain: str) -> Optional[Any]:
+             context:   Optional['VerediContext'],
+             *keychain: str) -> Nullable[Any]:
         '''
         Gets value from these keychain in our config data, then tries to have
         our registry create that value.
@@ -203,14 +228,10 @@ class Configuration:
             log.debug("Make requested for: {}. But we have no config "
                       "value for that. context: {}",
                       keychain, context)
-            return None
+            return Null()
 
         if not context:
-            context = self.context.spawn(EphemerealContext,
-                                         self.context.name,
-                                         self.context.key)
-        else:
-            context.pull(self.context)
+            context = ConfigContext(self._path)
 
         context.add(ConfigContext.Link.KEYCHAIN, list(keychain[:-1]))
         log.debug("Make requested for: {}. context: {}",
@@ -230,7 +251,7 @@ class Configuration:
     # -------------------------------------------------------------------------
 
     def get_data(self,
-                 *keychain: str) -> Optional[Any]:
+                 *keychain: str) -> Nullable[Any]:
         '''
         Get a configuration thingy from us given some keychain use to walk into
         our config data in 'data' entry.
@@ -242,7 +263,7 @@ class Configuration:
                         *keychain)
 
     def get_rules(self,
-                  *keychain: str) -> Optional[Any]:
+                  *keychain: str) -> Nullable[Any]:
         '''
         Get a configuration thingy from us given some keychain use to walk into
         our config data in 'rules' entry.
@@ -254,7 +275,7 @@ class Configuration:
                         *keychain)
 
     def get(self,
-            *keychain: str) -> Optional[Any]:
+            *keychain: str) -> Nullable[Any]:
         '''
         Get a configuration thingy from us given some keychain use to walk into
         our config data.
@@ -267,7 +288,7 @@ class Configuration:
 
     def get_by_doc(self,
                    doc_type:  Document,
-                   *keychain: str) -> Optional[Any]:
+                   *keychain: str) -> Nullable[Any]:
 
         hierarchy = Document.hierarchy(doc_type)
         if not hierarchy.valid(*keychain):
@@ -284,7 +305,7 @@ class Configuration:
         if data is None:
             log.debug("No doc_type {} in our config data {}.",
                       doc_type, self._config)
-            return None
+            return Null()
 
         # Now hunt for the keychain they wanted...
         for key in keychain:
@@ -293,7 +314,7 @@ class Configuration:
                 log.debug("No data for key {} in keychain {} "
                           "in our config data {}.",
                           key, keychain, doc_data)
-                return None
+                return Null()
 
         return data
 
@@ -301,28 +322,28 @@ class Configuration:
     # Load Config Stuff
     # -------------------------------------------------------------------------
 
-    # Â§-TODO-Â§ [2020-05-06]: Change data into stuff we can use.
+    # TODO [2020-05-06]: Change data into stuff we can use.
     # Classes and suchlike...
     def _set_up(self) -> VerediHealth:
         '''Raises ConfigError'''
 
         if not self._path:
-            raise exceptions.ConfigError(
-                "No path for config data after loading!",
+            raise log.exception(
                 None,
-                self.context)
+                exceptions.ConfigError,
+                "No path for config data after loading!")
 
         if not self._codec:
-            raise exceptions.ConfigError(
-                "No codec for config data after loading!",
+            raise log.exception(
                 None,
-                self.context)
+                exceptions.ConfigError,
+                "No codec for config data after loading!")
 
         if not self._repo:
-            raise exceptions.ConfigError(
-                "No repository for config data after loading!",
+            raise log.exception(
                 None,
-                self.context)
+                exceptions.ConfigError,
+                "No repository for config data after loading!")
 
         return VerediHealth.HEALTHY
 
@@ -334,10 +355,9 @@ class Configuration:
         '''
         # Spawn a context from what we know, and ask the config repo to load
         # something based on that.
-        ctx = self.context.spawn(DataBareContext,
-                                 self.context.name,
-                                 self.context.key,
-                                 self._path)
+        ctx = DataBareContext(ConfigContext.NAME,
+                              ConfigContext.KEY,
+                              self._path)
         with self._repo.load(ctx) as stream:
             # Decode w/ codec.
             # Can raise an error - we'll let it.
@@ -371,8 +391,7 @@ class Configuration:
                 exceptions.LoadError,
                 "TODO: How do we deal with list document? {}: {}",
                 type(document),
-                str(document),
-                context=self.context)
+                str(document))
 
         elif (isinstance(document, dict)
               and Hierarchy.VKEY_DOC_TYPE in document):
@@ -390,8 +409,34 @@ class Configuration:
                 "{}: {}",
                 Hierarchy.VKEY_DOC_TYPE,
                 type(document),
-                str(document),
-                context=self.context)
+                str(document))
+
+    def definition(self, dotted_name: str) -> Nullable[Mapping[str, Any]]:
+        '''
+        Load a definition for the given dotted name.
+
+        Expects a game data repo and codec to have been linked into
+        background.data.
+
+        For out-of-band loading like during system init/set_up phases where
+        timing and consistent ticking aren't critical.
+        '''
+        def_repo = background.data.repository
+        def_codec = background.data.codec
+        if not def_repo or not def_codec:
+            raise log.exception(
+                None,
+                exceptions.ConfigError,
+                "Cannot load definition for {}! "
+                "No repostiory or codec. repo: {}, codec: {}",
+                dotted_name,
+                str(def_repo),
+                str(def_codec))
+
+        context = None
+        loaded = def_repo.definition(dotted_name, context)
+        decoded = def_codec.decode_all(loaded, context)
+        return decoded
 
     # -------------------------------------------------------------------------
     # Unit Testing

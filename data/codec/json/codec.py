@@ -9,12 +9,17 @@ Aka JSON Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, TextIO
+from typing import (TYPE_CHECKING,
+                    Optional, Any, TextIO)
+if TYPE_CHECKING:
+    from veredi.base.context import VerediContext
+    from veredi.data.config.context import ConfigContext
+
+
 import json
 
-from veredi.base.context import VerediContext
+from veredi.data.background import Ownership as BgOwner
 from veredi.data.config.registry import register
-from veredi.data.config.context import ConfigContext
 from veredi.data import exceptions
 
 from ..base import BaseCodec, CodecOutput
@@ -32,24 +37,36 @@ from ..base import BaseCodec, CodecOutput
 @register('veredi', 'codec', 'json')
 class JsonCodec(BaseCodec):
     _CODEC_NAME   = 'json'
-    _CONTEXT_NAME = 'json'
-    _CONTEXT_KEY  = 'codec'
 
     def __init__(self,
-                 context: Optional[ConfigContext] = None) -> None:
+                 context: Optional['ConfigContext'] = None) -> None:
         super().__init__(JsonCodec._CODEC_NAME,
-                         JsonCodec._CONTEXT_NAME,
-                         JsonCodec._CONTEXT_KEY,
                          context)
 
     def _configure(self,
-                   context: Optional[ConfigContext]) -> None:
+                   context: Optional['ConfigContext']) -> None:
         '''Don't need anything from context, currently.'''
-        pass
+        self._make_background()
+
+    def _make_background(self) -> None:
+        self._bg = super()._make_background(self._DOTTED_NAME)
+
+    @property
+    def background(self):
+        '''
+        Data for the Veredi Background context.
+
+        Returns: (data, background.Ownership)
+        '''
+        return self._bg, BgOwner.SHARE
+
+    # -------------------------------------------------------------------------
+    # Decode Methods
+    # -------------------------------------------------------------------------
 
     def decode(self,
                stream: TextIO,
-               input_context: VerediContext) -> CodecOutput:
+               input_context: 'VerediContext') -> CodecOutput:
         '''Load and decodes data from a single data stream.
 
         Raises:
@@ -66,12 +83,12 @@ class JsonCodec(BaseCodec):
             raise exceptions.LoadError(
                 f"Error loading json from stream: {stream}",
                 error,
-                self.context.push(input_context)) from error
+                input_context) from error
         return data
 
     def _load(self,
               stream: TextIO,
-              input_context: VerediContext) -> Any:
+              input_context: 'VerediContext') -> Any:
         '''Load data from a single data stream.
 
         Returns:
@@ -95,12 +112,12 @@ class JsonCodec(BaseCodec):
             raise exceptions.LoadError(
                 f"Error loading json from stream: {stream}",
                 error,
-                self.context.push(input_context)) from error
+                input_context) from error
         return data
 
     def decode_all(self,
                    stream: TextIO,
-                   input_context: VerediContext) -> CodecOutput:
+                   input_context: 'VerediContext') -> CodecOutput:
         '''Load and decodes all documents from the data stream.
 
         Raises:
@@ -112,7 +129,7 @@ class JsonCodec(BaseCodec):
 
     def _load_all(self,
                   stream: TextIO,
-                  input_context: VerediContext) -> Any:
+                  input_context: 'VerediContext') -> Any:
         '''Load data from a single data stream.
 
         Returns:

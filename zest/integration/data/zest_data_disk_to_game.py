@@ -68,10 +68,9 @@ class Test_DataLoad_DiskToGame(IntegrationTest):
         self.sub_loaded()
 
     def load_request(self, type):
-        ctx = self.context.spawn(DataLoadContext,
-                                 'unit-testing', None,
-                                 type,
-                                 'test-campaign')
+        ctx = DataLoadContext('unit-testing', None,
+                              type,
+                              'test-campaign')
         if type == DataGameContext.Type.MONSTER:
             ctx.sub['family'] = 'dragon'
             ctx.sub['monster'] = 'aluminum dragon'
@@ -98,7 +97,7 @@ class Test_DataLoad_DiskToGame(IntegrationTest):
         self.assertTrue(self.manager.event)
         self.assertTrue(self.manager.component)
         self.assertTrue(self.manager.entity)
-        self.assertTrue(self.system_manager)
+        self.assertTrue(self.manager.system)
 
     def test_set_up(self):
         self.event_setup()

@@ -12,12 +12,14 @@ a DB or JSON comes along they can just implement to the same thing.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, NewType, Mapping, Dict, Iterable, Tuple
+from typing import Union, Any, NewType, Mapping, Iterable, Tuple
 from collections import abc
-import re
 
 from veredi.logger import log
 from veredi.data import exceptions
+from veredi.base import vstring
+
+from .group import KeyGroupMarker, KeyGroup
 
 
 # -----------------------------------------------------------------------------
@@ -25,356 +27,6 @@ from veredi.data import exceptions
 # -----------------------------------------------------------------------------
 
 DDKey = NewType('DDKey', Union[str, 'KeyGroupMarker'])
-
-_KG_HASH = 'KeyGroup'
-_UD_HASH = 'UserDefined'
-
-
-# §-TODO-§ [2020-06-08]: Do I want python errors or VerediErrors raised here?
-
-
-# -----------------------------------------------------------------------------
-# Keys
-# -----------------------------------------------------------------------------
-
-# ---
-# Grouping
-# ---
-
-class KeyGroupMarker(abc.Hashable):
-    '''
-    Placeholder for folks who want to build their data like, say:
-    {
-      'shenanigans': {...},
-      'knowledge': {
-        'weird stuff': {...},
-      },
-    }
-
-    They can parse/translate 'knowledge' into this diet class, and DataDict
-    will finish up for them:
-    {
-      'shenanigans': {...},
-      KeyGroupMarker('knowledge'): {
-        'weird stuff': {...}
-      }
-    }
-
-    Pass that into a DataDict and it will pull the marker-key and its value out
-    and turn them into a KeyGroup proper.
-    '''
-
-    def __init__(self, key: str) -> None:
-        self._name: str = key
-        self._hash: Tuple[str, str] = (_KG_HASH, self._name)
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    # ---
-    # Hashable / Dict/Set Key Interface
-    # ---
-    def __hash__(self):
-        # We'll hash out to our key's name plus
-        return hash(self._hash)
-
-    def __eq__(self, other):
-        '''
-        Define equality by hash in order to compare KeyGroupMarkers to
-        KeyGroups and vice versa.
-        '''
-        return hash(self) == hash(other)
-
-    # ---
-    # To String
-    # ---
-    def __str__(self) -> str:
-        return (f"{type(self).__name__}({self._name})")
-
-    def __repr__(self) -> str:
-        return (f"<{type(self).__name__}({self._name})>")
-
-
-class KeyGroup(abc.MutableMapping, abc.Hashable):
-    '''
-    A list of elements with something in common has been grouped up. E.g.:
-      - Knowledge skills.
-    '''
-
-    RE_FLAGS = re.IGNORECASE
-    '''
-    Don't care about case in our data.
-    '''
-
-    RE_SUB_KEY_FMT = r'^({name}).*?(\w[\w\d\s:\'"-]*\w).*?$'
-    '''
-    Matches:
-      - start of string
-      - group 0, who cares:
-        - name
-      - any number of anything, lazy
-      - OUR GROUP!
-        - something alphanumeric
-        - any number of something printable-ish
-        - something alphanumeric
-      - who cares, lazy
-      - end of string
-    '''
-
-    FULL_NAME_PAREN_FMT = '{name} ({sub_name})'
-    '''Full Names with sub-name in parenthesis.
-    E.g. "Knowledge (Weird Stuff)"'''
-    FULL_NAME_COLON_FMT = '{name}: {sub_name}'
-    '''Full Names with sub-name in parenthesis.
-    E.g. "Profession: Weirdologist"'''
-
-    def __init__(self,
-                 name: Union[KeyGroupMarker, str],
-                 values: Mapping[str, Any] = {},
-                 re_claim: Union[re.Pattern, str, None] = None,
-                 re_sub_key: Union[re.Pattern, str, None] = None,
-                 full_name_fmt: Optional[str] = None) -> None:
-        '''
-        `name` is for our name/key. E.g. for the "Knowledge (Weird Things),
-        Knowledge(Etc)" group, that would be "Knowledge."
-
-        NOTE: `re_claim` that are re.Patterns should kindly use (or bitwise or
-        into their own flags) the KeyGroup.RE_FLAGS.
-        If no `re_claim`, the claim will be:
-            '^' + name + '.*$'
-
-        NOTE: `re_sub_key` that are re.Patterns should kindly use (or bitwise
-        or into their own flags) the KeyGroup.RE_FLAGS.
-        If no `re_sub_key`, the pattern will be:
-            KeyGroup.RE_SUB_KEY_FMT.format(name=name)
-
-          SUB-NOTE: Sub-key's match is in the second group! First group
-          contains key's name!
-        '''
-
-        self._name: str = (name.name
-                           if isinstance(name, KeyGroupMarker) else
-                           name)
-        '''
-        Our name/key. E.g. for the "Knowledge (Weird Things), Knowledge(Etc)"
-        group, that would be "Knowledge."
-        '''
-
-        self._hash: Tuple[str, str] = (_KG_HASH, self._name)
-        '''Our values we care about for hashing purposes - shouldn't change
-        during lifetime of object.'''
-
-        self._mapping: Dict[str, Any] = {}
-        '''Our group of sub-name/keys and their values.'''
-
-        self._re_claim: re.Pattern = None
-        '''Our re.Pattern for matching a full name & sub-name to us.'''
-
-        self._re_sub_key: re.Pattern = None
-        '''Our re.Pattern for matching a full name & sub-name to us.'''
-
-        self._name_fmt: str = full_name_fmt or self.FULL_NAME_PAREN_FMT
-
-        self._init_regex(re_claim, re_sub_key)
-
-        # Want our regexes initialized before setting our _mapping based on
-        # input values.
-        self.update(values)
-
-    def _init_regex(self,
-                    re_claim:   Union[re.Pattern, str, None] = None,
-                    re_sub_key: Union[re.Pattern, str, None] = None) -> None:
-        '''
-        Sets self._claim to an re.Pattern based on input.
-        '''
-        # ---
-        # re_claim
-        # ---
-        if isinstance(re_claim, str):
-            self._re_claim = re.compile(re_claim,
-                                        re.IGNORECASE)
-        elif isinstance(re_claim, re.Pattern):
-            self._re_claim = re_claim
-        else:
-            self._re_claim = re.compile('^' + self._name + r'.*$',
-                                        re.IGNORECASE)
-
-        # ---
-        # re_sub_key
-        # ---
-        if isinstance(re_sub_key, str):
-            self._re_sub_key = re.compile(re_sub_key,
-                                          re.IGNORECASE)
-        elif isinstance(re_sub_key, re.Pattern):
-            self._re_sub_key = re_sub_key
-        else:
-            match_str = self.RE_SUB_KEY_FMT.format(name=self._name)
-            self._re_sub_key = re.compile(match_str,
-                                          re.IGNORECASE)
-
-    # ---
-    # Full-Name / Full-Key
-    # ---
-    def full_name(self, sub_key: str) -> str:
-        '''
-        Turn a sub-key into a full-key / full-name.
-        E.g. 'weird stuff' -> 'knowledge (weird stuff)'
-        '''
-        return self._name_fmt.format(self._name, sub_key)
-
-    # ---
-    # Name / Key
-    # ---
-    def matches(self, key: str) -> bool:
-        '''
-        Returns true if this key matches us.
-        E.g. if we are 'knowledge' and key is too, yes.
-        '''
-        return self.normalize(self._name) == self.normalize(key)
-
-    # ---
-    # Sub-Key
-    # ---
-    def sub_key(self, full_name: Union[str, 'UserDefinedMarker']) -> str:
-        '''
-        Get a sub-key out of the `full_name`.
-        E.g. for full_name == "Knowledge (Weird Stuff)":
-          sub-key: "Weird Stuff"
-        NOTE:
-          Sub-key group should be group 2 according to re.Match.group()!
-        '''
-        if isinstance(full_name, (UserDefinedMarker,
-                                  KeyGroupMarker,
-                                  KeyGroup)):
-            full_name = full_name.name
-
-        retval = None
-        result = self._re_sub_key.match(full_name)
-        if result:
-            # Group 0 is whole thing, group 1 is KeyGroup name, group 2
-            # is sub-key.
-            retval = result.group(2)
-            if retval:
-                retval = self.normalize(retval)
-        else:
-            # Couldn't match our full-name regex to get a sub-key out... assume
-            # that we were given a sub-key instead?
-            retval = self.normalize(full_name)
-
-        return retval
-
-    def normalize(self, input: str) -> str:
-        '''
-        Normalizes a string. Mostly just for lowercasing when KeyGroup.RE_FLAGS
-        contains re.IGNORECASE.
-        '''
-        retval = input
-        if (self.RE_FLAGS & re.IGNORECASE) == re.IGNORECASE:
-            retval = retval.lower()
-
-        return retval
-
-    def claims(self, full_name: str):
-        '''
-        Returns true if this KeyGroup will claim `full_name` as a
-        groupie of itself.
-        '''
-        match = self._re_claim.match(full_name)
-        return bool(match)
-
-    # ---
-    # abc.MutableMapping
-    # ---
-    def __getitem__(self, key: str) -> Any:
-        # Gotta turn full-name key into our sub-key, then check for it.
-        subkey = self.sub_key(key)
-        return self._mapping[subkey]
-
-    def __delitem__(self, key: str) -> Any:
-        subkey = self.sub_key(key)
-        del self._mapping[subkey]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        subkey = self.sub_key(key)
-        self._mapping[subkey] = value
-
-    def __iter__(self) -> Iterable:
-        return iter(self._mapping)
-
-    def __len__(self) -> int:
-        return len(self._mapping)
-
-    # ---
-    # abc.Container
-    # ---
-    def __contains__(self, key: str) -> bool:
-        subkey = self.sub_key(key)
-        return subkey in self._mapping
-
-    # ---
-    # abc.Hashable: Dict/Set Key Interface
-    # ---
-    def __hash__(self):
-        # We'll hash out to our key's name plus
-        return hash(self._hash)
-
-    def __eq__(self, other):
-        '''
-        Define equality by hash in order to compare KeyGroupMarkers to
-        KeyGroups and vice versa.
-        '''
-        return hash(self) == hash(other)
-
-    # ---
-    # To String
-    # ---
-    def __str__(self) -> str:
-        return (f"{type(self).__name__}({self._name}, {self._mapping}, "
-                f"{self._re_claim}, {self._re_sub_key})")
-
-    def __repr__(self) -> str:
-        return (f"{type(self).__name__}({self._name}, {self._mapping}, "
-                f"{self._re_claim}, {self._re_sub_key})")
-
-
-class UserDefinedMarker(abc.Hashable):
-    '''
-    An element that usually has a rule/data-defined name should instead have
-    one defined by user in this instance. E.g.:
-      - Profession skills can have the specific profession defined by user.
-    '''
-
-    def __init__(self, key: str) -> None:
-        self._name: str = key
-        self._hash: Tuple[str, str] = (_UD_HASH, self._name)
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    # ---
-    # Hashable / Dict/Set Key Interface
-    # ---
-    def __hash__(self):
-        # We'll hash out to our key's name plus
-        return hash(self._hash)
-
-    def __eq__(self, other):
-        '''
-        Define equality by hash in order to compare UserDefinedMarker to
-        UserDefined and vice versa.
-        '''
-        return hash(self) == hash(other)
-
-    # ---
-    # To String
-    # ---
-    def __str__(self) -> str:
-        return (f"{type(self).__name__}({self._name})")
-
-    def __repr__(self) -> str:
-        return (f"<{type(self).__name__}({self._name})>")
 
 
 # -----------------------------------------------------------------------------
@@ -400,12 +52,11 @@ class DataDict(abc.MutableMapping):
 
     def normalize(self, input: str) -> str:
         '''
-        Normalizes a string. Mostly just for lowercasing when KeyGroup.RE_FLAGS
-        contains re.IGNORECASE.
+        Normalizes a string. Returns non-strings unharmed.
         '''
         retval = input
         if isinstance(retval, str):
-            retval = retval.lower()
+            retval = vstring.normalize(input)
         return retval
 
     # ---
@@ -538,6 +189,10 @@ class DataDict(abc.MutableMapping):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._mapping})"
 
+
+# ------------------------------
+# Iterator Helper
+# ------------------------------
 
 class DataDictIterator(abc.Iterable):
 

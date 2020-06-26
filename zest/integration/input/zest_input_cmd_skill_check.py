@@ -85,10 +85,9 @@ class Test_InputCmd_SkillCheck(IntegrationTest):
         self.events.append(event)
 
     def load_request(self, eid, type):
-        ctx = self.context.spawn(DataLoadContext,
-                                 'unit-testing', None,
-                                 type,
-                                 'test-campaign')
+        ctx = DataLoadContext('unit-testing', None,
+                              type,
+                              'test-campaign')
         if type == DataGameContext.Type.NPC:
             ctx.sub['family'] = 'Townville'
             ctx.sub['npc'] = 'Skill Guy'
@@ -162,7 +161,7 @@ class Test_InputCmd_SkillCheck(IntegrationTest):
         self.assertTrue(self.manager.event)
         self.assertTrue(self.manager.component)
         self.assertTrue(self.manager.entity)
-        self.assertTrue(self.system_manager)
+        self.assertTrue(self.manager.system)
 
     def test_ent_setup(self):
         # Just make sure we did the setup successfully...

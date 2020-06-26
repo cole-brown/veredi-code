@@ -24,46 +24,44 @@ Alot of Inputs.
 # ---
 from typing import (TYPE_CHECKING,
                     Optional, Union, Type, Set)
+from veredi.base.null import Null
 if TYPE_CHECKING:
-    from veredi.game.ecs.component      import ComponentManager
-    from veredi.game.ecs.entity         import EntityManager
+    from decimal                   import Decimal
 
-from veredi.game.ecs.manager import EcsManager
-from decimal import Decimal
+    from veredi.base.context       import VerediContext
+    from veredi.game.ecs.component import ComponentManager
+    from veredi.game.ecs.entity    import EntityManager
+    from veredi.game.ecs.manager   import EcsManager
 
 
 # ---
 # Code
 # ---
-from veredi.logger                  import log
-from veredi.base.const              import VerediHealth
-from veredi.base.context            import (VerediContext,
-                                            EphemerealContext,
-                                            Conflict)
-from veredi.data.config.context     import ConfigContext
-from veredi.data.config.registry    import register
+from veredi.data                         import background
+from veredi.logger                       import log
+from veredi.base.const                   import VerediHealth
+from veredi.data.config.registry         import register
 
 # Game / ECS Stuff
-from veredi.game.ecs.event          import EventManager
-from veredi.game.ecs.time           import TimeManager
+from veredi.game.ecs.event               import EventManager
+from veredi.game.ecs.time                import TimeManager
 
-from veredi.game.ecs.const          import (SystemTick,
-                                            SystemPriority)
+from veredi.game.ecs.const               import (SystemTick,
+                                                 SystemPriority)
 
-from veredi.game.ecs.base.system    import System
-from veredi.game.ecs.base.component import Component
+from veredi.game.ecs.base.system         import System
+from veredi.game.ecs.base.component      import Component
 from veredi.game.data.identity.component import IdentityComponent
 
-from .identity  import InputId
-from .context import InputSystemContext
-from . import sanitize
-from .parse import Parcel
-from .command.commander import Commander
-from .history.history import Historian
+from .context                            import InputContext
+from .                                   import sanitize
+from .parse                              import Parcel
+from .command.commander                  import Commander
+from .history.history                    import Historian
 
 # Input-Related Events & Components
-from .event                         import CommandInputEvent
-# from .component                     import InputComponent
+from .event                              import CommandInputEvent
+# from .component                        import InputComponent
 
 
 # -----------------------------------------------------------------------------
@@ -82,7 +80,7 @@ from .event                         import CommandInputEvent
 @register('veredi', 'input', 'system')
 class InputSystem(System):
 
-    def _configure(self, context: VerediContext) -> None:
+    def _configure(self, context: 'VerediContext') -> None:
         '''
         Make our stuff from context/config data.
         '''
@@ -92,12 +90,12 @@ class InputSystem(System):
         # ---
         # Health Stuff
         # ---
-        self._required_managers:   Optional[Set[Type[EcsManager]]] = {
+        self._required_managers:   Optional[Set[Type['EcsManager']]] = {
             TimeManager,
             EventManager
         }
-        self._health_meter_update: Optional[Decimal] = None
-        self._health_meter_event:  Optional[Decimal] = None
+        self._health_meter_update: Optional['Decimal'] = None
+        self._health_meter_event:  Optional['Decimal'] = None
 
         # ---
         # Ticking Stuff
@@ -111,9 +109,9 @@ class InputSystem(System):
         # ---
         # Context Stuff
         # ---
-        config = ConfigContext.config(context)  # Configuration obj
+        config = background.config.config
         if not config:
-            raise ConfigContext.exception(
+            raise background.config.exception(
                 context,
                 None,
                 "Cannot configure {} without a Configuration in the "
@@ -124,25 +122,46 @@ class InputSystem(System):
         # (e.g. a 'D11Parser' math parser).
         self._parsers: Parcel = Parcel(context)
 
-        # Create InputSystemContext now that we have enough info from config.
-        self._context = InputSystemContext(self._parsers,
-                                           self._manager,
-                                           'veredi.input.system')
-
         # ---
         # Our Sub-System Stuff
         # ---
-        # TODO [2020-06-21]: Do I want a "spawn sub-ctx as Ephemereal?" thing?
         self._commander: Commander = config.make(None,
                                                  'input',
                                                  'command')
-        subsysCtx = EphemerealContext(self._context.NAME,
-                                      self._context.KEY)
-        subsysCtx.pull_to_sub(self._context.sub,
-                              Conflict.SENDER_WINS | Conflict.QUIET)
-        self._historian: Historian = config.make(subsysCtx,
+        self._historian: Historian = config.make(None,
                                                  'input',
                                                  'history')
+
+        # ---
+        # More Context Stuff
+        # ---
+        # Create our background context now that we have enough info from
+        # config.
+        bg_data, bg_owner = self._background
+        background.input.set(self.name,
+                             self._parsers,
+                             bg_data,
+                             bg_owner)
+
+    @property
+    def _background(self):
+        '''
+        Get background data for background.input.set().
+        '''
+        self._bg = {
+            'name': self.name,
+            'commander': self._commander.name,
+            'historian': self._historian.name,
+        }
+        return self._bg, background.Ownership.SHARE
+
+    @property
+    def name(self) -> str:
+        '''
+        The 'dotted string' name this system has. Probably what they used to
+        register.
+        '''
+        return 'veredi.input.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -242,7 +261,8 @@ class InputSystem(System):
         input_id = self._historian.add_text(entity, string_safe)
 
         # Get the command processed.
-        cmd_ctx = self._context.clone(input_id, command_safe, entity.id)
+        cmd_ctx = InputContext(input_id, command_safe, entity.id)
+        cmd_ctx.pull(event.context)
         status = self._commander.execute(entity, command_safe, cmd_ctx)
         # Update history w/ status.
         self._historian.update_executed(input_id, status)
@@ -286,7 +306,7 @@ class InputSystem(System):
         # All we want to do is send out the command registration broadcast.
         # Then we want to not tick this again.
         self._event_notify(self._commander.registration(self.id,
-                                                        self._context))
+                                                        Null()))
         self._registration_broadcast = True
 
         return self._health_check()

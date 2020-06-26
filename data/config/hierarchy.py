@@ -184,23 +184,12 @@ class ConfigHierarchy(Hierarchy):
     # Our data's layout.
     _KEYS = {
         'data': {
-            'game': {
-                'repository': {
-                    'type': Info.LEAF,
-                    'directory': Info.LEAF,
-                    'sanitize': Info.LEAF,
-                },
-                'codec': Info.LEAF,
+            'repository': {
+                'type': Info.LEAF,
+                'directory': Info.LEAF,
+                'sanitize': Info.LEAF,
             },
-
-            'template': {
-                'repository': {
-                    'type': Info.LEAF,
-                    'directory': Info.LEAF,
-                    'sanitize': Info.LEAF,
-                },
-                'codec': Info.LEAF,
-            },
+            'codec': Info.LEAF,
         },
 
         'rules': {

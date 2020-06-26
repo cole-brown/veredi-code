@@ -15,8 +15,7 @@ rather than trying to "fix".
 # ---
 # Typing
 # ---
-from typing import Optional, Union, Type, Set, Tuple
-from decimal import Decimal
+from typing import Optional, Tuple
 
 # ---
 # Code
@@ -25,28 +24,9 @@ import enum
 import re
 
 from veredi.logger                  import log
-from veredi.base.const              import VerediHealth
+from veredi.data                    import background
 from veredi.base.context            import VerediContext
-from veredi.data.config.context     import ConfigContext
-from veredi.data.config.registry    import register
-
-# Game / ECS Stuff
-from veredi.game.ecs.event          import EventManager
-from veredi.game.ecs.time           import TimeManager
-from veredi.game.ecs.component      import ComponentManager
-from veredi.game.ecs.entity         import EntityManager
-
-from veredi.game.ecs.const          import (SystemTick,
-                                            SystemPriority)
-
-from veredi.game.ecs.base.identity  import ComponentId
-from veredi.game.ecs.base.system    import System
-from veredi.game.ecs.base.component import Component
-
-
-# Input-Related Events & Components
-from .event                         import CommandInputEvent
-# from .component                     import InputComponent
+# from veredi.data.config.registry  import register
 
 
 # -----------------------------------------------------------------------------

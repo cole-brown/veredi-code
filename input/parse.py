@@ -8,11 +8,14 @@ For converting user input into Veredi's math/roll syntax trees.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.logger                  import log
-from veredi.data.config.context     import ConfigContext
-from veredi.data.exceptions     import ConfigError
+from veredi.logger          import log
 
-from veredi.math.parser             import MathParser, MathTree
+from veredi.data            import background
+from veredi.base.context    import VerediContext
+from veredi.data.exceptions import ConfigError
+
+from veredi.math.parser     import MathParser, MathTree
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -28,19 +31,14 @@ class Parcel:
     A collection of parsers.
     '''
 
-    def __init__(self, context: ConfigContext) -> None:
+    def __init__(self, context: VerediContext) -> None:
         '''
         Configure ourselves by getting our specific parser and transformer from
         the configuratiion.
         '''
-        if not context:
-            raise log.exception(
-                None,
-                ConfigError,
-                'Parcel requires a context to create/configure its parsers.')
-
         self._math = Mather(context)
-        # §-TODO-§ [2020-06-14]: Others.
+
+        # TODO [2020-06-14]: Others.
         #  - chat
         #  - hashtag/macros?
         #  - More, I'm sure...
@@ -59,18 +57,12 @@ class Mather:
     Parses input strings into Veredi Math Trees.
     '''
 
-    def __init__(self, context: ConfigContext) -> None:
+    def __init__(self, context: VerediContext) -> None:
         '''
         Configure ourselves by getting our specific parser and transformer from
         the configuratiion.
         '''
-        if not context:
-            raise log.exception(
-                None,
-                ConfigError,
-                'Mather requires a context to configure itself.')
-
-        config = ConfigContext.config(context)
+        config = background.config.config
         if not config:
             raise log.exception(
                 None,

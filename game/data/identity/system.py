@@ -88,17 +88,13 @@ class IdentitySystem(System):
         # Just the normal one, for now.
         self._ticks: SystemTick = SystemTick.STANDARD
 
-        # # ---
-        # # Context Stuff
-        # # ---
-        # config = ConfigContext.config(context)  # Configuration obj
-        # if not config:
-        #     raise ConfigContext.exception(
-        #         context,
-        #         None,
-        #         "Cannot configure {} without a Configuration in the "
-        #         "supplied context.",
-        #         self.__class__.__name__)
+    @property
+    def name(self) -> str:
+        '''
+        The 'dotted string' name this system has. Probably what they used to
+        register.
+        '''
+        return 'veredi.game.identity.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

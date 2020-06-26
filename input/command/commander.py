@@ -21,41 +21,43 @@ o7
 # ---
 # Typing
 # ---
-from typing import Union, Any, Dict
+from typing import Any, Dict
+
 
 # ---
 # Code
 # ---
-from veredi.logger                  import log
-from veredi.logger                  import pretty
-from veredi.base.const              import VerediHealth
-from veredi.base.context            import VerediContext
-from veredi.data.config.registry    import register
+from veredi.logger                       import log
+from veredi.logger                       import pretty
+from veredi.base.const                   import VerediHealth
+from veredi.base.context                 import VerediContext
+from veredi.data.config.registry         import register
+from veredi.data                         import background
 
 # Game / ECS Stuff
-from veredi.game.ecs.event          import EventManager
-# from veredi.game.ecs.time           import TimeManager
-# from veredi.game.ecs.component      import ComponentManager
-# from veredi.game.ecs.entity         import EntityManager
+from veredi.game.ecs.event               import EventManager
+# from veredi.game.ecs.time              import TimeManager
+# from veredi.game.ecs.component         import ComponentManager
+# from veredi.game.ecs.entity            import EntityManager
 
-from veredi.game.ecs.base.identity  import SystemId
-from veredi.game.ecs.base.entity    import Entity
-# from veredi.game.ecs.base.system    import System
-# from veredi.game.ecs.base.component import Component
+from veredi.game.ecs.base.identity       import SystemId
+from veredi.game.ecs.base.entity         import Entity
+# from veredi.game.ecs.base.system       import System
+# from veredi.game.ecs.base.component    import Component
 from veredi.game.data.identity.component import IdentityComponent
 
-from .. import sanitize
-from . import const
-from .const import CommandPermission
-from ..context import InputSystemContext, InputUserContext
-from .exceptions           import (CommandRegisterError,
-                                   CommandExecutionError)
-from .command import Command
-from .args import CommandStatus
-# from ..event                        import CommandInputEvent
-from .event                         import (CommandRegistrationBroadcast,
-                                            CommandRegisterReply)
-# from .component                     import InputComponent
+from ..                                  import sanitize
+from .                                   import const
+from .const                              import CommandPermission
+from ..context                           import InputContext
+from .exceptions                         import (CommandRegisterError,
+                                                 CommandExecutionError)
+from .command                            import Command
+from .args                               import CommandStatus
+# from ..event                           import CommandInputEvent
+from .event                              import (CommandRegistrationBroadcast,
+                                                 CommandRegisterReply)
+# from .component                        import InputComponent
 
 
 # -----------------------------------------------------------------------------
@@ -95,6 +97,14 @@ class Commander:
         Initialize Commander.
         '''
         self._commands: Dict[str, Command] = {}
+
+    @property
+    def name(self) -> str:
+        '''
+        The 'dotted string' name this system has. Probably what they used to
+        register.
+        '''
+        return 'veredi.input.commander'
 
     # -------------------------------------------------------------------------
     # Events
@@ -165,21 +175,24 @@ class Commander:
 
         # Event is probably sane.
         # Now turn it into a Command object for our registration map.
-        self._commands[event.name] = Command(event)
+        new_command = Command(event)
+        self._commands[event.name] = new_command
+
+        background.command.registered(event.source, new_command.name)
 
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------
 
     def _log(self,
-             context: Union[InputSystemContext, InputUserContext],
-             level: log.Level,
-             entity: Entity,
+             context:      InputContext,
+             level:        log.Level,
+             entity:       Entity,
              command_name: str,
              command_safe: str,
-             message: str,
-             *args: Any,
-             **kwargs: Any) -> None:
+             message:      str,
+             *args:        Any,
+             **kwargs:     Any) -> None:
         '''
         Format command info from context into standard command log message,
         then append message and call log.at_level().
@@ -231,9 +244,9 @@ class Commander:
         return None
 
     def execute(self,
-                entity: Entity,
+                entity:       Entity,
                 command_safe: str,
-                context: InputUserContext) -> CommandStatus:
+                context:      InputContext) -> CommandStatus:
         '''
         Evaluate `command_safe` (expects a safe, already validated string) into
         a command, parse its args, and invoke its receiver with those args...

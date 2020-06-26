@@ -8,17 +8,20 @@ Data component - a component that has persistent data on it.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (Optional, Union, Any,
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Any,
                     Collection, Container, MutableMapping)
+if TYPE_CHECKING:
+    from veredi.base.context        import VerediContext
+    from veredi.data.config.context import ConfigContext
 
-from veredi.logger                  import log
-from veredi.data.config.registry    import register
 
-from veredi.base.context            import VerediContext
-from veredi.data.config.context     import ConfigContext
-from veredi.data.exceptions         import DataNotPresentError
-from ..ecs.base.component           import Component
-from ..ecs.base.identity            import ComponentId
+from veredi.logger               import log
+from veredi.data.config.registry import register
+
+from veredi.data.exceptions      import DataNotPresentError
+from ..ecs.base.component        import Component
+from ..ecs.base.identity         import ComponentId
 
 # Data Stuff
 from veredi.data.codec.adapter.dict import DataDict
@@ -39,7 +42,7 @@ class DataComponent(Component):
     '''
 
     def __init__(self,
-                 context: Optional[VerediContext],
+                 context: Optional['VerediContext'],
                  cid: ComponentId,
                  data: MutableMapping[str, Any] = None) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
@@ -51,7 +54,7 @@ class DataComponent(Component):
         self._config_data(data)
 
     def _configure(self,
-                   context: Optional[ConfigContext]) -> None:
+                   context: Optional['ConfigContext']) -> None:
         '''
         Allows components to grab, from the context/config, anything that
         they need to set up themselves.

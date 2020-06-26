@@ -72,18 +72,18 @@ class Test_InputSystem(BaseSystemTest):
         self.test_cmd_ctx = None
 
     def _sub_events_test(self):
-        self.managers.event.subscribe(CommandRegistrationBroadcast,
-                                      self.event_cmd_reg)
+        self.manager.event.subscribe(CommandRegistrationBroadcast,
+                                     self.event_cmd_reg)
 
-        # self.managers.event.subscribe(UserInputEvent, self.event_user)
-        # self.managers.event.subscribe(OutputEvent, self.event_input_res)
+        # self.manager.event.subscribe(UserInputEvent, self.event_user)
+        # self.manager.event.subscribe(OutputEvent, self.event_input_res)
 
     def allow_registration(self):
         if self.reg_open:
             return
 
         event = self.system._commander.registration(self.system.id,
-                                                    self.system._context)
+                                                    None)
         self.trigger_events(event,
                             expected_events=0,
                             num_publishes=1)
@@ -103,6 +103,7 @@ class Test_InputSystem(BaseSystemTest):
 
     def make_cmd(self, event):
         reply = CommandRegisterReply(event,
+                                     'veredi.input.zest_system',
                                      'test',
                                      CommandPermission.UNRESTRICTED,
                                      self.trigger_test_cmd)
@@ -131,7 +132,7 @@ class Test_InputSystem(BaseSystemTest):
         entity = super().create_entity()
         self.assertTrue(entity)
 
-        self.managers.entity.creation(self.managers.time)
+        self.manager.entity.creation(self.manager.time)
 
         context = UnitTestContext(
             self.__class__.__name__,
@@ -151,7 +152,7 @@ class Test_InputSystem(BaseSystemTest):
         if clear_event_queue:
             self.clear_events()
 
-        self.managers.component.creation(self.managers.time)
+        self.manager.component.creation(self.manager.time)
 
         return entity
 

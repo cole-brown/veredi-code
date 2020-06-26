@@ -8,10 +8,16 @@ Null Object Design Pattern
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Union, TypeVar, Literal
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+NType = TypeVar('NType')
+Nullable = Union[NType, 'Null']
+NullNoneOr = Union[NType, 'Null', None]
+NullFalseOr = Union[NType, 'Null', Literal[False]]
 
 
 # -----------------------------------------------------------------------------

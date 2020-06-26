@@ -13,7 +13,7 @@ import datetime
 
 from .codec import YamlCodec
 from .document import DocMetadata
-from .component import DocComponent
+from .ecs.component import DocComponent
 
 from veredi.zest import zpath
 

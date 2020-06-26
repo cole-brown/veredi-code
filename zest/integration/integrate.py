@@ -12,25 +12,26 @@ from typing import Union, List
 
 import unittest
 
-from veredi.base.null import Null
-from veredi.logger                      import log
-from veredi.zest                        import zload
-from veredi.zest.zpath                        import TestType
+from veredi.base.null               import Null
+from veredi.logger                  import log
+from veredi.zest                    import zload
+from veredi.zest.zpath              import TestType
 
-from veredi.base.context import VerediContext, UnitTestContext
-from veredi.game.ecs.system             import SystemManager
-from veredi.game.ecs.base.system             import System, Meeting
-from veredi.game.ecs.base.entity             import (Entity, EntityLifeCycle)
-from veredi.game.ecs.base.identity             import EntityId
-from veredi.game.ecs.base.component             import (Component,
-                                                        ComponentLifeCycle)
-from veredi.game.ecs.event             import Event
-from veredi.game.data.event             import DataLoadedEvent
+from veredi.base.context            import VerediContext, UnitTestContext
+from veredi.game.ecs.base.system    import System
+from veredi.game.ecs.base.entity    import (Entity,
+                                            EntityLifeCycle)
+from veredi.game.ecs.base.identity  import EntityId
+from veredi.game.ecs.base.component import (Component,
+                                            ComponentLifeCycle)
+from veredi.game.ecs.event          import Event
+from veredi.game.data.event         import DataLoadedEvent
+from veredi.game.ecs.meeting        import Meeting
 
-from veredi.input.system       import InputSystem
+from veredi.input.system            import InputSystem
 from veredi.input.command.reg       import CommandRegistrationBroadcast
 
-# from veredi.game.ecs.const              import DebugFlag
+# from veredi.game.ecs.const        import DebugFlag
 
 
 # -----------------------------------------------------------------------------
@@ -64,20 +65,18 @@ class IntegrationTest(unittest.TestCase):
         self.reg_open:       CommandRegistrationBroadcast = None
         self.manager:        Meeting       = None
         self.context:        VerediContext = None
-        self.system_manager: SystemManager = None
         self.input_system:   InputSystem   = None
 
     def init_required(self) -> None:
         '''
-        Calls zload.set_up to create Meeting of EcsManagers, a context from a
-        config file, and a system_manager.
+        Calls zload.set_up to create Meeting of EcsManagers, and a context from
+        a config file.
         '''
         (self.manager,
-         self.context,
-         self.system_manager, _) = zload.set_up(self.__class__.__name__,
-                                                'setUp',
-                                                self.debugging,
-                                                test_type=TestType.INTEGRATION)
+         self.context, _) = zload.set_up(self.__class__.__name__,
+                                         'setUp',
+                                         self.debugging,
+                                         test_type=TestType.INTEGRATION)
 
     def init_input(self) -> None:
         '''
@@ -96,7 +95,7 @@ class IntegrationTest(unittest.TestCase):
         NOTE: Already created RepositorySystem, CodecSystem, DataSystem in
         init_required.
         '''
-        sids = zload.create_systems(self.system_manager,
+        sids = zload.create_systems(self.manager.system,
                                     self.context,
                                     *sys_types)
         return sids
@@ -105,10 +104,10 @@ class IntegrationTest(unittest.TestCase):
         '''
         Initializes a system and returns its object.
         '''
-        sid = zload.create_system(self.system_manager,
+        sid = zload.create_system(self.manager.system,
                                   self.context,
                                   sys_type)
-        return self.system_manager.get(sid)
+        return self.manager.system.get(sid)
 
     def tearDown(self) -> None:
         self.debugging      = False
@@ -117,7 +116,6 @@ class IntegrationTest(unittest.TestCase):
         self.reg_open       = None
         self.manager        = None
         self.context        = None
-        self.system_manager = None
         self.input_system   = None
 
     def apoptosis(self) -> None:
@@ -125,7 +123,7 @@ class IntegrationTest(unittest.TestCase):
         self.manager.event.apoptosis(self.manager.time)
         self.manager.component.apoptosis(self.manager.time)
         self.manager.entity.apoptosis(self.manager.time)
-        self.system_manager.apoptosis(self.manager.time)
+        self.manager.system.apoptosis(self.manager.time)
 
     # -------------------------------------------------------------------------
     # Event Helpers / Handlers
@@ -160,7 +158,7 @@ class IntegrationTest(unittest.TestCase):
             self.manager.time.subscribe(self.manager.event)
             self.manager.component.subscribe(self.manager.event)
             self.manager.entity.subscribe(self.manager.event)
-            self.system_manager.subscribe(self.manager.event)
+            self.manager.system.subscribe(self.manager.event)
 
     def event_setup(self) -> None:
         '''
@@ -248,7 +246,7 @@ class IntegrationTest(unittest.TestCase):
 
         event = self.input_system._commander.registration(
             self.input_system.id,
-            self.input_system._context)
+            Null())
         self.trigger_events(event,
                             expected_events=0,
                             num_publishes=1)
@@ -336,7 +334,7 @@ class IntegrationTest(unittest.TestCase):
     # def test_init(self):
     #     self.assertTrue(self.manager)
     #     self.assertTrue(self.context)
-    #     self.assertTrue(self.system_manager)
+    #     self.assertTrue(self.manager.system)
     #
     #     # All your stuff here maybe.
 

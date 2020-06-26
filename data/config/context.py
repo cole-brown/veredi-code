@@ -12,6 +12,7 @@ from typing import (TYPE_CHECKING,
                     Optional, Any, Type, Iterable)
 if TYPE_CHECKING:
     from .config import Configuration
+from veredi.base.null import Nullable, Null
 
 import enum
 import pathlib
@@ -19,7 +20,8 @@ import pathlib
 from veredi.logger import log
 
 from veredi.base.exceptions import ContextError
-from veredi.base.context import VerediContext, PersistentContext
+from veredi.base.context import VerediContext, EphemerealContext
+from veredi.data import background
 
 
 # -----------------------------------------------------------------------------
@@ -28,12 +30,12 @@ from veredi.base.context import VerediContext, PersistentContext
 
 
 # -----------------------------------------------------------------------------
-# Config's Persistent Context
+# Config's Transient Context
 # -----------------------------------------------------------------------------
 
-class ConfigContext(PersistentContext):
+class ConfigContext(EphemerealContext):
     '''
-    PersistentContext with some Config-specific things in very specific places.
+    EphemerealContext used by Configuration to make regestered objects.
     '''
 
     NAME = 'configuration'
@@ -41,9 +43,6 @@ class ConfigContext(PersistentContext):
 
     @enum.unique
     class Link(enum.Enum):
-        CONFIG = enum.auto()
-        '''The Configuration object.'''
-
         KEYCHAIN = enum.auto()
         '''
         Iterable of keys into something in the Configuration object that is
@@ -51,11 +50,11 @@ class ConfigContext(PersistentContext):
         '''
 
         PATH = enum.auto()
-        '''A pathlib.Path to somewhere.'''
+        '''A pathlib.Path to somewhere. Can look in background.data if none
+        supplied.'''
 
     def __init__(self,
                  path:        pathlib.Path,
-                 back_link:   'Configuration',
                  name:        Optional[str] = None,
                  key:         Optional[str] = None) -> None:
         name = name or self.NAME
@@ -63,29 +62,9 @@ class ConfigContext(PersistentContext):
         super().__init__(name, key)
 
         # Make sure the path is a directory.
-        if path is None:
-            raise log.exception(
-                None,
-                ContextError,
-                "ConfigContext needs a path to __init__ properly.")
-        elif path is False:
-            # Current way of allowing a NoFileConfig...
-            # §-TODO-§ [2020-06-16]: Better way.
-            pass
-        else:
+        if path:
             path = path if path.is_dir() else path.parent
-            self.add(self.Link.PATH,   path)
-        self.add(self.Link.CONFIG, back_link)
-
-    def finish_init(self,
-                    repo_ctx:    PersistentContext,
-                    codec_ctx:   PersistentContext) -> None:
-        '''
-        Repo and Codec have to be created, and probably want a ConfigContext.
-        So init one of us, make them, then call this to finish the init of us.
-        '''
-        self.pull_to_sub(repo_ctx)
-        self.pull_to_sub(codec_ctx)
+            self.add(self.Link.PATH, path)
 
     # -------------------------------------------------------------------------
     # Config-Specific Stuff
@@ -93,38 +72,39 @@ class ConfigContext(PersistentContext):
 
     @classmethod
     def path(klass: Type['ConfigContext'],
-             context: VerediContext) -> Optional[pathlib.Path]:
+             context: VerediContext) -> Nullable[pathlib.Path]:
         '''
         Checks for a PATH link in config's spot in this context.
+
+        If none, returns PATH from background.data.
         '''
         # Get context dict, then try to get the config sub-context, then we can
         # check for PATH link.
         config_ctx = context._get().get(klass.KEY, {})
-        path = config_ctx.get(klass.Link.PATH, None)
+        path = config_ctx.get(klass.Link.PATH, Null())
+        if not path:
+            path = background.data.path()
         return path
 
     @classmethod
     def config(klass: Type['ConfigContext'],
                context: VerediContext) -> Optional['Configuration']:
         '''
-        Checks for a CONFIG link in config's spot in this context.
+        Helper to get config object from ConfigContext, even though it's
+        actually in the background context. We just redirect.
         '''
-        # Get context dict, then try to get the config sub-context, then we can
-        # check for CONFIG link.
-        config_ctx = context._get().get(klass.KEY, {})
-        config = config_ctx.get(klass.Link.CONFIG, None)
-        return config
+        return background.config.config
 
     @classmethod
     def keychain(klass: Type['ConfigContext'],
-                 context: VerediContext) -> Optional[Iterable[Any]]:
+                 context: VerediContext) -> Nullable[Iterable[Any]]:
         '''
         Checks for a KEYCHAIN link in config's spot in this context.
         '''
         # Get context dict, then try to get the config sub-context, then we can
         # check for KEYCHAIN link.
         config_ctx = context._get().get(klass.KEY, {})
-        keychain = config_ctx.get(klass.Link.KEYCHAIN, None)
+        keychain = config_ctx.get(klass.Link.KEYCHAIN, Null())
         return keychain
 
     @classmethod
@@ -154,7 +134,6 @@ class ConfigContext(PersistentContext):
     # -------------------------------------------------------------------------
     def ut_inject(self,
                   path:     Optional[pathlib.Path]    = None,
-                  config:   Optional['Configuration'] = None,
                   keychain: Optional[Iterable[Any]]   = None) -> None:
         '''
         Unit testing.
@@ -164,8 +143,6 @@ class ConfigContext(PersistentContext):
         config_data = self._get().get(self.KEY, {})
         if path is not None:
             config_data[self.Link.PATH] = path
-        if config is not None:
-            config_data[self.Link.CONFIG] = config
         if keychain is not None:
             config_data[self.Link.KEYCHAIN] = keychain
 
