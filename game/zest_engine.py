@@ -52,6 +52,10 @@ class CompThree(Component):
 
 
 class SysTest(System):
+    @property
+    def name(self):
+        return 'veredi.game.zest_engine.BASE_CLASS?!'
+
     def _configure(self,
                    context):
         self.ents_seen = {
@@ -133,6 +137,10 @@ class SysJeff(SysTest):
                        | SystemTick.STANDARD
                        | SystemTick.POST)
 
+    @property
+    def name(self):
+        return 'veredi.game.zest_engine.SysJeff'
+
     def priority(self):
         return SystemPriority.MEDIUM + 13
 
@@ -153,6 +161,10 @@ class SysJill(SysTest):
             self.x = None
             self.y = None
 
+    @property
+    def name(self):
+        return 'veredi.game.zest_engine.SysJill'
+
     def priority(self):
         return SystemPriority.HIGH
 
@@ -166,6 +178,10 @@ class SysNoTick(SysTest):
         super()._configure(context)
         self._ticks = None
 
+    @property
+    def name(self):
+        return 'veredi.game.zest_engine.SysNoTick'
+
     def priority(self):
         return SystemPriority.LOW
 
@@ -175,6 +191,10 @@ class SysNoReq(SysTest):
                    context):
         super()._configure(context)
         self._ticks = None
+
+    @property
+    def name(self):
+        return 'veredi.game.zest_engine.SysNoReq'
 
     def required(self):
         return None
@@ -190,8 +210,7 @@ class Test_Engine(unittest.TestCase):
         self.debugging         = False
         self.config            = zmake.config()
         self.context           = zontext.test(self.__class__.__name__,
-                                              'setUp',
-                                              config=self.config)
+                                              'setUp')
         self.time_mgr   = TimeManager()
         self.event_mgr  = EventManager(self.config)
         self.comp_mgr   = ComponentManager(self.config,

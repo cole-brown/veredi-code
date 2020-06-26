@@ -8,26 +8,32 @@ Base class for game update loop systems.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Type, Any, Iterable, Set
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Type, Any, Iterable, Set)
+if TYPE_CHECKING:
+    from ..meeting                  import Meeting
+    from veredi.base.context        import VerediContext
+    from veredi.data.config.context import ConfigContext
+
+
+from abc import ABC, abstractmethod
 import enum
 import decimal
 
-from veredi.logger              import log
-from veredi.base.const          import VerediHealth
-from veredi.base.context        import VerediContext
-from veredi.data.config.context import ConfigContext
+from veredi.logger     import log
+from veredi.base.const import VerediHealth
 
-from ..const                    import SystemTick, SystemPriority, DebugFlag
-from .exceptions                import SystemErrorV
-from ..exceptions               import TickError
-from .identity                  import SystemId
-from .component                 import Component
+from ..const           import SystemTick, SystemPriority, DebugFlag
+from .exceptions       import SystemErrorV
+from ..exceptions      import TickError
+from .identity         import SystemId
+from .component        import Component
 
-from ..manager                  import EcsManager
-from ..time                     import TimeManager
-from ..event                    import EventManager, Event
-from ..component                import ComponentManager
-from ..entity                   import EntityManager
+from ..manager         import EcsManager
+from ..time            import TimeManager
+from ..event           import EventManager, Event
+from ..component       import ComponentManager
+from ..entity          import EntityManager
 
 
 # -----------------------------------------------------------------------------
@@ -61,119 +67,13 @@ class SystemLifeCycle(enum.Enum):
 # Helper class to hold onto stuff we use and pass into created Systems.
 # ---
 
-class Meeting:
-    '''
-    ...cuz managers are always in meetings, obviously.
-
-    Helper class to hold onto stuff we use and pass into created Systems.
-    '''
-
-    def __init__(self,
-                 time_manager:      Optional[TimeManager],
-                 event_manager:     Optional[EventManager],
-                 component_manager: Optional[ComponentManager],
-                 entity_manager:    Optional[EntityManager],
-                 debug_flags:       Optional[DebugFlag]) -> None:
-        self._debug:             Optional[DebugFlag]        = debug_flags
-        self._time_manager:      Optional[TimeManager]      = time_manager
-        self._event_manager:     Optional[EventManager]     = event_manager
-        self._component_manager: Optional[ComponentManager] = component_manager
-        self._entity_manager:    Optional[EntityManager]    = entity_manager
-
-    def healthy(self,
-                required_set: Optional[Set[Type[EcsManager]]]) -> VerediHealth:
-        '''
-        Returns HEALTHY if all required managers are attending the meeting.
-        Returns UNHEALTHY if a required manager is explicitly absent
-        (that is, we have it set to False).
-        Returns PENDING if a required manager is implicitly absent
-        (that is, we have it as a Falsy value like None).
-        '''
-        # If nothing is required, ok.
-        if not required_set:
-            return VerediHealth.HEALTHY
-
-        # Fail if any required are not present.
-        if TimeManager in required_set and not self._time_manager:
-            return (VerediHealth.UNHEALTHY
-                    if self._event_manager is False else
-                    VerediHealth.PENDING)
-        if EventManager in required_set and not self._event_manager:
-            return (VerediHealth.UNHEALTHY
-                    if self._event_manager is False else
-                    VerediHealth.PENDING)
-        if ComponentManager in required_set and not self._component_manager:
-            return (VerediHealth.UNHEALTHY
-                    if self._event_manager is False else
-                    VerediHealth.PENDING)
-        if EntityManager in required_set and not self._entity_manager:
-            return (VerediHealth.UNHEALTHY
-                    if self._event_manager is False else
-                    VerediHealth.PENDING)
-
-        # Otherwise we're good.
-        return VerediHealth.HEALTHY
-
-    @property
-    def time(self) -> Union[TimeManager, bool, None]:
-        '''
-        Returns TimeManager. If this returns 'False' (as opposed to
-        None/Falsy), that is explicitly stating the explicit absense of a
-        TimeManager.
-        '''
-        # Stupid code-wise, but I want to explicitly state that False is the
-        # explicit absense of a TimeManager.
-        if self._time_manager is False:
-            return False
-        return self._time_manager
-
-    @property
-    def event(self) -> Union[EventManager, bool, None]:
-        '''
-        Returns EventManager. If this returns 'False' (as opposed to
-        None/Falsy), that is explicitly stating the explicit absense of an
-        EventManager.
-        '''
-        # Stupid code-wise, but I want to explicitly state that False is the
-        # explicit absense of an EventManager.
-        if self._event_manager is False:
-            return False
-        return self._event_manager
-
-    @property
-    def component(self) -> Union[ComponentManager, bool, None]:
-        '''
-        Returns ComponentManager. If this returns 'False' (as opposed to
-        None/Falsy), that is explicitly stating the explicit absense of a
-        ComponentManager.
-        '''
-        # Stupid code-wise, but I want to explicitly state that False is the
-        # explicit absense of a ComponentManager.
-        if self._component_manager is False:
-            return False
-        return self._component_manager
-
-    @property
-    def entity(self) -> Union[EntityManager, bool, None]:
-        '''
-        Returns EntityManager. If this returns 'False' (as opposed to
-        None/Falsy), that is explicitly stating the explicit absense of an
-        EntityManager.
-        '''
-        # Stupid code-wise, but I want to explicitly state that False is the
-        # explicit absense of an EntityManager.
-        if self._entity_manager is False:
-            return False
-        return self._entity_manager
-
-
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
 
-class System:
+class System(ABC):
     def __init__(self,
-                 context:  Optional[VerediContext],
+                 context:  Optional['VerediContext'],
                  sid:      SystemId,
                  managers: 'Meeting') -> None:
 
@@ -219,6 +119,19 @@ class System:
         return SystemId.INVALID if self._system_id is None else self._system_id
 
     @property
+    @abstractmethod
+    def name(self) -> str:
+        '''
+        The 'dotted string' name this system has. Probably what they used to
+        register.
+        E.g.
+          @register('veredi', 'input', 'system')
+        would be:
+          'veredi.input.system'
+        '''
+        raise NotImplementedError
+
+    @property
     def enabled(self) -> bool:
         return self._life_cycle == SystemLifeCycle.ALIVE
 
@@ -241,7 +154,7 @@ class System:
     # -------------------------------------------------------------------------
 
     def _configure(self,
-                   context: Optional[ConfigContext]) -> None:
+                   context: Optional['ConfigContext']) -> None:
         '''
         Allows systems to grab, from the context/config, anything that
         they need to set up themselves.
@@ -362,7 +275,7 @@ class System:
                       event_class:                Type[Event],
                       owner_id:                   int,
                       type:                       Union[int, enum.Enum],
-                      context:                    Optional[VerediContext],
+                      context:                    Optional['VerediContext'],
                       requires_immediate_publish: bool = False) -> None:
         '''
         Calls our EventManager.create(), if we have an EventManager.

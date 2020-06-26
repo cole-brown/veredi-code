@@ -13,8 +13,8 @@ from typing import Any, MutableMapping
 from veredi.logger          import log
 from veredi.base.exceptions import VerediError
 
-from veredi.data.config.config import Configuration
-from veredi.data.config.context import ConfigContext
+from veredi.data                  import background
+from veredi.data.config.config    import Configuration
 from veredi.data.config.hierarchy import Document
 
 
@@ -54,8 +54,8 @@ class NoFileConfig(Configuration):
         '''Don't call super().__init__()... we Just do it ourselves so as to
         avoid the normal config file.'''
 
-        # Indicates to ConfigContext that we're special...
-        # §-TODO-§ [2020-06-16]: Better way of saying we're special.
+        # Indicates that we're special...
+        # TODO [2020-06-16]: Better way of saying we're special.
         self._path = False
 
         # Our storage of the config data itself.
@@ -64,15 +64,14 @@ class NoFileConfig(Configuration):
         try:
             # Setup our context, import repo & codec's.
             # Also includes a handy back-link to this Configuration.
-            self._context = ConfigContext(self._path,
-                                          self)
+            background.config.init(self._path,
+                                   self)
 
             self._repo = None
             self._codec = None
 
-            # No point since no repo/codec.
-            # self._context.finish_init(None,
-            #                           None)
+            self._set_background()
+
         except Exception as e:
             raise log.exception(e,
                                 VerediError,

@@ -38,24 +38,20 @@ class Test_FileTreeRepo(unittest.TestCase):
         self.debugging = False
         self.path = zpath.repository_file_tree()
         self.config = zmake.config()
-        self.context = ConfigContext(self.path,
-                                     self.config)
+        self.context = ConfigContext(self.path)
 
         # Finish set-up. Inject stuff repo needs to init proper.
-        self.context.ut_inject(path=self.path)
         self.config.ut_inject(self.path,
                               Document.CONFIG,
                               'data',
-                              'game',
                               'repository',
                               'directory')
 
-        # §-TODO-§ [2020-06-01]: Register these, have config read dotted and
+        # TODO [2020-06-01]: Register these, have config read dotted and
         # get from registry.
         self.config.ut_inject('veredi.sanitize.human.path-safe',
                               Document.CONFIG,
                               'data',
-                              'game',
                               'repository',
                               'sanitize')
 
@@ -70,11 +66,10 @@ class Test_FileTreeRepo(unittest.TestCase):
     def context_load(self, type):
         ctx = None
         with log.LoggingManager.on_or_off(self.debugging):
-            ctx = self.context.spawn(DataLoadContext,
-                                     'unit-testing', None,
-                                     type,
-                                     'test-campaign')
-        path = self.path / 'test-campaign'
+            ctx = DataLoadContext('unit-testing', None,
+                                  type,
+                                  'test-campaign')
+        path = self.path / 'game' / 'test-campaign'
         if type == DataGameContext.Type.PLAYER:
             ctx.sub['user'] = 'u/jeff'
             ctx.sub['player'] = 'Sir Jeffsmith'

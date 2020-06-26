@@ -17,7 +17,7 @@ from veredi.game.ecs.base.identity import MonotonicId
 from veredi.game.ecs.event         import Event
 
 from .command.args import CommandStatus
-from .context import InputSystemContext, InputUserContext
+from .context import InputContext
 
 
 # -----------------------------------------------------------------------------
@@ -134,15 +134,15 @@ class OutputEvent(Event):
     @classmethod
     def command(klass: 'OutputEvent',
                 status: CommandStatus,
-                context: InputUserContext) -> 'OutputEvent':
+                context: InputContext) -> 'OutputEvent':
         '''
         Create an OutputEvent from the command status.
         '''
         # TODO [2020-06-17]: OutputEvent from actual output, not from
         # CommandStatus? Or should it be both?
         retval = OutputEvent(
-            InputSystemContext.id(context),
-            InputSystemContext.type(context),
+            InputContext.source_id(context),
+            InputContext.type(context),
         )
         return retval
 

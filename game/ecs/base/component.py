@@ -9,11 +9,15 @@ subclass...
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Type
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Type)
+if TYPE_CHECKING:
+    from veredi.base.context import VerediContext
+    from veredi.data.config.context import ConfigContext
+
+
 import enum
 
-from veredi.base.context import VerediContext
-from veredi.data.config.context import ConfigContext
 from .identity import ComponentId
 
 
@@ -54,7 +58,7 @@ class Component:
     '''
 
     def __init__(self,
-                 context: Optional[VerediContext],
+                 context: Optional['VerediContext'],
                  cid:     ComponentId) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
         self._comp_id = cid
@@ -63,7 +67,7 @@ class Component:
         self._configure(context)
 
     def _configure(self,
-                   context: Optional[ConfigContext]) -> None:
+                   context: Optional['ConfigContext']) -> None:
         '''
         Allows components to grab, from the context/config, anything that
         they need to set up themselves.

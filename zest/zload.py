@@ -19,12 +19,13 @@ from veredi.data.config.config          import Configuration
 
 # Meeting Stuff
 from veredi.game.ecs.const              import DebugFlag
-from veredi.game.ecs.base.system        import Meeting, System
+from veredi.game.ecs.base.system        import System
 from veredi.game.ecs.time               import TimeManager
 from veredi.game.ecs.event              import EventManager
 from veredi.game.ecs.component          import ComponentManager
 from veredi.game.ecs.entity             import EntityManager
 from veredi.game.ecs.system             import SystemManager
+from veredi.game.ecs.meeting            import Meeting
 from veredi.base.context                import VerediContext
 from veredi.game.ecs.base.identity      import SystemId
 
@@ -115,7 +116,7 @@ def set_up(
         component_manager: Optional[ComponentManager]        = None,
         entity_manager:    Optional[EntityManager]           = None,
         system_manager:    Optional[SystemManager]           = None,
-        debug_flags:       Optional[DebugFlag]           = None,
+        debug_flags:       Optional[DebugFlag]               = None,
         # This closing paren is a fucked up way to make pycodestyle happy...
         # May need to get flake8 so I can "# noqa" this one?
         # Oh. This comment itself lets me do whatever I want now. Yay.
@@ -144,21 +145,14 @@ def set_up(
                                 event_manager,
                                 component_manager,
                                 entity_manager,
+                                system_manager,
                                 debug_flags)
 
-        log.debug("zload.loader SystemManager...")
-        system_manager = SystemManager(configuration,
-                                       meeting.time,
-                                       meeting.event,
-                                       meeting.component,
-                                       meeting.entity,
-                                       debug_flags)
+        system_manager = meeting.system
 
         log.debug("zload.loader creating Context...")
         context = zontext.real_config(test_name_class,
-                                      test_name_func,
-                                      config=configuration,
-                                      test_type=test_type)
+                                      test_name_func)
 
         log.debug("zload.loader creating systems...")
         if not desired_systems:
@@ -168,4 +162,4 @@ def set_up(
             sids = create_systems(system_manager, context,
                                   *desired_systems)
 
-        return meeting, context, system_manager, sids
+        return meeting, context, sids

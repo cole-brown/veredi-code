@@ -36,6 +36,10 @@ class CompTwo(component.Component):
 class SysJeff(system.System):
     last_tick = system.SystemTick.DESTRUCTION
 
+    @property
+    def name(self):
+        return 'veredi.game.ecs.base.zest_system.SysJeff'
+
     def _configure(self,
                    context):
         self._ticks = (system.SystemTick.PRE
@@ -82,6 +86,10 @@ class SysJeff(system.System):
 
 
 class SysJill(system.System):
+    @property
+    def name(self):
+        return 'veredi.game.ecs.base.zest_system.SysJill'
+
     def priority(self):
         return const.SystemPriority.HIGH
 

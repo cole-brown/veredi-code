@@ -16,6 +16,7 @@ from typing import Optional, Any, Set, Type, Union, Mapping
 from decimal import Decimal
 
 from veredi.logger          import log
+from veredi.data            import background
 from veredi.base.const      import VerediHealth
 from veredi.base.exceptions import VerediError
 from veredi.base.context    import VerediContext
@@ -91,6 +92,36 @@ class DataSystem(System):
         # Context Stuff
         # ---
         # No context stuff for us.
+
+        bg_data, bg_owner = self.background
+        background.data.set(background.Name.DATA_SYS,
+                            bg_data,
+                            bg_owner)
+
+    @property
+    def background(self):
+        '''
+        Data for the Veredi Background context.
+
+        Returns: (data, background.Ownership)
+        '''
+        return self._make_background(self.name), background.Ownership.SHARE
+
+    def _make_background(self, dotted_name):
+        '''
+        Basic background.data info for this service.
+        '''
+        return {
+            'name': self.name,
+        }
+
+    @property
+    def name(self) -> str:
+        '''
+        The 'dotted string' name this system has. Probably what they used to
+        register.
+        '''
+        return 'veredi.game.data.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

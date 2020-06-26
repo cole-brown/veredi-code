@@ -12,9 +12,6 @@ from typing import Any, MutableMapping
 
 from veredi.data.config.registry    import register
 
-# from veredi.base.context            import VerediContext
-# from veredi.data.config.context     import ConfigContext
-
 # Data Stuff
 from ..component import DataComponent
 
@@ -59,21 +56,6 @@ class IdentityComponent(DataComponent):
     # -------------------------------------------------------------------------
     # Init Stuff
     # -------------------------------------------------------------------------
-
-    # def _configure(self,
-    #                context: Optional[ConfigContext]) -> None:
-    #     '''
-    #     '''
-    #     # ---
-    #     # Context Init Section
-    #     # ---
-    #     # Nothing at the moment?
-
-    #     # ---
-    #     # Misc Section
-    #     # ---
-    #     # Also nothing?
-    #     pass
 
     def _from_data(self, data: MutableMapping[str, Any] = None) -> None:
         '''

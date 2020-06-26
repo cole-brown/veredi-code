@@ -17,12 +17,13 @@ from .                             import zload
 from .zpath                        import TestType
 from veredi.base.context           import UnitTestContext
 
-from veredi.game.ecs.base.system   import Meeting, System
+from veredi.game.ecs.base.system   import System
 from veredi.game.ecs.event         import Event
 from veredi.game.ecs.system        import SystemManager
 from veredi.base.context           import VerediContext
 from veredi.game.ecs.base.identity import EntityId
 from veredi.game.ecs.base.entity   import Entity
+from veredi.game.ecs.meeting       import Meeting
 
 
 # -----------------------------------------------------------------------------
@@ -52,9 +53,8 @@ class BaseSystemTest(unittest.TestCase):
         '''
         self.debugging:      bool          = False
         self.events:         List[Event]   = []
-        self.managers:       Meeting       = None
+        self.manager:        Meeting       = None
         self.context:        VerediContext = None
-        self.system_manager: SystemManager = None
 
         self.system:         System        = None
         '''The system being tested.'''
@@ -63,14 +63,13 @@ class BaseSystemTest(unittest.TestCase):
                       test_type: Optional[TestType] = TestType.UNIT) -> None:
         '''
         Calls zload.set_up to create Meeting of EcsManagers, a context from a
-        config file, and a system_manager.
+        config file, and a manager.system.
         '''
-        (self.managers,
-         self.context,
-         self.system_manager, _) = zload.set_up(self.__class__.__name__,
-                                                'setUp',
-                                                self.debugging,
-                                                test_type=test_type)
+        (self.manager,
+         self.context, _) = zload.set_up(self.__class__.__name__,
+                                         'setUp',
+                                         self.debugging,
+                                         test_type=test_type)
 
     def init_system_others(self, *sys_types: System) -> None:
         '''
@@ -80,7 +79,7 @@ class BaseSystemTest(unittest.TestCase):
         init_managers() calls zload.set_up() which can optionally take a
         `desired_systems` kwarg.
         '''
-        sids = zload.create_systems(self.system_manager,
+        sids = zload.create_systems(self.manager.system,
                                     self.context,
                                     *sys_types)
         return sids
@@ -89,10 +88,10 @@ class BaseSystemTest(unittest.TestCase):
         '''
         Initializes, returns your test's system.
         '''
-        sid = zload.create_system(self.system_manager,
+        sid = zload.create_system(self.manager.system,
                                   self.context,
                                   sys_type)
-        self.system = self.system_manager.get(sid)
+        self.system = self.manager.system.get(sid)
 
     def tearDown(self) -> None:
         '''
@@ -103,12 +102,11 @@ class BaseSystemTest(unittest.TestCase):
         super().tearDown()
         self.jeff = None  # <- or wherever you put your system in setUp().
         '''
-        self.debugging      = False
-        self.events         = None
-        self.managers       = None
-        self.context        = None
-        self.system_manager = None
-        self.system         = None
+        self.debugging = False
+        self.events    = None
+        self.manager   = None
+        self.context   = None
+        self.system    = None
 
     # -------------------------------------------------------------------------
     # Event Helpers / Handlers
@@ -131,7 +129,7 @@ class BaseSystemTest(unittest.TestCase):
         This has all systems that SystemManager knows about (which /should/ be
         every single one) get their subscribe() call.
         '''
-        self.system_manager.subscribe(self.managers.event)
+        self.manager.system.subscribe(self.manager.event)
 
     def event_setup(self) -> None:
         '''
@@ -160,10 +158,10 @@ class BaseSystemTest(unittest.TestCase):
         you need to output all the logs during events.
         '''
         with log.LoggingManager.on_or_off(self.debugging):
-            self.managers.event.notify(event, True)
+            self.manager.event.notify(event, True)
 
             for each in range(num_publishes):
-                self.managers.event.publish()
+                self.manager.event.publish()
 
     def trigger_events(self,
                        event:           Event,
@@ -211,10 +209,10 @@ class BaseSystemTest(unittest.TestCase):
             {})  # no initial sub-context
 
         # Set up an entity to load the component on to.
-        eid = self.managers.entity.create(_TYPE_DONT_CARE,
-                                          context)
+        eid = self.manager.entity.create(_TYPE_DONT_CARE,
+                                         context)
         self.assertNotEqual(eid, EntityId.INVALID)
-        entity = self.managers.entity.get(eid)
+        entity = self.manager.entity.get(eid)
         self.assertTrue(entity)
 
         return entity

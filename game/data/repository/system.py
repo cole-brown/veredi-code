@@ -8,13 +8,17 @@ System for Encoding & Decoding data (components?) for the Game.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Set, Type, Union
+from typing import (TYPE_CHECKING,
+                    Optional, Set, Type, Union)
+if TYPE_CHECKING:
+    from veredi.base.context import VerediContext
+
+
 from decimal import Decimal
 
 from veredi.logger              import log
+from veredi.data                import background
 from veredi.base.const          import VerediHealth
-from veredi.base.context        import VerediContext
-from veredi.data.config.context import ConfigContext
 
 # Game / ECS Stuff
 from ...ecs.manager             import EcsManager
@@ -46,7 +50,7 @@ from ..event import (
 
 class RepositorySystem(System):
 
-    def _configure(self, context: VerediContext) -> None:
+    def _configure(self, context: 'VerediContext') -> None:
         '''
         Make our repo from config data.
         '''
@@ -66,14 +70,27 @@ class RepositorySystem(System):
         # Don't think I need any, actually. Think we're entirely event-driven.
         # Apoptosis will be our end-of-game saving.
         # ---
-        if context:
-            config = ConfigContext.config(context)
-            if config:
-                self._repository = config.make(None,
-                                               'data',
-                                               'game',
-                                               'repository',
-                                               'type')
+        config = background.config.config
+        if config:
+            self._repository = config.make(None,
+                                           'data',
+                                           'repository',
+                                           'type')
+
+        bg_data, bg_owner = self._repository.background
+        background.data.set(background.Name.REPO,
+                            bg_data,
+                            bg_owner)
+        background.data.link_set(background.data.Link.REPO,
+                                 self._repository)
+
+    @property
+    def name(self) -> str:
+        '''
+        The 'dotted string' name this system has. Probably what they used to
+        register.
+        '''
+        return 'veredi.game.data.repository.system'
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
@@ -125,7 +142,7 @@ class RepositorySystem(System):
                 context=event.context)
             return
 
-        context = self._repository.context.push(event.context)
+        context = event.context
 
         # Ask my repository for this data.
         # Load data info is in the request context.

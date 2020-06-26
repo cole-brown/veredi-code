@@ -8,27 +8,29 @@ A game of something or other.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+# from typing import Optional
+from veredi.base.null import NullNoneOr
 
 # Error Handling
-from veredi.logger import log
-
-from veredi.base.exceptions import VerediError
+from veredi.logger             import log
+from veredi.base.exceptions    import VerediError
 
 # Other More Basic Stuff
-from veredi.base.const import VerediHealth
+from veredi.data               import background
+from veredi.base.const         import VerediHealth
 from veredi.data.config.config import Configuration
 
 # ECS Managers & Systems
-from .ecs.const import SystemTick, DebugFlag
-from .ecs.entity import EntityManager
-from .ecs.component import ComponentManager
-from .ecs.system import SystemManager
-from .ecs.time import TimeManager
-from .ecs.event import EventManager
+from .ecs.const                import SystemTick, DebugFlag
+from .ecs.time                 import TimeManager
+from .ecs.event                import EventManager
+from .ecs.component            import ComponentManager
+from .ecs.entity               import EntityManager
+from .ecs.system               import SystemManager
+from .ecs.meeting              import Meeting
 
 # ECS Minions
-from .ecs.base.entity import Entity
+from .ecs.base.entity          import Entity
 
 
 # -----------------------------------------------------------------------------
@@ -200,12 +202,12 @@ class Engine:
                  owner:             Entity,
                  campaign_id:       int,
                  configuration:     Configuration,
-                 event_manager:     Optional[EventManager]     = None,
-                 time_manager:      Optional[TimeManager]      = None,
-                 component_manager: Optional[ComponentManager] = None,
-                 entity_manager:    Optional[EntityManager]    = None,
-                 system_manager:    Optional[SystemManager]    = None,
-                 debug:             Optional[DebugFlag]        = None
+                 event_manager:     NullNoneOr[EventManager]     = None,
+                 time_manager:      NullNoneOr[TimeManager]      = None,
+                 component_manager: NullNoneOr[ComponentManager] = None,
+                 entity_manager:    NullNoneOr[EntityManager]    = None,
+                 system_manager:    NullNoneOr[SystemManager]    = None,
+                 debug:             NullNoneOr[DebugFlag]        = None
                  ) -> None:
         # # TODO: Make session a System, put these in there?
         # self.repo = repo_manager
@@ -239,8 +241,15 @@ class Engine:
                                                             self.component,
                                                             self.entity,
                                                             self._debug)
-        # TODO: give these folks a back-link to me? Or the Event system for
-        # regstration step???
+        background.system.set_meeting(
+            Meeting(
+                self.time,
+                self.event,
+                self.component,
+                self.entity,
+                self.system,
+                self._debug
+            ))
 
         # ---
         # General Systems

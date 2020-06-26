@@ -52,6 +52,11 @@ class CompThree(Component):
 
 
 class SysTest(System):
+
+    @property
+    def name(self):
+        return 'system.test'
+
     def _conifgure(self, context):
         self.ents_seen = {
             SystemTick.TIME:        set(),

@@ -9,8 +9,11 @@ Bit of a Factory thing going on here...
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Union, Type, Any, Callable
+from veredi.base.null import Nullable
+from ..background import ContextMap
 
 from veredi.logger import log
+from .. import background
 from .. import exceptions
 from veredi.base.context import VerediContext
 
@@ -18,12 +21,13 @@ from veredi.base.context import VerediContext
 # Constants
 # -----------------------------------------------------------------------------
 
+# Registry is here, but also toss the reg strs into the background context.
 _REGISTRY = {}
+
 
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
-
 
 # Decorator way of doing factory registration. Note that we will only get
 # classes/funcs that are imported, when they are imported. We don't know about
@@ -64,10 +68,13 @@ def register(*args: str) -> Callable[..., Type[Any]]:
                 stacklevel=3)
 
         registration = _REGISTRY
+        reggie_jr = background.registry.get()
         length = len(args)
         # -1 as we've got our config name already from that final args entry
         for i in range(length - 1):
             registration = registration.setdefault(args[i], {})
+            rj_def = {} if i < (length - 2) else []
+            reggie_jr = reggie_jr.setdefault(args[i], rj_def)
 
         # Helpful messages - but registering either way.
         if config_name in registration:
@@ -83,7 +90,10 @@ def register(*args: str) -> Callable[..., Type[Any]]:
                       args,
                       name,
                       stacklevel=3)
+        # Set as registered cls/func.
         registration[config_name] = cls_or_func
+        # Save as a thing that has been registered at this level.
+        reggie_jr.append(config_name)
 
         return cls_or_func
 

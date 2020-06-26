@@ -12,9 +12,9 @@ from typing import Optional, Set, Type, Union
 from decimal import Decimal
 
 from veredi.logger import log
+from veredi.data import background
 from veredi.base.const import VerediHealth
 from veredi.base.context import VerediContext
-from veredi.data.config.context import ConfigContext
 from veredi.data.codec.base import BaseCodec
 
 # Game / ECS Stuff
@@ -72,22 +72,26 @@ class CodecSystem(System):
         # Apoptosis will be our end-of-game saving.
         # ---
 
-        if context:
-            config = ConfigContext.config(context)
-            if config:
-                self._codec = config.make(None,
-                                          'data',
-                                          'game',
-                                          'codec')
+        config = background.config.config
+        if config:
+            self._codec = config.make(None,
+                                      'data',
+                                      'codec')
 
-        # §-TODO-§ [2020-05-30]: remove this - set up
-        # unit/integration/whatever tests with our test configs.
-        if not self._codec:
-            # §-TODO-§: Event to ask ConfigSystem what the specific codec is?
-            # Maybe that's what we need a SET_UP tick for?
-            # self._codec: Optional[BaseCodec] = None
-            from veredi.data.codec.yaml.codec import YamlCodec
-            self._codec: Optional[BaseCodec] = YamlCodec()
+        bg_data, bg_owner = self._codec.background
+        background.data.set(background.Name.CODEC,
+                            bg_data,
+                            bg_owner)
+        background.data.link_set(background.data.Link.CODEC,
+                                 self._codec)
+
+    @property
+    def name(self) -> str:
+        '''
+        The 'dotted string' name this system has. Probably what they used to
+        register.
+        '''
+        return 'veredi.game.data.codec.system'
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
@@ -140,7 +144,7 @@ class CodecSystem(System):
 
         # Get deserialized data stream from event.
         serial = event.data
-        context = self._codec.context.push(event.context)
+        context = event.context
 
         # Send into my codec for decoding.
         decoded = self._codec.decode_all(serial, context)
@@ -173,7 +177,7 @@ class CodecSystem(System):
 
         context = self._codec.context.push(event.context)
 
-        # §-TODO-§ [2020-05-22]: Encode it.
+        # TODO [2020-05-22]: Encode it.
         raise NotImplementedError
         encoded = None
 

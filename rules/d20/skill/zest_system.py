@@ -41,34 +41,32 @@ class Test_SkillSystem(unittest.TestCase):
     '''
 
     def setUp(self):
-        self.debugging = False
+        self.debugging    = False
 
-        (self.managers,
-         self.context,
-         self.system_manager, _) = zload.set_up(self.__class__.__name__,
-                                                'setUp',
-                                                self.debugging)
-        sid                      = zload.create_system(self.system_manager,
-                                                       self.context,
-                                                       SkillSystem)
-        self.skill               = self.system_manager.get(sid)
-        self.events              = []
+        (self.manager,
+         self.context, _) = zload.set_up(self.__class__.__name__,
+                                         'setUp',
+                                         self.debugging)
+        sid               = zload.create_system(self.manager.system,
+                                                self.context,
+                                                SkillSystem)
+        self.skill        = self.manager.system.get(sid)
+        self.events       = []
 
     def tearDown(self):
         self.debugging      = False
-        self.managers       = None
+        self.manager        = None
         self.context        = None
-        self.system_manager = None
         self.skill          = None
         self.events         = None
 
     def sub_events(self):
-        self.managers.event.subscribe(DataLoadedEvent, self.event_loaded)
-        self.managers.event.subscribe(SkillResult, self.event_skill_res)
+        self.manager.event.subscribe(DataLoadedEvent, self.event_loaded)
+        self.manager.event.subscribe(SkillResult, self.event_skill_res)
 
     def set_up_subs(self):
         self.sub_events()
-        self.system_manager.subscribe(self.managers.event)
+        self.manager.system.subscribe(self.manager.event)
 
     def event_loaded(self, event):
         self.events.append(event)
@@ -81,7 +79,7 @@ class Test_SkillSystem(unittest.TestCase):
 
     def create_entity(self):
         _TYPE_DONT_CARE = 1
-        # Â§-TODO-Â§ [2020-06-01]: When we get to Entities-For-Realsies,
+        # TODO [2020-06-01]: When we get to Entities-For-Realsies,
         # probably change to an EntityContext or something...
         context = UnitTestContext(
             self.__class__.__name__,
@@ -89,10 +87,10 @@ class Test_SkillSystem(unittest.TestCase):
             {})  # no initial sub-context
 
         # Set up an entity to load the component on to.
-        eid = self.managers.entity.create(_TYPE_DONT_CARE,
-                                          context)
+        eid = self.manager.entity.create(_TYPE_DONT_CARE,
+                                         context)
         self.assertNotEqual(eid, EntityId.INVALID)
-        entity = self.managers.entity.get(eid)
+        entity = self.manager.entity.get(eid)
         self.assertTrue(entity)
 
         return entity
@@ -106,10 +104,10 @@ class Test_SkillSystem(unittest.TestCase):
         we ended up with an event in our self.events list.
         '''
         with log.LoggingManager.on_or_off(self.debugging):
-            self.managers.event.notify(event, True)
+            self.manager.event.notify(event, True)
 
             for each in range(num_publishes):
-                self.managers.event.publish()
+                self.manager.event.publish()
 
         self.assertTrue(self.events)
 
@@ -130,10 +128,9 @@ class Test_SkillSystem(unittest.TestCase):
         self.assertEqual(len(self.events), expected_events)
 
     def load_request(self, entity_id, type):
-        ctx = self.context.spawn(DataLoadContext,
-                                 'unit-testing', None,
-                                 type,
-                                 'test-campaign')
+        ctx = DataLoadContext('unit-testing', None,
+                              type,
+                              'test-campaign')
         if type == DataGameContext.Type.NPC:
             ctx.sub['family'] = 'Townville'
             ctx.sub['npc'] = 'Skill Guy'
@@ -168,12 +165,12 @@ class Test_SkillSystem(unittest.TestCase):
         event = self.events[0]
         cid = event.component_id
         self.assertNotEqual(cid, ComponentId.INVALID)
-        component = self.managers.component.get(cid)
+        component = self.manager.component.get(cid)
         self.assertIsInstance(component, DataComponent)
         self.assertIsInstance(component, SkillComponent)
 
         # Stuff it on our entity; make it enabled too.
-        self.managers.entity.add(entity.id, component)
+        self.manager.entity.add(entity.id, component)
         component._life_cycle = ComponentLifeCycle.ALIVE
         # Make sure component got attached to entity.
         self.assertIn(SkillComponent, entity)
@@ -197,9 +194,9 @@ class Test_SkillSystem(unittest.TestCase):
         return event
 
     def test_init(self):
-        self.assertTrue(self.managers)
+        self.assertTrue(self.manager)
         self.assertTrue(self.context)
-        self.assertTrue(self.system_manager)
+        self.assertTrue(self.manager.system)
         self.assertTrue(self.skill)
 
     def test_load(self):

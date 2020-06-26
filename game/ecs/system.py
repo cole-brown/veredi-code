@@ -17,12 +17,12 @@ if TYPE_CHECKING:
 from veredi.logger             import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
+from veredi.data               import background
 from veredi.data.config.config import Configuration
 
 from .base.identity            import SystemId
 from .base.system              import (System,
-                                       SystemLifeCycle,
-                                       Meeting)
+                                       SystemLifeCycle)
 
 from veredi.base.exceptions    import VerediError
 from .base.exceptions          import SystemErrorV
@@ -70,18 +70,12 @@ class SystemManager(EcsManagerWithEvents):
         '''Initializes this thing.'''
         self._debug:          Optional[DebugFlag]        = debug_flags
 
-        # §-TODO-§ [2020-06-01]: get rid of this class's link to config?
+        # TODO [2020-06-01]: get rid of this class's link to config?
         self._config:         Optional[Configuration]    = config
 
         # Need to keep EventManager in self._event_manager to conform
         # to EcsManagerWithEvents interface.
         self._event_manager:  Optional[EventManager] = event_manager
-        self._manager:        Meeting                = Meeting(
-            time_manager,
-            event_manager,
-            component_manager,
-            entity_manager,
-            debug_flags)
 
         self._system_id:      'MonotonicIdGenerator' = SystemId.generator()
         self._system_create:  Set[SystemId]          = set()
@@ -274,10 +268,11 @@ class SystemManager(EcsManagerWithEvents):
 
         system = sys_class(context,
                            sid,
-                           self._manager)
+                           background.system.meeting)
         self._system[sid] = system
         self._system_create.add(sid)
         system._life_cycled(SystemLifeCycle.CREATING)
+        background.system.life_cycle(system, SystemLifeCycle.CREATING)
 
         self._event_create(SystemLifeEvent,
                            sid,
@@ -299,6 +294,7 @@ class SystemManager(EcsManagerWithEvents):
 
         system._life_cycle = SystemLifeCycle.DESTROYING
         self._system_destroy.add(system.id)
+        background.system.life_cycle(system, SystemLifeCycle.DESTROYING)
 
         self._event_create(SystemLifeEvent,
                            system_id,
@@ -328,6 +324,7 @@ class SystemManager(EcsManagerWithEvents):
             try:
                 # Bump it to alive now.
                 system._life_cycled(SystemLifeCycle.ALIVE)
+                background.system.life_cycle(system, SystemLifeCycle.ALIVE)
 
             except SystemErrorV as error:
                 log.exception(
@@ -366,6 +363,7 @@ class SystemManager(EcsManagerWithEvents):
             try:
                 # Bump it to dead now.
                 system._life_cycled(SystemLifeCycle.DEAD)
+                background.system.life_cycle(system, SystemLifeCycle.DEAD)
                 # ...and forget about it.
                 self._system.pop(system_id, None)
 

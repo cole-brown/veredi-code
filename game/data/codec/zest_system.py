@@ -60,13 +60,11 @@ class Test_CodecSystem(unittest.TestCase):
 
     def setUp(self):
         self.debugging = False
-        context = zontext.codec(self.__class__.__name__,
-                                'setUp')
         self.config        = zmake.config()
         self.event_manager = EventManager(self.config)
-        self.managers      = zmake.meeting(configuration=self.config,
+        self.manager       = zmake.meeting(configuration=self.config,
                                            event_manager=self.event_manager)
-        self.codec         = CodecSystem(context, 1, self.managers)
+        self.codec         = CodecSystem(None, 1, self.manager)
         self.events        = []
 
     def tearDown(self):

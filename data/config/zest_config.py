@@ -35,7 +35,10 @@ class Test_Configuration(unittest.TestCase):
     def setUp(self):
         self.debugging = False
         self.path = zpath.config('test-target.yaml')
-        self.config = zmake.config(zpath.TestType.UNIT, self.path, None, None)
+        self.config = zmake.config(zpath.TestType.UNIT,
+                                   config_path=self.path,
+                                   config_repo=None,
+                                   config_codec=None)
 
     def tearDown(self):
         self.debugging = False
@@ -73,34 +76,27 @@ class Test_Configuration(unittest.TestCase):
             self.config.get_by_doc(
                 hierarchy.Document.CONFIG,
                 'data',
-                'game',
                 'repository',
                 'type'),
             'veredi.repository.file-tree')
         self.assertEqual(self.config.get('data',
-                                         'game',
                                          'repository',
                                          'type'),
                          'veredi.repository.file-tree')
-        self.assertEqual(self.config.get_data('game',
-                                              'repository',
+        self.assertEqual(self.config.get_data('repository',
                                               'type'),
                          'veredi.repository.file-tree')
         self.assertEqual(self.config.get('data',
-                                         'game',
                                          'repository',
                                          'directory'),
                          'test-target-repo/file-tree')
-        self.assertEqual(self.config.get_data('game',
-                                              'repository',
+        self.assertEqual(self.config.get_data('repository',
                                               'directory'),
                          'test-target-repo/file-tree')
         self.assertEqual(self.config.get('data',
-                                         'game',
                                          'codec'),
                          'veredi.codec.yaml')
-        self.assertEqual(self.config.get_data('game',
-                                              'codec'),
+        self.assertEqual(self.config.get_data('codec'),
                          'veredi.codec.yaml')
 
     def test_config_make_repo(self):
@@ -111,7 +107,6 @@ class Test_Configuration(unittest.TestCase):
         with log.LoggingManager.on_or_off(debugging):
             repo = self.config.make(None,
                                     'data',
-                                    'game',
                                     'repository',
                                     'type')
 

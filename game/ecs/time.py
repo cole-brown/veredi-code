@@ -165,6 +165,19 @@ class MachineTime:
     '''
 
     @property
+    def stamp(self) -> datetime:
+        '''A datetime timestamp. Use stamp_to_str() if/when it will
+        be serialized.'''
+        return datetime.now(timezone.utc)
+
+    def stamp_to_str(self, stamp: Optional[datetime] = None) -> str:
+        '''A datetime timestamp in a format we approve of for parsing. If no
+        `stamp` provided, will use MachineTime.stamp property.'''
+        stamp = stamp or self.stamp
+        # Use the full percision to get a normalized string width.
+        return stamp.isoformat(timespec='microseconds')
+
+    @property
     def utcnow(self) -> datetime:
         '''Current UTC datetime.'''
         return datetime.utcnow()

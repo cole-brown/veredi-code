@@ -50,33 +50,31 @@ class Test_IdentitySystem(unittest.TestCase):
     }
 
     def setUp(self):
-        self.debugging = False
+        self.debugging    = False
 
-        (self.managers,
-         self.context,
-         self.system_manager, _) = zload.set_up(self.__class__.__name__,
-                                                'setUp',
-                                                self.debugging)
-        sid                      = zload.create_system(self.system_manager,
-                                                       self.context,
-                                                       IdentitySystem)
-        self.identity               = self.system_manager.get(sid)
-        self.events              = []
+        (self.manager,
+         self.context, _) = zload.set_up(self.__class__.__name__,
+                                         'setUp',
+                                         self.debugging)
+        sid               = zload.create_system(self.manager.system,
+                                                self.context,
+                                                IdentitySystem)
+        self.identity     = self.manager.system.get(sid)
+        self.events       = []
 
     def tearDown(self):
         self.debugging      = False
-        self.managers       = None
+        self.manager        = None
         self.context        = None
-        self.system_manager = None
         self.identity       = None
         self.events         = None
 
     def sub_events(self):
-        self.managers.event.subscribe(IdentityResult, self.event_identity_res)
+        self.manager.event.subscribe(IdentityResult, self.event_identity_res)
 
     def set_up_subs(self):
         self.sub_events()
-        self.system_manager.subscribe(self.managers.event)
+        self.manager.system.subscribe(self.manager.event)
 
     def event_loaded(self, event):
         self.events.append(event)
@@ -97,10 +95,10 @@ class Test_IdentitySystem(unittest.TestCase):
             {})  # no initial sub-context
 
         # Set up an entity to load the component on to.
-        eid = self.managers.entity.create(_TYPE_DONT_CARE,
-                                          context)
+        eid = self.manager.entity.create(_TYPE_DONT_CARE,
+                                         context)
         self.assertNotEqual(eid, EntityId.INVALID)
-        entity = self.managers.entity.get(eid)
+        entity = self.manager.entity.get(eid)
         self.assertTrue(entity)
 
         return entity
@@ -114,10 +112,10 @@ class Test_IdentitySystem(unittest.TestCase):
         we ended up with an event in our self.events list.
         '''
         with log.LoggingManager.on_or_off(self.debugging):
-            self.managers.event.notify(event, True)
+            self.manager.event.notify(event, True)
 
             for each in range(num_publishes):
-                self.managers.event.publish()
+                self.manager.event.publish()
 
         self.assertTrue(self.events)
 
@@ -176,12 +174,12 @@ class Test_IdentitySystem(unittest.TestCase):
     #     event = self.events[0]
     #     cid = event.component_id
     #     self.assertNotEqual(cid, ComponentId.INVALID)
-    #     component = self.managers.component.get(cid)
+    #     component = self.manager.component.get(cid)
     #     self.assertIsInstance(component, DataComponent)
     #     self.assertIsInstance(component, IdentityComponent)
 
     #     # Stuff it on our entity
-    #     self.managers.entity.add(entity.id, component)
+    #     self.manager.entity.add(entity.id, component)
     #     # Make sure component got attached to entity.
     #     self.assertIn(IdentityComponent, entity)
 
@@ -204,9 +202,9 @@ class Test_IdentitySystem(unittest.TestCase):
         return event
 
     def test_init(self):
-        self.assertTrue(self.managers)
+        self.assertTrue(self.manager)
         self.assertTrue(self.context)
-        self.assertTrue(self.system_manager)
+        self.assertTrue(self.manager.system)
         self.assertTrue(self.identity)
 
     # def test_load(self):
@@ -235,7 +233,7 @@ class Test_IdentitySystem(unittest.TestCase):
         # Check out the component.
         cid_event = result.component_id
         self.assertNotEqual(cid_event, ComponentId.INVALID)
-        component_event = self.managers.component.get(cid_event)
+        component_event = self.manager.component.get(cid_event)
         self.assertIsInstance(component_event, DataComponent)
         self.assertIsInstance(component_event, IdentityComponent)
         component_event._life_cycle = ComponentLifeCycle.ALIVE

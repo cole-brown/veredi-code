@@ -25,7 +25,7 @@ from veredi.base.context import VerediContext
 
 from .const              import CommandPermission
 from ..const             import InputLanguage
-from ..context           import InputSystemContext, InputUserContext
+from ..context           import InputContext
 from .exceptions         import (CommandRegisterError,
                                  CommandExecutionError)
 
@@ -80,7 +80,7 @@ class Command:
         if not self._args and not self._kwargs:
             return
 
-        # §-TODO-§ [2020-06-15]: Make command creater register a language if we
+        # TODO [2020-06-15]: Make command creater register a language if we
         # can't auto-decide good.
         for arg in (self._args or ()):
             self._arg_validate(arg, context)
@@ -106,11 +106,13 @@ class Command:
             error.format(arg_word)
             raise log.exception(TypeError(error, arg),
                                 CommandRegisterError,
+                                None,
                                 context=context)
         if arg.type is None:
             error = "{} '{}' must have a type.".format(arg_word, arg.name)
             raise log.exception(TypeError(error, arg),
                                 CommandRegisterError,
+                                None,
                                 context=context)
 
         if is_kwarg and not arg.kwarg:
@@ -118,6 +120,7 @@ class Command:
             error = error.format(arg_word, arg.name)
             raise log.exception(TypeError(error, arg),
                                 CommandRegisterError,
+                                None,
                                 context=context)
 
         if (isinstance(arg.type, CommandArgType)
@@ -136,6 +139,7 @@ class Command:
                 error = error.format(self._language, InputLanguage.MATH)
                 raise log.exception(TypeError(error, arg),
                                     CommandRegisterError,
+                                    None,
                                     context=context)
 
         # Not a math arg, but we're in math mode - error.
@@ -145,6 +149,7 @@ class Command:
             error = error.format(self._language, InputLanguage.TEXT)
             raise log.exception(TypeError(error, arg),
                                 CommandRegisterError,
+                                None,
                                 context=context)
 
         else:
@@ -193,17 +198,18 @@ class Command:
         if self.language == InputLanguage.MATH:
             # We're a math thing... We let the MathParser loose on the entire
             # input string.
-            mather = InputSystemContext.math(context)
+            mather = InputContext.math(context)
             if not mather:
                 error = ("No MathParser found in context; "
                          "cannot process input.")
                 raise log.exception(AttributeError(error, input_safe),
                                     CommandExecutionError,
+                                    None,
                                     context=context)
             tree = mather.parse(input_safe)
             if not tree:
                 failure = CommandStatus.parsing(
-                    ret_str,
+                    input_safe,
                     "Failed parsing input into math expression.")
                 return args, kwargs, failure
 
@@ -223,7 +229,7 @@ class Command:
 
     def execute(self,
                 *args: Any,
-                context: Optional[InputUserContext] = None,
+                context: Optional[InputContext] = None,
                 **kwargs: Mapping[str, Any]) -> CommandStatus:
         '''
         Execute our function with the args/kwargs supplied... Probably from a

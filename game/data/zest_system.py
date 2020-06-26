@@ -87,20 +87,19 @@ class Test_DataSystem(unittest.TestCase):
         self.debugging         = False
         self.config            = zmake.config()
         self.context           = zontext.test(self.__class__.__name__,
-                                              'setUp',
-                                              config=self.config)
+                                              'setUp')
         self.event_manager     = EventManager(self.config)
         self.component_manager = ComponentManager(self.config,
                                                   self.event_manager)
 
-        self.managers          = zmake.meeting(
+        self.manager          = zmake.meeting(
             configuration=self.config,
             event_manager=self.event_manager,
             component_manager=self.component_manager)
 
         self.system            = DataSystem(self.context,
                                             1,
-                                            self.managers)
+                                            self.manager)
         self.events            = []
 
     def tearDown(self):
@@ -141,11 +140,11 @@ class Test_DataSystem(unittest.TestCase):
     def test_event_loaded(self):
         self.set_up_subs()
 
-        ctx = self.context.spawn(
-            UnitTestContext,
+        ctx = UnitTestContext(
             self.__class__.__name__,
             'test_event_deserialize',
             {'unit-testing': "Manually created DecodedEvent."})
+        ctx.pull(self.context)
         decode_event = DecodedEvent(
             42,
             0xDEADBEEF,

@@ -23,7 +23,7 @@ from veredi.base.context import VerediContext
 from veredi.game.ecs.base.identity import EntityId
 
 from . import const
-from ..context import InputSystemContext, InputUserContext
+from ..context import InputContext
 
 
 # -----------------------------------------------------------------------------
@@ -167,11 +167,11 @@ class CommandStatus:
     # ---
 
     @staticmethod
-    def does_not_exist(entity_id: EntityId,
-                       entity: 'Entity',
-                       component: Type['Component'],
+    def does_not_exist(entity_id:      EntityId,
+                       entity:         'Entity',
+                       component:      Type['Component'],
                        component_type: Type['Component'],
-                       context: InputUserContext) -> 'CommandStatus':
+                       context:        InputContext) -> 'CommandStatus':
         '''
         Create a CommandStatus object for an unknown command.
 
@@ -191,7 +191,7 @@ class CommandStatus:
                                                               entity,
                                                               component)
         return CommandStatus(False,
-                             InputSystemContext.input(context),
+                             InputContext.input(context),
                              reason,
                              flags=flags)
 
@@ -253,7 +253,7 @@ class CommandStatus:
         '''
         Create a CommandStatus object for a successful command.
         '''
-        cmd = InputSystemContext.input(context)
+        cmd = InputContext.input(context)
         return CommandStatus(True, cmd, None)
 
     # ---
@@ -301,6 +301,6 @@ class CommandInvoke(Protocol):
 
     def __call__(self,
                  *args: Any,
-                 context: Optional[InputUserContext] = None,
+                 context: Optional[InputContext] = None,
                  **kwargs: Mapping[str, Any]) -> CommandStatus:
         ...

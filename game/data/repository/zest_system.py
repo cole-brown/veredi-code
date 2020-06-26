@@ -10,7 +10,7 @@ Tests for the RepositorySystem class.
 
 import unittest
 
-from veredi.zest import zmake, zontext
+from veredi.zest import zpath, zmake
 from veredi.data.context import (DataLoadContext,
                                  DataSaveContext,
                                  DataGameContext)
@@ -39,21 +39,21 @@ class Test_RepoSystem(unittest.TestCase):
 
     def setUp(self):
         self.debugging     = False
-        self.config        = zmake.config()
-        self.context       = zontext.repo(self.__class__.__name__,
-                                          'setUp',
-                                          config=self.config)
+        self.config        = zmake.config(
+            repo_dotted='veredi.repository.file-tree',
+            repo_path=zpath.repository_file_tree(),
+            repo_clean='veredi.sanitize.human.path-safe'
+        )
         self.event_manager = EventManager(self.config)
-        self.managers      = zmake.meeting(configuration=self.config,
+        self.manager       = zmake.meeting(configuration=self.config,
                                            event_manager=self.event_manager)
-        self.repo          = RepositorySystem(self.context, 1, self.managers)
+        self.repo          = RepositorySystem(None, 1, self.manager)
         self.events        = []
         self.path          = self.repo._repository.root
 
     def tearDown(self):
         self.debugging     = False
         self.config        = None
-        self.context       = None
         self.repo          = None
         self.event_manager = None
         self.events        = None
@@ -81,11 +81,10 @@ class Test_RepoSystem(unittest.TestCase):
         self.assertTrue(self.events)
 
     def context_load(self, type):
-        ctx = self.context.spawn(DataLoadContext,
-                                 'unit-testing', None,
-                                 type,
-                                 'test-campaign')
-        path = self.path / 'test-campaign'
+        ctx = DataLoadContext('unit-testing', None,
+                              type,
+                              'test-campaign')
+        path = self.path / 'game' / 'test-campaign'
         if type == DataGameContext.Type.PLAYER:
             ctx.sub['user'] = 'u/jeff'
             ctx.sub['player'] = 'Sir Jeffsmith'

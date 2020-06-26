@@ -62,6 +62,7 @@ class CommandRegisterReply(CommandEvent):
 
     def __init__(self,
                  registration:  CommandRegistrationBroadcast,
+                 source_name:   str,
                  command_name:  str,
                  permissions:   const.CommandPermission,
                  event_trigger: CommandInvoke,
@@ -73,6 +74,10 @@ class CommandRegisterReply(CommandEvent):
         '''
         Initialize Register reply event from Registration broadcast event.
 
+        `source_name` should be a dotted string. E.g. if system with name
+        'veredi.rules.d20.skill' makes a command, it should use
+        'veredi.rules.d20.skill' as its `source_name`.
+
         The command function `event_trigger` should be something light-weight.
         Any heavy lifting should be either queued up in your system for later
         (e.g. attached to a component), or sent out as an event to be processed
@@ -82,7 +87,7 @@ class CommandRegisterReply(CommandEvent):
                          registration.type,
                          registration.context)
 
-        self._set_name(command_name)
+        self._set_name(command_name, source_name)
         self._set_perms(permissions)
         self._set_func(event_trigger, registration)
 
@@ -93,10 +98,11 @@ class CommandRegisterReply(CommandEvent):
         self.args:       list = []
         self.kwargs:     dict = {}
 
-    def _set_name(self, name: str) -> None:
+    def _set_name(self, name: str, source: str) -> None:
         '''Raises a CommandError if name is invalid (e.g. starts with the
         command prefix).'''
         self.name = name.strip().lower()
+        self.source = source
         # TODO [2020-06-14]: Regex check... also must start with letter.
         if self.name.startswith(const._TEXT_CMD_PREFIX):
             self.name = None

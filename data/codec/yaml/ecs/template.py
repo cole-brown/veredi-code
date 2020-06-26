@@ -8,14 +8,13 @@ YAML library subclasses for encoding/decoding components.
 # Imports
 # -----------------------------------------------------------------------------
 
-import yaml
 from pydoc import locate  # For str->type.
 
 from veredi.data import exceptions
 from veredi.math import mathing
 
-from . import base
-from ..adapter.dict import KeyGroupMarker, UserDefinedMarker
+from .. import base
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -23,140 +22,12 @@ from ..adapter.dict import KeyGroupMarker, UserDefinedMarker
 
 
 # -----------------------------------------------------------------------------
-# Base yaml.YAMLObject?
-# -----------------------------------------------------------------------------
-
-# §-TODO-§ [2020-05-21]: YAML something or other so we can barf out context
-# in our errors? Or should we be throwing YAML errors instead of Veredi errors?
-
-
-# -----------------------------------------------------------------------------
-# Document Types
-# -----------------------------------------------------------------------------
-
-class DocComponent(base.VerediYamlDocument):
-    yaml_tag = '!component'
-
-
-class DocComponentExample(base.VerediYamlDocument):
-    yaml_tag = '!component.example'
-
-
-class DocComponentTemplate(base.VerediYamlDocument):
-    yaml_tag = '!component.template'
-
-
-class DocComponentRequirements(base.VerediYamlDocument):
-    yaml_tag = '!component.requirements'
-
-
-# -----------------------------------------------------------------------------
-# Template Objects
-# -----------------------------------------------------------------------------
-
-# ---
-# Property
-# ---
-
-class PropertyPsuedo(base.VerediYamlTag):
-    yaml_tag = '!veredi.psuedo-property'
-
-# ---
-# Grouping
-# ---
-
-# Our Usual Thing:
-# class EntryGroup(VerediYamlTag):
-#     '''
-#     A list of elements with something in common has been grouped up. E.g.:
-#       - Knowledge skills.
-#     '''
-#     yaml_tag = '!grouped'
-
-# Untested but should work?
-# class EntryGroup(base.VerediYamlTag):
-#     '''
-#     A list of elements with something in common has been grouped up. E.g.:
-#       - Knowledge skills.
-#     '''
-#
-#     yaml_tag = '!grouped'
-#
-#    def __init__(self, value):
-#        print(self.__class__.__name__, "__init__", value)
-#
-#    @classmethod
-#    def from_yaml(cls, loader, node):
-#     instance = EntryGroup.__new__(EntryGroup)
-#     yield instance
-#     state = loader.construct_scalar(node)
-#     instance.__init__(state)
-
-
-# This way works too:
-# class EntryGroup:
-#     '''
-#     A list of elements with something in common has been grouped up. E.g.:
-#       - Knowledge skills.
-#     '''
-#     yaml_tag = '!grouped'
-#
-#     def __init__(self, state):
-#         print("grouped entry state:", state)
-#
-#
-# def grouped_constructor(loader, node):
-#     instance = EntryGroup.__new__(EntryGroup)
-#     yield instance
-#     state = loader.construct_scalar(node)
-#     instance.__init__(state)
-#
-# yaml.add_constructor(EntryGroup.yaml_tag,
-#                      grouped_constructor,
-#                      Loader=yaml.SafeLoader)
-
-
-# Constructor for our KeyGroupMarker adapter class.
-def grouped_constructor(loader, node):
-    '''
-    Single pass constructor for this tag since it's easy and also it needs to
-    know its name for it to hash.
-    '''
-    instance = KeyGroupMarker.__new__(KeyGroupMarker)
-    name = loader.construct_scalar(node)
-    instance.__init__(name)
-    return instance
-
-
-yaml.add_constructor('!grouped',
-                     grouped_constructor,
-                     Loader=yaml.SafeLoader)
-
-
-# Constructor for our UserDefinedMarker adapter class.
-def user_defined_constructor(loader, node):
-    '''
-    Single pass constructor for this tag since it's easy and also it needs to
-    know its name for it to hash.
-    '''
-    instance = UserDefinedMarker.__new__(UserDefinedMarker)
-    name = loader.construct_scalar(node)
-    instance.__init__(name)
-    return instance
-
-
-yaml.add_constructor('!user.defined',
-                     user_defined_constructor,
-                     Loader=yaml.SafeLoader)
-
-
-# -----------------------------------------------------------------------------
 # Requirements Objects
 # -----------------------------------------------------------------------------
 
-# ---
+# ------------------------------
 # Fallback Value
-# ---
+# ------------------------------
 
 class Fallback(base.VerediYamlRequirement):
     yaml_tag = '!fallback'
@@ -172,9 +43,9 @@ class Fallback(base.VerediYamlRequirement):
                 None, None)
 
 
-# ---
+# ------------------------------
 # Optionals
-# ---
+# ------------------------------
 
 class Optional(base.VerediYamlRequirement):
     yaml_tag = '!optional'
@@ -376,9 +247,9 @@ class OptionalList(Optional):
                 and all([type(each) == self.tag for each in check]))
 
 
-# ---
+# ------------------------------
 # Requirements
-# ---
+# ------------------------------
 
 class Requires(Optional):
     yaml_tag = '!require'
@@ -400,9 +271,9 @@ class RequiresFromComponents(OptionalFromComponents):
     yaml_tag = '!require.from.components'
 
 
-# ---
+# ------------------------------
 # Keys
-# ---
+# ------------------------------
 
 class KeyFrom(base.VerediYamlRequirement):
     yaml_tag = '!key.from'
@@ -430,9 +301,9 @@ class KeyFrom(base.VerediYamlRequirement):
         return self._valid_type(self.tag)
 
 
-# ---
+# ------------------------------
 # Variables
-# ---
+# ------------------------------
 
 class Variable(base.VerediYamlRequirement):
     yaml_tag = '!variable'

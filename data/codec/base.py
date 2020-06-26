@@ -9,11 +9,14 @@ Aka ___ Codec.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, NewType, Any, List, Dict, TextIO
-from abc import ABC, abstractmethod
+from typing import (TYPE_CHECKING,
+                    Optional, Union, NewType, Any, List, Dict, TextIO)
+if TYPE_CHECKING:
+    from veredi.base.context        import VerediContext
+    from veredi.data.config.context import ConfigContext
 
-from veredi.base.context import VerediContext, PersistentContext
-from veredi.data.config.context import ConfigContext
+
+from abc import ABC, abstractmethod
 
 
 # -----------------------------------------------------------------------------
@@ -32,20 +35,14 @@ CodecOutput = NewType('CodecOutput',
 # @register('veredi', 'codec', 'CodecSubclass')
 class BaseCodec(ABC):
     def __init__(self,
-                 codec_name:   str,
-                 self_context_name: str,
-                 self_context_key:  str,
-                 config_context:    Optional[VerediContext] = None) -> None:
+                 codec_name:     str,
+                 config_context: Optional['VerediContext'] = None) -> None:
         '''
         `codec_name` should be short and will be lowercased. It should probably
         be like a filename extension, e.g. 'yaml', 'json'.
 
-        `self_context_name` and `self_context_key` are for /my/ context  -
-        used for Event and Error contexts.
-
         `config_context` is the context being used to set us up.
         '''
-        self._context = PersistentContext(self_context_name, self_context_key)
         self._name = codec_name.lower()
 
         self._configure(config_context)
@@ -67,11 +64,27 @@ class BaseCodec(ABC):
     # -------------------------------------------------------------------------
 
     @property
-    def context(self) -> VerediContext:
+    @abstractmethod
+    def background(self):
         '''
-        Will be the context dict for e.g. Events, Errors.
+        Data for the Veredi Background context.
         '''
-        return self._context
+        raise NotImplementedError
+
+    def _make_background(self, dotted_name):
+        '''
+        Start of the background data.
+
+        `dotted_name` should be the dotted version of your @register() string.
+        e.g. for:
+          @register('veredi', 'repository', 'file-bare')
+        `dotted_name` is:
+          'veredi.repository.file-bare'
+        '''
+        return {
+            'name': dotted_name,
+            'type': self.name,
+        }
 
     # -------------------------------------------------------------------------
     # Abstract Methods
@@ -79,7 +92,7 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def _configure(self,
-                   context: Optional[ConfigContext]) -> None:
+                   context: Optional['ConfigContext']) -> None:
         '''
         Allows codecs to grab anything from the config data that they need to
         set up themselves.
@@ -89,7 +102,7 @@ class BaseCodec(ABC):
     @abstractmethod
     def decode(self,
                stream: TextIO,
-               input_context: VerediContext) -> CodecOutput:
+               input_context: 'VerediContext') -> CodecOutput:
         '''Load and decodes a single document from the data stream.
 
         Raises:
@@ -101,7 +114,7 @@ class BaseCodec(ABC):
     @abstractmethod
     def decode_all(self,
                    stream: TextIO,
-                   input_context: VerediContext) -> CodecOutput:
+                   input_context: 'VerediContext') -> CodecOutput:
         '''Load and decodes all documents from the data stream.
 
         Raises:
@@ -113,7 +126,7 @@ class BaseCodec(ABC):
     @abstractmethod
     def _load(self,
               stream: TextIO,
-              input_context: VerediContext) -> Any:
+              input_context: 'VerediContext') -> Any:
         '''Load data from a single data stream.
 
         Returns:
@@ -128,7 +141,7 @@ class BaseCodec(ABC):
     @abstractmethod
     def _load_all(self,
                   stream: TextIO,
-                  input_context: VerediContext) -> Any:
+                  input_context: 'VerediContext') -> Any:
         '''Load data from a single data stream.
 
         Returns:

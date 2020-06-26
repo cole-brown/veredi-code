@@ -22,18 +22,22 @@ That is the bardic/rougish homeworld.
 # ---
 # Typing
 # ---
-from typing import Optional, Set, Type, Union
-from veredi.game.ecs.manager import EcsManager
-from decimal import Decimal
+from typing import (TYPE_CHECKING,
+                    Optional, Set, Type, Union)
+if TYPE_CHECKING:
+    from decimal import Decimal
+    from veredi.base.context     import VerediContext
+    from veredi.game.ecs.manager import EcsManager
+
 
 # ---
 # Code
 # ---
 from veredi.logger                  import log
 from veredi.base.const              import VerediHealth
-from veredi.base.context            import VerediContext
-from veredi.data.config.context     import ConfigContext
+from veredi.data                    import background
 from veredi.data.config.registry    import register
+from veredi.data.codec.adapter      import definition
 
 # Game / ECS Stuff
 from veredi.game.ecs.event          import EventManager
@@ -55,7 +59,7 @@ from veredi.input.command.reg       import (CommandRegistrationBroadcast,
                                             CommandArgType,
                                             CommandStatus)
 from veredi.math.parser             import MathTree
-from veredi.input.context           import InputUserContext
+from veredi.input.context           import InputContext
 
 # Skill-Related Events & Components
 from .event                         import SkillRequest, SkillResult
@@ -75,14 +79,10 @@ from .component                     import SkillComponent
 @register('veredi', 'rules', 'd20', 'skill', 'system')
 class SkillSystem(System):
 
-    def _configure(self, context: VerediContext) -> None:
+    def _configure(self, context: 'VerediContext') -> None:
         '''
         Make our stuff from context/config data.
         '''
-
-        # TODO [2020-06-22]: Load 'these words are skills' config file.
-        self._skill_names: Set[str] = set()
-        self._skill_names.add('perception')
 
         # ---
         # Health Stuff
@@ -93,8 +93,8 @@ class SkillSystem(System):
             ComponentManager,
             EntityManager
         }
-        self._health_meter_update:  Optional[Decimal] = None
-        self._health_meter_event:   Optional[Decimal] = None
+        self._health_meter_update:  Optional['Decimal'] = None
+        self._health_meter_event:   Optional['Decimal'] = None
 
         # ---
         # Ticking Stuff
@@ -110,16 +110,30 @@ class SkillSystem(System):
         self._ticks: SystemTick = SystemTick.STANDARD
 
         # ---
-        # Context Stuff
+        # Config Stuff
         # ---
-        config = ConfigContext.config(context)  # Configuration obj
+        config = background.config.config
         if not config:
-            raise ConfigContext.exception(
+            raise background.config.exception(
                 context,
                 None,
                 "Cannot configure {} without a Configuration in the "
                 "supplied context.",
                 self.__class__.__name__)
+
+        # Ask config for our definition to be deserialized and given to us
+        # right now.
+        self._skill_defs = definition.Definition(
+            definition.DocType.DEF_SYSTEM,
+            config.definition(self.name))
+
+    @property
+    def name(self) -> str:
+        '''
+        The 'dotted string' name this system has. Probably what they used to
+        register.
+        '''
+        return 'veredi.rules.d20.skill.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -169,6 +183,7 @@ class SkillSystem(System):
             return
 
         skill_check = CommandRegisterReply(event,
+                                           self.name,
                                            'skill',
                                            CommandPermission.COMPONENT,
                                            self.trigger_skill_req,
@@ -182,7 +197,7 @@ class SkillSystem(System):
 
     def trigger_skill_req(self,
                           math: MathTree,
-                          context: Optional[InputUserContext] = None
+                          context: Optional[InputContext] = None
                           ) -> CommandStatus:
         '''
         Skill Check command happened. Package it up into a SkillRequest event
@@ -199,7 +214,7 @@ class SkillSystem(System):
                 context=context)
             return
 
-        eid = InputUserContext.source_id(context)
+        eid = InputContext.source_id(context)
         entity = self._manager.entity.get(eid)
         component = entity.get(SkillComponent)
         if not entity or not component:
@@ -332,9 +347,7 @@ class SkillSystem(System):
         # e.g.
         #   'perception' starts with 'perception'
         #   'knowledge (socks)' starts with 'knowledge'
-        for each in self._skill_names:
-            if name.startswith(each):
-                return True
-
-        # Otherwise no.
-        return False
+        #
+        # But with Definition/DataDict and their KeyGroups, that's a bit
+        # easier to do:
+        return name in self._skill_defs

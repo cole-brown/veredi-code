@@ -13,39 +13,28 @@ Input Sub-system for input history.
 
 # Typing
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Dict, List)
+                    Any, Dict, List)
 if TYPE_CHECKING:
-    from veredi.game.ecs.component      import ComponentManager
-    from veredi.game.ecs.entity         import EntityManager
-    from veredi.base.identity           import MonotonicIdGenerator
-
-# General Stuff in General
-from abc import ABC, abstractmethod
+    pass
 
 # General Veredi Stuff
-from veredi.logger                  import log
-from veredi.base.const              import VerediHealth
-from veredi.base.context            import VerediContext
-from veredi.data.config.context     import ConfigContext
-from veredi.data.config.registry    import register
-
-# Game / ECS Stuff
-from veredi.game.ecs.base.identity          import EntityId
-from veredi.game.ecs.event          import EventManager
-from veredi.game.ecs.time           import TimeManager
-from veredi.game.ecs.base.system import Meeting
-from veredi.game.ecs.base.entity import Entity
+from veredi.data                         import background
+from veredi.logger                       import log
+from veredi.base.context                 import VerediContext
+from veredi.data.config.registry         import register
 
 # Identity Stuff
-from veredi.game.ecs.base.identity  import EntityId, ComponentId
+from veredi.game.ecs.base.identity       import EntityId
 from veredi.game.data.identity.component import IdentityComponent
 
+# Game / ECS Stuff
+from veredi.game.ecs.base.entity         import Entity
+from veredi.game.ecs.meeting             import Meeting
+
 # Our Stuff
-from ..context import InputSystemContext
-from ..identity  import InputId, InputIdGenerator
-from ..event                         import CommandInputEvent
-from ..command.args import CommandStatus
-# from .component                     import InputComponent
+from ..identity                          import InputId, InputIdGenerator
+from ..command.args                      import CommandStatus
+# from .component                        import InputComponent
 
 
 # -----------------------------------------------------------------------------
@@ -132,16 +121,25 @@ class Historian:
         '''
         Initialize Historian.
         '''
-        self._global: List[InputHistory] = []
-        self._by_input: Dict[InputId, InputHistory] = {}
+        self._global:    List[InputHistory]                 = []
+        self._by_input:  Dict[InputId, InputHistory]        = {}
         self._by_entity: Dict[EntityId, List[InputHistory]] = {}
-        self._manager: Meeting = InputSystemContext.managers(context)
 
-        self._input_id: InputIdGenerator = InputId.generator(
+        self._manager:   Meeting                = background.system.manager
+
+        self._input_id:  InputIdGenerator       = InputId.generator(
             self._manager.time)
 
         # TODO [2020-06-21]: Write history to disk after x time?
         # TODO [2020-06-21]: Drop history from lists after y time?
+
+    @property
+    def name(self) -> str:
+        '''
+        The 'dotted string' name this system has. Probably what they used to
+        register.
+        '''
+        return 'veredi.input.historian'
 
     def get_id(self,
                entity: Entity,

@@ -9,10 +9,12 @@ Skills Component
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Mapping, MutableMapping, Dict
+from typing import (TYPE_CHECKING,
+                    Optional, Any, Mapping, MutableMapping, Dict)
+if TYPE_CHECKING:
+    from veredi.data.config.context import ConfigContext
 
 from veredi.logger                  import log
-from veredi.data.config.context     import ConfigContext
 from veredi.data.config.registry    import register
 
 from veredi.game.data.component     import DataComponent
@@ -48,7 +50,7 @@ class SkillComponent(DataComponent):
     # -------------------------------------------------------------------------
 
     def _configure(self,
-                   context: Optional[ConfigContext]) -> None:
+                   context: Optional['ConfigContext']) -> None:
         '''
         Allows components to grab, from the context/config, anything that
         they need to set up themselves.

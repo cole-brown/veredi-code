@@ -50,8 +50,10 @@ class Conflict(enum.Flag):
 
 class VerediContext:
     '''
-    Base Context. You do not want this one. You want a PersistentContext or an
-    EphemerealContext, which are the two main subclasses.
+    Base Context. You do not want this one. You want either want:
+      - The background (veredi.data.background).
+      - A PersistentContext or an EphemerealContext
+        - Or a subclass of one of these.
     '''
 
     _KEY_NAME = 'name'

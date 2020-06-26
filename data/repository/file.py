@@ -9,24 +9,30 @@ various backend implementations (db, file, etc).
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import NewType, Union, Optional, List
+from typing import (TYPE_CHECKING,
+                    NewType, Union, Optional, List)
+if TYPE_CHECKING:
+    from veredi.base.context import VerediContext
+
 
 import pathlib
-
 import re
 import hashlib
 from io import StringIO, TextIOBase
+import enum
 
-from veredi.logger import log
+
+from veredi.logger               import log
 from veredi.data.config.registry import register
+from veredi.data                 import background
 
-from veredi.base.context import VerediContext
-from veredi.data.context import (DataBareContext,
-                                 DataGameContext)
-from veredi.data.config.context import ConfigContext
+from veredi.base                 import name
+from veredi.data.context         import (DataBareContext,
+                                         DataGameContext)
+from veredi.data.config.context  import ConfigContext
 
-from .. import exceptions
-from . import base
+from ..                          import exceptions
+from .                           import base
 
 
 # -----------------------------------------------------------------------------
@@ -35,7 +41,7 @@ from . import base
 
 PathType = NewType('PathType', Union[str, pathlib.Path])
 
-# §-TODO-§ [2020-05-23]: other file repos...
+# TODO [2020-05-23]: other file repos...
 #   FileTreeDiffRepository - for saving history for players
 
 # ---
@@ -85,37 +91,37 @@ def to_hashed(path: PathType) -> pathlib.Path:
 @register('veredi', 'repository', 'file-bare')
 class FileBareRepository(base.BaseRepository):
 
-    _REPO_NAME   = 'file-bare'
-    _CONTEXT_NAME = 'file-bare'
-    _CONTEXT_KEY  = 'repository'
+    _DOTTED_NAME = 'veredi.repository.file-bare'
+
+    _SANITIZE_KEYCHAIN = ['repository', 'sanitize']
+
+    _REPO_NAME = 'file-bare'
 
     def __init__(self,
-                 config_context: Optional[ConfigContext] = None) -> None:
+                 config_context: Optional['ConfigContext'] = None) -> None:
         # Bare context doesn't have a root until it loads something from
         # somewhere. Then that directory is its root.
         self._root = None
 
         super().__init__(self._REPO_NAME,
-                         self._CONTEXT_NAME,
-                         self._CONTEXT_KEY,
                          config_context)
 
     def _configure(self,
-                   context: Optional[ConfigContext]) -> None:
+                   context: Optional['ConfigContext']) -> None:
         '''
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
-        config = ConfigContext.config(context)
+        config = background.config.config
         if not config:
-            raise ConfigContext.exception(
+            raise background.config.exception(
                 context,
                 None,
                 "Cannot configure {} without a Configuration in the "
                 "supplied context.",
                 self.__class__.__name__)
 
-        # Bare context doesn't have a root until it loads something from
+        # Bare repo doesn't have a root until it loads something from
         # somewhere. Then that directory is its root.
         self._root = None
 
@@ -123,20 +129,46 @@ class FileBareRepository(base.BaseRepository):
         # inject/partially-load something to see if we can get options into
         # here now...
         path_safing_fn = None
-        path_safing = config.get_data('game',
-                                      'repository',
-                                      'sanitize')
+        path_safing = config.get_data(*self._SANITIZE_KEYCHAIN)
         if path_safing:
             path_safing_fn = config.get_registered(path_safing,
                                                    context)
         self.fn_path_safing = path_safing_fn or to_human_readable
 
+        self._make_background(path_safing)
+
         log.debug("Set my root to: {}", self.root)
         log.debug("Set my path-safing to: {}", self.fn_path_safing)
+
+    def _make_background(self, safing_ds: str) -> None:
+        self._bg = super()._make_background(self._DOTTED_NAME)
+
+        self._bg['path'] = self.root
+        self._bg['path-safing'] = safing_ds
+
+    @property
+    def background(self):
+        '''
+        Data for the Veredi Background context.
+
+        Returns: (data, background.Ownership)
+        '''
+        return self._bg, background.Ownership.SHARE
 
     # -------------------------------------------------------------------------
     # Load Methods
     # -------------------------------------------------------------------------
+
+    def _ext_glob(self, element: PathType) -> PathType:
+        '''Concatenates extensions glob onto pathlib.Path/str.'''
+        try:
+            # pathlib.Path?
+            element = element.with_suffix(".*")
+        except AttributeError:
+            # str then?
+            element = element + ".*"
+
+        return element
 
     @property
     def root(self) -> pathlib.Path:
@@ -145,6 +177,15 @@ class FileBareRepository(base.BaseRepository):
         '''
         log.debug("root is: {}", self._root)
         return self._root
+
+    def _definiton_path(self,
+                        dotted_name: str,
+                        context: 'VerediContext') -> pathlib.Path:
+        '''
+        Turns a dotted name into a path.
+        '''
+        path = name.path(dotted_name)
+        return self.root / self._ext_glob(path)
 
     def load(self,
              context: DataBareContext) -> TextIOBase:
@@ -155,7 +196,27 @@ class FileBareRepository(base.BaseRepository):
         '''
         load_id = self._id(context)
         load_path = self._id_to_path(load_id, context)
+        return self._load(load_path, context)
 
+    def definition(self,
+                   dotted_name: str,
+                   context: 'VerediContext') -> TextIOBase:
+        '''
+        Load a definition file by splitting `dotted_name` and looking there for
+        a file matching a glob we create.
+
+        e.g. if `dotted_name` is 'veredi.rules.d20.skill.system', this will
+        look in self.root for "veredi/rules/d20/skill/system.*".
+        '''
+        defpath = self._definiton_path(dotted_name, context)
+        return self._load(defpath, context)
+
+    def _load(self,
+              load_path: pathlib.Path,
+              context: 'VerediContext') -> TextIOBase:
+        '''
+        Looks for file at load_path. If it exists, loads that file.
+        '''
         # load_path should be exact - no globbing.
         if not load_path.exists():
             raise log.exception(
@@ -163,7 +224,7 @@ class FileBareRepository(base.BaseRepository):
                 exceptions.LoadError,
                 "Cannot load file. Path/file does not exist: {}",
                 str(load_path),
-                context=self.context.push(context))
+                context=context)
 
         data_stream = None
         with load_path.open('r') as file_stream:
@@ -195,12 +256,13 @@ class FileBareRepository(base.BaseRepository):
     # -------------------------------------------------------------------------
 
     def _id(self,
-            context:     DataGameContext) -> pathlib.Path:
+            context: DataGameContext) -> pathlib.Path:
         '''
         Turns data repo keys in the context into an id we can use to retrieve
         the data. Keys are safe and ready to go.
         '''
         self._root = context.load.parent
+        self._bg['path'] = self._root
         return context.load
 
     def _id_to_path(self,
@@ -225,7 +287,7 @@ class FileBareRepository(base.BaseRepository):
                 None,
                 exceptions.LoadError,
                 "No path safing function set! Cannot create file paths. ",
-                context=self.context.push(context))
+                context=context)
 
         return self.fn_path_safing(unsafe)
 
@@ -237,9 +299,22 @@ class FileBareRepository(base.BaseRepository):
 @register('veredi', 'repository', 'file-tree')
 class FileTreeRepository(base.BaseRepository):
 
+    _DOTTED_NAME = 'veredi.repository.file-tree'
     _REPO_NAME   = 'file-tree'
-    _CONTEXT_NAME = 'file-tree'
-    _CONTEXT_KEY  = 'repository'
+
+    _SANITIZE_KEYCHAIN = ['repository', 'sanitize']
+    _PATH_KEYCHAIN = ['repository', 'directory']
+
+    # ---
+    # Sub-Directories
+    # ---
+    @enum.unique
+    class Category(enum.Enum):
+        GAME = 'game'
+        '''Game data like saved characters, monsters, items, etc.'''
+
+        DEFINITIONS = 'definitions'
+        '''System/rules definitions like skills, etc.'''
 
     # ---
     # Path Names
@@ -248,30 +323,21 @@ class FileTreeRepository(base.BaseRepository):
     _REPLACEMENT = '_'
 
     def __init__(self,
-                 context: Optional[VerediContext] = None) -> None:
+                 context: Optional['VerediContext'] = None) -> None:
         self._root = None
 
-#        # Unit-test / override
-#        if directory:
-#            self._root = pathlib.Path(directory).resolve()
-
-#        # Use user-defined or set to our default.
-#        self.fn_path_safing = path_safing_fn or to_human_readable
-
         super().__init__(self._REPO_NAME,
-                         self._CONTEXT_NAME,
-                         self._CONTEXT_KEY,
                          context)
 
     def _configure(self,
-                   context: Optional[ConfigContext]) -> None:
+                   context: Optional['ConfigContext']) -> None:
         '''
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
-        config = ConfigContext.config(context)  # Configuration obj
+        config = background.config.config
         if not config:
-            raise ConfigContext.exception(
+            raise background.config.exception(
                 context,
                 None,
                 "Cannot configure {} without a Configuration in the "
@@ -282,23 +348,37 @@ class FileTreeRepository(base.BaseRepository):
         self._root = ConfigContext.path(context)
         # ...add config's repo path on top of it
         # (in case it's a relative path).
-        self._root = self._root / pathlib_cast(config.get_data('game',
-                                                               'repository',
-                                                               'directory'))
+        self._root = self._root / pathlib_cast(
+            config.get_data(*self._PATH_KEYCHAIN))
         # Resolve to turn into absolute path and remove ".."s and stuff.
         self._root = self._root.resolve()
 
         path_safing_fn = None
-        path_safing = config.get_data('game',
-                                      'repository',
-                                      'sanitize')
+        path_safing = config.get_data(*self._SANITIZE_KEYCHAIN)
         if path_safing:
             path_safing_fn = config.get_registered(path_safing,
                                                    context)
         self.fn_path_safing = path_safing_fn or to_human_readable
 
+        self._make_background(path_safing)
+
         log.debug("Set my root to: {}", self.root)
         log.debug("Set my path-safing to: {}", self.fn_path_safing)
+
+    def _make_background(self, safing_ds: str) -> None:
+        self._bg = super()._make_background(self._DOTTED_NAME)
+
+        self._bg['path'] = self.root
+        self._bg['path-safing'] = safing_ds
+
+    @property
+    def background(self):
+        '''
+        Data for the Veredi Background context.
+
+        Returns: (data, background.Ownership)
+        '''
+        return self._bg, background.Ownership.SHARE
 
     # -------------------------------------------------------------------------
     # Load Methods
@@ -312,6 +392,16 @@ class FileTreeRepository(base.BaseRepository):
         log.debug("root is: {}", self._root)
         return self._root
 
+    def _definiton_path(self,
+                        dotted_name: str,
+                        context: 'VerediContext') -> pathlib.Path:
+        '''
+        Turns a dotted name into a path.
+        '''
+        path = name.path(dotted_name)
+        return self.rooted_path(self.Category.DEFINITIONS,
+                                self._ext_glob(path))
+
     def load(self,
              context: DataGameContext) -> TextIOBase:
         '''
@@ -322,7 +412,28 @@ class FileTreeRepository(base.BaseRepository):
         ids = self._id(context.type,
                        context)
         pattern_path = self._id_to_path(ids, context)
+        return self._load(pattern_path, context)
 
+    def definition(self,
+                   dotted_name: str,
+                   context: 'VerediContext') -> TextIOBase:
+        '''
+        Load a definition file by splitting `dotted_name` and looking there for
+        a file matching a glob we create.
+
+        e.g. if `dotted_name` is 'veredi.rules.d20.skill.system', this will
+        look in self.root for "veredi/rules/d20/skill/system.*".
+        '''
+        defpath = self._definiton_path(dotted_name, context)
+        return self._load(defpath, context)
+
+    def _load(self,
+              pattern_path: pathlib.Path,
+              context: 'VerediContext') -> TextIOBase:
+        '''
+        Looks for a match to pattern_path by splitting into parent dir and
+        glob/file name. If only one match, loads that file.
+        '''
         # Use path to find a file match.
         directory = pattern_path.parent
         glob = pattern_path.name
@@ -334,7 +445,7 @@ class FileTreeRepository(base.BaseRepository):
                     f"directory: {directory}, glob: {glob}, "
                     f"matches: {sorted(directory.glob(glob))}",
                     None,
-                    self.context.push(context))
+                    context)
             file_path = match
 
         if file_path is None:
@@ -343,7 +454,7 @@ class FileTreeRepository(base.BaseRepository):
                 f"directory: {directory}, glob: {glob}, "
                 f"matches: {sorted(directory.glob(glob))}",
                 None,
-                self.context.push(context))
+                context)
 
         data_stream = None
         with file_path.open('r') as file_stream:
@@ -399,7 +510,7 @@ class FileTreeRepository(base.BaseRepository):
             raise exceptions.LoadError(
                 f"No DataGameContext.Type to ID conversion for: {load_type}",
                 None,
-                self.context.push(context))
+                context)
 
     def _id_keys(self,
                  load_type: DataGameContext.Type,
@@ -437,34 +548,39 @@ class FileTreeRepository(base.BaseRepository):
         '''
         Turn identity stuff into filepath components.
         '''
-        return self.rooted_path(*self._ext_glob(ids))
+        return self.rooted_path(self.Category.GAME,
+                                *self._ext_glob_list(ids))
 
     # -------------------------------------------------------------------------
     # Paths In General
     # -------------------------------------------------------------------------
 
-    def rooted_path(self, *args: PathType) -> pathlib.Path:
+    def rooted_path(self, category: Category, *args: PathType) -> pathlib.Path:
         '''
         Assumes args are already safe, joins them all to `self.root` and
         returns the pathlib.Path.
         '''
-        return self.root.joinpath(*args)
+        return self.root.joinpath(category.value, *args)
 
-    def _ext_glob(self, elements: List[PathType]) -> List[PathType]:
+    def _ext_glob_list(self, elements: List[PathType]) -> List[PathType]:
         '''Concatenates extensions glob onto last path element is list.'''
         if not elements:
             return elements
 
-        last = elements[-1]
+        # Update last element in list with its glob.
+        elements[-1] = self._ext_glob(elements[-1])
+        return elements
+
+    def _ext_glob(self, element: PathType) -> PathType:
+        '''Concatenates extensions glob onto pathlib.Path/str.'''
         try:
             # pathlib.Path?
-            last = last.with_suffix(".*")
+            element = element.with_suffix(".*")
         except AttributeError:
             # str then?
-            last = elements[-1] + ".*"
+            element = element + ".*"
 
-        elements[-1] = last
-        return elements
+        return element
 
     # -------------------------------------------------------------------------
     # Path Safing
@@ -480,7 +596,7 @@ class FileTreeRepository(base.BaseRepository):
                 None,
                 exceptions.LoadError,
                 "No path safing function set! Cannot create file paths.",
-                context=self.context.push(context))
+                context=context)
 
         return self.fn_path_safing(unsafe)
 
@@ -489,10 +605,8 @@ class FileTreeRepository(base.BaseRepository):
 # --               Files for Defining Components and Stuff.                  --
 # -----------------------------------------------------------------------------
 
-# §-TODO-§ [2020-06-01]: templates repo?
+# TODO [2020-06-01]: templates repo?
 # @register('veredi', 'repository', 'templates', 'file-tree')
 # class FileTreeTemplates(FileTreeRepository):
 #
 #     _REPO_NAME   = 'file-tree'
-#     _CONTEXT_NAME = 'file-tree'
-#     _CONTEXT_KEY  = 'templates'

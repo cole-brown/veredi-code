@@ -10,22 +10,24 @@ Tests for the Commander sub-system, events, components, commands......
 
 import unittest
 
-from veredi.zest import zonfig
-from veredi.logger import log
+from veredi.zest                  import zonfig
+from veredi.logger                import log
 
-from veredi.base.null import Null
-from veredi.game.ecs.event import EventManager
+from veredi.data                  import background
+from veredi.base.null             import Null
+from veredi.game.ecs.event        import EventManager
 from veredi.data.config.hierarchy import Document
 
 # Just wanna get this dude registered.
-from veredi.math.d20.parser import MathParser
+from veredi.math.d20.parser       import MathParser
 
-from ..context import InputSystemContext
-from ..parse import Parcel
-from .commander import Commander
-from .args import CommandArgType, CommandStatus
-from .event import CommandRegistrationBroadcast, CommandRegisterReply
-from . import const
+from ..context                    import InputContext
+from ..parse                      import Parcel
+from .commander                   import Commander
+from .args                        import CommandArgType, CommandStatus
+from .event                       import (CommandRegistrationBroadcast,
+                                          CommandRegisterReply)
+from .                            import const
 
 
 # -----------------------------------------------------------------------------
@@ -65,13 +67,18 @@ class Test_Commander(unittest.TestCase):
         })
 
         self.event_manager     = EventManager(self.config)
-        self.parsers           = Parcel(self.config.context)
-        self._context          = InputSystemContext(self.parsers, None)
-        self.commander         = Commander(self._context)
+        self.parsers           = Parcel(None)
+        self.commander         = Commander(None)
 
         self.reg_open          = False
         self.events            = []
         self.cmd_was_triggered = False
+
+        background.input.set('veredi.input.command.zest_commander',
+                             self.parsers,
+                             None,
+                             background.Ownership.SHARE)
+
         self._set_up_subs()
 
     def tearDown(self):
@@ -80,7 +87,6 @@ class Test_Commander(unittest.TestCase):
         self.event_manager     = None
         self.commander         = None
         self.parsers           = None
-        self._context          = None
         self.reg_open          = False
         self.cmd_was_triggered = False
         self.events            = None
@@ -100,13 +106,13 @@ class Test_Commander(unittest.TestCase):
     # -------------------------------------------------------------------------
 
     def user_input_ctx(self, input_str, entity_id):
-        return self._context.clone(None, input_str, entity_id)
+        return InputContext(None, input_str, entity_id)
 
     def allow_registration(self):
         if self.reg_open:
             return
 
-        event = self.commander.registration(42, self._context)
+        event = self.commander.registration(42, None)
         self.trigger_events(event,
                             expected_events=0,
                             num_publishes=1)
@@ -163,6 +169,7 @@ class Test_Commander(unittest.TestCase):
         # Reg is open; make a command to register.
         cmd_reg = CommandRegisterReply(
             self.reg_open,
+            'veredi.input.command.zest_commander',
             'unit-test',
             # I'm not testing perms here.
             const.CommandPermission.UNRESTRICTED,
@@ -189,13 +196,12 @@ class Test_Commander(unittest.TestCase):
     def test_init(self):
         self.assertTrue(self.commander)
         self.assertTrue(self.parsers)
-        self.assertTrue(self._context)
 
     def test_cmd_broadcast(self):
         # No registration yet.
         self.assertFalse(self.reg_open)
 
-        event = self.commander.registration(42, self._context)
+        event = self.commander.registration(42, None)
         self.trigger_events(event,
                             expected_events=0,
                             num_publishes=1)
@@ -212,6 +218,7 @@ class Test_Commander(unittest.TestCase):
         # Reg is open; make a command to register.
         cmd_reg = CommandRegisterReply(
             self.reg_open,
+            'veredi.input.command.zest_commander',
             'unit-test',
             # I'm not testing perms here.
             const.CommandPermission.UNRESTRICTED,
