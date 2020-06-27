@@ -161,7 +161,7 @@ class IdentitySystem(System):
                                                 data=data)
         # TODO [2020-06-20]: Make adding to entities part of create
         # via a kwarg?
-        self._manager.entity.add(event.id, retval)
+        self._manager.entity.attach(event.id, retval)
 
         return retval
 

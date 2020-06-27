@@ -179,7 +179,7 @@ class Test_IdentitySystem(unittest.TestCase):
     #     self.assertIsInstance(component, IdentityComponent)
 
     #     # Stuff it on our entity
-    #     self.manager.entity.add(entity.id, component)
+    #     self.manager.entity.attach(entity.id, component)
     #     # Make sure component got attached to entity.
     #     self.assertIn(IdentityComponent, entity)
 
