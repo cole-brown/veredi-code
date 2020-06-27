@@ -170,7 +170,7 @@ class Test_SkillSystem(unittest.TestCase):
         self.assertIsInstance(component, SkillComponent)
 
         # Stuff it on our entity; make it enabled too.
-        self.manager.entity.add(entity.id, component)
+        self.manager.entity.attach(entity.id, component)
         component._life_cycle = ComponentLifeCycle.ALIVE
         # Make sure component got attached to entity.
         self.assertIn(SkillComponent, entity)

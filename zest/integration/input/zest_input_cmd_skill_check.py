@@ -143,7 +143,7 @@ class Test_InputCmd_SkillCheck(IntegrationTest):
         self.assertIs(entity.get(SkillComponent), Null())
 
         # Now stuff it in there.
-        self.manager.entity.add(entity.id, component)
+        self.manager.entity.attach(entity.id, component)
         ent_comp = entity.get(SkillComponent)
         self.assertIsNot(ent_comp, Null())
         self.assertIs(ent_comp, component)

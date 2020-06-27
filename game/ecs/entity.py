@@ -54,8 +54,8 @@ from .component                import ComponentManager
 
 @enum.unique
 class EntityEventType(enum.Enum):
-    COMPONENT_ADD    = enum.auto()
-    COMPONENT_REMOVE = enum.auto()
+    COMPONENT_ATTACH = enum.auto()
+    COMPONENT_DETACH = enum.auto()
 
 
 EntityOrNull = NewType('EntityOrNull', Union[Entity, Null])
@@ -225,9 +225,9 @@ class EntityManager(EcsManagerWithEvents):
                            EntityLifeCycle.DESTROYING,
                            None, False)
 
-    def add(self,
-            entity_id: EntityId,
-            *id_or_comp: Union[ComponentId, Component]) -> None:
+    def attach(self,
+               entity_id: EntityId,
+               *id_or_comp: Union[ComponentId, Component]) -> None:
         '''
         Add component(s) to an entity.
 
@@ -238,16 +238,16 @@ class EntityManager(EcsManagerWithEvents):
         entity = self.get(entity_id)
         if not entity:
             return
-        entity._add_all(id_or_comp)
+        entity._attach_all(id_or_comp)
 
         self._event_create(EntityEvent,
                            entity_id,
-                           EntityEventType.COMPONENT_ADD,
+                           EntityEventType.COMPONENT_ATTACH,
                            None, False)
 
-    def remove(self, entity_id: EntityId, *components: CompIdOrType) -> None:
+    def detach(self, entity_id: EntityId, *components: CompIdOrType) -> None:
         '''
-        Remove components from an entity.
+        Removes components from an entity.
 
         `components` can be component objects or types.
 
@@ -258,11 +258,11 @@ class EntityManager(EcsManagerWithEvents):
         entity = self.get(entity_id)
         if not entity:
             return
-        entity._remove_all(components)
+        entity._detach_all(components)
 
         self._event_create(EntityEvent,
                            entity_id,
-                           EntityEventType.COMPONENT_REMOVE,
+                           EntityEventType.COMPONENT_DETACH,
                            None, False)
 
     # -------------------------------------------------------------------------

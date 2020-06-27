@@ -117,7 +117,7 @@ class Test_EntityManager(unittest.TestCase):
 
         if comps:
             created = self.create_comps(*comps)
-            self.entity_mgr.add(eid, *created)
+            self.entity_mgr.attach(eid, *created)
 
         return eid
 
@@ -210,7 +210,7 @@ class Test_EntityManager(unittest.TestCase):
             self.assertEqual(event.type, EntityLifeCycle.DESTROYING)
             self.assertIsNone(event.context)
 
-    def test_add(self):
+    def test_attach(self):
         self.assertEqual(self.entity_mgr._entity_id.peek(),
                          EntityId.INVALID.value)
 
@@ -225,8 +225,8 @@ class Test_EntityManager(unittest.TestCase):
         self.clear_events()  # don't care about previous events
 
         # Now we add a third
-        add_list = self.create_comps(CompThree)
-        self.entity_mgr.add(eid, *add_list)
+        attach_list = self.create_comps(CompThree)
+        self.entity_mgr.attach(eid, *attach_list)
 
         # And the Entity should now have that as well.
         entity = self.entity_mgr.get(eid)
@@ -250,10 +250,10 @@ class Test_EntityManager(unittest.TestCase):
             event = self.events_recv[EntityEvent][0]
             self.assertIsNotNone(event)
             self.assertEqual(event.id, eid)
-            self.assertEqual(event.type, EntityEventType.COMPONENT_ADD)
+            self.assertEqual(event.type, EntityEventType.COMPONENT_ATTACH)
             self.assertIsNone(event.context)
 
-    def test_remove(self):
+    def test_detach(self):
         self.assertEqual(self.entity_mgr._entity_id.peek(),
                          EntityId.INVALID.value)
 
@@ -267,8 +267,8 @@ class Test_EntityManager(unittest.TestCase):
         self.assertTrue(entity.contains({CompOne, CompTwo}))
         self.clear_events()  # don't care about create event
 
-        # Now we remove one...
-        self.entity_mgr.remove(eid, CompTwo)
+        # Now we detach one...
+        self.entity_mgr.detach(eid, CompTwo)
 
         # And the Entity should now have just the one.
         entity = self.entity_mgr.get(eid)
@@ -294,7 +294,7 @@ class Test_EntityManager(unittest.TestCase):
             event = self.events_recv[EntityEvent][0]
             self.assertIsNotNone(event)
             self.assertEqual(event.id, eid)
-            self.assertEqual(event.type, EntityEventType.COMPONENT_REMOVE)
+            self.assertEqual(event.type, EntityEventType.COMPONENT_DETACH)
             self.assertIsNone(event.context)
 
     def test_creation(self):

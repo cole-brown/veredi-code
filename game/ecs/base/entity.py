@@ -95,7 +95,7 @@ class Entity:
 
         for comp in context.sub['entity'].get('components', ()):
             if isinstance(comp, (ComponentId, Component)):
-                self._add(comp)
+                self._attach(comp)
 
     @property
     def id(self) -> EntityId:
@@ -179,18 +179,18 @@ class Entity:
     # EntityManager Interface/Helpers
     # -------------------------------------------------------------------------
 
-    def _add(self, id_or_comp: Union[ComponentId, Component]):
+    def _attach(self, id_or_comp: Union[ComponentId, Component]):
         '''
         DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
 
-        Adds the component to this entity.
+        Attaches the component to this entity.
         '''
         component = id_or_comp
         if isinstance(id_or_comp, ComponentId):
             component = self._component_manager.get(id_or_comp)
         if not component:
-            log.error("Ignoring 'add' requested for a non-existing component. "
-                      "ID or instance: {} -> {}",
+            log.error("Ignoring 'attach' requested for a non-existing "
+                      "component. ID or instance: {} -> {}",
                       id_or_comp, component)
             return
 
@@ -201,26 +201,28 @@ class Entity:
             # Entity has component already and it cannot
             # be replaced.
             log.warning(
-                "Ignoring 'add' requested for component type already existing "
-                "on entity. entity_id: {}, existing: {}, requested: {}",
+                "Ignoring 'attach' requested for component type already "
+                "existing on entity. entity_id: {}, existing: {}, "
+                "requested: {}",
                 self.id, existing, component)
 
-    def _add_all(self,
-                 id_or_comp: Iterable[Union[ComponentId, Component]]) -> None:
+    def _attach_all(self,
+                    id_or_comp: Iterable[Union[ComponentId, Component]]
+                    ) -> None:
         '''
         DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
 
-        Tries to add() all the supplied components to this entity.
+        Tries to _attach() all the supplied components to this entity.
         '''
         for each in id_or_comp:
-            self._add(each)
+            self._attach(each)
 
-    def _remove(self, id_or_type: CompIdOrType) -> Optional[Component]:
+    def _detach(self, id_or_type: CompIdOrType) -> Optional[Component]:
         '''
         DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
 
-        Removes a component from the entity.
-        Returns component if found & removed, else None.
+        Detaches a component from the entity.
+        Returns component if found & detached, else None.
 
         NOTE: returns component regardless of its `enabled` field.
         '''
@@ -231,7 +233,7 @@ class Entity:
             return component
 
         # Nothing /actually/ to do from now on - we didn't find it in our
-        # collection if we reach here, so... can't remove it? We'll mirror
+        # collection if we reach here, so... can't detach it? We'll mirror
         # get()'s fallback, though, since we're returning the component?
         #
         # Probably not necessary since only EntityManager should call this.
@@ -251,14 +253,14 @@ class Entity:
 
         return None
 
-    def _remove_all(self, components: Iterable[CompIdOrType]) -> None:
+    def _detach_all(self, components: Iterable[CompIdOrType]) -> None:
         '''
         DO NOT CALL THIS UNLESS YOUR NAME IS EntityManager!
 
-        Tries to remove() all the supplied components from the entity.
+        Tries to detach() all the supplied components from the entity.
         '''
         for each in components:
-            self._remove(each)
+            self._detach(each)
 
     # -------------------------------------------------------------------------
     # Python Interfaces (hashable, ==, 'in')
