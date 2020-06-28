@@ -23,6 +23,7 @@ from typing import (Optional, Any,
 from veredi.logger       import log
 from veredi.base.context import VerediContext
 
+from veredi.base.null    import null_or_none
 from .const              import CommandPermission
 from ..const             import InputLanguage
 from ..context           import InputContext
@@ -78,6 +79,7 @@ class Command:
         Raises a CommandRegisterError if an arg fails validation.
         '''
         if not self._args and not self._kwargs:
+            self._language = InputLanguage.NONE
             return
 
         # TODO [2020-06-15]: Make command creater register a language if we
@@ -188,38 +190,95 @@ class Command:
         Parse verified safe/sanitized `input_safe` string into the args &
         kwargs this command wants.
 
-        Returns parsed tuple of: (args, kwargs)
+        Returns parsed tuple of: (args, kwargs, CommandStatus of parsing)
+          - args is a list in correct order
+          - kwargs is a dict
+        '''
+        if self.language == InputLanguage.NONE:
+            # I think just a warning? Could error out, but don't see exactly
+            # why I should - would be annoying to be the user in that case?
+            if input_safe:
+                log.warning(
+                    "Command '{}' has no input args but received input.",
+                    self.name,
+                    context=context)
+            return ([], {}, CommandStatus.successful(context))
+
+        elif self.language == InputLanguage.MATH:
+            return self._parse_math(input_safe, context)
+
+        elif self.language == InputLanguage.TEXT:
+            return self._parse_text(input_safe, context)
+
+        # Er, oops?
+        raise NotImplementedError(
+            f"TODO: parse() for {self.language} is not implemented yet.",
+            self
+        )
+
+    def _parse_math(self,
+                    input_safe: str,
+                    context: VerediContext
+                    ) -> Tuple[Iterable, Dict[str, Any], CommandStatus]:
+        '''
+        Parse verified safe/sanitized `input_safe` string into the args &
+        kwargs this math command wants.
+
+        Returns parsed tuple of: (args, kwargs, CommandStatus)
           - args is a list in correct order
           - kwargs is a dict
         '''
         args = []
         kwargs = {}
 
-        if self.language == InputLanguage.MATH:
-            # We're a math thing... We let the MathParser loose on the entire
-            # input string.
-            mather = InputContext.math(context)
-            if not mather:
-                error = ("No MathParser found in context; "
-                         "cannot process input.")
-                raise log.exception(AttributeError(error, input_safe),
-                                    CommandExecutionError,
-                                    None,
-                                    context=context)
-            tree = mather.parse(input_safe)
-            if not tree:
-                failure = CommandStatus.parsing(
-                    input_safe,
-                    "Failed parsing input into math expression.")
-                return args, kwargs, failure
+        # We're a math thing... We let the MathParser loose on the entire
+        # input string.
+        mather = InputContext.math(context)
+        if not mather:
+            error = ("No MathParser found in context; "
+                     "cannot process input.")
+            raise log.exception(AttributeError(error, input_safe),
+                                CommandExecutionError,
+                                None,
+                                context=context)
+        tree = mather.parse(input_safe)
+        if not tree:
+            failure = CommandStatus.parsing(
+                input_safe,
+                "Failed parsing input into math expression.")
+            return args, kwargs, failure
 
-            args.append(tree)
+        args.append(tree)
 
-        else:
-            raise NotImplementedError(
-                "TODO: Command.parse() for {} is not implemented yet.",
-                self.language, self
-            )
+        return args, kwargs, CommandStatus.successful(context)
+
+    def _parse_text(self,
+                    input_safe: str,
+                    context: VerediContext
+                    ) -> Tuple[Iterable, Dict[str, Any], CommandStatus]:
+        '''
+        Parse verified safe/sanitized `input_safe` string into the args &
+        kwargs this text command wants.
+
+        Returns parsed tuple of: (args, kwargs, CommandStatus)
+          - args is a list in correct order
+          - kwargs is a dict
+        '''
+        args = []
+        kwargs = {}
+
+        # We're a text thing... so parse it ourself?
+        remainder = input_safe
+        for cmd_arg in self._args:
+            parsed, remainder = cmd_arg.parse(remainder)
+            if not null_or_none(parsed):
+                args.append(parsed)
+
+        if remainder:
+            for cmd_kwarg in self._kwargs:
+                parsed, remainder = cmd_kwarg.parse(remainder)
+                if not null_or_none(parsed):
+                    kwargs[cmd_kwarg.kwarg] = parsed
 
         return args, kwargs, CommandStatus.successful(context)
 
@@ -235,4 +294,5 @@ class Command:
         Execute our function with the args/kwargs supplied... Probably from a
         call to our parse() method.
         '''
+
         return self._function(*args, context=context, **kwargs)

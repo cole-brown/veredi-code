@@ -11,6 +11,7 @@ Some command(s) for background data and possibly other data.
 from typing import Optional
 
 
+from veredi.logger import log
 from veredi.data import background
 
 # Everything needed to participate in command registration.
@@ -27,6 +28,7 @@ from veredi.input.context           import InputContext
 
 DOTTED_NAME = 'veredi.debug.background'
 
+_LOG_TITLE = 'Veredi Background Context:'
 
 # -----------------------------------------------------------------------------
 # Registration
@@ -57,6 +59,15 @@ def command(context: Optional[InputContext] = None) -> CommandStatus:
     '''
     Debug command invocation handler.
     '''
-    print("\nHello there from cmd_background!")
-    print(context)
+    entity = background.system.meeting.entity.get(
+        InputContext.source_id(context))
+    # TODO: entity name?
+
+    from veredi.logger import pretty
+    output = pretty.indented(background._CONTEXT,
+                             sort=True)
+    # TODO [2020-06-28]: Log function for 'always log this' that isn't
+    # "CRITICAL ERROR OMG!!!"?
+    log.critical(f'{_LOG_TITLE}\n' + output)
+
     return CommandStatus.successful(context)

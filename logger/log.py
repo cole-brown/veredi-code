@@ -13,16 +13,20 @@ from typing import (TYPE_CHECKING,
                     Type,
                     Optional,
                     Any,
+                    Callable,
                     Mapping,
                     MutableMapping)
 if TYPE_CHECKING:
-    from veredi.base.context import VerediContext
+    from veredi.base.context    import VerediContext
     from veredi.base.exceptions import VerediError
 
 import logging
 import datetime
 import math
 import enum
+
+
+from veredi.base.null import Nullable, Null
 
 
 # -----------------------------------------------------------------------------
@@ -90,6 +94,8 @@ DEFAULT_LEVEL = Level.INFO
 __initialized = False
 
 logger = None
+
+_unit_test_callback = Null()
 
 
 # -----------------------------------------------------------------------------
@@ -174,7 +180,14 @@ class BestTimeFmt(logging.Formatter):
 
 def brace_message(fmt: str,
                   *args: Any, **kwargs: Mapping[str, Any]) -> str:
+    '''
+    Pass-through `fmt` if no args/kwargs.
+
+    Otherwise use '.format()' brace formatting on `fmt` string.
+    '''
     # print(f"bm:: fmt: {fmt}, args: {args}, kwa: {kwargs}")
+    if not args and not kwargs:
+        return fmt
     return fmt.format(*args, **kwargs)
 
 
@@ -217,44 +230,44 @@ def debug(msg: str,
           *args: Any,
           **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
-    logger.debug(
-        brace_message(
-            msg,
-            *args, **kwargs),
-        stacklevel=stacklevel)
+    output = brace_message(msg,
+                           *args, **kwargs)
+    if not ut_call(Level.DEBUG, output):
+        logger.debug(output,
+                     stacklevel=stacklevel)
 
 
 def info(msg: str,
          *args: Any,
          **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
-    logger.info(
-        brace_message(
-            msg,
-            *args, **kwargs),
-        stacklevel=stacklevel)
+    output = brace_message(msg,
+                           *args, **kwargs)
+    if not ut_call(Level.INFO, output):
+        logger.info(output,
+                    stacklevel=stacklevel)
 
 
 def warning(msg: str,
             *args: Any,
             **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
-    logger.warning(
-        brace_message(
-            msg,
-            *args, **kwargs),
-        stacklevel=stacklevel)
+    output = brace_message(msg,
+                           *args, **kwargs)
+    if not ut_call(Level.WARNING, output):
+        logger.warning(output,
+                       stacklevel=stacklevel)
 
 
 def error(msg: str,
           *args: Any,
           **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
-    logger.error(
-        brace_message(
-            msg,
-            *args, **kwargs),
-        stacklevel=stacklevel)
+    output = brace_message(msg,
+                           *args, **kwargs)
+    if not ut_call(Level.ERROR, output):
+        logger.error(output,
+                     stacklevel=stacklevel)
 
 
 def exception(err: Exception,
@@ -329,11 +342,11 @@ def critical(msg: str,
              *args: Any,
              **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
-    logger.critical(
-        brace_message(
-            msg,
-            *args, **kwargs),
-        stacklevel=stacklevel)
+    output = brace_message(msg,
+                           *args, **kwargs)
+    if not ut_call(Level.CRITICAL, output):
+        logger.critical(output,
+                        stacklevel=stacklevel)
 
 
 def at_level(level: 'Level',
@@ -441,6 +454,49 @@ class LoggingManager:
         This one does nothing.
         '''
         return LoggingManager(Level.CRITICAL, no_op=True)
+
+
+# -----------------------------------------------------------------------------
+# Unit Testing
+# -----------------------------------------------------------------------------
+
+def ut_call(level: 'Level',
+            output: str) -> bool:
+    '''
+    Call this; it will figure out if it needs to do any of the unit-test
+    callback stuff.
+
+    Returns bool:
+      - True if _unit_test_callback wants to eat the log.
+      - False if no callback or it doesn't want to eat the log.
+    '''
+    if not _unit_test_callback or not callable(_unit_test_callback):
+        return False
+
+    return _unit_test_callback(level, output)
+
+
+def ut_set_up(callback: Nullable[Callable[['Level', str], bool]]) -> None:
+    '''
+    Set up for unit testing.
+
+    `callback` will be call for every log output function with log level and
+    final output string. It should return a bool: true for when it wants to eat
+    the log and not let it be logged out, False otherwise (tee message to it
+    and logger).
+    '''
+    global _unit_test_callback
+    _unit_test_callback = callback
+
+
+def ut_tear_down() -> None:
+    '''
+    Tear down for unit testing.
+
+    Reset things that were set in ut_set_up().
+    '''
+    global _unit_test_callback
+    _unit_test_callback = Null()
 
 
 # -----------------------------------------------------------------------------

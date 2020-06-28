@@ -29,6 +29,11 @@ class InputLanguage(enum.Enum):
     INVALID = 0
     '''Do not use this. It is invalid.'''
 
+    NONE = enum.auto()
+    '''
+    Input has no arguments - is just a command.
+    '''
+
     MATH = enum.auto()
     '''
     Input is a math expression to be parsed/evaluated as a MathTree.

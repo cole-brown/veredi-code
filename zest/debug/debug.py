@@ -63,9 +63,9 @@ def command(sub_cmd: str,
     '''
     Debug command invocation handler.
     '''
-    print("\nHello there from cmd_debug!", sub_cmd, arg_str)
-    print(context)
-    return CommandStatus.successful(context)
-
     if sub_cmd == 'background':
-        dbg_bg.command(context)
+        return dbg_bg.command(context)
+
+    return CommandStatus.parsing(
+        input_safe,
+        "Don't know what to do with '{} {}'".format(sub_cmd, arg_str))
