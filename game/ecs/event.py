@@ -24,6 +24,7 @@ from .manager                  import EcsManager
 from .base.identity            import MonotonicId
 from veredi.base.context       import VerediContext
 
+
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
@@ -226,23 +227,29 @@ class EventManager(EcsManager):
             log.debug("Tried to push {}, but it has no subscribers.",
                       event)
 
-    def publish(self) -> None:
+    def publish(self) -> int:
         '''
         Publishes all queued up events to any subscribers.
+
+        Returns number published.
         '''
+        publishing = len(self._events)
         log.debug("Publishing {} events...",
-                  len(self._events))
+                  publishing)
+
         for each in self._events:
             self._push(each)
         self._events.clear()
 
-    def update(self, tick: 'SystemTick', time: 'TimeManager') -> None:
+        return publishing
+
+    def update(self, tick: 'SystemTick', time: 'TimeManager') -> int:
         '''
         Engine calls us for each update tick, and we'll call all our
         game systems.
         '''
-        # Publish whatever we've built up.
-        self.publish()
+        # Publish whatever we've built up and return however many that is.
+        return self.publish()
 
     def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''

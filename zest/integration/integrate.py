@@ -27,6 +27,7 @@ from veredi.game.ecs.base.component import (Component,
 from veredi.game.ecs.event          import Event
 from veredi.game.data.event         import DataLoadedEvent
 from veredi.game.ecs.meeting        import Meeting
+from veredi.game.engine             import Engine
 
 from veredi.input.system            import InputSystem
 from veredi.input.command.reg       import CommandRegistrationBroadcast
@@ -61,21 +62,25 @@ class IntegrationTest(unittest.TestCase):
         self.init_system(...)
         '''
         self.debugging:      bool          = False
+        self.debug_flags:    DebugFlag     = None
         self.events:         List[Event]   = []
         self.reg_open:       CommandRegistrationBroadcast = None
         self.manager:        Meeting       = None
         self.context:        VerediContext = None
         self.input_system:   InputSystem   = None
+        self.engine:         Engine        = None
 
-    def init_required(self) -> None:
+    def init_required(self, require_engine: bool) -> None:
         '''
         Calls zload.set_up to create Meeting of EcsManagers, and a context from
         a config file.
         '''
-        (self.manager,
+        (self.manager, self.engine,
          self.context, _) = zload.set_up(self.__class__.__name__,
                                          'setUp',
                                          self.debugging,
+                                         debug_flags=self.debug_flags,
+                                         require_engine=require_engine,
                                          test_type=TestType.INTEGRATION)
 
     def init_input(self) -> None:

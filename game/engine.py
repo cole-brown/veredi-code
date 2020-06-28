@@ -8,8 +8,15 @@ A game of something or other.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Type, Any)
+if TYPE_CHECKING:
+    from veredi.base.context import VerediContext
+
+import enum
+
 # from typing import Optional
-from veredi.base.null import NullNoneOr
+from veredi.base.null import Nullable, NullNoneOr, Null
 
 # Error Handling
 from veredi.logger             import log
@@ -36,6 +43,32 @@ from .ecs.base.entity          import Entity
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+# ------------------------------
+# Engine's Life Cycle State
+# ------------------------------
+
+@enum.unique
+class EngineLifeCycle(enum.Enum):
+    INVALID    = 0
+    CREATING   = enum.auto()
+    ALIVE      = enum.auto()
+    DESTROYING = enum.auto()
+    DEAD       = enum.auto()
+
+    # ---
+    # To String
+    # ---
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}.{self._name_}"
+        )
+
+    def __repr__(self):
+        return (
+            f"SLC.{self._name_}"
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -217,7 +250,13 @@ class Engine:
         # TODO: load/make session based on... campaign and.... parameter?
         #   - or is that a second init step?
 
-        self._health = VerediHealth.HEALTHY
+        # ---
+        # Engine Status
+        # ---
+        self._engine_health = VerediHealth.INVALID
+        self._life_cycle    = EngineLifeCycle.INVALID
+        self._tick_state    = SystemTick.INVALID
+        self._tick_health   = VerediHealth.INVALID
 
         # ---
         # Debugging
@@ -228,34 +267,35 @@ class Engine:
         # Required/Special Systems
         # ---
         self.config    = configuration     or Configuration()
-        self.event     = event_manager     or EventManager()
-        self.time      = time_manager      or TimeManager()
-        self.component = component_manager or ComponentManager(self.config,
-                                                               self.event)
-        self.entity    = entity_manager    or EntityManager(self.config,
-                                                            self.event,
-                                                            self.component)
-        self.system    = system_manager    or SystemManager(self.config,
-                                                            self.time,
-                                                            self.event,
-                                                            self.component,
-                                                            self.entity,
-                                                            self._debug)
-        background.system.set_meeting(
-            Meeting(
-                self.time,
-                self.event,
-                self.component,
-                self.entity,
-                self.system,
-                self._debug
-            ))
 
         # ---
-        # General Systems
+        # Make the Managers go to their Meeting.
         # ---
-        self._sys_registration = set()
-        self._sys_schedule = []
+        event     = event_manager     or EventManager()
+        time      = time_manager      or TimeManager()
+        component = component_manager or ComponentManager(self.config,
+                                                          event)
+        entity    = entity_manager    or EntityManager(self.config,
+                                                       event,
+                                                       component)
+        system    = system_manager    or SystemManager(self.config,
+                                                       time,
+                                                       event,
+                                                       component,
+                                                       entity,
+                                                       self._debug)
+        self.meeting = Meeting(
+            time,
+            event,
+            component,
+            entity,
+            system,
+            self._debug)
+        background.system.set_meeting(self.meeting)
+
+    # -------------------------------------------------------------------------
+    # Debug Stuff
+    # -------------------------------------------------------------------------
 
     def debug_flagged(self, desired) -> bool:
         '''
@@ -277,33 +317,203 @@ class Engine:
         '''
         self._debug = value
 
+    def _log_tick(self,
+                  msg: str,
+                  *args: Any,
+                  **kwargs: Any) -> None:
+        '''
+        Debug Log output if DebugFlag has the LOG_TICK flag set.
+        '''
+        if not self.debug_flagged(DebugFlag.LOG_TICK):
+            return
+
+        # Bump up stack by one so it points to our caller.
+        log.incr_stack_level(kwargs)
+        log.debug(msg, *args, **kwargs)
+
+    # -------------------------------------------------------------------------
+    # Engine Overall Health
+    # -------------------------------------------------------------------------
+
+    @property
+    def engine_health(self) -> VerediHealth:
+        '''
+        Overall health of the engine itself.
+        '''
+        return self._engine_health
+
+    def set_engine_health(self, value: VerediHealth, forced: bool) -> None:
+        '''
+        Set the current health of the engine overall.
+        If `forced`, just straight up set it.
+        Else, use VerediHealth.set() to pick the worst of current and value.
+        '''
+        if forced:
+            self._engine_health = value
+        self._engine_health = VerediHealth.set(self._engine_health,
+                                               value)
+
+    def _engine_healthy(self) -> bool:
+        '''
+        Are we in a runnable state?
+        '''
+        return self._engine_health.good
+
+    @property
+    def tick_health(self) -> VerediHealth:
+        '''
+        Health of current tick.
+        '''
+        return self._tick_health
+
+    def set_tick_health(self, value: VerediHealth, forced: bool) -> None:
+        '''
+        Set the health of current tick.
+        If `forced`, just straight up set it.
+        Else, use VerediHealth.set() to pick the worst of current and value.
+        '''
+        if forced:
+            self._tick_health = value
+        self._tick_health = VerediHealth.set(self._tick_health,
+                                              value)
+
+    @property
+    def life_cycle(self) -> EngineLifeCycle:
+        return self._life_cycle
+
+    def _error_maybe_raise(self,
+                           error:      Exception,
+                           v_err_type: Optional[Type[VerediError]],
+                           msg:        Optional[str],
+                           *args:      Any,
+                           context:    Optional['VerediContext'] = None,
+                           **kwargs:   Any):
+        '''
+        Log an error, and raise it if `self.debug_flagged` to do so.
+        '''
+        kwargs = kwargs or {}
+        log.incr_stack_level(kwargs)
+        if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+            raise log.exception(
+                error,
+                v_err_type,
+                msg,
+                *args,
+                context=context,
+                **kwargs
+            ) from error
+        else:
+            log.exception(
+                error,
+                v_err_type,
+                msg,
+                *args,
+                context=context,
+                **kwargs)
+
     # -------------------------------------------------------------------------
     # Game Start/Stop
     # -------------------------------------------------------------------------
 
     def _should_stop(self):
-        return self._health.should_die
+        return self.engine_health.should_die
 
     def stop(self):
         '''
         Call if you want engine to stop after the end of this tick, then run
         it's apoptosis() function, then exit gracefully.
         '''
-        self._health = VerediHealth.APOPTOSIS
+        self.set_engine_health(VerediHealth.APOPTOSIS, True)
 
-    def run(self) -> VerediHealth:
+    def run(self, cycle: EngineLifeCycle) -> VerediHealth:
         '''
-        Infinite loop the game until quitting time.
+        Run through a life cycle of the Engine: CREATING, ALIVE, DESTROYING
+
+        Engine.life_cycle must start in correct state to transition.
+        Post-CREATING:   INVALID
+          CREATING:      INVALID    -> CREATING
+          ALIVE:         CREATING   -> ALIVE
+          DESTROYING:    ALIVE      -> DESTROYING
+        Post-DESTROYING: DESTROYING -> DEAD
         '''
+        if not self._should_stop():
+            self.set_engine_health(
+                self._run_create(),
+                False)
+
+        if not self._should_stop():
+            self.set_engine_health(
+                self._run_alive(),
+                False)
+
+        if not self._should_stop():
+            self.set_engine_health(
+                self._run_destroy(),
+                False)
+
+        return self.engine_health
+
+    def _run_create(self) -> VerediHealth:
+        from_state = EngineLifeCycle.INVALID
+        to_state = EngineLifeCycle.CREATING
+        self._log_tick("Start of _run_create.")
+        if self._life_cycle != from_state:
+            msg = (f"Cannot transition to '{to_state}' from "
+                   f"'{self._life_cycle}'; only from '{from_state}'")
+            error = ValueError(msg)
+            self._error_maybe_raise(error, None, msg)
+            return VerediHealth.UNHEALTHY
+
+        self._life_cycle = to_state
+
+        self._update_genesis()
+        self._update_intra_sys()
+
+        return VerediHealth.HEALTHY
+
+    def _run_alive(self) -> VerediHealth:
+        from_state = EngineLifeCycle.CREATING
+        to_state = EngineLifeCycle.ALIVE
+        self._log_tick("Start of _run_alive.")
+        if self._life_cycle != from_state:
+            msg = (f"Cannot transition to '{to_state}' from "
+                   f"'{self._life_cycle}'; only from '{from_state}'")
+            error = ValueError(msg)
+            self._error_maybe_raise(error, None, msg)
+            return VerediHealth.UNHEALTHY
+
+        self._life_cycle = to_state
+
         while not self._should_stop():
             self.tick()
 
-        return self.apoptosis()
+        return VerediHealth.HEALTHY
+
+    def _run_destroy(self) -> VerediHealth:
+        from_state = EngineLifeCycle.ALIVE
+        to_state = EngineLifeCycle.DESTROYING
+        self._log_tick("Start of _run_destroy.")
+        if self._life_cycle != from_state:
+            msg = (f"Cannot transition to '{to_state}' from "
+                   f"'{self._life_cycle}'; only from '{from_state}'")
+            error = ValueError(msg)
+            self._error_maybe_raise(error, None, msg)
+            return VerediHealth.UNHEALTHY
+
+        self._life_cycle = to_state
+
+        self.apoptosis()
+
+        self._life_cycle = EngineLifeCycle.DEAD
+        return VerediHealth.HEALTHY
 
     def apoptosis(self) -> VerediHealth:
         '''
         Graceful game shutdown.
         '''
+        self.set_engine_health(VerediHealth.APOPTOSIS, True)
+        self.set_tick_health(VerediHealth.APOPTOSIS, True)
+
         # Should I fire off an event, or should I call directly? Both? Have
         # Engine only call Managers directly and EventManager can do a big
         # event if it wants.
@@ -312,65 +522,165 @@ class Engine:
         # after those things.
         # E.g. EntityManager depends on ComponentManager, so it goes after.
         # E.g. They all might want updated time.
-        health = self.time.apoptosis()
+        health = self.meeting.time.apoptosis()
         if health != VerediHealth.APOPTOSIS:
             log.critical("TimeManager.apoptosis() returned an unexpected "
                          "VerediHealth: {} (time: {})",
-                         health, self.time.seconds)
+                         health, self.meeting.time.seconds)
 
-        health = self.event.apoptosis(self.time)
+        health = self.meeting.event.apoptosis(self.meeting.time)
         if health != VerediHealth.APOPTOSIS:
             log.critical("EventManager.apoptosis() returned an unexpected "
                          "VerediHealth: {} (time: {})",
-                         health, self.time.seconds)
+                         health, self.meeting.time.seconds)
 
-        health = self.component.apoptosis(self.time)
+        health = self.meeting.component.apoptosis(self.meeting.time)
         if health != VerediHealth.APOPTOSIS:
             log.critical("ComponentManager.apoptosis() returned an unexpected "
                          "VerediHealth: {} (time: {})",
-                         health, self.time.seconds)
+                         health, self.meeting.time.seconds)
 
-        health = self.entity.apoptosis(self.time)
+        health = self.meeting.entity.apoptosis(self.meeting.time)
         if health != VerediHealth.APOPTOSIS:
             log.critical("EntityManager.apoptosis() returned an unexpected "
                          "VerediHealth: {} (time: {})",
-                         health, self.time.seconds)
+                         health, self.meeting.time.seconds)
 
-        health = self.system.apoptosis(self.time)
+        health = self.meeting.system.apoptosis(self.meeting.time)
         if health != VerediHealth.APOPTOSIS:
             log.critical("SystemManager.apoptosis() returned an unexpected "
                          "VerediHealth: {} (time: {})",
-                         health, self.time.seconds)
+                         health, self.meeting.time.seconds)
 
-        return VerediHealth.APOPTOSIS
+        return self.engine_health
 
     # -------------------------------------------------------------------------
     # Pre-Game Loading Loop
     # -------------------------------------------------------------------------
-    def setting_up(self, health: VerediHealth) -> bool:
-        '''
-        Still setting up while:
-          - `health` for setup tick is not above 'VerediHealth.good' value.
-          - `health` for setup tick is not a 'VerediHealth.should_die' value.
-          - Engine is not in a state that should stop it.
-          - Time has not run out for set_up.
-        '''
-        return (not health.good
-                and not health.should_die
-                and not self._should_stop()
-                and not self.time.is_timed_out(self.time._DEFAULT_TIMEOUT_SEC))
 
-    def set_up(self):
+    def _setting_up(self,
+                    health: VerediHealth,
+                    events_published: Union[int, bool]) -> bool:
+        '''
+        `health` should be tick health.
+
+        `events_published` should either be number of events actually publish,
+        or a bool: False for 'not yet', True for 'who cares'.
+
+        Fail out of set-up if:
+          - `health` indicates we should die.
+          - engine has been told we should stop.
+          - TimeManager is timing and has reach time out value.
+
+        Still setting up if:
+          - `events_published` is not zero and also not True
+          - `health` is in "limbo"
+            - That is, health is neither 'good' nor 'bad'.
+              - E.g. VerediHealth.PENDING
+
+        Succeed out of set-up if:
+          - None of the above.
+        '''
+        # Done if we've gotten a bad enough health to die: just fail set up.
+        if health.should_die:
+            self._log_tick("Should die. health: {}", health)
+            return False
+
+        # We've been told to stop by external sources: just fail set up.
+        if self._should_stop():
+            self._log_tick("Should stop.")
+            return False
+
+        # We timed out: fail set up.
+        if (self.meeting.time.timing
+                and self.meeting.time.is_timed_out(
+                    self.meeting.time._SHORT_TIMEOUT_SEC)):
+            self._log_tick("Timed out. Setting health to FATAL.")
+            self.set_engine_health(VerediHealth.FATAL, True)
+            self.set_tick_health(VerediHealth.FATAL, True)
+            return False
+
+        # Events haven't started or haven't died down: keep going.
+        if (events_published != 0
+                and events_published is not True):
+            self._log_tick("Events in progress. Published: {}",
+                           events_published)
+            return True
+
+        # Systems that run in set up ticks aren't stabalized to a good or bad
+        # health yet: keep going.
+        if health.limbo:
+            self._log_tick("Health in limbo: {}", health)
+            return True
+
+        # Else... Done I guess?
+        self._log_tick("Successfully fell through to success case. health: {}",
+                  health)
+        return False
+
+    def _update_genesis(self) -> None:
+        '''
+        Note: No EventManager in here as systems and such should be creating.
+        EventManager will start processing events in next (INTRA_SYSTEM) tick.
+        '''
         # Call Systems'/Managers' loading functions until everyone
         # is done loading.
-        retval = VerediHealth.HEALTHY
-        self.time.start_timeout()
-        while self.setting_up(retval):
-            retval = self.system.update(SystemTick.SET_UP,
-                                        self.time,
-                                        self.component,
-                                        self.entity)
-            self.event.update(SystemTick.SET_UP, self.time)
+        self._tick_state  = SystemTick.GENESIS
+        self.set_tick_health(VerediHealth.INVALID, True)
+
+        self.meeting.time.start_timeout()
+        while self._setting_up(self.tick_health, True):
+            # Force first health set to get this loop's health started fresh.
+            # Do not force from there in order to get 'worst' of the loop.
+
+            # Create systems now.
+            self.set_tick_health(
+                self.meeting.system.creation(self.meeting.time),
+                True)
+
+            # Update any that want this tick.
+            self.set_tick_health(
+                self.meeting.system.update(SystemTick.GENESIS,
+                                           self.meeting.time,
+                                           self.meeting.component,
+                                           self.meeting.entity),
+                False)
+
+            self._log_tick("Tick state: {}, Tick health: {}",
+                           self._tick_state, self.tick_health)
+
+    def _update_intra_sys(self) -> None:
+        # Call Systems'/Managers' intra_sys functions until everyone
+        # is done talking.
+        self._tick_state = SystemTick.INTRA_SYSTEM
+        self.set_tick_health(VerediHealth.INVALID, True)
+
+        # First up, tell folks to subscribe?
+        # TODO: or should this be elsewhere?
+        self.meeting.time.subscribe(self.meeting.event)
+        self.meeting.component.subscribe(self.meeting.event)
+        self.meeting.entity.subscribe(self.meeting.event)
+        self.meeting.system.subscribe(self.meeting.event)
+
+        self.meeting.time.start_timeout()
+        events_published = False  # Start off False for "we haven't started yet".
+        while self._setting_up(self._tick_health, events_published):
+            # Force first health set to get this loop's health started fresh.
+            # Do not force from there in order to get 'worst' of the loop.
+
+            # Update any that want this tick.
+            self.set_tick_health(
+                self.meeting.system.update(SystemTick.INTRA_SYSTEM,
+                                           self.meeting.time,
+                                           self.meeting.component,
+                                           self.meeting.entity),
+                True)
+
+            events_published = self.meeting.event.update(
+                SystemTick.INTRA_SYSTEM,
+                self.meeting.time)
+            self._log_tick("Tick state: {}, Tick health: {}, # Events: {}",
+                           self._tick_state, self.tick_health, events_published)
 
     # -------------------------------------------------------------------------
     # In-Game Loops
@@ -397,37 +707,22 @@ class Engine:
         except VerediError as error:
             # TODO: health thingy
             # Plow on ahead anyways or raise due to debug flags.
-            if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise log.exception(
-                    error,
-                    None,
-                    "Engine's tick() received an error of type '{}' "
-                    "at time {}.",
-                    type(error), now_secs) from error
-            else:
-                log.exception(
-                    error,
-                    None,
-                    "Engine's tick() received a VerediError at time {}.",
-                    now_secs)
+            self._error_maybe_raise(
+                error,
+                None,
+                "Engine's tick() received an error of type '{}' "
+                "at time {}.",
+                type(error), now_secs)
 
         except Exception as error:
             # TODO: health thingy
             # Plow on ahead anyways or raise due to debug flags.
-            if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                raise log.exception(
-                    error,
-                    None,
-                    "Engine's tick() received an unknown exception "
-                    "at time {}.",
-                    now_secs) from error
-            else:
-                log.exception(
-                    error,
-                    None,
-                    "Engine's tick() received an unknown exception "
-                    "at time {}.",
-                    now_secs)
+            self._error_maybe_raise(
+                error,
+                None,
+                "Engine's tick() received an unknown exception "
+                "at time {}.",
+                now_secs)
 
         # ---
         # pycodestyle E722 - bare 'except'
@@ -456,67 +751,73 @@ class Engine:
             raise
 
     def _update_time(self) -> None:
+        self._tick_state = SystemTick.TIME
         # Time is first. Because it is time.
-        self.time.step()
+        self.meeting.time.step()
         # Create systems now.
-        self.system.creation(self.time)
+        self.meeting.system.creation(self.meeting.time)
 
         # Time events, system creation events...
-        self.event.update(SystemTick.TIME, self.time)
+        self.meeting.event.update(SystemTick.TIME, self.meeting.time)
         # System rescheduling, whatever.
-        self.system.update(SystemTick.TIME, self.time,
-                           self.component, self.entity)
+        self.meeting.system.update(SystemTick.TIME, self.meeting.time,
+                                   self.meeting.component, self.meeting.entity)
 
     def _update_creation(self) -> None:
         '''
         Main game loop's final update function - birth/creation of
         components & entities.
         '''
-        self.component.creation(self.time)
-        self.entity.creation(self.time)
+        self._tick_state = SystemTick.CREATION
+        self.meeting.component.creation(self.meeting.time)
+        self.meeting.entity.creation(self.meeting.time)
 
-        self.event.update(SystemTick.CREATION, self.time)
-        self.system.update(SystemTick.CREATION, self.time,
-                           self.component, self.entity)
+        self.meeting.event.update(SystemTick.CREATION, self.meeting.time)
+        self.meeting.system.update(SystemTick.CREATION, self.meeting.time,
+                                   self.meeting.component, self.meeting.entity)
 
     def _update_pre(self) -> None:
         '''
         Main game loop's set-up update function - anything that has to happen
         before SystemTick.STANDARD.
         '''
-        self.event.update(SystemTick.PRE, self.time)
-        self.system.update(SystemTick.PRE, self.time,
-                           self.component, self.entity)
+        self._tick_state = SystemTick.PRE
+        self.meeting.event.update(SystemTick.PRE, self.meeting.time)
+        self.meeting.system.update(SystemTick.PRE, self.meeting.time,
+                                   self.meeting.component, self.meeting.entity)
 
     def _update(self) -> None:
         '''
         Main game loop's main update tick function.
         '''
-        self.event.update(SystemTick.STANDARD, self.time)
-        self.system.update(SystemTick.STANDARD, self.time,
-                           self.component, self.entity)
+        self._tick_state = SystemTick.STANDARD
+        self.meeting.event.update(SystemTick.STANDARD, self.meeting.time)
+        self.meeting.system.update(SystemTick.STANDARD, self.meeting.time,
+                                   self.meeting.component, self.meeting.entity)
 
     def _update_post(self) -> None:
         '''
         Main game loop's clean-up update function - anything that has to happen
         after SystemTick.STANDARD.
         '''
-        self.event.update(SystemTick.POST, self.time)
-        self.system.update(SystemTick.POST, self.time,
-                           self.component, self.entity)
+        self._tick_state = SystemTick.POST
+        self.meeting.event.update(SystemTick.POST, self.meeting.time)
+        self.meeting.system.update(SystemTick.POST, self.meeting.time,
+                                   self.meeting.component, self.meeting.entity)
 
     def _update_destruction(self) -> None:
         '''
         Main game loop's final update function - death/deletion of
         components & entities.
         '''
-        self.component.destruction(self.time)
-        self.entity.destruction(self.time)
-        self.system.destruction(self.time)
+        self._tick_state = SystemTick.DESTRUCTION
+        self.meeting.component.destruction(self.meeting.time)
+        self.meeting.entity.destruction(self.meeting.time)
+        self.meeting.system.destruction(self.meeting.time)
 
-        self.event.update(SystemTick.DESTRUCTION, self.time)
-        self.system.update(SystemTick.DESTRUCTION, self.time,
-                           self.component, self.entity)
+        self.meeting.event.update(SystemTick.DESTRUCTION, self.meeting.time)
+        self.meeting.system.update(SystemTick.DESTRUCTION, self.meeting.time,
+                                   self.meeting.component, self.meeting.entity)
 
     # TODO: Check return values of system ticks and kill off any that are
     # unhealthy too much?

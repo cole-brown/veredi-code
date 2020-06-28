@@ -239,9 +239,18 @@ class MonotonicTimer:
 
         Otherwise, returns elapsed from start to now.
         '''
+        elapsed = 0
         if self._end:
-            return self._end - self._start
-        return self._current - self._start
+            elapsed = self._end - self._start
+        else:
+            elapsed = self._current - self._start
+        return elapsed
+
+    def timed_out(self, seconds: float) -> bool:
+        '''
+        If elapsed time is more than `seconds`, returns true.
+        '''
+        return self.elapsed > seconds
 
 
 # --------------------------------TimeManager----------------------------------
@@ -255,6 +264,7 @@ class TimeManager(EcsManagerWithEvents):
     '''
     _DEFAULT_TICK_STEP = Decimal(6)
     _DEFAULT_TIMEOUT_SEC = 10
+    _SHORT_TIMEOUT_SEC = 1
 
     _METER_TIMEOUT_SEC = _DEFAULT_TICK_STEP * 4
 
@@ -275,6 +285,7 @@ class TimeManager(EcsManagerWithEvents):
         self.tick  = Tick(tick_amount)
 
         self.machine = MachineTime()
+        self._timer = None
 
     def apoptosis(self) -> VerediHealth:
         '''
@@ -303,6 +314,13 @@ class TimeManager(EcsManagerWithEvents):
         self._timer.reset()
         return elapsed
 
+    @property
+    def timing(self):
+        '''
+        Not stopped and have a start time means probably timing something.
+        '''
+        return self._timer.timing
+
     def is_timed_out(self, timeout=None) -> None:
         '''
         Returns true if timeout timer is:
@@ -316,7 +334,9 @@ class TimeManager(EcsManagerWithEvents):
 
         if not timeout or timeout <= 0:
             timeout = self._DEFAULT_TIMEOUT_SEC
-        return self._timer.elapsed < timeout
+
+        timed_out = self._timer.timed_out(timeout)
+        return timed_out
 
     # ---
     # Ticking Time

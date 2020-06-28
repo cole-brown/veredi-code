@@ -62,7 +62,7 @@ class Test_InputCmd_SkillCheck(IntegrationTest):
 
     def setUp(self):
         super().setUp()
-        self.init_required()
+        self.init_required(False)
         self.init_input()
         self.init_many_systems(IdentitySystem, SkillSystem)
         # self.whatever = self.init_a_system(...)

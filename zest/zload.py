@@ -28,11 +28,16 @@ from veredi.game.ecs.system             import SystemManager
 from veredi.game.ecs.meeting            import Meeting
 from veredi.base.context                import VerediContext
 from veredi.game.ecs.base.identity      import SystemId
+from veredi.game.engine                 import Engine
 
 # System Stuff
 from veredi.game.data.repository.system import RepositorySystem
 from veredi.game.data.codec.system      import CodecSystem
 from veredi.game.data.system            import DataSystem
+
+# Registry
+import veredi.math.d20.parser
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -108,6 +113,7 @@ def set_up(
         test_name_class:   str,
         test_name_func:    str,
         enable_debug_logs: bool,
+        require_engine:    Optional[bool]                    = False,
         desired_systems:   Optional[Iterable[SysCreateType]] = None,
         test_type:         Optional[TestType]                = TestType.UNIT,
         configuration:     Optional[Configuration]           = None,
@@ -116,6 +122,7 @@ def set_up(
         component_manager: Optional[ComponentManager]        = None,
         entity_manager:    Optional[EntityManager]           = None,
         system_manager:    Optional[SystemManager]           = None,
+        engine:            Optional[Engine]                  = None,
         debug_flags:       Optional[DebugFlag]               = None,
         # This closing paren is a fucked up way to make pycodestyle happy...
         # May need to get flake8 so I can "# noqa" this one?
@@ -148,6 +155,18 @@ def set_up(
                                 system_manager,
                                 debug_flags)
 
+        engine = None
+        if require_engine:
+            log.debug("zload.loader creating Engine...")
+            engine = Engine(None, None,
+                            configuration,
+                            meeting.event,
+                            meeting.time,
+                            meeting.component,
+                            meeting.entity,
+                            meeting.system,
+                            debug_flags)
+
         system_manager = meeting.system
 
         log.debug("zload.loader creating Context...")
@@ -162,4 +181,4 @@ def set_up(
             sids = create_systems(system_manager, context,
                                   *desired_systems)
 
-        return meeting, context, sids
+        return meeting, engine, context, sids

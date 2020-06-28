@@ -65,7 +65,7 @@ class BaseSystemTest(unittest.TestCase):
         Calls zload.set_up to create Meeting of EcsManagers, a context from a
         config file, and a manager.system.
         '''
-        (self.manager,
+        (self.manager, _,
          self.context, _) = zload.set_up(self.__class__.__name__,
                                          'setUp',
                                          self.debugging,

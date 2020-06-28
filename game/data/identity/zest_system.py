@@ -52,7 +52,7 @@ class Test_IdentitySystem(unittest.TestCase):
     def setUp(self):
         self.debugging    = False
 
-        (self.manager,
+        (self.manager, _,
          self.context, _) = zload.set_up(self.__class__.__name__,
                                          'setUp',
                                          self.debugging)
