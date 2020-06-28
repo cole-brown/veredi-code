@@ -45,6 +45,12 @@ class CommandArgType(enum.Enum):
     VARIABLE = enum.auto()
     MATH = enum.auto()
 
+    # ---
+    # Texts
+    # ---
+    WORD = enum.auto()
+    STRING = enum.auto()
+
 
 # -----------------------------------------------------------------------------
 # Args & Kwargs

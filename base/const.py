@@ -68,6 +68,15 @@ class VerediHealth(enum.IntEnum):
         # TODO: Should FATAL require a count of N > 1 FATALS?
 
     @property
+    def limbo(self):
+        '''
+        Is this a state that is "'good' for set-up"? But neither good nor bad?
+        ...whatever that means.
+        '''
+        return (self.value >= VerediHealth.INVALID.value
+                and self.value < VerediHealth._GOOD_HEALTH_THRESHOLD.value)
+
+    @property
     def good(self):
         '''
         Is this a state that is "'good'"?

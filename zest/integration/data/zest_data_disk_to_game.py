@@ -50,7 +50,7 @@ class Test_DataLoad_DiskToGame(IntegrationTest):
 
     def setUp(self):
         super().setUp()
-        self.init_required()
+        self.init_required(False)
         # self.init_many_systems(...)
         # self.whatever = self.init_a_system(...)
 

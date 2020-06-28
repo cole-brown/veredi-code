@@ -215,7 +215,7 @@ class System(ABC):
             return self.health
 
         # Set our state to whatever's worse and return that.
-        # §-TODO-§ [2020-06-04]: Eventually maybe a gradient of health so one
+        # TODO [2020-06-04]: Eventually maybe a gradient of health so one
         # bad thing doesn't knock us offline?
         self._health_state = VerediHealth.worse(current_health,
                                                 self._health_state)
@@ -344,8 +344,8 @@ class System(ABC):
 
         Returns VerediHealth value.
         '''
-        if tick is SystemTick.SET_UP:
-            return self._update_set_up(time_mgr, component_mgr, entity_mgr)
+        if tick is SystemTick.GENESIS:
+            return self._update_genesis(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.INTRA_SYSTEM:
             return self._update_intra_system(time_mgr,
@@ -378,10 +378,10 @@ class System(ABC):
                 "{} does not have an update_tick handler for {}.",
                 self.__class__.__name__, tick)
 
-    def _update_set_up(self,
-                       time_mgr:      TimeManager,
-                       component_mgr: ComponentManager,
-                       entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_genesis(self,
+                        time_mgr:      TimeManager,
+                        component_mgr: ComponentManager,
+                        entity_mgr:    EntityManager) -> VerediHealth:
         '''
         First in set-up loop. Systems should use this to load and initialize
         stuff that takes multiple cycles or is otherwise unwieldy

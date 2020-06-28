@@ -156,12 +156,10 @@ class IdentitySystem(System):
                 data, event, event.context
             )
 
-        retval = self._manager.component.create(IdentityComponent,
-                                                event.context,
-                                                data=data)
-        # TODO [2020-06-20]: Make adding to entities part of create
-        # via a kwarg?
-        self._manager.entity.attach(event.id, retval)
+        retval = self._manager.create_attach(event.id,
+                                             IdentityComponent,
+                                             event.context,
+                                             data=data)
 
         return retval
 

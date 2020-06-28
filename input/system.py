@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 # Code
 # ---
 from veredi.data                         import background
+
 from veredi.logger                       import log
 from veredi.base.const                   import VerediHealth
 from veredi.data.config.registry         import register
@@ -62,6 +63,10 @@ from .history.history                    import Historian
 # Input-Related Events & Components
 from .event                              import CommandInputEvent
 # from .component                        import InputComponent
+
+
+# TODO [2020-06-27]: Better place to do these registrations.
+import veredi.zest.debug.registration
 
 
 # -----------------------------------------------------------------------------
@@ -291,6 +296,7 @@ class InputSystem(System):
         '''
         # Already did our broadcast - nothing more to do.
         if self._registration_broadcast:
+            log.debug("CommandRegistrationBroadcast: Did our thing already.")
             return self._health_check()
 
         # Doctor checkup.
@@ -303,10 +309,17 @@ class InputSystem(System):
                 self.health)
             return self._health_check()
 
+        reg_broadcast = self._commander.registration(self.id,
+                                                     Null())
+        log.debug("CommandRegistrationBroadcast about to broadcast: {}",
+                  reg_broadcast)
+        # TODO [2020-06-27]: better place to register these?
+        veredi.zest.debug.registration.register(reg_broadcast)
+
         # All we want to do is send out the command registration broadcast.
         # Then we want to not tick this again.
-        self._event_notify(self._commander.registration(self.id,
-                                                        Null()))
+        self._event_notify(reg_broadcast)
         self._registration_broadcast = True
 
-        return self._health_check()
+        # Did a thing this tick so say we're PENDING...
+        return VerediHealth.PENDING

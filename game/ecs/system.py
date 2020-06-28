@@ -9,7 +9,7 @@ Base class for game update loop systems.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Set, Type, Dict, List)
+                    Optional, Any, Set, Type, Dict, List)
 if TYPE_CHECKING:
     from veredi.base.identity import MonotonicIdGenerator
 
@@ -111,6 +111,50 @@ class SystemManager(EcsManagerWithEvents):
         '''
         self._debug = value
 
+    def _log_tick(self,
+                  msg: str,
+                  *args: Any,
+                  **kwargs: Any) -> None:
+        '''
+        Debug Log output if DebugFlag has the LOG_TICK flag set.
+        '''
+        if not self.debug_flagged(DebugFlag.LOG_TICK):
+            return
+
+        # Bump up stack by one so it points to our caller.
+        log.incr_stack_level(kwargs)
+        log.debug(msg, *args, **kwargs)
+
+    def _error_maybe_raise(self,
+                           error:      Exception,
+                           v_err_type: Optional[Type[VerediError]],
+                           msg:        Optional[str],
+                           *args:      Any,
+                           context:    Optional['VerediContext'] = None,
+                           **kwargs:   Any):
+        '''
+        Log an error, and raise it if `self.debug_flagged` to do so.
+        '''
+        kwargs = kwargs or {}
+        log.incr_stack_level(kwargs)
+        if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+            raise log.exception(
+                error,
+                v_err_type,
+                msg,
+                *args,
+                context=context,
+                **kwargs
+            ) from error
+        else:
+            log.exception(
+                error,
+                v_err_type,
+                msg,
+                *args,
+                context=context,
+                **kwargs)
+
     # -------------------------------------------------------------------------
     # EcsManagerWithEvents Interface
     # -------------------------------------------------------------------------
@@ -175,8 +219,10 @@ class SystemManager(EcsManagerWithEvents):
         game systems.
         '''
         # Update schedule at start of the tick, if it needs it.
-        if tick == SystemTick.TIME:
+        if (SystemTick.RESCHEDULE_SYSTEMS.has(tick)
+                or not self._schedule):
             self._update_schedule()
+            self._log_tick("Updated schedule. tick: {}", tick)
 
         worst_health = VerediHealth.HEALTHY
 
@@ -186,12 +232,11 @@ class SystemManager(EcsManagerWithEvents):
             if not system.wants_update_tick(tick, time):
                 continue
 
-            if self.debug_flagged(DebugFlag.LOG_TICK):
-                log.debug(
-                    "SystemManager.update({tick}, {time:05.6f}): {system}",
-                    tick=tick,
-                    time=time.seconds,
-                    system=system)
+            self._log_tick(
+                "SystemManager.update({tick}, {time:05.6f}): {system}",
+                tick=tick,
+                time=time.seconds,
+                system=system)
 
             # Try/catch each system, so they don't kill each other with a
             # single repeating exception.
@@ -200,43 +245,33 @@ class SystemManager(EcsManagerWithEvents):
                 worst_health = VerediHealth.set(
                     worst_health,
                     system.update_tick(tick, time, component, entity))
+                # Only do this if we /really/ want logs.
+                if self.debug_flagged(DebugFlag.UNIT_TESTS):
+                    self._log_tick("SystemManager.update: {} {} {}",
+                                   tick, system, worst_health)
 
             except VerediError as error:
                 # TODO: health thingy
                 # Plow on ahead anyways or raise due to debug flags.
-                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                    raise log.exception(
-                        error,
-                        None,
-                        "SystemManager's {} system caught error type '{}' "
-                        "during {} tick (time={}).",
-                        str(system), type(error),
-                        tick, time.seconds) from error
-                else:
-                    log.exception(
-                        error,
-                        None,
-                        "SystemManager's {} system had a TickError "
-                        "during {} tick (time={}).",
-                        str(system), tick, time.seconds)
+                self._error_maybe_raise(
+                    error,
+                    None,
+                    "SystemManager's {} system caught error type '{}' "
+                    "during {} tick (time={}).",
+                    str(system), type(error),
+                    tick, time.seconds)
 
             except Exception as error:
                 # TODO: health thingy
                 # Plow on ahead anyways or raise due to debug flags.
-                if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-                    raise log.exception(
-                        error,
-                        None,
-                        "SystemManager's {} system had an unknown exception "
-                        "during {} tick (time={}).",
-                        str(system), tick, time.seconds)
-                else:
-                    log.exception(
-                        error,
-                        None,
-                        "SystemManager's {} system had an unknown exception "
-                        "during {} tick (time={}).",
-                        str(system), tick, time.seconds)
+                self._error_maybe_raise(
+                    error,
+                    None,
+                    "SystemManager's {} system had an unknown exception "
+                    "during {} tick (time={}).",
+                    str(system), tick, time.seconds)
+
+        return worst_health
 
     # -------------------------------------------------------------------------
     # API: Component/System Management

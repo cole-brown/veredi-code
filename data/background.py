@@ -122,6 +122,9 @@ _CONTEXT = {
 # Constants
 # -----------------------------------------------------------------------------
 
+DOTTED_NAME = 'veredi.context.background'
+
+
 @enum.unique
 class Name(enum.Enum):
     REPO = 'repository'

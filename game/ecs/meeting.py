@@ -9,10 +9,12 @@ Manager interface for ECS managers.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Union, TypeVar, Type, Set)
-from veredi.base.null import Nullable, NullNoneOr, NullFalseOr, Null
+                    Union, Optional, Type, Any, Set)
+from veredi.base.null import NullNoneOr, NullFalseOr, Null
 if TYPE_CHECKING:
-    from .manager import EcsManager
+    from .manager            import EcsManager
+    from veredi.base.context import VerediContext
+    from .base.component     import Component
 
 
 from veredi.base.const import VerediHealth
@@ -23,6 +25,8 @@ from .component        import ComponentManager
 from .entity           import EntityManager
 from .system           import SystemManager
 from .const            import DebugFlag
+
+from .base.identity    import ComponentId, EntityId
 
 
 # -----------------------------------------------------------------------------
@@ -66,6 +70,10 @@ class Meeting:
         self._entity_manager    = entity_manager    or self._entity_manager
         self._system_manager    = system_manager    or self._system_manager
 
+    # -------------------------------------------------------------------------
+    # Meta - Do you have the managers you need?
+    # -------------------------------------------------------------------------
+
     def healthy(self,
                 required_set: NullNoneOr[Set[Type['EcsManager']]]
                 ) -> VerediHealth:
@@ -104,6 +112,10 @@ class Meeting:
 
         # Otherwise we're good.
         return VerediHealth.HEALTHY
+
+    # -------------------------------------------------------------------------
+    # Properties - Access the Managers
+    # -------------------------------------------------------------------------
 
     @property
     def time(self) -> Union[TimeManager, bool, Null]:
@@ -169,3 +181,31 @@ class Meeting:
         if self._system_manager is False:
             return False
         return self._system_manager
+
+    # -------------------------------------------------------------------------
+    # Inter-Managerial Helpers
+    # -------------------------------------------------------------------------
+
+    def create_attach(self,
+                      entity_id:              EntityId,
+                      component_name_or_type: Union[str, Type['Component']],
+                      context:                Optional['VerediContext'],
+                      *args:                  Any,
+                      **kwargs:               Any) -> ComponentId:
+        '''
+        Asks ComponentManager to create the `component_name_or_type`
+        with `context`, `args`, `kwargs`.
+
+        Then asks EntityManager to attach it to `entity_id`.
+
+        Returns the created component's ComponentId.
+        '''
+        if not self.component or not self.entity:
+            return ComponentId.INVALID
+
+        retval = self.component.create(component_name_or_type,
+                                       context,
+                                       *args, **kwargs)
+        self.entity.attach(entity_id, retval)
+
+        return retval

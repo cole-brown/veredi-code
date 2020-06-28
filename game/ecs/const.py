@@ -42,11 +42,13 @@ class SystemTick(enum.Flag):
     These are (or should be) defined in the order they occur in Engine.
     '''
 
+    INVALID     = 0
+
     # ---
     # Pre-Game-Loop Ticks
     # ---
 
-    SET_UP      = enum.auto()
+    GENESIS      = enum.auto()
     '''Tick where systems load stuff they care about from data and get all set
     up and stuff.'''
 
@@ -87,7 +89,20 @@ class SystemTick(enum.Flag):
     DESTRUCTION = enum.auto()
     '''Tick where ECS destruction happens.'''
 
+    # ---
+    # Masks
+    # ---
+
+    RESCHEDULE_SYSTEMS = GENESIS | TIME
+    '''
+    Reschedule during GENESIS as systems come on line. Check during TIME phase
+    to see if anything changed to require a reschedule.
+    '''
+
     ALL = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
+    '''
+    ALL of the (standard) ticks.
+    '''
 
     def has(self, flag):
         return ((self & flag) == flag)
