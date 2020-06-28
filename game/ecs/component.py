@@ -57,7 +57,7 @@ CompOrNull = NewType('CompOrNull', Union[Component, Null])
 # -----------------------------------------------------------------------------
 
 class ComponentEvent(Event):
-    pass
+    ...
 
 
 class ComponentLifeEvent(Event):

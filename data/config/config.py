@@ -231,7 +231,8 @@ class Configuration:
             return Null()
 
         if not context:
-            context = ConfigContext(self._path)
+            context = ConfigContext(self._path,
+                                    name=self._DOTTED_NAME)
 
         context.add(ConfigContext.Link.KEYCHAIN, list(keychain[:-1]))
         log.debug("Make requested for: {}. context: {}",

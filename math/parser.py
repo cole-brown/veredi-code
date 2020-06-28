@@ -141,7 +141,7 @@ class MathParser(ABC):
         This is where sub-classes should do any configuration from context, or
         just if they don't want to override __init__()...
         '''
-        pass
+        ...
 
     @abstractmethod
     def parse(self, string: str) -> Optional['MathTree']:

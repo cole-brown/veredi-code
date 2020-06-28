@@ -159,7 +159,7 @@ class System(ABC):
         Allows systems to grab, from the context/config, anything that
         they need to set up themselves.
         '''
-        pass
+        ...
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
