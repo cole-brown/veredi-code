@@ -21,7 +21,19 @@ NullFalseOr = Union[NType, 'Null', Literal[False]]
 
 
 # -----------------------------------------------------------------------------
-# Code
+# Null Helpers
+# -----------------------------------------------------------------------------
+
+def null_or_none(check):
+    '''
+    Makes sure `check` is neither Null nor None.
+    '''
+    return (check is Null()
+            or check is None)
+
+
+# -----------------------------------------------------------------------------
+# Null Itself
 # -----------------------------------------------------------------------------
 
 class NullMeta(type):

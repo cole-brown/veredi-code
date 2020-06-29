@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 
 import enum
+import re
 
 
 from veredi.base.context import VerediContext
@@ -60,6 +61,14 @@ class CommandArg:
     '''
     Class to encapsulate what an arg is called and what it expects to receive.
     '''
+
+    RE_FLAGS = re.IGNORECASE
+
+    RE_WORD_STR = r'^(?P<arg>\w+)\s*?(?P<remainder>.*)?$'
+    RE_WORD = re.compile(RE_WORD_STR, RE_FLAGS)
+
+    RE_STRING_STR = r'^(?P<arg>\w+\s*?[\w\s]*)$'
+    RE_STRING = re.compile(RE_STRING_STR, RE_FLAGS)
 
     def __init__(self,
                  name:     str,
@@ -111,6 +120,49 @@ class CommandArg:
         Help: Help text.
         '''
         return self._help
+
+    def parse(self, input_str: str) -> Optional[str]:
+        '''
+        Parse input string with the assumption that this arg should get the
+        some or all of it, anchored at the start of the string.
+
+        Returns any remainder of `input_str` that it doesn't claim.
+        '''
+        # Ignore ones we don't control (e.g. math).
+
+        if self.type == CommandArgType.WORD:
+            if not input_str:
+                return ('', input_str)
+
+            match = self.RE_WORD.match(input_str)
+            arg = match.group('arg') if match else ''
+            remainder = match.group('remainder') if match else ''
+            if not match:
+                msg = "Can't parse arg type '{}'.".format(self.type)
+                error = NotImplementedError(
+                    msg,
+                    input_str)
+                raise log.exception(error, None, msg)
+                # If not raising anymore, return full input_str as remainder.
+                # return (None, input_str)
+            return (arg, remainder)
+
+        elif self.type == CommandArgType.STRING:
+            if not input_str:
+                return ('', input_str)
+
+            match = self.RE_WORD.match(input_str)
+            arg = match.group('arg') if match else None
+            # No remainder for string - eats whole input or none.
+            if not match or not arg:
+                return (None, None)
+            return (arg, None)
+
+        msg = "Can't parse arg type '{}'.".format(self.type)
+        error = NotImplementedError(
+            msg,
+            input_str)
+        raise log.exception(error, None, msg)
 
 
 class CommandKwarg(CommandArg):
@@ -179,11 +231,7 @@ class CommandStatus:
                        component_type: Type['Component'],
                        context:        InputContext) -> 'CommandStatus':
         '''
-        Create a CommandStatus object for an unknown command.
-
-        "For user" as this 'unknown' command could very well exist but maybe we
-        want to not acknowledge its existance due to the user not having
-        required permissions.
+        Create a CommandStatus object for a non-existant entity or component.
         '''
         flags = const.CommandFailure.NO_FAILURE
         if not entity:
