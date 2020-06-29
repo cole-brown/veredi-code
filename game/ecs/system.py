@@ -44,7 +44,7 @@ from .entity                   import EntityManager
 # -----------------------------------------------------------------------------
 
 class SystemEvent(Event):
-    pass
+    ...
 
 
 class SystemLifeEvent(Event):

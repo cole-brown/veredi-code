@@ -93,7 +93,7 @@ class BaseRepository(ABC):
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
-        pass
+        ...
 
     @abstractmethod
     def definition(self,

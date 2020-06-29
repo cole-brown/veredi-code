@@ -66,7 +66,7 @@ EntityOrNull = NewType('EntityOrNull', Union[Entity, Null])
 # -----------------------------------------------------------------------------
 
 class EntityEvent(Event):
-    pass
+    ...
 
 
 class EntityLifeEvent(Event):

@@ -28,7 +28,7 @@ import os as _os
 
 class Random(_random.Random):
     '''Default Actually Random Randomness'''
-    pass
+    ...
 
 
 class NotRandom(Random):

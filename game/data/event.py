@@ -58,7 +58,7 @@ from ..ecs.event import Event
 
 
 class DataEvent(Event):
-    pass
+    ...
 
     # def create_args(self) -> Iterable:
     #     return ()
@@ -184,7 +184,7 @@ class DeserializedEvent(DataEvent):
 
 
 class SerializedEvent(DataEvent):
-    pass
+    ...
 
 
 # -----------------------------------------------------------------------------

@@ -72,7 +72,7 @@ class Component:
         Allows components to grab, from the context/config, anything that
         they need to set up themselves.
         '''
-        pass
+        ...
 
     @property
     def id(self) -> ComponentId:
