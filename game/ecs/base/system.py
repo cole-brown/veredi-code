@@ -10,6 +10,7 @@ Base class for game update loop systems.
 
 from typing import (TYPE_CHECKING,
                     Optional, Union, Type, Any, Iterable, Set)
+from veredi.base.null import NullNoneOr
 if TYPE_CHECKING:
     from ..meeting                  import Meeting
     from veredi.base.context        import VerediContext
@@ -78,12 +79,13 @@ class System(ABC):
                  managers: 'Meeting') -> None:
 
         self._life_cycle: SystemLifeCycle = SystemLifeCycle.INVALID
-        self._system_id:  SystemId                       = sid
+        self._system_id:          SystemId                       = sid
 
-        self._components: Optional[Set[Type[Component]]] = None
-        self._ticks:      Optional[SystemTick]           = None
+        self._components_req:     Optional[Set[Type[Component]]] = None
+        self._components_req_all: bool                           = True
+        self._ticks:              Optional[SystemTick]           = None
 
-        self._manager:    'Meeting'                      = managers
+        self._manager:            'Meeting'                      = managers
 
         # ---
         # Self-Health Set Up
@@ -92,17 +94,19 @@ class System(ABC):
         self._health_state: VerediHealth = VerediHealth.HEALTHY
         self._required_managers: Optional[Set[Type[EcsManager]]] = None
 
-        # Systems can set up logging meters like this for use with
+        # Most systems have these, so we'll just define 'em in the base.
+        self._health_meter_event:   Optional[Decimal] = None
+        self._health_meter_update:  Optional[Decimal] = None
+
+        # Systems can set up more logging meters like those for use with
         # self._health_log(). E.g.:
-        # self._health_meter_update:  Optional[Decimal] = None
-        # self._health_meter_event:   Optional[Decimal] = None
         # Then call self._health_log() like, say...
         #     # Doctor checkup.
         #     if not self._healthy():
-        #         self._health_meter_update = self._health_log(
-        #             self._health_meter_update,
+        #         self._health_meter_jeff = self._health_log(
+        #             self._health_meter_jeff,
         #             log.Level.WARNING,
-        #             "HEALTH({}): Skipping ticks - our system health "
+        #             "HEALTH({}): Skipping jeff - our system health "
         #             "isn't good enough to process.",
         #             self._state, event,
         #             context=event.context)
@@ -235,11 +239,65 @@ class System(ABC):
         '''
         output_log, maybe_updated_meter = self._manager.time.metered(log_meter)
         if output_log:
+            log.incr_stack_level(kwargs)
             log.at_level(log_level,
                          "HEALTH({}): Skipping ticks - our system health "
                          "isn't good enough to process. args: {}, kwargs: {}",
                          self.health, args, kwargs)
         return maybe_updated_meter
+
+    def _health_ok_msg(self,
+                       message:  str,
+                       *args:    Any,
+                       context:  NullNoneOr['VerediContext'],
+                       **kwargs: Any) -> bool:
+        '''Check health, log if needed, and return True if able to proceed.'''
+        if not self._healthy():
+            kwargs = log.incr_stack_level(None)
+            self._health_meter_event = self._health_log(
+                self._health_meter_event,
+                log.Level.WARNING,
+                message,
+                *args,
+                context=context,
+                **kwargs)
+            return False
+        return True
+
+    def _health_ok_event(self,
+                         event: 'Event') -> bool:
+        '''Check health, log if needed, and return True if able to proceed.'''
+        if not self._healthy():
+            msg = ("Dropping event {} - our system health "
+                   "isn't good enough to process.")
+            kwargs = log.incr_stack_level(None)
+            self._health_meter_event = self._health_log(
+                self._health_meter_event,
+                log.Level.WARNING,
+                msg,
+                event,
+                context=event.context,
+                **kwargs)
+            return False
+        return True
+
+    def _health_ok_tick(self,
+                        tick: 'SystemTick',
+                        context:  NullNoneOr['VerediContext']) -> bool:
+        '''Check health, log if needed, and return True if able to proceed.'''
+        if not self._healthy():
+            msg = ("Skipping tick {} - our system health "
+                   "isn't good enough to process.")
+            kwargs = log.incr_stack_level(None)
+            self._health_meter_update = self._health_log(
+                self._health_meter_update,
+                log.Level.WARNING,
+                msg,
+                tick,
+                context=context,
+                **kwargs)
+            return False
+        return True
 
     # -------------------------------------------------------------------------
     # Events
@@ -321,7 +379,17 @@ class System(ABC):
         and uses others like Position, Attack... This function should only
         return Health and Defense.
         '''
-        return self._components
+        return self._components_req
+
+    def require_all(self) -> bool:
+        '''
+        Returns True if `required()` is an 'AND'
+          (i.e. "require all these components").
+
+        Returns False if `required()` is an 'OR'
+          (i.e. "require any one of these components").
+        '''
+        return self._components_req_all
 
     def _wanted_entities(self,
                          tick:          SystemTick,
@@ -331,7 +399,10 @@ class System(ABC):
         '''
         Loop over entities that have self.required().
         '''
-        for entity in entity_mgr.each_with(self.required()):
+        req_fn = (entity_mgr.each_with_all
+                  if self.require_all() else
+                  entity_mgr.each_with_any)
+        for entity in req_fn(self.required()):
             yield entity
 
     def update_tick(self,
