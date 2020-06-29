@@ -356,7 +356,7 @@ class Configuration:
         '''
         # Spawn a context from what we know, and ask the config repo to load
         # something based on that.
-        ctx = DataBareContext(ConfigContext.NAME,
+        ctx = DataBareContext(self._DOTTED_NAME,
                               ConfigContext.KEY,
                               self._path)
         with self._repo.load(ctx) as stream:
@@ -412,7 +412,9 @@ class Configuration:
                 type(document),
                 str(document))
 
-    def definition(self, dotted_name: str) -> Nullable[Mapping[str, Any]]:
+    def definition(self,
+                   dotted_name: str,
+                   context: 'VerediContext') -> Nullable[Mapping[str, Any]]:
         '''
         Load a definition for the given dotted name.
 
@@ -434,7 +436,6 @@ class Configuration:
                 str(def_repo),
                 str(def_codec))
 
-        context = None
         loaded = def_repo.definition(dotted_name, context)
         decoded = def_codec.decode_all(loaded, context)
         return decoded

@@ -125,7 +125,7 @@ class SkillSystem(System):
         # right now.
         self._skill_defs = definition.Definition(
             definition.DocType.DEF_SYSTEM,
-            config.definition(self.name))
+            config.definition(self.name, context))
 
     @property
     def name(self) -> str:

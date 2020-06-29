@@ -20,7 +20,7 @@ import yaml
 
 from veredi.logger import log
 
-from veredi.data.background import Ownership as BgOwner
+from veredi.data import background
 from veredi.data.config.registry import register
 from veredi.data import exceptions
 
@@ -75,11 +75,22 @@ class YamlCodec(BaseCodec):
 
         Returns: (data, background.Ownership)
         '''
-        return self._bg, BgOwner.SHARE
+        return self._bg, background.Ownership.SHARE
 
     # -------------------------------------------------------------------------
     # Decode Methods
     # -------------------------------------------------------------------------
+
+    def _context_decode_data(self,
+                             context: 'VerediContext') -> 'VerediContext':
+        '''
+        Inject our repository data and our load data into the context.
+        In the case of file repositories, include the file path.
+        '''
+        context[str(background.Name.CODEC)] = {
+            'meta': background.data.codec,
+        }
+        return context
 
     def decode(self,
                stream: TextIO,
@@ -93,6 +104,7 @@ class YamlCodec(BaseCodec):
             - Other yaml/stream errors?
         '''
 
+        self._context_decode_data(input_context)
         data = self._load(stream, input_context)
 
         # TODO: Here is where we'd check metadata for versions and stuff?
@@ -120,6 +132,7 @@ class YamlCodec(BaseCodec):
             - Other yaml/stream errors?
         '''
 
+        self._context_decode_data(input_context)
         data = self._load_all(stream, input_context)
         if not data:
             raise log.exception(
