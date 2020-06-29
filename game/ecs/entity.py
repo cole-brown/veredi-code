@@ -139,12 +139,12 @@ class EntityManager(EcsManagerWithEvents):
     # API: Entity Collection Iteration
     # -------------------------------------------------------------------------
 
-    def each_with(self,
-                  required_components: Set[Type[Component]]
-                  ) -> Iterable[Entity]:
+    def each_with_all(self,
+                      required_components: Set[Type[Component]]
+                      ) -> Iterable[Entity]:
         '''
-        Returns a generator that will return each entity that contains all
-        components required.
+        Returns a generator that will return each entity that contains all of
+        the components required.
         '''
         # Walk over all entities...
         for id in self._entity:
@@ -155,6 +155,23 @@ class EntityManager(EcsManagerWithEvents):
                     and entity.enabled
                     and entity.contains(required_components)):
                 yield entity
+
+    def each_with_any(self,
+                      required_components: Set[Type[Component]]
+                      ) -> Iterable[Entity]:
+        '''
+        Returns a generator that will return each entity that contains any of
+        the components required.
+        '''
+        # Walk over all entities...
+        for id in self._entity:
+            entity = self._entity[id]
+            # ...and if this entity has any one of the required components,
+            # yield it as a value.
+            if (entity and entity.enabled):
+                for component in required_components:
+                    if component in entity:
+                        yield entity
 
     # -------------------------------------------------------------------------
     # API: Component/Entity Management
