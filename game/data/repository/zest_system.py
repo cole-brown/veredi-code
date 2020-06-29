@@ -81,33 +81,33 @@ class Test_RepoSystem(unittest.TestCase):
         self.assertTrue(self.events)
 
     def context_load(self, type):
-        ctx = DataLoadContext('unit-testing', None,
+        ctx = DataLoadContext('unit-testing',
                               type,
                               'test-campaign')
         path = self.path / 'game' / 'test-campaign'
-        if type == DataGameContext.Type.PLAYER:
+        if type == DataGameContext.DataType.PLAYER:
             ctx.sub['user'] = 'u/jeff'
             ctx.sub['player'] = 'Sir Jeffsmith'
             # hand-craft the expected escaped/safed path
             path = path / 'players' / 'u_jeff' / 'sir_jeffsmith.yaml'
-        elif type == DataGameContext.Type.MONSTER:
+        elif type == DataGameContext.DataType.MONSTER:
             ctx.sub['family'] = 'dragon'
             ctx.sub['monster'] = 'aluminum dragon'
             # hand-craft the expected escaped/safed path
             path = path / 'monsters' / 'dragon' / 'aluminum_dragon.yaml'
-        elif type == DataGameContext.Type.NPC:
+        elif type == DataGameContext.DataType.NPC:
             ctx.sub['family'] = 'Townville'
             ctx.sub['npc'] = 'Sword Merchant'
             # hand-craft the expected escaped/safed path
             path = path / 'npcs' / 'townville' / 'sword_merchant.yaml'
-        elif type == DataGameContext.Type.ITEM:
+        elif type == DataGameContext.DataType.ITEM:
             ctx.sub['category'] = 'weapon'
             ctx.sub['item'] = 'Sword, Ok'
             # hand-craft the expected escaped/safed path
             path = path / 'items' / 'weapon' / 'sword__ok.yaml'
         else:
             raise LoadError(
-                f"No DataGameContext.Type to ID conversion for: {type}",
+                f"No DataGameContext.DataType to ID conversion for: {type}",
                 None,
                 ctx)
 
@@ -129,7 +129,7 @@ class Test_RepoSystem(unittest.TestCase):
     def test_event_load_req(self):
         self.set_up_subs()
 
-        load_ctx, load_path = self.context_load(DataGameContext.Type.PLAYER)
+        load_ctx, load_path = self.context_load(DataGameContext.DataType.PLAYER)
         load_ctx.sub['user'] = 'u/jeff'
         load_ctx.sub['player'] = 'Sir Jeffsmith'
 

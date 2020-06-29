@@ -8,13 +8,9 @@ Helper classes for managing data contexts for events, error messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Dict, Optional, Any, List, Type
+from typing import List, Any
 import enum
-import uuid
-import copy
 
-from veredi.logger import log
-from veredi.base.exceptions import ContextError
 from veredi.base.context import EphemerealContext
 
 
@@ -23,9 +19,9 @@ from veredi.base.context import EphemerealContext
 # -----------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Data Context
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class BaseDataContext(EphemerealContext):
     def __repr_name__(self):
@@ -36,13 +32,13 @@ class DataBareContext(BaseDataContext):
     def __init__(self,
                  name: str,
                  key:  str,
-                 load: Optional[List[Any]] = None) -> None:
+                 load: Any) -> None:
         '''
-        Initialize DataBareContext with name, key, and some list called 'load'.
+        Initialize DataBareContext with name, key, and something called 'load'.
+        Right now just a file name to load for config's data...
         '''
         super().__init__(name, key)
         self._load = load
-        self.sub['load'] = load
 
     @property
     def load(self):
@@ -55,7 +51,7 @@ class DataBareContext(BaseDataContext):
 class DataGameContext(BaseDataContext):
 
     @enum.unique
-    class Type(enum.Enum):
+    class DataType(enum.Enum):
         PLAYER  = 'player'
         MONSTER = 'monster'
         NPC     = 'npc'
@@ -71,16 +67,16 @@ class DataGameContext(BaseDataContext):
     REQUEST_TYPE = 'type'
     REQUEST_CAMPAIGN = 'campaign'
     REQUEST_KEYS = {
-        Type.PLAYER:  [ 'user',     'player'  ],
-        Type.MONSTER: [ 'family',   'monster' ],
-        Type.NPC:     [ 'family',   'npc'     ],
-        Type.ITEM:    [ 'category', 'item'    ],
+        DataType.PLAYER:  [ 'user',     'player'  ],
+        DataType.MONSTER: [ 'family',   'monster' ],
+        DataType.NPC:     [ 'family',   'npc'     ],
+        DataType.ITEM:    [ 'category', 'item'    ],
     }
 
     def __init__(self,
                  name:     str,
                  key:      str,
-                 type:     'DataGameContext.Type',
+                 type:     'DataGameContext.DataType',
                  campaign: str) -> None:
         '''
         Initialize DataGameContext with name, key, and type.
@@ -97,7 +93,7 @@ class DataGameContext(BaseDataContext):
         ctx[self.REQUEST_CAMPAIGN] = campaign
 
     @property
-    def type(self) -> 'DataGameContext.Type':
+    def type(self) -> 'DataGameContext.DataType':
         return self._type
 
     @property
@@ -116,8 +112,7 @@ class DataGameContext(BaseDataContext):
 class DataLoadContext(DataGameContext):
     def __init__(self,
                  name:        str,
-                 ignored_key: str,
-                 type:        'DataGameContext.Type',
+                 type:        'DataGameContext.DataType',
                  campaign:    str) -> None:
         super().__init__(name, self.REQUEST_LOAD, type, campaign)
 
@@ -128,7 +123,7 @@ class DataLoadContext(DataGameContext):
 class DataSaveContext(DataGameContext):
     def __init__(self,
                  name:    str,
-                 type:    'DataGameContext.Type',
+                 type:    'DataGameContext.DataType',
                  campaign: str) -> None:
         super().__init__(name, self.REQUEST_SAVE, type, campaign)
 

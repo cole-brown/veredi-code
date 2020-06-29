@@ -196,6 +196,7 @@ class FileBareRepository(base.BaseRepository):
         '''
         load_id = self._id(context)
         load_path = self._id_to_path(load_id, context)
+
         return self._load(load_path, context)
 
     def definition(self,
@@ -209,7 +210,21 @@ class FileBareRepository(base.BaseRepository):
         look in self.root for "veredi/rules/d20/skill/system.*".
         '''
         defpath = self._definiton_path(dotted_name, context)
+
         return self._load(defpath, context)
+
+    def _context_load_data(self,
+                           context: 'VerediContext',
+                           load_path: pathlib.Path) -> 'VerediContext':
+        '''
+        Inject our repository data and our load data into the context.
+        In the case of file repositories, include the file path.
+        '''
+        context[str(background.Name.REPO)] = {
+            'meta': background.data.repository,
+            'path': load_path,
+        }
+        return context
 
     def _load(self,
               load_path: pathlib.Path,
@@ -217,6 +232,8 @@ class FileBareRepository(base.BaseRepository):
         '''
         Looks for file at load_path. If it exists, loads that file.
         '''
+        self._context_load_data(context, load_path)
+
         # load_path should be exact - no globbing.
         if not load_path.exists():
             raise log.exception(
@@ -427,6 +444,19 @@ class FileTreeRepository(base.BaseRepository):
         defpath = self._definiton_path(dotted_name, context)
         return self._load(defpath, context)
 
+    def _context_load_data(self,
+                           context: 'VerediContext',
+                           load_path: pathlib.Path) -> 'VerediContext':
+        '''
+        Inject our repository data and our load data into the context.
+        In the case of file repositories, include the file path.
+        '''
+        context[str(background.Name.REPO)] = {
+            'meta': background.data.repository,
+            'path': load_path,
+        }
+        return context
+
     def _load(self,
               pattern_path: pathlib.Path,
               context: 'VerediContext') -> TextIOBase:
@@ -440,6 +470,9 @@ class FileTreeRepository(base.BaseRepository):
         file_path = None
         for match in directory.glob(glob):
             if file_path is not None:
+                # Throw all matches into context for error.
+                self._context_load_data(context,
+                                        list(directory.glob(glob)))
                 raise exceptions.LoadError(
                     f"Too many matches for loading file by id: "
                     f"directory: {directory}, glob: {glob}, "
@@ -447,6 +480,8 @@ class FileTreeRepository(base.BaseRepository):
                     None,
                     context)
             file_path = match
+
+        self._context_load_data(context, file_path)
 
         if file_path is None:
             raise exceptions.LoadError(
@@ -489,31 +524,32 @@ class FileTreeRepository(base.BaseRepository):
         accum.append(self._safe_path(path.lower()))
 
     def _id_type(self,
-                 load_type: DataGameContext.Type,
+                 load_type: DataGameContext.DataType,
                  context:   DataGameContext,
                  out_ids:   List[PathType]) -> None:
         '''
-        Convert the DataGameContext.Type enum into part of the id usable for
+        Convert the DataGameContext.DataType enum into part of the id usable for
         getting data from this repo.
 
         Appends the conversion to the `out_ids` list.
         '''
-        if load_type == DataGameContext.Type.PLAYER:
+        if load_type == DataGameContext.DataType.PLAYER:
             self._id_accum('players', out_ids)
-        elif load_type == DataGameContext.Type.MONSTER:
+        elif load_type == DataGameContext.DataType.MONSTER:
             self._id_accum('monsters', out_ids)
-        elif load_type == DataGameContext.Type.NPC:
+        elif load_type == DataGameContext.DataType.NPC:
             self._id_accum('npcs', out_ids)
-        elif load_type == DataGameContext.Type.ITEM:
+        elif load_type == DataGameContext.DataType.ITEM:
             self._id_accum('items', out_ids)
         else:
             raise exceptions.LoadError(
-                f"No DataGameContext.Type to ID conversion for: {load_type}",
+                "No DataGameContext.DataType to ID conversion for: "
+                f"{load_type}",
                 None,
                 context)
 
     def _id_keys(self,
-                 load_type: DataGameContext.Type,
+                 load_type: DataGameContext.DataType,
                  context:   DataGameContext,
                  out_ids:   List[PathType]) -> None:
         '''
@@ -526,7 +562,7 @@ class FileTreeRepository(base.BaseRepository):
             self._id_accum(id_element, out_ids)
 
     def _id(self,
-            type:        DataGameContext.Type,
+            type:        DataGameContext.DataType,
             context:     DataGameContext) -> List[PathType]:
         '''
         Turns data repo keys in the context into an id we can use to retrieve

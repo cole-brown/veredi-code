@@ -135,56 +135,6 @@ class Test_IdentitySystem(unittest.TestCase):
         self.assertTrue(self.events)
         self.assertEqual(len(self.events), expected_events)
 
-    # def load_request(self, entity_id, type):
-    #     ctx = self.context.spawn(DataLoadContext,
-    #                              'unit-testing', None,
-    #                              type,
-    #                              'test-campaign')
-    #     if type == DataGameContext.Type.NPC:
-    #         ctx.sub['family'] = 'Townville'
-    #         ctx.sub['npc'] = 'Identity Guy'
-    #     else:
-    #         raise LoadError(
-    #             f"No DataGameContext.Type to ID conversion for: {type}",
-    #             None,
-    #             ctx)
-
-    #     event = DataLoadRequest(
-    #         id,
-    #         ctx.type,
-    #         ctx)
-
-    #     return event
-
-    # def load(self, entity):
-    #     # Make the load request event for our entity.
-    #     request = self.load_request(entity.id,
-    #                                 DataGameContext.Type.NPC)
-    #     self.assertFalse(self.events)
-
-    #     # Ask for our Identity Guy data to be loaded.
-    #     with log.LoggingManager.on_or_off(self.debugging):
-    #         self.make_it_so(request)
-    #     self.assertTrue(self.events)
-    #     self.assertEqual(len(self.events), 1)
-
-    #     # We should get an event for load finished.
-    #     self.assertEqual(len(self.events), 1)
-    #     self.assertIsInstance(self.events[0], DataLoadedEvent)
-    #     event = self.events[0]
-    #     cid = event.component_id
-    #     self.assertNotEqual(cid, ComponentId.INVALID)
-    #     component = self.manager.component.get(cid)
-    #     self.assertIsInstance(component, DataComponent)
-    #     self.assertIsInstance(component, IdentityComponent)
-
-    #     # Stuff it on our entity
-    #     self.manager.entity.attach(entity.id, component)
-    #     # Make sure component got attached to entity.
-    #     self.assertIn(IdentityComponent, entity)
-
-    #     return component
-
     def identity_request_code(self, entity, id_data):
         context = UnitTestContext(
             self.__class__.__name__,
@@ -206,13 +156,6 @@ class Test_IdentitySystem(unittest.TestCase):
         self.assertTrue(self.context)
         self.assertTrue(self.manager.system)
         self.assertTrue(self.identity)
-
-    # def test_load(self):
-    #     self.set_up_subs()
-    #     entity = self.create_entity()
-    #     self.assertTrue(entity)
-    #     component = self.load(entity)
-    #     self.assertTrue(component)
 
     def test_identity_req_code(self):
         self.set_up_subs()
@@ -248,27 +191,6 @@ class Test_IdentitySystem(unittest.TestCase):
         # Now our guy should have his name?
         self.assertTrue(component_entity.name, 'test-jeff')
         self.assertTrue(component_entity.display, 'Test Jeff')
-
-    # def test_identity_req_load(self):
-    #     self.set_up_subs()
-    #     entity = self.create_entity()
-    #     self.load(entity)
-    #     # Throw away loading events.
-    #     self.clear_events()
-
-    #     request = self.identity_request(entity, "knowledge (nature)")
-    #     with log.LoggingManager.on_or_off(self.debugging):
-    #         self.trigger_events(request)
-
-    #     result = self.events[0]
-    #     self.assertIsInstance(result, IdentityResult)
-    #     self.assertEqual(result.identity.lower(), request.identity.lower())
-    #     # request and result should be both for our entity
-    #     self.assertEqual(result.id, request.id)
-    #     self.assertEqual(result.id, entity.id)
-
-    #     # Identity Guy should have Four Nature Knowledges.
-    #     self.assertEqual(result.amount, 4)
 
     def test_todo(self):
         log.debug("TODO: Convert to zystem base class like Test_InputSystem")

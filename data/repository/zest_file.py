@@ -66,33 +66,33 @@ class Test_FileTreeRepo(unittest.TestCase):
     def context_load(self, type):
         ctx = None
         with log.LoggingManager.on_or_off(self.debugging):
-            ctx = DataLoadContext('unit-testing', None,
+            ctx = DataLoadContext('unit-testing',
                                   type,
                                   'test-campaign')
         path = self.path / 'game' / 'test-campaign'
-        if type == DataGameContext.Type.PLAYER:
+        if type == DataGameContext.DataType.PLAYER:
             ctx.sub['user'] = 'u/jeff'
             ctx.sub['player'] = 'Sir Jeffsmith'
             # hand-craft the expected escaped/safed path
             path = path / 'players' / 'u_jeff' / 'sir_jeffsmith.yaml'
-        elif type == DataGameContext.Type.MONSTER:
+        elif type == DataGameContext.DataType.MONSTER:
             ctx.sub['family'] = 'dragon'
             ctx.sub['monster'] = 'aluminum dragon'
             # hand-craft the expected escaped/safed path
             path = path / 'monsters' / 'dragon' / 'aluminum_dragon.yaml'
-        elif type == DataGameContext.Type.NPC:
+        elif type == DataGameContext.DataType.NPC:
             ctx.sub['family'] = 'Townville'
             ctx.sub['npc'] = 'Sword Merchant'
             # hand-craft the expected escaped/safed path
             path = path / 'npcs' / 'townville' / 'sword_merchant.yaml'
-        elif type == DataGameContext.Type.ITEM:
+        elif type == DataGameContext.DataType.ITEM:
             ctx.sub['category'] = 'weapon'
             ctx.sub['item'] = 'Sword, Ok'
             # hand-craft the expected escaped/safed path
             path = path / 'items' / 'weapon' / 'sword__ok.yaml'
         else:
             raise LoadError(
-                f"No DataGameContext.Type to ID conversion for: {type}",
+                f"No DataGameContext.DataType to ID conversion for: {type}",
                 None,
                 self.context.pull(ctx))
 
@@ -122,13 +122,13 @@ class Test_FileTreeRepo(unittest.TestCase):
             self.assertEqual(repo_data, file_data)
 
     def test_load_player(self):
-        self.do_load_test(DataGameContext.Type.PLAYER)
+        self.do_load_test(DataGameContext.DataType.PLAYER)
 
     def test_load_monster(self):
-        self.do_load_test(DataGameContext.Type.MONSTER)
+        self.do_load_test(DataGameContext.DataType.MONSTER)
 
     def test_load_npc(self):
-        self.do_load_test(DataGameContext.Type.NPC)
+        self.do_load_test(DataGameContext.DataType.NPC)
 
     def test_load_item(self):
-        self.do_load_test(DataGameContext.Type.ITEM)
+        self.do_load_test(DataGameContext.DataType.ITEM)

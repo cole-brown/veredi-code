@@ -128,15 +128,15 @@ class Test_SkillSystem(unittest.TestCase):
         self.assertEqual(len(self.events), expected_events)
 
     def load_request(self, entity_id, type):
-        ctx = DataLoadContext('unit-testing', None,
+        ctx = DataLoadContext('unit-testing',
                               type,
                               'test-campaign')
-        if type == DataGameContext.Type.NPC:
+        if type == DataGameContext.DataType.NPC:
             ctx.sub['family'] = 'Townville'
             ctx.sub['npc'] = 'Skill Guy'
         else:
             raise LoadError(
-                f"No DataGameContext.Type to ID conversion for: {type}",
+                f"No DataGameContext.DataType to ID conversion for: {type}",
                 None,
                 ctx)
 
@@ -150,7 +150,7 @@ class Test_SkillSystem(unittest.TestCase):
     def load(self, entity):
         # Make the load request event for our entity.
         request = self.load_request(entity.id,
-                                    DataGameContext.Type.NPC)
+                                    DataGameContext.DataType.NPC)
         self.assertFalse(self.events)
 
         # Ask for our Skill Guy data to be loaded.

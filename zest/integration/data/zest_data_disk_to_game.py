@@ -68,15 +68,15 @@ class Test_DataLoad_DiskToGame(IntegrationTest):
         self.sub_loaded()
 
     def load_request(self, type):
-        ctx = DataLoadContext('unit-testing', None,
+        ctx = DataLoadContext('unit-testing',
                               type,
                               'test-campaign')
-        if type == DataGameContext.Type.MONSTER:
+        if type == DataGameContext.DataType.MONSTER:
             ctx.sub['family'] = 'dragon'
             ctx.sub['monster'] = 'aluminum dragon'
         else:
             raise LoadError(
-                f"No DataGameContext.Type to ID conversion for: {type}",
+                f"No DataGameContext.DataType to ID conversion for: {type}",
                 None,
                 ctx)
 
@@ -103,7 +103,7 @@ class Test_DataLoad_DiskToGame(IntegrationTest):
         self.event_setup()
 
         # Make our request event.
-        request = self.load_request(DataGameContext.Type.MONSTER)
+        request = self.load_request(DataGameContext.DataType.MONSTER)
         self.assertFalse(self.events)
 
         # Ask for our aluminum_dragon to be loaded.
