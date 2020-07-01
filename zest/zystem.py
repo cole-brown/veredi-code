@@ -19,14 +19,13 @@ from veredi.base.context           import UnitTestContext
 
 from veredi.game.ecs.base.system   import System
 from veredi.game.ecs.event         import Event
-from veredi.game.ecs.system        import SystemManager
 from veredi.base.context           import VerediContext
 from veredi.game.ecs.base.identity import EntityId
 from veredi.game.ecs.base.entity   import Entity
 from veredi.game.ecs.meeting       import Meeting
+from veredi.input.system           import InputSystem
 
-from veredi.input.command.reg      import (CommandRegistrationBroadcast,
-                                           CommandRegisterReply)
+from veredi.input.command.reg      import CommandRegistrationBroadcast
 
 
 # -----------------------------------------------------------------------------
@@ -232,8 +231,11 @@ class BaseSystemTest(unittest.TestCase):
         if self.reg_open:
             return
 
-        event = self.system._commander.registration(self.system.id,
-                                                    None)
+        input_system = self.manager.system.get(InputSystem)
+        self.assertTrue(input_system)
+
+        event = input_system._commander.registration(self.system.id,
+                                                     None)
         self.trigger_events(event,
                             expected_events=0,
                             num_publishes=1)

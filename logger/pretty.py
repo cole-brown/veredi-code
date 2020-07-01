@@ -38,3 +38,17 @@ def indented(obj, indent_amount=2, sort=True):
     for each in obj_str.splitlines():
         lines.append(indent + each)
     return '\n'.join(lines)
+
+
+def sq(arg):
+    '''
+    Wrap str(`arg`) in single quotes and return.
+    '''
+    return "'" + str(arg) + "'"
+
+
+def dq(arg):
+    '''
+    Wrap str(`arg`) in double quotes and return.
+    '''
+    return '"' + str(arg) + '"'

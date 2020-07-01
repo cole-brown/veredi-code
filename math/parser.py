@@ -21,7 +21,6 @@ from veredi.logger import log
 from veredi.base.context import VerediContext
 from veredi.data.exceptions import ConfigError
 
-from .exceptions import MathError
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -174,9 +173,13 @@ class MathTree(ABC):
     def __init__(self, type, tags: VTags = None) -> None:
         self._value: Any = None
         # tags, traits, whatever
-        self._tags:      VTags      = tags
-        self._children:  'MathTree' = None
-        self._node_type: 'NodeType' = type
+        self._tags:      VTags         = tags
+        self._children:  'MathTree'    = None
+        self._node_type: 'NodeType'    = type
+
+        self._value:     Any           = None
+        self._milieu:    Optional[str] = None
+        '''"context" for value. See veredi.base.milieu module.'''
 
     def __repr__(self) -> str:
         return str(self)
@@ -194,10 +197,10 @@ class MathTree(ABC):
         return self._value
 
     @value.setter
-    def value(self, new_value):
+    def value(self, new_value: Any) -> None:
         '''
         Set value if allowed by NodeType.
-        Raise MathError if not allowed.
+        Raise AttributeError if not allowed.
         '''
         if not self._node_type.any(*self._SET_VALUE_ALLOWED):
             msg = ("Node is not allowed to set value; wrong type. "
@@ -209,8 +212,36 @@ class MathTree(ABC):
         self._value = new_value
 
     @property
+    def milieu(self) -> Any:
+        return self._milieu
+
+    @milieu.setter
+    def milieu(self, new_milieu: str) -> None:
+        '''
+        Set milieu if allowed by NodeType.
+        Raise AttributeError if not allowed.
+        '''
+        if not self._node_type.any(*self._SET_VALUE_ALLOWED):
+            msg = ("Node is not allowed to set milieu; wrong type. "
+                   "type: {}, allowed: {}").format(self.type,
+                                                   self._SET_VALUE_ALLOWED)
+            error = AttributeError(msg)
+            raise log.exception(error, None, msg)
+
+        self._milieu = new_milieu
+
+    @property
     def tags(self) -> VTags:
         return self._tags
+
+    def set(self, new_value: Any, new_milieu: str) -> None:
+        '''
+        Set value and milieu if allowed by NodeType.
+        Raise AttributeError if not allowed.
+        '''
+        # Let the setters do the sanity checking.
+        self.value = new_value
+        self.milieu = new_milieu
 
     # -------------------------------------------------------------------------
     # Evaluate
