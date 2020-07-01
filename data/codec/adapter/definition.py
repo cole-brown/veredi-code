@@ -11,6 +11,8 @@ Record can have multiple documents, like 'metadata' and 'system.definition'.
 # -----------------------------------------------------------------------------
 
 from typing import (Any, Iterable, Mapping, Dict)
+from veredi.base.null import Null, Nullable
+
 from collections import abc
 import enum
 
@@ -166,18 +168,31 @@ class Definition(abc.MutableMapping):
         '''
         return len(self._definitions())
 
-    # ---
+    # ------------------------------
     # abc.Container
-    # ---
+    # ------------------------------
+
     def __contains__(self, desired: DDKey) -> bool:
         '''
         Delegates to our main DataDict.
         '''
         return desired in self._definitions()
 
-    # ---
+    # ------------------------------
+    # Non-'Main' Documents
+    # ------------------------------
+
+    def doc(self, doc_type: 'DocType') -> Nullable[Mapping]:
+        '''
+        Get a non-'main' document from the definition. E.g. 'alias' part of
+        AbilitySystem's def file.
+        '''
+        return self._documents[doc_type] or Null()
+
+    # ------------------------------
     # To String
-    # ---
+    # ------------------------------
+
     def __str__(self) -> str:
         return f"{type(self).__name__}({self._documents})"
 

@@ -138,7 +138,7 @@ class CommandFailure(enum.Flag):
     Apologies for not making a better option.'''
 
     # ---
-    # Actual Failures
+    # Actual General Failures
     # ---
 
     ENTITY_DNE = enum.auto()
@@ -150,6 +150,16 @@ class CommandFailure(enum.Flag):
     '''
     No Component.
     '''
+
+    # ---
+    # Game System Failures
+    # ---
+
+    SYSTEM_HEALTH = enum.auto()
+
+    # ---
+    # Input / Command Failures
+    # ---
 
     UNKNOWN_CMD = enum.auto()
     '''

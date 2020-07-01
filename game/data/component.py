@@ -11,20 +11,19 @@ Data component - a component that has persistent data on it.
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any,
                     Collection, Container, MutableMapping)
+from veredi.base.null import Null, Nullable
 if TYPE_CHECKING:
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
 
 
-from veredi.logger               import log
-from veredi.data.config.registry import register
-
-from veredi.data.exceptions      import DataNotPresentError
-from ..ecs.base.component        import Component
-from ..ecs.base.identity         import ComponentId
+from veredi.data.exceptions         import DataNotPresentError
+from ..ecs.base.component           import Component
+from ..ecs.base.identity            import ComponentId
 
 # Data Stuff
 from veredi.data.codec.adapter.dict import DataDict
+from veredi.base                    import dotted
 
 
 # -----------------------------------------------------------------------------
@@ -150,3 +149,46 @@ class DataComponent(Component):
         serialization on new data.
         '''
         return self._persistent
+
+    # -------------------------------------------------------------------------
+    # Generic Data Query API
+    # -------------------------------------------------------------------------
+
+    def query(self, *dot_path: str) -> Nullable[Any]:
+        '''
+        Query this component's data for something on either:
+          - a dotted string path.
+          - (dotted) string args.
+        That is either:
+           query('foo.bar')
+           query('foo', 'bar')
+
+        E.g. for an ability component with data:
+        {
+          'ability': {
+            'strength': {
+              'score': 10,
+              'modifier': 'some math string',
+            },
+            ...
+          }
+        }
+
+        |------------------------+--------------------|
+        | Query                  |             Result |
+        |------------------------+--------------------|
+        | 'strength.modifier'    | 'some math string' |
+        | 'strength.score'       |                 10 |
+        | 'strength'             |                 10 |
+        | 'strength', 'modifier' | 'some math string' |
+        | 'strength', 'score'    |                 10 |
+        |------------------------+--------------------|
+        '''
+        if len(dot_path) == 1:
+            # replace, probably, ['strength.score'] with ['strength', 'score']
+            dot_path = dotted.split(dot_path[0])
+
+        data = self.persistent
+        for each in dot_path:
+            data = data.get(each, Null())
+        return data

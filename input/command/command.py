@@ -245,6 +245,7 @@ class Command:
         if not tree:
             failure = CommandStatus.parsing(
                 input_safe,
+                "Failed parsing input into math expression.",
                 "Failed parsing input into math expression.")
             return args, kwargs, failure
 

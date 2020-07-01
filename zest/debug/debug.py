@@ -10,8 +10,6 @@ Some command(s) for background data and possibly other data.
 
 from typing import Optional
 
-from veredi.data import background
-
 # Everything needed to participate in command registration.
 from veredi.input.command.reg       import (CommandRegistrationBroadcast,
                                             CommandRegisterReply,
@@ -67,5 +65,7 @@ def command(sub_cmd: str,
         return dbg_bg.command(context)
 
     return CommandStatus.parsing(
-        input_safe,
-        "Don't know what to do with '{} {}'".format(sub_cmd, arg_str))
+        sub_cmd + ' ' + arg_str,
+        "Don't know what to do with '{} {}'".format(sub_cmd, arg_str),
+        "'/debug' command doesn't have anything set up for "
+        "sub-command '{}'".format(sub_cmd))

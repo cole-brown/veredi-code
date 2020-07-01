@@ -13,11 +13,15 @@ from typing import (TYPE_CHECKING,
                     Optional, Any, Mapping, MutableMapping, Dict)
 if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
+    from .event import SkillEvent
+
 
 from veredi.logger                  import log
 from veredi.data.config.registry    import register
+from veredi.game.interface.component import queue
 
 from veredi.game.data.component     import DataComponent
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -29,7 +33,7 @@ from veredi.game.data.component     import DataComponent
 # -----------------------------------------------------------------------------
 
 @register('veredi', 'rules', 'd20', 'skill', 'component')
-class SkillComponent(DataComponent):
+class SkillComponent(DataComponent, queue.IQueueSingle['SkillEvent']):
     '''
     Component with skill numbers, probably other stuff...
     '''
@@ -63,7 +67,7 @@ class SkillComponent(DataComponent):
         # ---
         # Misc Section
         # ---
-        self._queued = None
+        self._init_queue()
 
     def _from_data(self, data: MutableMapping[str, Any] = None) -> None:
         '''
@@ -73,30 +77,21 @@ class SkillComponent(DataComponent):
         super()._from_data(actual_data)
 
     # -------------------------------------------------------------------------
-    # Skill or Whatever Queue
+    # Queue Interface
     # -------------------------------------------------------------------------
-    # TODO [2020-06-04]: QueueComponent Interface to inherit from?
 
-    @property
-    def has_action(self) -> bool:
-        return bool(self._queued)
-
-    @property
-    def queued(self):  # TODO: returns... SkillRequestEvent? Or what?
-        '''Peek at queued skill/whetever.'''
-        return self._queued
-
-    @property
-    def dequeue(self):  # TODO: returns... SkillRequestEvent? Or what?
-        '''Pop and return queued skill/whetever.'''
-        retval = self._queued
-        self._queued = None
-        return retval
-
-    @queued.setter
-    def enqueue(self, value):  # TODO: value is... SkillRequestEvent? Or what?
-        '''Set queued attack/whetever.'''
-        self._queued = value
+    # @property
+    # def is_queued(self) -> bool:
+    #     ...
+    # @property
+    # def queued(self) -> Nullable[QType]:
+    #     ...
+    # @property
+    # def dequeue(self) -> QType:
+    #     ...
+    # @queued.setter
+    # def enqueue(self, value: NullNoneOr[QType]) -> None:
+    #     ...
 
     # -------------------------------------------------------------------------
     # Public API

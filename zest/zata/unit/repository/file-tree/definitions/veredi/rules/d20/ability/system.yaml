@@ -1,0 +1,58 @@
+--- !metadata
+record-type: veredi.definition.system
+version: 2020-05-26
+
+source: veredi.system
+author: Cole Brown
+date:   2020-06-30
+
+system: veredi.rules.d20.ability
+name: veredi.rules.d20.ability.config
+display-name: Veredi d20 Abilities Configuration
+
+
+--- !system.definition
+
+meta:
+  registry: veredi.rules.d20.ability.system
+  component:
+    registry: veredi.rules.d20.ability.component
+
+
+default:
+  # If asked for something like 'strength', default to giving back
+  # 'strength.score'.
+  key: score
+
+
+alias:
+  str: strength
+  dex: dexterity
+  con: constitution
+  int: intelligence
+  wis: wisdom
+  cha: charisma
+
+  mod: modifier
+
+
+# Define all known abilities.
+ability:
+  strength:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  dexterity:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  constitution:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  intelligence:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  wisdom:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  charisma:
+    score: 10
+    modifier: (${this.score} - 10) // 2

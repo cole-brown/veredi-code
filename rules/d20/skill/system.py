@@ -172,14 +172,7 @@ class SkillSystem(System):
         Skill thingy requested to happen; please resolve.
         '''
         # Doctor checkup.
-        if not self._healthy():
-            self._health_meter_event = self._health_log(
-                self._health_meter_event,
-                log.Level.WARNING,
-                "HEALTH({}): Dropping event {} - our system health "
-                "isn't good enough to process.",
-                self.health, event,
-                context=event.context)
+        if not self._health_ok_event(event):
             return
 
         skill_check = CommandRegisterReply(event,
@@ -204,15 +197,9 @@ class SkillSystem(System):
         for us to process later.
         '''
         # Doctor checkup.
-        if not self._healthy():
-            self._health_meter_event = self._health_log(
-                self._health_meter_event,
-                log.Level.WARNING,
-                "HEALTH({}): Dropping skill request trigger '{}', '{}' "
-                "- our system health isn't good enough to process.",
-                self.health, math,
-                context=context)
-            return
+        if not self._health_ok_msg("Command ignored due to bad health.",
+                                   context=context):
+            return CommandStatus.system_health(context)
 
         eid = InputContext.source_id(context)
         entity = self._manager.entity.get(eid)

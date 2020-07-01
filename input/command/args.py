@@ -11,6 +11,7 @@ Constants for Commands, Command sub-system, Command events, etc.
 from typing import (TYPE_CHECKING,
                     Union, Optional, Any, Protocol, Type, Mapping)
 if TYPE_CHECKING:
+    from veredi.base.const import VerediHealth
     from veredi.game.ecs.base.component import Component
     from veredi.game.ecs.base.entity import Entity
 
@@ -19,11 +20,12 @@ import enum
 import re
 
 
+from veredi.logger import log
 from veredi.base.context import VerediContext
 
 from veredi.game.ecs.base.identity import EntityId
 
-from . import const
+from .const import CommandFailure
 from ..context import InputContext
 
 
@@ -225,6 +227,27 @@ class CommandStatus:
     # ---
 
     @staticmethod
+    def system_health(sys_name: str,
+                      health:   'VerediHealth',
+                      context:  InputContext) -> 'CommandStatus':
+        '''
+        Create a CommandStatus object for an unhealthy system.
+        '''
+        flags = CommandFailure.SYSTEM_HEALTH
+
+        # TODO: should these be user-display strings?
+        internal = ("'{}' is reporting poor health: {}. "
+                    "It dropped command.").format(sys_name,
+                                                  health)
+        reason = "Game system for is sick right now... Try again?"
+
+        return CommandStatus(False,
+                             InputContext.input(context),
+                             user_reason=reason,
+                             internal_reason=internal,
+                             flags=flags)
+
+    @staticmethod
     def does_not_exist(entity_id:      EntityId,
                        entity:         'Entity',
                        component:      Type['Component'],
@@ -233,20 +256,32 @@ class CommandStatus:
         '''
         Create a CommandStatus object for a non-existant entity or component.
         '''
-        flags = const.CommandFailure.NO_FAILURE
+        flags = CommandFailure.NO_FAILURE
         if not entity:
-            flags = const.CommandFailure.ENTITY_DNE
+            flags = CommandFailure.ENTITY_DNE
         if entity and not component:
-            flags |= const.CommandFailure.COMPONENT_DNE
+            flags |= CommandFailure.COMPONENT_DNE
 
         # TODO: should these be user-display strings?
-        reason = ('Entity or Component does not exist: '
-                  'id: {}, entity: {}, component: {}').format(entity_id,
-                                                              entity,
-                                                              component)
+        entity_name = InputContext.display.entity
+        if not entity_name:
+            reason = "Couldn't find the entity for the command."
+        else:
+            entity_data = InputContext.display.component
+            if entity_data:
+                entity_data += ' '
+            reason = "Couldn't find either '{}' or their {}data.".format(
+                entity_name,
+                entity_data)
+
+        internal = ('Entity or Component does not exist: '
+                    'id: {}, entity: {}, component: {}').format(entity_id,
+                                                                entity,
+                                                                component)
         return CommandStatus(False,
                              InputContext.input(context),
-                             reason,
+                             user_reason=reason,
+                             internal_reason=internal,
                              flags=flags)
 
     # ---
@@ -254,19 +289,23 @@ class CommandStatus:
     # ---
 
     @staticmethod
-    def failure(command_safe: str,
-                reason: str,
-                flags:  const.CommandFailure = const.CommandFailure.GENERIC
+    def failure(command_safe:    str,
+                user_reason:     str,
+                internal_reason: str,
+                flags:           CommandFailure = CommandFailure.GENERIC
                 ) -> 'CommandStatus':
         '''
         Create a CommandStatus object for a failed command.
         '''
-        return CommandStatus(False, command_safe, reason,
+        return CommandStatus(False, command_safe,
+                             user_reason,
+                             internal_reason,
                              flags=flags)
 
     @staticmethod
     def unknown_for_user(command_safe: str,
-                         reason: str) -> 'CommandStatus':
+                         reason: str,
+                         internal: str) -> 'CommandStatus':
         '''
         Create a CommandStatus object for an unknown command.
 
@@ -274,29 +313,34 @@ class CommandStatus:
         want to not acknowledge its existance due to the user not having
         required permissions.
         '''
-        return CommandStatus(False, command_safe, reason,
-                             flags=const.CommandFailure.UNKNOWN_CMD)
+        return CommandStatus(False, command_safe,
+                             user_reason=reason,
+                             internal_reason=internal,
+                             flags=CommandFailure.UNKNOWN_CMD)
 
     @staticmethod
     def permissions(command_safe: str,
-                    reason: str) -> 'CommandStatus':
+                    reason: str,
+                    internal: str) -> 'CommandStatus':
         '''
         Create a CommandStatus object for a command that a user failed
         permission checks for.
 
         This should probably be/be-very-close-to unknown_for_user().
         '''
-        return CommandStatus.unknown_for_user(command_safe, reason)
+        return CommandStatus.unknown_for_user(command_safe, reason, internal)
 
     @staticmethod
     def parsing(command_safe: str,
-                reason: str) -> 'CommandStatus':
+                reason: str,
+                internal: str) -> 'CommandStatus':
         '''
         Create a CommandStatus object for a command that failed to properly
         parse its input string into arguments.
         '''
-        return CommandStatus(False, command_safe, reason,
-                             flags=const.CommandFailure.INPUT_PARSE)
+        return CommandStatus(False, command_safe,
+                             reason, internal,
+                             flags=CommandFailure.INPUT_PARSE)
 
     # ---
     # Successes.
@@ -308,7 +352,7 @@ class CommandStatus:
         Create a CommandStatus object for a successful command.
         '''
         cmd = InputContext.input(context)
-        return CommandStatus(True, cmd, None)
+        return CommandStatus(True, cmd, None, None)
 
     # ---
     # Init
@@ -317,25 +361,27 @@ class CommandStatus:
     def __init__(self,
                  success: bool,
                  command_safe: str,
-                 reason: str,
-                 flags: const.CommandFailure = const.CommandFailure.NO_FAILURE,
+                 user_reason: str,
+                 internal_reason: str,
+                 flags: CommandFailure = CommandFailure.NO_FAILURE,
                  **kwargs: str) -> None:
-        self.success      = success
-        self.command_safe = command_safe
-        self.reason       = reason
+        self.success         = success
+        self.command_safe    = command_safe
+        self.user_reason     = user_reason
+        self.internal_reason = internal_reason
 
-        self.specifics    = kwargs
-        self._flags       = flags
+        self.specifics       = kwargs
+        self._flags          = flags
 
     @property
-    def flags(self) -> const.CommandFailure:
+    def flags(self) -> CommandFailure:
         '''
         Returns our failure flag member value.
         '''
         return self._flags
 
     @flags.setter
-    def flags(self, value: const.CommandFailure) -> None:
+    def flags(self, value: CommandFailure) -> None:
         '''
         Setter for our failure flag member value.
         Overwrites, so do any flag or'ing, masking, etc. before-hand.
