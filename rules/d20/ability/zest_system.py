@@ -1,0 +1,287 @@
+# coding: utf-8
+
+'''
+Tests for the Ability system, events, and components.
+'''
+
+# -----------------------------------------------------------------------------
+# Imports
+# -----------------------------------------------------------------------------
+
+from veredi.zest.zystem import BaseSystemTest
+
+from veredi.zest import zload
+from veredi.base.context import UnitTestContext
+from veredi.data.exceptions import LoadError
+from veredi.logger import log
+
+from veredi.game.ecs.base.identity import ComponentId, EntityId
+from veredi.game.ecs.base.entity         import Entity
+from veredi.game.ecs.base.component import ComponentLifeCycle
+from veredi.game.data.event import DataLoadedEvent, DataLoadRequest
+from veredi.game.data.component import DataComponent
+from veredi.data.context import DataGameContext, DataLoadContext
+
+from veredi.game.data.identity.component import IdentityComponent
+from veredi.game.data.identity.event     import CodeIdentityRequest
+from veredi.game.data.identity.system                   import IdentitySystem
+
+from veredi.input.system                             import InputSystem
+
+from .system import AbilitySystem
+from .event import AbilityRequest, AbilityResult
+from .component import AbilityComponent
+
+from veredi.input.command.reg            import (CommandRegistrationBroadcast,
+                                                 CommandRegisterReply,
+                                                 CommandPermission,
+                                                 CommandArgType,
+                                                 CommandStatus)
+
+
+# -----------------------------------------------------------------------------
+# Constants
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+# Test Code
+# -----------------------------------------------------------------------------
+
+class Test_AbilitySystem(BaseSystemTest):
+    '''
+    Test our AbilitySystem with some on-disk data.
+    '''
+
+    ID_DATA = {
+        'identity': {
+            'name': 'aluminum dragon',
+            'group': 'monster',
+
+            'display-name': 'Aluminum Dragon',
+            'title': 'Lightweight',
+        },
+    }
+
+    # Strong aluminum dragon with normal str mod conversion.
+    EXPECTED_STR_SCORE = 30
+    EXPECTED_STR_MOD   = "(${this.score} - 10) // 2"
+
+    def setUp(self):
+        super().setUp()
+        self.init_managers()
+        self.init_system_self(AbilitySystem)
+        self.init_system_others(InputSystem, IdentitySystem)
+        self.reg_open = None
+        self.test_cmd_recv = None
+        self.test_cmd_ctx = None
+
+    def tearDown(self):
+        super().tearDown()
+        self.reg_open = None
+        self.test_cmd_recv = None
+        self.test_cmd_ctx = None
+
+    def _sub_events_test(self):
+        self.manager.event.subscribe(AbilityResult, self.event_ability_res)
+        self.manager.event.subscribe(DataLoadedEvent, self.event_loaded)
+
+    # -------------------------------------------------------------------------
+    # Loading data.
+    # -------------------------------------------------------------------------
+
+    def load(self, entity):
+        # Make the load request event for our entity.
+        request = self.load_request(entity.id,
+                                    DataGameContext.DataType.MONSTER)
+        self.assertFalse(self.events)
+
+        # Ask for our Ability Guy data to be loaded.
+        with log.LoggingManager.on_or_off(self.debugging):
+            self.trigger_events(request)
+
+        # Attach the loaded component to our entity.
+        self.assertIsInstance(self.events[0], DataLoadedEvent)
+        event = self.events[0]
+        cid = event.component_id
+        self.assertNotEqual(cid, ComponentId.INVALID)
+        component = self.manager.component.get(cid)
+        self.assertIsInstance(component, DataComponent)
+        self.assertIsInstance(component, AbilityComponent)
+
+        self.manager.entity.attach(entity.id, component)
+        component._life_cycle = ComponentLifeCycle.ALIVE
+        # Make sure component got attached to entity.
+        self.assertIn(AbilityComponent, entity)
+
+        return component
+
+    # -------------------------------------------------------------------------
+    # Events
+    # -------------------------------------------------------------------------
+
+    def event_loaded(self, event):
+        self.events.append(event)
+
+    def ability_request(self, entity, ability):
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'ability_request',
+            {})  # no initial sub-context
+        # ctx = self.context.spawn(EphemerealContext,
+        #                          'unit-testing', None)
+
+        event = AbilityRequest(
+            entity.id,
+            entity.type_id,
+            context,
+            entity.id,
+            ability)
+
+        return event
+
+    def load_request(self, entity_id, type):
+        ctx = DataLoadContext('unit-testing',
+                              type,
+                              'test-campaign')
+        if type == DataGameContext.DataType.MONSTER:
+            ctx.sub['family'] = 'dragon'
+            ctx.sub['monster'] = 'aluminum dragon'
+        else:
+            raise LoadError(
+                f"No DataGameContext.DataType to ID conversion for: {type}",
+                None,
+                ctx)
+
+        event = DataLoadRequest(
+            id,
+            ctx.type,
+            ctx)
+
+        return event
+
+    def event_ability_res(self, event):
+        self.assertIsInstance(event,
+                              AbilityResult)
+        self.events.append(event)
+
+    # -------------------------------------------------------------------------
+    # Identity Component
+    # -------------------------------------------------------------------------
+
+    def create_entity(self,
+                      id_data=ID_DATA,
+                      clear_event_queue=True) -> Entity:
+        '''
+        Add IdentityComponent to each entity our parent makes for us.
+        '''
+        entity = super().create_entity()
+        self.assertTrue(entity)
+
+        self.manager.entity.creation(self.manager.time)
+
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'identity_request',
+            {})  # no initial sub-context
+
+        # Request our dude get an identity assigned via code.
+        event = CodeIdentityRequest(
+            entity.id,
+            entity.type_id,
+            context,
+            id_data)
+
+        # We aren't registered to receive the reply, so don't expect anything.
+        self.trigger_events(event, expected_events=0)
+        # But clear it out just in cases and to be a good helper function.
+        if clear_event_queue:
+            self.clear_events()
+
+        self.manager.component.creation(self.manager.time)
+
+        return entity
+
+    # -------------------------------------------------------------------------
+    # Tests
+    # -------------------------------------------------------------------------
+
+    def test_init(self):
+        self.assertTrue(self.manager)
+        self.assertTrue(self.context)
+        self.assertTrue(self.manager.system)
+        self.assertTrue(self.system)
+
+    def test_ability_req(self):
+        self.event_setup()
+        entity = self.create_entity()
+        self.load(entity)
+        # Throw away loading events.
+        self.clear_events()
+
+        request = self.ability_request(entity, "strength")
+        with log.LoggingManager.on_or_off(self.debugging):
+            self.trigger_events(request)
+
+        result = self.events[0]
+        self.assertIsInstance(result, AbilityResult)
+        self.assertEqual(result.ability.lower(), request.ability.lower())
+        # request and result should be both for our entity
+        self.assertEqual(result.id, request.id)
+        self.assertEqual(result.id, entity.id)
+
+        # Aluminum Dragon should have 30 strengths.
+        self.assertEqual(result.amount.value,
+                         self.EXPECTED_STR_SCORE)
+        self.assertEqual(result.amount.milieu,
+                         'strength.score')
+
+    def test_ability_req_mod(self):
+        self.event_setup()
+        entity = self.create_entity()
+        self.load(entity)
+        # Throw away loading events.
+        self.clear_events()
+
+        request = self.ability_request(entity, "strength.modifier")
+        with log.LoggingManager.on_or_off(self.debugging):
+            self.trigger_events(request)
+
+        result = self.events[0]
+        self.assertIsInstance(result, AbilityResult)
+        self.assertEqual(result.ability.lower(), request.ability.lower())
+        # request and result should be both for our entity
+        self.assertEqual(result.id, request.id)
+        self.assertEqual(result.id, entity.id)
+
+        # Aluminum Dragon should have normal math for str mod.
+        self.assertEqual(result.amount.value,
+                         self.EXPECTED_STR_MOD)
+        self.assertEqual(result.amount.milieu,
+                         'strength.modifier')
+
+    def test_ability_req_mod_alias(self):
+        self.event_setup()
+        entity = self.create_entity()
+        self.load(entity)
+        # Throw away loading events.
+        self.clear_events()
+
+        # 'str' is 'strength' alias
+        # 'mod' is 'modifier' alias
+        request = self.ability_request(entity, "str.mod")
+        with log.LoggingManager.on_or_off(self.debugging):
+            self.trigger_events(request)
+
+        result = self.events[0]
+        self.assertIsInstance(result, AbilityResult)
+        self.assertEqual(result.ability.lower(), request.ability.lower())
+        # request and result should be both for our entity
+        self.assertEqual(result.id, request.id)
+        self.assertEqual(result.id, entity.id)
+
+        # Aluminum Dragon should have normal math for str mod.
+        self.assertEqual(result.amount.value,
+                         self.EXPECTED_STR_MOD)
+        self.assertEqual(result.amount.milieu,
+                         'strength.modifier')

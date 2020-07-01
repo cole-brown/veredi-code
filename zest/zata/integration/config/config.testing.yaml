@@ -31,12 +31,11 @@ input:
 
 rules:
   type: veredi.rules.d20
+  skill: veredi.rules.d20.skill.system
+  combat: veredi.rules.d20.combat.system
+
   ability: veredi.rules.d20.ability
   health: veredi.rules.d20.health
   movement: veredi.rules.d20.movement
-  skill: veredi.rules.d20.skill
-  combat:
-    offensive: veredi.rules.d20.combat.offensive
-    defensive: veredi.rules.d20.combat.defensive
 
 # and more?

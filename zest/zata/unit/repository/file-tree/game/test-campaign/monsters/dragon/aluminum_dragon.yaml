@@ -2,58 +2,205 @@
 # I just wanted something relatively non-simple for testing repos.
 
 --- !metadata
-record-type: veredi.unit-test.repo
-version: 2020-05-19
+
+record-type: veredi.save.components
+version: 2020-06-30
 
 source: veredi.unit-test
 author: Cole Brown
-date:   2020-05-24
+date:   2020-06-30
 
-system: unit-test
-name: veredi.unit-test.repo.file-tree
-display-name: Veredi Unit-Testing Repository File-Tree
+system: veredi.game.data.system
+name: veredi.game.data.system.save
+display-name: Veredi Entity Save File
 
 
 --- !component
 
 meta:
-  registry: veredi.unit-test.health
+  registry: veredi.rules.d20.ability.component
 
-health:
-  # Tracks current hit point amounts.
-  current:
-    hit-points: ${sum(${health.current.*})}
-    permanent: 35
-    temporary: 11
+ability:
+  strength:
+    score: 30
+    modifier: (${this.score} - 10) // 2
+  dexterity:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  constitution:
+    score: 32
+    modifier: (${this.score} - 10) // 2
+  intelligence:
+    score: 20
+    modifier: (${this.score} - 10) // 2
+  wisdom:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  charisma:
+    score: 11
+    modifier: (${this.score} - 10) // 2
 
-  # Tracks maximums from e.g. leveling, monster templates, etc.
-  maximum:
-    class:
-      - angry-unschooled-fighter: 1
-        hit-points: 12
-      - angry-unschooled-fighter: 2
-        hit-points: 9
-      - monastery-student: 3
-        hit-points: 2
-      - angry-unschooled-fighter: 4
-        hit-points: 12
-
-    level:
-      - angry-unschooled-fighter: [1, 4]
-        hit-points: 2
-
-    hit-points: ${sum(${health.maximum.*.hit-points})}
-
-  # Threshold value for falling unconscious.
-  unconscious:
-    hit-points: 0
-
-  # Threshold value for actually dying.
-  death:
-    hit-points: -${min(0, ${ability.constitution.score})}
-
-  # Tracks resistance to damage types in order to subtract from damage taken.
-  resistance:
-    piercing: 1
-    bludgeoning: 1
-    slashing: 1
+# --- !component.entry
+#
+# meta:
+#   # These are AttackComponent data, but not the whole thing... just an entry.
+#   registry: veredi.rules.d20.combat.component.attack
+#   # This attack entry is for an attack action.
+#   entry: action
+#
+# attack:
+#   name: Burning Blood
+#   # User-defined 'id' sort of thing.
+#   shortcut: attack.gs.bb
+#   # Simple, lazy macros for if user doesn't need much customized.
+#   macro:
+#     # Just a normal attack with either of these names.
+#     - name: [atkburn, aa]
+#     # Do a power attack.
+#     - name: aap
+#       options: ['power attack']
+#   weapon:
+#     specific:
+#       name: Burning Blood
+#       description: Glowing runes; bursts into flame occasionally...
+#     kind:
+#       name: Greatsword
+#       description: A really big sword.
+#     quality: masterwork
+#     enhancement:
+#       - +1
+#       - name: Flaming Rage
+#         damage: d6
+#         type: fire
+#         condition:
+#           tag: rage
+#           # Look for 'rage' tag on myself (source entity of attack)
+#           location: action.source
+#     size: medium
+#     proficiency: martial
+#     category: two-handed
+#     group: heavy blades
+#     critical:
+#       range:
+#         - 19
+#         - 20
+#       multiplier: x2
+#       confirm: +0
+#     damage:
+#       default: 2d6
+#       size:
+#         small: 1d10
+#         medium: 2d6
+#       type: slashing
+#     cost: 50g
+#     weight: 8 lbs
+#
+#   iterative: auto  # Automatically do next attack if BAB allows.
+#   range: melee
+#   reach: 0
+#   targets: ac
+#   modifiers:
+#     # attack modifiers, not weapon modifiers. Weapon's +1 should not be here.
+#     - name: power attack
+#       frequency: at will
+#       duration: full round
+#       attack: -floor(${attack.bonus.base}/4) + 1
+#       damage: floor(${attack.bonus.base}/4) + 1
+#     - name: damage ability
+#       damage: ${strength.modifier}
+#
+#   # Notes any players can see.
+#   notes: Fancy Brass: +1 attack & damage vs Unicorns, Extra-Ugly Trolls.
+#
+#   # Notes gm and owner can see.
+#   gm: Hello there.
+#
+#   # Notes only owner can see.
+#   private: Stupid name.
+#
+#
+# --- !component.entry
+#
+# meta:
+#   # These are AttackComponent data, but not the whole thing... just an entry.
+#   registry: veredi.rules.d20.combat.component.attack
+#   # This attack entry is for an attack action.
+#   entry: action
+#
+# attack:
+#   name: BITE!
+#   # User-defined 'id' sort of thing.
+#   shortcut: attack.bite
+#   # Simple, lazy macros for if user doesn't need much customized.
+#   macro:
+#     # Just a normal attack with either of these names.
+#     - name: [atkbite, bb]
+#     # Do a power attack.
+#     - name: bbp
+#       options: ['power attack']
+#   natural:
+#     kind:
+#       name: Bite Attack
+#       description: Secondary natural (bite) attack.
+#     size: medium
+#     category: secondary
+#     critical:
+#       range:
+#         - 20
+#       multiplier: x2
+#     damage:
+#       default: 1d6
+#       size:
+#         fine: 1
+#         diminutive: 1d2
+#         tiny: 1d3
+#         small: 1d4
+#         medium: 1d6
+#         large: 1d8
+#         huge: 2d6
+#         gargantuan: 2d8
+#         colossal: 4d6
+#       type: [piercing, bludgeoning, slashing]
+#
+#   iterative: no
+#   range: melee
+#   reach: 0
+#   targets: ac
+#   modifiers:
+#     - name: secondary natural attack
+#       attack: -5
+#       condition:
+#         tag: full-round
+#         location: attack.action
+#     # attack modifiers, not weapon modifiers. Weapon's +1 should not be here.
+#     - name: power attack
+#       frequency: at will
+#       duration: full round
+#       attack: -floor(${attack.bonus.base}/4) + 1
+#       damage: floor(${attack.bonus.base}/4) + 1
+#
+#   # Notes any players can see.
+#   notes: Can use during grapple. Bite first; +2 if bite damaged currently grappled opponent.
+#
+#   # Notes only owner can see.
+#   private: GRAPPLE BONUS!!!
+#
+#
+# --- !component.entry
+#
+# meta:
+#   # These are AttackComponent data, but not the whole thing... just an entry.
+#   registry: veredi.rules.d20.combat.component.attack
+#   # This attack entry is for an attack action.
+#   entry: statistics
+#
+# attack:
+#   bonus:
+#     base: 9
+#     melee:
+#       sum:
+#         - this.base
+#         - ability.strength.modifier
+#         - size.attack
+#     ranged: ${this.base} + ${ability.dexterity.modifier}
+#     combat-maneuver: ${this.base} + ${ability.strength.modifier}

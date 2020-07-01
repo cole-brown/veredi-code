@@ -26,7 +26,7 @@ from veredi.logger               import log
 from veredi.data.config.registry import register
 from veredi.data                 import background
 
-from veredi.base                 import name
+from veredi.base                 import dotted
 from veredi.data.context         import (DataBareContext,
                                          DataGameContext)
 from veredi.data.config.context  import ConfigContext
@@ -184,7 +184,7 @@ class FileBareRepository(base.BaseRepository):
         '''
         Turns a dotted name into a path.
         '''
-        path = name.path(dotted_name)
+        path = dotted.path(dotted_name)
         return self.root / self._ext_glob(path)
 
     def load(self,
@@ -415,7 +415,7 @@ class FileTreeRepository(base.BaseRepository):
         '''
         Turns a dotted name into a path.
         '''
-        path = name.path(dotted_name)
+        path = dotted.path(dotted_name)
         return self.rooted_path(self.Category.DEFINITIONS,
                                 self._ext_glob(path))
 
@@ -528,8 +528,8 @@ class FileTreeRepository(base.BaseRepository):
                  context:   DataGameContext,
                  out_ids:   List[PathType]) -> None:
         '''
-        Convert the DataGameContext.DataType enum into part of the id usable for
-        getting data from this repo.
+        Convert the DataGameContext.DataType enum into part of the id usable
+        for getting data from this repo.
 
         Appends the conversion to the `out_ids` list.
         '''

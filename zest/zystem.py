@@ -25,6 +25,9 @@ from veredi.game.ecs.base.identity import EntityId
 from veredi.game.ecs.base.entity   import Entity
 from veredi.game.ecs.meeting       import Meeting
 
+from veredi.input.command.reg      import (CommandRegistrationBroadcast,
+                                           CommandRegisterReply)
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -51,12 +54,18 @@ class BaseSystemTest(unittest.TestCase):
         self.init_managers(...)
         self.init_system(...)
         '''
-        self.debugging:      bool          = False
-        self.events:         List[Event]   = []
-        self.manager:        Meeting       = None
-        self.context:        VerediContext = None
+        self.debugging:      bool                         = False
+        self.events:         List[Event]                  = []
+        self.manager:        Meeting                      = None
+        self.context:        VerediContext                = None
 
-        self.system:         System        = None
+        self.reg_open:       CommandRegistrationBroadcast = None
+        '''
+        Reg broadcast event if it has happened and been received by the unit
+        test.
+        '''
+
+        self.system:         System                       = None
         '''The system being tested.'''
 
     def init_managers(self,
@@ -107,6 +116,7 @@ class BaseSystemTest(unittest.TestCase):
         self.manager   = None
         self.context   = None
         self.system    = None
+        self.reg_open  = None
 
     # -------------------------------------------------------------------------
     # Event Helpers / Handlers
@@ -131,12 +141,20 @@ class BaseSystemTest(unittest.TestCase):
         '''
         self.manager.system.subscribe(self.manager.event)
 
+    def _sub_events_commands(self) -> None:
+        '''
+        Subscribes our event_cmd_reg() function to the CommandRegistrationBroadcast.
+        '''
+        self.manager.event.subscribe(CommandRegistrationBroadcast,
+                                     self.event_cmd_reg)
+
     def event_setup(self) -> None:
         '''
         Rolls _sub_events_* into one call.
         '''
         self._sub_events_test()
         self._sub_events_systems()
+        self._sub_events_commands()
 
     def clear_events(self) -> None:
         '''
@@ -190,6 +208,37 @@ class BaseSystemTest(unittest.TestCase):
 
         self.assertTrue(self.events)
         self.assertEqual(len(self.events), expected_events)
+
+    def event_cmd_reg(self, event):
+        self.assertIsInstance(event,
+                              CommandRegistrationBroadcast)
+        self.reg_open = event
+
+        self._make_cmd(event)
+
+    # -------------------------------------------------------------------------
+    # Commands
+    # -------------------------------------------------------------------------
+
+    def _make_cmd(self, event):
+        '''
+        Called from event_cmd_reg() when broadcast comes in.
+        Make CommandRegisterReply() events for each command you want to
+        register.
+        '''
+        pass
+
+    def allow_registration(self):
+        if self.reg_open:
+            return
+
+        event = self.system._commander.registration(self.system.id,
+                                                    None)
+        self.trigger_events(event,
+                            expected_events=0,
+                            num_publishes=1)
+        # Now registration is open.
+        self.assertTrue(self.reg_open)
 
     # -------------------------------------------------------------------------
     # Create Things for Tests

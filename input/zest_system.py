@@ -60,48 +60,19 @@ class Test_InputSystem(BaseSystemTest):
         self.init_managers()
         self.init_system_self(InputSystem)
         self.init_system_others(IdentitySystem)
-        self.reg_open = None
         self.test_cmd_recv = None
         self.test_cmd_ctx = None
 
     def tearDown(self):
         super().tearDown()
-        self.input = None
-        self.reg_open = None
         self.test_cmd_recv = None
         self.test_cmd_ctx = None
-
-    def _sub_events_test(self):
-        self.manager.event.subscribe(CommandRegistrationBroadcast,
-                                     self.event_cmd_reg)
-
-        # self.manager.event.subscribe(UserInputEvent, self.event_user)
-        # self.manager.event.subscribe(OutputEvent, self.event_input_res)
-
-    def allow_registration(self):
-        if self.reg_open:
-            return
-
-        event = self.system._commander.registration(self.system.id,
-                                                    None)
-        self.trigger_events(event,
-                            expected_events=0,
-                            num_publishes=1)
-        # Now registration is open.
-        self.assertTrue(self.reg_open)
-
-    def event_cmd_reg(self, event):
-        self.assertIsInstance(event,
-                              CommandRegistrationBroadcast)
-        self.reg_open = event
-
-        self.make_cmd(event)
 
     # -------------------------------------------------------------------------
     # Commands
     # -------------------------------------------------------------------------
 
-    def make_cmd(self, event):
+    def _make_cmd(self, event):
         reply = CommandRegisterReply(event,
                                      'veredi.input.zest_system',
                                      'test',

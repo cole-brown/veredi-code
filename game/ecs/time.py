@@ -50,6 +50,9 @@ class TimeManager(EcsManagerWithEvents):
 
     def __init__(self, tick_amount: Optional[TickTypes] = None) -> None:
         super().__init__()
+
+        # TODO: Get our clocks, ticks, etc from config data?
+
         # defaults to midnight (00:00:00.0000) of current utc date
         self.clock = Clock()
 

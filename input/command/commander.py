@@ -264,34 +264,39 @@ class Commander:
         cmd = self._commands.get(name, None)
         if not cmd:
             # Nothing by that name. Log and fail out.
+            msg = ("Unknown or unregistered command '{}'. "
+                   "Cannot process '{}'.").format(
+                       name, command_safe)
             self._log(context,
                       log.Level.INFO,
                       entity,
                       name,
                       command_safe,
-                      "Unknown or unregistered command '{}'. "
-                      "Cannot process '{}'.",
-                      name, command_safe)
+                      msg)
             return CommandStatus.unknown_for_user(
                 command_safe,
-                "Unknown command '{}'".format(name))
+                "Unknown command '{}'".format(name),
+                msg
+            )
 
         # Second, gotta check that caller is allowed.
         allowed = cmd.permissions != const.CommandPermission.INVALID
-        # §-TODO-§ [2020-06-15]: Check permissions against caller's
+        # TODO [2020-06-15]: Check permissions against caller's
         # authz/roles/whatever!
         if not allowed:
+            msg = ("Entity is not allowed to executed command '{}' ('{}'). "
+                   "Will not process '{}'.").format(
+                       name, cmd.permissions, command_safe)
             self._log(context,
                       log.Level.INFO,
                       entity,
                       name,
                       command_safe,
-                      "Entity is not allowed to executed command '{}' ('{}'). "
-                      "Will not process '{}'.",
-                      name, cmd.permissions, command_safe)
+                      msg)
             return CommandStatus.permissions(
                 command_safe,
-                "Unknown command '{}'".format(name))
+                "Unknown command '{}'".format(name),
+                msg)
 
         # Third, parse input_safe into args.
         args, kwargs, status = cmd.parse(input_safe, context)
