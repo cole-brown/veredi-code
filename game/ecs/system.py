@@ -9,7 +9,8 @@ Base class for game update loop systems.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, Set, Type, Dict, List)
+                    Optional, Union, Any, Set, Type, Dict, List)
+from veredi.base.null import Null, Nullable, NullNoneOr
 if TYPE_CHECKING:
     from veredi.base.identity import MonotonicIdGenerator
 
@@ -61,21 +62,21 @@ class SystemManager(EcsManagerWithEvents):
     # -------------------------------------------------------------------------
 
     def __init__(self,
-                 config:            Optional[Configuration],
-                 time_manager:      Optional[TimeManager],
-                 event_manager:     Optional[EventManager],
-                 component_manager: Optional[ComponentManager],
-                 entity_manager:    Optional[EntityManager],
-                 debug_flags:       Optional[DebugFlag]) -> None:
+                 config:            NullNoneOr[Configuration],
+                 time_manager:      NullNoneOr[TimeManager],
+                 event_manager:     NullNoneOr[EventManager],
+                 component_manager: NullNoneOr[ComponentManager],
+                 entity_manager:    NullNoneOr[EntityManager],
+                 debug_flags:       NullNoneOr[DebugFlag]) -> None:
         '''Initializes this thing.'''
-        self._debug:          Optional[DebugFlag]        = debug_flags
+        self._debug: Nullable[DebugFlag] = debug_flags or Null()
 
         # TODO [2020-06-01]: get rid of this class's link to config?
-        self._config:         Optional[Configuration]    = config
+        self._config: NullNoneOr[Configuration] = config or Null()
 
         # Need to keep EventManager in self._event_manager to conform
         # to EcsManagerWithEvents interface.
-        self._event_manager:  Optional[EventManager] = event_manager
+        self._event_manager: NullNoneOr[EventManager] = event_manager or Null()
 
         self._system_id:      'MonotonicIdGenerator' = SystemId.generator()
         self._system_create:  Set[SystemId]          = set()
@@ -277,13 +278,24 @@ class SystemManager(EcsManagerWithEvents):
     # API: Component/System Management
     # -------------------------------------------------------------------------
 
-    def get(self, system_id: SystemId) -> Optional[System]:
+    def get(self,
+            desired: Union[SystemId, Type[System]]) -> Nullable[System]:
         '''
         Get an existing/alive system from the system pool and return it.
 
         Does not care about current life cycle state of system.
         '''
-        return self._system.get(system_id, None)
+        by_id = self._system.get(desired, None)
+        if by_id:
+            return by_id
+
+        # Else, type?
+        for id in self._system:
+            by_type = self._system.get(id, None)
+            if isinstance(by_type, desired):
+                return by_type
+
+        return Null()
 
     def create(self,
                sys_class: Type[System],

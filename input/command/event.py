@@ -12,6 +12,7 @@ packaged up into an event or perhaps fed directly/firstly into InputSystem.
 from typing import Union, Optional, Type
 
 from veredi.logger                  import log
+from veredi.base                    import vstring
 from veredi.game.ecs.event          import Event
 from veredi.game.ecs.base.component import Component
 
@@ -97,11 +98,12 @@ class CommandRegisterReply(CommandEvent):
 
         self.args:       list = []
         self.kwargs:     dict = {}
+        self.aliases:    dict = {}
 
     def _set_name(self, name: str, source: str) -> None:
         '''Raises a CommandError if name is invalid (e.g. starts with the
         command prefix).'''
-        self.name = name.strip().lower()
+        self.name = vstring.normalize(name)
         self.source = source
         # TODO [2020-06-14]: Regex check... also must start with letter.
         if self.name.startswith(const._TEXT_CMD_PREFIX):
@@ -198,6 +200,36 @@ class CommandRegisterReply(CommandEvent):
                                                type,
                                                optional,
                                                help)
+
+    def add_alias(self,
+                  cmd_name: str,
+                  equivalent: Optional[str] = None) -> None:
+        '''
+        Add an alias command to this command. For example:
+            If the command is 'ability', there could also be a 'strength'
+            command, but:
+                'strength <whatever>'
+            is probably basically
+                'ability strength <whatever>'
+            So, make 'strength' just an alias of 'ability', and your system
+            will only have to deal with the one command. The InputSystem will
+            translate an alias into its underlying command.
+        '''
+        cmd_name = vstring.normalize(cmd_name)
+        equivalent = vstring.normalize(equivalent)
+
+        if not equivalent.startswith(self.name):
+            raise log.exception(
+                None,
+                CommandRegisterError,
+                "An alias' `equivalent` command must start with the actual"
+                "command. '{}' must start with '{}' for '{}' to be an alias of"
+                "this command.",
+                equivalent,
+                self.name,
+                cmd_name)
+
+        self.aliases[cmd_name] = equivalent
 
     # -------------------------------------------------------------------------
     # To String

@@ -16,6 +16,7 @@ Open doors the aggressive way.
 
 from typing import (TYPE_CHECKING,
                     Optional, Set, Type, Union, Tuple)
+from veredi.base.null import Null, Nullable
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
     from ..ecs.manager       import EcsManager
@@ -38,6 +39,7 @@ from veredi.game.ecs.entity         import EntityManager
 from veredi.game.ecs.const          import (SystemTick,
                                             SystemPriority)
 
+from veredi.game.ecs.base.identity  import EntityId
 from veredi.game.ecs.base.system    import System
 from veredi.game.ecs.base.component import Component
 
@@ -179,21 +181,25 @@ class AbilitySystem(System):
                                    description='Ability check.')
         cmd.set_permission_components(AbilityComponent)
         cmd.add_arg('ability name', CommandArgType.STRING)
-        self._event_notify(cmd)
 
         # ---
         # Alias Commands
         # ---
         # for each ability in def, define alias command
         for ability in self._ability_defs['ability']:
-            print(self.name, 'cmd reg:', ability)
+            canon = self.canonical(ability)
+            cmd.add_alias(ability, 'ability ' + canon)
+
+        for ability in self._ability_defs['alias']:
+            canon = self.canonical(ability)
+            cmd.add_alias(ability, 'ability ' + canon)
             # cmd = CommandRegisterReply(event,
             #                            self.name,
 
-        for ability in self._ability_defs['alias']:
-            print(self.name, 'cmd reg:', ability)
-            # cmd = CommandRegisterReply(event,
-            #                            self.name,
+        # ---
+        # Alright, done. Send it!
+        # ---
+        self._event_notify(cmd)
 
     def trigger_ability_req(self,
                             math: MathTree,
@@ -216,6 +222,17 @@ class AbilitySystem(System):
                      eid,
                      context=context)
 
+        # Get skill totals for each var that's a skill name.
+        for var in math.each_var():
+            canon = self.canonical(var.name)
+            if not canon:
+                continue
+            result = self._get(eid,
+                               var.name,
+                               context)
+
+            var.set(result.value, result.milieu)
+
     def event_ability_req(self, event: AbilityRequest) -> None:
         '''
         Ability check - please do the thing.
@@ -226,30 +243,17 @@ class AbilitySystem(System):
 
         eid = event.id
         entity = self._manager.entity.get(eid)
-        if not entity:
-            # Entity disappeared, and that's ok.
-            log.info("Dropping event {} - no entity for its id: {}",
-                     event, eid,
-                     context=event.context)
-            # TODO [2020-06-04]: a health thing? e.g.
-            # self._health_update(EntityDNE)
-            return
         component = entity.get(AbilityComponent)
-        if not component:
-            # Component disappeared, and that's ok.
-            log.info("Dropping event {} - no AbilityComponent for "
-                     "it on entity: {}",
-                     event, entity,
+        if not entity or not component:
+            log.info("Dropping event {} - no entity or comp "
+                     "for its id: {}, {}, {}",
+                     event, eid, entity, component,
                      context=event.context)
-            # TODO [2020-06-04]: a health thing? e.g.
-            # self._health_update(ComponentDNE)
             return
 
-        canon = self.canonical(event.ability)
-        result = self._get_value(component, canon)
-        log.debug("Event {} - '{}'->'{}' result is: {}",
-                  event, event.ability, canon, result,
-                  context=event.context)
+        result = self._get(event.id,
+                           event.ability,
+                           event.context)
 
         # Have EventManager create and fire off event for whoever wants the
         # next step.
@@ -260,7 +264,31 @@ class AbilitySystem(System):
     # Data Processing
     # -------------------------------------------------------------------------
 
-    def canonical(self, string: str) -> str:
+    def _get(self,
+             entity_id: EntityId,
+             ability: str,
+             context: 'VerediContext') -> Nullable[ValueMilieu]:
+        '''
+        Get ability from entity's AbilityComponent and return it.
+
+        Callers should do checks/logs on entity and component if they want more
+        info about missing ent/comp. This just uses Null's cascade to safely
+        skip those checks.
+        '''
+        # We'll use Null(). Callers should do checks/logs if they want more
+        # info about missing ent/comp.
+        entity = self._manager.entity.get(entity_id)
+        component = entity.get(AbilityComponent)
+
+        canon = self.canonical(ability)
+        result = self._get_value(component, canon)
+        log.debug("'{}'->'{}' result is: {}",
+                  ability, canon, result,
+                  context=context)
+
+        return result
+
+    def canonical(self, string: str) -> Nullable[str]:
         '''
         Takes `string` and tries to normalize it to canonical value.
         e.g.:
@@ -268,9 +296,18 @@ class AbilitySystem(System):
           'Strength' -> 'strength.score'
           'str.mod' -> 'strength.modifier'
         '''
-        # 1) Make sure it's long enough?
-        # TODO: could also check for final element being an expected leaf name?
         names = dotted.split(string)
+        # Is the first part even an ability?
+        if not names or not names[0]:
+            return Null()
+        else:
+            check = names[0]
+            if (check not in self._ability_defs['ability']
+                    and check not in self._ability_defs['alias']):
+                return Null()
+            # else, it's a valid ability name/alias.
+
+        # TODO: could also check for final element being an expected leaf name?
         if len(names) < 2:
             names.append(self._ability_defs['default']['key'])
 

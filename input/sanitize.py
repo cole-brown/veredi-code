@@ -173,3 +173,23 @@ def command_split(string_safe: str) -> Tuple[str, Optional[str]]:
         return (None, None)
 
     return cmd, match.group('cmd_input')
+
+
+def command_stitch(*string_safe: str) -> Tuple[str, Optional[str]]:
+    '''
+    Stitches `string_safe` together then calls and returns command_split() on
+    the stitched string. Useful for converting an alias into it's
+    parent command.
+
+    e.g.
+      # Find out your 'strength' in ('strength', '+ 20') is actually
+      # 'ability strength'.
+      cmd, remainder = command_stitch('ability strength', '+ 20')
+
+      # Now cmd is 'ability' and remainder is 'strength + 20' and command is
+      # ready to go.
+
+    See command_split for return.
+    '''
+    stitched = ' '.join(*string_safe)
+    return command_split(stitched)

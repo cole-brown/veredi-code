@@ -21,7 +21,8 @@ o7
 # ---
 # Typing
 # ---
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
+from veredi.base.null import Null, Nullable
 
 
 # ---
@@ -97,6 +98,13 @@ class Commander:
         Initialize Commander.
         '''
         self._commands: Dict[str, Command] = {}
+        '''Actual/real/base commands.'''
+
+        self._aliases:  Dict[str, Command] = {}
+        '''
+        Commands based off of actual/real/base commands. Created by the
+        add_alias() function of CommandRegisterReply.
+        '''
 
     @property
     def name(self) -> str:
@@ -138,6 +146,49 @@ class Commander:
             CommandRegistrationBroadcast.TYPE_NONE,
             context)
 
+    def get(self,
+            cmd_or_alias: str) -> Tuple[Nullable[Command], Nullable[str]]:
+        '''
+        Get the command for `cmd_or_alias` string.
+
+        Checks alias first so it can translate to command name and then only
+        check commands once.
+
+        Returns a tuple of:
+          - command or Null
+          - alias replacement, if `cmd_or_alias` is an alias or Null if not.
+        '''
+        alias = self._aliases.get(cmd_or_alias, Null())
+        if alias:
+            name, _ = sanitize.command_split(alias)
+        else:
+            name = cmd_or_alias
+
+        return self._commands.get(name, Null()), alias
+
+    def assert_not_registered(self,
+                              cmd_or_alias: str,
+                              context: VerediContext) -> None:
+        '''
+        Raises a CommandRegisterError if `cmd_or_alias` is already registered
+        as a command or an alias.
+        '''
+        existing, _ = self.get(cmd_or_alias)
+        if not existing:
+            return
+
+        kwargs = log.incr_stack_level(None)
+        raise log.exception(
+            None,
+            CommandRegisterError,
+            "A command named '{}' already registered '{}'; cannot "
+            "register another. command: {}",
+            existing.name,
+            cmd_or_alias,
+            existing,
+            context=context,
+            **kwargs)
+
     def event_register(self, event: CommandRegisterReply) -> None:
         '''
         Someone is requesting a command be registered.
@@ -151,15 +202,7 @@ class Commander:
                 "CommandRegisterReply has no name; cannot register it. {}",
                 event,
                 context=event.context)
-        elif event.name in self._commands:
-            raise log.exception(
-                None,
-                CommandRegisterError,
-                "A command named '{}' is already registered; cannot "
-                "register another. registered: {}",
-                event.name,
-                self._commands[event.name],
-                context=event.context)
+        self.assert_not_registered(event.name, event.context)
 
         # Permission sanity checks.
         if event.permissions == CommandPermission.INVALID:
@@ -179,6 +222,11 @@ class Commander:
         self._commands[event.name] = new_command
 
         background.command.registered(event.source, new_command.name)
+
+        # Any aliases to register too?
+        for alias in event.aliases:
+            self.assert_not_registered(alias, event.context)
+            self._aliases[alias] = event.aliases[alias]
 
     # -------------------------------------------------------------------------
     # Helpers
@@ -261,7 +309,7 @@ class Commander:
         name, input_safe = sanitize.command_split(command_safe)
 
         # First, gotta actually find it.
-        cmd = self._commands.get(name, None)
+        cmd, alias = self.get(name)
         if not cmd:
             # Nothing by that name. Log and fail out.
             msg = ("Unknown or unregistered command '{}'. "
@@ -278,6 +326,10 @@ class Commander:
                 "Unknown command '{}'".format(name),
                 msg
             )
+
+        # redo the command split if we actually have an alias
+        if alias:
+            name, input_safe = sanitize.command_stitch(alias, input_safe)
 
         # Second, gotta check that caller is allowed.
         allowed = cmd.permissions != const.CommandPermission.INVALID

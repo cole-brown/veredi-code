@@ -434,7 +434,7 @@ class Test_SystemManager(unittest.TestCase):
 
         # System should not exist as far as SystemManager cares,
         # and be in DEAD state now.
-        self.assertIsNone(self.system_mgr.get(sid))
+        self.assertFalse(self.system_mgr.get(sid))
         self.assertIsNotNone(system)
         self.assertIsInstance(system,
                               SysJeff)

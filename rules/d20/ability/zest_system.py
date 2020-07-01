@@ -285,3 +285,7 @@ class Test_AbilitySystem(BaseSystemTest):
                          self.EXPECTED_STR_MOD)
         self.assertEqual(result.amount.milieu,
                          'strength.modifier')
+
+    def test_cmd_reg(self):
+        self.event_setup()
+        self.allow_registration()
