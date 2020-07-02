@@ -105,8 +105,8 @@ class Test_Commander(unittest.TestCase):
     # Helpers and Events
     # -------------------------------------------------------------------------
 
-    def user_input_ctx(self, input_str, entity_id):
-        return InputContext(None, input_str, entity_id)
+    def user_input_ctx(self, input_str, entity_id, entity_name):
+        return InputContext(None, input_str, entity_id, entity_name)
 
     def allow_registration(self):
         if self.reg_open:
@@ -246,7 +246,9 @@ class Test_Commander(unittest.TestCase):
         # should have command name, should not have command prefix.
         status = self.commander.execute(None,
                                         cmd_str,
-                                        self.user_input_ctx(cmd_str, Null()))
+                                        self.user_input_ctx(cmd_str,
+                                                            Null(),
+                                                            None))
 
         # In normal usage, we may need EventManager to publish() once or thrice
         # (or not), depending on the command. Here we're unit testing so we

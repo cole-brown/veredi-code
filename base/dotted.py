@@ -18,6 +18,20 @@ import pathlib
 # Constants
 # -----------------------------------------------------------------------------
 
+PROPERTY = 'dotted'
+'''
+Try to call your attribute/property 'dotted', for consistency.
+
+If you use 'register', your class will get a 'dotted' property for free.
+'''
+
+ATTRIBUTE_PRIVATE = '_dotted'
+'''
+Try to call your attribute/property 'dotted', for consistency.
+
+If you use 'register', your class will get a 'dotted' property for free.
+'''
+
 
 # -----------------------------------------------------------------------------
 # Code

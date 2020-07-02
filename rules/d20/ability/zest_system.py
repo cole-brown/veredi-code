@@ -27,6 +27,7 @@ from veredi.game.data.identity.event     import CodeIdentityRequest
 from veredi.game.data.identity.system                   import IdentitySystem
 
 from veredi.input.system                             import InputSystem
+from veredi.input.event               import CommandInputEvent
 
 from .system import AbilitySystem
 from .event import AbilityRequest, AbilityResult
@@ -90,7 +91,56 @@ class Test_AbilitySystem(BaseSystemTest):
     # Loading data.
     # -------------------------------------------------------------------------
 
-    def load(self, entity):
+    def create_entity(self, clear_event_queue=True) -> Entity:
+        '''
+        Creates entity by:
+          - Having parent create_entity()
+          - Calling identity() to create/attach IdentityComponent.
+          - Calling load() to create/attach our AbilityComponent.
+          - Clearing events (if flagged to do so).
+
+          - Returning entity.
+        '''
+        entity = super().create_entity()
+        self.assertTrue(entity)
+
+        # Create and attach components.
+        self.create_identity(entity,
+                             clear_event_queue=clear_event_queue)
+        self.create_ability(entity)
+
+        # Throw away loading events.
+        if clear_event_queue:
+            self.clear_events()
+
+        return entity
+
+    def create_identity(self, entity,
+                        id_data=ID_DATA,
+                        clear_event_queue=True):
+        self.manager.entity.creation(self.manager.time)
+
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'identity_request',
+            {})  # no initial sub-context
+
+        # Request our dude get an identity assigned via code.
+        event = CodeIdentityRequest(
+            entity.id,
+            entity.type_id,
+            context,
+            id_data)
+
+        # We aren't registered to receive the reply, so don't expect anything.
+        self.trigger_events(event, expected_events=0)
+        # But clear it out just in cases and to be a good helper function.
+        if clear_event_queue:
+            self.clear_events()
+
+        self.manager.component.creation(self.manager.time)
+
+    def create_ability(self, entity):
         # Make the load request event for our entity.
         request = self.load_request(entity.id,
                                     DataGameContext.DataType.MONSTER)
@@ -166,43 +216,6 @@ class Test_AbilitySystem(BaseSystemTest):
         self.events.append(event)
 
     # -------------------------------------------------------------------------
-    # Identity Component
-    # -------------------------------------------------------------------------
-
-    def create_entity(self,
-                      id_data=ID_DATA,
-                      clear_event_queue=True) -> Entity:
-        '''
-        Add IdentityComponent to each entity our parent makes for us.
-        '''
-        entity = super().create_entity()
-        self.assertTrue(entity)
-
-        self.manager.entity.creation(self.manager.time)
-
-        context = UnitTestContext(
-            self.__class__.__name__,
-            'identity_request',
-            {})  # no initial sub-context
-
-        # Request our dude get an identity assigned via code.
-        event = CodeIdentityRequest(
-            entity.id,
-            entity.type_id,
-            context,
-            id_data)
-
-        # We aren't registered to receive the reply, so don't expect anything.
-        self.trigger_events(event, expected_events=0)
-        # But clear it out just in cases and to be a good helper function.
-        if clear_event_queue:
-            self.clear_events()
-
-        self.manager.component.creation(self.manager.time)
-
-        return entity
-
-    # -------------------------------------------------------------------------
     # Tests
     # -------------------------------------------------------------------------
 
@@ -215,9 +228,6 @@ class Test_AbilitySystem(BaseSystemTest):
     def test_ability_req(self):
         self.event_setup()
         entity = self.create_entity()
-        self.load(entity)
-        # Throw away loading events.
-        self.clear_events()
 
         request = self.ability_request(entity, "strength")
         with log.LoggingManager.on_or_off(self.debugging):
@@ -239,9 +249,6 @@ class Test_AbilitySystem(BaseSystemTest):
     def test_ability_req_mod(self):
         self.event_setup()
         entity = self.create_entity()
-        self.load(entity)
-        # Throw away loading events.
-        self.clear_events()
 
         request = self.ability_request(entity, "strength.modifier")
         with log.LoggingManager.on_or_off(self.debugging):
@@ -263,9 +270,6 @@ class Test_AbilitySystem(BaseSystemTest):
     def test_ability_req_mod_alias(self):
         self.event_setup()
         entity = self.create_entity()
-        self.load(entity)
-        # Throw away loading events.
-        self.clear_events()
 
         # 'str' is 'strength' alias
         # 'mod' is 'modifier' alias
@@ -286,6 +290,86 @@ class Test_AbilitySystem(BaseSystemTest):
         self.assertEqual(result.amount.milieu,
                          'strength.modifier')
 
+    # ------------------------------
+    # Commands
+    # ------------------------------
+
     def test_cmd_reg(self):
         self.event_setup()
         self.allow_registration()
+
+        # Nothing exploded?
+        #    ...
+        # Success!
+
+    def test_cmd_score(self):
+        self.event_setup()
+        self.allow_registration()
+        entity = self.create_entity()
+
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'input-event',
+            {})  # no initial sub-context
+
+        # Do the test command event.
+        event = CommandInputEvent(
+            entity.id,
+            entity.type_id,
+            context,
+            "/ability $strength.score + 4")
+        self.trigger_events(event, expected_events=0)
+
+    def test_cmd_mod(self):
+        self.event_setup()
+        self.allow_registration()
+        entity = self.create_entity()
+
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'input-event',
+            {})  # no initial sub-context
+
+        # Do the test command event.
+        event = CommandInputEvent(
+            entity.id,
+            entity.type_id,
+            context,
+            "/ability $strength.modifier + 4")
+        self.trigger_events(event, expected_events=0)
+
+    def test_cmd_shortcut(self):
+        self.event_setup()
+        self.allow_registration()
+        entity = self.create_entity()
+
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'input-event',
+            {})  # no initial sub-context
+
+        # Do the test command event.
+        event = CommandInputEvent(
+            entity.id,
+            entity.type_id,
+            context,
+            "/ability $strength + 4")
+        self.trigger_events(event, expected_events=0)
+
+    def test_cmd_alias(self):
+        self.event_setup()
+        self.allow_registration()
+        entity = self.create_entity()
+
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'input-event',
+            {})  # no initial sub-context
+
+        # Do the test command event.
+        event = CommandInputEvent(
+            entity.id,
+            entity.type_id,
+            context,
+            "/ability $str.mod + 4")
+        self.trigger_events(event, expected_events=0)

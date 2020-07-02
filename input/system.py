@@ -266,7 +266,10 @@ class InputSystem(System):
         input_id = self._historian.add_text(entity, string_safe)
 
         # Get the command processed.
-        cmd_ctx = InputContext(input_id, command_safe, entity.id,
+        log_name = ident.name
+        cmd_ctx = InputContext(input_id, command_safe,
+                               entity.id,
+                               log_name,
                                name=self.name)
         cmd_ctx.pull(event.context)
         status = self._commander.execute(entity, command_safe, cmd_ctx)

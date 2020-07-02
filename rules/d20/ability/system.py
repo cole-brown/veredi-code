@@ -180,7 +180,9 @@ class AbilitySystem(System):
                                    self.trigger_ability_req,
                                    description='Ability check.')
         cmd.set_permission_components(AbilityComponent)
-        cmd.add_arg('ability name', CommandArgType.STRING)
+        cmd.add_arg('ability name', CommandArgType.VARIABLE)
+        cmd.add_arg('additional math', CommandArgType.MATH,
+                    optional=True)
 
         # ---
         # Alias Commands
@@ -193,8 +195,6 @@ class AbilitySystem(System):
         for ability in self._ability_defs['alias']:
             canon = self.canonical(ability)
             cmd.add_alias(ability, 'ability ' + canon)
-            # cmd = CommandRegisterReply(event,
-            #                            self.name,
 
         # ---
         # Alright, done. Send it!
@@ -211,7 +211,7 @@ class AbilitySystem(System):
         # Doctor checkup.
         if not self._health_ok_msg("Command ignored due to bad health.",
                                    context=context):
-            return
+            return CommandStatus.system_health(context)
 
         eid = InputContext.source_id(context)
         entity = self._manager.entity.get(eid)
@@ -221,6 +221,11 @@ class AbilitySystem(System):
                      "for its id: {}",
                      eid,
                      context=context)
+            return CommandStatus.does_not_exist(eid,
+                                                entity,
+                                                component,
+                                                AbilityComponent,
+                                                context)
 
         # Get skill totals for each var that's a skill name.
         for var in math.each_var():
@@ -232,6 +237,8 @@ class AbilitySystem(System):
                                context)
 
             var.set(result.value, result.milieu)
+
+        return CommandStatus.successful(context)
 
     def event_ability_req(self, event: AbilityRequest) -> None:
         '''
