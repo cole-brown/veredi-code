@@ -90,7 +90,9 @@ class InputSystem(System):
         Make our stuff from context/config data.
         '''
 
-        self._registration_broadcast: bool = False
+        self._registration_broadcast: bool            = False
+        self._component_type:         Type[Component] = None
+        '''Don't have a component type for input right now.'''
 
         # ---
         # Health Stuff
@@ -227,25 +229,21 @@ class InputSystem(System):
             # TODO [2020-06-04]: a health thing? e.g.
             # self._health_update(EntityDNE)
             return
-        user = None
-        player = None
         ident = entity.get(IdentityComponent)
-        if ident:
-            user = ident.log_user
-            player = ident.log_player
 
         # Check user input.
-        log.debug("Input from u:'{}' p:'{}'. input-string: '{}', event: {}",
-                  user, player,
+        log.debug("Input from '{}' (by '{}'). input-string: '{}', event: {}",
+                  ident.log_name, ident.log_extra,
                   event.string_unsafe, event)
         string_safe, string_valid = sanitize.validate(event.string_unsafe,
-                                                      user,
-                                                      player,
+                                                      ident.log_name,
+                                                      ident.log_extra,
                                                       event.context)
 
         if string_valid != sanitize.InputValid.VALID:
-            log.info("Input from u:'{}' p:'{}': "
+            log.info("Input from '{}' (by '{}'): "
                      "Dropping event {} - input failed validation.",
+                     ident.log_name, ident.log_extra,
                      event,
                      context=event.context)
             # TODO [2020-06-11]: Keep track of how many times user was
@@ -254,8 +252,9 @@ class InputSystem(System):
 
         command_safe = self._commander.maybe_command(string_safe)
         if not command_safe:
-            log.info("Input from u:'{}' p:'{}': "
+            log.info("Input from '{}' (by '{}'): "
                      "Dropping event {} - input failed `maybe_command()`.",
+                     ident.log_name, ident.log_extra,
                      event,
                      context=event.context)
             # TODO [2020-06-11]: Keep track of how many times user was
@@ -266,10 +265,9 @@ class InputSystem(System):
         input_id = self._historian.add_text(entity, string_safe)
 
         # Get the command processed.
-        log_name = ident.name
         cmd_ctx = InputContext(input_id, command_safe,
                                entity.id,
-                               log_name,
+                               ident.log_name,
                                name=self.name)
         cmd_ctx.pull(event.context)
         status = self._commander.execute(entity, command_safe, cmd_ctx)

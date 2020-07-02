@@ -41,11 +41,11 @@ class Test_IdentitySystem(unittest.TestCase):
         'identity': {
             'name': 'test-jeff',
             'group': 'u/jeffe',
+            'owner': 'u/jeffe',
 
+            'log-name': 'test-jeff',
             'display-name': 'Test Jeff',
-            'user': 'u/jeffe',
-            'player': 'Test Jeff',
-            'title': 'Titular',
+            'allonym': 'u/jill'
         },
     }
 
@@ -87,7 +87,7 @@ class Test_IdentitySystem(unittest.TestCase):
 
     def create_entity(self):
         _TYPE_DONT_CARE = 1
-        # Â§-TODO-Â§ [2020-06-01]: When we get to Entities-For-Realsies,
+        # TODO [2020-06-01]: When we get to Entities-For-Realsies,
         # probably change to an EntityContext or something...
         context = UnitTestContext(
             self.__class__.__name__,
@@ -189,8 +189,12 @@ class Test_IdentitySystem(unittest.TestCase):
         self.assertIs(component_event, component_entity)
 
         # Now our guy should have his name?
-        self.assertTrue(component_entity.name, 'test-jeff')
-        self.assertTrue(component_entity.display, 'Test Jeff')
+        self.assertTrue(component_entity.designation, 'Test Jeff')
+        self.assertTrue(component_entity.log_name, 'test-jeff')
+        self.assertTrue(component_entity.log_extra, 'u/jill')
+        self.assertTrue(component_entity.owner, 'u/jeffe')
+        self.assertTrue(component_entity.allonym, 'u/jill')
+        self.assertTrue(component_entity.controller, 'u/jill')
 
     def test_todo(self):
         log.debug("TODO: Convert to zystem base class like Test_InputSystem")

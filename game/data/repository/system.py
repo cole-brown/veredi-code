@@ -11,10 +11,9 @@ System for Encoding & Decoding data (components?) for the Game.
 from typing import (TYPE_CHECKING,
                     Optional, Set, Type, Union)
 if TYPE_CHECKING:
-    from veredi.base.context import VerediContext
-
-
-from decimal import Decimal
+    from decimal import Decimal
+    from veredi.base.context            import VerediContext
+    from veredi.game.ecs.base.component import Component
 
 from veredi.logger              import log
 from veredi.data                import background
@@ -55,6 +54,8 @@ class RepositorySystem(System):
         Make our repo from config data.
         '''
         self._repository = None
+        self._component_type: Type['Component'] = None
+        '''RepositorySystem doesn't have a component type.'''
 
         # ---
         # Health Stuff
@@ -63,7 +64,7 @@ class RepositorySystem(System):
             TimeManager,
             EventManager
         }
-        self._health_meter_event:   Optional[Decimal] = None
+        self._health_meter_event:   Optional['Decimal'] = None
 
         # ---
         # Ticking Stuff

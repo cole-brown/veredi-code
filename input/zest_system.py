@@ -47,11 +47,11 @@ class Test_InputSystem(BaseSystemTest):
         'identity': {
             'name': 'test-jeff',
             'group': 'u/jeffe',
+            'owner': 'u/jeffe',
 
+            'log-name': 'test-jeff',
             'display-name': 'Test Jeff',
-            'user': 'u/jeffe',
-            'player': 'Test Jeff',
-            'title': 'Titular',
+            'allonym': 'u/jill'
         },
     }
 

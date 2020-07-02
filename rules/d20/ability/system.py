@@ -78,6 +78,8 @@ class AbilitySystem(System):
         '''
         Make our stuff from context/config data.
         '''
+        self._component_type: Type[Component] = AbilityComponent
+        '''Set our component type for the get() helper.'''
 
         # ---
         # Health Stuff

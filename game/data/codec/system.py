@@ -57,6 +57,9 @@ class CodecSystem(System):
         '''
         self._codec: Optional[BaseCodec] = None
 
+        self._component_type: Type[Component] = None
+        '''DataSystem doesn't have a component type.'''
+
         # ---
         # Health Stuff
         # ---

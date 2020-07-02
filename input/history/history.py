@@ -74,8 +74,11 @@ class InputHistory(History):
             self._eid = entity.id
             ident = entity.get(IdentityComponent)
             if ident:
-                self._name_entity = ident.name
+                self._name_entity = ident.designation
                 self._name_group = ident.group
+                self._name_controller = ident.controller
+                # TODO: controller id? need something for serializing so we can
+                # backlink later if needed?..
 
         # Filled in later.
         self._status = None
