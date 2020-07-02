@@ -76,13 +76,14 @@ var: "$" NAME_STRICT
 
 // ---
 // Names:
-//  - Strict can exist more on their own.
-//  - Lark's CNAMEs are used for functions (allows names like C functions).
 //  - Lax Names have to be folded into another something (e.g. ${a-b})
+//  - Lark's CNAMEs are used for functions (allows names like C functions).
+//  - Strict can exist more on their own. So they need to not be
+//    confusable with math. But I do need/want period for dotted names.
 
-NAME_LAX: LETTER (LETTER | DIGIT | " " | ":" | "(" | "_" | "-")* (LETTER | ")")
+NAME_LAX: LETTER (LETTER | DIGIT | "." | " " | ":" | "(" | "_" | "-")* (LETTER | ")")
 
-NAME_STRICT: WORD
+NAME_STRICT: LETTER (LETTER | DIGIT | "." | "_")* (LETTER | DIGIT)
 
 NAME_FUNC: CNAME
 

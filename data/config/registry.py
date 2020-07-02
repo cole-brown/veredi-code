@@ -15,6 +15,7 @@ from ..background import ContextMap
 from veredi.logger import log
 from .. import background
 from .. import exceptions
+from veredi.base import dotted
 from veredi.base.context import VerediContext
 
 # -----------------------------------------------------------------------------
@@ -28,6 +29,50 @@ _REGISTRY = {}
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
+
+def add_dotted_name(cls_or_func: Union[Type[Any], Callable[..., Type[Any]]],
+                    *args: str) -> None:
+    '''
+    Add a getter for the dotted name of registering classes. Getter returns
+    Optional[str].
+
+    Ignore registering functions.
+    '''
+    # Ignore things that aren't a class.
+    if not isinstance(cls_or_func, type):
+        return
+
+    # Ignore things that already have the attribute we want to add.
+    if hasattr(cls_or_func, dotted.PROPERTY):
+        return
+
+    # ---
+    # Make Getter.
+    # ---
+    # Is this a class or instance thing?
+    def get_dotted(klass: Type[Any]) -> Optional[str]:
+        return getattr(klass, dotted.ATTRIBUTE_PRIVATE, None)
+
+    # ---
+    # No Setter.
+    # ---
+    # def set_dotted(self, value):
+    #     return setattr(self, '_dotted', value)
+
+    # prop = property(get_dotted, set_dotted)
+
+    # ---
+    # Set the getter property function.
+    # ---
+    prop = property(get_dotted)
+    setattr(cls_or_func, dotted.PROPERTY, prop)
+
+    # ---
+    # Set the attribute with the class's dotted name value.
+    # ---
+    dotted_name = dotted.join(*args)
+    setattr(cls_or_func, dotted.ATTRIBUTE_PRIVATE, dotted_name)
+
 
 # Decorator way of doing factory registration. Note that we will only get
 # classes/funcs that are imported, when they are imported. We don't know about
@@ -94,6 +139,9 @@ def register(*args: str) -> Callable[..., Type[Any]]:
         registration[config_name] = cls_or_func
         # Save as a thing that has been registered at this level.
         reggie_jr.append(config_name)
+
+        # Finally, add the 'dotted' property if applicable.
+        add_dotted_name(cls_or_func, *args)
 
         return cls_or_func
 

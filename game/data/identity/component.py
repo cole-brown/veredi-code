@@ -8,7 +8,7 @@ Data component - a component that has persistent data on it.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, MutableMapping
+from typing import Optional, Any, MutableMapping
 
 from veredi.data.config.registry    import register
 
@@ -69,7 +69,7 @@ class IdentityComponent(DataComponent):
     # -------------------------------------------------------------------------
 
     @property
-    def display(self) -> str:
+    def display(self) -> Optional[str]:
         '''
         Returns our entity's display name.
         '''
@@ -80,14 +80,14 @@ class IdentityComponent(DataComponent):
         return name
 
     @property
-    def name(self) -> str:
+    def name(self) -> Optional[str]:
         '''
         Returns our entity's non-display name.
         '''
         return self._persistent.get('name', None)
 
     @property
-    def group(self) -> str:
+    def group(self) -> Optional[str]:
         '''
         Returns our entity's group or owner name.
         '''
@@ -100,7 +100,7 @@ class IdentityComponent(DataComponent):
     # -------------------------------------------------------------------------
 
     @property
-    def user(self) -> str:
+    def user(self) -> Optional[str]:
         '''
         Returns username if a PC and it has one, else None.
 
@@ -110,14 +110,14 @@ class IdentityComponent(DataComponent):
         return self._persistent.get('user', None)
 
     @property
-    def player(self) -> str:
+    def player(self) -> Optional[str]:
         '''
         Returns player's name if a PC and it has one, else None.
         '''
         return self._persistent.get('player', None)
 
     @property
-    def owner(self) -> str:
+    def owner(self) -> Optional[str]:
         '''
         Returns our entity's owner name (username of main player if PC) if
         it has one, else None.
@@ -126,14 +126,14 @@ class IdentityComponent(DataComponent):
         return name
 
     @property
-    def log_player(self) -> str:
+    def log_player(self) -> Optional[str]:
         '''
         Returns: player if exists, else name.
         '''
         return self.player or self.name
 
     @property
-    def log_user(self) -> str:
+    def log_user(self) -> Optional[str]:
         '''
         Returns: user if exists, else owner, else name.
         '''

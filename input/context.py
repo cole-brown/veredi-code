@@ -9,10 +9,12 @@ Helper classes for managing contexts for events, error messages, etc.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type)
+                    Optional, Union, Type, Mapping)
 from veredi.base.null import Nullable
 if TYPE_CHECKING:
     from veredi.base.identity import MonotonicId
+    from veredi.game.ecs.base import Entity
+    from veredi.game.ecs.base import Component
 
 import enum
 
@@ -53,6 +55,15 @@ class Link(enum.Enum):
     A TypeId of some sortfrom whatever caused an InputEvent.
     '''
 
+    DISPLAY_ENTITY = enum.auto()
+    '''
+    A display name from the input event's entity.
+
+    For when entity exists when command tries to execute, but a required
+    component is absent.
+      "Couldn't find either 'display_ent' or their data."
+    '''
+
     # KEYCHAIN = enum.auto()
     # '''
     # Iterable of keys into something in the Configuration object that is
@@ -80,6 +91,7 @@ class InputContext(EphemerealContext):
                  input_id:        InputId,
                  full_input_safe: str,
                  source_id:       'MonotonicId',
+                 source_name:     str,
                  name:            Optional[str] = None,
                  key:             Optional[str] = None) -> None:
         name = name or self.NAME
@@ -88,6 +100,7 @@ class InputContext(EphemerealContext):
 
         # Init our input str into place.
         self._set_input(input_id, full_input_safe, source_id)
+        self._set_names(source_name)
 
     def _set_input(self,
                    input_id: InputId,
@@ -101,9 +114,27 @@ class InputContext(EphemerealContext):
         input_ctx[Link.INPUT_SAFE] = input_safe
         input_ctx[Link.SOURCE_ID] = source_id
 
+    def _set_names(self,
+                   source_name: str) -> None:
+        '''
+        Set any names we're give into our context data.
+        '''
+        input_ctx = self._get().get(self.KEY, {})
+        input_ctx[Link.DISPLAY_ENTITY] = source_name
+
     # -------------------------------------------------------------------------
     # Input/Command-Specific Stuff
     # -------------------------------------------------------------------------
+
+    @classmethod
+    def name(klass: Type['InputContext'],
+             context: VerediContext) -> Optional[InputId]:
+        '''
+        Checks for & returns our Input ID or InputId.INVALID.
+        '''
+        input_ctx = context._get().get(klass.KEY, {})
+        input_id = input_ctx.get(Link.INPUT_ID, InputId.INVALID)
+        return input_id
 
     @classmethod
     def input_id(klass: Type['InputContext'],

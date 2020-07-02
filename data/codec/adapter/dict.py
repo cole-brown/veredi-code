@@ -72,12 +72,9 @@ class DataDict(abc.MutableMapping):
             if key in each:
                 return each[key]
 
-        raise log.exception(KeyError("Key is not in mapping or KeyGroups.",
-                                     key),
-                            None,
-                            "Key {} is not in mapping or KeyGroups. "
-                            "map: {}, groups: {}",
-                            key, self._mapping, self._grouping)
+        # Don't log - is a valid/normal exception for e.g.
+        #   dd_obj.get('key', None)
+        raise KeyError("Key is not in mapping or KeyGroups.", key)
 
     def __delitem__(self, key: DDKey) -> Any:
         del self._mapping[key]

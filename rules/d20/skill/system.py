@@ -209,11 +209,11 @@ class SkillSystem(System):
                      "for its id: {}",
                      eid,
                      context=context)
-            return CommandStatus.entity_does_not_exist(eid,
-                                                       entity,
-                                                       component,
-                                                       SkillComponent,
-                                                       context)
+            return CommandStatus.does_not_exist(eid,
+                                                entity,
+                                                component,
+                                                SkillComponent,
+                                                context)
 
         # Get skill totals for each var that's a skill name.
         for var in math.each_var():

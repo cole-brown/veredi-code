@@ -263,11 +263,11 @@ class CommandStatus:
             flags |= CommandFailure.COMPONENT_DNE
 
         # TODO: should these be user-display strings?
-        entity_name = InputContext.display.entity
+        entity_name = InputContext.name
         if not entity_name:
             reason = "Couldn't find the entity for the command."
         else:
-            entity_data = InputContext.display.component
+            entity_data = component.dotted
             if entity_data:
                 entity_data += ' '
             reason = "Couldn't find either '{}' or their {}data.".format(
