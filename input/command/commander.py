@@ -248,14 +248,14 @@ class Commander:
         Log's stack level (for method/class auto-print by logger) should be at
         level of caller of this function.
         '''
-        ident = None
-        if entity:
-            ident = entity.get(IdentityComponent)
-        ent_name = ident.name if ident else None
+        ident = entity.get(IdentityComponent)
+        ent_name = ident.log_name
         cmd_info = {
             'source': {
                 'name': ent_name,
-                'group': ident.group if ident else None,
+                'group': ident.group,
+                'controller': ident.controller,
+                # todo: controller entity id, user id
             },
             'name': command_name,
             'input': command_safe,
