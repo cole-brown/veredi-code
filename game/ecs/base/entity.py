@@ -11,6 +11,7 @@ An entity is just a grab bag of Components with an EntityId associated to it.
 from typing import (TYPE_CHECKING,
                     Optional, Iterable, Set, Any, NewType,
                     Dict, Union, Type, Callable)
+from veredi.base.null import Null, Nullable
 if TYPE_CHECKING:
     from ..component import ComponentManager
 
@@ -125,7 +126,7 @@ class Entity:
 
     def comp_or_null(self,
                      component: Component,
-                     allow_disabled: bool = False) -> Optional[Component]:
+                     allow_disabled: bool = False) -> Nullable[Component]:
         '''
         Obeys or ignores `Component.enabled` based on `allow_disabled`.
         Returns component or None.
@@ -137,7 +138,7 @@ class Entity:
 
     def get(self,
             id_or_type:     CompIdOrType,
-            allow_disabled: bool = False) -> Optional[Component]:
+            allow_disabled: bool = False) -> Nullable[Component]:
         '''
         Gets a component from this entity by ComponentId or ComponentType. Will
         return the component instance or Null().

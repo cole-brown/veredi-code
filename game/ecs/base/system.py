@@ -10,8 +10,9 @@ Base class for game update loop systems.
 
 from typing import (TYPE_CHECKING,
                     Optional, Union, Type, Any, Iterable, Set)
-from veredi.base.null import NullNoneOr
+from veredi.base.null import NullNoneOr, Nullable, Null
 if TYPE_CHECKING:
+    from decimal                    import Decimal
     from ..meeting                  import Meeting
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
@@ -19,15 +20,14 @@ if TYPE_CHECKING:
 
 from abc import ABC, abstractmethod
 import enum
-import decimal
 
 from veredi.logger     import log
 from veredi.base.const import VerediHealth
 
-from ..const           import SystemTick, SystemPriority, DebugFlag
+from ..const           import SystemTick, SystemPriority
 from .exceptions       import SystemErrorV
 from ..exceptions      import TickError
-from .identity         import SystemId
+from .identity         import EntityId, SystemId
 from .component        import Component
 
 from ..manager         import EcsManager
@@ -87,6 +87,9 @@ class System(ABC):
 
         self._manager:            'Meeting'                      = managers
 
+        self._component_type:     Type[Component]                = None
+        '''This system's component. Used in get().'''
+
         # ---
         # Self-Health Set Up
         # ---
@@ -95,8 +98,8 @@ class System(ABC):
         self._required_managers: Optional[Set[Type[EcsManager]]] = None
 
         # Most systems have these, so we'll just define 'em in the base.
-        self._health_meter_event:   Optional[Decimal] = None
-        self._health_meter_update:  Optional[Decimal] = None
+        self._health_meter_event:   Optional['Decimal'] = None
+        self._health_meter_update:  Optional['Decimal'] = None
 
         # Systems can set up more logging meters like those for use with
         # self._health_log(). E.g.:
@@ -122,6 +125,7 @@ class System(ABC):
     def id(self) -> SystemId:
         return SystemId.INVALID if self._system_id is None else self._system_id
 
+    # TODO: rename this dotted!
     @property
     @abstractmethod
     def name(self) -> str:
@@ -184,6 +188,24 @@ class System(ABC):
         return system.priority()
 
     # -------------------------------------------------------------------------
+    # Getter for Entity's/System's Component
+    # -------------------------------------------------------------------------
+
+    def get(self, entity_id: EntityId) -> Nullable[Component]:
+        '''
+        Try to get entity. Try to get system's only/most important component
+        type off entity.
+
+        Return component or Null().
+        '''
+        if not self._component_type:
+            return Null()
+
+        entity = self._manager.entity.get(entity_id)
+        component = entity.get(self._component_type)
+        return component
+
+    # -------------------------------------------------------------------------
     # System Death / Health
     # -------------------------------------------------------------------------
 
@@ -226,7 +248,7 @@ class System(ABC):
         return self.health
 
     def _health_log(self,
-                    log_meter: decimal.Decimal,
+                    log_meter: 'Decimal',
                     log_level: log.Level,
                     msg:       str,
                     *args:     Any,

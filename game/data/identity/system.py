@@ -15,16 +15,21 @@ Papers, please.
 # ---
 # Typing
 # ---
-from typing import Optional, Union, Set, Type
-from veredi.game.ecs.manager import EcsManager
-from decimal import Decimal
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Set, Type)
+from veredi.base.null import Nullable, Null
+if TYPE_CHECKING:
+    from veredi.game.ecs.manager import EcsManager
+    from decimal import Decimal
+    from veredi.game.ecs.base.component  import Component
+    from veredi.base.context             import VerediContext
+
 
 # ---
 # Code
 # ---
 from veredi.logger                   import log
 from veredi.base.const               import VerediHealth
-from veredi.base.context             import VerediContext
 from veredi.data.config.registry     import register
 
 # Game / ECS Stuff
@@ -38,7 +43,6 @@ from veredi.game.ecs.const           import (SystemTick,
 
 from veredi.game.ecs.base.identity   import ComponentId
 from veredi.game.ecs.base.system     import System
-from veredi.game.ecs.base.component  import Component
 from veredi.game.ecs.base.exceptions import SystemErrorV
 
 # Identity-Related Events & Components
@@ -58,27 +62,29 @@ from .component                      import IdentityComponent
 @register('veredi', 'game', 'identity', 'system')
 class IdentitySystem(System):
 
-    def _configure(self, context: VerediContext) -> None:
+    def _configure(self, context: 'VerediContext') -> None:
         '''
         Make our stuff from context/config data.
         '''
+        self._component_type: Type[Component] = IdentityComponent
+        '''Set our component type for the get() helper.'''
 
         # ---
         # Health Stuff
         # ---
-        self._required_managers:    Optional[Set[Type[EcsManager]]] = {
+        self._required_managers:    Optional[Set[Type['EcsManager']]] = {
             TimeManager,
             EventManager,
             ComponentManager,
             EntityManager
         }
-        self._health_meter_update:  Optional[Decimal] = None
-        self._health_meter_event:   Optional[Decimal] = None
+        self._health_meter_update:  Optional['Decimal'] = None
+        self._health_meter_event:   Optional['Decimal'] = None
 
         # ---
         # Ticking Stuff
         # ---
-        self._components: Optional[Set[Type[Component]]] = [
+        self._components: Optional[Set[Type['Component']]] = [
             # For ticking, we need the ones with IdentityComponents.
             # They're the ones with Identitys.
             # Obviously.

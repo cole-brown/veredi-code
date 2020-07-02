@@ -68,6 +68,9 @@ class DataSystem(System):
         Make our repo from config data.
         '''
 
+        self._component_type: Type[Component] = None
+        '''DataSystem doesn't have a component type.'''
+
         # ---
         # Health Stuff
         # ---

@@ -58,6 +58,7 @@ class Test_AbilitySystem(BaseSystemTest):
         'identity': {
             'name': 'aluminum dragon',
             'group': 'monster',
+            'owner': 'u/gm_dm',
 
             'display-name': 'Aluminum Dragon',
             'title': 'Lightweight',
