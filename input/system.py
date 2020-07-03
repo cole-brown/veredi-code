@@ -217,14 +217,10 @@ class InputSystem(System):
                 context=event.context)
             return
 
-        entity = self._manager.entity.get(event.id)
+        entity = self._log_get_entity(event.id,
+                                      event=event)
         if not entity:
             # Entity disappeared, and that's ok.
-            log.info("Dropping event {} - no entity for its id: {}",
-                     event, event.id,
-                     context=event.context)
-            # TODO [2020-06-04]: a health thing? e.g.
-            # self._health_update(EntityDNE)
             return
         ident = entity.get(IdentityComponent)
 

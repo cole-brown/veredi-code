@@ -17,6 +17,9 @@ if TYPE_CHECKING:
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
 
+    from .component                 import Component
+    from .entity                    import Entity
+
 
 from abc import ABC, abstractmethod
 import enum
@@ -25,11 +28,11 @@ from veredi.data.config import registry
 from veredi.logger      import log
 from veredi.base.const  import VerediHealth
 
-from ..const            import SystemTick, SystemPriority
-from .exceptions        import SystemErrorV
-from ..exceptions       import TickError
 from .identity          import EntityId, SystemId
-from .component         import Component
+from .exceptions        import SystemErrorV
+
+from ..const            import SystemTick, SystemPriority
+from ..exceptions       import TickError
 
 from ..manager          import EcsManager
 from ..time             import TimeManager
@@ -80,15 +83,15 @@ class System(ABC):
                  managers: 'Meeting') -> None:
 
         self._life_cycle: SystemLifeCycle = SystemLifeCycle.INVALID
-        self._system_id:          SystemId                       = sid
+        self._system_id:          SystemId                         = sid
 
-        self._components_req:     Optional[Set[Type[Component]]] = None
-        self._components_req_all: bool                           = True
-        self._ticks:              Optional[SystemTick]           = None
+        self._components_req:     Optional[Set[Type['Component']]] = None
+        self._components_req_all: bool                             = True
+        self._ticks:              Optional[SystemTick]             = None
 
-        self._manager:            'Meeting'                      = managers
+        self._manager:            'Meeting'                        = managers
 
-        self._component_type:     Type[Component]                = None
+        self._component_type:     Type['Component']                = None
         '''This system's component. Used in get().'''
 
         # ---
@@ -198,7 +201,7 @@ class System(ABC):
     # Getter for Entity's/System's Component
     # -------------------------------------------------------------------------
 
-    def get(self, entity_id: EntityId) -> Nullable[Component]:
+    def get(self, entity_id: EntityId) -> Nullable['Component']:
         '''
         Try to get entity. Try to get system's only/most important component
         type off entity.
@@ -211,6 +214,93 @@ class System(ABC):
         entity = self._manager.entity.get(entity_id)
         component = entity.get(self._component_type)
         return component
+
+    def _log_get_entity(self,
+                        entity_id: 'EntityId',
+                        event:     NullNoneOr['Event']         = None,
+                        context:   NullNoneOr['VerediContext'] = None
+                        ) -> Nullable['Entity']:
+        '''
+        Checks to see if entity exists.
+
+        Returns the entity if so.
+        Logs at INFO level and returns Null if not.
+        '''
+        entity = self._manager.entity.get(entity_id)
+        if not entity:
+            # Entity disappeared, and that's ok.
+            preface = ''
+            if event:
+                preface = f"Dropping event {event} - "
+                if not context:
+                    context = event.context
+            # Entity disappeared, and that's ok.
+            log.info("{}No entity for its id: {}",
+                     preface, entity_id,
+                     context=context)
+            # TODO [2020-06-04]: a health thing? e.g.
+            # self._health_update(EntityDNE)
+            return Null()
+
+        return entity
+
+    def _log_get_component(self,
+                           entity_id: 'EntityId',
+                           comp_type: Type['Component'],
+                           event:     NullNoneOr['Event']         = None,
+                           context:   NullNoneOr['VerediContext'] = None
+                           ) -> Nullable['Component']:
+        '''
+        Checks to see if entity exists and has a component of the correct type.
+
+        Returns the entity's component if so.
+        Logs at INFO level and returns Null if not.
+        '''
+        # entity or Null(), so...
+        entity = self._log_get_entity(entity_id)
+
+        component = entity.get(comp_type)
+        if not component:
+            preface = ''
+            if event:
+                preface = f"Dropping event {event} - "
+                if not context:
+                    context = event.context
+            # Component disappeared, and that's ok.
+            log.info("{}No {} for it on entity: {}",
+                     preface,
+                     component.__class__.__name__,
+                     entity,
+                     context=context)
+            # TODO [2020-06-04]: a health thing? e.g.
+            # self._health_update(ComponentDNE)
+            return Null()
+
+        return component
+
+    def _log_get_both(self,
+                      entity_id: 'EntityId',
+                      comp_type: Type['Component'],
+                      event:     NullNoneOr['Event']         = None,
+                      context:   NullNoneOr['VerediContext'] = None) -> bool:
+        '''
+        Checks to see if entity exists and has a component of the correct type.
+
+        Returns a tuple of (entity, component) if so.
+        Logs at INFO level and returns Null() for non-existant pieces, so:
+            (Null(), Null())
+          or
+            (entity, Null())
+        '''
+        # Just `get` entity... `_log_get_component` will `_log_get_entity`, and
+        # that will give us both logs if needed.
+        entity = self._manager.entity.get(entity_id)
+        component = self._log_get_component(entity_id,
+                                            comp_type,
+                                            event=event)
+        # entity or Null(), and
+        # component or Null(), so...
+        return (entity, component)
 
     # -------------------------------------------------------------------------
     # System Death / Health
@@ -399,7 +489,7 @@ class System(ABC):
         '''
         return self._ticks is not None and self._ticks.has(tick)
 
-    def required(self) -> Optional[Iterable[Component]]:
+    def required(self) -> Optional[Iterable['Component']]:
         '''
         Returns the Component types this system /requires/ in order to function
         on an entity.
