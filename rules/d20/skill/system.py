@@ -236,25 +236,11 @@ class SkillSystem(System):
                 context=event.context)
             return
 
-        eid = event.id
-        entity = self._manager.entity.get(eid)
-        if not entity:
-            # Entity disappeared, and that's ok.
-            log.info("Dropping event {} - no entity for its id: {}",
-                     event, eid,
-                     context=event.context)
-            # TODO [2020-06-04]: a health thing? e.g.
-            # self._health_update(EntityDNE)
-            return
-        component = entity.get(SkillComponent)
-        if not component:
-            # Component disappeared, and that's ok.
-            log.info("Dropping event {} - no SkillComponent for "
-                     "it on entity: {}",
-                     event, entity,
-                     context=event.context)
-            # TODO [2020-06-04]: a health thing? e.g.
-            # self._health_update(ComponentDNE)
+        entity, component = self._log_get_both(event.id,
+                                               SkillComponent,
+                                               event=event)
+        if not entity or not component:
+            # Entity or component disappeared, and that's ok.
             return
 
         amount = component.total(event.skill)
