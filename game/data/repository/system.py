@@ -86,11 +86,7 @@ class RepositorySystem(System):
                                  self._repository)
 
     @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
+    def dotted(self) -> str:
         return 'veredi.game.data.repository.system'
 
     def priority(self) -> Union[SystemPriority, int]:

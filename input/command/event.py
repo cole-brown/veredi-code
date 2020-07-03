@@ -63,7 +63,7 @@ class CommandRegisterReply(CommandEvent):
 
     def __init__(self,
                  registration:  CommandRegistrationBroadcast,
-                 source_name:   str,
+                 source_dotted: str,
                  command_name:  str,
                  permissions:   const.CommandPermission,
                  event_trigger: CommandInvoke,
@@ -75,9 +75,9 @@ class CommandRegisterReply(CommandEvent):
         '''
         Initialize Register reply event from Registration broadcast event.
 
-        `source_name` should be a dotted string. E.g. if system with name
-        'veredi.rules.d20.skill' makes a command, it should use
-        'veredi.rules.d20.skill' as its `source_name`.
+        `source_dotted` should be a dotted string. E.g. if system with dotted
+        name 'veredi.rules.d20.skill' makes a command, it should use
+        'veredi.rules.d20.skill' as its `source_dotted`.
 
         The command function `event_trigger` should be something light-weight.
         Any heavy lifting should be either queued up in your system for later
@@ -88,7 +88,7 @@ class CommandRegisterReply(CommandEvent):
                          registration.type,
                          registration.context)
 
-        self._set_name(command_name, source_name)
+        self._set_name(command_name, source_dotted)
         self._set_perms(permissions)
         self._set_func(event_trigger, registration)
 

@@ -127,15 +127,12 @@ class SkillSystem(System):
         # right now.
         self._skill_defs = definition.Definition(
             definition.DocType.DEF_SYSTEM,
-            config.definition(self.name, context))
+            config.definition(self.dotted, context))
 
     @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
-        return 'veredi.rules.d20.skill.system'
+    def dotted(self) -> str:
+        # self._DOTTED magically provided by @register
+        return self._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -178,7 +175,7 @@ class SkillSystem(System):
             return
 
         skill_check = CommandRegisterReply(event,
-                                           self.name,
+                                           self.dotted,
                                            'skill',
                                            CommandPermission.COMPONENT,
                                            self.trigger_skill_req,

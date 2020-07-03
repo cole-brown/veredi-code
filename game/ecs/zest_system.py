@@ -54,7 +54,7 @@ class CompThree(Component):
 class SysTest(System):
 
     @property
-    def name(self):
+    def dotted(self):
         return 'system.test'
 
     def _conifgure(self, context):

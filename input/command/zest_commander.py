@@ -106,7 +106,8 @@ class Test_Commander(unittest.TestCase):
     # -------------------------------------------------------------------------
 
     def user_input_ctx(self, input_str, entity_id, entity_name):
-        return InputContext(None, input_str, entity_id, entity_name)
+        return InputContext(None, input_str, entity_id, entity_name,
+                            self.commander.dotted + '.unit-test')
 
     def allow_registration(self):
         if self.reg_open:

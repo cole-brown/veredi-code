@@ -25,7 +25,7 @@ Try to call your attribute/property 'dotted', for consistency.
 If you use 'register', your class will get a 'dotted' property for free.
 '''
 
-ATTRIBUTE_PRIVATE = '_dotted'
+ATTRIBUTE_PRIVATE = '_DOTTED'
 '''
 Try to call your attribute/property 'dotted', for consistency.
 

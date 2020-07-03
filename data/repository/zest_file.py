@@ -38,7 +38,8 @@ class Test_FileTreeRepo(unittest.TestCase):
         self.debugging = False
         self.path = zpath.repository_file_tree()
         self.config = zmake.config()
-        self.context = ConfigContext(self.path)
+        self.context = ConfigContext(self.path,
+                                     'veredi.data.repository.zest_file')
 
         # Finish set-up. Inject stuff repo needs to init proper.
         self.config.ut_inject(self.path,

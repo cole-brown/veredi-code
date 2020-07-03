@@ -95,12 +95,9 @@ class IdentitySystem(System):
         self._ticks: SystemTick = SystemTick.STANDARD
 
     @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
-        return 'veredi.game.identity.system'
+    def dotted(self) -> str:
+        # self._DOTTED magically provided by @register
+        return self._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

@@ -32,7 +32,7 @@ from ..component import DataComponent
 #   - 'designation' - display name
 #       - character's full 'display-name' or 'name' field.
 #   - 'namelog' - name for logging things about the entity
-#   - 'dotted' - veredi.dotted.name - not used for entities
+#   - 'dotted' - 'veredi.dotted.name' - not used for entities
 #
 # Future use?:
 #   - 'moniker' - 'familiar' name or 'nickname' of entity

@@ -290,7 +290,7 @@ class system(metaclass=SystemMeta):
         subctx = klass._get()
         vital_records = subctx.setdefault(_SYS_VITALS, [])
         entry = {
-            'name': sys.name,
+            'dotted': sys.dotted,
             'time': klass.manager.time.machine.stamp_to_str(),
             'cycle': cycle.name,
         }
@@ -649,11 +649,11 @@ class input(metaclass=InputMeta):
         return veredi.get().get(_INPUT, Null())
 
     @classmethod
-    def set(klass: Type['input'],
-            dotted_name:      Name,
-            parsers:      'Parcel',
-            data: NullNoneOr[ContextMap],
-            ownership: Ownership) -> None:
+    def set(klass:       Type['input'],
+            dotted_name: str,
+            parsers:     'Parcel',
+            data:        NullNoneOr[ContextMap],
+            ownership:   Ownership) -> None:
         '''
         Update a created system's entry with `data` and `parsers`.
         '''

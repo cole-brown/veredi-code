@@ -106,13 +106,10 @@ class Commander:
         add_alias() function of CommandRegisterReply.
         '''
 
-    @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
-        return 'veredi.input.commander'
+    # Magically provided by @register
+    # @property
+    # def dotted(self) -> str:
+    #     ...
 
     # -------------------------------------------------------------------------
     # Events

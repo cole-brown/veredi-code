@@ -30,7 +30,8 @@ def test(klass_name:   str,
     '''
     Creates a context for general tests of `test_type`.
     '''
-    return ConfigContext(repo_path)
+    return ConfigContext(repo_path,
+                         'veredi.zest.zontext.test')
 
 
 def real_config(klass_name:  str,
@@ -40,4 +41,5 @@ def real_config(klass_name:  str,
     '''
     Creates a context for general tests of `test_type`.
     '''
-    return ConfigContext(repo_path)
+    return ConfigContext(repo_path,
+                         'veredi.zest.zontext.real_config')

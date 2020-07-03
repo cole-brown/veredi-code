@@ -56,13 +56,13 @@ class VerediContext:
         - Or a subclass of one of these.
     '''
 
-    _KEY_NAME = 'name'
+    _KEY_DOTTED = 'dotted'
 
     def __init__(self,
-                 name: str,
+                 dotted: str,
                  key: str) -> None:
         self.data  = {}
-        self._name = name
+        self._dotted = dotted
         self._key  = key
 
     def _ensure(self, top_key: Any = None) -> Dict[str, Any]:
@@ -79,25 +79,27 @@ class VerediContext:
         sub_context = self.data.setdefault(top_key, {})
         # Ensure our name if we're ensuring our subcontext.
         if (top_key is self.key
-                and self._KEY_NAME not in sub_context):
-            sub_context[self._KEY_NAME] = self.name
+                and self._KEY_DOTTED not in sub_context):
+            sub_context[self._KEY_DOTTED] = self.dotted
         return sub_context
 
     @property
-    def name(self) -> str:
+    def dotted(self) -> str:
         '''
-        Returns our context's name (e.g. "YamlCodec" context name is "yaml").
+        Returns our context's dotted name.
+        e.g. YamlCodec's dotted is "veredi.data.codec.yaml".
         '''
-        return self._name
+        return self._dotted
 
-    @name.setter
-    def name(self, value: str) -> None:
+    @dotted.setter
+    def dotted(self, value: str) -> None:
         '''
-        Sets our context's name (e.g. "YamlCodec" context name is "yaml").
+        Sets our context's dotted name.
+        e.g. YamlCodec's dotted is "veredi.data.codec.yaml".
         '''
         if self.data:
-            self.data.setdefault(self.key, {})[self._KEY_NAME] = value
-        self._name = value
+            self.data.setdefault(self.key, {})[self._KEY_DOTTED] = value
+        self._dotted = value
 
     @property
     def key(self) -> str:

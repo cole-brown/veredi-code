@@ -133,13 +133,10 @@ class Historian:
         # TODO [2020-06-21]: Write history to disk after x time?
         # TODO [2020-06-21]: Drop history from lists after y time?
 
-    @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
-        return 'veredi.input.historian'
+    # Magically provided by @register
+    # @property
+    # def dotted(self) -> str:
+    #     ...
 
     def get_id(self,
                entity: Entity,
