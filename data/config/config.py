@@ -113,7 +113,7 @@ class Configuration:
         Sets our config info into the background context.
         '''
         self._bg = {
-            'name': self._DOTTED_NAME,
+            'dotted': self._DOTTED_NAME,
         }
         background.config.set(background.Name.CONFIG,
                               self._bg,
@@ -232,7 +232,7 @@ class Configuration:
 
         if not context:
             context = ConfigContext(self._path,
-                                    name=self._DOTTED_NAME)
+                                    self._DOTTED_NAME)
 
         context.add(ConfigContext.Link.KEYCHAIN, list(keychain[:-1]))
         log.debug("Make requested for: {}. context: {}",

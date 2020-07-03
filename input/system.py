@@ -145,7 +145,7 @@ class InputSystem(System):
         # Create our background context now that we have enough info from
         # config.
         bg_data, bg_owner = self._background
-        background.input.set(self.name,
+        background.input.set(self.dotted,
                              self._parsers,
                              bg_data,
                              bg_owner)
@@ -156,19 +156,16 @@ class InputSystem(System):
         Get background data for background.input.set().
         '''
         self._bg = {
-            'name': self.name,
-            'commander': self._commander.name,
-            'historian': self._historian.name,
+            'dotted': self.dotted,
+            'commander': self._commander.dotted,
+            'historian': self._historian.dotted,
         }
         return self._bg, background.Ownership.SHARE
 
     @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
-        return 'veredi.input.system'
+    def dotted(self) -> str:
+        # self._DOTTED magically provided by @register
+        return self._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -268,7 +265,7 @@ class InputSystem(System):
         cmd_ctx = InputContext(input_id, command_safe,
                                entity.id,
                                ident.log_name,
-                               name=self.name)
+                               self.dotted)
         cmd_ctx.pull(event.context)
         status = self._commander.execute(entity, command_safe, cmd_ctx)
         # Update history w/ status.

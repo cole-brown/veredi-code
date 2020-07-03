@@ -199,8 +199,8 @@ class ConfigHierarchy(Hierarchy):
             'movement': Info.LEAF,
             'skill': Info.LEAF,
             'combat': {
-                'offensive': Info.LEAF,
-                'defensive': Info.LEAF,
+                'attack': Info.LEAF,
+                'defense': Info.LEAF,
             },
         },
 

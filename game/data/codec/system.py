@@ -8,8 +8,12 @@ System for Encoding & Decoding data (components?) for the Game.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Set, Type, Union
-from decimal import Decimal
+from typing import (TYPE_CHECKING,
+                    Optional, Set, Type, Union)
+if TYPE_CHECKING:
+    from decimal import Decimal
+    from veredi.game.ecs.base.component import Component
+
 
 from veredi.logger import log
 from veredi.data import background
@@ -57,7 +61,7 @@ class CodecSystem(System):
         '''
         self._codec: Optional[BaseCodec] = None
 
-        self._component_type: Type[Component] = None
+        self._component_type: Type['Component'] = None
         '''DataSystem doesn't have a component type.'''
 
         # ---
@@ -89,11 +93,7 @@ class CodecSystem(System):
                                  self._codec)
 
     @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
+    def dotted(self) -> str:
         return 'veredi.game.data.codec.system'
 
     def priority(self) -> Union[SystemPriority, int]:

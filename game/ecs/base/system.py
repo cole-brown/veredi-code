@@ -21,20 +21,21 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 import enum
 
-from veredi.logger     import log
-from veredi.base.const import VerediHealth
+from veredi.data.config import registry
+from veredi.logger      import log
+from veredi.base.const  import VerediHealth
 
-from ..const           import SystemTick, SystemPriority
-from .exceptions       import SystemErrorV
-from ..exceptions      import TickError
-from .identity         import EntityId, SystemId
-from .component        import Component
+from ..const            import SystemTick, SystemPriority
+from .exceptions        import SystemErrorV
+from ..exceptions       import TickError
+from .identity          import EntityId, SystemId
+from .component         import Component
 
-from ..manager         import EcsManager
-from ..time            import TimeManager
-from ..event           import EventManager, Event
-from ..component       import ComponentManager
-from ..entity          import EntityManager
+from ..manager          import EcsManager
+from ..time             import TimeManager
+from ..event            import EventManager, Event
+from ..component        import ComponentManager
+from ..entity           import EntityManager
 
 
 # -----------------------------------------------------------------------------
@@ -128,14 +129,20 @@ class System(ABC):
     # TODO: rename this dotted!
     @property
     @abstractmethod
-    def name(self) -> str:
+    def dotted(self) -> str:
         '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
+        The dotted name this system has. If the system uses '@register', it
+        gets this method implemented for free.
         E.g.
           @register('veredi', 'input', 'system')
         would be:
           'veredi.input.system'
+
+        So in those cases I usually do this for memory's sake:
+            # Magically provided by @register
+            # @property
+            # def dotted(self) -> str:
+            #     ...
         '''
         raise NotImplementedError
 
@@ -565,3 +572,9 @@ class System(ABC):
             f"[{self.id}, "
             f"{repr(self.life_cycle)}]>"
         )
+
+
+# -----------------------------------------------------------------------------
+# Tell registry to leave my children alone.
+# -----------------------------------------------------------------------------
+registry.ignore(System)

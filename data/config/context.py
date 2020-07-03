@@ -55,11 +55,10 @@ class ConfigContext(EphemerealContext):
 
     def __init__(self,
                  path:        pathlib.Path,
-                 name:        Optional[str] = None,
+                 dotted:      str,
                  key:         Optional[str] = None) -> None:
-        name = name or self.NAME
         key = key or self.KEY
-        super().__init__(name, key)
+        super().__init__(dotted, key)
 
         # Make sure the path is a directory.
         if path:

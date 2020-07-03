@@ -263,7 +263,7 @@ class CommandStatus:
             flags |= CommandFailure.COMPONENT_DNE
 
         # TODO: should these be user-display strings?
-        entity_name = InputContext.name
+        entity_name = InputContext.source_designation(context)
         if not entity_name:
             reason = "Couldn't find the entity for the command."
         else:
@@ -275,9 +275,11 @@ class CommandStatus:
                 entity_data)
 
         internal = ('Entity or Component does not exist: '
-                    'id: {}, entity: {}, component: {}').format(entity_id,
-                                                                entity,
-                                                                component)
+                    'id: {}, name: {}, '
+                    'entity: {}, component: {}').format(entity_id,
+                                                        entity_name,
+                                                        entity,
+                                                        component)
         return CommandStatus(False,
                              InputContext.input(context),
                              user_reason=reason,

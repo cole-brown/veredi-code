@@ -1,8 +1,13 @@
 # coding: utf-8
 
 '''
-Combat Offensive Component
+Combat Components
+
+AttackComponent
   - a component that has the aggressive side of combat in it.
+
+DefenseComponent
+  - a component that has the defensive side of combat in it.
 '''
 
 # -----------------------------------------------------------------------------
@@ -15,8 +20,11 @@ if TYPE_CHECKING:
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
 
-from ..ecs.base.component import Component
-from ..ecs.base.identity import ComponentId
+from veredi.logger                  import log
+from veredi.data.config.registry    import register
+
+from veredi.game.data.component     import DataComponent
+from veredi.game.interface.component import queue
 
 
 # -----------------------------------------------------------------------------
@@ -25,26 +33,15 @@ from ..ecs.base.identity import ComponentId
 
 
 # -----------------------------------------------------------------------------
-# Offensive!
+# This means war!
 # -----------------------------------------------------------------------------
 
-class OffensiveComponent(Component):
+@register('veredi', 'rules', 'd20', 'combat', 'component', 'attack')
+class AttackComponent(DataComponent, queue.IQueueSingle[AttackEvent]):
     '''
     Component with offensive/attack numbers, attack action queue, probably
     other stuff...
     '''
-
-    def __init__(self,
-                 context: Optional['VerediContext'],
-                 cid: ComponentId) -> None:
-        '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
-
-        # This calls _configure with the context.
-        super().__init__(context, cid)
-
-        # Now we'll finish init by setting up our members.
-        self._queued = None
-        '''Can hold on to next thing Entity wants to attack with here.'''
 
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:
@@ -53,58 +50,45 @@ class OffensiveComponent(Component):
         they need to set up themselves.
         '''
         # ---
+        # Members
+        # ---
+
+        # Set up our queue.
+        self._init_queue()
+
+        # ---
         # Context Init Section
         # ---
         # Nothing at the moment.
-        pass
 
-    # -------------------------------------------------------------------------
-    # Action / Attack / Whatever Queue
-    # -------------------------------------------------------------------------
-    # §-TODO-§ [2020-06-04]: QueueComponent Interface to inherit from?
+    # ---
+    # Queue Interface
+    # ---
 
-    @property
-    def has_action(self):
-        return bool(self._queued)
-
-    @property
-    def queued(self):
-        '''Peek at queued attack/whetever.'''
-        return self._queued
-
-    @property
-    def dequeue(self):
-        '''Pop and return queued attack/whetever.'''
-        retval = self._queued
-        self._queued = None
-        return retval
-
-    @queued.setter
-    def enqueue(self, value):
-        '''Set queued attack/whetever.'''
-        self._queued = value
+    # @property
+    # def is_queued(self) -> bool:
+    #     ...
+    # @property
+    # def queued(self) -> Nullable[QType]:
+    #     ...
+    # @property
+    # def dequeue(self) -> QType:
+    #     ...
+    # @queued.setter
+    # def enqueue(self, value: NullNoneOr[QType]) -> None:
+    #     ...
 
 
 # -----------------------------------------------------------------------------
 # D-Fence.
 # -----------------------------------------------------------------------------
 
-class DefensiveComponent(Component):
+@register('veredi', 'rules', 'd20', 'combat', 'component', 'defense')
+class DefenseComponent(DataComponent, queue.IQueueSingle):
     '''
-    Component with defensive numbers, defense action queue(?), probably other
+    Component with defense numbers, defense action queue(?), probably other
     stuff...
     '''
-
-    def __init__(self,
-                 context: Optional['VerediContext'],
-                 cid: ComponentId) -> None:
-        '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
-
-        # This calls _configure with the context.
-        super().__init__(context, cid)
-
-        # Now we'll finish init by setting up our members.
-        # §-TODO-§ [2020-06-03]: that.
 
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:
@@ -113,32 +97,30 @@ class DefensiveComponent(Component):
         they need to set up themselves.
         '''
         # ---
+        # Members
+        # ---
+
+        # Set up our queue.
+        self._init_queue()
+
+        # ---
         # Context Init Section
         # ---
         # Nothing at the moment.
-        pass
 
-#     # -------------------------------------------------------------------------
-#     # Action / Attack / Whatever Queue
-#     # -------------------------------------------------------------------------
-#
-#     @property
-#     def has_action(self):
-#         return bool(self._queued)
-#
-#     @property
-#     def queued(self):
-#         '''Peek at queued attack/whetever.'''
-#         return self._queued
-#
-#     @property
-#     def dequeue(self):
-#         '''Pop and return queued attack/whetever.'''
-#         retval = self._queued
-#         self._queued = None
-#         return retval
-#
-#     @queued.setter
-#     def enqueue(self, value):
-#         '''Set queued attack/whetever.'''
-#         self._queued = value
+    # ---
+    # Queue Interface
+    # ---
+
+    # @property
+    # def is_queued(self) -> bool:
+    #     ...
+    # @property
+    # def queued(self) -> Nullable[QType]:
+    #     ...
+    # @property
+    # def dequeue(self) -> QType:
+    #     ...
+    # @queued.setter
+    # def enqueue(self, value: NullNoneOr[QType]) -> None:
+    #     ...

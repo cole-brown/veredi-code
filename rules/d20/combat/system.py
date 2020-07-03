@@ -1,14 +1,11 @@
 # coding: utf-8
 
 '''
-General Combat System for the Game.
+D20 Combat System for the Game.
 
 Handles:
   - Combat events like: Attack, Damage, etc.
   - Other things probably.
-
-Should probably:
-  - Use sub-system type thingies from rules.d11...
 
 That is the nexus of punching people in the face.
 '''
@@ -22,13 +19,15 @@ from typing import (TYPE_CHECKING,
 if TYPE_CHECKING:
     from decimal                    import Decimal
     from veredi.base.context        import VerediContext
+    from ..ecs.manager        import EcsManager
 
 from veredi.logger        import log
 from veredi.base.const    import VerediHealth
 from veredi.data          import background
+from veredi.data.config.registry    import register
+from veredi.data.codec.adapter      import definition
 
 # Game / ECS Stuff
-from ..ecs.manager        import EcsManager
 from ..ecs.event          import EventManager
 from ..ecs.time           import TimeManager
 from ..ecs.component      import ComponentManager
@@ -37,16 +36,30 @@ from ..ecs.entity         import EntityManager
 from ..ecs.const          import (SystemTick,
                                   SystemPriority)
 
+from veredi.game.ecs.base.identity  import ComponentId, EntityId
 from ..ecs.base.system    import System
 from ..ecs.base.component import Component
 
-# Events
-from .event import (
-    AttackedEvent
-)
+# Commands
+from veredi.input.command.reg       import (CommandRegistrationBroadcast,
+                                            CommandRegisterReply,
+                                            CommandPermission,
+                                            CommandArgType,
+                                            CommandStatus)
+from veredi.math.parser             import MathTree
+from veredi.input.context           import InputContext
 
-# Components
-from .component import OffensiveComponent, DefensiveComponent
+# Combat-Related Events & Components
+from .component import (
+    AttackComponent,
+    DefenseComponent,
+)
+from .event import (
+    AttackRequest,
+    AttackResult,
+    DefenseRequest,
+    DefenseResult,
+)
 
 
 # -----------------------------------------------------------------------------
@@ -58,19 +71,20 @@ from .component import OffensiveComponent, DefensiveComponent
 # Code
 # -----------------------------------------------------------------------------
 
+@register('veredi', 'rules', 'd20', 'combat', 'system')
 class CombatSystem(System):
 
     def _configure(self, context: 'VerediContext') -> None:
         '''
         Make our stuff from context/config data.
         '''
+        self._component_type: Type[Component] = AttackComponent
+        '''Set our component type for the get() helper. We have two, so...'''
 
         # ---
         # Health Stuff
         # ---
-        self._health_meter_update:  Optional['Decimal'] = None
-        self._health_meter_event:   Optional['Decimal'] = None
-        self._required_managers:    Optional[Set[Type[EcsManager]]] = {
+        self._required_managers:    Optional[Set[Type['EcsManager']]] = {
             TimeManager,
             EventManager,
             ComponentManager,
@@ -80,16 +94,26 @@ class CombatSystem(System):
         # ---
         # Ticking Stuff
         # ---
-        self._components: Optional[Set[Type[Component]]] = [
-            # For ticking, we need the ones with OffensiveComponents.
-            # They'll be what we check for attacks, etc. Then we process those
-            # and event off the rest (resolve against their target's: defense
-            # stuff, health stuff, etc).
-            OffensiveComponent
+        # For ticking, we need the ones with AttackComponents OR
+        # DefenseComponents (or both), so set to 'any' here...
+        self._components_req: Optional[Set[Type[Component]]] = [
+            AttackComponent,
+            DefenseComponent,
         ]
+        self._components_req_all = False
 
-        # Just the normal one, for now.
-        self._ticks: SystemTick = SystemTick.STANDARD
+        # Combat uses several ticks for different things?
+        #   TIME - Any combat event that has a delayed start
+        #          (e.g. full round casting time).
+        #   PRE  - Any combat numbers that need recalculated each tick?
+        #          (But other systems should do most of that (BuffSystem?
+        #          StatsSystem?)
+        #   STADARD - Do the bulk of our work here.
+        #   POST - Any 'at the end of your turn' happens here?
+        self._ticks: SystemTick = (SystemTick.TIME
+                                   | SystemTick.PRE
+                                   | SystemTick.STANDARD
+                                   | SystemTick.POST)
 
         # ---
         # Config Stuff
@@ -103,23 +127,17 @@ class CombatSystem(System):
                 "supplied context.",
                 self.__class__.__name__)
 
-        # What kind of ruleset are we using?
-        self._ruleset   = config.get_rules('type')
+        # TODO: What defs does combat have?
+        # # Ask config for our definition to be deserialized and given to us
+        # # right now.
+        # self._defs = definition.Definition(
+        #     definition.DocType.DEF_SYSTEM,
+        #     config.definition(self.dotted, context))
 
-        self._offensive = config.make('rules', 'combat', 'offensive')
-        self._defensive = config.make('rules', 'combat', 'defensive')
-
-        # Don't think this is our's. Think it's a separate system's concern?
-        # Things other than combat can do damage. Or heal. Or whatever.
-        # self._health    = config.get_rules('combat', 'offensive')
-
-    @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
-        return 'veredi.rules.d20.combat.system'
+    # Magically provided by @register
+    # @property
+    # def dotted(self) -> str:
+    #     ...
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -146,77 +164,143 @@ class CombatSystem(System):
         super().subscribe(event_manager)
 
         # CombatSystem subs to:
-        # - AttackedEvent
-        #   An attack has happened and should be resolved.
-        self._manager.event.subscribe(AttackedEvent,
-                                      self.event_attacked)
+        # - CommandRegistrationBroadcast - For commands.
+        # - AttackRequestEvent
+        #   - Attacker wants to start an attack.
+        # - DefenseRequestEvent
+        #   - Defender wants to start a... defense.
+        self._manager.event.subscribe(CommandRegistrationBroadcast,
+                                      self.event_cmd_reg)
+        self._manager.event.subscribe(AttackRequest,
+                                      self.event_attack_request)
+        self._manager.event.subscribe(DefenseRequest,
+                                      self.event_defense_request)
 
         return self._health_check()
 
-    def event_attacked(self, event: AttackedEvent) -> None:
+    def event_cmd_reg(self, event: CommandRegistrationBroadcast) -> None:
+        '''
+        Set up all our combat commands.
+        '''
+        # Doctor checkup.
+        if not self._health_ok_event(event):
+            return
+
+        cmd = CommandRegisterReply(event,
+                                   self.dotted,
+                                   'attack',
+                                   CommandPermission.COMPONENT,
+                                   self.trigger_attack_req,
+                                   description='Attack an enemy.')
+        cmd.set_permission_components(AttackComponent)
+        cmd.add_arg('attack name', CommandArgType.STRING)
+
+        self._event_notify(cmd)
+
+    def trigger_attack_req(self,
+                           math: MathTree,
+                           context: Optional[InputContext] = None
+                           ) -> CommandStatus:
+        '''
+        Turn command into Attack Request event for us to process later.
+        '''
+        # Doctor checkup.
+        if not self._health_ok_msg("Command ignored due to bad health.",
+                                   context=context):
+            return
+
+        eid = InputContext.source_id(context)
+        entity = self._manager.entity.get(eid)
+        component = entity.get(AttackComponent)
+        if not entity or not component:
+            log.info("Dropping 'skill' command - no entity or comp "
+                     "for its id: {}",
+                     eid,
+                     context=context)
+            return CommandStatus.entity_does_not_exist(eid,
+                                                       entity,
+                                                       component,
+                                                       AttackComponent,
+                                                       context)
+
+        # TODO: put this request in component's attack queue.
+        # request = AttackRequestEvent(...)
+        # component.queue(request)
+        # Send request event out? Or CombatInfoEvent or something?
+
+        print("Hello there! You want to attack!", math)
+        return CommandStatus.successful(context)
+
+    def event_attack_request(self, event: AttackRequest) -> None:
         '''
         Attack happened; please resolve.
         '''
         # Doctor checkup.
-        if not self._healthy():
-            self._health_meter_event = self._health_log(
-                self._health_meter_event,
-                log.Level.WARNING,
-                "HEALTH({}): Dropping event {} - our system health "
-                "isn't good enough to process.",
-                self.health, event,
-                context=event.context)
+        if not self._health_ok_event(event):
             return
 
-        pass
-        # if not self._component_manager:
-        #     raise log.exception(
-        #         None,
-        #         SystemErrorV,
-        #         "{} could not create anything from event {} - it has no "
-        #         "ContextManager. context: {}",
-        #         self.__class__.__name__,
-        #         event, event.context
-        #     )
+        print("Hello there! You want to!", event)
 
-        # # Have EventManager create and fire off event for whoever wants the
-        # # next step?
-        # if cid != ComponentId.INVALID:
-        #     event = DataLoadedEvent(event.id, event.type, event.context,
-        #                             component_id=cid)
-        #     self._event_notify(event)
+        # TODO: Put in resolution queue on target for resolving on the proper
+        # tick.
+
+    def event_defense_request(self, event: DefenseRequest) -> None:
+        '''
+        Defense happened; please resolve.
+        '''
+        # Doctor checkup.
+        if not self._health_ok_event(event):
+            return
+
+        print("Hello there! You want to!", event)
+
+        # TODO: Put in resolution queue on target for resolving on the proper
+        # tick.
 
     # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update(self,
-                tick:          SystemTick,
-                time_mgr:      'TimeManager',
-                component_mgr: 'ComponentManager',
-                entity_mgr:    'EntityManager') -> VerediHealth:
+    def _update_time(self,
+                     time_manager:      TimeManager,
+                     component_manager: ComponentManager,
+                     entity_manager:    EntityManager) -> VerediHealth:
         '''
-        Main tick function.
+        First in Game update loop. Systems should use this rarely as the game
+        time clock itself updates in this part of the loop.
         '''
         # Doctor checkup.
-        if not self._healthy():
-            self._health_meter_update = self._health_log(
-                self._health_meter_update,
-                log.Level.WARNING,
-                "HEALTH({}): Skipping ticks - our system health "
-                "isn't good enough to process.",
-                self.health)
+        if not self._health_ok_tick(SystemTick.TIME):
             return
 
-        for entity in self._wanted_entities(tick, time_mgr,
-                                            component_mgr, entity_mgr):
-            pass
+        tick = SystemTick.TIME
+        print("TODO: THIS TICK!", tick)
+        for entity in self._wanted_entities(tick, time_manager,
+                                            component_manager, entity_manager):
+            # Check if entity in turn order has a combat action queued up.
+            # Also make sure to check if entity/component still exist.
+            if not entity:
+                continue
+            component = entity.get(AttackComponent)
+            if not component or not component.has_action:
+                continue
 
-        # Â§-TODO-Â§ [2020-05-26]: this
+            action = component.dequeue
+            log.debug("Entity {}, Comp {} has skill action: {}",
+                      entity, component, action)
 
-        # check if Combat
+            # Check turn order?
+            # Would that be, like...
+            #   - engine.time_flow()?
+            #   - What does PF2/Starfinder call it? Like the combat vs
+            #     short-term vs long-term 'things are happening' modes...
 
-        # delegate to subsystems and stuff
+            # process action
+            print('todo: a skill thingy', action)
+
+
+
+        # TODO [2020-05-26]: this
 
         # check turn order
 
@@ -228,3 +312,56 @@ class CombatSystem(System):
         # check for entities to add to turn order tracker
 
         return self._health_check()
+
+    def _update_pre(self,
+                    time_manager:      TimeManager,
+                    component_manager: ComponentManager,
+                    entity_manager:    EntityManager) -> VerediHealth:
+        '''
+        Pre-update. For any systems that need to squeeze in something just
+        before actual tick.
+        '''
+        # Doctor checkup.
+        if not self._health_ok_tick(SystemTick.PRE):
+            return
+
+        tick = SystemTick.PRE
+        print("TODO: THIS TICK!", tick)
+        for entity in self._wanted_entities(tick, time_manager,
+                                            component_manager, entity_manager):
+            pass
+
+    def _update(self,
+                time_manager:      TimeManager,
+                component_manager: ComponentManager,
+                entity_manager:    EntityManager) -> VerediHealth:
+        '''
+        Normal/Standard upate. Basically everything should happen here.
+        '''
+        # Doctor checkup.
+        if not self._health_ok_tick(SystemTick.STANDARD):
+            return
+
+        tick = SystemTick.STANDARD
+        print("TODO: THIS TICK!", tick)
+        for entity in self._wanted_entities(tick, time_manager,
+                                            component_manager, entity_manager):
+            pass
+
+    def _update_post(self,
+                     time_manager:      TimeManager,
+                     component_manager: ComponentManager,
+                     entity_manager:    EntityManager) -> VerediHealth:
+        '''
+        Post-update. For any systems that need to squeeze in something just
+        after actual tick.
+        '''
+        # Doctor checkup.
+        if not self._health_ok_tick(SystemTick.POST):
+            return
+
+        tick = SystemTick.POST
+        print("TODO: THIS TICK!", tick)
+        for entity in self._wanted_entities(tick, time_manager,
+                                            component_manager, entity_manager):
+            pass

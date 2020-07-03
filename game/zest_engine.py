@@ -52,9 +52,6 @@ class CompThree(Component):
 
 
 class SysTest(System):
-    @property
-    def name(self):
-        return 'veredi.game.zest_engine.BASE_CLASS?!'
 
     def _configure(self,
                    context):
@@ -145,7 +142,7 @@ class SysJeff(SysTest):
                        | SystemTick.POST)
 
     @property
-    def name(self):
+    def dotted(self):
         return 'veredi.game.zest_engine.SysJeff'
 
     def priority(self):
@@ -169,7 +166,7 @@ class SysJill(SysTest):
             self.y = None
 
     @property
-    def name(self):
+    def dotted(self):
         return 'veredi.game.zest_engine.SysJill'
 
     def priority(self):
@@ -186,7 +183,7 @@ class SysNoTick(SysTest):
         self._ticks = None
 
     @property
-    def name(self):
+    def dotted(self):
         return 'veredi.game.zest_engine.SysNoTick'
 
     def priority(self):
@@ -200,7 +197,7 @@ class SysNoReq(SysTest):
         self._ticks = None
 
     @property
-    def name(self):
+    def dotted(self):
         return 'veredi.game.zest_engine.SysNoReq'
 
     def required(self):

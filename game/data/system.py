@@ -108,22 +108,18 @@ class DataSystem(System):
 
         Returns: (data, background.Ownership)
         '''
-        return self._make_background(self.name), background.Ownership.SHARE
+        return self._make_background(), background.Ownership.SHARE
 
-    def _make_background(self, dotted_name):
+    def _make_background(self):
         '''
         Basic background.data info for this service.
         '''
         return {
-            'name': self.name,
+            'dotted': self.dotted,
         }
 
     @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
+    def dotted(self) -> str:
         return 'veredi.game.data.system'
 
     # -------------------------------------------------------------------------

@@ -121,15 +121,12 @@ class AbilitySystem(System):
         # right now.
         self._ability_defs = definition.Definition(
             definition.DocType.DEF_SYSTEM,
-            config.definition(self.name, context))
+            config.definition(self.dotted, context))
 
     @property
-    def name(self) -> str:
-        '''
-        The 'dotted string' name this system has. Probably what they used to
-        register.
-        '''
-        return 'veredi.rules.d20.ability.system'
+    def dotted(self) -> str:
+        # self._DOTTED magically provided by @register
+        return self._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -176,7 +173,7 @@ class AbilitySystem(System):
         # General Command
         # ---
         cmd = CommandRegisterReply(event,
-                                   self.name,
+                                   self.dotted,
                                    'ability',
                                    CommandPermission.COMPONENT,
                                    self.trigger_ability_req,
