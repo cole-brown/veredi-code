@@ -10,7 +10,7 @@ Record can have multiple documents, like 'metadata' and 'system.definition'.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (Any, Iterable, Mapping, Dict)
+from typing import Any, Iterable, Mapping, Dict, List
 from veredi.base.null import Null, Nullable
 
 from collections import abc
@@ -19,6 +19,7 @@ import enum
 from veredi.logger import log
 
 from veredi.base import vstring
+from veredi.base                    import dotted
 from veredi.data.config.hierarchy import Hierarchy
 from .dict import DataDict, DDKey
 
@@ -58,6 +59,8 @@ class Definition(abc.MutableMapping):
     The dictionary interface we follow is for interacting with this 'main'
     definitions doc.
     '''
+
+    ALIAS = 'alias'
 
     # ------------------------------
     # Initialization
@@ -107,6 +110,18 @@ class Definition(abc.MutableMapping):
         self._documents[doc_type] = DataDict(doc)
 
     # ------------------------------
+    # System's Set-Up
+    # ------------------------------
+    def configure(self, primary_key: str) -> None:
+        '''
+        Configure this definition for the system's use.
+
+        `primary_key` should be whatever the system cares about most.
+        E.g. 'skill' for SkillSystem.
+        '''
+        self._key_prime = primary_key
+
+    # ------------------------------
     # Helpers
     # ------------------------------
 
@@ -124,6 +139,65 @@ class Definition(abc.MutableMapping):
         Returns our 'main' document - the definitions.
         '''
         return self._documents[self._main]
+
+    def exists(self, check: str) -> bool:
+        '''
+        Checks for `input` in main document under `self._key_prime`.
+        Also checks for `input` in main document under 'alias'.
+        '''
+        primary = (check in self[self._key_prime])
+
+        # if alias key exists, also check there
+        alias   = (self.ALIAS in self._skill_defs
+                   and check in self[self.ALIAS])
+
+        return primary or alias
+
+    def append_default(self, names: List[str]) -> None:
+        '''
+        Appends default key to names list.
+        '''
+        names.append(self['default']['key'])
+
+    def unalias(self, names: List[str]) -> List[str]:
+        '''
+        Converts any aliases into their canonical names.
+
+        Returns list of canonical names.
+        '''
+        canon = []
+        for name in names:
+            unaliased = self.get(self.ALIAS, Null()).get(name, None)
+            canon.append(unaliased if unaliased else name)
+
+    def canonical(self, string: str) -> Nullable[str]:
+        '''
+        Takes `string` and tries to normalize it to canonical value.
+        e.g.:
+          'strength' -> 'strength.score'
+          'Strength' -> 'strength.score'
+          'str.mod' -> 'strength.modifier'
+        '''
+        names = dotted.split(string)
+
+        # Is the first part even a thing?
+        if not names or not names[0]:
+            return Null()
+        else:
+            check = names[0]
+            # Is the first part even our's?
+            if not self.exists(check):
+                return Null()
+            # else, it's a valid skill name/alias.
+
+        # TODO: could also check for final element being an expected leaf name?
+        if len(names) < 2:
+            self.append_default(names)
+
+        # And we're finally ready to canonicalize the names and
+        # return the string.
+        canon = self.unalias(names)
+        return dotted.join(*canon)
 
     # ------------------------------
     # abc.MutableMapping

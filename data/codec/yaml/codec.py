@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     from veredi.base.context import VerediContext
     from veredi.data.config.context import ConfigContext
 
-
 import yaml
 
 from veredi.logger import log
@@ -87,8 +86,9 @@ class YamlCodec(BaseCodec):
         Inject our repository data and our load data into the context.
         In the case of file repositories, include the file path.
         '''
+        meta, _ = self.background
         context[str(background.Name.CODEC)] = {
-            'meta': background.data.codec,
+            'meta': meta,
         }
         return context
 
@@ -188,6 +188,9 @@ class YamlCodec(BaseCodec):
         data = None
         try:
             data = yaml.safe_load(stream)
+            # TODO [2020-07-04]: may need to evaluate this in some way to get
+            # it past its lazy loading... I want to catch any yaml exceptions
+            # here and not let them infect unrelated code.
         except yaml.YAMLError as error:
             data = None
             raise log.exception(
@@ -219,16 +222,22 @@ class YamlCodec(BaseCodec):
         data = None
         try:
             data = yaml.safe_load_all(stream)
+            data = self._finish_load(data)
             # print(f"{self.__class__.__name__}.decode_all: data = {data}")
         except yaml.YAMLError as error:
             data = None
             raise log.exception(
                 error,
                 exceptions.LoadError,
-                'YAML failed while loading all the data. {}',
+                'YAML failed while loading all the data.',
                 context=input_context) from error
 
-        # safe_load_all() returns a generator. We don't want a generator... We
-        # need to get the data out of the stream before the stream goes bye
-        # bye, so turn it into a list.
+        return data
+
+    def _finish_load(self, data: Any) -> None:
+        '''
+        safe_load_all() returns a generator. We don't want a generator... We
+        need to get the data out of the stream before the stream goes bye
+        bye, so turn it into a list.
+        '''
         return list(data)

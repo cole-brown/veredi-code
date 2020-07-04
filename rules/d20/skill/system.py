@@ -23,7 +23,8 @@ That is the bardic/rougish homeworld.
 # Typing
 # ---
 from typing import (TYPE_CHECKING,
-                    Optional, Set, Type, Union)
+                    Optional, Union, Type, Set, Tuple)
+from veredi.base.null import Null, Nullable
 if TYPE_CHECKING:
     from decimal import Decimal
     from veredi.base.context     import VerediContext
@@ -35,9 +36,11 @@ if TYPE_CHECKING:
 # ---
 from veredi.logger                  import log
 from veredi.base.const              import VerediHealth
+from veredi.base                    import dotted
 from veredi.data                    import background
 from veredi.data.config.registry    import register
 from veredi.data.codec.adapter      import definition
+from veredi.data.milieu             import ValueMilieu
 
 # Game / ECS Stuff
 from veredi.game.ecs.event          import EventManager
@@ -48,7 +51,7 @@ from veredi.game.ecs.entity         import EntityManager
 from veredi.game.ecs.const          import (SystemTick,
                                             SystemPriority)
 
-from veredi.game.ecs.base.identity  import ComponentId
+from veredi.game.ecs.base.identity  import ComponentId, EntityId
 from veredi.game.ecs.base.system    import System
 from veredi.game.ecs.base.component import Component
 
@@ -59,6 +62,8 @@ from veredi.input.command.reg       import (CommandRegistrationBroadcast,
                                             CommandArgType,
                                             CommandStatus)
 from veredi.math.parser             import MathTree
+from veredi.math.system             import MathSystem
+from veredi.math.event              import MathOutputEvent
 from veredi.input.context           import InputContext
 
 # Skill-Related Events & Components
@@ -70,6 +75,10 @@ from .component                     import SkillComponent
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+# §-TODO-§ [2020-07-04]: Make this, AbilitySystem, CombatSystem into subclasses
+# of a new base class RuleSystem? Put the definition stuff in there?
+# Also the 'fill' stuff - or all the stuff in the 'Data Processing' section.
 
 
 # -----------------------------------------------------------------------------
@@ -178,7 +187,7 @@ class SkillSystem(System):
                                            self.dotted,
                                            'skill',
                                            CommandPermission.COMPONENT,
-                                           self.trigger_skill_req,
+                                           self.command_skill,
                                            description='roll a skill check')
         skill_check.set_permission_components(SkillComponent)
         skill_check.add_arg('skill name', CommandArgType.VARIABLE)
@@ -187,10 +196,10 @@ class SkillSystem(System):
 
         self._event_notify(skill_check)
 
-    def trigger_skill_req(self,
-                          math: MathTree,
-                          context: Optional[InputContext] = None
-                          ) -> CommandStatus:
+    def command_skill(self,
+                      math: MathTree,
+                      context: Optional[InputContext] = None
+                      ) -> CommandStatus:
         '''
         Skill Check command happened. Package it up into a SkillRequest event
         for us to process later.
@@ -201,23 +210,37 @@ class SkillSystem(System):
             return CommandStatus.system_health(context)
 
         eid = InputContext.source_id(context)
-        entity = self._manager.entity.get(eid)
-        component = entity.get(SkillComponent)
+        entity, component = self._log_get_both(
+            eid,
+            SkillComponent,
+            context=context,
+            preface="Dropping 'skill' command - ")
         if not entity or not component:
-            log.info("Dropping 'skill' command - no entity or comp "
-                     "for its id: {}",
-                     eid,
-                     context=context)
             return CommandStatus.does_not_exist(eid,
                                                 entity,
                                                 component,
                                                 SkillComponent,
                                                 context)
 
-        # Get skill totals for each var that's a skill name.
-        for var in math.each_var():
-            if self.is_skill(var.name):
-                var.value = component.total(var.name)
+        # Ok... now just bundle up off to MathSystem's care.
+        self._manager.system.get(MathSystem).command(
+            math,
+            self._skill_defs.canonical,
+            self._query,
+            MathOutputEvent(entity.id, entity.type_id,
+                            context,
+                            math),
+            context)
+
+        # # Get skill totals for each var that's a skill name.
+        # found = False
+        # for var in math.each_var():
+        #     if self.is_skill(var.name):
+        #         found = True
+        #         var.value = component.total(var.name)
+
+        # if not found:
+        #     return CommandStatus.no_claimed_inputs('skill names')
 
         return CommandStatus.successful(context)
 
@@ -305,21 +328,99 @@ class SkillSystem(System):
         return self._health_check()
 
     # -------------------------------------------------------------------------
-    # Skill Names
+    # Data Processing
     # -------------------------------------------------------------------------
 
-    def is_skill(self, name: str) -> bool:
+    def _query(self,
+               skill: str,
+               context: 'VerediContext') -> Nullable[ValueMilieu]:
         '''
-        Checks our list of known skills and returns true if this is probably a
-        skill we think.
+        Takes `skill` (should be canonical already) string and finds
+        value/result to fill in from entity's SkillComponent.
 
-        `name` is expected to be lowercased.
+        Callers should do checks/logs on entity and component if they want more
+        info about missing ent/comp. This just uses Null's cascade to safely
+        skip those checks.
         '''
-        # If we have a skill name that `name` starts with, then yes.
-        # e.g.
-        #   'perception' starts with 'perception'
-        #   'knowledge (socks)' starts with 'knowledge'
-        #
-        # But with Definition/DataDict and their KeyGroups, that's a bit
-        # easier to do:
-        return name in self._skill_defs
+        eid = InputContext.source_id(context)
+
+        # We'll use Null(). Callers should do checks/logs if they want more
+        # info about missing ent/comp.
+        entity, component = self._log_get_both(eid,
+                                               SkillComponent,
+                                               context=context)
+        if not entity or not component:
+            return Null()
+
+        result = self._query_value(component, skill)
+        log.debug("'{}' result is: {}",
+                  skill, result,
+                  context=context)
+
+        return result
+
+    def _query_value(self,
+                     component: SkillComponent,
+                     skill: Union[str, Tuple[str, str]]
+                     ) -> ValueMilieu:
+        '''
+        `skill` string must be canonicalized. We'll get it from
+        the component.
+
+        Returns component query result. Also returns the canonicalized
+        `skill` str, in case you need to call back into here for e.g.:
+          _query_value(component, 'str.mod')
+            -> '(${this.score} - 10) // 2', 'strength.modifier'
+          _query_value(component,
+                       ('this.score', 'strength.modifier'))
+            -> (20, 'strength.score')
+        '''
+        if isinstance(skill, tuple):
+            return self._query_this(component, *skill)
+
+        skill = self._skill_defs.canonical(skill)
+        return self._query_split(component, *dotted.split(skill))
+
+    def _query_this(self,
+                    component: SkillComponent,
+                    skill: str,
+                    milieu: str) -> ValueMilieu:
+        '''
+        Canonicalizes `skill` string, then gets it from the component using
+        'milieu' if more information about where the `skill` string is from
+        is needed. E.g.:
+
+          _query_value(component,
+                      'this.score',
+                      'strength.modifier')
+            -> (20, 'strength.score')
+
+        In that case, 'this' needs to be turned into 'strength' and the
+        `milieu` is needed for that to happen.
+
+        ...I would have called it 'context' but that's already in heavy use, so
+        'milieu'.
+          "The physical or social setting in which something occurs
+          or develops."
+        Close enough?
+        '''
+        skill = self.canonical(skill)
+        split_name = dotted.this(skill, milieu)
+        return self._query_split(component, *split_name)
+
+    def _query_split(self,
+                     component: SkillComponent,
+                     *skill: str) -> ValueMilieu:
+        '''
+        `skill` args must have been canonicalized.
+
+        Gets `skill` from the component. Returns value and dotted
+        skill string. E.g.:
+
+          _query_split(component,
+                       'strength',
+                       'score')
+            -> (20, 'strength.score')
+        '''
+        return ValueMilieu(component.query(*skill),
+                           dotted.join(*skill))

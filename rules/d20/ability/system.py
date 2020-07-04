@@ -122,6 +122,7 @@ class AbilitySystem(System):
         self._ability_defs = definition.Definition(
             definition.DocType.DEF_SYSTEM,
             config.definition(self.dotted, context))
+        self._ability_defs.configure('skill')
 
     @property
     def dotted(self) -> str:
@@ -176,7 +177,7 @@ class AbilitySystem(System):
                                    self.dotted,
                                    'ability',
                                    CommandPermission.COMPONENT,
-                                   self.trigger_ability_req,
+                                   self.command_ability,
                                    description='Ability check.')
         cmd.set_permission_components(AbilityComponent)
         cmd.add_arg('ability name', CommandArgType.VARIABLE)
@@ -200,10 +201,10 @@ class AbilitySystem(System):
         # ---
         self._event_notify(cmd)
 
-    def trigger_ability_req(self,
-                            math: MathTree,
-                            context: Optional[InputContext] = None
-                            ) -> CommandStatus:
+    def command_ability(self,
+                        math: MathTree,
+                        context: Optional[InputContext] = None
+                        ) -> CommandStatus:
         '''
         Turn command into Ability Request event for us to process later.
         '''

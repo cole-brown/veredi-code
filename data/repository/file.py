@@ -220,9 +220,10 @@ class FileBareRepository(base.BaseRepository):
         Inject our repository data and our load data into the context.
         In the case of file repositories, include the file path.
         '''
+        meta, _ = self.background
         context[str(background.Name.REPO)] = {
-            'meta': background.data.repository,
-            'path': load_path,
+            'meta': meta,
+            'path': str(load_path),
         }
         return context
 
@@ -451,8 +452,9 @@ class FileTreeRepository(base.BaseRepository):
         Inject our repository data and our load data into the context.
         In the case of file repositories, include the file path.
         '''
+        meta, _ = self.background
         context[str(background.Name.REPO)] = {
-            'meta': background.data.repository,
+            'meta': meta,
             'path': load_path,
         }
         return context

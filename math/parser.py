@@ -326,6 +326,48 @@ class MathTree(ABC):
         '''
         return self.walk(self, self._predicate_variable_nodes)
 
+    def replace(self,
+                existing:    'MathTree',
+                replacement: 'MathTree') -> bool:
+        '''
+        Find `existing` node in the tree and replace it with `replacement`.
+
+        Returns True if found and replaced exisiting. False otherwise.
+        '''
+        replaced = False
+        visited = set()
+        # FIFO queue of nodes to be procecssed still
+        queue = [self]
+
+        # ---
+        # Walk tree from root for processing nodes into queue.
+        # ---
+        while queue and not replaced:
+            subtree = queue.pop()
+            # Does this node look familiar? Should we bother with it?
+            # (Are there even math trees with loops or clones?)
+            if id(subtree) in visited:
+                continue
+
+            # Is this your guy's mom?
+            if subtree._children:
+                for i in range(len(subtree._children)):
+                    if existing is not subtree._children[i]:
+                        continue
+                    # Found it! Replace it and done.
+                    subtree._children[i] = replacement
+                    replaced = True
+                    break
+
+            # Process our subtree.
+            #   - Allow all nodes in tree, regardless of type.
+            visited.add(id(subtree))
+            #   - Delve down into any children.
+            if subtree._children:
+                queue.extend(subtree._children)
+
+        return replaced
+
     # -------------------------------------------------------------------------
     # Single-Line Math/Roll Expression String
     # -------------------------------------------------------------------------

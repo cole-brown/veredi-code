@@ -271,7 +271,7 @@ class CombatSystem(System):
         '''
         # Doctor checkup.
         if not self._health_ok_tick(SystemTick.TIME):
-            return
+            return self.health
 
         tick = SystemTick.TIME
         print("TODO: THIS TICK!", tick)
@@ -323,7 +323,7 @@ class CombatSystem(System):
         '''
         # Doctor checkup.
         if not self._health_ok_tick(SystemTick.PRE):
-            return
+            return self.health
 
         tick = SystemTick.PRE
         print("TODO: THIS TICK!", tick)
@@ -340,7 +340,7 @@ class CombatSystem(System):
         '''
         # Doctor checkup.
         if not self._health_ok_tick(SystemTick.STANDARD):
-            return
+            return self.health
 
         tick = SystemTick.STANDARD
         print("TODO: THIS TICK!", tick)
@@ -358,7 +358,7 @@ class CombatSystem(System):
         '''
         # Doctor checkup.
         if not self._health_ok_tick(SystemTick.POST):
-            return
+            return self.health
 
         tick = SystemTick.POST
         print("TODO: THIS TICK!", tick)

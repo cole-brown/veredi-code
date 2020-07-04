@@ -179,16 +179,21 @@ class BestTimeFmt(logging.Formatter):
 
 
 def brace_message(fmt: str,
-                  *args: Any, **kwargs: Mapping[str, Any]) -> str:
+                  *args: Any,
+                  context: Optional['VerediContext'] = None,
+                  **kwargs: Mapping[str, Any]) -> str:
     '''
     Pass-through `fmt` if no args/kwargs.
 
     Otherwise use '.format()' brace formatting on `fmt` string.
     '''
     # print(f"bm:: fmt: {fmt}, args: {args}, kwa: {kwargs}")
+    ctx_msg = ''
+    if context:
+        ctx_msg = f' context: {context}'
     if not args and not kwargs:
-        return fmt
-    return fmt.format(*args, **kwargs)
+        return fmt + ctx_msg
+    return fmt.format(*args, **kwargs) + ctx_msg
 
 
 def pop_stack_level(kwargs: Mapping[str, Any]) -> int:
@@ -329,7 +334,7 @@ def exception(err: Exception,
         kwargs['err_type'] = log_msg_err_type
         kwargs['err_str'] = log_msg_err_str
 
-    log_msg = brace_message(msg, *args, **kwargs),
+    log_msg = brace_message(msg, *args, context=context, **kwargs)
     logger.error(log_msg,
                  stacklevel=stacklevel)
 
