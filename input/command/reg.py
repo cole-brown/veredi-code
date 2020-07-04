@@ -13,7 +13,7 @@ from veredi.input.command.reg import *
 
 # Only import what's needed.
 from .event      import CommandRegistrationBroadcast, CommandRegisterReply
-from .exceptions import CommandRegisterError
+from .exceptions import CommandRegisterError, CommandExecutionError
 from .const      import CommandPermission
 from .args       import CommandArgType, CommandStatus, CommandInvoke
 
@@ -34,6 +34,7 @@ __all__ = [
     # ---
     # Exceptions
     CommandRegisterError,
+    CommandExecutionError,
     # ---
 
     # ---

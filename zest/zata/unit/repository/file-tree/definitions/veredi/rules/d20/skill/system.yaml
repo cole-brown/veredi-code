@@ -18,6 +18,28 @@ meta:
   component:
     registry: veredi.rules.d20.skill.component
 
+
+default:
+  # If asked for something like 'swim', default to giving back 'swim.total'.
+  key: total
+
+  # If asked for skill.*.total, and entity data doesn't have it, use this:
+  skill:
+    any:  # TODO: wildcard tag of some sort
+      total: ${this.ranks} + $if(${this.class}, 3, 0) + ${ability.dexterity.modifier}
+
+
+# alias:
+#   str: strength
+#   dex: dexterity
+#   con: constitution
+#   int: intelligence
+#   wis: wisdom
+#   cha: charisma
+#
+#   mod: modifier
+
+
 # Define all known skills. The only thing that allows users outside these bounds
 # are these lines in the grouped skills:
 #    !meta user.defined: allow

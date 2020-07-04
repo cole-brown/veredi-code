@@ -173,6 +173,13 @@ class CommandFailure(enum.Flag):
     Could not parse input into parameters.
     '''
 
+    INPUT_LINK = enum.auto()
+    '''
+    Could not link/replace anything in input with expected variable types.
+
+    E.g. skill command, but no skill names were found in it.
+    '''
+
     def has(self, flag):
         '''
         True if `flag` bit is set in this enum value.

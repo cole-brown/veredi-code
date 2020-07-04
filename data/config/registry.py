@@ -184,8 +184,7 @@ def register(*args: str) -> Callable[..., Type[Any]]:
         # -1 as we've got our config name already from that final args entry
         for i in range(length - 1):
             registration = registration.setdefault(args[i], {})
-            rj_def = {} if i < (length - 2) else []
-            reggie_jr = reggie_jr.setdefault(args[i], rj_def)
+            reggie_jr = reggie_jr.setdefault(args[i], {})
 
         # Helpful messages - but registering either way.
         if config_name in registration:
@@ -204,7 +203,7 @@ def register(*args: str) -> Callable[..., Type[Any]]:
         # Set as registered cls/func.
         registration[config_name] = cls_or_func
         # Save as a thing that has been registered at this level.
-        reggie_jr.append(config_name)
+        reggie_jr.setdefault('.', []).append(config_name)
 
         # Finally, add the 'dotted' property if applicable.
         dotted_name = dotted.join(*args)

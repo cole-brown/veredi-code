@@ -286,6 +286,27 @@ class CommandStatus:
                              internal_reason=internal,
                              flags=flags)
 
+    @staticmethod
+    def no_claimed_inputs(input_type_name: str,
+                          context:         InputContext)  -> 'CommandStatus':
+        '''
+        Creates a CommandStatus object for a command that didn't end up having
+        any expected variables in its inputs.
+
+        E.g. skill command but no skill names were present.
+        '''
+        flags = CommandFailure.INPUT_LINK
+
+        reason = ('Could not find any {input_type_name} variables/names '
+                  'in the input.')
+        internal = 'No {input_type_name} found for replacement in input.'
+
+        return CommandStatus(False,
+                             InputContext.input(context),
+                             user_reason=reason,
+                             internal_reason=internal,
+                             flags=flags)
+
     # ---
     # FAILURES - Parsing, Input, Permissions
     # ---

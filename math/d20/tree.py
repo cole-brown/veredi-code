@@ -367,8 +367,11 @@ class Variable(Leaf):
         )
 
     def _eval(self):
-        # TODO [2020-04-23]: Dunno where this will eval from...
-        self._value = 0
+        '''
+        Variable should have had its value replaced by whatever system or thing
+        knows the value of its variable. So we have nothing to do for eval.
+        '''
+        pass
 
     def _expr_str(self, options=None):
         '''String for this node's math expression representation.
@@ -468,9 +471,9 @@ class Branch(Node):
         return ''.join(self._pretty(0, indent_str))
 
     def _eval(self):
-        '''Branches probably have same evaluation: Do something to children and
-        store result.
-
+        '''
+        Branches probably have same evaluation: Do something to children and
+        store accumulated result.
         '''
         self._value = reduce(self._act_on_children, self.children)
 

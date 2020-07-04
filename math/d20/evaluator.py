@@ -28,6 +28,7 @@ from .const import FormatOptions
 # Veredi d20 tree -> evaluate all nodes -> Veredi d20 tree w/ values/total
 # -----------------------------------------------------------------------------
 
+# §-TODO-§ [2020-07-04]: delete this; use math.evaluator.Evaluator.
 class Evaluator:
     @staticmethod
     def _walk(root):

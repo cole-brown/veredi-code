@@ -218,7 +218,8 @@ class System(ABC):
     def _log_get_entity(self,
                         entity_id: 'EntityId',
                         event:     NullNoneOr['Event']         = None,
-                        context:   NullNoneOr['VerediContext'] = None
+                        context:   NullNoneOr['VerediContext'] = None,
+                        preface:   Optional[str]               = None
                         ) -> Nullable['Entity']:
         '''
         Checks to see if entity exists.
@@ -229,9 +230,9 @@ class System(ABC):
         entity = self._manager.entity.get(entity_id)
         if not entity:
             # Entity disappeared, and that's ok.
-            preface = ''
+            preface = preface or ''
             if event:
-                preface = f"Dropping event {event} - "
+                preface = preface or f"Dropping event {event} - "
                 if not context:
                     context = event.context
             # Entity disappeared, and that's ok.
@@ -248,10 +249,15 @@ class System(ABC):
                            entity_id: 'EntityId',
                            comp_type: Type['Component'],
                            event:     NullNoneOr['Event']         = None,
-                           context:   NullNoneOr['VerediContext'] = None
+                           context:   NullNoneOr['VerediContext'] = None,
+                           preface:   Optional[str]               = None
                            ) -> Nullable['Component']:
         '''
         Checks to see if entity exists and has a component of the correct type.
+
+        Automatically creates preface for events: 'Dropping event {event} - '
+        But if `preface` is not None, it will use that. So for commands, e.g.:
+          'Dropping command {command_name} - ' could be a good preface.
 
         Returns the entity's component if so.
         Logs at INFO level and returns Null if not.
@@ -261,9 +267,9 @@ class System(ABC):
 
         component = entity.get(comp_type)
         if not component:
-            preface = ''
+            preface = preface or ''
             if event:
-                preface = f"Dropping event {event} - "
+                preface = preface or f"Dropping event {event} - "
                 if not context:
                     context = event.context
             # Component disappeared, and that's ok.
@@ -282,7 +288,8 @@ class System(ABC):
                       entity_id: 'EntityId',
                       comp_type: Type['Component'],
                       event:     NullNoneOr['Event']         = None,
-                      context:   NullNoneOr['VerediContext'] = None) -> bool:
+                      context:   NullNoneOr['VerediContext'] = None,
+                      preface:   Optional[str]               = None) -> bool:
         '''
         Checks to see if entity exists and has a component of the correct type.
 
@@ -297,7 +304,8 @@ class System(ABC):
         entity = self._manager.entity.get(entity_id)
         component = self._log_get_component(entity_id,
                                             comp_type,
-                                            event=event)
+                                            event=event,
+                                            preface=preface)
         # entity or Null(), and
         # component or Null(), so...
         return (entity, component)

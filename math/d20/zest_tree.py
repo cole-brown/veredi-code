@@ -425,15 +425,25 @@ class Test_Variable(unittest.TestCase):
         self.assertEqual(self.name0, self.var0.name)
         self.assertEqual(self.name1, self.var1.name)
 
+        # Variables get their values filled in from outside systems in normal
+        # cases. But this is a test and there is no outside, so... pretend.
+        outside0 = 99
+        outside1 = 999
+        self.var0.value = outside0
+        self.var1.value = outside1
+        self.assertEqual(outside0, self.var0.value)
+        self.assertEqual(outside1, self.var1.value)
+        self.assertEqual(outside0, self.var0)
+        self.assertEqual(outside1, self.var1)
+
         self.var0._eval()
         self.var1.eval()
 
-        # TODO: They should have their values - the actual values. But we
-        # haven't implemented that yet and only set to 0 on eval.
-        self.assertEqual(0, self.var0.value)
-        self.assertEqual(0, self.var1.value)
-        self.assertEqual(0, self.var0)
-        self.assertEqual(0, self.var1)
+        # Values should still be set; eval should do nothing
+        self.assertEqual(outside0, self.var0.value)
+        self.assertEqual(outside1, self.var1.value)
+        self.assertEqual(outside0, self.var0)
+        self.assertEqual(outside1, self.var1)
         self.assertNotEqual(self.value0, self.var0.value)
         self.assertNotEqual(self.value1, self.var1.value)
         self.assertNotEqual(self.value0, self.var0)
