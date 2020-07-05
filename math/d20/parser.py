@@ -13,6 +13,8 @@ Some code used from Lark's calc example:
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional, Any, Type, NewType, Protocol, Iterable
+
 import lark  # Lark, Transformer, Visitor, v_args
 
 from veredi.logger               import log
@@ -117,11 +119,16 @@ class Parser:
     parser = lark.Lark(grammar)
 
     @classmethod
-    def parse(cls, text):
-        return cls.parser.parse(text)
+    def parse(klass: Type['Parser'], text: str) -> tree.Node:
+        '''
+        Parse input `text` using Lark EBNF grammar. Fill in resultant tree with
+        milieu and return the tree.
+        '''
+        root = klass.parser.parse(text)
+        return root
 
     @classmethod
-    def format(cls, parsed):
+    def format(klass: Type['Parser'], parsed: lark.Tree) -> tree.Node:
         return parsed.pretty()
 
 
@@ -145,8 +152,9 @@ class Transformer(lark.Transformer):
     # Constructor
     # -------------------------------------------------------------------------
 
-    def __init__(self):
+    def __init__(self, milieu: Optional[str] = None) -> None:
         self.vars = {}
+        self.milieu = milieu
 
     # -------------------------------------------------------------------------
     # Leaves
@@ -158,39 +166,39 @@ class Transformer(lark.Transformer):
     # Variables
     # ---
     @lark.v_args(inline=True)
-    def assign_var(self, name, value):
+    def assign_var(self, name: str, value: tree.Node) -> tree.Node:
         self.vars[name] = value
 
         return value
 
     @lark.v_args(inline=True)
-    def var(self, name):
+    def var(self, name: str) -> tree.Variable:
         # name is Token class
         if name in self.vars:
             return self.vars[name]
 
-        return tree.Variable(name)
+        return tree.Variable(name, self.milieu)
 
     # ---
     # Dice
     # ---
     @lark.v_args(inline=True)
-    def die(self, faces):
+    def die(self, faces: str) -> tree.Dice:
         return tree.Dice(1, int(faces))
 
     @lark.v_args(inline=True)
-    def dice(self, amount, faces):
+    def dice(self, amount: str, faces: str) -> tree.Dice:
         return tree.Dice(int(amount), int(faces))
 
     # ---
     # Constants
     # ---
     @lark.v_args(inline=True)
-    def int(self, value):
+    def int(self, value: str) -> tree.Constant:
         return tree.Constant(int(value))
 
     @lark.v_args(inline=True)
-    def number(self, value):
+    def number(self, value: str) -> tree.Constant:
         return tree.Constant(float(value))
 
     # -------------------------------------------------------------------------
@@ -200,12 +208,12 @@ class Transformer(lark.Transformer):
     # Replace Unary nodes with their leaf (acted on by the unary operator).
 
     @lark.v_args(inline=True)
-    def neg(self, value):
+    def neg(self, value: tree.Node) -> tree.Node:
         value.neg()
         return value
 
     @lark.v_args(inline=True)
-    def pos(self, value):
+    def pos(self, value: tree.Node) -> tree.Node:
         value.pos()
         return value
 
@@ -215,22 +223,22 @@ class Transformer(lark.Transformer):
 
     # Replace these branches with our branch nodes.
 
-    def add(self, children):
+    def add(self, children: Iterable[tree.Node]) -> tree.OperatorAdd:
         return tree.OperatorAdd(children)
 
-    def sub(self, children):
+    def sub(self, children: Iterable[tree.Node]) -> tree.OperatorSub:
         return tree.OperatorSub(children)
 
-    def mul(self, children):
+    def mul(self, children: Iterable[tree.Node]) -> tree.OperatorMult:
         return tree.OperatorMult(children)
 
-    def div(self, children):
+    def div(self, children: Iterable[tree.Node]) -> tree.OperatorDiv:
         return tree.OperatorDiv(children)
 
-    def mod(self, children):
+    def mod(self, children: Iterable[tree.Node]) -> tree.OperatorMod:
         return tree.OperatorMod(children)
 
-    def pow(self, children):
+    def pow(self, children: Iterable[tree.Node]) -> tree.OperatorPow:
         return tree.OperatorPow(children)
 
 
@@ -249,7 +257,9 @@ class D20Parser(MathParser):
     # Nothing to do for __init__/_configure. We don't even need an instance of
     # ourselves to do anything right now, though that could change.
 
-    def parse(self, string: str) -> MathTree:
+    def parse(self,
+              string: str,
+              milieu: Optional[str] = None) -> Optional['MathTree']:
         '''
         Parse input `string` and return the resultant MathTree, or None if
         parsing/transforming failed at some point.
@@ -257,18 +267,22 @@ class D20Parser(MathParser):
         log.debug("parse input: '{}'", string)
 
         syntax_tree = Parser.parse(string)
-        log.debug("Parser (lark) output: \n{}",
-                  Parser.format(syntax_tree))
+        if log.will_output(log.Level.DEBUG):
+            # Dont format tree into string unless we're actually logging it.
+            log.debug("Parser (lark) output: \n{}",
+                      Parser.format(syntax_tree))
 
-        # §-TODO-§ [2020-06-13]: Do we want transformer to hold onto vars
+        # TODO [2020-06-13]: Do we want transformer to hold onto vars
         # like it does or try to make a static class like Parser?
 
         # Make a new transformer for each parse run as it holds on to
         # var names?
-        xform = Transformer()
+        xform = Transformer(milieu)
         math_tree = xform.transform(syntax_tree)
-        log.debug("Math Tree: \n{}",
-                  math_tree.pretty())
+        if log.will_output(log.Level.DEBUG):
+            # Dont format tree into string unless we're actually logging it.
+            log.debug("Math Tree: \n{}",
+                      math_tree.pretty())
 
         # Return parsed, transformed, un-evaluated math tree.
         return math_tree

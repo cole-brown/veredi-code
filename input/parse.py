@@ -8,6 +8,8 @@ For converting user input into Veredi's math/roll syntax trees.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional
+
 from veredi.logger          import log
 
 from veredi.data            import background
@@ -74,7 +76,7 @@ class Mather:
                                                'parser',
                                                'math')
 
-    def parse(self, string: str) -> MathTree:
+    def parse(self, string: str, milieu: Optional[str] = None) -> MathTree:
         '''
         Parse input and transform into Veredi Math Tree.
         '''

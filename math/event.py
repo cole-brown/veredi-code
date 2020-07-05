@@ -9,15 +9,13 @@ Events for Math, Maths, Mathing, Mathers, and Jeff.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, NewType
+from typing import Union, NewType
 import enum
 from decimal import Decimal
 
 from veredi.base.context           import VerediContext
 from veredi.game.ecs.base.identity import MonotonicId
 from veredi.game.ecs.event         import Event
-
-from veredi.input.context import InputContext
 
 from .parser import MathTree
 
@@ -27,7 +25,7 @@ from .parser import MathTree
 # -----------------------------------------------------------------------------
 
 MathResultType = NewType('MathResult', Union[int, float, Decimal])
-MathResultTuple = (int, float, Decimal)
+MathResult = (int, float, Decimal)
 
 
 # -----------------------------------------------------------------------------
@@ -44,21 +42,21 @@ class MathEvent(Event):
                  id:           Union[int, MonotonicId],
                  type:         Union[int, enum.Enum],
                  context:      VerediContext,
-                 tree:         MathTree) -> None:
-        self.set(id, type, context, tree)
+                 root:         MathTree) -> None:
+        self.set(id, type, context, root)
 
     def set(self,
             id:           Union[int, MonotonicId],
             type:         Union[int, enum.Enum],
             context:      VerediContext,
-            tree:         MathTree) -> None:
+            root:         MathTree) -> None:
         super().set(id, type, context)
-        self.tree = tree
+        self.root = root
         self.total = None
 
     def reset(self) -> None:
         super().reset()
-        self.tree = None
+        self.root = None
         self.total = None
 
     # -------------------------------------------------------------------------
@@ -66,13 +64,13 @@ class MathEvent(Event):
     # -------------------------------------------------------------------------
 
     def finalize(self,
-                 tree: MathTree,
+                 root: MathTree,
                  total: MathResultType) -> None:
         '''
         Get this event ready for publishing.
         '''
         super().reset()
-        self.tree = tree
+        self.root = root
         self.total = total
 
     # -------------------------------------------------------------------------
@@ -84,10 +82,22 @@ class MathEvent(Event):
 
 
 # -----------------------------------------------------------------------------
+# A Result!
+# -----------------------------------------------------------------------------
+
+class MathResult(MathEvent):
+    '''
+    Subclass off this or another MathEvent subclass to work with MathSystem
+    on mathing stuff.
+    '''
+    pass
+
+
+# -----------------------------------------------------------------------------
 # Output to Users
 # -----------------------------------------------------------------------------
 
-class MathOutputEvent(MathEvent):
+class MathOutputEvent(MathResult):  # TODO: MathResult /and/ OutputEvent?
     '''
     This class is for directing a finalized math result towards the
     command/event output flow.

@@ -119,15 +119,29 @@ class MathQueue:
     def __init__(self) -> None:
         self._queue = []
 
+    def push_into(self,
+                  output_event: Event,
+                  root:         MathTree,
+                  context:      InputContext,
+                  canonicalize: Optional[MathVarCanonicalize] = None,
+                  fill:         Optional[MathVarFill]         = None) -> None:
+        self._queue.append(MathEntry(root, context, canonicalize, fill, event))
+
     def push(self,
-             root:         MathTree,
-             context:      InputContext,
-             canonicalize: Optional[MathVarCanonicalize] = None,
-             fill:         Optional[MathVarFill]         = None) -> None:
-        self._queue.add(MathEntry(root, context))
+             entry: MathEntry) -> None:
+        self._queue.append(entry)
 
     def pop(self):
         return self._queue.pop()
+
+    def __len__(self):
+        return len(self._queue)
+
+    def __str__(self):
+        return f"MathQueue({self._queue})"
+
+    def __repr__(self):
+        return f"<MathQueue({self._queue})>"
 
 
 @register('veredi', 'math', 'system')
@@ -279,62 +293,83 @@ class MathSystem(System):
                                    context=context):
             return CommandStatus.system_health(context)
 
-        # Get skill totals for each var that's a skill name.
+        entry = MathEntry(input,
+                          context,
+                          canonicalize_fn,
+                          fill_fn,
+                          result_event)
+        failed_on = self.resolve(entry)
+        if failed_on:
+            return CommandStatus.parsing(
+                failed_on,
+                f"Failed parsing '{failed_on}' into math expression.",
+                f"Failed parsing '{failed_on}' into math expression.")
+        return CommandStatus.successful(entry.context)
+
+    def resolve(self, entry: MathEntry) -> str:
+        '''
+        Resolve vars in this entry; place result back into correct queue.
+        '''
+
+        # Resolve each var.
         resolved = 0
         replace = []
-        for var in input.each_var():
+        for var in entry.root.each_var():
             # If the function can canonicalize this variable's name, we'll
             # assume it's the owner and have it fill it in.
-            canon = canonicalize_fn(var.name)
+            canon = entry.canonicalize(var.name)
             if not canon:
                 continue
 
-            value, milieu = fill_fn(canon, context)
-            if isinstance(value, event.MathResultTuple):
+            value, milieu = entry.fill(canon, entry.context)
+            if isinstance(value, event.MathResult):
                 var.set(value, milieu)
                 resolved += 1
             else:
                 # Parse value as MathTree, replace our node with it.
-                mather = InputContext.math(context)
+                mather = InputContext.math(entry.context)
                 if not mather:
                     error = ("No MathParser found in context; "
                              "cannot process '{value}'.")
                     raise log.exception(AttributeError(error),
                                         CommandExecutionError,
                                         None,
-                                        context=context)
+                                        context=entry.context)
                 replacement = mather.parse(value, milieu)
                 if not replacement:
-                    return CommandStatus.parsing(
-                        value,
-                        f"Failed parsing '{value}' into math expression.",
-                        f"Failed parsing '{value}' into math expression.")
+                    # Return what we failed on.
+                    return value
 
                 # Replace when we're done iterating over tree.
                 replace.append((var, replacement))
 
+        # Replace resolved nodes in tree as needed.
         replaced = 0
         for existing, replacement in replace:
-            if not input.replace(existing, replacement):
+            if not entry.root.replace(existing, replacement):
                 error = ("Failed to replace a math tree node: {existing} "
                          "cannot replace with: {replacement}")
                 raise log.exception(None,
                                     CommandExecutionError,
                                     error,
-                                    context=context)
+                                    context=entry.context)
             replaced += 1
 
+        if log.will_output(log.Level.DEBUG):
+            log.debug("Resolved: {}", resolved)
+            log.debug("Replaced: {}", replaced)
         if not resolved and not replaced:
             # Math has come to steady state... stick in final queue.
-            self._finalize.push(input, context)
+            self._finalize.push(entry)
+            if log.will_output(log.Level.DEBUG):
+                log.debug('Pushed to finalize. len: {}', len(self._finalize))
         else:
             # Math is still wibbly-wobbly.
-            self._recurse.push(input,
-                               context,
-                               canonicalize_fn,
-                               fill_fn)
+            self._recurse.push(entry)
+            if log.will_output(log.Level.DEBUG):
+                log.debug('Pushed to recurse. len: {}', len(self._recurse))
 
-        return CommandStatus.successful(context)
+        return None
 
     # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions
@@ -358,12 +393,14 @@ class MathSystem(System):
         # Do however many we have queued up. Ignore requeues...
         for i in range(len(self._recurse)):
             entry = self._recurse.pop()
-            status = self.command(entry.math,
-                                  entry.canonicalize,
-                                  entry.fill,
-                                  entry.context)
-            if not status:
-                log.warning("TODO: let commander known or something?")
+            failure = self.resolve(entry)
+            if failure:
+                if log.will_output(log.Level.DEBUG):
+                    log.debug('recurse failure:', failure)
+                # §-TODO-§ [2020-07-05]: let someone known or something?
+                # Send out result event as error somehow.
+                log.error("TODO: let someone known or something? failure: {}",
+                          failure)
                 continue
 
         # Do however many we have queued up.
@@ -372,8 +409,9 @@ class MathSystem(System):
             total = None
             try:
                 total = Evaluator.eval(entry.root)
-                log.debug("Evaluated math tree to: {}. tree: \n{}",
-                          total, entry.root)
+                if log.will_output(log.Level.DEBUG):
+                    log.debug("Evaluated math tree to: {}. tree: \n{}",
+                              total, entry.root)
             except ValueError as error:
                 raise log.exception(error,
                                     MathError,
@@ -383,6 +421,11 @@ class MathSystem(System):
             if isinstance(entry.event, event.MathEvent):
                 entry.event.finalize(entry.root, total)
             self._event_notify(entry.event)
+
+        if log.will_output(log.Level.DEBUG):
+            log.debug('Updated.')
+            log.debug('    self._recurse:', self._recurse)
+            log.debug('    self._finalize:', self._finalize)
 
         # Done for this tick.
         return self._health_check()

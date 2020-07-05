@@ -126,13 +126,6 @@ class MathParser(ABC):
 
         Calls _configure(context) after verifying context exists.
         '''
-        if not context:
-            raise log.exception(
-                None,
-                ConfigError,
-                'MathParser requires a context to create/configure '
-                'its parsers.')
-
         self._configure(context)
 
     def _configure(self, context: VerediContext) -> None:
@@ -143,10 +136,15 @@ class MathParser(ABC):
         ...
 
     @abstractmethod
-    def parse(self, string: str) -> Optional['MathTree']:
+    def parse(self,
+              string: str,
+              milieu: Optional[str] = None) -> Optional['MathTree']:
         '''
         Parse input `string` and return the resultant MathTree, or None if
         parsing/transforming failed at some point.
+
+        Optional `milieu` string is a context in the event of any 'this'
+        variables.
         '''
         raise NotImplementedError
 
@@ -259,6 +257,14 @@ class MathTree(ABC):
     # -------------------------------------------------------------------------
 
     @staticmethod
+    def _predicate_setting_allowed(node: 'MathTree') -> bool:
+        '''
+        True if `node` is allowed to set values.
+        That is, if node's type is in `MathTree._SET_VALUE_ALLOWED`.
+        '''
+        return node.type in MathTree._SET_VALUE_ALLOWED
+
+    @staticmethod
     def _predicate_exists(node: 'MathTree') -> bool:
         '''
         Predicate for walk. Returns true if node is Truthy.
@@ -272,8 +278,7 @@ class MathTree(ABC):
         '''
         return bool(node) and node.type.all(NodeType.VARIABLE)
 
-    @staticmethod
-    def walk(root, predicate=None):
+    def walk(self, predicate=None):
         '''
         Generator that walks the tree, yielding each node in
         depth-first manner.
@@ -284,7 +289,7 @@ class MathTree(ABC):
         predicate = predicate or MathTree._predicate_exists
         visited = set()
         # FIFO queue of nodes to be procecssed still
-        queue = [root]
+        queue = [self]
 
         # LIFO stack of nodes that will be evaluated after processing step is
         # completed.
@@ -324,7 +329,7 @@ class MathTree(ABC):
         Generator for walking variables in tree. Yields each variable node it
         comes across.
         '''
-        return self.walk(self, self._predicate_variable_nodes)
+        return self.walk(self._predicate_variable_nodes)
 
     def replace(self,
                 existing:    'MathTree',

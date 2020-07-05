@@ -410,7 +410,7 @@ class System(ABC):
 
     def _health_ok_tick(self,
                         tick: 'SystemTick',
-                        context:  NullNoneOr['VerediContext']) -> bool:
+                        context:  NullNoneOr['VerediContext'] = None) -> bool:
         '''Check health, log if needed, and return True if able to proceed.'''
         if not self._healthy():
             msg = ("Skipping tick {} - our system health "
