@@ -142,7 +142,8 @@ class BaseSystemTest(unittest.TestCase):
 
     def _sub_events_commands(self) -> None:
         '''
-        Subscribes our event_cmd_reg() function to the CommandRegistrationBroadcast.
+        Subscribes our event_cmd_reg() function to the
+        CommandRegistrationBroadcast.
         '''
         self.manager.event.subscribe(CommandRegistrationBroadcast,
                                      self.event_cmd_reg)
