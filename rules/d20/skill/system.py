@@ -229,7 +229,8 @@ class SkillSystem(System):
             self._query,
             MathOutputEvent(entity.id, entity.type_id,
                             context,
-                            math),
+                            math,
+                            InputContext.input_id(context)),
             context)
 
         # # Get skill totals for each var that's a skill name.

@@ -131,20 +131,21 @@ class OutputEvent(Event):
     # Class Method Helpers
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def command(klass: 'OutputEvent',
-                status: CommandStatus,
-                context: InputContext) -> 'OutputEvent':
-        '''
-        Create an OutputEvent from the command status.
-        '''
-        # TODO [2020-06-17]: OutputEvent from actual output, not from
-        # CommandStatus? Or should it be both?
-        retval = OutputEvent(
-            InputContext.source_id(context),
-            InputContext.type(context),
-        )
-        return retval
+    # @classmethod
+    # def command(klass: 'OutputEvent',
+    #             status: CommandStatus,
+    #             context: InputContext) -> 'OutputEvent':
+    #     '''
+    #     Create an OutputEvent from the command status.
+    #     '''
+    #     # TODO [2020-06-17]: OutputEvent from actual output, not from
+    #     # CommandStatus? Or should it be both?
+    #     retval = OutputEvent(
+    #         InputContext.source_id(context),
+    #         InputContext.type(context),
+    #         context
+    #     )
+    #     return retval
 
     # def __init__(self,
     #              id:           Union[int, MonotonicId],
