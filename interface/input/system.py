@@ -82,7 +82,7 @@ import veredi.zest.debug.registration
 # -----------------------------------------------------------------------------
 
 
-@register('veredi', 'input', 'system')
+@register('veredi', 'interface', 'input', 'system')
 class InputSystem(System):
 
     def _configure(self, context: 'VerediContext') -> None:

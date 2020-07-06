@@ -22,9 +22,9 @@ data:
 
 
 input:
-  type: veredi.input.system
-  command: veredi.input.commander
-  history: veredi.input.historian
+  type: veredi.interface.input.system
+  command: veredi.interface.input.commander
+  history: veredi.interface.input.historian
   parser:
     math: veredi.math.d20.parser
 

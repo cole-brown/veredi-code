@@ -42,7 +42,7 @@ def join(*names: str) -> str:
     Turns iterable of `names` strings into one dotted string.
 
     e.g.:
-      dotted('veredi', 'input', 'system') -> 'veredi.input.system'
+      dotted('veredi', 'jeff', 'system') -> 'veredi.jeff.system'
     '''
     return '.'.join(names)
 
@@ -52,7 +52,7 @@ def split(dotted: str) -> List[str]:
     Turns iterable of `names` strings into one dotted string.
 
     e.g.:
-      'veredi.input.system' -> ['veredi', 'input', 'system']
+      'veredi.jeff.system' -> ['veredi', 'jeff', 'system']
     '''
     return dotted.split('.')
 
@@ -64,8 +64,8 @@ def path(*args: str) -> Nullable[pathlib.Path]:
     Returns a path of the args.
 
     e.g.:
-      'veredi.input.system'         -> pathlib.Path('veredi/input/system')
-      ['veredi', 'input', 'system'] -> pathlib.Path('veredi/input/system')
+      'veredi.jeff.system'         -> pathlib.Path('veredi/jeff/system')
+      ['veredi', 'jeff', 'system'] -> pathlib.Path('veredi/jeff/system')
     '''
     if not args:
         return Null()

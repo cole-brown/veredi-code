@@ -8,7 +8,7 @@ Tests for the Input system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.zystem import BaseSystemTest
+from veredi.zest.zystem                  import BaseSystemTest
 
 from veredi.base.context                 import UnitTestContext
 
@@ -22,8 +22,7 @@ from .identity                           import InputId
 from .event                              import CommandInputEvent
 # from .component                        import InputComponent
 
-from veredi.input.command.reg            import (CommandRegistrationBroadcast,
-                                                 CommandRegisterReply,
+from veredi.interface.input.command.reg  import (CommandRegisterReply,
                                                  CommandPermission,
                                                  CommandArgType,
                                                  CommandStatus)
@@ -74,7 +73,7 @@ class Test_InputSystem(BaseSystemTest):
 
     def _make_cmd(self, event):
         reply = CommandRegisterReply(event,
-                                     'veredi.input.zest_system',
+                                     'veredi.interface.input.zest_system',
                                      'test',
                                      CommandPermission.UNRESTRICTED,
                                      self.trigger_test_cmd)

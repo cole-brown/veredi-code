@@ -8,16 +8,16 @@ Some command(s) for background data and possibly other data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.logger import log
-from veredi.data import background
+from veredi.logger                      import log
+from veredi.data                        import background
 
 # Everything needed to participate in command registration.
-from veredi.input.command.reg       import CommandRegistrationBroadcast
+from veredi.interface.input.command.reg import CommandRegistrationBroadcast
 
 
 # debug commands to register:
-from . import background as dbg_bg
-from . import debug
+from .                                  import background as dbg_bg
+from .                                  import debug
 
 
 # -----------------------------------------------------------------------------

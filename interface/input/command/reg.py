@@ -4,7 +4,7 @@
 Easy include for the minimum required to receive and register for events.
 
 That is, do this:
-from veredi.input.command.reg import *
+from veredi.interface.input.command.reg import *
 '''
 
 # -----------------------------------------------------------------------------

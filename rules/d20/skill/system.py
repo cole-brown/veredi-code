@@ -34,41 +34,41 @@ if TYPE_CHECKING:
 # ---
 # Code
 # ---
-from veredi.logger                  import log
-from veredi.base.const              import VerediHealth
-from veredi.base                    import dotted
-from veredi.data                    import background
-from veredi.data.config.registry    import register
-from veredi.data.codec.adapter      import definition
-from veredi.data.milieu             import ValueMilieu
+from veredi.logger                      import log
+from veredi.base.const                  import VerediHealth
+from veredi.base                        import dotted
+from veredi.data                        import background
+from veredi.data.config.registry        import register
+from veredi.data.codec.adapter          import definition
+from veredi.data.milieu                 import ValueMilieu
 
 # Game / ECS Stuff
-from veredi.game.ecs.event          import EventManager
-from veredi.game.ecs.time           import TimeManager
-from veredi.game.ecs.component      import ComponentManager
-from veredi.game.ecs.entity         import EntityManager
+from veredi.game.ecs.event              import EventManager
+from veredi.game.ecs.time               import TimeManager
+from veredi.game.ecs.component          import ComponentManager
+from veredi.game.ecs.entity             import EntityManager
 
-from veredi.game.ecs.const          import (SystemTick,
-                                            SystemPriority)
+from veredi.game.ecs.const              import (SystemTick,
+                                                SystemPriority)
 
-from veredi.game.ecs.base.identity  import ComponentId, EntityId
-from veredi.game.ecs.base.system    import System
-from veredi.game.ecs.base.component import Component
+from veredi.game.ecs.base.identity      import ComponentId
+from veredi.game.ecs.base.system        import System
+from veredi.game.ecs.base.component     import Component
 
 # Everything needed to participate in command registration.
-from veredi.input.command.reg       import (CommandRegistrationBroadcast,
-                                            CommandRegisterReply,
-                                            CommandPermission,
-                                            CommandArgType,
-                                            CommandStatus)
-from veredi.math.parser             import MathTree
-from veredi.math.system             import MathSystem
-from veredi.math.event              import MathOutputEvent
-from veredi.input.context           import InputContext
+from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
+                                                CommandRegisterReply,
+                                                CommandPermission,
+                                                CommandArgType,
+                                                CommandStatus)
+from veredi.math.parser                 import MathTree
+from veredi.math.system                 import MathSystem
+from veredi.math.event                  import MathOutputEvent
+from veredi.interface.input.context     import InputContext
 
 # Skill-Related Events & Components
-from .event                         import SkillRequest, SkillResult
-from .component                     import SkillComponent
+from .event                             import SkillRequest, SkillResult
+from .component                         import SkillComponent
 # Eventually: AbilityComponent, others?
 
 
@@ -76,7 +76,7 @@ from .component                     import SkillComponent
 # Constants
 # -----------------------------------------------------------------------------
 
-# §-TODO-§ [2020-07-04]: Make this, AbilitySystem, CombatSystem into subclasses
+# TODO [2020-07-04]: Make this, AbilitySystem, CombatSystem into subclasses
 # of a new base class RuleSystem? Put the definition stuff in there?
 # Also the 'fill' stuff - or all the stuff in the 'Data Processing' section.
 

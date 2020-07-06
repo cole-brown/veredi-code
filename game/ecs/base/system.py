@@ -134,18 +134,21 @@ class System(ABC):
     @abstractmethod
     def dotted(self) -> str:
         '''
-        The dotted name this system has. If the system uses '@register', it
-        gets this method implemented for free.
-        E.g.
-          @register('veredi', 'input', 'system')
-        would be:
-          'veredi.input.system'
+        The dotted name this system has. If the system uses '@register', you
+        still have to implement dotted, but you get self._DOTTED for free
+        (the @register decorator sets it).
 
-        So in those cases I usually do this for memory's sake:
-            # Magically provided by @register
-            # @property
-            # def dotted(self) -> str:
-            #     ...
+        E.g.
+          @register('veredi', 'jeff', 'system')
+        would be:
+          self._DOTTED = 'veredi.jeff.system'
+
+        So just implement like this:
+
+            @property
+            def dotted(self) -> str:
+                # self._DOTTED magically provided by @register
+                return self._DOTTED
         '''
         raise NotImplementedError
 

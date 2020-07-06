@@ -22,35 +22,35 @@ if TYPE_CHECKING:
     from ..ecs.manager       import EcsManager
 
 
-from veredi.logger                  import log
-from veredi.base.const              import VerediHealth
-from veredi.base                    import dotted
-from veredi.data                    import background
-from veredi.data.config.registry    import register
-from veredi.data.codec.adapter      import definition
-from veredi.data.milieu             import ValueMilieu
+from veredi.logger                      import log
+from veredi.base.const                  import VerediHealth
+from veredi.base                        import dotted
+from veredi.data                        import background
+from veredi.data.config.registry        import register
+from veredi.data.codec.adapter          import definition
+from veredi.data.milieu                 import ValueMilieu
 
 # Game / ECS Stuff
-from veredi.game.ecs.event          import EventManager
-from veredi.game.ecs.time           import TimeManager
-from veredi.game.ecs.component      import ComponentManager
-from veredi.game.ecs.entity         import EntityManager
+from veredi.game.ecs.event              import EventManager
+from veredi.game.ecs.time               import TimeManager
+from veredi.game.ecs.component          import ComponentManager
+from veredi.game.ecs.entity             import EntityManager
 
-from veredi.game.ecs.const          import (SystemTick,
+from veredi.game.ecs.const              import (SystemTick,
                                             SystemPriority)
 
-from veredi.game.ecs.base.identity  import EntityId
-from veredi.game.ecs.base.system    import System
-from veredi.game.ecs.base.component import Component
+from veredi.game.ecs.base.identity      import EntityId
+from veredi.game.ecs.base.system        import System
+from veredi.game.ecs.base.component     import Component
 
 # Commands
-from veredi.input.command.reg       import (CommandRegistrationBroadcast,
-                                            CommandRegisterReply,
-                                            CommandPermission,
-                                            CommandArgType,
-                                            CommandStatus)
-from veredi.math.parser             import MathTree
-from veredi.input.context           import InputContext
+from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
+                                                CommandRegisterReply,
+                                                CommandPermission,
+                                                CommandArgType,
+                                                CommandStatus)
+from veredi.math.parser                 import MathTree
+from veredi.interface.input.context     import InputContext
 
 # Ability-Related Events & Components
 from .component import (

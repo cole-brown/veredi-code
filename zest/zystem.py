@@ -12,20 +12,20 @@ from typing import Optional, List
 
 import unittest
 
-from veredi.logger                 import log
-from .                             import zload
-from .zpath                        import TestType
-from veredi.base.context           import UnitTestContext
+from veredi.logger                      import log
+from .                                  import zload
+from .zpath                             import TestType
+from veredi.base.context                import UnitTestContext
 
-from veredi.game.ecs.base.system   import System
-from veredi.game.ecs.event         import Event
-from veredi.base.context           import VerediContext
-from veredi.game.ecs.base.identity import EntityId
-from veredi.game.ecs.base.entity   import Entity
-from veredi.game.ecs.meeting       import Meeting
-from veredi.input.system           import InputSystem
+from veredi.game.ecs.base.system        import System
+from veredi.game.ecs.event              import Event
+from veredi.base.context                import VerediContext
+from veredi.game.ecs.base.identity      import EntityId
+from veredi.game.ecs.base.entity        import Entity
+from veredi.game.ecs.meeting            import Meeting
+from veredi.interface.input.system      import InputSystem
 
-from veredi.input.command.reg      import CommandRegistrationBroadcast
+from veredi.interface.input.command.reg import CommandRegistrationBroadcast
 
 
 # -----------------------------------------------------------------------------
