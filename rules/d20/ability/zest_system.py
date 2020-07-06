@@ -8,36 +8,30 @@ Tests for the Ability system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.zystem import BaseSystemTest
+from veredi.zest.zystem                  import BaseSystemTest
 
-from veredi.zest import zload
-from veredi.base.context import UnitTestContext
-from veredi.data.exceptions import LoadError
-from veredi.logger import log
+from veredi.base.context                 import UnitTestContext
+from veredi.data.exceptions              import LoadError
+from veredi.logger                       import log
 
-from veredi.game.ecs.base.identity import ComponentId, EntityId
+from veredi.game.ecs.base.identity       import ComponentId
 from veredi.game.ecs.base.entity         import Entity
-from veredi.game.ecs.base.component import ComponentLifeCycle
-from veredi.game.data.event import DataLoadedEvent, DataLoadRequest
-from veredi.game.data.component import DataComponent
-from veredi.data.context import DataGameContext, DataLoadContext
+from veredi.game.ecs.base.component      import ComponentLifeCycle
+from veredi.game.data.event              import (DataLoadedEvent,
+                                                 DataLoadRequest)
+from veredi.game.data.component          import DataComponent
+from veredi.data.context                 import (DataGameContext,
+                                                 DataLoadContext)
 
-from veredi.game.data.identity.component import IdentityComponent
 from veredi.game.data.identity.event     import CodeIdentityRequest
-from veredi.game.data.identity.system                   import IdentitySystem
+from veredi.game.data.identity.system    import IdentitySystem
 
-from veredi.input.system                             import InputSystem
-from veredi.input.event               import CommandInputEvent
+from veredi.interface.input.system       import InputSystem
+from veredi.interface.input.event        import CommandInputEvent
 
-from .system import AbilitySystem
-from .event import AbilityRequest, AbilityResult
-from .component import AbilityComponent
-
-from veredi.input.command.reg            import (CommandRegistrationBroadcast,
-                                                 CommandRegisterReply,
-                                                 CommandPermission,
-                                                 CommandArgType,
-                                                 CommandStatus)
+from .system                             import AbilitySystem
+from .event                              import AbilityRequest, AbilityResult
+from .component                          import AbilityComponent
 
 
 # -----------------------------------------------------------------------------

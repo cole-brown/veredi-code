@@ -9,7 +9,7 @@ Events for Math, Maths, Mathing, Mathers, and Jeff.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, NewType
+from typing import Optional, Union, NewType
 import enum
 from decimal import Decimal
 
@@ -17,7 +17,7 @@ from veredi.base.context           import VerediContext
 from veredi.base.identity          import SerializableId
 from veredi.game.ecs.base.identity import MonotonicId
 from veredi.game.ecs.event         import Event
-from veredi.input.event            import OutputEvent
+from veredi.interface.output.event import OutputEvent, OutputType
 
 from .parser import MathTree
 
@@ -116,28 +116,30 @@ class MathOutputEvent(OutputEvent):
     '''
 
     def __init__(self,
-                 id:        Union[int, MonotonicId],
-                 type:      Union[int, enum.Enum],
-                 context:   VerediContext,
-                 root:      MathTree,
-                 serial_id: SerializableId) -> None:
-        self.set(id, type, context, root, serial_id)
+                 source_id:   Union[int, MonotonicId],
+                 source_type: Union[int, enum.Enum],
+                 context:     VerediContext,
+                 serial_id:   SerializableId,
+                 output_type: 'OutputType',
+                 root:        Optional[MathTree] = None) -> None:
+        self.set(source_id, source_type, context,
+                 serial_id, output_type,
+                 root)
 
     def set(self,
-            id:        Union[int, MonotonicId],
-            type:      Union[int, enum.Enum],
-            context:   VerediContext,
-            root:      MathTree,
-            serial_id: SerializableId) -> None:
-        super().set(id, type, context)
-        self.root = root
-        self.serial_id = serial_id
+            source_id:   Union[int, MonotonicId],
+            source_type: Union[int, enum.Enum],
+            context:     VerediContext,
+            serial_id:   SerializableId,
+            output_type: 'OutputType',
+            root:        MathTree) -> None:
+        super().set(source_id, source_type, context, serial_id, output_type)
+        self.root = None
         self.total = None
 
     def reset(self) -> None:
         super().reset()
         self.root = None
-        self.serial_id = None
         self.total = None
 
     # -------------------------------------------------------------------------

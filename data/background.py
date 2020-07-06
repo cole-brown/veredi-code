@@ -23,13 +23,13 @@ from typing import (TYPE_CHECKING,
                     Type, NewType,
                     Mapping, MutableMapping)
 if TYPE_CHECKING:
-    from veredi.base.context         import VerediContext
-    from veredi.data.repository.base import BaseRepository
-    from veredi.data.codec.base      import BaseCodec
-    from veredi.game.ecs.meeting     import Meeting
-    from veredi.game.ecs.base.system import System, SystemLifeCycle
-    from veredi.input.parse          import Parcel
-    from .config                     import Configuration
+    from veredi.base.context          import VerediContext
+    from veredi.data.repository.base  import BaseRepository
+    from veredi.data.codec.base       import BaseCodec
+    from veredi.game.ecs.meeting      import Meeting
+    from veredi.game.ecs.base.system  import System, SystemLifeCycle
+    from veredi.interface.input.parse import Parcel
+    from .config                      import Configuration
 
 
 import enum

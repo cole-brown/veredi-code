@@ -31,7 +31,7 @@ from veredi.game.ecs.base.identity    import ComponentId
 
 from veredi.game.data.event           import DataLoadRequest, DataLoadedEvent
 
-from veredi.input.event               import CommandInputEvent
+from veredi.interface.input.event     import CommandInputEvent
 from veredi.game.data.identity.system import IdentitySystem
 
 from veredi.rules.d20.skill.system    import SkillSystem

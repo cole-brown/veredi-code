@@ -11,15 +11,15 @@ Some command(s) for background data and possibly other data.
 from typing import Optional
 
 
-from veredi.logger import log
-from veredi.data import background
+from veredi.logger                      import log
+from veredi.data                        import background
 
 # Everything needed to participate in command registration.
-from veredi.input.command.reg       import (CommandRegistrationBroadcast,
-                                            CommandRegisterReply,
-                                            CommandPermission,
-                                            CommandStatus)
-from veredi.input.context           import InputContext
+from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
+                                                CommandRegisterReply,
+                                                CommandPermission,
+                                                CommandStatus)
+from veredi.interface.input.context     import InputContext
 
 
 # -----------------------------------------------------------------------------

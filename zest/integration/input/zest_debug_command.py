@@ -19,23 +19,15 @@ Test debug command(s).
 
 import sys
 
-from ..integrate import IntegrationTest
+from ..integrate                      import IntegrationTest
 
-from veredi.base.null import Null
-from veredi.logger import log
-from veredi.game.ecs.const import DebugFlag
-from veredi.base.context import UnitTestContext
-from veredi.data.context                import DataGameContext, DataLoadContext
-from veredi.data.exceptions             import LoadError
+from veredi.logger                    import log
+from veredi.game.ecs.const            import DebugFlag
+from veredi.base.context              import UnitTestContext
 
-from veredi.game.engine      import Engine, EngineLifeCycle
-from veredi.game.ecs.base.identity      import ComponentId
-
-from veredi.game.data.event             import DataLoadRequest, DataLoadedEvent
-
-from veredi.input.system import InputSystem
-from veredi.input.event                              import CommandInputEvent
+from veredi.interface.input.event     import CommandInputEvent
 from veredi.game.data.identity.system import IdentitySystem
+from veredi.game.engine               import EngineLifeCycle
 
 # import veredi.zest.debug.debug
 import veredi.zest.debug.background

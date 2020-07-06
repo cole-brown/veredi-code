@@ -74,7 +74,7 @@ from .event                              import (CommandRegistrationBroadcast,
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'input', 'commander')
+@register('veredi', 'interface', 'input', 'commander')
 class Commander:
     '''
     Command Pattern: Command Invoker, sort of.

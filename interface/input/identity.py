@@ -54,11 +54,11 @@ class InputId(SerializableId):
 
     # For now, we'll be a uuid, I guess
     #
-    UUID_NAMESPACE = uuid.UUID('737c039c-a365-5b6e-9353-eca32695d300')
+    UUID_NAMESPACE = uuid.UUID('6ad31d78-a307-52c8-8497-339026bcf7dc')
     '''
     The 'namespace' for our UUIDs will be static so we can
     reproducably/reliably generate a UUID. Generate by:
-      uuid.uuid5(uuid.UUID(int=0), 'veredi.input.identity.InputId')
+      uuid.uuid5(uuid.UUID(int=0), 'veredi.interface.input.identity.InputId')
     '''
 
     _INVALID_VALUE = None

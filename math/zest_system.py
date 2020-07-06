@@ -8,22 +8,22 @@ Tests for the Math system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.zystem import BaseSystemTest
+from veredi.zest.zystem    import BaseSystemTest
 
-from veredi.zest import zontext
-from veredi.base.const              import VerediHealth
-from veredi.game.ecs.const          import SystemTick
+from veredi.zest           import zontext
+from veredi.base.const     import VerediHealth
+from veredi.game.ecs.const import SystemTick
 
-from .system import MathSystem
-from .event import MathResult
-from .parser import MathTree
-from .d20.parser import D20Parser
+from .system               import MathSystem
+from .event                import MathResult
+from .parser               import MathTree
+from .d20.parser           import D20Parser
 
-# from veredi.input.command.reg            import (CommandRegistrationBroadcast,
-#                                                  CommandRegisterReply,
-#                                                  CommandPermission,
-#                                                  CommandArgType,
-#                                                  CommandStatus)
+# from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
+#                                                 CommandRegisterReply,
+#                                                 CommandPermission,
+#                                                 CommandArgType,
+#                                                 CommandStatus)
 
 
 # -----------------------------------------------------------------------------

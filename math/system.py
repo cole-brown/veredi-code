@@ -29,32 +29,32 @@ from decimal import Decimal
 # ---
 # Code
 # ---
-from veredi.logger                  import log
-from veredi.base.const              import VerediHealth
-from veredi.data.config.registry    import register
+from veredi.logger                      import log
+from veredi.base.const                  import VerediHealth
+from veredi.data.config.registry        import register
 
 # Game / ECS Stuff
-from veredi.game.ecs.event          import EventManager, Event
-from veredi.game.ecs.time           import TimeManager
-from veredi.game.ecs.component      import ComponentManager
-from veredi.game.ecs.entity         import EntityManager
-from veredi.game.ecs.system         import SystemManager
+from veredi.game.ecs.event              import EventManager, Event
+from veredi.game.ecs.time               import TimeManager
+from veredi.game.ecs.component          import ComponentManager
+from veredi.game.ecs.entity             import EntityManager
+from veredi.game.ecs.system             import SystemManager
 
-from veredi.game.ecs.const          import (SystemTick,
-                                            SystemPriority)
+from veredi.game.ecs.const              import (SystemTick,
+                                                SystemPriority)
 
-from veredi.game.ecs.base.system    import System
+from veredi.game.ecs.base.system        import System
 
 # Everything needed to participate in command registration.
-from veredi.input.command.reg       import (CommandStatus,
-                                            CommandExecutionError)
-from veredi.math.parser             import MathTree
-from veredi.input.context           import InputContext
+from veredi.interface.input.command.reg import (CommandStatus,
+                                                CommandExecutionError)
+from veredi.interface.input.context     import InputContext
+from veredi.math.parser                 import MathTree
 
 # Maths
-from .evaluator import Evaluator
-from .exceptions import MathError
-from . import event
+from .evaluator                         import Evaluator
+from .exceptions                        import MathError
+from .                                  import event
 
 
 # -----------------------------------------------------------------------------

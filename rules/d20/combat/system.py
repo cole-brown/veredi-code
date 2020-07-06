@@ -21,33 +21,32 @@ if TYPE_CHECKING:
     from veredi.base.context        import VerediContext
     from ..ecs.manager        import EcsManager
 
-from veredi.logger        import log
-from veredi.base.const    import VerediHealth
-from veredi.data          import background
-from veredi.data.config.registry    import register
-from veredi.data.codec.adapter      import definition
+from veredi.logger                      import log
+from veredi.base.const                  import VerediHealth
+from veredi.data                        import background
+from veredi.data.config.registry        import register
+from veredi.data.codec.adapter          import definition
 
 # Game / ECS Stuff
-from ..ecs.event          import EventManager
-from ..ecs.time           import TimeManager
-from ..ecs.component      import ComponentManager
-from ..ecs.entity         import EntityManager
+from ..ecs.event                        import EventManager
+from ..ecs.time                         import TimeManager
+from ..ecs.component                    import ComponentManager
+from ..ecs.entity                       import EntityManager
 
-from ..ecs.const          import (SystemTick,
-                                  SystemPriority)
+from ..ecs.const                        import (SystemTick,
+                                                SystemPriority)
 
-from veredi.game.ecs.base.identity  import ComponentId, EntityId
-from ..ecs.base.system    import System
-from ..ecs.base.component import Component
+from ..ecs.base.system                  import System
+from ..ecs.base.component               import Component
 
 # Commands
-from veredi.input.command.reg       import (CommandRegistrationBroadcast,
-                                            CommandRegisterReply,
-                                            CommandPermission,
-                                            CommandArgType,
-                                            CommandStatus)
-from veredi.math.parser             import MathTree
-from veredi.input.context           import InputContext
+from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
+                                                CommandRegisterReply,
+                                                CommandPermission,
+                                                CommandArgType,
+                                                CommandStatus)
+from veredi.math.parser                 import MathTree
+from veredi.interface.input.context     import InputContext
 
 # Combat-Related Events & Components
 from .component import (

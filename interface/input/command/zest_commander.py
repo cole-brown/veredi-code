@@ -60,7 +60,7 @@ class Test_Commander(unittest.TestCase):
                 'input': {
                     'parser': {
                         'math': 'veredi.math.d20.parser',
-                        'command': 'veredi.input.commander',
+                        'command': 'veredi.interface.input.commander',
                     },
                 },
             },
@@ -74,7 +74,7 @@ class Test_Commander(unittest.TestCase):
         self.events            = []
         self.cmd_was_triggered = False
 
-        background.input.set('veredi.input.command.zest_commander',
+        background.input.set('veredi.interface.input.command.zest_commander',
                              self.parsers,
                              None,
                              background.Ownership.SHARE)
@@ -170,7 +170,7 @@ class Test_Commander(unittest.TestCase):
         # Reg is open; make a command to register.
         cmd_reg = CommandRegisterReply(
             self.reg_open,
-            'veredi.input.command.zest_commander',
+            'veredi.interface.input.command.zest_commander',
             'unit-test',
             # I'm not testing perms here.
             const.CommandPermission.UNRESTRICTED,
@@ -219,7 +219,7 @@ class Test_Commander(unittest.TestCase):
         # Reg is open; make a command to register.
         cmd_reg = CommandRegisterReply(
             self.reg_open,
-            'veredi.input.command.zest_commander',
+            'veredi.interface.input.command.zest_commander',
             'unit-test',
             # I'm not testing perms here.
             const.CommandPermission.UNRESTRICTED,

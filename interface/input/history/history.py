@@ -108,7 +108,7 @@ class InputHistory(History):
 # History Keeper - A Wholly Owned Sub-System of InputSystem, Inc.
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'input', 'historian')
+@register('veredi', 'interface', 'input', 'historian')
 class Historian:
     '''
     TODO [2020-06-18]: This should be our undo history class. See:

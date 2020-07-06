@@ -12,25 +12,25 @@ from typing import Union, List
 
 import unittest
 
-from veredi.base.null               import Null
-from veredi.logger                  import log
-from veredi.zest                    import zload
-from veredi.zest.zpath              import TestType
+from veredi.base.null                   import Null
+from veredi.logger                      import log
+from veredi.zest                        import zload
+from veredi.zest.zpath                  import TestType
 
-from veredi.base.context            import VerediContext, UnitTestContext
-from veredi.game.ecs.base.system    import System
-from veredi.game.ecs.base.entity    import (Entity,
-                                            EntityLifeCycle)
-from veredi.game.ecs.base.identity  import EntityId
-from veredi.game.ecs.base.component import (Component,
-                                            ComponentLifeCycle)
-from veredi.game.ecs.event          import Event
-from veredi.game.data.event         import DataLoadedEvent
-from veredi.game.ecs.meeting        import Meeting
-from veredi.game.engine             import Engine
+from veredi.base.context                import VerediContext, UnitTestContext
+from veredi.game.ecs.base.system        import System
+from veredi.game.ecs.base.entity        import (Entity,
+                                                EntityLifeCycle)
+from veredi.game.ecs.base.identity      import EntityId
+from veredi.game.ecs.base.component     import (Component,
+                                                ComponentLifeCycle)
+from veredi.game.ecs.event              import Event
+from veredi.game.data.event             import DataLoadedEvent
+from veredi.game.ecs.meeting            import Meeting
+from veredi.game.engine                 import Engine
 
-from veredi.input.system            import InputSystem
-from veredi.input.command.reg       import CommandRegistrationBroadcast
+from veredi.interface.input.system      import InputSystem
+from veredi.interface.input.command.reg import CommandRegistrationBroadcast
 
 # from veredi.game.ecs.const        import DebugFlag
 
