@@ -9,6 +9,7 @@ Translator from MathTrees to output.
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Any, Type, Mapping, MutableMapping
+from veredi.base.null import Nullable
 
 import copy
 

@@ -48,25 +48,25 @@ class Test_YamlCodec(unittest.TestCase):
         self.assertTrue(self.path)
         self.assertTrue(self.path.exists())
 
-    def test_load(self):
-        loaded = None
+    def test_read(self):
+        read = None
         with self.path.open('r') as f:
-            loaded = self.codec._load_all(f, self.context())
+            read = self.codec._read_all(f, self.context())
 
-        self.assertIsNotNone(loaded)
+        self.assertIsNotNone(read)
         # We should have these documents in this order:
-        self.assertEqual(len(loaded), 2)
-        self.assertEqual(type(loaded[0]), DocMetadata)
-        self.assertEqual(type(loaded[1]), DocComponent)
+        self.assertEqual(len(read), 2)
+        self.assertEqual(type(read[0]), DocMetadata)
+        self.assertEqual(type(read[1]), DocComponent)
 
     def test_metadata(self):
-        loaded = None
+        read = None
         with self.path.open('r') as f:
-            loaded = self.codec._load_all(f, self.context())
+            read = self.codec._read_all(f, self.context())
 
-        self.assertIsNotNone(loaded)
-        self.assertEqual(type(loaded[0]), DocMetadata)
-        metadata = loaded[0].decode()
+        self.assertIsNotNone(read)
+        self.assertEqual(type(read[0]), DocMetadata)
+        metadata = read[0].decode()
 
         self.assertEqual(metadata['record-type'],
                          'veredi.unit-test')
@@ -86,13 +86,13 @@ class Test_YamlCodec(unittest.TestCase):
                          'Veredi Unit-Testing Health Component')
 
     def test_component(self):
-        loaded = None
+        read = None
         with self.path.open('r') as f:
-            loaded = self.codec._load_all(f, self.context())
+            read = self.codec._read_all(f, self.context())
 
-        self.assertIsNotNone(loaded)
-        self.assertEqual(type(loaded[1]), DocComponent)
-        component = loaded[1].decode()
+        self.assertIsNotNone(read)
+        self.assertEqual(type(read[1]), DocComponent)
+        component = read[1].decode()
 
         meta = component.get('meta', {})
         self.assertTrue(meta)

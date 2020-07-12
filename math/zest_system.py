@@ -81,7 +81,7 @@ class Test_MathSystem(BaseSystemTest):
     # Cannons and Fillers
     # -------------------------------------------------------------------------
 
-    def canonicalize(self, input_str):
+    def canonicalize(self, input_str, milieu_str):
         return self.value_canon
 
     def fill(self, input_str, context):
@@ -146,8 +146,7 @@ class Test_MathSystem(BaseSystemTest):
         self.assertEqual(len(self.events), 0)
 
         # Tick once should be enough to finalize and get an event ready.
-        health = self.system._update(SystemTick.STANDARD,
-                                     self.manager.time,
+        health = self.system._update(self.manager.time,
                                      self.manager.component,
                                      self.manager.event)
         self.assertEqual(health,
@@ -205,8 +204,7 @@ class Test_MathSystem(BaseSystemTest):
         # Tick once should find stable math during recurse, put into finalize
         # queue, immediate take from finalize, evaluate it, and send out
         # the event.
-        health = self.system._update(SystemTick.STANDARD,
-                                     self.manager.time,
+        health = self.system._update(self.manager.time,
                                      self.manager.component,
                                      self.manager.event)
         self.assertEqual(health,

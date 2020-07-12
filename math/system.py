@@ -43,6 +43,7 @@ from veredi.game.ecs.system             import SystemManager
 
 from veredi.game.ecs.const              import (SystemTick,
                                                 SystemPriority)
+from veredi.game.ecs.base.identity      import EntityId
 
 from veredi.game.ecs.base.system        import System
 
@@ -68,7 +69,7 @@ MathVarCanonicalize = NewType(
 
 MathVarFill = NewType(
     'MathVarFill',
-    Callable[[str, Optional[InputContext]], VerediHealth])
+    Callable[[EntityId, str, Optional[InputContext]], VerediHealth])
 
 
 # -----------------------------------------------------------------------------
@@ -94,6 +95,7 @@ class MathEntry(NamedTuple):
     # Inputs from InputSystem / User
     root:         MathTree
     context:      InputContext
+    entity_id:    EntityId
 
     # Functions from command source system.
     canonicalize: MathVarCanonicalize
@@ -110,15 +112,6 @@ class MathQueue:
 
     def __init__(self) -> None:
         self._queue = []
-
-    def push_into(self,
-                  output_event: Event,
-                  root:         MathTree,
-                  context:      InputContext,
-                  canonicalize: Optional[MathVarCanonicalize] = None,
-                  fill:         Optional[MathVarFill]         = None) -> None:
-        self._queue.append(MathEntry(root, context, canonicalize, fill,
-                                     output_event))
 
     def push(self,
              entry: MathEntry) -> None:
@@ -286,8 +279,13 @@ class MathSystem(System):
                                    context=context):
             return CommandStatus.system_health(context)
 
+        eid = InputContext.source_id(context)
+        if not eid:
+            eid = result_event.id
+
         entry = MathEntry(input,
                           context,
+                          eid,
                           canonicalize_fn,
                           fill_fn,
                           result_event)
@@ -367,7 +365,8 @@ class MathSystem(System):
         replace = []
         for var in entry.root.each_var():
             if self._should_debug():
-                self._log(log.Level.DEBUG, f"      ----- working on var: {var} -----")
+                self._log(log.Level.DEBUG,
+                          f"      ----- working on var: {var} -----")
                 self._log(log.Level.DEBUG,
                           f"canonicalize_fn: var.name: {var.name}, "
                           f"var.milieu: {var.milieu}")
