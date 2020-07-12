@@ -139,8 +139,8 @@ class InputContext(EphemerealContext):
         Checks for & returns our Input ID or InputId.INVALID.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        input_id = input_ctx.get(Link.SOURCE_DESIGNATION, None)
-        return input_id
+        designation = input_ctx.get(Link.SOURCE_DESIGNATION, None)
+        return designation
 
     @classmethod
     def source_id(klass: Type['InputContext'],

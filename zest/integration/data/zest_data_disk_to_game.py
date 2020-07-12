@@ -20,16 +20,21 @@ and doesn't really need the engine.
 
 from ..integrate import IntegrationTest
 
-from veredi.data.context                import DataGameContext, DataLoadContext
-from veredi.data.exceptions             import LoadError
+from veredi.data.context                 import (DataGameContext,
+                                                 DataLoadContext)
+from veredi.data.exceptions              import LoadError
 
-from veredi.game.ecs.base.identity      import ComponentId
+from veredi.game.ecs.base.identity       import ComponentId
+from veredi.game.data.component          import DataComponent
 
-from veredi.game.data.event             import DataLoadRequest, DataLoadedEvent
+from veredi.game.data.event              import (DataLoadRequest,
+                                                 DataLoadedEvent)
 
 # Make sure this guy registers himself.
-from veredi.rules.d20                   import health
+from veredi.rules.d20.health             import HealthComponent
 
+from veredi.rules.d20.ability.component  import AbilityComponent
+from veredi.game.data.identity.component import IdentityComponent
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -54,8 +59,13 @@ class Test_DataLoad_DiskToGame(IntegrationTest):
         # self.init_many_systems(...)
         # self.whatever = self.init_a_system(...)
 
+        self.expected_components = {IdentityComponent,
+                                    AbilityComponent,
+                                    HealthComponent}
+
     def tearDown(self):
         super().tearDown()
+        self.expected_components = None
 
     def apoptosis(self):
         super().apoptosis()
@@ -100,32 +110,42 @@ class Test_DataLoad_DiskToGame(IntegrationTest):
         self.assertTrue(self.manager.system)
 
     def test_set_up(self):
-        self.event_setup()
+        self.event_set_up()
 
         # Make our request event.
         request = self.load_request(DataGameContext.DataType.MONSTER)
         self.assertFalse(self.events)
 
-        # Ask for our aluminum_dragon to be loaded.
-        self.trigger_events(request)
+        # Ask for our aluminum_dragon to be loaded. Expect 1 event for
+        # each component in its data file.
+        expected_events = len(self.expected_components)
+        self.trigger_events(request,
+                            expected_events=expected_events)
         self.assertTrue(self.events)
-        self.assertEqual(len(self.events), 1)
+        self.assertEqual(len(self.events), expected_events)
 
-        # And we have a DataLoadedEvent!
-        loaded_event = self.events[0]
-        self.assertIsInstance(loaded_event, DataLoadedEvent)
+        # And we have DataLoadedEvents! Check 'em all; save the health one
+        # for more checks.
+        health_comp = None
+        for loaded_event in self.events:
+            self.assertIsInstance(loaded_event, DataLoadedEvent)
 
-        # Did it make a thing?
-        self.assertNotEqual(loaded_event.component_id, ComponentId.INVALID)
+            # Did it make a thing?
+            self.assertNotEqual(loaded_event.component_id, ComponentId.INVALID)
 
-        # Get the thing and check it.
-        component = self.manager.component.get(loaded_event.component_id)
-        self.assertIsNotNone(component)
-        self.assertEqual(loaded_event.component_id,
-                         component.id)
-        self.assertIsInstance(component, health.HealthComponent)
+            # Get the thing and check it.
+            component = self.manager.component.get(loaded_event.component_id)
+            self.assertIsNotNone(component)
+            self.assertEqual(loaded_event.component_id,
+                             component.id)
+            self.assertIsInstance(component, DataComponent)
 
-        health_data = component.persistent
+            if isinstance(component, HealthComponent):
+                health_comp = component
+
+        self.assertIsNotNone(health_comp)
+
+        health_data = health_comp.persistent
         self.assertEqual(health_data['health']['current']['permanent'],
                          200)
         self.assertEqual(health_data['health']['maximum']['hit-points'],

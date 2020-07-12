@@ -59,7 +59,7 @@ from ..component import DataComponent
 # -----------------------------------------------------------------------------
 
 
-@register('veredi', 'game', 'identity', 'component')
+@register('veredi', 'game', 'data', 'identity', 'component')
 class IdentityComponent(DataComponent):
     '''
     Component with identity information beyond, the usual EntityId/ComponentId.

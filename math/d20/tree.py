@@ -8,18 +8,19 @@ Tree base classes for a d20 roll tree.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional, Any, NewType, Protocol, Iterable
+
 from functools import reduce
 
 from veredi.base import random
 
-from ..parser import MathTree, NodeType
+from ..parser import MathTree, NodeType, VTags
 from .const import FormatOptions
+
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# TODO [2020-06-22]: typing hints
 
 
 # -----------------------------------------------------------------------------
@@ -29,12 +30,7 @@ from .const import FormatOptions
 class Node(MathTree):
     '''Base-most class for tree (leaves, branches, everything).'''
 
-    def __init__(self, type, tags=None):
-        super().__init__(type, tags)
-        # ...anything else?
-
-    def __repr__(self):
-        return str(self)
+    # Just using MathTree's __init__.
 
     # -------------------------------------------------------------------------
     # Evaluate
@@ -196,8 +192,18 @@ class Leaf(Node):
     # Constructor
     # -------------------------------------------------------------------------
 
-    def __init__(self, type, tags=None):
-        super().__init__(NodeType.LEAF | type, tags)
+    def __init__(self,
+                 type:     'NodeType',
+                 value:    Any                  = None,
+                 milieu:   str                  = None,
+                 name:     str                  = None,
+                 tags:     VTags                = None) -> None:
+        super().__init__(NodeType.LEAF | type,
+                         value=value,
+                         milieu=milieu,
+                         children=None,
+                         name=name,
+                         tags=tags)
 
         # 1 == positive, -1 == negative
         self._sign = 1
@@ -248,7 +254,7 @@ class Leaf(Node):
 class Dice(Leaf):
 
     def __init__(self, dice, faces, tags=None):
-        super().__init__(NodeType.RANDOM, tags)
+        super().__init__(NodeType.RANDOM, name='dice', tags=tags)
 
         self.dice = dice
         self.faces = faces
@@ -318,9 +324,10 @@ class Dice(Leaf):
 class Constant(Leaf):
 
     def __init__(self, constant, tags=None):
-        super().__init__(NodeType.CONSTANT, tags)
-
-        self._value = constant
+        super().__init__(NodeType.CONSTANT,
+                         value=constant,
+                         name=constant,
+                         tags=tags)
 
     def __str__(self):
         return (
@@ -352,10 +359,11 @@ class Constant(Leaf):
 
 class Variable(Leaf):
 
-    def __init__(self, var, tags=None):
-        super().__init__(NodeType.VARIABLE, tags)
-
-        self.name = var
+    def __init__(self, var, milieu=None, tags=None):
+        super().__init__(NodeType.VARIABLE,
+                         milieu=milieu,
+                         name=var,
+                         tags=tags)
 
     def __str__(self):
         return (
@@ -363,6 +371,7 @@ class Variable(Leaf):
             f"("
             f"{'-' if self._sign < 0 else ''}"
             f"{self.name}"
+            f", '{self.milieu if self.milieu else ''}'"
             f")"
         )
 
@@ -412,9 +421,11 @@ class Variable(Leaf):
 # -----------------------------------------------------------------------------
 
 class Branch(Node):
-    def __init__(self, children, type, tags=None):
-        super().__init__(NodeType.BRANCH | type, tags)
-        self._children = children
+    def __init__(self, children, type, name, tags=None):
+        super().__init__(NodeType.BRANCH | type,
+                         children=children,
+                         name=name,
+                         tags=tags)
 
     @property
     def children(self):
@@ -486,7 +497,7 @@ class OperatorMath(Branch):
     '''Base class for math nodes.'''
 
     def __init__(self, children, operator, op_str, tags=None):
-        super().__init__(children, NodeType.OPERATOR, tags)
+        super().__init__(children, NodeType.OPERATOR, op_str, tags)
         self.__operator = operator
         self.__operator_str = op_str
 
@@ -553,15 +564,35 @@ class OperatorMult(OperatorMath):
 
 
 class OperatorDiv(OperatorMath):
-    STR_ASCII = '*'
-    STR_UNICODE = '÷'
+    '''
+    Covers both truediv (float math) and floor div (int math) operators.
+    '''
+
+    # ---
+    # True Div
+    # ---
+    STR_ASCII_TRUE = '/'
+    STR_UNICODE_TRUE = '÷'
     # STR_UNICODE = '\u00F7'
     # STR_UNICODE = '\N{DIVISION SIGN}'
 
-    def __init__(self, children, tags=None):
+    # ---
+    # Floor Div
+    # ---
+    STR_ASCII_FLOOR = '//'
+    STR_UNICODE_FLOOR = '÷÷'
+
+    def __init__(self, children, truediv=True, tags=None):
+        div_fn = (self.__truediv_children
+                  if truediv else
+                  self.__floordiv_children)
+        div_str = (self.STR_UNICODE_TRUE
+                   if truediv else
+                   self.STR_UNICODE_FLOOR)
+
         super().__init__(children,
-                         self.__truediv_children,
-                         OperatorDiv.STR_UNICODE,
+                         div_fn,
+                         div_str,
                          tags)
 
     def __truediv_children(self, left, right):

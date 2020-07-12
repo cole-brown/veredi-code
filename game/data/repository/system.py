@@ -129,14 +129,7 @@ class RepositorySystem(System):
         into a DeserializedEvent.
         '''
         # Doctor checkup.
-        if not self._healthy():
-            self._health_meter_event = self._health_log(
-                self._health_meter_event,
-                log.Level.WARNING,
-                "HEALTH({}): Dropping event {} - our system health "
-                "isn't good enough to process.",
-                self.health, event,
-                context=event.context)
+        if not self._health_ok_event(event):
             return
 
         context = event.context
@@ -171,7 +164,7 @@ class RepositorySystem(System):
 
         context = self._repository.context.push(event.context)
 
-        # §-TODO-§ [2020-05-22]: Encode it.
+        # TODO [2020-05-22]: Encode it.
         raise NotImplementedError
         serialized = None
 

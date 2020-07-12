@@ -23,11 +23,10 @@ from veredi.base.exceptions import VerediError
 # ---
 
 class HistoryError(VerediError):
-    '''Base exception type for all errors of historical note.'''
-
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Base exception type for all errors of historical note.
+    '''
+    ...
 
 
 # ---
@@ -35,8 +34,7 @@ class HistoryError(VerediError):
 # ---
 
 class HistoryIdError(HistoryError):
-    '''Insufficient data for creating an ID from input.'''
-
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Insufficient data for creating an ID from input.
+    '''
+    ...

@@ -9,6 +9,7 @@ Constants for Commands, Command sub-system, Command events, etc.
 # -----------------------------------------------------------------------------
 
 import enum
+from veredi.base.enum import FlagCheckMixin
 
 
 # -----------------------------------------------------------------------------
@@ -28,7 +29,7 @@ this.
 # TODO [2020-06-15]: Move to wherever permissions/authz lives once it lives
 
 @enum.unique
-class CommandPermission(enum.Flag):
+class CommandPermission(FlagCheckMixin, enum.Flag):
     '''
     Role/Attribute-based Access Control via these Permission Flags.
 
@@ -37,6 +38,8 @@ class CommandPermission(enum.Flag):
 
     When the user attempts to execute a command, their authorization is checked
     against the command's permissions before allowing.
+
+    has() and any() provided by FlagCheckMixin.
     '''
 
     INVALID = 0
@@ -109,12 +112,6 @@ class CommandPermission(enum.Flag):
     This probably means you're either a hacker or the other kind of hacker.
     Good luck and god speed; sorry about the mess- I mean source code.
     '''
-
-    def has(self, flag):
-        '''
-        True if `flag` bit is set in this enum value.
-        '''
-        return ((self & flag) == flag)
 
 
 # -----------------------------------------------------------------------------

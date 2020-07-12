@@ -9,13 +9,8 @@ Logging utilities for Veredi.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Union,
-                    Type,
-                    Optional,
-                    Any,
-                    Callable,
-                    Mapping,
-                    MutableMapping)
+                    Optional, Union, Any, Type, Callable,
+                    Mapping, MutableMapping, Iterable)
 if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
     from veredi.base.exceptions import VerediError
@@ -26,7 +21,7 @@ import math
 import enum
 
 
-from veredi.base.null import Nullable, Null
+from veredi.base.null import Null, Nullable, NullNoneOr
 
 
 # -----------------------------------------------------------------------------
@@ -103,6 +98,9 @@ _unit_test_callback = Null()
 # -----------------------------------------------------------------------------
 
 def init(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
+    '''
+    Initializes our root logger.
+    '''
     global __initialized
     if __initialized:
         return
@@ -129,13 +127,45 @@ def init(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
     __initialized = True
 
 
-def get_level() -> Level:
+def get_logger(*names: str) -> logging.Logger:
+    '''
+    Get a logger by name. Names should be module name, or module and
+    class name. ...Or dotted name? Not sure.
+
+    Ignores any 'Falsy' values in `names` when building a name from parts.
+
+    E.g.:
+      get_logger(__name__, self.__class__.__name__)
+      get_logger(__name__)
+      ???
+        get_logger(self.dotted)
+      ???
+    '''
+    # Ignore any Falsy values in names
+    logger_name = '.'.join([each for each in names if each])
+    return logging.getLogger(logger_name)
+
+
+def _logger(veredi_logger: NullNoneOr[logging.Logger] = None
+            ) -> logging.Logger:
+    '''
+    Returns `veredi_logger` if it is Truthy.
+    Returns the default veredi logger if not.
+    '''
+    return (veredi_logger
+            if veredi_logger else
+            logger)
+
+
+def get_level(veredi_logger: NullNoneOr[logging.Logger] = None) -> Level:
     '''Returns current log level of logger, translated into Level enum.'''
-    level = Level(logger.level)
+    this = _logger(veredi_logger)
+    level = Level(this.level)
     return level
 
 
-def set_level(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
+def set_level(level: Union[Level, int] = DEFAULT_LEVEL,
+              veredi_logger: NullNoneOr[logging.Logger] = None) -> None:
     '''Change logger's log level. Options are:
       - log.CRITICAL
       - log.ERROR
@@ -150,16 +180,19 @@ def set_level(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
         error("Invalid log level {}. Ignoring.", level)
         return
 
-    logger.setLevel(Level.to_logging(level))
+    this = _logger(veredi_logger)
+    this.setLevel(Level.to_logging(level))
 
 
-def will_output(level: Union[Level, int]) -> bool:
+def will_output(level: Union[Level, int],
+                veredi_logger: NullNoneOr[logging.Logger] = None) -> bool:
     '''
     Returns true if supplied `level` is high enough to output a log.
     '''
     if isinstance(level, Level):
         level = Level.to_logging(level)
-    return level >= logger.level
+    this = _logger(veredi_logger)
+    return level >= this.level
 
 
 class BestTimeFmt(logging.Formatter):
@@ -233,46 +266,54 @@ def incr_stack_level(
 
 def debug(msg: str,
           *args: Any,
+          veredi_logger: NullNoneOr[logging.Logger] = None,
           **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.DEBUG, output):
-        logger.debug(output,
-                     stacklevel=stacklevel)
+        this = _logger(veredi_logger)
+        this.debug(output,
+                   stacklevel=stacklevel)
 
 
 def info(msg: str,
          *args: Any,
+         veredi_logger: NullNoneOr[logging.Logger] = None,
          **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.INFO, output):
-        logger.info(output,
-                    stacklevel=stacklevel)
+        this = _logger(veredi_logger)
+        this.info(output,
+                  stacklevel=stacklevel)
 
 
 def warning(msg: str,
             *args: Any,
+            veredi_logger: NullNoneOr[logging.Logger] = None,
             **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.WARNING, output):
-        logger.warning(output,
-                       stacklevel=stacklevel)
+        this = _logger(veredi_logger)
+        this.warning(output,
+                     stacklevel=stacklevel)
 
 
 def error(msg: str,
           *args: Any,
+          veredi_logger: NullNoneOr[logging.Logger] = None,
           **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.ERROR, output):
-        logger.error(output,
-                     stacklevel=stacklevel)
+        this = _logger(veredi_logger)
+        this.error(output,
+                   stacklevel=stacklevel)
 
 
 def exception(err: Exception,
@@ -280,6 +321,8 @@ def exception(err: Exception,
               msg:       Optional[str],
               *args:     Any,
               context:   Optional['VerediContext'] = None,
+              associate: Optional[Union[Any, Iterable[Any]]] = None,
+              veredi_logger: NullNoneOr[logging.Logger] = None,
               **kwargs:  Any) -> None:
     '''
     The exception this logs is:
@@ -298,7 +341,9 @@ def exception(err: Exception,
       kwargs['err_type'] = type(err)
       kwargs['err_type'] = str(err)
 
-    can piggy-back easier.
+    If something is supplied as 'associate' kwarg, it will go into the
+    'associated' value of the veredi wrapping exception.
+
     Then returns either:
       - if wrap_type is None:
           err (the input error)
@@ -335,28 +380,34 @@ def exception(err: Exception,
         kwargs['err_str'] = log_msg_err_str
 
     log_msg = brace_message(msg, *args, context=context, **kwargs)
-    logger.error(log_msg,
-                 stacklevel=stacklevel)
+    this = _logger(veredi_logger)
+    this.error(log_msg,
+               stacklevel=stacklevel)
 
     if wrap_type:
-        return wrap_type(log_msg, err, context)
+        return wrap_type(log_msg, err,
+                         context=context,
+                         associated=associate)
     return err
 
 
 def critical(msg: str,
              *args: Any,
+             veredi_logger: NullNoneOr[logging.Logger] = None,
              **kwargs: Any) -> None:
     stacklevel = pop_stack_level(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.CRITICAL, output):
-        logger.critical(output,
-                        stacklevel=stacklevel)
+        this = _logger(veredi_logger)
+        this.critical(output,
+                      stacklevel=stacklevel)
 
 
 def at_level(level: 'Level',
              msg: str,
              *args: Any,
+             veredi_logger: NullNoneOr[logging.Logger] = None,
              **kwargs: Any) -> None:
     kwargs = incr_stack_level(kwargs)
     log_fn = None
@@ -378,7 +429,7 @@ def at_level(level: 'Level',
     elif level == Level.CRITICAL:
         log_fn = critical
 
-    log_fn(msg, *args, **kwargs)
+    log_fn(msg, *args, veredi_logger=veredi_logger, **kwargs)
 
 
 # -----------------------------------------------------------------------------

@@ -26,8 +26,8 @@ from .parser import MathTree
 # Constants
 # -----------------------------------------------------------------------------
 
-MathResultType = NewType('MathResult', Union[int, float, Decimal])
-MathResult = (int, float, Decimal)
+MathValueType = NewType('MathValueType', Union[int, float, Decimal])
+MathValue = (int, float, Decimal)
 
 
 # -----------------------------------------------------------------------------
@@ -67,7 +67,7 @@ class MathEvent(Event):
 
     def finalize(self,
                  root: MathTree,
-                 total: MathResultType) -> None:
+                 total: MathValueType) -> None:
         '''
         Get this event ready for publishing.
         '''
@@ -120,7 +120,7 @@ class MathOutputEvent(OutputEvent):
                  source_type: Union[int, enum.Enum],
                  context:     VerediContext,
                  serial_id:   SerializableId,
-                 output_type: 'OutputType',
+                 output_type: OutputType,
                  root:        Optional[MathTree] = None) -> None:
         self.set(source_id, source_type, context,
                  serial_id, output_type,
@@ -131,7 +131,7 @@ class MathOutputEvent(OutputEvent):
             source_type: Union[int, enum.Enum],
             context:     VerediContext,
             serial_id:   SerializableId,
-            output_type: 'OutputType',
+            output_type: OutputType,
             root:        MathTree) -> None:
         super().set(source_id, source_type, context, serial_id, output_type)
         self.root = None
@@ -143,16 +143,26 @@ class MathOutputEvent(OutputEvent):
         self.total = None
 
     # -------------------------------------------------------------------------
+    # Output Things
+    # -------------------------------------------------------------------------
+
+    @property
+    def dotted(self):
+        '''
+        Veredi dotted name for what type/kind of output this is.
+        '''
+        return 'veredi.math.event.output'
+
+    # -------------------------------------------------------------------------
     # Math System
     # -------------------------------------------------------------------------
 
     def finalize(self,
                  root:  MathTree,
-                 total: MathResultType) -> None:
+                 total: MathValueType) -> None:
         '''
         Get this event ready for publishing.
         '''
-        super().reset()
         self.root = root
         self.total = total
 

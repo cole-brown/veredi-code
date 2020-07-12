@@ -1,0 +1,97 @@
+
+---
+
+title: Roll
+input: 2d11 + 8 - 1d2
+id: 1i243cgdd23134dl12r3c4hnh
+
+type: veredi.interface.output.math-tree
+
+output:
+  type: operator
+  name: +
+  value: 21
+  children:
+    - type: dice
+      name: 2d11
+      value: [10, 4]
+    - type: operator
+      name: -
+      value: 7
+      children:
+        - type: constant
+          name: 8
+          value: 8
+        - type: dice
+          name: 1d2
+          value: [1]
+
+names:
+  0: Entity Display Name
+  1: Entity Too
+
+---
+
+title: Roll
+input: 3d6 + $str * 2 + $power-attack
+id: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+
+type: veredi.interface.output.math-tree
+
+output:
+  type: operator
+  name: +
+  value: 33
+  children:
+    - type: dice
+      name: 3d6
+      value: [6, 6, 6]
+    - type: operator
+      name: *
+      value:
+      children:
+        - type: variable
+          name: strength.modifier
+          value: 7
+        - type: constant
+          name: 2
+          value: 2
+    - type: variable
+      name: feat.power-attack
+      value: [1]
+
+names:
+  0: Entity Display Name
+  1: Entity Too
+  feat.power-attack: Power Attack
+  strength.modifier: Strength Modifier
+
+
+---
+
+title: Ability Check - Dexterity
+input: dex + 4
+id: 10101010101010101010
+
+type: veredi.interface.output.math-tree
+
+output:
+  type: operator
+  name: +
+  value: 9
+  children:
+    - type: dice
+      name: d20
+      value: [4]
+    - type: variable
+      name: dexterity.score
+      value: 1
+    - type: constant
+      name: 4
+      value: 4
+
+names:
+  0: Entity Display Name
+  1: Entity Too
+  feat.power-attack: Power Attack
+  strength.modifier: Strength Modifier

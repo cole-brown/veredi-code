@@ -11,23 +11,29 @@ each other.
 
 import enum
 
+from veredi.base.enum import FlagCheckMixin
+
 
 # -----------------------------------------------------------------------------
 # Debugging
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class DebugFlag(enum.Flag):
+class DebugFlag(FlagCheckMixin, enum.Flag):
+    '''
+    has() and any() provided by FlagCheckMixin.
+    '''
+
     LOG_TICK     = enum.auto()
     '''Output a log message each tick at debug level.'''
 
     RAISE_ERRORS = enum.auto()
     '''Re-raises any errors/exceptions caught in Engine object itself.'''
 
-    UNIT_TESTS = LOG_TICK | RAISE_ERRORS
+    SYSTEM_DEBUG = enum.auto()
+    '''Output a log message each tick at debug level.'''
 
-    def has(self, flag):
-        return ((self & flag) == flag)
+    UNIT_TESTS = LOG_TICK | RAISE_ERRORS | SYSTEM_DEBUG
 
 
 # -----------------------------------------------------------------------------
@@ -35,11 +41,13 @@ class DebugFlag(enum.Flag):
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class SystemTick(enum.Flag):
+class SystemTick(FlagCheckMixin, enum.Flag):
     '''
     Enum for the defininiton of the steps in a full tick.
 
     These are (or should be) defined in the order they occur in Engine.
+
+    has() and any() provided by FlagCheckMixin.
     '''
 
     INVALID     = 0
@@ -103,9 +111,6 @@ class SystemTick(enum.Flag):
     '''
     ALL of the (standard) ticks.
     '''
-
-    def has(self, flag):
-        return ((self & flag) == flag)
 
 
 class SystemPriority(enum.IntEnum):

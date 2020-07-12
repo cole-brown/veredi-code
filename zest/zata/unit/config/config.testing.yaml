@@ -29,4 +29,9 @@ input:
     math: veredi.math.d20.parser
 
 
+output:
+  type: veredi.interface.output.system
+  codec: veredi.codec.yaml
+
+
 # and more?

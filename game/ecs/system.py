@@ -128,7 +128,6 @@ class SystemManager(EcsManagerWithEvents):
 
     def _error_maybe_raise(self,
                            error:      Exception,
-                           v_err_type: Optional[Type[VerediError]],
                            msg:        Optional[str],
                            *args:      Any,
                            context:    Optional['VerediContext'] = None,
@@ -139,9 +138,11 @@ class SystemManager(EcsManagerWithEvents):
         kwargs = kwargs or {}
         log.incr_stack_level(kwargs)
         if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+            # Can't provide an wrapping error type here or my error's stack
+            # context gets lost I guess?
             raise log.exception(
                 error,
-                v_err_type,
+                None,
                 msg,
                 *args,
                 context=context,
@@ -150,7 +151,7 @@ class SystemManager(EcsManagerWithEvents):
         else:
             log.exception(
                 error,
-                v_err_type,
+                None,
                 msg,
                 *args,
                 context=context,
@@ -256,7 +257,6 @@ class SystemManager(EcsManagerWithEvents):
                 # Plow on ahead anyways or raise due to debug flags.
                 self._error_maybe_raise(
                     error,
-                    None,
                     "SystemManager's {} system caught error type '{}' "
                     "during {} tick (time={}).",
                     str(system), type(error),
@@ -267,7 +267,6 @@ class SystemManager(EcsManagerWithEvents):
                 # Plow on ahead anyways or raise due to debug flags.
                 self._error_maybe_raise(
                     error,
-                    None,
                     "SystemManager's {} system had an unknown exception "
                     "during {} tick (time={}).",
                     str(system), tick, time.seconds)

@@ -99,14 +99,18 @@ class BaseCodec(ABC):
         '''
         raise NotImplementedError
 
+    # -------------------------------------------------------------------------
+    # Abstract: Decode Methods
+    # -------------------------------------------------------------------------
+
     @abstractmethod
     def decode(self,
                stream: TextIO,
                input_context: 'VerediContext') -> CodecOutput:
-        '''Load and decodes a single document from the data stream.
+        '''Read and decodes a single document from the data stream.
 
         Raises:
-          - exceptions.LoadError
+          - exceptions.ReadError
             - wrapping a library error?
         '''
         raise NotImplementedError
@@ -115,40 +119,98 @@ class BaseCodec(ABC):
     def decode_all(self,
                    stream: TextIO,
                    input_context: 'VerediContext') -> CodecOutput:
-        '''Load and decodes all documents from the data stream.
+        '''Read and decodes all documents from the data stream.
 
         Raises:
-          - exceptions.LoadError
+          - exceptions.ReadError
             - wrapping a library error?
         '''
         raise NotImplementedError
 
     @abstractmethod
-    def _load(self,
+    def _read(self,
               stream: TextIO,
               input_context: 'VerediContext') -> Any:
-        '''Load data from a single data stream.
+        '''Read data from a single data stream.
 
         Returns:
           Based on subclass.
 
         Raises:
-          - exceptions.LoadError
+          - exceptions.ReadError
             - wrapped lib/module errors
         '''
         raise NotImplementedError
 
     @abstractmethod
-    def _load_all(self,
+    def _read_all(self,
                   stream: TextIO,
                   input_context: 'VerediContext') -> Any:
-        '''Load data from a single data stream.
+        '''Read data from a single data stream.
 
         Returns:
           Based on subclass.
 
         Raises:
-          - exceptions.LoadError
+          - exceptions.ReadError
+            - wrapped lib/module errors
+        '''
+        raise NotImplementedError
+
+    # -------------------------------------------------------------------------
+    # Abstract: Encode Methods
+    # -------------------------------------------------------------------------
+
+    @abstractmethod
+    def encode(self,
+               stream: TextIO,
+               input_context: 'VerediContext') -> CodecOutput:
+        '''Write and encodes a single document from the data stream.
+
+        Raises:
+          - exceptions.WriteError
+            - wrapping a library error?
+        '''
+        raise NotImplementedError
+
+    @abstractmethod
+    def encode_all(self,
+                   stream: TextIO,
+                   input_context: 'VerediContext') -> CodecOutput:
+        '''Write and encodes all documents from the data stream.
+
+        Raises:
+          - exceptions.WriteError
+            - wrapping a library error?
+        '''
+        raise NotImplementedError
+
+    @abstractmethod
+    def _write(self,
+               stream: TextIO,
+               input_context: 'VerediContext') -> Any:
+        '''Write data from a single data stream.
+
+        Returns:
+          Based on subclass.
+
+        Raises:
+          - exceptions.WriteError
+            - wrapped lib/module errors
+        '''
+        raise NotImplementedError
+
+    @abstractmethod
+    def _write_all(self,
+                   stream: TextIO,
+                   input_context: 'VerediContext') -> Any:
+        '''Write data from a single data stream.
+
+        Returns:
+          Based on subclass.
+
+        Raises:
+          - exceptions.WriteError
             - wrapped lib/module errors
         '''
         raise NotImplementedError

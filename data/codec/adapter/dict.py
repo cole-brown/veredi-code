@@ -169,12 +169,11 @@ class DataDict(abc.MutableMapping):
                 retval = group[desired]
                 break
 
-        # Don't eval all them args unless it'll be used...
-        if log.will_output(log.Level.DEBUG):
-            log.debug("{}('{}') contains '{}'? {}",
-                      self.__class__.__name__,
-                      self._name,
-                      desired, retval)
+        # # Don't eval all them args unless it'll be used...
+        # if log.will_output(log.Level.DEBUG):
+        #     log.debug("{} contains '{}'? {}",
+        #               self.__class__.__name__,
+        #               desired, retval)
         return retval
 
     # ---

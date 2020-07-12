@@ -212,6 +212,11 @@ class ConfigHierarchy(Hierarchy):
                 'math': Info.LEAF,
             },
         },
+
+        'output': {
+            'type': Info.LEAF,
+            'codec': Info.LEAF,
+        },
     }
     '''
     Layout of configuration document.

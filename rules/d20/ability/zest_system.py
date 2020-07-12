@@ -221,7 +221,7 @@ class Test_AbilitySystem(BaseSystemTest):
         self.assertTrue(self.system)
 
     def test_ability_req(self):
-        self.event_setup()
+        self.event_set_up()
         entity = self.create_entity()
 
         request = self.ability_request(entity, "strength")
@@ -242,7 +242,7 @@ class Test_AbilitySystem(BaseSystemTest):
                          'strength.score')
 
     def test_ability_req_mod(self):
-        self.event_setup()
+        self.event_set_up()
         entity = self.create_entity()
 
         request = self.ability_request(entity, "strength.modifier")
@@ -263,7 +263,7 @@ class Test_AbilitySystem(BaseSystemTest):
                          'strength.modifier')
 
     def test_ability_req_mod_alias(self):
-        self.event_setup()
+        self.event_set_up()
         entity = self.create_entity()
 
         # 'str' is 'strength' alias
@@ -290,7 +290,7 @@ class Test_AbilitySystem(BaseSystemTest):
     # ------------------------------
 
     def test_cmd_reg(self):
-        self.event_setup()
+        self.event_set_up()
         self.allow_registration()
 
         # Nothing exploded?
@@ -298,7 +298,7 @@ class Test_AbilitySystem(BaseSystemTest):
         # Success!
 
     def test_cmd_score(self):
-        self.event_setup()
+        self.event_set_up()
         self.allow_registration()
         entity = self.create_entity()
 
@@ -316,7 +316,7 @@ class Test_AbilitySystem(BaseSystemTest):
         self.trigger_events(event, expected_events=0)
 
     def test_cmd_mod(self):
-        self.event_setup()
+        self.event_set_up()
         self.allow_registration()
         entity = self.create_entity()
 
@@ -334,7 +334,7 @@ class Test_AbilitySystem(BaseSystemTest):
         self.trigger_events(event, expected_events=0)
 
     def test_cmd_shortcut(self):
-        self.event_setup()
+        self.event_set_up()
         self.allow_registration()
         entity = self.create_entity()
 
@@ -352,7 +352,7 @@ class Test_AbilitySystem(BaseSystemTest):
         self.trigger_events(event, expected_events=0)
 
     def test_cmd_alias(self):
-        self.event_setup()
+        self.event_set_up()
         self.allow_registration()
         entity = self.create_entity()
 

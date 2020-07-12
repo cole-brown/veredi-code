@@ -71,8 +71,15 @@ class Meeting:
         self._system_manager    = system_manager    or self._system_manager
 
     # -------------------------------------------------------------------------
-    # Meta - Do you have the managers you need?
+    # Meta - Do you have the ___ you need?
     # -------------------------------------------------------------------------
+
+    def flagged(self, flag: DebugFlag) -> bool:
+        '''
+        Returns true if Meeting's debug flags are Truthy and have the supplied
+        `flag` (which can be more than one DebugFlag bit/flag).
+        '''
+        return self._debug.has(flag)
 
     def healthy(self,
                 required_set: NullNoneOr[Set[Type['EcsManager']]]

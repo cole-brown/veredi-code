@@ -32,6 +32,14 @@ def null_or_none(check):
             or check is None)
 
 
+def null_to_none(check):
+    '''
+    Converts `check` to `None` if it is `Null`.
+    Returns `check` otherwise.
+    '''
+    return (None if check is Null() else check)
+
+
 # -----------------------------------------------------------------------------
 # Null Itself
 # -----------------------------------------------------------------------------

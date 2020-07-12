@@ -8,7 +8,7 @@ Helpers for names.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import List
+from typing import Union, List, Tuple
 from .null import Nullable, Null
 
 import pathlib
@@ -76,13 +76,17 @@ def path(*args: str) -> Nullable[pathlib.Path]:
     return pathlib.Path(*args)
 
 
-def this(find: str, milieu: str) -> Nullable[List[str]]:
+def this(find: str,
+         milieu: str) -> Tuple[Nullable[List[Union[str, List[str]]]], bool]:
     '''
-    Looks for 'this' in `find` string, then uses `milieu` to replace it.
+    Looks for 'this' in `find` string, then uses `milieu` to replace it. Milieu
+    will be split, so if a 'this' was found, you'll get a list of strings
+    and/or lists.
+
     E.g.:
       this('this.score',
            'strength.modifier')
-        -> 'strength.score'
+        -> [['strength', 'modifier'], 'score']
 
     Basically, 'this' means (currently) 'go down a level'. From, in that case,
     'strength.modifier' (the milieu in which we found the 'this') down to
@@ -95,13 +99,15 @@ def this(find: str, milieu: str) -> Nullable[List[str]]:
       or develops."
     Close enough?
 
-    Returns split name list.
+    Returns tuple of: (<split name list>, <'this' was found>)
     '''
+    found_this = False
+
     if not find:
-        return Null()
+        return Null(), found_this
     if not milieu:
         # Just return what we got, but I guess split to obey return value?
-        return split(find)
+        return split(find), found_this
 
     result = []
     for name in split(find):
@@ -110,14 +116,20 @@ def this(find: str, milieu: str) -> Nullable[List[str]]:
             continue
 
         # Have a 'this'. Replace it.
+        found_this = True
+
         # 1) Replace it with... what?
         these = split(milieu)
 
-        # 2) Split replacement, and use all but leaf name, if possible.
-        if len(these) > 1:
-            these = these[:-1]
+        # 2) Replace `this` with `these`, let caller figure out what to
+        #    reduce down to.
+        result.append(these)
 
-        # 3) Append replacement to result instead of 'this'.
-        result.extend(these)
+        # # 2) Split replacement, and use all but leaf name, if possible.
+        # if len(these) > 1:
+        #     these = these[:-1]
+        #
+        # # 3) Append replacement to result instead of 'this'.
+        # result.extend(these)
 
-    return result
+    return result, found_this

@@ -29,6 +29,11 @@ input:
     math: veredi.math.d20.parser
 
 
+output:
+  type: veredi.interface.output.system
+  codec: veredi.codec.yaml
+
+
 rules:
   type: veredi.rules.d20
   skill: veredi.rules.d20.skill.system

@@ -136,7 +136,7 @@ class Test_InputSystem(BaseSystemTest):
         self.assertTrue(self.system)
 
     def test_input_cmd(self):
-        self.event_setup()
+        self.event_set_up()
         self.allow_registration()
 
         entity = self.create_entity()

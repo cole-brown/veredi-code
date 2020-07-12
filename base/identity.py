@@ -290,6 +290,12 @@ class SerializableId(metaclass=ABC_InvalidProvider):
     def __repr__(self) -> str:
         return f'{self._short_name_}:{self._format_}'
 
+    def encode(self) -> str:
+        '''
+        String for storing, sending to users.
+        '''
+        return f'{self._short_name_}:{self._format_}'
+
 
 # Could do something like this, if there's an id class that doesn't have a
 # generator or other good spot to init its INVALID instance.
