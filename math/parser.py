@@ -15,7 +15,7 @@ from collections import deque
 # If we need threading, switch to:
 # from queue import Queue, LifoQueue
 import enum
-
+from decimal import Decimal
 
 from veredi.logger import log
 from veredi.base.context import VerediContext
@@ -25,6 +25,14 @@ from veredi.base.enum import FlagCheckMixin
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+FINAL_VALUE_TYPES = (int, float, Decimal)
+'''
+These value types are considered final. If a math tree has a node that
+evaluates out to not one of these, we can't actually reduce the tree down to a
+final evaluated value.
+'''
+
 
 VTags = NewType('VTags', Optional[Iterable[str]])
 '''
@@ -153,6 +161,7 @@ class MathTree(ABC):
     NULL_SIGN = '∅'
 
     _SET_VALUE_ALLOWED = (NodeType.VARIABLE, NodeType.RANDOM)
+    _SET_NAME_ALLOWED = (NodeType.VARIABLE, )
 
     def __init__(self,
                  type:     'NodeType',
@@ -199,17 +208,37 @@ class MathTree(ABC):
         return self._node_type
 
     @property
+    def name_is_shortcut(self) -> bool:
+        '''
+        Returns true if name has a shortcut in it, like 'this'.
+        '''
+        # §-TODO-§ [2020-07-13]: 'name_is_alias'? 'name_is_canon'?
+        return self._name.find('this') != -1
+
+    @property
     def name(self) -> Any:
         return self._name
 
-    # @name.setter
-    # def name(self, new_name: Any) -> None:
-    #     '''
-    #     Set name if allowed by NodeType.
-    #     Raise AttributeError if not allowed.
-    #     '''
-    #     # ...what nodes would be allowed?
-    #     # ...what nodes wouldn't be allowed?
+    @name.setter
+    def name(self, new_name: Any) -> None:
+        '''
+        Set name if allowed by NodeType.
+        Raise AttributeError if not allowed.
+        '''
+        if not self._node_type.any(*self._SET_NAME_ALLOWED):
+            msg = ("Node is not allowed to set name; wrong type. "
+                   "type: {}, allowed: {}").format(self.type,
+                                                   self._SET_NAME_ALLOWED)
+            error = AttributeError(msg)
+            raise log.exception(error, None, msg)
+
+        if self._name and not self.name_is_shortcut:
+            msg = ("Node is not allowed to change name unless name has "
+                   "'this' in it. current name: {}").format(self.name)
+            error = ValueError(msg)
+            raise log.exception(error, None, msg)
+
+        self._name = new_name
 
     @property
     def value(self) -> Any:
@@ -261,6 +290,10 @@ class MathTree(ABC):
         # Let the setters do the sanity checking.
         self.value = new_value
         self.milieu = new_milieu
+        if (isinstance(self.value, FINAL_VALUE_TYPES)
+                and new_milieu
+                and self.name_is_shortcut):
+            self.name = new_milieu
 
     # -------------------------------------------------------------------------
     # Evaluate

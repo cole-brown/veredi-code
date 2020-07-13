@@ -16,19 +16,12 @@ from decimal import Decimal
 from abc import ABC, abstractmethod
 
 from veredi.logger import log
-from .parser import MathTree
+from .parser import MathTree, FINAL_VALUE_TYPES
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-FINAL_VALUE_TYPES = (int, float, Decimal)
-'''
-These value types are considered final. If a math tree has a node that
-evaluates out to not one of these, we can't actually reduce the tree down to a
-final evaluated value.
-'''
 
 
 # -----------------------------------------------------------------------------
