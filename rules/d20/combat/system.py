@@ -36,7 +36,7 @@ from ..ecs.entity                       import EntityManager
 from ..ecs.const                        import (SystemTick,
                                                 SystemPriority)
 
-from ..ecs.base.system                  import System
+from ..system                           import D20RulesSystem
 from ..ecs.base.component               import Component
 
 # Commands
@@ -71,7 +71,7 @@ from .event import (
 # -----------------------------------------------------------------------------
 
 @register('veredi', 'rules', 'd20', 'combat', 'system')
-class CombatSystem(System):
+class CombatSystem(D20RulesSystem):
 
     def _configure(self, context: 'VerediContext') -> None:
         '''
@@ -79,6 +79,11 @@ class CombatSystem(System):
         '''
         self._component_type: Type[Component] = AttackComponent
         '''Set our component type for the get() helper. We have two, so...'''
+
+        super()._configure(context)
+        self._config_rules_def(context,
+                               background.config.config,
+                               'combat')
 
         # ---
         # Health Stuff
@@ -114,29 +119,10 @@ class CombatSystem(System):
                                    | SystemTick.STANDARD
                                    | SystemTick.POST)
 
-        # ---
-        # Config Stuff
-        # ---
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                None,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
-
-        # TODO: What defs does combat have?
-        # # Ask config for our definition to be deserialized and given to us
-        # # right now.
-        # self._defs = definition.Definition(
-        #     definition.DocType.DEF_SYSTEM,
-        #     config.definition(self.dotted, context))
-
-    # Magically provided by @register
-    # @property
-    # def dotted(self) -> str:
-    #     ...
+    @property
+    def dotted(self) -> str:
+        # self._DOTTED magically provided by @register
+        return self._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -163,13 +149,10 @@ class CombatSystem(System):
         super().subscribe(event_manager)
 
         # CombatSystem subs to:
-        # - CommandRegistrationBroadcast - For commands.
         # - AttackRequestEvent
         #   - Attacker wants to start an attack.
         # - DefenseRequestEvent
         #   - Defender wants to start a... defense.
-        self._manager.event.subscribe(CommandRegistrationBroadcast,
-                                      self.event_cmd_reg)
         self._manager.event.subscribe(AttackRequest,
                                       self.event_attack_request)
         self._manager.event.subscribe(DefenseRequest,
@@ -189,37 +172,36 @@ class CombatSystem(System):
                                    self.dotted,
                                    'attack',
                                    CommandPermission.COMPONENT,
-                                   self.trigger_attack_req,
+                                   self.command_attack,
                                    description='Attack an enemy.')
         cmd.set_permission_components(AttackComponent)
         cmd.add_arg('attack name', CommandArgType.STRING)
 
         self._event_notify(cmd)
 
-    def trigger_attack_req(self,
-                           math: MathTree,
-                           context: Optional[InputContext] = None
-                           ) -> CommandStatus:
+    def command_attack(self,
+                       math: MathTree,
+                       context: Optional[InputContext] = None
+                       ) -> CommandStatus:
         '''
         Turn command into Attack Request event for us to process later.
         '''
         # Doctor checkup.
         if not self._health_ok_msg("Command ignored due to bad health.",
                                    context=context):
-            return
+            return CommandStatus.system_health(context)
 
         eid = InputContext.source_id(context)
-        entity = self._manager.entity.get(eid)
-        component = entity.get(AttackComponent)
+        entity, component = self._log_get_both(
+            eid,
+            self._component_type,
+            context=context,
+            preface="Dropping 'attack' command - ")
         if not entity or not component:
-            log.info("Dropping 'skill' command - no entity or comp "
-                     "for its id: {}",
-                     eid,
-                     context=context)
             return CommandStatus.entity_does_not_exist(eid,
                                                        entity,
                                                        component,
-                                                       AttackComponent,
+                                                       self._component_type,
                                                        context)
 
         # TODO: put this request in component's attack queue.
