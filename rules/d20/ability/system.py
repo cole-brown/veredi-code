@@ -173,8 +173,8 @@ class AbilitySystem(D20RulesSystem):
 
         for ability in self._rule_defs['alias']:
             canon = self._rule_defs.canonical(ability, None,
-                                                 no_error_log=True,
-                                                 raise_error=False)
+                                              no_error_log=True,
+                                              raise_error=False)
             if canon:
                 cmd.add_alias(ability, 'ability ' + canon)
 
@@ -196,17 +196,16 @@ class AbilitySystem(D20RulesSystem):
             return CommandStatus.system_health(context)
 
         eid = InputContext.source_id(context)
-        entity = self._manager.entity.get(eid)
-        component = entity.get(AbilityComponent)
+        entity, component = self._log_get_both(
+            eid,
+            self._component_type,
+            context=context,
+            preface="Dropping 'ability' command - ")
         if not entity or not component:
-            log.info("Dropping 'ability' command - no entity or comp "
-                     "for its id: {}",
-                     eid,
-                     context=context)
             return CommandStatus.does_not_exist(eid,
                                                 entity,
                                                 component,
-                                                AbilityComponent,
+                                                self._component_type,
                                                 context)
 
         # Ok... now just bundle up off to MathSystem's care with our callbacks.
@@ -232,17 +231,14 @@ class AbilitySystem(D20RulesSystem):
         if not self._health_ok_event(event):
             return
 
-        eid = event.id
-        entity = self._manager.entity.get(eid)
-        component = entity.get(AbilityComponent)
+        entity, component = self._log_get_both(event.id,
+                                               self._component_type,
+                                               event=event)
         if not entity or not component:
-            log.info("Dropping event {} - no entity or comp "
-                     "for its id: {}, {}, {}",
-                     event, eid, entity, component,
-                     context=event.context)
+            # Entity or component disappeared, and that's ok.
             return
 
-        result = self._query(eid,
+        result = self._query(event.id,
                              event.ability,
                              event.context)
 
