@@ -19,22 +19,30 @@ from veredi.base.exceptions import VerediError
 # -----------------------------------------------------------------------------
 
 class ComponentError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Some sort of component-related error.
+    '''
+    ...
 
 
 class EntityError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Some sort of entity-related error.
+    '''
+    ...
 
 
 class SystemErrorV(VerediError):
     '''
-    ...Stupid python built-in SystemError...
-    '''
+    A Veredi System, or SystemManager, had a system-related error.
 
-    def __init__(self, message, cause, context):
-        '''With context data.'''
-        super().__init__(message, cause, context)
+    Didn't name 'SystemError' because Python built-in has that name and I
+    didn't want to accidentally forget an include to use Veredi's when
+    intended...
+
+    ...Stupid python built-in SystemError...
+
+    ...Definitely not my fault for not namespacing exceptions to their modules
+    or anything...
+    '''
+    ...

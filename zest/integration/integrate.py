@@ -13,10 +13,11 @@ from typing import Union, List
 import unittest
 
 from veredi.base.null                   import Null
+from veredi.base.const                  import VerediHealth
 from veredi.logger                      import log
 from veredi.zest                        import zload
 from veredi.zest.zpath                  import TestType
-
+from veredi.game.ecs.const              import DebugFlag
 from veredi.base.context                import VerediContext, UnitTestContext
 from veredi.game.ecs.base.system        import System
 from veredi.game.ecs.base.entity        import (Entity,
@@ -27,12 +28,12 @@ from veredi.game.ecs.base.component     import (Component,
 from veredi.game.ecs.event              import Event
 from veredi.game.data.event             import DataLoadedEvent
 from veredi.game.ecs.meeting            import Meeting
-from veredi.game.engine                 import Engine
+from veredi.game.engine                 import Engine, EngineLifeCycle
 
 from veredi.interface.input.system      import InputSystem
 from veredi.interface.input.command.reg import CommandRegistrationBroadcast
 
-# from veredi.game.ecs.const        import DebugFlag
+from veredi.interface.output.system     import OutputSystem
 
 
 # -----------------------------------------------------------------------------
@@ -69,6 +70,8 @@ class IntegrationTest(unittest.TestCase):
         self.context:        VerediContext = None
         self.input_system:   InputSystem   = None
         self.engine:         Engine        = None
+        self.events_ready:   bool          = False
+        self.engine_ready:   bool          = False
 
     def init_required(self, require_engine: bool) -> None:
         '''
@@ -91,6 +94,12 @@ class IntegrationTest(unittest.TestCase):
         self.input_system = self.init_a_system(InputSystem)
         self.manager.event.subscribe(CommandRegistrationBroadcast,
                                      self.event_cmd_reg)
+
+    def init_output(self) -> None:
+        '''
+        Creates/initializes OutputSystem.
+        '''
+        self.output_system = self.init_a_system(OutputSystem)
 
     def init_many_systems(self, *sys_types: System) -> None:
         '''
@@ -122,6 +131,8 @@ class IntegrationTest(unittest.TestCase):
         self.manager        = None
         self.context        = None
         self.input_system   = None
+        self.events_ready   = False
+        self.engine_ready   = False
 
     def apoptosis(self) -> None:
         self.manager.time.apoptosis()
@@ -129,6 +140,58 @@ class IntegrationTest(unittest.TestCase):
         self.manager.component.apoptosis(self.manager.time)
         self.manager.entity.apoptosis(self.manager.time)
         self.manager.system.apoptosis(self.manager.time)
+
+    # -------------------------------------------------------------------------
+    # Engine
+    # -------------------------------------------------------------------------
+
+    def engine_set_up(self):
+        '''
+        Get engine through creation ticks and ready for normal operation.
+        '''
+        if self.engine_ready:
+            self.fail("Engine is already set up, so... fail? "
+                      f"engine_ready: {self.engine_ready}")
+        if self.reg_open or self.events_ready:
+            self.fail("Registration is already set up, so engine cannot "
+                      "do all of its setup properly. "
+                      f"systems subbed: {self.events_ready}, "
+                      f"reg open: {self.reg_open}")
+
+        # Not life'd or registration'd yet.
+        self.assertEqual(self.engine.life_cycle, EngineLifeCycle.INVALID)
+        self.assertFalse(self.reg_open)
+
+        # Run create ticks.
+        self.engine._run_create()
+
+        # Life'd, registration'd, and some commands exist now.
+        self.assertEqual(self.engine.life_cycle, EngineLifeCycle.CREATING)
+        self.assertTrue(self.reg_open)
+        self.assertTrue(self.input_system._commander._commands)
+        self.events_ready = True
+        self.engine_ready = True
+
+    def engine_tick(self, num_ticks=1):
+        '''
+        Tick through `num_ticks` cycles of the normal game tick phases.
+        '''
+        if not num_ticks:
+            return
+
+        if self.engine.life_cycle == EngineLifeCycle.CREATING:
+            # Stop puts us in APOPTOSIS, which is to avoid getting into
+            # _run_alive's infinite run loop.
+            self.engine.stop()
+            self.assertEqual(self.engine.engine_health, VerediHealth.APOPTOSIS)
+            self.engine._run_alive()
+            # So set our engine back to healthy now that it's ALIVE.
+            self.assertEqual(self.engine.life_cycle, EngineLifeCycle.ALIVE)
+            self.assertEqual(self.engine.engine_health, VerediHealth.APOPTOSIS)
+            self.engine.health = VerediHealth.HEALTHY
+
+        for i in range(num_ticks):
+            self.engine.tick()
 
     # -------------------------------------------------------------------------
     # Event Helpers / Handlers
@@ -144,7 +207,7 @@ class IntegrationTest(unittest.TestCase):
     def _sub_events_test(self) -> None:
         '''
         Subscribe to the events your want to be the (or just a)
-        receiver/handler for here. Called from event_setup() for tests that
+        receiver/handler for here. Called from event_set_up() for tests that
         want to do events.
 
         e.g.:
@@ -158,6 +221,17 @@ class IntegrationTest(unittest.TestCase):
         This has all systems that SystemManager knows about (which /should/ be
         every single one) get their subscribe() call.
         '''
+        if ((self.reg_open or self.events_ready)
+                and self.engine_ready):
+            # self.fail("Registration is already set up; engine did "
+            #           "it in engine_set_up(). "
+            #           f"engine set up: {self.engine_ready}, "
+            #           f"systems subbed: {self.events_ready}, "
+            #           f"reg open: {self.reg_open}")
+
+            # Don't try to register again.
+            return
+
         with log.LoggingManager.on_or_off(self.debugging):
             # Let all our pieces set up their subs.
             self.manager.time.subscribe(self.manager.event)
@@ -165,7 +239,7 @@ class IntegrationTest(unittest.TestCase):
             self.manager.entity.subscribe(self.manager.event)
             self.manager.system.subscribe(self.manager.event)
 
-    def event_setup(self) -> None:
+    def event_set_up(self) -> None:
         '''
         Rolls _sub_events_* into one call.
         '''

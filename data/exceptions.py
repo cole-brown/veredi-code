@@ -19,36 +19,64 @@ from veredi.base.exceptions import VerediError
 # -----------------------------------------------------------------------------
 
 class RegistryError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Error getting something into or out of our registry.
+    '''
+    ...
 
 
 class LoadError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Error loading data in some way.
+    '''
+    ...
+
+
+class SaveError(VerediError):
+    '''
+    Error saving data in some way.
+    '''
+    ...
+
+
+class ReadError(VerediError):
+    '''
+    Error reading data in some way.
+    '''
+    ...
+
+
+class WriteError(VerediError):
+    '''
+    Error writing data in some way.
+    '''
+    ...
 
 
 class ConfigError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Error during configuration set-up, or during a system's set-up when
+    expecting configuration to provide something that it didn't.
+    '''
+    ...
 
 
 class DataNotPresentError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Data error. No data?
+    '''
+    ...
 
 
 class DataRestrictedError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Data error. No data for you?
+    '''
+    ...
 
 
 class DataRequirementsError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Data error. Data failed requirements?
+    '''
+    ...

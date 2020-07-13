@@ -88,23 +88,6 @@ class Test_EngineStart_DebugCmds(IntegrationTest):
     # def event_skill_res(self, event):
     #     self.events.append(event)
 
-    # ---
-    # Engine
-    # ---
-    def _engine_start(self):
-        # Not life'd or registration'd yet.
-        self.assertEqual(self.engine.life_cycle, EngineLifeCycle.INVALID)
-        self.assertFalse(self.reg_open)
-
-        # Run create ticks.
-        self.engine._run_create()
-
-        # Life'd, registration'd, and some commands exist now.
-        self.assertEqual(self.engine.life_cycle, EngineLifeCycle.CREATING)
-        self.assertTrue(self.reg_open)
-        self.assertTrue(self.input_system._commander._commands)
-
-
     # -------------------------------------------------------------------------
     # Log Capture
     # -------------------------------------------------------------------------
@@ -163,7 +146,7 @@ class Test_EngineStart_DebugCmds(IntegrationTest):
         self.assertTrue(self.input_system._commander._commands)
 
     def test_background_cmd(self):
-        self._engine_start()
+        self.engine_set_up()
 
         # Set up entity. Not much use right now but we need to test debug
         # command permissions someday so hi there debug guy.
@@ -202,7 +185,7 @@ class Test_EngineStart_DebugCmds(IntegrationTest):
                       log_msg)
 
     def test_debug_background_cmd(self):
-        self._engine_start()
+        self.engine_set_up()
 
         # Set up entity. Not much use right now but we need to test debug
         # command permissions someday so hi there debug guy.

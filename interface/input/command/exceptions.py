@@ -23,11 +23,10 @@ from veredi.base.exceptions import VerediError
 # ---
 
 class CommandError(VerediError):
-    '''Base exception type for all command errors.'''
-
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Base exception type for all command errors.
+    '''
+    ...
 
 
 # ---
@@ -35,25 +34,22 @@ class CommandError(VerediError):
 # ---
 
 class CommandRegisterError(CommandError):
-    '''Error happened while registering a command.'''
-
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Error happened while registering a command.
+    '''
+    ...
 
 
 class CommandPermissionError(CommandError):
-    '''Command or Entity failed authz/permission check.'''
-
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Command or Entity failed authz/permission check.
+    '''
+    ...
 
 
 class CommandExecutionError(CommandError):
-    '''Command sub-system encountered an error during execution of a
-    command.'''
-
-    def __init__(self, message, cause, context):
-        '''With user context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Command sub-system encountered an error during execution of a
+    command.
+    '''
+    ...

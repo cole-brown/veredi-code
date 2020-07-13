@@ -8,7 +8,7 @@ All your Exceptions are belong to these classes.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 if TYPE_CHECKING:
     from .context import VerediContext
 
@@ -21,16 +21,20 @@ class VerediError(Exception):
     def __init__(self,
                  message: str,
                  cause: Optional[Exception],
-                 context: Optional['VerediContext']):
+                 context: Optional['VerediContext'] = None,
+                 associated: Optional[Any] = None):
         '''Context data included.'''
-        self.message = message
-        self.cause   = cause
-        self.context = context
+        self.message    = message
+        self.cause      = cause
+        self.context    = context
+        self.associated = associated
 
     def __str__(self):
         output = f"{self.message}"
         if self.cause:
             output += f" from {self.cause}"
+        if self.associated:
+            output += f" associtaed with {self.associated}"
         if self.context:
             output += f" with context {self.context}"
 
@@ -38,18 +42,15 @@ class VerediError(Exception):
 
 
 class KeyError(VerediError):
-    def __init__(self,
-                 message: str,
-                 cause: Optional[Exception],
-                 context: Optional['VerediContext']):
-        '''With context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Veredi Version of Python's KeyError.
+    # TODO [2020-07-08]: Just use Python's?
+    '''
+    ...
 
 
 class ContextError(VerediError):
-    def __init__(self,
-                 message: str,
-                 cause: Optional[Exception],
-                 context: Optional['VerediContext']):
-        '''With context data.'''
-        super().__init__(message, cause, context)
+    '''
+    VerediContext-related errors.
+    '''
+    ...

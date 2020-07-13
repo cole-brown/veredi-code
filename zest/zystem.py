@@ -124,7 +124,7 @@ class BaseSystemTest(unittest.TestCase):
     def _sub_events_test(self) -> None:
         '''
         Subscribe to the events your want to be the (or just a)
-        receiver/handler for here. Called from event_setup() for tests that
+        receiver/handler for here. Called from event_set_up() for tests that
         want to do events.
 
         e.g.:
@@ -148,7 +148,7 @@ class BaseSystemTest(unittest.TestCase):
         self.manager.event.subscribe(CommandRegistrationBroadcast,
                                      self.event_cmd_reg)
 
-    def event_setup(self) -> None:
+    def event_set_up(self) -> None:
         '''
         Rolls _sub_events_* into one call.
         '''

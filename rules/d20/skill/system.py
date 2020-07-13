@@ -379,7 +379,7 @@ class SkillSystem(System):
         if isinstance(skill, tuple):
             return self._query_this(component, *skill)
 
-        skill = self._skill_defs.canonical(skill)
+        skill = self._skill_defs.canonical(skill, None)
         return self._query_split(component, *dotted.split(skill))
 
     def _query_this(self,
@@ -405,7 +405,7 @@ class SkillSystem(System):
           or develops."
         Close enough?
         '''
-        skill = self.canonical(skill)
+        skill = self._skill_defs.canonical(skill, milieu)
         split_name = dotted.this(skill, milieu)
         return self._query_split(component, *split_name)
 

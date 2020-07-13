@@ -135,14 +135,7 @@ class CodecSystem(System):
         Data has been deserialized. We must decode it and pass it along.
         '''
         # Doctor checkup.
-        if not self._healthy():
-            self._health_meter_event = self._health_log(
-                self._health_meter_event,
-                log.Level.WARNING,
-                "HEALTH({}): Dropping event {} - our system health "
-                "isn't good enough to process.",
-                self.health, event,
-                context=event.context)
+        if not self._health_ok_event(event):
             return
 
         # Get deserialized data stream from event.

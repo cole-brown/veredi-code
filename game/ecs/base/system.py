@@ -31,7 +31,7 @@ from veredi.base.const  import VerediHealth
 from .identity          import EntityId, SystemId
 from .exceptions        import SystemErrorV
 
-from ..const            import SystemTick, SystemPriority
+from ..const            import (SystemTick, SystemPriority, DebugFlag)
 from ..exceptions       import TickError
 
 from ..manager          import EcsManager
@@ -659,6 +659,33 @@ class System(ABC):
         '''
         return VerediHealth.FATAL
 
+    # -------------------------------------------------------------------------
+    # Logging and String
+    # -------------------------------------------------------------------------
+
+    def _log(self,
+             level:    'log.Level',
+             msg:      str,
+             *args:    Any,
+             **kwargs: Any) -> None:
+        '''
+        Stupid way of having to stuff our class name into logger output.
+        '''
+        sys_logger = log.get_logger(self.dotted)
+        log.at_level(level,
+                     msg,
+                     *args,
+                     veredi_logger=sys_logger,
+                     **kwargs)
+
+    def _should_debug(self):
+        '''
+        Returns true if log.Level.DEBUG is outputting and if our DebugFlags
+        want us to output too.
+        '''
+        return (log.will_output(log.Level.DEBUG)
+                and self._manager.flagged(DebugFlag.SYSTEM_DEBUG))
+
     def __str__(self):
         return (
             f"{self.__class__.__name__}"
@@ -676,6 +703,6 @@ class System(ABC):
 
 
 # -----------------------------------------------------------------------------
-# Tell registry to leave my children alone.
+# Tell registry to leave my children alone for @property dotted() puropses.
 # -----------------------------------------------------------------------------
 registry.ignore(System)

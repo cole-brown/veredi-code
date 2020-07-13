@@ -17,6 +17,42 @@ display-name: Veredi Integration-Testing Data Load Path
 --- !component
 
 meta:
+  registry: veredi.game.data.identity.component
+
+identity:
+  name: 'aluminum dragon'
+  group: 'monster'
+  owner: 'u/gm_dm'
+
+
+--- !component
+
+meta:
+  registry: veredi.rules.d20.ability.component
+
+ability:
+  strength:
+    score: 30
+    modifier: (${this.score} - 10) // 2
+  dexterity:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  constitution:
+    score: 32
+    modifier: (${this.score} - 10) // 2
+  intelligence:
+    score: 20
+    modifier: (${this.score} - 10) // 2
+  wisdom:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  charisma:
+    score: 11
+    modifier: (${this.score} - 10) // 2
+
+--- !component
+
+meta:
   registry: veredi.rules.d20.health.component
 
 

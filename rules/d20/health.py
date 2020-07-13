@@ -11,9 +11,10 @@ health, hit points, etc.
 
 import enum
 
-from veredi.data.config.registry import register
+from veredi.base.enum            import FlagCheckMixin, FlagSetMixin
 
-from veredi.game.data.component     import DataComponent
+from veredi.data.config.registry import register
+from veredi.game.data.component  import DataComponent
 
 
 # -----------------------------------------------------------------------------
@@ -26,21 +27,17 @@ from veredi.game.data.component     import DataComponent
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class HealthState(enum.Flag):
+class HealthState(FlagCheckMixin, FlagSetMixin, enum.Flag):
+    '''
+    has() and any() provided by FlagCheckMixin.
+    set() and unset() provided by FlagSetMixin.
+    '''
+
     INVALID = enum.auto()
     ALIVE = enum.auto()
     HALF = enum.auto()
     UNCONSCIOUS = enum.auto()
     DEAD = enum.auto()
-
-    def has(self, flag: 'HealthState') -> bool:
-        return ((self & flag) == flag)
-
-    def set(self, flag):
-        return self | flag
-
-    def unset(self, flag):
-        return self & ~flag
 
 
 @register('veredi', 'rules', 'd20', 'health', 'component')

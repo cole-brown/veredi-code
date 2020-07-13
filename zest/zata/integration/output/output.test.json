@@ -1,0 +1,105 @@
+[
+    {
+        "title": "Ability Check - Dexterity"
+        "input": "${dex.mod} + 4",
+
+        "no....": "don't like this - puts too much on server for displaying data.",
+        "output": {
+            "initial": "${dexterity.modifier} + 4",
+            "intermediate": "(${dexterity.score} - 10) // 2 + 4",
+            "final": "(20 - 10) // 2 + 4"
+            "total": "9",
+        },
+
+        "names": { 0: "Entity Display Name",
+                   1: "Entity Too" }
+    },
+
+
+    {
+        "title": "Roll"
+        "input": "2d11 + 8 - 1d2",
+        "id": "1i243cgdd23134dl12r3c4hnh",
+
+        "type": "veredi.interface.output.math-tree",
+
+        "output": {
+            "type": "operator",
+            "name": "+",
+            "value": 21,
+            "children": [
+                {
+                    "type": "dice",
+                    "name": "2d11",
+                    "value": [10, 4]
+                },
+                {
+                    "type": "operator",
+                    "name": "-",
+                    "value": 7,
+                    "children": [
+                        {
+                            "type": "constant",
+                            "name": "8",
+                            "value": 8
+                        },
+                        {
+                            "type": "dice",
+                            "name": "1d2",
+                            "value": [1]
+                        }
+                    ]
+                }
+            ]
+        },
+
+        "names": { 0: "Entity Display Name",
+                   1: "Entity Too" }
+    },
+
+    {
+        "title": "Roll"
+        "input": "3d6 + $str * 2 + $power-attack",
+        "id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+
+        "type": "veredi.interface.output.math-tree",
+
+        "output": {
+            "type": "operator",
+            "name": "+",
+            "value": 33,
+            "children": [
+                {
+                    "type": "dice",
+                    "name": "3d6",
+                    "value": [6, 6, 6]
+                },
+                {
+                    "type": "operator",
+                    "name": "*",
+                    "value": ,
+                    "children": [
+                        {
+                            "type": "variable",
+                            "name": "strength.modifier",
+                            "value": 7
+                        },
+                        {
+                            "type": "constant",
+                            "name": "2",
+                            "value": 2
+                        }
+                    ]
+                },
+                {
+                    "type": "dice",
+                    "name": "1d6",
+                    "value": [1]
+                }
+            ]
+        },
+
+        "names": { 0: "Entity Display Name",
+                   1: "Entity Too" }
+    }
+]

@@ -101,6 +101,9 @@ A list where info about command names registered to InputSystem's Commander
 should be placed when registered in Commander.
 '''
 
+_OUTPUT = 'output'
+'''OutputSystem and other output stuff should be placed under this key.'''
+
 _CONTEXT = {
     _ROOT: {
         _CONFIG: {},
@@ -114,6 +117,7 @@ _CONTEXT = {
                 _CMDS_EXISTING: [],
             },
         },
+        _OUTPUT: {},
     },
 }
 
@@ -716,10 +720,76 @@ class command:
 
 
 # -------------------------------------------------------------------------
+# Output Namespace
+# -------------------------------------------------------------------------
+
+class OutputMeta(type):
+    '''
+    Metaclass shenanigans to make some read-only /class/ property.
+    '''
+    pass
+
+    # @property
+    # def parsers(klass: Type['output']) -> Nullable['Parcel']:
+    #     '''
+    #     Checks for a CONFIG link in config's spot in this context.
+    #     '''
+    #     ctx = klass._get()
+    #     retval = ctx.get(klass.Link.PARSERS, Null())
+    #     return retval
+
+
+class output(metaclass=OutputMeta):
+
+    # @enum.unique
+    # class Link(enum.Enum):
+    #     PARSERS = enum.auto()
+    #     '''The Parser object(s).'''
+
+    # -------------------------------------------------------------------------
+    # Getters / Setters
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _get(klass: Type['output']) -> Nullable[ContextMutableMap]:
+        '''
+        Get output's sub-context from background context.
+        '''
+        global _OUTPUT
+        return veredi.get().get(_OUTPUT, Null())
+
+    @classmethod
+    def set(klass:       Type['output'],
+            dotted_name: str,
+            data:        NullNoneOr[ContextMap],
+            ownership:   Ownership) -> None:
+        '''
+        Update output system's entry with `data`.
+        '''
+        ctx = klass._get()
+        # Set data provided.
+        _set(ctx, dotted_name, data, ownership)
+
+    # -------------------------------------------------------------------------
+    # More Specific Getters
+    # -------------------------------------------------------------------------
+
+    # Provided by OutputMeta:
+    # @classmethod
+    # def parsers(klass: Type['output']) -> Nullable['Parcel']:
+    #     '''
+    #     Checks for a CONFIG link in config's spot in this context.
+    #     '''
+    #     ctx = klass._get()
+    #     retval = ctx.get(klass.Link.PARSERS, Null())
+    #     return retval
+
+
+# -------------------------------------------------------------------------
 # To String
 # -------------------------------------------------------------------------
 
-# §-TODO-§ [2020-06-23]: string, repr for this
+# TODO [2020-06-23]: string, repr for this
 
 def to_str() -> str:
     from veredi.logger import pretty

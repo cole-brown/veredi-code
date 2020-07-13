@@ -47,7 +47,8 @@ grammar = '''
 
 ?product: factor
         | product "*" factor    -> mul
-        | product "/" factor    -> div
+        | product "/" factor    -> truediv
+        | product "//" factor   -> floordiv
         | product "%" factor    -> mod
         | product "^" factor    -> pow
 
@@ -232,8 +233,11 @@ class Transformer(lark.Transformer):
     def mul(self, children: Iterable[tree.Node]) -> tree.OperatorMult:
         return tree.OperatorMult(children)
 
-    def div(self, children: Iterable[tree.Node]) -> tree.OperatorDiv:
-        return tree.OperatorDiv(children)
+    def truediv(self, children: Iterable[tree.Node]) -> tree.OperatorDiv:
+        return tree.OperatorDiv(children, truediv=True)
+
+    def floordiv(self, children: Iterable[tree.Node]) -> tree.OperatorDiv:
+        return tree.OperatorDiv(children, truediv=False)
 
     def mod(self, children: Iterable[tree.Node]) -> tree.OperatorMod:
         return tree.OperatorMod(children)

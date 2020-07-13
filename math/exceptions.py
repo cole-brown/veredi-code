@@ -16,4 +16,7 @@ from veredi.base.exceptions import VerediError
 # -----------------------------------------------------------------------------
 
 class MathError(VerediError):
-    pass
+    '''
+    Math error of some sort. Parsing, MathTree work, evaluating, etc.
+    '''
+    ...

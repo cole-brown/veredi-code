@@ -19,12 +19,14 @@ from veredi.base.exceptions import VerediError
 # -----------------------------------------------------------------------------
 
 class TickError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Error ticking?
+    '''
+    ...
 
 
 class EventError(VerediError):
-    def __init__(self, message, cause, context):
-        '''With context data.'''
-        super().__init__(message, cause, context)
+    '''
+    Some sort of basic eventing error.
+    '''
+    ...

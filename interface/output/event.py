@@ -9,14 +9,16 @@ packaged up into an event or perhaps fed directly/firstly into InputSystem.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union
+from typing import Union, Mapping
 import enum
 
-from veredi.game.ecs.event         import Event
+from veredi.game.ecs.event          import Event
 
-from veredi.base.context           import VerediContext
-from veredi.game.ecs.base.identity import MonotonicId
-from veredi.base.identity import SerializableId
+from veredi.base.enum               import FlagCheckMixin, FlagSetMixin
+from veredi.base.context            import VerediContext
+from veredi.game.ecs.base.identity  import MonotonicId
+from veredi.base.identity           import SerializableId
+from veredi.interface.input.context import InputContext
 
 
 # -----------------------------------------------------------------------------
@@ -24,8 +26,30 @@ from veredi.base.identity import SerializableId
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class OutputType(enum.Enum):
-    AUTO = enum.auto()
+class OutputType(FlagCheckMixin, FlagSetMixin, enum.Flag):
+    '''
+    has() and any() provided by FlagCheckMixin.
+    '''
+
+    INVALID = 0
+
+    # ------------------------------
+    # Output to Users Types:
+    # ------------------------------
+    GM = enum.auto()
+    '''Send this to the GM due to some special GM-only data.'''
+
+    USER = enum.auto()
+    '''Send this to the user who is responsible for it.'''
+
+    BROADCAST = enum.auto()
+    '''Send this to all users in the game.'''
+
+    # ------------------------------
+    # Other Output Types to Flag:
+    # ------------------------------
+    LOG = enum.auto()
+    '''Send this output (formatted as would be for text client) to the log.'''
 
 
 # -----------------------------------------------------------------------------
@@ -57,58 +81,85 @@ class OutputEvent(Event):
             context:     VerediContext,
             serial_id:   SerializableId,
             output_type: 'OutputType') -> None:
-        super().set(id, type, context)
-        self.serial_id = serial_id
-        self.output_type = output_type
+        super().set(source_id, source_type, context)
+        self._serial_id = serial_id
+        self._output_type = output_type
+        self._designations = {
+            str(source_id): InputContext.source_designation(context),
+        }
+        self._title_main = "Fake Title"
+        self._title_sub = "Fake Subtitle"
 
     def reset(self) -> None:
         super().reset()
-        self.serial_id = None
-        self.output_type = None
-
-    # -------------------------------------------------------------------------
-    # Class Method Helpers
-    # -------------------------------------------------------------------------
-
-    # @classmethod
-    # def command(klass: 'OutputEvent',
-    #             status: CommandStatus,
-    #             context: InputContext) -> 'OutputEvent':
-    #     '''
-    #     Create an OutputEvent from the command status.
-    #     '''
-    #     # TODO [2020-06-17]: OutputEvent from actual output, not from
-    #     # CommandStatus? Or should it be both?
-    #     retval = OutputEvent(
-    #         InputContext.source_id(context),
-    #         InputContext.type(context),
-    #         context
-    #     )
-    #     return retval
-
-    # def __init__(self,
-    #              id:           Union[int, MonotonicId],
-    #              type:         Union[int, enum.Enum],
-    #              context:      VerediContext) -> None:
-    #     self.set(id, type, context, skill)
-
-    # def set(self,
-    #         id:           Union[int, MonotonicId],
-    #         type:         Union[int, enum.Enum],
-    #         context:      VerediContext,
-    #         skill:        str) -> None:
-    #     super().set(id, type, context)
-    #     self.skill        = skill
-
-    # def reset(self) -> None:
-    #     super().reset()
-    #     self.skill = None
+        self._serial_id = None
+        self._output_type = None
+        self._designations = None
 
     # -------------------------------------------------------------------------
     # Output Things
     # -------------------------------------------------------------------------
 
-    # ???
+    @property
+    def designations(self) -> Mapping[str, str]:
+        '''
+        Returns a dictionary of identifiers (dotted strs, IDs, etc.) to
+        designations (entity display names, feat display names, etc).
+        '''
+        return self._designations
+
+    @property
+    def title(self) -> str:
+        '''
+        Display Name / Title of this event.
+
+        e.g. "Skill Check"
+        '''
+        return self._title_main
+
+    @property
+    def subtitle(self) -> str:
+        '''
+        Second Display Name / Sub-Title of this event.
+
+        e.g. "Sneakery"
+        '''
+        return self._title_sub
+
+    @property
+    def serial_id(self) -> SerializableId:
+        '''
+        SerializableId of this event - likely its InputId.
+        '''
+        return self._serial_id
+
+    @property
+    def source_type(self) -> Union[int, enum.Enum]:
+        '''
+        EntityTypeId of the entity responsible for this OutputEvent.
+        '''
+        return self.type
+
+    @property
+    def source_id(self) -> Union[int, MonotonicId]:
+        '''
+        EntityId of the entity responsible for this OutputEvent.
+        '''
+        return self.id
+
+    @property
+    def output_type(self) -> 'OutputType':
+        '''
+        OutputType of this OutputEvent.
+        '''
+        return self._output_type
+
+    @property
+    def dotted(self) -> str:
+        '''
+        Veredi dotted name for what type/kind of output this is.
+        '''
+        return 'veredi.interface.output.event.base'
 
     # -------------------------------------------------------------------------
     # To String
@@ -116,7 +167,3 @@ class OutputEvent(Event):
 
     def __repr_name__(self):
         return "OutEvent"
-
-
-# TODO [2020-06-10]: Eventually, more events. When I have a UI or
-# something and can send more than just text...

@@ -124,7 +124,7 @@ class JsonCodec(BaseCodec):
           - exceptions.LoadError
             - wrapping a library error?
         '''
-        # §-TODO-§ [2020-05-22]: decode_all
+        # TODO [2020-05-22]: decode_all
         raise NotImplementedError("TODO: this")
 
     def _load_all(self,
@@ -139,5 +139,63 @@ class JsonCodec(BaseCodec):
           - exceptions.LoadError
             - wrapped lib/module errors
         '''
-        # §-TODO-§ [2020-05-22]: load_all
+        # TODO [2020-05-22]: load_all
+        raise NotImplementedError("TODO: this")
+
+    # -------------------------------------------------------------------------
+    # Encode Methods
+    # -------------------------------------------------------------------------
+
+    def encode(self,
+               stream: TextIO,
+               input_context: 'VerediContext') -> CodecOutput:
+        '''Write and encodes a single document from the data stream.
+
+        Raises:
+          - exceptions.WriteError
+            - wrapping a library error?
+        '''
+        # TODO [2020-05-22]: load_all
+        raise NotImplementedError("TODO: this")
+
+    def encode_all(self,
+                   stream: TextIO,
+                   input_context: 'VerediContext') -> CodecOutput:
+        '''Write and encodes all documents from the data stream.
+
+        Raises:
+          - exceptions.WriteError
+            - wrapping a library error?
+        '''
+        # TODO [2020-05-22]: load_all
+        raise NotImplementedError("TODO: this")
+
+    def _write(self,
+               stream: TextIO,
+               input_context: 'VerediContext') -> Any:
+        '''Write data from a single data stream.
+
+        Returns:
+          Based on subclass.
+
+        Raises:
+          - exceptions.WriteError
+            - wrapped lib/module errors
+        '''
+        # TODO [2020-05-22]: load_all
+        raise NotImplementedError("TODO: this")
+
+    def _write_all(self,
+                   stream: TextIO,
+                   input_context: 'VerediContext') -> Any:
+        '''Write data from a single data stream.
+
+        Returns:
+          Based on subclass.
+
+        Raises:
+          - exceptions.WriteError
+            - wrapped lib/module errors
+        '''
+        # TODO [2020-05-22]: load_all
         raise NotImplementedError("TODO: this")

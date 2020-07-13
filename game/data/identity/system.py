@@ -203,7 +203,6 @@ class IdentitySystem(System):
     # -------------------------------------------------------------------------
 
     def _update(self,
-                tick:          SystemTick,
                 time_mgr:      TimeManager,
                 component_mgr: ComponentManager,
                 entity_mgr:    EntityManager) -> VerediHealth:
@@ -211,13 +210,7 @@ class IdentitySystem(System):
         Standard tick. Do we have ticky things to do?
         '''
         # Doctor checkup.
-        if not self._healthy():
-            self._health_meter_update = self._health_log(
-                self._health_meter_update,
-                log.Level.WARNING,
-                "HEALTH({}): Skipping ticks - our system health "
-                "isn't good enough to process.",
-                self.health)
+        if not self._health_ok_tick(SystemTick.STANDARD):
             return self._health_check()
 
         log.critical('todo: a identity tick thingy?')

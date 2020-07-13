@@ -375,7 +375,7 @@ class Engine:
         if forced:
             self._tick_health = value
         self._tick_health = VerediHealth.set(self._tick_health,
-                                              value)
+                                             value)
 
     @property
     def life_cycle(self) -> EngineLifeCycle:
@@ -615,7 +615,7 @@ class Engine:
 
         # Else... Done I guess?
         self._log_tick("Successfully fell through to success case. health: {}",
-                  health)
+                       health)
         return False
 
     def _update_genesis(self) -> None:
@@ -663,7 +663,7 @@ class Engine:
         self.meeting.system.subscribe(self.meeting.event)
 
         self.meeting.time.start_timeout()
-        events_published = False  # Start off False for "we haven't started yet".
+        events_published = False  # False for "we haven't started yet".
         while self._setting_up(self._tick_health, events_published):
             # Force first health set to get this loop's health started fresh.
             # Do not force from there in order to get 'worst' of the loop.
@@ -680,7 +680,9 @@ class Engine:
                 SystemTick.INTRA_SYSTEM,
                 self.meeting.time)
             self._log_tick("Tick state: {}, Tick health: {}, # Events: {}",
-                           self._tick_state, self.tick_health, events_published)
+                           self._tick_state,
+                           self.tick_health,
+                           events_published)
 
     # -------------------------------------------------------------------------
     # In-Game Loops

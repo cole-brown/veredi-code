@@ -101,7 +101,7 @@ class Test_MathSystem(BaseSystemTest):
         '''
         Just check that whatever happened, we think we succeeded at it.
         '''
-        self.event_setup()
+        self.event_set_up()
 
         math = self.parser.parse('40 + 2')
         self.assertTrue(math)
@@ -121,7 +121,7 @@ class Test_MathSystem(BaseSystemTest):
         '''
         Check to make sure some easy math gets an actual, correct result.
         '''
-        self.event_setup()
+        self.event_set_up()
         self.clear_events()
 
         math = self.parser.parse('40 + 2')
@@ -173,7 +173,7 @@ class Test_MathSystem(BaseSystemTest):
         '''
         Check to make sure a var gets replaced with more maths.
         '''
-        self.event_setup()
+        self.event_set_up()
         self.clear_events()
 
         # replace the variable with this:

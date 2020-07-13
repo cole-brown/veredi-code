@@ -37,7 +37,7 @@ from veredi.game.ecs.component          import ComponentManager
 from veredi.game.ecs.entity             import EntityManager
 
 from veredi.game.ecs.const              import (SystemTick,
-                                            SystemPriority)
+                                                SystemPriority)
 
 from veredi.game.ecs.base.identity      import EntityId
 from veredi.game.ecs.base.system        import System
@@ -49,8 +49,11 @@ from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
                                                 CommandPermission,
                                                 CommandArgType,
                                                 CommandStatus)
-from veredi.math.parser                 import MathTree
 from veredi.interface.input.context     import InputContext
+from veredi.math.parser                 import MathTree
+from veredi.math.system                 import MathSystem
+from veredi.interface.output.event      import OutputType
+from veredi.math.event                  import MathOutputEvent
 
 # Ability-Related Events & Components
 from .component import (
@@ -122,7 +125,13 @@ class AbilitySystem(System):
         self._ability_defs = definition.Definition(
             definition.DocType.DEF_SYSTEM,
             config.definition(self.dotted, context))
-        self._ability_defs.configure('skill')
+        self._ability_defs.configure('ability')
+        if not self._ability_defs:
+            raise background.config.exception(
+                context,
+                None,
+                "Cannot configure {} without its system definitions.",
+                self.__class__.__name__)
 
     @property
     def dotted(self) -> str:
@@ -189,12 +198,15 @@ class AbilitySystem(System):
         # ---
         # for each ability in def, define alias command
         for ability in self._ability_defs['ability']:
-            canon = self.canonical(ability)
+            canon = self._ability_defs.canonical(ability, None)
             cmd.add_alias(ability, 'ability ' + canon)
 
         for ability in self._ability_defs['alias']:
-            canon = self.canonical(ability)
-            cmd.add_alias(ability, 'ability ' + canon)
+            canon = self._ability_defs.canonical(ability, None,
+                                                 no_error_log=True,
+                                                 raise_error=False)
+            if canon:
+                cmd.add_alias(ability, 'ability ' + canon)
 
         # ---
         # Alright, done. Send it!
@@ -217,7 +229,7 @@ class AbilitySystem(System):
         entity = self._manager.entity.get(eid)
         component = entity.get(AbilityComponent)
         if not entity or not component:
-            log.info("Dropping 'skill' command - no entity or comp "
+            log.info("Dropping 'ability' command - no entity or comp "
                      "for its id: {}",
                      eid,
                      context=context)
@@ -227,16 +239,18 @@ class AbilitySystem(System):
                                                 AbilityComponent,
                                                 context)
 
-        # Get skill totals for each var that's a skill name.
-        for var in math.each_var():
-            canon = self.canonical(var.name)
-            if not canon:
-                continue
-            result = self._get(eid,
-                               var.name,
-                               context)
-
-            var.set(result.value, result.milieu)
+        # Ok... now just bundle up off to MathSystem's care with our callbacks.
+        self._manager.system.get(MathSystem).command(
+            math,
+            self._ability_defs.canonical,
+            self._query,
+            MathOutputEvent(entity.id, entity.type_id,
+                            context,
+                            InputContext.input_id(context),
+                            # TODO [2020-07-11]: a proper output type...
+                            OutputType.BROADCAST,
+                            math),
+            context)
 
         return CommandStatus.successful(context)
 
@@ -271,10 +285,9 @@ class AbilitySystem(System):
     # Data Processing
     # -------------------------------------------------------------------------
 
-    def _get(self,
-             entity_id: EntityId,
-             ability: str,
-             context: 'VerediContext') -> Nullable[ValueMilieu]:
+    def _query(self,
+               ability: str,
+               context: 'VerediContext') -> Nullable[ValueMilieu]:
         '''
         Get ability from entity's AbilityComponent and return it.
 
@@ -282,85 +295,57 @@ class AbilitySystem(System):
         info about missing ent/comp. This just uses Null's cascade to safely
         skip those checks.
         '''
+        eid = InputContext.source_id(context)
+
         # We'll use Null(). Callers should do checks/logs if they want more
         # info about missing ent/comp.
-        entity = self._manager.entity.get(entity_id)
-        component = entity.get(AbilityComponent)
+        entity, component = self._log_get_both(eid,
+                                               AbilityComponent,
+                                               context=context)
+        if not entity or not component:
+            return Null()
 
-        canon = self.canonical(ability)
-        result = self._get_value(component, canon)
-        log.debug("'{}'->'{}' result is: {}",
-                  ability, canon, result,
+        result = self._query_value(component, ability)
+        log.debug("'{}' result is: {}",
+                  ability, result,
                   context=context)
 
         return result
 
-    def canonical(self, string: str) -> Nullable[str]:
-        '''
-        Takes `string` and tries to normalize it to canonical value.
-        e.g.:
-          'strength' -> 'strength.score'
-          'Strength' -> 'strength.score'
-          'str.mod' -> 'strength.modifier'
-        '''
-        names = dotted.split(string)
-        # Is the first part even an ability?
-        if not names or not names[0]:
-            return Null()
-        else:
-            check = names[0]
-            if (check not in self._ability_defs['ability']
-                    and check not in self._ability_defs['alias']):
-                return Null()
-            # else, it's a valid ability name/alias.
-
-        # TODO: could also check for final element being an expected leaf name?
-        if len(names) < 2:
-            names.append(self._ability_defs['default']['key'])
-
-        canon = []
-        for name in names:
-            if name in self._ability_defs['alias']:
-                canon.append(self._ability_defs['alias'][name])
-            else:
-                canon.append(name)
-
-        return dotted.join(*canon)
-
-    def _get_value(self,
-                   component: AbilityComponent,
-                   ability: Union[str, Tuple[str, str]]
-                   ) -> ValueMilieu:
+    def _query_value(self,
+                     component: AbilityComponent,
+                     ability: Union[str, Tuple[str, str]]
+                     ) -> ValueMilieu:
         '''
         `ability` string must be canonicalized. We'll get it from
         the component.
 
         Returns component query result. Also returns the canonicalized
         `ability` str, in case you need to call back into here for e.g.:
-          _get_value(component, 'str.mod')
+          _query_value(component, 'str.mod')
             -> '(${this.score} - 10) // 2', 'strength.modifier'
-          _get_value(component,
+          _query_value(component,
                     ('this.score', 'strength.modifier'))
             -> (20, 'strength.score')
         '''
         if isinstance(ability, tuple):
-            return self._get_this(component, *ability)
+            return self._query_this(component, *ability)
 
-        ability = self.canonical(ability)
-        return self._get_split(component, *dotted.split(ability))
+        ability = self._ability_defs.canonical(ability, None)
+        return self._query_split(component, *dotted.split(ability))
 
-    def _get_this(self,
-                  component: AbilityComponent,
-                  ability: str,
-                  milieu: str) -> ValueMilieu:
+    def _query_this(self,
+                    component: AbilityComponent,
+                    ability: str,
+                    milieu: str) -> ValueMilieu:
         '''
         Canonicalizes `ability` string, then gets it from the component using
         'milieu' if more information about where the `ability` string is from
         is needed. E.g.:
 
-          _get_value(component,
-                    'this.score',
-                    'strength.modifier')
+          _query_value(component,
+                       'this.score',
+                       'strength.modifier')
             -> (20, 'strength.score')
 
         In that case, 'this' needs to be turned into 'strength' and the
@@ -372,22 +357,22 @@ class AbilitySystem(System):
           or develops."
         Close enough?
         '''
-        ability = self.canonical(ability)
         split_name = dotted.this(ability, milieu)
-        return self._get_split(component, *split_name)
+        ability = self._ability_defs.canonical(ability, milieu)
+        return self._query_split(component, *split_name)
 
-    def _get_split(self,
-                   component: AbilityComponent,
-                   *ability: str) -> ValueMilieu:
+    def _query_split(self,
+                     component: AbilityComponent,
+                     *ability: str) -> ValueMilieu:
         '''
         `ability` args must have been canonicalized.
 
         Gets `ability` from the component. Returns value and dotted
         ability string. E.g.:
 
-          _get_split(component,
-                     'strength',
-                     'score')
+          _query_split(component,
+                       'strength',
+                       'score')
             -> (20, 'strength.score')
         '''
         return ValueMilieu(component.query(*ability),

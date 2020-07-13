@@ -16,13 +16,14 @@ if TYPE_CHECKING:
 
 import enum
 
+from veredi.logger             import log
+from veredi.base.context       import VerediContext
 from veredi.base.const         import VerediHealth
 from veredi.data.config.config import Configuration
-from veredi.logger             import log
 
 from .manager                  import EcsManager
 from .base.identity            import MonotonicId
-from veredi.base.context       import VerediContext
+from .exceptions               import EventError
 
 
 # -----------------------------------------------------------------------------
@@ -168,8 +169,14 @@ class EventManager(EcsManager):
         '''
         log.debug("Adding subscriber {} for event {}.",
                   handler_fn, target_class)
-        subs = self._subscriptions.setdefault(target_class, [])
-        subs.append(handler_fn)
+        subs = self._subscriptions.setdefault(target_class, set())
+        if handler_fn in subs:
+            raise log.exception(None,
+                                EventError,
+                                "Subscriber is trying to re-register."
+                                "subscriber: {}, event: {}",
+                                handler_fn, target_class)
+        subs.add(handler_fn)
 
     def create(self,
                event_class:                Type[Event],
@@ -217,8 +224,8 @@ class EventManager(EcsManager):
         for push_type in event.__class__.__mro__:
             subs = self._subscriptions.get(push_type, ())
             if subs:
-                log.debug("Pushing {} to its {} subcribers.",
-                          event, push_type)
+                log.debug("Pushing {} to its {} subcribers: {}",
+                          event, push_type, subs)
             for notice in subs:
                 has_subs = True
                 notice(event)

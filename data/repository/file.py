@@ -470,6 +470,8 @@ class FileTreeRepository(base.BaseRepository):
         directory = pattern_path.parent
         glob = pattern_path.name
         file_path = None
+        # print(f"\n\nmatches for glob: {directory}/{glob}:")
+        # print(f"  {list(directory.glob(glob))}")
         for match in directory.glob(glob):
             if file_path is not None:
                 # Throw all matches into context for error.
@@ -492,6 +494,9 @@ class FileTreeRepository(base.BaseRepository):
                 f"matches: {sorted(directory.glob(glob))}",
                 None,
                 context)
+
+        # with file_path.open('r') as xxx:
+        #     print(xxx.read(None))
 
         data_stream = None
         with file_path.open('r') as file_stream:

@@ -105,8 +105,8 @@ class Test_InputCmd_SkillCheck(IntegrationTest):
     # Entity/Component Test Set-Up
     # -------------------------------------------------------------------------
 
-    def per_test_setup(self):
-        self.event_setup()
+    def per_test_set_up(self):
+        self.event_set_up()
         entity = self.create_entity()
 
         # Make our request event.
@@ -160,13 +160,13 @@ class Test_InputCmd_SkillCheck(IntegrationTest):
         self.assertTrue(self.manager.entity)
         self.assertTrue(self.manager.system)
 
-    def test_ent_setup(self):
-        # Just make sure we did the setup successfully...
-        self.per_test_setup()
+    def test_ent_set_up(self):
+        # Just make sure we did the set_up successfully...
+        self.per_test_set_up()
 
     def test_skill_cmd(self):
         # Set up entity with skill data
-        entity = self.per_test_setup()
+        entity = self.per_test_set_up()
 
         # Let the commands register
         self.allow_registration()

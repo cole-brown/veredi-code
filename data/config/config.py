@@ -14,8 +14,7 @@ from veredi.base.null import Nullable, Null
 if TYPE_CHECKING:
     from veredi.base.context         import VerediContext
     from veredi.data.repository.base import BaseRepository
-    from veredi.data.codec.base      import BaseCodec
-    from .codec                      import CodecOutput
+    from veredi.data.codec.base      import BaseCodec, CodecOutput
 
 import pathlib
 

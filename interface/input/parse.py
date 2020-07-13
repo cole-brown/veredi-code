@@ -80,4 +80,4 @@ class Mather:
         '''
         Parse input and transform into Veredi Math Tree.
         '''
-        return self._parser.parse(string)
+        return self._parser.parse(string, milieu)

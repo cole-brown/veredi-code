@@ -19,7 +19,7 @@ import enum
 
 from veredi.logger import log
 from veredi.base.context import VerediContext
-from veredi.data.exceptions import ConfigError
+from veredi.base.enum import FlagCheckMixin
 
 
 # -----------------------------------------------------------------------------
@@ -57,9 +57,11 @@ class TreeWalkerPredicate(Protocol):
 
 
 @enum.unique
-class NodeType(enum.Flag):
+class NodeType(FlagCheckMixin, enum.Flag):
     '''
     Simpler and more flexable than checking instance types maybe?
+
+    has() and any() provided by FlagCheckMixin.
     '''
 
     # ---
@@ -91,22 +93,6 @@ class NodeType(enum.Flag):
 
     FUNCTION = enum.auto()
     '''Math function like 'max()', 'min()', etc.'''
-
-    def all(self, flag: 'NodeType'):
-        '''Returns true if this NodeType has all the flags specified.'''
-        return ((self & flag) == flag)
-
-    def any(self, *flags: 'NodeType'):
-        '''
-        Returns true if this NodeType has any of the flags specified.
-        Can still require multiple by OR'ing e.g.:
-          type.any(NodeType.VARIABLE | NodeType.BRANCH, NodeType.CONSTANT)
-        That will look for either a BRANCH that is a VARIABLE, or a CONSTANT.
-        '''
-        for each in flags:
-            if self.all(each):
-                return True
-        return False
 
 
 # -----------------------------------------------------------------------------
@@ -168,19 +154,41 @@ class MathTree(ABC):
 
     _SET_VALUE_ALLOWED = (NodeType.VARIABLE, NodeType.RANDOM)
 
-    def __init__(self, type, tags: VTags = None) -> None:
-        self._value: Any = None
-        # tags, traits, whatever
-        self._tags:      VTags         = tags
-        self._children:  'MathTree'    = None
-        self._node_type: 'NodeType'    = type
+    def __init__(self,
+                 type:     'NodeType',
+                 value:    Any                  = None,
+                 milieu:   str                  = None,
+                 children: Iterable['MathTree'] = None,
+                 name:     str                  = None,
+                 tags:     VTags                = None) -> None:
+        '''
+        Base init - optional values for things so children can subclass
+        init easy?
+        '''
 
-        self._value:     Any           = None
-        self._milieu:    Optional[str] = None
+        self._node_type: 'NodeType'           = type
+        '''
+        Type of math node - used by base classes for checks, mostly.
+        This type enum is an enum.Flag class, so they can be combined.
+        '''
+
+        self._value:     Any                  = value or None
+        '''Final value of math node - use node.value getter property.'''
+
+        self._name:      str                  = name or None
+        '''
+        Name of node (variable name, math operator sign, etc).
+        Use node.name getter property.
+        '''
+
+        self._milieu:    Optional[str]        = milieu or None
         '''"context" for value. See veredi.base.milieu module.'''
 
-    def __repr__(self) -> str:
-        return str(self)
+        self._children:  Iterable['MathTree'] = children or None
+        '''Children node of this node for a branch-type node.'''
+
+        self._tags:      VTags                = tags or None
+        '''Tags, traits, whatever.'''
 
     # -------------------------------------------------------------------------
     # Properties
@@ -189,6 +197,19 @@ class MathTree(ABC):
     @property
     def type(self) -> Any:
         return self._node_type
+
+    @property
+    def name(self) -> Any:
+        return self._name
+
+    # @name.setter
+    # def name(self, new_name: Any) -> None:
+    #     '''
+    #     Set name if allowed by NodeType.
+    #     Raise AttributeError if not allowed.
+    #     '''
+    #     # ...what nodes would be allowed?
+    #     # ...what nodes wouldn't be allowed?
 
     @property
     def value(self) -> Any:
@@ -276,7 +297,7 @@ class MathTree(ABC):
         '''
         Predicate for walk. Returns true if node is Truthy.
         '''
-        return bool(node) and node.type.all(NodeType.VARIABLE)
+        return bool(node) and node.type.has(NodeType.VARIABLE)
 
     def walk(self, predicate=None):
         '''
@@ -443,3 +464,15 @@ class MathTree(ABC):
     @abstractmethod
     def __ne__(self, other):
         raise NotImplementedError
+
+    # -------------------------------------------------------------------------
+    # To String
+    # -------------------------------------------------------------------------
+
+    # def __str__(self):
+    #     '''Too-basic to-string - sub-classes should overwrite.'''
+    #     return str(self)
+
+    # def __repr__(self) -> str:
+    #     '''Too-basic to-repr-string - sub-classes should overwrite.'''
+    #     return repr(self)
