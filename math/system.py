@@ -312,7 +312,7 @@ class MathSystem(System):
         '''
 
         # Fill in canonical string's value.
-        value, milieu = entry.fill(canon, entry.context)
+        value, milieu = entry.fill(entry.entity_id, canon, entry.context)
 
         if self._should_debug():
             self._log(log.Level.DEBUG,
