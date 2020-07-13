@@ -198,7 +198,7 @@ class Test_Parser(unittest.TestCase):
 
         # Make sure root is our operator, and has the ints below it.
         self.assertEqual(2, len(lark_tree.children))
-        self.assertEqual(lark_tree.data, "div")
+        self.assertEqual(lark_tree.data, "truediv")
         for each in lark_tree.children:
             self.assertEqual(each.data, "int")
             self.assertEqual(1, len(each.children))

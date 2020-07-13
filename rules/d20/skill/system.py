@@ -51,7 +51,7 @@ from veredi.game.ecs.entity             import EntityManager
 from veredi.game.ecs.const              import (SystemTick,
                                                 SystemPriority)
 
-from veredi.game.ecs.base.identity      import ComponentId
+from veredi.game.ecs.base.identity      import ComponentId, EntityId
 from veredi.game.ecs.base.system        import System
 from veredi.game.ecs.base.component     import Component
 
@@ -333,8 +333,9 @@ class SkillSystem(System):
     # -------------------------------------------------------------------------
 
     def _query(self,
-               skill: str,
-               context: 'VerediContext') -> Nullable[ValueMilieu]:
+               entity_id: EntityId,
+               skill:     str,
+               context:   'VerediContext') -> Nullable[ValueMilieu]:
         '''
         Takes `skill` (should be canonical already) string and finds
         value/result to fill in from entity's SkillComponent.

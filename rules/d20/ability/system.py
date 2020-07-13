@@ -272,9 +272,9 @@ class AbilitySystem(System):
                      context=event.context)
             return
 
-        result = self._get(event.id,
-                           event.ability,
-                           event.context)
+        result = self._query(eid,
+                             event.ability,
+                             event.context)
 
         # Have EventManager create and fire off event for whoever wants the
         # next step.
@@ -286,6 +286,7 @@ class AbilitySystem(System):
     # -------------------------------------------------------------------------
 
     def _query(self,
+               entity_id: EntityId,
                ability: str,
                context: 'VerediContext') -> Nullable[ValueMilieu]:
         '''
@@ -295,13 +296,12 @@ class AbilitySystem(System):
         info about missing ent/comp. This just uses Null's cascade to safely
         skip those checks.
         '''
-        eid = InputContext.source_id(context)
-
         # We'll use Null(). Callers should do checks/logs if they want more
         # info about missing ent/comp.
-        entity, component = self._log_get_both(eid,
+        entity, component = self._log_get_both(entity_id,
                                                AbilityComponent,
                                                context=context)
+
         if not entity or not component:
             return Null()
 

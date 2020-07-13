@@ -463,7 +463,7 @@ class Test_Branch(unittest.TestCase):
     def test_eval(self):
         with self.assertRaises(AttributeError):
             # Branch base class shouldn't be able to eval successfully...
-            branch = tree.Branch(None, NodeType.INVALID)
+            branch = tree.Branch(None, NodeType.INVALID, 'jeff')
             branch.eval()
 
 

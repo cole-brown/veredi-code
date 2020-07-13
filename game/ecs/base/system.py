@@ -276,7 +276,7 @@ class System(ABC):
                 if not context:
                     context = event.context
             # Component disappeared, and that's ok.
-            log.info("{}No {} for it on entity: {}",
+            log.info("{}No '{}' on entity: {}",
                      preface,
                      component.__class__.__name__,
                      entity,
