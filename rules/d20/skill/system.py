@@ -52,8 +52,8 @@ from veredi.game.ecs.const              import (SystemTick,
                                                 SystemPriority)
 
 from veredi.game.ecs.base.identity      import ComponentId, EntityId
-from veredi.game.ecs.base.system        import System
 from veredi.game.ecs.base.component     import Component
+from ..system                           import D20RulesSystem
 
 # Everything needed to participate in command registration.
 from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
@@ -63,6 +63,7 @@ from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
                                                 CommandStatus)
 from veredi.math.parser                 import MathTree
 from veredi.math.system                 import MathSystem
+from veredi.interface.output.event      import OutputType
 from veredi.math.event                  import MathOutputEvent
 from veredi.interface.input.context     import InputContext
 
@@ -86,14 +87,18 @@ from .component                         import SkillComponent
 # -----------------------------------------------------------------------------
 
 @register('veredi', 'rules', 'd20', 'skill', 'system')
-class SkillSystem(System):
+class SkillSystem(D20RulesSystem):
 
     def _configure(self, context: 'VerediContext') -> None:
         '''
         Make our stuff from context/config data.
         '''
         self._component_type: Type[Component] = SkillComponent
-        '''Set our component type for the get() helper.'''
+
+        super()._configure(context)
+        self._config_rules_def(context,
+                               background.config.config,
+                               'skill')
 
         # ---
         # Health Stuff
@@ -119,24 +124,6 @@ class SkillSystem(System):
 
         # Just the normal one, for now.
         self._ticks: SystemTick = SystemTick.STANDARD
-
-        # ---
-        # Config Stuff
-        # ---
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                None,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
-
-        # Ask config for our definition to be deserialized and given to us
-        # right now.
-        self._skill_defs = definition.Definition(
-            definition.DocType.DEF_SYSTEM,
-            config.definition(self.dotted, context))
 
     @property
     def dotted(self) -> str:
@@ -165,11 +152,7 @@ class SkillSystem(System):
         event_manager if need to sub/unsub more dynamically.
         '''
         super().subscribe(event_manager)
-        # SkillSystem subs to:
-        # - CommandRegistrationBroadcast
-        # - SkillRequests
-        self._manager.event.subscribe(CommandRegistrationBroadcast,
-                                      self.event_cmd_reg)
+
         self._manager.event.subscribe(SkillRequest,
                                       self.event_skill_req)
 
@@ -194,6 +177,19 @@ class SkillSystem(System):
         skill_check.add_arg('additional math', CommandArgType.MATH,
                             optional=True)
 
+        # TODO [2020-07-13]: do I want each skill as sub-command?
+        # # for each skill in def, define alias command
+        # for skill in self._rule_defs['skill']:
+        #     canon = self._rule_defs.canonical(skill, None)
+        #     cmd.add_alias(skill, 'skill ' + canon)
+
+        # for skill in self._rule_defs['alias']:
+        #     canon = self._rule_defs.canonical(skill, None,
+        #                                       no_error_log=True,
+        #                                       raise_error=False)
+        #     if canon:
+        #         cmd.add_alias(skill, 'skill ' + canon)
+
         self._event_notify(skill_check)
 
     def command_skill(self,
@@ -212,36 +208,28 @@ class SkillSystem(System):
         eid = InputContext.source_id(context)
         entity, component = self._log_get_both(
             eid,
-            SkillComponent,
+            self._component_type,
             context=context,
             preface="Dropping 'skill' command - ")
         if not entity or not component:
             return CommandStatus.does_not_exist(eid,
                                                 entity,
                                                 component,
-                                                SkillComponent,
+                                                self._component_type,
                                                 context)
 
         # Ok... now just bundle up off to MathSystem's care.
         self._manager.system.get(MathSystem).command(
             math,
-            self._skill_defs.canonical,
+            self._rule_defs.canonical,
             self._query,
             MathOutputEvent(entity.id, entity.type_id,
                             context,
                             math,
+                            # TODO [2020-07-11]: a proper output type...
+                            OutputType.BROADCAST,
                             InputContext.input_id(context)),
             context)
-
-        # # Get skill totals for each var that's a skill name.
-        # found = False
-        # for var in math.each_var():
-        #     if self.is_skill(var.name):
-        #         found = True
-        #         var.value = component.total(var.name)
-
-        # if not found:
-        #     return CommandStatus.no_claimed_inputs('skill names')
 
         return CommandStatus.successful(context)
 
@@ -250,18 +238,11 @@ class SkillSystem(System):
         Skill thingy requested to happen; please resolve.
         '''
         # Doctor checkup.
-        if not self._healthy():
-            self._health_meter_event = self._health_log(
-                self._health_meter_event,
-                log.Level.WARNING,
-                "HEALTH({}): Dropping event {} - our system health "
-                "isn't good enough to process.",
-                self.health, event,
-                context=event.context)
+        if not self._health_ok_event(event):
             return
 
         entity, component = self._log_get_both(event.id,
-                                               SkillComponent,
+                                               self._component_type,
                                                event=event)
         if not entity or not component:
             # Entity or component disappeared, and that's ok.
@@ -294,13 +275,7 @@ class SkillSystem(System):
         so do it all here.
         '''
         # Doctor checkup.
-        if not self._healthy():
-            self._health_meter_update = self._health_log(
-                self._health_meter_update,
-                log.Level.WARNING,
-                "HEALTH({}): Skipping ticks - our system health "
-                "isn't good enough to process.",
-                self.health)
+        if not self._health_ok_tick(SystemTick.STANDARD):
             return self._health_check()
 
         for entity in self._wanted_entities(tick, time_mgr,
@@ -309,7 +284,7 @@ class SkillSystem(System):
             # Also make sure to check if entity/component still exist.
             if not entity:
                 continue
-            component = component_mgr.get(SkillComponent)
+            component = component_mgr.get(self._component_type)
             if not component or not component.has_action:
                 continue
 
@@ -327,102 +302,3 @@ class SkillSystem(System):
             print('todo: a skill thingy', action)
 
         return self._health_check()
-
-    # -------------------------------------------------------------------------
-    # Data Processing
-    # -------------------------------------------------------------------------
-
-    def _query(self,
-               entity_id: EntityId,
-               skill:     str,
-               context:   'VerediContext') -> Nullable[ValueMilieu]:
-        '''
-        Takes `skill` (should be canonical already) string and finds
-        value/result to fill in from entity's SkillComponent.
-
-        Callers should do checks/logs on entity and component if they want more
-        info about missing ent/comp. This just uses Null's cascade to safely
-        skip those checks.
-        '''
-        eid = InputContext.source_id(context)
-
-        # We'll use Null(). Callers should do checks/logs if they want more
-        # info about missing ent/comp.
-        entity, component = self._log_get_both(eid,
-                                               SkillComponent,
-                                               context=context)
-        if not entity or not component:
-            return Null()
-
-        result = self._query_value(component, skill)
-        log.debug("'{}' result is: {}",
-                  skill, result,
-                  context=context)
-
-        return result
-
-    def _query_value(self,
-                     component: SkillComponent,
-                     skill: Union[str, Tuple[str, str]]
-                     ) -> ValueMilieu:
-        '''
-        `skill` string must be canonicalized. We'll get it from
-        the component.
-
-        Returns component query result. Also returns the canonicalized
-        `skill` str, in case you need to call back into here for e.g.:
-          _query_value(component, 'str.mod')
-            -> '(${this.score} - 10) // 2', 'strength.modifier'
-          _query_value(component,
-                       ('this.score', 'strength.modifier'))
-            -> (20, 'strength.score')
-        '''
-        if isinstance(skill, tuple):
-            return self._query_this(component, *skill)
-
-        skill = self._skill_defs.canonical(skill, None)
-        return self._query_split(component, *dotted.split(skill))
-
-    def _query_this(self,
-                    component: SkillComponent,
-                    skill: str,
-                    milieu: str) -> ValueMilieu:
-        '''
-        Canonicalizes `skill` string, then gets it from the component using
-        'milieu' if more information about where the `skill` string is from
-        is needed. E.g.:
-
-          _query_value(component,
-                      'this.score',
-                      'strength.modifier')
-            -> (20, 'strength.score')
-
-        In that case, 'this' needs to be turned into 'strength' and the
-        `milieu` is needed for that to happen.
-
-        ...I would have called it 'context' but that's already in heavy use, so
-        'milieu'.
-          "The physical or social setting in which something occurs
-          or develops."
-        Close enough?
-        '''
-        skill = self._skill_defs.canonical(skill, milieu)
-        split_name = dotted.this(skill, milieu)
-        return self._query_split(component, *split_name)
-
-    def _query_split(self,
-                     component: SkillComponent,
-                     *skill: str) -> ValueMilieu:
-        '''
-        `skill` args must have been canonicalized.
-
-        Gets `skill` from the component. Returns value and dotted
-        skill string. E.g.:
-
-          _query_split(component,
-                       'strength',
-                       'score')
-            -> (20, 'strength.score')
-        '''
-        return ValueMilieu(component.query(*skill),
-                           dotted.join(*skill))
