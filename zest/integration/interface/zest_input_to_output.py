@@ -75,7 +75,7 @@ output:
   children:
   - children:
     - children:
-      - {name: this.score, type: variable, value: 10}
+      - {name: dexterity.score, type: variable, value: 10}
       - {name: '10', type: constant, value: 10}
       name: "\\u2212"
       type: operator
@@ -287,6 +287,10 @@ class Test_InputToOutput_AbilityCheck(IntegrationTest):
         i = 0
         for line, check in zip_longest(payload.split('\n'),
                                        EXPECTED_OUTPUT.split('\n')):
+            # 'this' shouldn't be in the output anywhere.
+            self.assertEqual(line.find('this'), -1,
+                             f"line #{i} failed 'this'-lessness check: "
+                             f"\noutput: '{line}'")
             self.assertEqual(line, check,
                              "line #{i} failed equality check: \noutput: "
                              f"'{line}'\n check: '{check}'")
