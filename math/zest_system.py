@@ -84,7 +84,7 @@ class Test_MathSystem(BaseSystemTest):
     def canonicalize(self, input_str, milieu_str):
         return self.value_canon
 
-    def fill(self, input_str, context):
+    def fill(self, entity_id, input_str, context):
         return self.value_fill, input_str
 
     # -------------------------------------------------------------------------
