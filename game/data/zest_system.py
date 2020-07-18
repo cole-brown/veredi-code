@@ -22,7 +22,7 @@ from .system import DataSystem
 from .event import DecodedEvent, DataLoadedEvent
 
 from .component import DataComponent
-from veredi.rules.d20 import health
+from veredi.rules.d20.pf2.health.component import HealthComponent
 
 
 # -----------------------------------------------------------------------------
@@ -41,7 +41,7 @@ test_data = [
         'doc-type': 'component',
 
         'meta': {
-            'registry': 'veredi.rules.d20.health.component',
+            'registry': 'veredi.rules.d20.pf2.health.component',
         },
 
         'health': {
@@ -165,7 +165,7 @@ class Test_DataSystem(unittest.TestCase):
         component = self.component_manager.get(cid)
         self.assertIsInstance(component, DataComponent)
 
-        self.assertIsInstance(component, health.HealthComponent)
+        self.assertIsInstance(component, HealthComponent)
 
         data_source = test_data[1]
         # Make sure we are checking our correct part of data.

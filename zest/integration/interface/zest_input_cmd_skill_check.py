@@ -20,23 +20,25 @@ and doesn't really need the engine.
 # Imports
 # -----------------------------------------------------------------------------
 
-from ..integrate                      import IntegrationTest
+from ..integrate                          import IntegrationTest
 
-from veredi.base.null                 import Null
-from veredi.base.context              import UnitTestContext
-from veredi.data.context              import DataGameContext, DataLoadContext
-from veredi.data.exceptions           import LoadError
+from veredi.base.null                     import Null
+from veredi.base.context                  import UnitTestContext
+from veredi.data.context                  import (DataGameContext,
+                                                  DataLoadContext)
+from veredi.data.exceptions               import LoadError
 
-from veredi.game.ecs.base.identity    import ComponentId
+from veredi.game.ecs.base.identity        import ComponentId
 
-from veredi.game.data.event           import DataLoadRequest, DataLoadedEvent
+from veredi.game.data.event               import (DataLoadRequest,
+                                                  DataLoadedEvent)
 
-from veredi.interface.input.event     import CommandInputEvent
-from veredi.game.data.identity.system import IdentitySystem
+from veredi.interface.input.event         import CommandInputEvent
+from veredi.game.data.identity.system     import IdentitySystem
 
-from veredi.rules.d20.skill.system    import SkillSystem
-from veredi.rules.d20.skill.event     import SkillResult
-from veredi.rules.d20.skill.component import SkillComponent
+from veredi.rules.d20.pf2.skill.system    import SkillSystem
+from veredi.rules.d20.pf2.skill.event     import SkillResult
+from veredi.rules.d20.pf2.skill.component import SkillComponent
 
 
 # -----------------------------------------------------------------------------

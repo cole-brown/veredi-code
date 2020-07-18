@@ -18,7 +18,7 @@ display-name: Veredi Entity Save File
 --- !component
 
 meta:
-  registry: veredi.rules.d20.ability.component
+  registry: veredi.rules.d20.pf2.ability.component
 
 ability:
   strength:
@@ -44,7 +44,7 @@ ability:
 #
 # meta:
 #   # These are AttackComponent data, but not the whole thing... just an entry.
-#   registry: veredi.rules.d20.combat.component.attack
+#   registry: veredi.rules.d20.pf2.combat.component.attack
 #   # This attack entry is for an attack action.
 #   entry: action
 #
@@ -123,7 +123,7 @@ ability:
 #
 # meta:
 #   # These are AttackComponent data, but not the whole thing... just an entry.
-#   registry: veredi.rules.d20.combat.component.attack
+#   registry: veredi.rules.d20.pf2.combat.component.attack
 #   # This attack entry is for an attack action.
 #   entry: action
 #
@@ -190,7 +190,7 @@ ability:
 #
 # meta:
 #   # These are AttackComponent data, but not the whole thing... just an entry.
-#   registry: veredi.rules.d20.combat.component.attack
+#   registry: veredi.rules.d20.pf2.combat.component.attack
 #   # This attack entry is for an attack action.
 #   entry: statistics
 #

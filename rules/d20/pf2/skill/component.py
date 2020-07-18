@@ -32,7 +32,7 @@ from veredi.game.data.component     import DataComponent
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'skill', 'component')
+@register('veredi', 'rules', 'd20', 'pf2', 'skill', 'component')
 class SkillComponent(DataComponent, queue.IQueueSingle['SkillEvent']):
     '''
     Component with skill numbers, probably other stuff...

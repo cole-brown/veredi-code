@@ -33,7 +33,7 @@ from .event                          import AbilityEvent
 # Component
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'ability', 'component')
+@register('veredi', 'rules', 'd20', 'pf2', 'ability', 'component')
 class AbilityComponent(DataComponent, queue.IQueueSingle[AbilityEvent]):
     '''
     Component with ability numbers, ability action queue, probably

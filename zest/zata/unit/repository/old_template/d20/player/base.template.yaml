@@ -3,10 +3,10 @@ version: 2020-05-06
 
 template:
   source: 'veredi.templates'
-  system: 'd20'
+  system: 'd20.pf2'
   entity: 'player'
   name: 'base.template'
-  display-name: 'Veredi D20 Base Player Template'
+  display-name: 'Veredi D20 PF2 Base Player Template'
 
 user:
   name: ''

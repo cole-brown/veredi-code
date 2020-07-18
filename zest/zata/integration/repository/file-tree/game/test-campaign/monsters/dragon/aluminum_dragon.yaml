@@ -28,7 +28,7 @@ identity:
 --- !component
 
 meta:
-  registry: veredi.rules.d20.ability.component
+  registry: veredi.rules.d20.pf2.ability.component
 
 ability:
   strength:
@@ -53,7 +53,7 @@ ability:
 --- !component
 
 meta:
-  registry: veredi.rules.d20.health.component
+  registry: veredi.rules.d20.pf2.health.component
 
 
 health:

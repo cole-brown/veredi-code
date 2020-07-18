@@ -17,27 +17,26 @@ That is the nexus of punching people in the face.
 from typing import (TYPE_CHECKING,
                     Optional, Set, Type, Union)
 if TYPE_CHECKING:
-    from decimal                    import Decimal
-    from veredi.base.context        import VerediContext
-    from ..ecs.manager        import EcsManager
+    from decimal             import Decimal
+    from veredi.base.context import VerediContext
+    from veredi.game.ecs.manager       import EcsManager
 
 from veredi.logger                      import log
 from veredi.base.const                  import VerediHealth
 from veredi.data                        import background
 from veredi.data.config.registry        import register
-from veredi.data.codec.adapter          import definition
 
 # Game / ECS Stuff
-from ..ecs.event                        import EventManager
-from ..ecs.time                         import TimeManager
-from ..ecs.component                    import ComponentManager
-from ..ecs.entity                       import EntityManager
+from veredi.game.ecs.event                        import EventManager
+from veredi.game.ecs.time                         import TimeManager
+from veredi.game.ecs.component                    import ComponentManager
+from veredi.game.ecs.entity                       import EntityManager
+from veredi.game.ecs.base.component               import Component
 
-from ..ecs.const                        import (SystemTick,
-                                                SystemPriority)
+from veredi.game.ecs.const                        import (SystemTick,
+                                                          SystemPriority)
 
-from ..system                           import D20RulesSystem
-from ..ecs.base.component               import Component
+from veredi.rules.d20.system                           import D20RulesSystem
 
 # Commands
 from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
@@ -70,7 +69,7 @@ from .event import (
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'combat', 'system')
+@register('veredi', 'rules', 'd20', 'pf2', 'combat', 'system')
 class CombatSystem(D20RulesSystem):
 
     def _configure(self, context: 'VerediContext') -> None:
@@ -175,7 +174,10 @@ class CombatSystem(D20RulesSystem):
                                    self.command_attack,
                                    description='Attack an enemy.')
         cmd.set_permission_components(AttackComponent)
-        cmd.add_arg('attack name', CommandArgType.STRING)
+        cmd.add_arg('target', CommandArgType.CSV)
+        cmd.add_arg('attack name', CommandArgType.VARIABLE)
+        cmd.add_arg('additional math', CommandArgType.MATH,
+                    optional=True)
 
         self._event_notify(cmd)
 
@@ -203,6 +205,10 @@ class CombatSystem(D20RulesSystem):
                                                        component,
                                                        self._component_type,
                                                        context)
+
+        # Don't process it yet! Need to queue it up for processing in the
+        # correct place on the correct turn. Otherwise some values could be
+        # wrong (e.g. buffs that show up/leave between now and then).
 
         # TODO: put this request in component's attack queue.
         # request = AttackRequestEvent(...)

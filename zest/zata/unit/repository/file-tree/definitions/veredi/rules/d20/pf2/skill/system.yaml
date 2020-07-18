@@ -6,17 +6,39 @@ source: veredi.system
 author: Cole Brown
 date:   2020-06-23
 
-system: veredi.rules.d20.skill
-name: veredi.rules.d20.skill.config
-display-name: Veredi d20 Skills Configuration
+system: d20.pf2
+name: veredi.rules.d20.pf2.skill.config
+display-name: Veredi D20 PF2 Skills Configuration
 
 
 --- !system.definition
 
 meta:
-  registry: veredi.rules.d20.skill.system
+  registry: veredi.rules.d20.pf2.skill.system
   component:
-    registry: veredi.rules.d20.skill.component
+    registry: veredi.rules.d20.pf2.skill.component
+
+
+default:
+  # If asked for something like 'swim', default to giving back 'swim.total'.
+  key: total
+
+  # If asked for skill.*.total, and entity data doesn't have it, use this:
+  skill:
+    any:  # TODO: wildcard tag of some sort
+      total: ${this.ranks} + $if(${this.class}, 3, 0) + ${ability.dexterity.modifier}
+
+
+# alias:
+#   str: strength
+#   dex: dexterity
+#   con: constitution
+#   int: intelligence
+#   wis: wisdom
+#   cha: charisma
+#
+#   mod: modifier
+
 
 # Define all known skills. The only thing that allows users outside these bounds
 # are these lines in the grouped skills:

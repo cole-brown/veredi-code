@@ -20,21 +20,20 @@ and doesn't really need the engine.
 
 from ..integrate import IntegrationTest
 
-from veredi.data.context                 import (DataGameContext,
-                                                 DataLoadContext)
-from veredi.data.exceptions              import LoadError
+from veredi.data.context                    import (DataGameContext,
+                                                    DataLoadContext)
+from veredi.data.exceptions                 import LoadError
 
-from veredi.game.ecs.base.identity       import ComponentId
-from veredi.game.data.component          import DataComponent
+from veredi.game.ecs.base.identity          import ComponentId
+from veredi.game.data.component             import DataComponent
 
-from veredi.game.data.event              import (DataLoadRequest,
-                                                 DataLoadedEvent)
+from veredi.game.data.event                 import (DataLoadRequest,
+                                                    DataLoadedEvent)
 
-# Make sure this guy registers himself.
-from veredi.rules.d20.health             import HealthComponent
+from veredi.rules.d20.pf2.health.component  import HealthComponent
+from veredi.rules.d20.pf2.ability.component import AbilityComponent
+from veredi.game.data.identity.component    import IdentityComponent
 
-from veredi.rules.d20.ability.component  import AbilityComponent
-from veredi.game.data.identity.component import IdentityComponent
 
 # -----------------------------------------------------------------------------
 # Constants
