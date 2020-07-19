@@ -6,9 +6,9 @@ source: veredi.templates
 author: Cole Brown
 date:   2020-05-19
 
-system: d20
-name: veredi.d20.health
-display-name: Veredi D20 Health Component
+system: d20.pf2
+name: veredi.d20.pf2.health
+display-name: Veredi D20 PF2 Health Component
 
 
 --- !component.example

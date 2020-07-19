@@ -36,7 +36,7 @@ from veredi.game.interface.component import queue
 # This means war!
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'combat', 'component', 'attack')
+@register('veredi', 'rules', 'd20', 'pf2', 'combat', 'component', 'attack')
 class AttackComponent(DataComponent, queue.IQueueSingle[AttackEvent]):
     '''
     Component with offensive/attack numbers, attack action queue, probably
@@ -83,7 +83,7 @@ class AttackComponent(DataComponent, queue.IQueueSingle[AttackEvent]):
 # D-Fence.
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'combat', 'component', 'defense')
+@register('veredi', 'rules', 'd20', 'pf2', 'combat', 'component', 'defense')
 class DefenseComponent(DataComponent, queue.IQueueSingle):
     '''
     Component with defense numbers, defense action queue(?), probably other

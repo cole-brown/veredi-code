@@ -6,9 +6,9 @@ source: veredi.templates
 author: Cole Brown
 date:   2020-06-04
 
-system: d20
-name: veredi.rules.d20.skill
-display-name: Veredi D20 Skill Component
+system: d20.pf2
+name: veredi.rules.d20.pf2.skill
+display-name: Veredi D20 PF2 Skill Component
 
 
 --- !component.template/example/reqirements

@@ -8,13 +8,13 @@ date:   2020-06-04
 
 system: unit-test
 name: veredi.unit-test.skill
-display-name: Veredi D20 Skill Unit Test
+display-name: Veredi D20 PF2 Skill Unit Test
 
 
 --- !component
 
 meta:
-  registry: veredi.rules.d20.skill.component
+  registry: veredi.rules.d20.pf2.skill.component
 
 skill:
   acrobatics:

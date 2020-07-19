@@ -36,7 +36,6 @@ if TYPE_CHECKING:
 # ---
 from veredi.logger                      import log
 from veredi.base.const                  import VerediHealth
-from veredi.base                        import dotted
 from veredi.data                        import background
 from veredi.data.config.registry        import register
 from veredi.data.codec.adapter          import definition
@@ -53,7 +52,7 @@ from veredi.game.ecs.const              import (SystemTick,
 
 from veredi.game.ecs.base.identity      import ComponentId, EntityId
 from veredi.game.ecs.base.component     import Component
-from ..system                           import D20RulesSystem
+from veredi.rules.d20.system            import D20RulesSystem
 
 # Everything needed to participate in command registration.
 from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
@@ -86,7 +85,7 @@ from .component                         import SkillComponent
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'skill', 'system')
+@register('veredi', 'rules', 'd20', 'pf2', 'skill', 'system')
 class SkillSystem(D20RulesSystem):
 
     def _configure(self, context: 'VerediContext') -> None:

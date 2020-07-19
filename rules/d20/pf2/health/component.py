@@ -40,7 +40,7 @@ class HealthState(FlagCheckMixin, FlagSetMixin, enum.Flag):
     DEAD = enum.auto()
 
 
-@register('veredi', 'rules', 'd20', 'health', 'component')
+@register('veredi', 'rules', 'd20', 'pf2', 'health', 'component')
 class HealthComponent(DataComponent):
     '''
     Component with persistent data for health, hit points, etc.

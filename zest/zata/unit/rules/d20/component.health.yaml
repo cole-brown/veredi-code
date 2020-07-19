@@ -6,15 +6,15 @@ source: veredi.templates
 author: Cole Brown
 date:   2020-05-26
 
-system: d20
-name: veredi.rules.d20.health
-display-name: Veredi D20 Health Component
+system: d20.pf2
+name: veredi.rules.d20.pf2.health
+display-name: Veredi D20 PF2 Health Component
 
 
 --- !component.example
 
 meta:
-  registry: veredi.rules.d20.health.component
+  registry: veredi.rules.d20.pf2.health.component
 
 
 health:
@@ -67,7 +67,7 @@ health:
 #   !veredi.psuedo-property hit-points: test
 
 meta:
-  registry: veredi.rules.d20.health.template
+  registry: veredi.rules.d20.pf2.health.template
 
 
 health:
@@ -123,7 +123,7 @@ health:
 --- !component.requirements
 
 meta:
-  registry: veredi.rules.d20.health.requirements
+  registry: veredi.rules.d20.pf2.health.requirements
 
 
 health:

@@ -37,7 +37,7 @@ from veredi.game.ecs.const              import (SystemTick,
 
 from veredi.game.ecs.base.component     import Component
 
-from ..system                           import D20RulesSystem
+from veredi.rules.d20.system            import D20RulesSystem
 
 # Commands
 from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
@@ -70,7 +70,7 @@ from .event import (
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'ability', 'system')
+@register('veredi', 'rules', 'd20', 'pf2', 'ability', 'system')
 class AbilitySystem(D20RulesSystem):
 
     def _configure(self, context: 'VerediContext') -> None:

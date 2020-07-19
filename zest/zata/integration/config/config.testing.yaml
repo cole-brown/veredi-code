@@ -35,12 +35,12 @@ output:
 
 
 rules:
-  type: veredi.rules.d20
-  skill: veredi.rules.d20.skill.system
-  combat: veredi.rules.d20.combat.system
+  type: veredi.rules.d20.pf2
+  skill: veredi.rules.d20.pf2.skill.system
+  combat: veredi.rules.d20.pf2.combat.system
 
-  ability: veredi.rules.d20.ability
-  health: veredi.rules.d20.health
-  movement: veredi.rules.d20.movement
+  ability: veredi.rules.d20.pf2.ability
+  health: veredi.rules.d20.pf2.health
+  movement: veredi.rules.d20.pf2.movement
 
 # and more?

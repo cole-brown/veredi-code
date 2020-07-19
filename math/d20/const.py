@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Constants, Enums, and Stuff for roll.d20 module.
+Constants, Enums, and Stuff for math.d20 module.
 '''
 
 # -----------------------------------------------------------------------------
