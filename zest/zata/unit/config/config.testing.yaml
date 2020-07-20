@@ -21,17 +21,20 @@ data:
   codec: veredi.codec.yaml
 
 
-input:
-  type: veredi.interface.input.system
-  command: veredi.interface.input.commander
-  history: veredi.interface.input.historian
-  parser:
-    math: veredi.math.d20.parser
+server:
+  type: veredi.interface.server.rest.system
+  # mediator: veredi.interface.server.mediator.system
 
+  input:
+    type: veredi.interface.input.system
+    command: veredi.interface.input.commander
+    history: veredi.interface.input.historian
+    parser:
+      math: veredi.math.d20.parser
 
-output:
-  type: veredi.interface.output.system
-  codec: veredi.codec.yaml
+  output:
+    type: veredi.interface.output.system
+    codec: veredi.codec.yaml
 
 
 # and more?

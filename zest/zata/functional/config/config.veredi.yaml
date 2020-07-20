@@ -4,7 +4,7 @@ version: 2020-05-26
 
 source: veredi.config
 author: Cole Brown
-date:   2020-05-26
+date:   2020-07-19
 
 system: configuration
 name: veredi.config
@@ -22,7 +22,7 @@ data:
 
 
 rules:
-  type: veredi.rules.d20.pf2
+  type: veredi.rules.d20.pf2.info
   skill: veredi.rules.d20.pf2.skill.system
   combat: veredi.rules.d20.pf2.combat.system
 
@@ -32,8 +32,9 @@ rules:
 
 
 server:
-  type: veredi.interface.server.rest.system
-  # mediator: veredi.interface.server.mediator.system
+  # type: veredi.interface.server
+  mediator:
+    codec: veredi.codec.json
 
   input:
     type: veredi.interface.input.system
@@ -42,9 +43,9 @@ server:
     parser:
       math: veredi.math.d20.parser
 
-
   output:
     type: veredi.interface.output.system
     codec: veredi.codec.yaml
+
 
 # and more?
