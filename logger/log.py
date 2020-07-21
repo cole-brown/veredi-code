@@ -97,7 +97,9 @@ _unit_test_callback = Null()
 # Logger Code
 # -----------------------------------------------------------------------------
 
-def init(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
+def init(level: Union[Level, int] = DEFAULT_LEVEL,
+         handler: Optional[logging.Handler] = None,
+         formatter: Optional[logging.Formatter] = None) -> None:
     '''
     Initializes our root logger.
     '''
@@ -111,18 +113,25 @@ def init(level: Union[Level, int] = DEFAULT_LEVEL) -> None:
     logger = logging.getLogger(LOGGER_NAME)
     logger.setLevel(Level.to_logging(level))
 
-    # Console Handler, same level.
-    console_handler = logging.StreamHandler()
-    # leave as NOTSET - this will let logger control log level
-    # console_handler.setLevel(Level.to_logging(level))
+    if not handler:
+        # Console Handler, same level.
+        handler = logging.StreamHandler()
+        # leave as NOTSET - this will let logger control log level
+        # handler.setLevel(Level.to_logging(level))
 
-    # Set up our format.
-    formatter = BestTimeFmt(fmt=FMT_LINE_HUMAN,
-                            datefmt=FMT_DATETIME,
-                            style=STYLE)
-    console_handler.setFormatter(formatter)
+        # Set up our formatter, but only if handler was not specified. For e.g.
+        # log client/server, we don't want a formatter on this (client) side.
+        #
+        # Docs: "Don't bother with a formatter, since a socket handler sends
+        # the event as an unformatted pickle."
+        #   - https://docs.python.org/3/howto/logging-cookbook.html#network-logging
+        #   - [2020-07-19]
+        formatter = BestTimeFmt(fmt=FMT_LINE_HUMAN,
+                                datefmt=FMT_DATETIME,
+                                style=STYLE)
+        handler.setFormatter(formatter)
 
-    logger.addHandler(console_handler)
+    logger.addHandler(handler)
 
     __initialized = True
 

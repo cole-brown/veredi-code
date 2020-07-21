@@ -107,6 +107,14 @@ class Configuration:
     # Context Properties/Methods
     # -------------------------------------------------------------------------
 
+    def make_config_context(self):
+        '''
+        Returns a config context.
+        '''
+        context = ConfigContext(self._path,
+                                self._DOTTED_NAME)
+        return context
+
     def _set_background(self):
         '''
         Sets our config info into the background context.

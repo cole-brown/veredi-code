@@ -204,18 +204,24 @@ class ConfigHierarchy(Hierarchy):
             },
         },
 
-        'input': {
-            'type': Info.LEAF,
-            'command': Info.LEAF,
-            'history': Info.LEAF,
-            'parser': {
-                'math': Info.LEAF,
+        'server': {
+            'mediator': {
+                'codec': Info.LEAF,
             },
-        },
 
-        'output': {
-            'type': Info.LEAF,
-            'codec': Info.LEAF,
+            'input': {
+                'type': Info.LEAF,
+                'command': Info.LEAF,
+                'history': Info.LEAF,
+                'parser': {
+                    'math': Info.LEAF,
+                },
+            },
+
+            'output': {
+                'type': Info.LEAF,
+                'codec': Info.LEAF,
+            },
         },
     }
     '''

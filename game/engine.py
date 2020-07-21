@@ -16,28 +16,33 @@ if TYPE_CHECKING:
 import enum
 
 # from typing import Optional
-from veredi.base.null import Nullable, NullNoneOr, Null
+from veredi.base.null                   import Nullable, NullNoneOr, Null
 
 # Error Handling
-from veredi.logger             import log
-from veredi.base.exceptions    import VerediError
+from veredi.logger                      import log
+from veredi.base.exceptions             import VerediError
 
 # Other More Basic Stuff
-from veredi.data               import background
-from veredi.base.const         import VerediHealth
-from veredi.data.config.config import Configuration
+from veredi.data                        import background
+from veredi.base.const                  import VerediHealth
+from veredi.data.config.config          import Configuration
 
 # ECS Managers & Systems
-from .ecs.const                import SystemTick, DebugFlag
-from .ecs.time                 import TimeManager
-from .ecs.event                import EventManager
-from .ecs.component            import ComponentManager
-from .ecs.entity               import EntityManager
-from .ecs.system               import SystemManager
-from .ecs.meeting              import Meeting
+from .ecs.const                         import SystemTick, DebugFlag
+from .ecs.time                          import TimeManager
+from .ecs.event                         import EventManager
+from .ecs.component                     import ComponentManager
+from .ecs.entity                        import EntityManager
+from .ecs.system                        import SystemManager
+from .ecs.meeting                       import Meeting
 
 # ECS Minions
-from .ecs.base.entity          import Entity
+from .ecs.base.entity                   import Entity
+
+# Required Systems
+from veredi.game.data.repository.system import RepositorySystem
+from veredi.game.data.codec.system      import CodecSystem
+from veredi.game.data.system            import DataSystem
 
 
 # -----------------------------------------------------------------------------
@@ -67,7 +72,33 @@ class EngineLifeCycle(enum.Enum):
 
     def __repr__(self):
         return (
-            f"SLC.{self._name_}"
+            f"ELC.{self._name_}"
+        )
+
+
+# ------------------------------
+# Engine's Tick Cycles
+# ------------------------------
+
+@enum.unique
+class EngineTickCycle(enum.Enum):
+    INVALID = 0
+    START   = enum.auto()
+    RUN     = enum.auto()
+    STOP    = enum.auto()
+
+    # ---
+    # To String
+    # ---
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}.{self._name_}"
+        )
+
+    def __repr__(self):
+        return (
+            f"ETC.{self._name_}"
         )
 
 
@@ -271,7 +302,7 @@ class Engine:
         # ---
         # Make the Managers go to their Meeting.
         # ---
-        event     = event_manager     or EventManager()
+        event     = event_manager     or EventManager(self.config)
         time      = time_manager      or TimeManager()
         component = component_manager or ComponentManager(self.config,
                                                           event)
@@ -292,6 +323,17 @@ class Engine:
             system,
             self._debug)
         background.system.set_meeting(self.meeting)
+
+        self._create_required_systems()
+
+    def _create_required_systems(self) -> None:
+        '''
+        Creates systems that cannot be setup via config and are just required.
+        '''
+        required = frozenset((RepositorySystem, CodecSystem, DataSystem))
+        context = self.config.make_config_context()
+        for sys_type in required:
+            self.meeting.system.create(sys_type, context)
 
     # -------------------------------------------------------------------------
     # Debug Stuff
@@ -425,31 +467,50 @@ class Engine:
         '''
         self.set_engine_health(VerediHealth.APOPTOSIS, True)
 
-    def run(self, cycle: EngineLifeCycle) -> VerediHealth:
+    def run(self, cycle: EngineTickCycle) -> VerediHealth:
         '''
-        Run through a life cycle of the Engine: CREATING, ALIVE, DESTROYING
+        Run through a Tick Cycle of the Engine: START, RUN, STOP
 
         Engine.life_cycle must start in correct state to transition.
-        Post-CREATING:   INVALID
-          CREATING:      INVALID    -> CREATING
-          ALIVE:         CREATING   -> ALIVE
-          DESTROYING:    ALIVE      -> DESTROYING
-        Post-DESTROYING: DESTROYING -> DEAD
+        Post-init: INVALID
+          START:   INVALID    -> CREATING
+          RUN:     CREATING   -> ALIVE
+          STOP:    ALIVE      -> DESTROYING
+        Post-STOP: DESTROYING -> DEAD
         '''
-        if not self._should_stop():
+        # Sanity check.
+        if self._should_stop():
+            log.critical("Engine.run({}) ignored due to engine being in "
+                         "incorrect state for running. (_should_stop() "
+                         "returns true; engine health is {})",
+                         cycle, self.engine_health)
+            return
+
+        # ---
+        # Run the cycle asked for!
+        # ---
+
+        if cycle == EngineTickCycle.START:
             self.set_engine_health(
                 self._run_create(),
                 False)
 
-        if not self._should_stop():
+        elif cycle == EngineTickCycle.RUN:
             self.set_engine_health(
                 self._run_alive(),
                 False)
 
-        if not self._should_stop():
+        elif cycle == EngineTickCycle.STOP:
             self.set_engine_health(
                 self._run_destroy(),
                 False)
+
+        else:
+            raise log.exception(
+                None,
+                VerediError,
+                "Engine.run({}) received an unknown EngineTickCycle: {}",
+                cycle, cycle)
 
         return self.engine_health
 
