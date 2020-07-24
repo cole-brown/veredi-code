@@ -25,6 +25,9 @@ class MonotonicTimer:
     Uses time.monotonic() to track elapsed time.
     '''
 
+    TIME_FMT = '%H:%M:%S'
+    ELAPSED_STR_FMT = '{time_fmt}.{fractional}'
+
     def __init__(self) -> None:
         self.reset()
 
@@ -64,6 +67,17 @@ class MonotonicTimer:
         else:
             elapsed = self._current - self._start
         return elapsed
+
+    @property
+    def elapsed_str(self) -> str:
+        '''
+        Returns self.elapsed, formatted as HH:MM:SS.fff...
+        '''
+        elapsed = self.elapsed
+        fraction = elapsed % 1
+        return self.ELAPSED_STR_FMT.format(
+            time_fmt=py_time.strftime(self.TIME_FMT, py_time.gmtime(elapsed)),
+            fractional=fraction)
 
     def timed_out(self, seconds: float) -> bool:
         '''

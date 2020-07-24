@@ -344,7 +344,14 @@ class Test_Engine(unittest.TestCase):
             self.assertIsNotNone(sys)
             self.assertEqual(sys.life_cycle, SystemLifeCycle.ALIVE)
 
-        self.assertEqual(self.system_mgr._schedule,
+        # Filter out the required systems that were created. Just want to check
+        # Jeff and Jill.
+        j_and_j_schedule = [
+            each
+            for each in self.system_mgr._schedule
+            if isinstance(each, (SysJeff, SysJill))
+        ]
+        self.assertEqual(j_and_j_schedule,
                          [self.system_mgr.get(jill_id),
                           self.system_mgr.get(jeff_id)])
 

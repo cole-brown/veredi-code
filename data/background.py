@@ -104,7 +104,9 @@ should be placed when registered in Commander.
 _OUTPUT = 'output'
 '''OutputSystem and other output stuff should be placed under this key.'''
 
-_CONTEXT = {
+_CONTEXT = None
+
+_CONTEXT_LAYOUT = {
     _ROOT: {
         _CONFIG: {},
         _REGISTRY: {},
@@ -120,6 +122,10 @@ _CONTEXT = {
         _OUTPUT: {},
     },
 }
+'''
+Unit tests don't get the background cleaned up automatically, so split out
+the context from its layout to help them reset as needed.
+'''
 
 
 # -----------------------------------------------------------------------------
@@ -205,7 +211,28 @@ class veredi:
         background context is assumed to be other's (e.g. plugin's?).
         '''
         global _CONTEXT, _ROOT
+        if _CONTEXT is None:
+            from copy import deepcopy
+            _CONTEXT = deepcopy(_CONTEXT_LAYOUT)
         return _CONTEXT.get(_ROOT, Null())
+
+
+# -------------------------------------------------------------------------
+# Unit Testing
+# -------------------------------------------------------------------------
+
+class testing:
+    '''
+    Whatever's needed for unit/integration/functional tests.
+    '''
+
+    @classmethod
+    def nuke(klass: Type['testing']) -> None:
+        '''
+        Reset context for unit tests.
+        '''
+        global _CONTEXT
+        _CONTEXT = None
 
 
 # -------------------------------------------------------------------------
@@ -592,27 +619,6 @@ class data(metaclass=DataMeta):
     #     ctx = klass._get()
     #     retval = ctx.get(klass.Link.CODEC, Null())
     #     return retval
-
-
-# # -------------------------------------------------------------------------
-# # Unit Testing
-# # -------------------------------------------------------------------------
-# def ut_inject(self,
-#               path:     Optional[pathlib.Path]    = None,
-#               config:   Optional['Configuration'] = None,
-#               keychain: Optional[Iterable[Any]]   = None) -> None:
-#     '''
-#     Unit testing.
-
-#     Inject any of these that are not None into their spot in the context.
-#     '''
-#     config_data = self._get().get(self.KEY, {})
-#     if path is not None:
-#         config_data[self.Link.PATH] = path
-#     if config is not None:
-#         config_data[self.Link.CONFIG] = config
-#     if keychain is not None:
-#         config_data[self.Link.KEYCHAIN] = keychain
 
 
 # -------------------------------------------------------------------------

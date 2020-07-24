@@ -133,9 +133,11 @@ class InputSystem(System):
         # Our Sub-System Stuff
         # ---
         self._commander: Commander = config.make(None,
+                                                 'server',
                                                  'input',
                                                  'command')
         self._historian: Historian = config.make(None,
+                                                 'server',
                                                  'input',
                                                  'history')
 

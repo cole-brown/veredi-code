@@ -307,6 +307,15 @@ class SystemManager(EcsManagerWithEvents):
 
         System will be cycled to ALIVE during the CREATION tick.
         '''
+        for system in self._system.values():
+            if isinstance(system, sys_class):
+                raise log.exception(
+                    None,
+                    SystemErrorV,
+                    "Cannot create another system of type: {}. "
+                    "There is already one running: {}",
+                    str(sys_class), str(system))
+
         sid = self._system_id.next()
 
         # Stuff event, component managers into kwargs in case system wants them

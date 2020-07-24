@@ -57,10 +57,12 @@ class Test_Commander(unittest.TestCase):
                     #    #   sanitize: veredi.sanitize.human.path-safe
                     #    # codec: veredi.codec.yaml
                 },
-                'input': {
-                    'parser': {
-                        'math': 'veredi.math.d20.parser',
-                        'command': 'veredi.interface.input.commander',
+                'server': {
+                    'input': {
+                        'parser': {
+                            'math': 'veredi.math.d20.parser',
+                            'command': 'veredi.interface.input.commander',
+                        },
                     },
                 },
             },

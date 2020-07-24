@@ -72,6 +72,7 @@ class Mather:
                 'Mather requires a configuration to configure itself.')
 
         self._parser: MathParser = config.make(None,
+                                               'server',
                                                'input',
                                                'parser',
                                                'math')

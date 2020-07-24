@@ -220,13 +220,17 @@ class YamlCodec(BaseCodec):
         '''
 
         # print('Codec read:', stream.read(None))
+        # log.critical("\n\nstream at: {} {}", str(type(stream.tell())), str(stream.tell()))
         # stream.seek(0)
 
         data = None
         try:
             data = yaml.safe_load_all(stream)
             data = self._finish_read(data)
-            # print(f"{self.__class__.__name__}.decode_all: data = {data}")
+            # if not data:
+            #     log.critical("DED STREAM!!!")
+            # import pprint
+            # print(f"\n\n{self.__class__.__name__}.decode_all:\n  context: \n{pprint.pformat(input_context)}\n\n   data = \n{pprint.pformat(data)}\n\n")
         except yaml.YAMLError as error:
             data = None
             raise log.exception(

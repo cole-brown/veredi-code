@@ -62,6 +62,8 @@ class IntegrationTest(unittest.TestCase):
         self.init_required(...)
         self.init_system(...)
         '''
+        zload.set_up_background()
+
         self.debugging:      bool          = False
         self.debug_flags:    DebugFlag     = None
         self.events:         List[Event]   = []
@@ -124,6 +126,8 @@ class IntegrationTest(unittest.TestCase):
         return self.manager.system.get(sid)
 
     def tearDown(self) -> None:
+        zload.tear_down_background()
+
         self.debugging      = False
         self.apoptosis()
         self.events         = None
