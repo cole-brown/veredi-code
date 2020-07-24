@@ -1,0 +1,62 @@
+--- !metadata
+record-type: veredi.config
+version: 2020-07.23
+
+source: veredi.config
+author: Cole Brown
+date:   2020-07-23
+
+system: configuration
+name: veredi.config
+display-name: Veredi Configuration
+
+
+--- !configuration
+
+data:
+  repository:
+    type: veredi.repository.file-tree
+    directory: ../repository/file-tree
+    sanitize: veredi.sanitize.human.path-safe
+  codec: veredi.codec.yaml
+
+
+rules:
+  type: veredi.rules.d20.pf2.info
+  skill: veredi.rules.d20.pf2.skill.system
+  combat: veredi.rules.d20.pf2.combat.system
+
+  ability: veredi.rules.d20.pf2.ability
+  health: veredi.rules.d20.pf2.health
+  movement: veredi.rules.d20.pf2.movement
+
+
+server:
+  mediator:
+    type: veredi.interface.mediator.websocket.server
+    codec: veredi.codec.json
+    hostname: localhost
+    port: 8888
+    ssl: false
+
+  input:
+    type: veredi.interface.input.system
+    command: veredi.interface.input.commander
+    history: veredi.interface.input.historian
+    parser:
+      math: veredi.math.d20.parser
+
+  output:
+    type: veredi.interface.output.system
+    codec: veredi.codec.yaml
+
+
+client:
+  mediator:
+    type: veredi.interface.mediator.websocket.client
+    codec: veredi.codec.json
+    hostname: localhost
+    port: 8888
+    ssl: false
+
+# and more?
