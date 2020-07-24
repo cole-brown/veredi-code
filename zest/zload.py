@@ -14,6 +14,8 @@ from veredi.logger import log
 from .             import zmake, zontext
 from .zpath        import TestType
 
+from veredi.data   import background
+
 # Config Stuff
 from veredi.data.config.config          import Configuration
 
@@ -174,11 +176,37 @@ def set_up(
                                       test_name_func)
 
         log.debug("zload.loader creating systems...")
-        if not desired_systems:
-            sids = create_systems(system_manager, context,
-                                  RepositorySystem, CodecSystem, DataSystem)
-        else:
+        sids = []
+        if desired_systems:
             sids = create_systems(system_manager, context,
                                   *desired_systems)
+        elif not require_engine:
+            sids = create_systems(system_manager, context,
+                                  RepositorySystem, CodecSystem, DataSystem)
+        # Else: our engine creates the requried stuff and we don't want to
+        # double-create.
 
         return meeting, engine, context, sids
+
+
+# -----------------------------------------------------------------------------
+# Background Helper
+# -----------------------------------------------------------------------------
+
+BACKGROUND_COPY = None
+
+def set_up_background() -> None:
+    '''
+    Get the context cleared out and ready for a new test.
+    '''
+    # Context will create an empty data structure to fill if it has none, so we
+    # just need to nuke it from orbit.
+    background.testing.nuke()
+
+def tear_down_background() -> None:
+    '''
+    Get the context cleared out and ready for a new test.
+    '''
+    # Currently nothing really to do that set_up_background() doesn't do.
+    # But I want tear_down_background() for the pairing.
+    background.testing.nuke()

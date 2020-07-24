@@ -171,6 +171,9 @@ class Test_InputToOutput_AbilityCheck(IntegrationTest):
         self.event_set_up()
         entity = self.create_entity()
 
+        # import veredi.zest.debug.background
+        # veredi.zest.debug.background.to_log('zest_input_to_output')
+
         # Make our request event.
         request = self.load_request(entity.id,
                                     DataGameContext.DataType.MONSTER)

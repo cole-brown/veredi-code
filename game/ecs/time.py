@@ -21,8 +21,8 @@ from . import exceptions
 from .event import EcsManagerWithEvents
 
 from ..time.clock import Clock
-from ..time.machine import MachineTime
-from ..time.timer import MonotonicTimer
+from veredi.time.machine import MachineTime
+from veredi.time.timer import MonotonicTimer
 from ..time.tick.round import TickRounds, TickTypes
 
 

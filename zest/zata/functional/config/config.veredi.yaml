@@ -32,9 +32,12 @@ rules:
 
 
 server:
-  # type: veredi.interface.server
   mediator:
+    type: veredi.interface.mediator.websocket.server
     codec: veredi.codec.json
+    hostname: localhost
+    port: 8888
+    ssl: false
 
   input:
     type: veredi.interface.input.system
@@ -47,5 +50,13 @@ server:
     type: veredi.interface.output.system
     codec: veredi.codec.yaml
 
+
+client:
+  mediator:
+    type: veredi.interface.mediator.websocket.client
+    codec: veredi.codec.json
+    hostname: localhost
+    port: 8888
+    ssl: false
 
 # and more?

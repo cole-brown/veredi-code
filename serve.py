@@ -261,7 +261,7 @@ def run_mediator(conn:          multiprocessing.connection.Connection = None,
         lumberjack = log.get_logger(ProcessType.MEDIATOR.value)
         raise log.exception(
             "Mediator requires a default log level (int); received None.",
-            Veredi_logger=lumberjack)
+            veredi_logger=lumberjack)
 
     log.get_logger(ProcessType.MEDIATOR.value).critical(
         "todo... server/mediator")
@@ -291,7 +291,7 @@ def run_engine(conn:          multiprocessing.connection.Connection = None,
     if not log_level:
         raise log.exception(
             "Engine requires a default log level (int); received None.",
-            Veredi_logger=lumberjack)
+            veredi_logger=lumberjack)
 
     # Make our config object...
     config = Configuration(config_path=config_path)

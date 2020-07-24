@@ -139,6 +139,7 @@ class OutputSystem(System):
         config = background.config.config
         if config:
             self._codec = config.make(None,
+                                      'server',
                                       'output',
                                       'codec')
 
