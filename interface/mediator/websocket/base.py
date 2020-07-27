@@ -34,6 +34,8 @@ from veredi.time.timer      import MonotonicTimer
 # Constants
 # -----------------------------------------------------------------------------
 
+# TODO [2020-07-26]: Delete unused functions in websockets/mediators code.
+
 
 # -----------------------------------------------------------------------------
 # Code
@@ -62,16 +64,26 @@ class VebSocket:
                  codec:  BaseCodec,
                  host:   str,
                  port:   Optional[int]    = None,
-                 secure: Union[str, bool] = True) -> None:
+                 secure: Union[str, bool] = True,
+                 close:  asyncio.Event    = None) -> None:
         self._codec:  BaseCodec        = codec
         self._host:   str              = host
         self._port:   int              = port
         self._secure: Union[str, bool] = secure
         self._uri:    Optional[str]    = None
 
-        self._aio:        asyncio.AbstractEventLoop = asyncio.get_event_loop()
-        self._connection: websockets.client.WebSocketClientProtocol = None
-        self._socket:     Awaitable = None
+        self._connection: websockets.connect = None
+        self._socket:     websockets.WebSocketClientProtocol = None
+        self._close:      asyncio.Event = asyncio.Event()
+
+        log.debug(f"host: {str(type(self._host))}({self._host}), "
+                  f"port: {str(type(self._port))}({self._port}), "
+                  f"secure: {str(type(secure))}({secure}), "
+                  f"uri: {str(type(self.uri))}({self.uri})")
+
+        # TODO [2020-07-25]: Configure logger for websockets.
+        # See just above this anchor:
+        #   https://websockets.readthedocs.io/en/stable/api.html#websockets.server.unix_serve
 
     # -------------------------------------------------------------------------
     # Properties
@@ -101,21 +113,59 @@ class VebSocket:
             return self._uri
 
         port_str = ''
-        if self._port and 0 > self._port > 65535:
+        if self._port and 0 < self._port < 65535:
             port_str = self.PORT_FMT.format(port=str(self._port))
-            self._uri = self.URI_FMT.format(scheme=(self.SCHEME_WS_SECURE
-                                                    if self._secure else
-                                                    self.SCHEME_WS_STD),
-                                            host=self._host,
-                                            port=port_str)
-        return self._host
+
+        self._uri = self.URI_FMT.format(scheme=(self.SCHEME_WS_SECURE
+                                                if self._secure else
+                                                self.SCHEME_WS_STD),
+                                        host=self._host,
+                                        port=port_str)
+
+        return self._uri
+
+    # -------------------------------------------------------------------------
+    # General Functions
+    # -------------------------------------------------------------------------
+
+    def close(self) -> None:
+        '''
+        Doesn't really do anything!
+
+        Only sets our close event flag.
+        '''
+        self._close.set()
+
+    async def _a_wait_close(self) -> None:
+        '''
+        A future that just waits for our close flag or
+        websockets.WebSocketServer's close future to be set.
+
+        Can be used in a 'loop forever' context to die when instructed.
+        '''
+        while True:
+            if self._close.is_set():
+                break
+            # Await something so other async tasks can run? IDK.
+            await asyncio.sleep(0.1)
+
+        # Shutdown has been signaled to us somehow, but we're just some minion
+        # so we only need to put ourselves in order.
+        if self._socket:
+            self._socket.close()
+        # if self._connection:
+        #     self._connection.???() = ???
+        #     self._connection. = ???
+
+        self._close.set()
+
 
     # -------------------------------------------------------------------------
     # Asyncio 'with' Magic
     # -------------------------------------------------------------------------
 
     async def __aenter__(self) -> 'VebSocket':
-        self._connection = websockets.connect(self._uri)
+        self._connection = websockets.connect(self.uri)
         self._socket = await self._connection.__aenter__()
         return self
 

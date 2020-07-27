@@ -35,8 +35,8 @@ server:
   mediator:
     type: veredi.interface.mediator.websocket.server
     codec: veredi.codec.json
-    hostname: localhost
-    port: 8888
+    hostname: 127.0.0.1  # Can't use 'localhost' or IPv6 for now...
+    port: 13369
     ssl: false
 
   input:
@@ -55,8 +55,8 @@ client:
   mediator:
     type: veredi.interface.mediator.websocket.client
     codec: veredi.codec.json
-    hostname: localhost
-    port: 8888
+    hostname: 127.0.0.1  # Can't use 'localhost' or IPv6 for now...
+    port: 13369
     ssl: false
 
 # and more?

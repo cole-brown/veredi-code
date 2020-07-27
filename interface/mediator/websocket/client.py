@@ -12,7 +12,7 @@ Veredi Game (Test) Client.
 # ---
 # Type Hinting Imports
 # ---
-from typing import Optional, Mapping
+from typing import Optional, Any, Mapping, Iterable, Awaitable
 
 
 # ---
@@ -95,30 +95,30 @@ class WebSocketClient(MediatorClient):
                  conn:          multiprocessing.connection.Connection,
                  shutdown_flag: multiprocessing.Event = None) -> None:
         # Base class init first.
-        super().__init__(config, conn)
+        super().__init__(config, conn, shutdown_flag)
 
         # Grab our data from the config...
-        self._codec: BaseCodec = config.make(None,
-                                             'client',
-                                             'mediator',
-                                             'codec')
+        self._codec:  BaseCodec       = config.make(None,
+                                                    'client',
+                                                    'mediator',
+                                                    'codec')
 
-        self._host: str = config.get('client',
-                                     'mediator',
-                                     'hostname')
+        self._host:   str             = config.get('client',
+                                                   'mediator',
+                                                   'hostname')
 
-        self._port: int = int(config.get('client',
-                                         'mediator',
-                                         'port'))
+        self._port:   int             = int(config.get('client',
+                                                       'mediator',
+                                                       'port'))
 
-        self._ssl:   str       = config.get('client',
-                                            'mediator',
-                                            'ssl')
+        self._ssl:    str             = config.get('client',
+                                                   'mediator',
+                                                   'ssl')
 
-        self._socket = VebSocketClient(self._codec,
-                                       self._host,
-                                       self._port,
-                                       self._ssl)
+        self._socket: VebSocketClient = VebSocketClient(self._codec,
+                                                        self._host,
+                                                        self._port,
+                                                        self._ssl)
 
     # -------------------------------------------------------------------------
     # Mediator API
@@ -129,16 +129,53 @@ class WebSocketClient(MediatorClient):
         Start our socket listening.
         '''
         # Kick it off into asyncio's hands.
+        asyncio.run(self._a_main(self._shutdown_watcher(),
+                                 self._a_test(),
+                                 self._connect()))
 
         # rtt = self.ping()
         # log.warning("ping round trip time(ish):", rtt)
         # self._aio.run_forever()
 
-        self._aio.run_until_complete(self._connect)
-        self._aio.run_forever()
+    # -------------------------------------------------------------------------
+    # Asyncio / Multiprocessing Functions
+    # -------------------------------------------------------------------------
+
+    async def _a_main(self, *aws: Awaitable) -> Iterable[Any]:
+        '''
+        Runs client async tasks/futures concurrently, returns the aggregate
+        list of return values for those tasks/futures.
+        '''
+        print(f"\n\nclient._a_main: {repr(aws)}\n\n")
+        ret_vals = await asyncio.gather(*aws)
+        print(f"\n\nclient ret_vals: {ret_vals}\n\n")
+
+        # self._aio.run_until_complete()
+        # self._aio.run_until_complete()
+        # self._aio.run_forever()
+        return ret_vals
+
+    async def _a_test(self) -> None:
+        await asyncio.sleep(0.5)
+        print("\n\n !!!!!!!!!! HELLO THERE CLIENT !!!!!!!!!! \n\n")
+
+    async def _shutdown_watcher(self) -> None:
+        '''
+        Watches `self._shutdown_flag`. Will call stop() on our asyncio loop
+        when the shutdown flag is set.
+        '''
+        await super()._shutdown_watcher()
+
+        # Tell our websocket server to finish up.
+        log.debug("Tell our WebSocket to stop.")
+        self._socket.close()
+
+        # # Tell ourselves to stop.
+        # log.debug("Tell ourselves to stop.")
+        # # ...nothing I guess?
 
     # -------------------------------------------------------------------------
-    # WebSocket Asyncio Functions
+    # WebSocket Functions
     # -------------------------------------------------------------------------
 
     def ping(self) -> float:

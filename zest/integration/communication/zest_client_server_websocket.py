@@ -18,12 +18,22 @@ import unittest
 import multiprocessing
 import multiprocessing.connection
 import signal
-import namedtuple
+from collections import namedtuple
 import time
 
 from veredi.zest import zmake, zpath
 from veredi.logger                      import log, log_server, log_client
 
+
+# ---
+# Need these to register...
+# ---
+from veredi.data.codec.json import codec
+
+
+# ---
+# Delete these?
+# ---
 from veredi.base.null                       import Null
 from veredi.base.context                    import UnitTestContext
 from veredi.data.context                    import (DataGameContext,
@@ -81,6 +91,10 @@ LOG_LEVEL = log.Level.NOTSET
 
 TestProc = namedtuple('TestProc', ['name', 'process', 'pipe'])
 
+StopRetVal = namedtuple('StopRetVal',
+                        ['mediator_grace', 'log_grace',
+                         'mediator_terminate', 'log_terminate'])
+
 
 # -----------------------------------------------------------------------------
 # Multiprocessing Helper
@@ -97,15 +111,20 @@ def _sigint_ignore() -> None:
 # -----------------------------------------------------------------------------
 
 def run_logs(proc_name     = None,
+             log_level     = None,
              shutdown_flag = None) -> None:
     '''
     Inits and runs logging server.
     '''
     _sigint_ignore()
-    server = log_server.init()
+    server = log_server.init(shutdown_flag, log_level)
 
-    # log_server.run() should never return - it just listens on the socket
-    # connection for logs to process forever.
+    # TODO: debug level
+    lumberjack = log.get_logger(proc_name)
+    lumberjack.debug(f"Starting log_server '{proc_name}'...")
+
+    # log_server.run() should never return (until shutdown signaled) - it just
+    # listens on the socket connection for logs to process forever.
     log_server.run(server, proc_name)
 
 
@@ -138,7 +157,8 @@ def run_server(proc_name     = None,
             "Mediator requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
 
-    lumberjack.critical("todo... server/mediator")
+    # TODO: debug level
+    lumberjack.debug(f"Starting WebSocketServer '{proc_name}'...")
     mediator = WebSocketServer(config, conn, shutdown_flag)
     mediator.start()
 
@@ -172,79 +192,10 @@ def run_client(proc_name     = None,
             "Mediator requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
 
-    lumberjack.critical("todo... client/mediator")
+    # TODO: debug level
+    lumberjack.debug(f"Starting WebSocketClient '{proc_name}'...")
     mediator = WebSocketClient(config, conn, shutdown_flag)
     mediator.start()
-
-
-# -----------------------------------------------------------------------------
-# Multiprocessing Stoppers
-# -----------------------------------------------------------------------------
-
-def stop_server(
-        processes: Mapping[str, multiprocessing.Process]) -> bool:
-    '''
-    Sets the game_end flag. Engine and Mediator should notice and go into
-    graceful shutdown.
-    '''
-    lumberjack = log.get_logger(ProcessType.MAIN.value)
-
-    # Set the game_end flag. They should notice soon and start doing
-    # their shutdown.
-    log.info("Asking engine/mediator to end the game gracefully...",
-             veredi_logger=lumberjack)
-    processes.game_end.set()
-
-    # Wait on engine and mediator processes to be done.
-    # Wait on mediator first, since I think it'll take less long?
-    log.info("Waiting for mediator to complete structured shutdown...",
-             veredi_logger=lumberjack)
-    processes.proc[ProcessType.MEDIATOR].join(GRACEFUL_SHUTDOWN_TIME_SEC)
-    if processes.proc[ProcessType.MEDIATOR].exitcode is None:
-        log.error("Mediator did not shut down in time. Data may be lost...",
-                  veredi_logger=lumberjack)
-    else:
-        log.info("Mediator shut down complete.",
-                 veredi_logger=lumberjack)
-
-    # Now wait on the engine.
-    log.info("Waiting for engine to complete structured shutdown...",
-             veredi_logger=lumberjack)
-    processes.proc[ProcessType.ENGINE].join(GRACEFUL_SHUTDOWN_TIME_SEC)
-    if processes.proc[ProcessType.ENGINE].exitcode is None:
-        log.error("Engine did not shut down in time. Data may be lost...",
-                  veredi_logger=lumberjack)
-    else:
-        log.info("Engine shut down complete.",
-                 veredi_logger=lumberjack)
-
-
-def _logs_over(
-        processes: Mapping[str, multiprocessing.Process]) -> bool:
-    '''
-    Sets the logs_end flag. Logs server should notice and gracefully shut down.
-    '''
-    lumberjack = log.get_logger(ProcessType.MAIN.value)
-
-    # Set the game_end flag. They should notice soon and start doing
-    # their shutdown.
-    log.info("Asking logs server to end gracefully...",
-             veredi_logger=lumberjack)
-    processes.logs_end.set()
-
-    # Wait on engine and mediator processes to be done.
-    # Wait on mediator first, since I think it'll take less long?
-    log.info("Waiting for logs server to complete structured shutdown...",
-             veredi_logger=lumberjack)
-    processes.proc[ProcessType.LOGS].join(GRACEFUL_SHUTDOWN_TIME_SEC)
-    if processes.proc[ProcessType.LOGS].exitcode is None:
-        log.error("Logs server did not shut down in time. "
-                  "Logs may be lost? IDK...",
-                  veredi_logger=lumberjack)
-    else:
-        log.info("Logs server shut down complete.",
-                 veredi_logger=lumberjack)
-
 
 
 # -----------------------------------------------------------------------------
@@ -253,7 +204,8 @@ def _logs_over(
 
 class Test_WebSockets(unittest.TestCase):
 
-    NUM_CLIENTS = 2
+    # TODO [2020-07-25]: 2 or 4 or something!
+    NUM_CLIENTS = 1
 
     NAME_LOG = 'veredi.test.websockets.log'
     NAME_SERVER = 'veredi.test.websockets.server'
@@ -278,23 +230,27 @@ class Test_WebSockets(unittest.TestCase):
         self._server: TestProc = None
         '''Our WebSocket Server process and pipe.'''
 
-        self._clients: Iterable[TestProc] = None
+        self._clients: Iterable[TestProc] = []
         '''Our WebSocket Client processes and pipes in an indexable list.'''
 
         config = zmake.config(zpath.TestType.INTEGRATION,
                               'config.websocket.yaml')
 
-        self._set_up_log()
+        self._set_up_log(config)
         self._set_up_server(config)
         self._set_up_clients(config)
 
     def tearDown(self):
-        self._tear_down_log()
+        self._stop_mediators()
         self._tear_down_server()
         self._tear_down_clients()
 
+        self._stop_logs()
+        self._tear_down_log()
+
         self.debug_flags = None
         self._shutdown = None
+        self._shutdown_log = None
 
     # ---
     # Log Set-Up / Tear-Down
@@ -309,12 +265,15 @@ class Test_WebSockets(unittest.TestCase):
                 name=name,
                 kwargs={
                     'proc_name':     name,
+                    'log_level':     LOG_LEVEL,
                     'shutdown_flag': self._shutdown_log,
                 }),
             None)
 
     def _tear_down_log(self):
-        # TODO: ask log server to shut down, wait on it to die.
+        # Ask log server to stop if we haven't already...
+        if not self._shutdown_log.is_set():
+            self._stop_logs()
 
         self._log_server = None
 
@@ -340,7 +299,9 @@ class Test_WebSockets(unittest.TestCase):
             test_conn)
 
     def _tear_down_server(self):
-        # TODO: ask server to shut down, wait on it to die.
+        # Ask all mediators to stop if we haven't already...
+        if not self._shutdown.is_set():
+            self._stop_mediators()
 
         self._server = None
 
@@ -369,7 +330,9 @@ class Test_WebSockets(unittest.TestCase):
                     test_conn))
 
     def _tear_down_clients(self):
-        # TODO: ask each client to shut down, wait on them to die.
+        # Ask all mediators to stop if we haven't already...
+        if not self._shutdown.is_set():
+            self._stop_mediators()
 
         self._clients = None
 
@@ -384,7 +347,7 @@ class Test_WebSockets(unittest.TestCase):
         for client in self._clients:
             client.process.start()
 
-    def wait(self,) -> None:
+    def wait(self) -> None:
         '''
         Waits forever. Kills server on Ctrl-C/SIGINT.
 
@@ -405,10 +368,56 @@ class Test_WebSockets(unittest.TestCase):
 
         except KeyboardInterrupt:
             # First, ask for a gentle, graceful shutdown...
-            log.warning("Received SIGINT.",
-                        veredi_logger=lumberjack)
+            log.debug("Received SIGINT.",
+                      veredi_logger=lumberjack)
 
         # Finally, stop the processes.
+        stopped = self._stop()
+
+        # Figure out our exitcode return value.
+        exitcode = self._reduce_exitcodes()
+
+        self._assert_stopped(stopped, exitcode)
+
+    def _assert_stopped(self, stop_retval, reduced_exitcode):
+        '''
+        Asserts that return values from self._stop() and
+        self._reduce_exitcodes() are all good return values and indicate
+        properly stopped processes.
+        '''
+        # ---
+        # Ok... Now assert stuff.
+        # Tried to kill the procs a few ways and gave them some time to die, so
+        # assert what we remember about that.
+        # ---
+
+        # I really want them to all have died by now...
+        self.assertIsNotNone(reduced_exitcode)
+
+        # I don't want to have had to call in the terminators.
+        self.assertFalse(stop_retval.log_terminate)
+        self.assertFalse(stop_retval.mediator_terminate)
+
+        # I do want the processes to have ended gracefully with their shutdown
+        # flag.
+        self.assertTrue(stop_retval.log_grace)
+        self.assertTrue(stop_retval.mediator_grace)
+
+        # I really want them to have all exited with a successful exit code.
+        # self.assertIn(reduced_exitcode, (0, -signal.SIGINT))
+        self.assertEqual(reduced_exitcode, 0)
+        # -15 is -SIGTERM, fyi...
+        #   https://man7.org/linux/man-pages/man7/signal.7.html
+
+    def _stop(self):
+        '''
+        Stops all processes.
+
+        First asks for a graceful stop via self._stop_<blank>().
+        If that fails, asks for a less graceful stop via Process.terminate().
+
+        Returns StopRetVal (named 4-tuple of bools) on how it did.
+        '''
         mediators_ok = self._stop_mediators()
         log_ok = self._stop_logs()
 
@@ -429,52 +438,93 @@ class Test_WebSockets(unittest.TestCase):
             self._log_server.process.terminate()
             log_terminator = True
 
-        # Figure out our exitcode return value.
-        time.sleep(0.1)  # Short nap for our kids to clean up...
+        return StopRetVal(mediators_ok, log_ok,
+                          mediator_terminator, log_terminator)
+
+    def _reduce_exitcodes(self):
+        '''
+        Reduced all our child processes' (current) exitcodes down to one.
+        Will take worst of (in worst-to-best order):
+          - None
+          - any non-zero
+          - zero
+        and return that as the exitcode of choice.
+
+        Zero is only returned when all child processes have exited with a
+        successful (0) exitcode.
+        '''
+        # We 'reduce' the exit code by:
+        #   1) Starting off assuming the best (0).
+        #   2) Exiting early with `None` if found.
+        #   3) Replacing our return value with non-zero if found.
+
+        # Short nap for our kids to clean up...
+        time.sleep(0.1)
+
+        # Assume the best... replace with the worst.
         exitcode = 0
+
+        # ---
+        # Check server:
+        # ---
         if self._server.process.exitcode is None:
             exitcode = None
+            return exitcode
         elif self._server.process.exitcode == 0:
             pass
         else:
             exitcode = self._server.process.exitcode
+
+        # ---
+        # Check Clients:
+        # ---
         for client in self._clients:
             if client.process.exitcode is None:
                 exitcode = None
+                return exitcode
             elif client.process.exitcode == 0:
                 pass
             else:
                 exitcode = client.process.exitcode
+
+        # ---
+        # Check Log Server:
+        # ---
         if self._log_server.process.exitcode is None:
             exitcode = None
+            return exitcode
         elif self._log_server.process.exitcode == 0:
             pass
         else:
             exitcode = self._log_server.process.exitcode
 
-        # ---
-        # Ok... Now assert stuff.
-        # Tried to kill the procs a few ways and gave them some time to die, so
-        # assert what we remember about that.
-        # ---
+        return exitcode
 
-        # I really want them to all have died ok.
-        self.assertEqual(exitcode, 0)
+    def _mediators_stopped(self):
+        '''
+        Did it all shutdown and gave a good exit code?
+        '''
+        all_good = True
+        for client in self._clients:
+            all_good = all_good and (client.process.exitcode == 0)
+        all_good = all_good and (self._server.process.exitcode == 0)
+        return all_good
 
-        # I don't want to have to had to resorted to terminators.
-        self.assertFalse(mediator_terminator)
-        self.assertFalse(log_terminator)
-
-        # I do want the processes to have ended gracefully with their shutdown
-        # flag.
-        self.assertTrue(mediators_ok)
-        self.assertTrue(log_ok)
+    def _log_stopped(self):
+        '''
+        Did log server shutdown and gave a good exit code?
+        '''
+        return (self._log_server.process.exitcode == 0)
 
     def _stop_mediators(self):
         '''
         Sets the shutdown flag. Mediators should notice and go into
         graceful shutdown.
         '''
+        if ((not self._clients and not self._server)
+                or self._mediators_stopped()):
+            return
+
         lumberjack = log.get_logger(self.NAME_MAIN)
 
         log.info("Asking mediators to end gracefully...",
@@ -482,7 +532,7 @@ class Test_WebSockets(unittest.TestCase):
         # Turn on shutdown flag to do the asking.
         self._shutdown.set()
 
-        # Wait on mediators to be done.
+        # Wait on clients to be done.
         log.info("Waiting for client mediators to complete "
                  "structured shutdown...",
                  veredi_logger=lumberjack)
@@ -492,8 +542,8 @@ class Test_WebSockets(unittest.TestCase):
             client.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
             log.debug("    Done.",
                       veredi_logger=lumberjack)
-            # self.assertEqual(client.process.exitcode, 0)
 
+        # Wait on server now.
         log.info("Waiting for server mediator to complete "
                  "structured shutdown...",
                  veredi_logger=lumberjack)
@@ -502,20 +552,18 @@ class Test_WebSockets(unittest.TestCase):
         self._server.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
         log.debug("    Done.",
                   veredi_logger=lumberjack)
-        # self.assertEqual(self._server.exitcode, 0)
 
         # Did it all shutdown and gave a good exit code?
-        all_good = True
-        for client in self._clients:
-            all_good = all_good and (client.process.exitcode == 0)
-        all_good = all_good and (self._server.process.exitcode == 0)
-        return all_good
+        return self._mediators_stopped()
 
     def _stop_logs(self):
         '''
         Sets the logs_end flag. Logs server should notice and gracefully shut
         down.
         '''
+        if not self._log_server or self._log_stopped():
+            return
+
         lumberjack = log.get_logger(self.NAME_LOG)
 
         # Set the game_end flag. They should notice soon and start doing
