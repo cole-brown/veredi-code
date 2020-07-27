@@ -48,8 +48,6 @@ from .interface.output           import event
 class YamlCodec(BaseCodec):
     # https://pyyaml.org/wiki/PyYAMLDocumentation
 
-    _DOTTED_NAME = 'veredi.codec.yaml'
-
     _SANITIZE_KEYCHAIN = ['game', 'repository', 'sanitize']
 
     _CODEC_NAME   = 'yaml'
@@ -66,7 +64,7 @@ class YamlCodec(BaseCodec):
         self._make_background()
 
     def _make_background(self) -> None:
-        self._bg = super()._make_background(self._DOTTED_NAME)
+        self._bg = super()._make_background(self.dotted)
 
     @property
     def background(self):

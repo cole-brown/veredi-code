@@ -60,6 +60,7 @@ def config(test_type:    zpath.TestType                 = zpath.TestType.UNIT,
         path = pathlib.Path('config.testing.yaml')
 
     path = zpath.config(path, test_type)
+    print("\n\nconfig path:", path, "\n\n")
     config = Configuration(path, config_repo, config_codec)
 
     # Inject specific codec for unit test.

@@ -49,7 +49,7 @@ class JsonCodec(BaseCodec):
         self._make_background()
 
     def _make_background(self) -> None:
-        self._bg = super()._make_background(self._DOTTED_NAME)
+        self._bg = super()._make_background(self.dotted)
 
     @property
     def background(self):
@@ -67,29 +67,29 @@ class JsonCodec(BaseCodec):
     def decode(self,
                stream: TextIO,
                input_context: 'VerediContext') -> CodecOutput:
-        '''Load and decodes data from a single data stream.
+        '''Read and decodes data from a single data stream.
 
         Raises:
-          - exceptions.LoadError
+          - exceptions.ReadError
             - wrapped json.JSONDecodeError
           Maybes:
             - Other json/stream errors?
         '''
-        data = self._load(stream, input_context)
+        data = self._read(stream, input_context)
         try:
             data = json.load(stream)
         except json.JSONDecodeError as error:
             data = None
-            raise exceptions.LoadError(
-                f"Error loading json from stream: {stream}",
+            raise exceptions.ReadError(
+                f"Error reading json from stream: {stream}",
                 error,
                 input_context) from error
         return data
 
-    def _load(self,
+    def _read(self,
               stream: TextIO,
               input_context: 'VerediContext') -> Any:
-        '''Load data from a single data stream.
+        '''Read data from a single data stream.
 
         Returns:
           Output of json.load().
@@ -99,7 +99,7 @@ class JsonCodec(BaseCodec):
             - and python objects
 
         Raises:
-          - exceptions.LoadError
+          - exceptions.ReadError
             - wrapped json.JSONDecodeError
           Maybes:
             - Other json/file errors?
@@ -109,8 +109,8 @@ class JsonCodec(BaseCodec):
             data = json.load(stream)
         except json.JSONDecodeError as error:
             data = None
-            raise exceptions.LoadError(
-                f"Error loading json from stream: {stream}",
+            raise exceptions.ReadError(
+                f"Error reading json from stream: {stream}",
                 error,
                 input_context) from error
         return data
@@ -118,28 +118,28 @@ class JsonCodec(BaseCodec):
     def decode_all(self,
                    stream: TextIO,
                    input_context: 'VerediContext') -> CodecOutput:
-        '''Load and decodes all documents from the data stream.
+        '''Read and decodes all documents from the data stream.
 
         Raises:
-          - exceptions.LoadError
+          - exceptions.ReadError
             - wrapping a library error?
         '''
         # TODO [2020-05-22]: decode_all
         raise NotImplementedError("TODO: this")
 
-    def _load_all(self,
+    def _read_all(self,
                   stream: TextIO,
                   input_context: 'VerediContext') -> Any:
-        '''Load data from a single data stream.
+        '''Read data from a single data stream.
 
         Returns:
           Based on subclass.
 
         Raises:
-          - exceptions.LoadError
+          - exceptions.ReadError
             - wrapped lib/module errors
         '''
-        # TODO [2020-05-22]: load_all
+        # TODO [2020-05-22]: read_all
         raise NotImplementedError("TODO: this")
 
     # -------------------------------------------------------------------------
@@ -155,7 +155,7 @@ class JsonCodec(BaseCodec):
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        # TODO [2020-05-22]: load_all
+        # TODO [2020-05-22]: write_all
         raise NotImplementedError("TODO: this")
 
     def encode_all(self,
@@ -167,7 +167,7 @@ class JsonCodec(BaseCodec):
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        # TODO [2020-05-22]: load_all
+        # TODO [2020-05-22]: write_all
         raise NotImplementedError("TODO: this")
 
     def _write(self,
@@ -182,7 +182,7 @@ class JsonCodec(BaseCodec):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        # TODO [2020-05-22]: load_all
+        # TODO [2020-05-22]: write_all
         raise NotImplementedError("TODO: this")
 
     def _write_all(self,
@@ -197,5 +197,5 @@ class JsonCodec(BaseCodec):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        # TODO [2020-05-22]: load_all
+        # TODO [2020-05-22]: write_all
         raise NotImplementedError("TODO: this")
