@@ -26,14 +26,13 @@ import multiprocessing.connection
 # ---
 # Veredi Imports
 # ---
-from veredi.logger                      import log
-from veredi.data.exceptions                   import ConfigError
-from veredi.data.config.config    import Configuration
-from veredi.data.codec.base import BaseCodec
+from veredi.logger               import log
+from veredi.data.config.config   import Configuration
+from veredi.data.codec.base      import BaseCodec
 from veredi.data.config.registry import register
 
-from ..client import MediatorClient
-from .base import VebSocket
+from ..client                    import MediatorClient
+from .base                       import VebSocket
 
 
 # -----------------------------------------------------------------------------
@@ -73,11 +72,13 @@ class VebSocketClient(VebSocket):
         async with self:
             data_send = '{"some_test_data": "test client send"}'
 
+            log.debug(f"  -->: {data_send}")
             await self.send(data_send)
-            log.warning(f"  -->: {data_send}")
 
             data_recv = await self.receive()
-            log.warning(f"<--  : {data_recv}")
+            log.debug(f"<--  : {data_recv}")
+
+            # TODO: Return data.
 
 
 # -----------------------------------------------------------------------------
@@ -130,12 +131,7 @@ class WebSocketClient(MediatorClient):
         '''
         # Kick it off into asyncio's hands.
         asyncio.run(self._a_main(self._shutdown_watcher(),
-                                 self._a_test(),
                                  self._connect()))
-
-        # rtt = self.ping()
-        # log.warning("ping round trip time(ish):", rtt)
-        # self._aio.run_forever()
 
     # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
@@ -146,24 +142,16 @@ class WebSocketClient(MediatorClient):
         Runs client async tasks/futures concurrently, returns the aggregate
         list of return values for those tasks/futures.
         '''
-        print(f"\n\nclient._a_main: {repr(aws)}\n\n")
         ret_vals = await asyncio.gather(*aws)
-        print(f"\n\nclient ret_vals: {ret_vals}\n\n")
 
-        # self._aio.run_until_complete()
-        # self._aio.run_until_complete()
-        # self._aio.run_forever()
         return ret_vals
-
-    async def _a_test(self) -> None:
-        await asyncio.sleep(0.5)
-        print("\n\n !!!!!!!!!! HELLO THERE CLIENT !!!!!!!!!! \n\n")
 
     async def _shutdown_watcher(self) -> None:
         '''
         Watches `self._shutdown_flag`. Will call stop() on our asyncio loop
         when the shutdown flag is set.
         '''
+        # Parent's watcher is non-blocking so we can be simple about this:
         await super()._shutdown_watcher()
 
         # Tell our websocket server to finish up.
@@ -178,16 +166,16 @@ class WebSocketClient(MediatorClient):
     # WebSocket Functions
     # -------------------------------------------------------------------------
 
+    async def _connect(self):
+        '''
+        Read from client, send reply, close connection.
+        '''
+        await self._socket.message("ignored string")
+        log.debug("Client._connect: Done awaiting conn message.")
+
     def ping(self) -> float:
         '''
         Ping the server, return the monotonic time ping took.
         '''
         return self._aio.run_until_complete(
             self._socket.ping())
-
-    async def _connect(self):
-        '''
-        Read from client, send reply, close connection.
-        '''
-        await self._socket.message("ignored string")
-        log.warning("Client._connect: Done awaiting conn message.")

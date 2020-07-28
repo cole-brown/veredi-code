@@ -12,7 +12,7 @@ Veredi WebSocket interface.
 # ---
 # Type Hinting Imports
 # ---
-from typing import Optional, Union, Any, Awaitable
+from typing import Optional, Union, Any
 
 
 # ---
@@ -33,8 +33,6 @@ from veredi.time.timer      import MonotonicTimer
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# TODO [2020-07-26]: Delete unused functions in websockets/mediators code.
 
 
 # -----------------------------------------------------------------------------
@@ -159,7 +157,6 @@ class VebSocket:
 
         self._close.set()
 
-
     # -------------------------------------------------------------------------
     # Asyncio 'with' Magic
     # -------------------------------------------------------------------------
@@ -177,16 +174,17 @@ class VebSocket:
     # -------------------------------------------------------------------------
 
     async def send(self, message) -> None:
-        # TODO [2020-07-22]: Convert thing to json str
+        # TODO [2020-07-22]: Convert thing to json str?
         await self._socket.send(message)
 
     async def receive(self) -> Any:
-        # TODO [2020-07-22]: Convert thing from json str
+        # TODO [2020-07-22]: Convert thing from json str?
         return await self._socket.recv()
 
     # -------------------------------------------------------------------------
     # Ping / Testing
     # -------------------------------------------------------------------------
+
     async def ping(self) -> float:
         '''
         Send out a ping, wait for pong (response) back. Returns the time it

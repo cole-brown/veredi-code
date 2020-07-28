@@ -57,9 +57,6 @@ class Mediator(ABC):
         self._conn: multiprocessing.connection.Connection = conn
         '''Our IPC connection to the game process.'''
 
-        # self._aio: asyncio.AbstractEventLoop = asyncio.get_event_loop()
-        # '''The asyncio event loop.'''
-
         self._shutdown_process: multiprocessing.Event = shutdown_flag
         '''Event to check to see if we have been asked to shutdown.'''
 
@@ -80,32 +77,9 @@ class Mediator(ABC):
         '''
         ...
 
-    # @abstractmethod
-    # def stop(self) -> None:
-    #     '''
-    #     Stop our async coroutines so we can shut down.
-    #     '''
-    #     ...
-
     # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
-
-    # def _main(self):
-    #     '''
-    #     Primary function for our mediator process.
-    #     '''
-    #     # Polling option, if we have significant work to do in our process:
-    #     # while not self._shutdown_process.is_set():
-    #     #
-    #     # Timeout option, if we're letting async stuff take care of everything?
-    #     while not self._shutdown_process.wait(self.SHUTDOWN_TIMEOUT_SEC):
-    #         # Do 'main' stuff here if needed.
-    #         continue
-
-    #     # And shut ourselves down?
-    #     self.stop()
-    #     log.debug("Goodbye.")
 
     async def _shutdown_watcher(self) -> None:
         '''
@@ -156,14 +130,3 @@ class Mediator(ABC):
         # Can set; set both.
         self._shutdown_process.set()
         self._shutdown_asyncs.set()
-
-    # async def _watch_for_shutdown(self):
-    #     '''
-    #     async function to look for the shutdown flag and stop the async event
-    #     loop.
-    #     '''
-    #     retval = self._shutdown_process.wait(self.SHUTDOWN_TIMEOUT_SEC)
-    #     if retval:
-    #         self._aio.stop()
-    #
-    #     return retval
