@@ -42,6 +42,9 @@ from .base import VebSocket
 # Constants
 # -----------------------------------------------------------------------------
 
+# §-TODO-§ [2020-07-27]: Break all asyncio shit into separate things? It's
+# gotten spaghetti...
+
 
 # -----------------------------------------------------------------------------
 # The '/Actual/' "Talk to the Client" Bit
@@ -259,9 +262,8 @@ class WebSocketServer(MediatorServer):
         log.debug("Tell our WebSocket to stop.")
         self._listener.close()
 
-        # # Tell ourselves to stop.
-        # log.debug("Tell ourselves to stop.")
-        # # ...nothing I guess?
+        # Tell ourselves to stop.
+        log.debug("Tell ourselves to stop.")
 
     async def _process(self) -> None:
         '''
@@ -270,13 +272,25 @@ class WebSocketServer(MediatorServer):
         '''
         # Don't block...
         while True:
+            if self._shutdown:
+                # Finish out of this coroutine if we should die.
+                return
+
             if self._rx_queue.empty():
                 await asyncio.sleep(0.1)
 
             # Else get one thing and send it off this round.
-            request = await self._rx_queue.get()
+            try:
+                request = self._rx_queue.get_nowait()
+                if not request:
+                    continue
+            except asyncio.QueueEmpty:
+                # get_nowait() got nothing. That's fine; go back to waiting.
+                continue
             log.warning(f"  -  : request: {request}")
             # TODO: something with the request...
+
+            self._rx_queue.task_done()
 
     # -------------------------------------------------------------------------
     # WebSocket Asyncio Functions
