@@ -74,7 +74,7 @@ from veredi.interface.mediator.websocket.client import WebSocketClient
 # ---
 # TODO: put these in config?
 # -start-
-WAIT_SLEEP_TIME_SEC = 5.0
+WAIT_SLEEP_TIME_SEC = 0.1
 '''Main process will wait/sleep on the game_over flag for this long each go.'''
 
 GRACEFUL_SHUTDOWN_TIME_SEC = 15.0
@@ -86,7 +86,8 @@ If they take longer, it will just terminate them.
 # TODO
 # ---
 
-LOG_LEVEL = log.Level.NOTSET
+# TODO: this is... ignored?
+LOG_LEVEL = log.Level.WARNING
 '''Test should set this to desired during setUp()'''
 
 TestProc = namedtuple('TestProc', ['name', 'process', 'pipe'])
@@ -218,8 +219,6 @@ class Test_WebSockets(unittest.TestCase):
 
     def setUp(self):
         self.debug_flags = DebugFlag.UNIT_TESTS
-        global LOG_LEVEL
-        LOG_LEVEL = log.Level.DEBUG
 
         self._shutdown = multiprocessing.Event()
         self._shutdown_log = multiprocessing.Event()

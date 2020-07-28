@@ -22,28 +22,24 @@ import asyncio
 import websockets
 import multiprocessing
 import multiprocessing.connection
-import threading
 
 
 # ---
 # Veredi Imports
 # ---
-from veredi.logger                      import log
-from veredi.base.identity import MonotonicId
-from veredi.data.config.config    import Configuration
-from veredi.data.codec.base import BaseCodec
+from veredi.logger               import log
+from veredi.base.identity        import MonotonicId
+from veredi.data.config.config   import Configuration
+from veredi.data.codec.base      import BaseCodec
 from veredi.data.config.registry import register
 
-from ..server import MediatorServer
-from .base import VebSocket
+from ..server                    import MediatorServer
+from .base                       import VebSocket
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# §-TODO-§ [2020-07-27]: Break all asyncio shit into separate things? It's
-# gotten spaghetti...
 
 
 # -----------------------------------------------------------------------------
@@ -67,40 +63,27 @@ class VebSocketServer(VebSocket):
                   f"secure: {str(type(secure))}({secure})")
 
         # bad: self._server = websockets.serve(hello, "localhost", 8765)
-        # works: self._server = websockets.serve(hello, "127.0.0.1", 8765)
         # bad: self._server = websockets.serve(hello, "::1", 8765)
-        # TODO [2020-07-25]: Fix? Is it a docker thing? It'd be nice for
-        # 'localhost' to work properly...
-        # bad?: init-ing here? It gets in the wrong asyncio event loop somehow?
-        # self._server = websockets.serve(self.handler, self._host, self._port)
+        # works: self._server = websockets.serve(hello, "127.0.0.1", 8765)
+        #   - but issues with things running in the 'wrong' asyncio event loop.
+        # so... bad?: init-ing here?
+        #   - It gets in the wrong asyncio event loop somehow.
         self._server = None
+
+        self._connections: Mapping[MonotonicId, Tuple] = {}
 
     # -------------------------------------------------------------------------
     # Our Server Functions
     # -------------------------------------------------------------------------
-
-    # async def _a_serve(self) -> None:
-    #     '''
-    #     Server self._server until we have to die.
-    #     '''
-    #     # Proper ("graceful") shutdown. See:
-    #     #    https://websockets.readthedocs.io/en/stable/deployment.html#graceful-shutdown
-    #     # Not doing it exactly like that, but closeish?..
-    #     async with self._server:
-    #         await self._a_wait_close()
 
     async def serve(self, process_data_fn) -> None:
         '''
         Start our socket listening. Returns data from client to receive_fn.
         '''
         self._process_data = process_data_fn
-        # self._server = websockets.serve(self.handler, self._host, self._port,
-        #                                 loop=asyncio.get_event_loop())
 
-        # # Created our WebSocket in init; just kick it off into asyncio's hands.
-        # await self._a_serve()
-
-        # This probably works.
+        # Create it here, then... don't await it. Let self._a_wait_close() wait
+        # on both server and our close flag.
         server = await websockets.serve(self.handler, self._host, self._port)
         await self._a_wait_close(server)
 
@@ -136,30 +119,31 @@ class VebSocketServer(VebSocket):
         server.close()
         self._close.set()
 
-    async def handler(self, websocket, path) -> None:
+    async def handler(self,
+                      websocket: websockets.WebSocketServerProtocol,
+                      path:      str) -> Awaitable:
         '''
         Handle receiving some data from a client over provided websocket.
 
-        TODO: ...what is 'path'?
+        `websocket` is the websocket connection to the client.
+
+        `path` is a url-like path. Only one I've gotten so far in tests
+        is root ("/").
         '''
-        log.warning(f"VebSocketServer.handler: websocket: {websocket}")
-        log.warning(f"VebSocketServer.handler:      path: {path}")
+        log.debug(f"VebSocketServer.handler: websocket: {websocket}")
+        log.debug(f"VebSocketServer.handler:      path: {path}")
 
         data_recv = await websocket.recv()
-        log.warning(f"<--  : {data_recv}")
+        log.debug(f"<--  : {data_recv}")
 
+        # TODO: return await self._process_data(data_recv, path) ?
+        result = None
         if self._process_data and callable(self._process_data):
-            await self._process_data(data_recv, path)
-
-        # TODO [2020-07-22]: How to get data back for returning to client? Do I
-        # await on the self._process_data? Do I send data to mediator and wait
-        # on an ID or something in a general reply stream?
-        #
-        # Do I hang on to this socket until I get a response from on high?
+            result = await self._process_data(data_recv, path)
 
         data_send = '{"field": "Hello. I got your data; thanks."}'
+        log.debug(f"  -->: {data_send}")
         await websocket.send(data_send)
-        log.warning(f"  -->: {data_send}")
 
 
 # -----------------------------------------------------------------------------
@@ -223,11 +207,8 @@ class WebSocketServer(MediatorServer):
         '''
         # Kick it off into asyncio's hands.
         asyncio.run(self._a_main(self._shutdown_watcher(),
-                                 self._a_test(),
                                  self._serve(),
                                  self._process()))
-
-        # self._aio.run_until_complete(self._shutdown_watcher())
 
     # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
@@ -238,18 +219,8 @@ class WebSocketServer(MediatorServer):
         Runs client async tasks/futures concurrently, returns the aggregate
         list of return values for those tasks/futures.
         '''
-        print(f"\n\nserver._a_main: {repr(aws)}\n\n")
         ret_vals = await asyncio.gather(*aws)
-        print(f"\n\nserver ret_vals: {ret_vals}\n\n")
-
-        # self._aio.run_until_complete()
-        # self._aio.run_until_complete()
-        # self._aio.run_forever()
         return ret_vals
-
-    async def _a_test(self) -> None:
-        await asyncio.sleep(1)
-        print("\n\n !!!!!!!!!! HELLO THERE SERVER !!!!!!!!!! \n\n")
 
     async def _shutdown_watcher(self) -> None:
         '''
@@ -262,8 +233,9 @@ class WebSocketServer(MediatorServer):
         log.debug("Tell our WebSocket to stop.")
         self._listener.close()
 
-        # Tell ourselves to stop.
-        log.debug("Tell ourselves to stop.")
+        # # Tell ourselves to stop.
+        # log.debug("Tell ourselves to stop.")
+        # We should have our coroutines watching the shutdown flag.
 
     async def _process(self) -> None:
         '''
@@ -287,7 +259,7 @@ class WebSocketServer(MediatorServer):
             except asyncio.QueueEmpty:
                 # get_nowait() got nothing. That's fine; go back to waiting.
                 continue
-            log.warning(f"  -  : request: {request}")
+            log.debug(f"  -  : request: {request}")
             # TODO: something with the request...
 
             self._rx_queue.task_done()
@@ -301,21 +273,17 @@ class WebSocketServer(MediatorServer):
         Read from client, send reply, close connection.
         '''
         await self._listener.serve(self._handle)
-        log.warning("Server._serve: Done.")
+        log.debug("Server._serve: Done.")
 
     async def _handle(self, data: Mapping[str, str], path: str) -> None:
         '''
         TODO: better docstr
         '''
         qid = self._rx_qid.next()
-        log.warning(f"  x  : data: {data}")
-        log.warning(f"  x  : path: {path}")
-        log.warning(f"  x  : id:   {qid}")
-        await self._rx_queue.put((qid, path, data))
 
-    # def ping(self) -> float:
-    #     '''
-    #     Ping the server, return the monotonic time ping took.
-    #     '''
-    #     return self._aio.run_until_complete(
-    #         self._connection.ping())
+        log.debug(f"  x  : data: {data}")
+        log.debug(f"  x  : path: {path}")
+        log.debug(f"  x  : id:   {qid}")
+
+        await self._rx_queue.put((qid, path, data))
+        return qid

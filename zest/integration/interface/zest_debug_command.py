@@ -17,8 +17,6 @@ Test debug command(s).
 # Imports
 # -----------------------------------------------------------------------------
 
-import sys
-
 from ..integrate                      import IntegrationTest
 
 from veredi.logger                    import log
@@ -62,10 +60,6 @@ class Test_EngineStart_DebugCmds(IntegrationTest):
         # self.whatever = self.init_a_system(...)
         self._logs = []
 
-        # Stupid hack to get at verbosity since unittest doesn't provide it
-        # anywhere. :(
-        self._ut_is_verbose = ('-v' in sys.argv) or ('--verbose' in sys.argv)
-
     def tearDown(self):
         super().tearDown()
         self._logs = None
@@ -87,28 +81,6 @@ class Test_EngineStart_DebugCmds(IntegrationTest):
 
     # def event_skill_res(self, event):
     #     self.events.append(event)
-
-    # -------------------------------------------------------------------------
-    # Log Capture
-    # -------------------------------------------------------------------------
-
-    def receive_log(self,
-                    level: log.Level,
-                    output: str) -> None:
-        '''
-        Callback for log.ut_set_up().
-        '''
-        self._logs.append((level, output))
-
-        # I want to eat the logs and not let them into the output.
-        # ...unless verbose tests, then let it go through.
-        return not self._ut_is_verbose
-
-    def capture_logs(self, enabled: bool):
-        if enabled:
-            log.ut_set_up(self.receive_log)
-        else:
-            log.ut_tear_down()
 
     # -------------------------------------------------------------------------
     # Tests

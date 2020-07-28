@@ -10,6 +10,7 @@ Base Class for Integration Tests.
 
 from typing import Union, List
 
+import sys
 import unittest
 
 from veredi.base.null                   import Null
@@ -74,6 +75,10 @@ class IntegrationTest(unittest.TestCase):
         self.engine:         Engine        = None
         self.events_ready:   bool          = False
         self.engine_ready:   bool          = False
+
+        # Stupid hack to get at verbosity since unittest doesn't provide it
+        # anywhere. :(
+        self._ut_is_verbose = ('-v' in sys.argv) or ('--verbose' in sys.argv)
 
     def init_required(self, require_engine: bool) -> None:
         '''
@@ -144,6 +149,28 @@ class IntegrationTest(unittest.TestCase):
         self.manager.component.apoptosis(self.manager.time)
         self.manager.entity.apoptosis(self.manager.time)
         self.manager.system.apoptosis(self.manager.time)
+
+    # -------------------------------------------------------------------------
+    # Log Capture
+    # -------------------------------------------------------------------------
+
+    def receive_log(self,
+                    level: log.Level,
+                    output: str) -> None:
+        '''
+        Callback for log.ut_set_up().
+        '''
+        self._logs.append((level, output))
+
+        # I want to eat the logs and not let them into the output.
+        # ...unless verbose tests, then let it go through.
+        return not self._ut_is_verbose
+
+    def capture_logs(self, enabled: bool):
+        if enabled:
+            log.ut_set_up(self.receive_log)
+        else:
+            log.ut_tear_down()
 
     # -------------------------------------------------------------------------
     # Engine
