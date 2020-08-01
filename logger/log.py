@@ -489,7 +489,7 @@ class LoggingManager:
     # Specific Manager Types...
     # ---
     @staticmethod
-    def on_or_off(enabled: bool) -> 'LoggingManager':
+    def on_or_off(enabled: bool, bookends: bool = False) -> 'LoggingManager':
         '''
         Returns either a full_blast() manager or an ignored() manager,
         depending on `enabled`.

@@ -8,12 +8,14 @@ ID Base Classes for Various Kinds of IDs.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Type
+from typing import Optional, Any, Type, Mapping, Tuple, List, Dict
 
 # General Stuff in General
 from abc import abstractmethod
 # from veredi.base.decorators import abstract_class_attribute
 from veredi.base.metaclasses import InvalidProvider, ABC_InvalidProvider
+
+from veredi.data.codec.base import Encodable
 
 
 # -----------------------------------------------------------------------------
@@ -47,7 +49,7 @@ class MonotonicIdGenerator:
         return self._last_id
 
 
-class MonotonicId(metaclass=InvalidProvider):
+class MonotonicId(Encodable, metaclass=InvalidProvider):
     '''
     Integer-based, montonically increasing ID suitable for in-game,
     non-serialized identity.
@@ -63,9 +65,12 @@ class MonotonicId(metaclass=InvalidProvider):
     # This is what InvalidProvider looks for to return in its class property.
     _INVALID = None
 
-    # ---
+    _ENCODE_FIELD_NAME = 'id'
+    '''Can override in sub-classes if needed. E.g. 'eid' for entity id.'''
+
+    # ------------------------------
     # Initialization
-    # ---
+    # ------------------------------
 
     @classmethod
     def _init_invalid_(klass: Type['MonotonicId']) -> None:
@@ -99,9 +104,9 @@ class MonotonicId(metaclass=InvalidProvider):
         '''
         self._value = value
 
-    # ---
+    # ------------------------------
     # Generator
-    # ---
+    # ------------------------------
 
     @classmethod
     def generator(klass: Type['MonotonicId']) -> 'MonotonicIdGenerator':
@@ -111,9 +116,9 @@ class MonotonicId(metaclass=InvalidProvider):
         klass._init_invalid_()
         return MonotonicIdGenerator(klass)
 
-    # ---
+    # ------------------------------
     # Properties
-    # ---
+    # ------------------------------
 
     # We get this from our metaclass (InvalidProvider):
     # @property
@@ -129,9 +134,73 @@ class MonotonicId(metaclass=InvalidProvider):
         '''
         return self._value
 
-    # ---
+    # ------------------------------
+    # Encodable API (Codec Support)
+    # ------------------------------
+
+    def encode(self) -> Mapping[str, str]:
+        '''
+        Returns a representation of ourself as a dictionary.
+        '''
+        encoded = {
+            self._ENCODE_FIELD_NAME: self.value,
+        }
+        return encoded
+
+    @classmethod
+    def decode(klass: 'MonotonicId',
+               value: Mapping[str, str]) -> 'MonotonicId':
+        '''
+        Turns our encoded dict into a MonotonicId instance.
+        '''
+        decoded = klass(value[klass._ENCODE_FIELD_NAME],
+                        allow=True)
+        return decoded
+
+    # ------------------------------
+    # Pickleable API
+    # ------------------------------
+
+    def __getnewargs_ex__(self) -> Tuple[Tuple, Dict]:
+        '''
+        Returns a 2-tuple of:
+          - a tuple for *args
+          - a dict for **kwargs
+        These values will be used in __new__ for unpickling ourself.
+        '''
+        args = (self.value, )
+        kwargs = {
+            'allow': True,
+        }
+        return (args, kwargs)
+
+    # ------------------------------
+    # To Int
+    # ------------------------------
+
+    def __int__(self) -> Any:
+        '''
+        Returns the underlying value of this ID converted to int.
+        '''
+        return int(self._value)
+
+    # ------------------------------
+    # Equality
+    # ------------------------------
+
+    def __eq__(self, other):
+        '''Equality check for ids should be value, not instance.'''
+        if not isinstance(other, self.__class__):
+            return False
+        return self.value == other.value
+
+    def __hash__(self):
+        '''Since equality is by value, we should hash by that too.'''
+        return hash(self.value)
+
+    # ------------------------------
     # To String
-    # ---
+    # ------------------------------
 
     @property
     def _format_(self) -> str:
@@ -178,7 +247,7 @@ class MonotonicId(metaclass=InvalidProvider):
 
 
 # @abstract_class_attribute('INVALID')  # Attribute to return the INVALID inst.
-class SerializableId(metaclass=ABC_InvalidProvider):
+class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
     '''
     Base class for a serializable ID (e.g. to a file, or primary key value from
     a databse).
@@ -194,9 +263,12 @@ class SerializableId(metaclass=ABC_InvalidProvider):
                        - str(jeff) -> "JID::42"
     '''
 
-    # ---
+    _ENCODE_FIELD_NAME = 'serid'
+    '''Can override in sub-classes if needed. E.g. 'iid' for input id.'''
+
+    # ------------------------------
     # Initialization
-    # ---
+    # ------------------------------
 
     @classmethod
     def _init_invalid_(klass: Type['SerializableId']) -> None:
@@ -230,9 +302,9 @@ class SerializableId(metaclass=ABC_InvalidProvider):
         '''
         self._value = value
 
-    # ---
+    # ------------------------------
     # Concrete Properties
-    # ---
+    # ------------------------------
 
     @property
     def value(self) -> Any:
@@ -242,9 +314,9 @@ class SerializableId(metaclass=ABC_InvalidProvider):
         '''
         return self._value
 
-    # ---
+    # ------------------------------
     # Abstract Properties/Attributes
-    # ---
+    # ------------------------------
 
     # These are 'defined' in our "@abstract_class_attributes" decorators.
     # Leave them around for subclassers to grab as a starting point:
@@ -258,15 +330,52 @@ class SerializableId(metaclass=ABC_InvalidProvider):
     #     '''
     #     return klass._INVALID
 
-    # ---
+    # ------------------------------
+    # Encodable API (Codec Support)
+    # ------------------------------
+
+    def encode(self) -> Mapping[str, str]:
+        '''
+        Returns a representation of ourself as a dictionary.
+        '''
+        encoded = {
+            self._ENCODE_FIELD_NAME: self.value,
+        }
+        return encoded
+
+    @classmethod
+    def decode(klass: 'SerializableId',
+               value: Mapping[str, str]) -> 'SerializableId':
+        '''
+        Turns our encoded dict into a SerializableId instance.
+        '''
+        decoded = klass(value[klass._ENCODE_FIELD_NAME],
+                        allow=True)
+        return decoded
+
+    # ------------------------------
     # Abstract Methods
-    # ---
+    # ------------------------------
 
     # _format_()  # Below in "To String" section.
 
-    # ---
+    # ------------------------------
+    # Equality
+    # ------------------------------
+
+    def __eq__(self, other):
+        '''Equality check for ids should be value, not instance.'''
+        if not isinstance(other, self.__class__):
+            return False
+        return self.value == other.value
+
+    def __hash__(self):
+        '''Since equality is by value, we should hash by that too.'''
+        return hash(self.value)
+
+    # ------------------------------
     # To String
-    # ---
+    # ------------------------------
 
     @property
     @abstractmethod

@@ -71,6 +71,9 @@ class InputId(SerializableId):
     An instance of an InputId with 'None' as its value.
     '''
 
+    _ENCODE_FIELD_NAME = 'iid'
+    '''Can override in sub-classes if needed. E.g. 'iid' for input id.'''
+
     def __init__(self, time_manager: TimeManager, allow: bool = False) -> None:
         '''
         Initialize our ID value. ID is based on:

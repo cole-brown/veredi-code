@@ -17,13 +17,21 @@ converts it into JSON for sending.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional, Any
+
 from abc import ABC, abstractmethod
 import multiprocessing
 import multiprocessing.connection
 import asyncio
+import signal
 
 from veredi.logger                import log
 from veredi.data.config.config    import Configuration
+from veredi.base.identity        import MonotonicId
+
+from .message import Message, MsgType
+from . import exceptions
+from .context import MediatorContext
 
 
 # -----------------------------------------------------------------------------
@@ -54,7 +62,7 @@ class Mediator(ABC):
                  config:        Configuration,
                  conn:          multiprocessing.connection.Connection,
                  shutdown_flag: multiprocessing.Event) -> None:
-        self._conn: multiprocessing.connection.Connection = conn
+        self._game: multiprocessing.connection.Connection = conn
         '''Our IPC connection to the game process.'''
 
         self._shutdown_process: multiprocessing.Event = shutdown_flag
@@ -66,9 +74,37 @@ class Mediator(ABC):
         noticed.
         '''
 
+        # ---
+        # Make Our Background Context
+        # ---
+        # TODO [2020-07-30]: Make the background context.
+
+        # ---
+        # Make Multiprocessing & Asyncio Stuff.
+        # ---
+
+        # exceptions.add_exception_callback(???)
+
+        loop = asyncio.get_event_loop()
+        # May want to catch other signals too?
+        signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+        for sig in signals:
+            loop.add_signal_handler(
+                sig,
+                lambda s=sig: self._shutdown)
+
+        loop.set_exception_handler(exceptions.async_handle_exception)
+
     # -------------------------------------------------------------------------
     # Abstracts
     # -------------------------------------------------------------------------
+
+    @abstractmethod
+    def make_context(self) -> MediatorContext:
+        '''
+        Make a context with our context data, our codec's, etc.
+        '''
+        ...
 
     @abstractmethod
     def start(self) -> None:

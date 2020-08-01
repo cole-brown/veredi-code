@@ -10,21 +10,54 @@ Aka ___ Codec.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, NewType, Any, List, Dict, TextIO)
+                    Optional, Union,
+                    NewType, Protocol,
+                    Any, Iterable, Mapping, List, Dict, TextIO)
 if TYPE_CHECKING:
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
 
 
 from abc import ABC, abstractmethod
+from io import StringIO
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
+class Encodable:
+    '''
+    Mixin for classes that want to support encoding/decoding themselves.
+
+    The class should convert its data to/from a mapping of strings to basic
+    value-types (str, int, etc). If anything it (directly) contains also needs
+    encoding/decoding, the class should ask it to during the encode/decode.
+    '''
+
+    def encode(self) -> Mapping[str, Any]:
+        '''
+        Encode self as a Mapping of strings to (basic) values (str, int, etc).
+        '''
+        ...
+
+    @classmethod
+    def decode(klass: 'Encodable', value: Mapping[str, Any]) -> 'Encodable':
+        '''
+        Decode a Mapping of strings to (basic) values (str, int, etc), using it
+        to build an instance of this class.
+
+        Return the instance.
+        '''
+        ...
+
+
 CodecOutput = NewType('CodecOutput',
                       Union[List[Any], Dict[str, Any], None])
+
+
+CodecInput = NewType('CodecInput',
+                     Union[Encodable, Iterable[Any], Mapping[str, Any], None])
 
 
 # -----------------------------------------------------------------------------
@@ -86,6 +119,15 @@ class BaseCodec(ABC):
             'type': self.name,
         }
 
+    def make_context_data(self) -> Mapping[str, str]:
+        '''
+        Returns context data for inserting into someone else's context.
+        '''
+        return {
+            'dotted': self.dotted,
+            'type': self.name,
+        }
+
     # -------------------------------------------------------------------------
     # Abstract Methods
     # -------------------------------------------------------------------------
@@ -105,8 +147,8 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def decode(self,
-               stream: TextIO,
-               input_context: 'VerediContext') -> CodecOutput:
+               stream: Union[TextIO, str],
+               context: 'VerediContext') -> CodecOutput:
         '''Read and decodes a single document from the data stream.
 
         Raises:
@@ -117,8 +159,8 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def decode_all(self,
-                   stream: TextIO,
-                   input_context: 'VerediContext') -> CodecOutput:
+                   stream: Union[TextIO, str],
+                   context: 'VerediContext') -> CodecOutput:
         '''Read and decodes all documents from the data stream.
 
         Raises:
@@ -129,8 +171,8 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def _read(self,
-              stream: TextIO,
-              input_context: 'VerediContext') -> Any:
+              stream: Union[TextIO, str],
+              context: 'VerediContext') -> Any:
         '''Read data from a single data stream.
 
         Returns:
@@ -144,8 +186,8 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def _read_all(self,
-                  stream: TextIO,
-                  input_context: 'VerediContext') -> Any:
+                  stream: Union[TextIO, str],
+                  context: 'VerediContext') -> Any:
         '''Read data from a single data stream.
 
         Returns:
@@ -163,8 +205,8 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def encode(self,
-               stream: TextIO,
-               input_context: 'VerediContext') -> CodecOutput:
+               data: Mapping[str, Any],
+               context: 'VerediContext') -> StringIO:
         '''Write and encodes a single document from the data stream.
 
         Raises:
@@ -175,8 +217,8 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def encode_all(self,
-                   stream: TextIO,
-                   input_context: 'VerediContext') -> CodecOutput:
+                   data: Mapping[str, Any],
+                   context: 'VerediContext') -> StringIO:
         '''Write and encodes all documents from the data stream.
 
         Raises:
@@ -187,8 +229,8 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def _write(self,
-               stream: TextIO,
-               input_context: 'VerediContext') -> Any:
+               data: Mapping[str, Any],
+               context: 'VerediContext') -> Any:
         '''Write data from a single data stream.
 
         Returns:
@@ -202,8 +244,8 @@ class BaseCodec(ABC):
 
     @abstractmethod
     def _write_all(self,
-                   stream: TextIO,
-                   input_context: 'VerediContext') -> Any:
+                   data: Mapping[str, Any],
+                   context: 'VerediContext') -> Any:
         '''Write data from a single data stream.
 
         Returns:

@@ -139,14 +139,14 @@ def run(log_server:    LogRecordSocketReceiver,
     '''
     time_utc   = datetime.utcnow().isoformat(timespec='seconds', sep=' ')
     time_local = datetime.now().isoformat(timespec='seconds', sep=' ')
-    log.get_logger(log_name).info(
+    log.get_logger(log_name).debug(
         'Started Logging Server at time: '
         f'{time_local} '
         f'(utc: {time_utc})')
 
     log_server.serve_until_stopped()
 
-    log.get_logger(log_name).info(
+    log.get_logger(log_name).debug(
         'Ending Logging Server.')
 
 

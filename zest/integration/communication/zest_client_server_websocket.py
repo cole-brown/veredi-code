@@ -11,7 +11,7 @@ Only really tests the websockets and Mediator.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Iterable
+from typing import Callable, Iterable
 
 import unittest
 
@@ -39,6 +39,8 @@ from veredi.base.context                    import UnitTestContext
 from veredi.data.context                    import (DataGameContext,
                                                     DataLoadContext)
 from veredi.data.exceptions                 import LoadError
+from veredi.time.timer                      import MonotonicTimer
+from veredi.base.identity        import MonotonicId
 
 from veredi.game.ecs.const                  import DebugFlag
 from veredi.game.ecs.base.identity          import ComponentId
@@ -63,8 +65,11 @@ from veredi.rules.d20.pf2.health.component  import HealthComponent
 
 
 from veredi.interface.mediator.mediator import Mediator
+from veredi.interface.mediator.message  import Message, MsgType
 from veredi.interface.mediator.websocket.server import WebSocketServer
 from veredi.interface.mediator.websocket.client import WebSocketClient
+from veredi.interface.mediator.context           import (MediatorServerContext,
+                                                 MessageContext)
 
 
 # -----------------------------------------------------------------------------
@@ -105,6 +110,22 @@ def _sigint_ignore() -> None:
     # Child processes will ignore sigint and rely on the main process to
     # tell them to stop.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
+def _sigalrm_start(timeout: float, handler: Callable) -> None:
+    '''
+    Sets SIGALRM to go off in `timeout` seconds if not cancelled. Will call
+    `handler` function if it raises the signal.
+    '''
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(timeout)
+
+
+def _sigalrm_end() -> None:
+    '''
+    Disables SIGALRM.
+    '''
+    signal.alarm(0)
 
 
 # -----------------------------------------------------------------------------
@@ -205,6 +226,8 @@ def run_client(proc_name     = None,
 
 class Test_WebSockets(unittest.TestCase):
 
+    PER_TEST_TIMEOUT = 5  # seconds
+
     # TODO [2020-07-25]: 2 or 4 or something!
     NUM_CLIENTS = 1
 
@@ -219,9 +242,13 @@ class Test_WebSockets(unittest.TestCase):
 
     def setUp(self):
         self.debug_flags = DebugFlag.UNIT_TESTS
+        self.debugging = False
 
         self._shutdown = multiprocessing.Event()
         self._shutdown_log = multiprocessing.Event()
+
+        self._msg_id = MonotonicId.generator()
+        '''ID generator for creating Mediator messages.'''
 
         self._log_server: TestProc = None
         '''Our Logging Server process.'''
@@ -250,6 +277,7 @@ class Test_WebSockets(unittest.TestCase):
         self.debug_flags = None
         self._shutdown = None
         self._shutdown_log = None
+        self._msg_id = None
 
     # ---
     # Log Set-Up / Tear-Down
@@ -339,28 +367,125 @@ class Test_WebSockets(unittest.TestCase):
     # Test Helpers
     # -------------------------------------------------------------------------
 
+    def per_test_timeout(self, sig_triggered, frame):
+        '''
+        Stop our processes and fail test due to timeout.
+        '''
+        _sigalrm_end()
+        self.per_test_tear_down()
+        self.fail(f"Test failure due to {signal.Signal(sig_triggered)} "
+                  f"timeout. frame: {frame}")
+
     def per_test_set_up(self):
         # Let it all run and wait for the game to end...
+        _sigalrm_start(self.PER_TEST_TIMEOUT, self.per_test_timeout)
+
         self._log_server.process.start()
         self._server.process.start()
         for client in self._clients:
             client.process.start()
 
-    def wait(self) -> None:
-        '''
-        Waits forever. Kills server on Ctrl-C/SIGINT.
+        # Wait for clients, server to settle out.
+        self.wait(1)
+        _sigalrm_end()
 
-        Returns 0 if all exitcodes are 0.
-        Returns None or some int if all exitcodes are not 0.
+    def per_test_tear_down(self):
+        self.stop()
+
+    def runner_of_test(self, body, *args):
+        '''
+        Runs `per_test_set_up`, then runs function `body` with catch for
+        KeyboardInterrupt (aka SIGINT), then finishes off with
+        `per_test_tear_down`.
+
+        If `args`, will run `body` with each arg entry (unpacked if tuple).
+        '''
+        self.per_test_set_up()
+
+        error = False
+        sig_int = False
+
+        _sigalrm_start(self.PER_TEST_TIMEOUT, self.per_test_timeout)
+        try:
+            if args:
+                for test_arg in args:
+                    # If we have args, call body for each one. Unpack its args
+                    # for call if it is a (normal) tuple.
+                    if (not isinstance(test_arg, TestProc)
+                            and isinstance(test_arg, tuple)):
+                        body(*test_arg)
+                    else:
+                        body(test_arg)
+            else:
+                # No extra args; just run body arg-less.
+                body()
+        except KeyboardInterrupt as err:
+            sig_int = True
+            error = err
+        except AssertionError as err:
+            # Reraise these - should be unittest assertions.
+            raise err
+        except Exception as err:
+            error = err
+        finally:
+            _sigalrm_end()
+            self.per_test_tear_down()
+
+        return (sig_int, error)
+
+    def assert_test_ran(self, *test_runner_ret_vals):
+        got_sig_int = None
+        error = None
+
+        # Accept (tuple, values) and ((tuple, values),):
+        if len(test_runner_ret_vals) == 1:
+            test_runner_ret_vals = test_runner_ret_vals[0]
+
+        self.assertEqual(len(test_runner_ret_vals), 2,
+                         "Expecting a 2-tuple for my arg, got: "
+                         f"{test_runner_ret_vals}")
+        (got_sig_int, error) = test_runner_ret_vals
+
+        if got_sig_int:
+            self.assertFalse(error,
+                             msg="SIGINT/KeyboardInterrupt raised during test")
+        elif error:
+            self.assertFalse(error,
+                             msg="Exception raised at some point during test.")
+
+    def wait(self,
+             wait_timeout,
+             loop_timeout=WAIT_SLEEP_TIME_SEC) -> None:
+        '''
+        Loops waiting on `self._shutdown` flag or Ctrl-C/SIGINT. Each loop it
+        will sleep/await the shutdown flag for `loop_timeout` seconds. The
+        maximum amount this will wait is `wait_timeout` seconds.
+
+        Does not call self.stop() or do any clean up after waiting.
         '''
         lumberjack = log.get_logger(self.NAME_MAIN)
-        log.info("Waiting for processes to finish...",
-                 veredi_logger=lumberjack)
 
+        # Get rid of None, force timeout into range.
+        wait_timeout = wait_timeout or 0
+        if (wait_timeout < 0.000001
+                or wait_timeout > 5):
+            # This is a unit test, so we waint to time out and we want to do it
+            # soonish... So timeout between quite soonish to 5 sec.
+            wait_timeout = min(max(0.000001, wait_timeout), 5)
+
+        # Get rid of None, force timeout into range.
+        loop_timeout = loop_timeout or 0
+        if (loop_timeout < 0.000001
+                or loop_timeout > 5):
+            # This is a unit test, so we waint to time out and we want to do it
+            # soonish... So timeout between quite soonish to 5 sec.
+            loop_timeout = min(max(0.000001, loop_timeout), 5)
+
+        timer = MonotonicTimer()  # Timer starts timing on creation.
         try:
             # check shutdown flag...
             running = not self._shutdown.wait(timeout=WAIT_SLEEP_TIME_SEC)
-            while running:
+            while running and not timer.timed_out(wait_timeout):
                 # Do nothing and take naps forever until SIGINT received or
                 # game finished.
                 running = not self._shutdown.wait(timeout=WAIT_SLEEP_TIME_SEC)
@@ -370,6 +495,10 @@ class Test_WebSockets(unittest.TestCase):
             log.debug("Received SIGINT.",
                       veredi_logger=lumberjack)
 
+        else:
+            log.debug("wait finished normally.")
+
+    def stop(self):
         # Finally, stop the processes.
         stopped = self._stop()
 
@@ -526,15 +655,15 @@ class Test_WebSockets(unittest.TestCase):
 
         lumberjack = log.get_logger(self.NAME_MAIN)
 
-        log.info("Asking mediators to end gracefully...",
-                 veredi_logger=lumberjack)
+        log.debug("Asking mediators to end gracefully...",
+                  veredi_logger=lumberjack)
         # Turn on shutdown flag to do the asking.
         self._shutdown.set()
 
         # Wait on clients to be done.
-        log.info("Waiting for client mediators to complete "
-                 "structured shutdown...",
-                 veredi_logger=lumberjack)
+        log.debug("Waiting for client mediators to complete "
+                  "structured shutdown...",
+                  veredi_logger=lumberjack)
         for client in self._clients:
             log.debug(f"  Client {client.name}...",
                       veredi_logger=lumberjack)
@@ -543,9 +672,9 @@ class Test_WebSockets(unittest.TestCase):
                       veredi_logger=lumberjack)
 
         # Wait on server now.
-        log.info("Waiting for server mediator to complete "
-                 "structured shutdown...",
-                 veredi_logger=lumberjack)
+        log.debug("Waiting for server mediator to complete "
+                  "structured shutdown...",
+                  veredi_logger=lumberjack)
         log.debug(f"  Server {self._server.name}...",
                   veredi_logger=lumberjack)
         self._server.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
@@ -567,13 +696,13 @@ class Test_WebSockets(unittest.TestCase):
 
         # Set the game_end flag. They should notice soon and start doing
         # their shutdown.
-        log.info("Asking logs server to end gracefully...",
-                 veredi_logger=lumberjack)
+        log.debug("Asking logs server to end gracefully...",
+                  veredi_logger=lumberjack)
         self._shutdown_log.set()
 
         # Wait for log server to be done.
-        log.info("Waiting for logs server to complete structured shutdown...",
-                 veredi_logger=lumberjack)
+        log.debug("Waiting for logs server to complete structured shutdown...",
+                  veredi_logger=lumberjack)
         self._log_server.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
 
         # # Make sure it shutdown and gave a good exit code.
@@ -584,7 +713,182 @@ class Test_WebSockets(unittest.TestCase):
     # Tests
     # -------------------------------------------------------------------------
 
-    def test_basic(self):
-        self.per_test_set_up()
+    # ------------------------------
+    # Test doing nothing and cleaning up.
+    # ------------------------------
 
-        self.wait()
+    def do_test_nothing(self):
+        # This really doesn't do much other than bring up the processes and
+        # then kill them, but it's something.
+        self.wait(0.1)
+
+    # def test_nothing(self):
+    #     # No checks for this, really. Just "does it properly not explode"?
+    #     self.assert_test_ran(
+    #         self.runner_of_test(self.do_test_nothing))
+
+    # ------------------------------
+    # Test cliets pinging server.
+    # ------------------------------
+
+    def do_test_ping(self, client):
+        mid = self._msg_id.next()
+        msg = Message(mid, MsgType.PING, None)
+        client.pipe.send(msg)
+        recv = client.pipe.recv()
+        # Make sure we got a message back and it has the ping time in it.
+        self.assertTrue(recv)
+        self.assertEqual(mid, recv.id)
+        self.assertEqual(msg.id, recv.id)
+        self.assertEqual(msg.type, recv.type)
+
+        # I really hope the ping is between negative nothingish and
+        # positive five seconds.
+        self.assertIsInstance(recv.message, float)
+        self.assertGreater(recv.message, -0.0000001)
+        self.assertLess(recv.message, 5)
+
+    # def test_ping(self):
+    #     # No other checks for ping outside do_test_ping.
+    #     self.assert_test_ran(
+    #         self.runner_of_test(self.do_test_ping, *self._clients))
+
+    # ------------------------------
+    # Test Clients sending an echo message.
+    # ------------------------------
+
+    def do_test_echo(self, client):
+        mid = self._msg_id.next()
+        send_msg = f"Hello from {client.name}"
+        expected = send_msg
+        msg = Message(mid, MsgType.ECHO, send_msg)
+        # self.debugging = True
+        with log.LoggingManager.on_or_off(self.debugging, True):
+            client.pipe.send(msg)
+            recv = client.pipe.recv()
+        # Make sure we got a message back and it has the same
+        # message as we sent.
+        self.assertTrue(recv)
+        self.assertEqual(mid, recv.id)
+        self.assertEqual(msg.id, recv.id)
+        self.assertEqual(msg.type, recv.type)
+        self.assertIsInstance(recv.message, str)
+        self.assertEqual(recv.message, expected)
+
+    # def test_echo(self):
+    #     self.assert_test_ran(
+    #         self.runner_of_test(self.do_test_echo, *self._clients))
+
+    # ------------------------------
+    # Test Clients sending text messages to server.
+    # ------------------------------
+
+    def do_test_text(self, client):
+        mid = self._msg_id.next()
+        self.debugging = True
+
+        # ---
+        # Client -> Server: TEXT
+        # ---
+        print(f"\n\ntest_text: client to server...")
+
+        send_txt = f"Hello from {client.name}?"
+        client_send = Message(mid, MsgType.TEXT, send_txt)
+
+        client_recv = None
+        with log.LoggingManager.on_or_off(self.debugging, True):
+            # Have client send, then receive from server.
+            client.pipe.send(client_send)
+
+            # Server automatically sent an ACK_ID, need to check client.
+            client_recv = client.pipe.recv()
+
+        print(f"\n\ntest_text: client send msg: {client_send}")
+        print(f"\n\ntest_text: client recv ack: {client_recv}")
+        # Make sure that the client received their ACK_ID.
+        self.assertIsNotNone(client_recv)
+        self.assertIsInstance(client_recv, Message)
+        self.assertEqual(mid, client_recv.id)
+        self.assertEqual(client_send.id, client_recv.id)
+        self.assertEqual(client_recv.type, MsgType.ACK_ID)
+        ack_id = mid.decode(client_recv.message)
+        self.assertIsInstance(ack_id, type(mid))
+
+        # ---
+        # Check: Client -> Server: TEXT
+        # ---
+        print(f"\n\ntest_text: server to game...")
+        server_recv = None
+        with log.LoggingManager.on_or_off(self.debugging, True):
+            # Our server should have put the client's packet in its pipe for
+            # us... I hope.
+            print(f"\n\ntest_text: game recv from server...")
+            server_recv = self._server.pipe.recv()
+
+        print(f"\n\ntest_text: client_sent/server_recv: {server_recv}")
+        # Make sure that the server received the correct thing.
+        self.assertIsNotNone(server_recv)
+        self.assertIsInstance(server_recv, tuple)
+        self.assertEqual(len(server_recv), 2)  # Make sure next line is sane...
+        server_recv_msg, server_recv_ctx = server_recv
+        # Check the Message.
+        self.assertEqual(mid, server_recv_msg.id)
+        self.assertEqual(client_send.id, server_recv_msg.id)
+        self.assertEqual(client_send.type, server_recv_msg.type)
+        self.assertIsInstance(server_recv_msg.message, str)
+        self.assertEqual(server_recv_msg.message, send_txt)
+        # Check the Context.
+        self.assertIsInstance(server_recv_ctx, MessageContext)
+        self.assertEqual(server_recv_ctx.id, ack_id)
+
+        # ---
+        # Server -> Client: TEXT
+        # ---
+
+        print(f"\n\ntest_text: server_send/client_recv...")
+        # Tell our server to send a reply to the client's text.
+        recv_txt = f"Hello from {self._server.name}!"
+        server_send = Message(server_recv_ctx.id, MsgType.TEXT, recv_txt)
+        client_recv = None
+        with log.LoggingManager.on_or_off(self.debugging, True):
+            # Make something for server to send and client to recvive.
+            print(f"\n\ntest_text: server_send...")
+            self._server.pipe.send((server_send, server_recv_ctx))
+            print(f"\n\ntest_text: client_recv...")
+            client_recv = client.pipe.recv()
+
+        print(f"\n\ntest_text: server_sent/client_recv: {client_recv}")
+        # Make sure the client got the correct message back.
+        self.assertIsNotNone(client_recv)
+        self.assertIsInstance(client_recv, Message)
+        self.assertEqual(ack_id, client_recv.id)
+        self.assertEqual(server_send.id, client_recv.id)
+        self.assertEqual(server_send.type, client_recv.type)
+        self.assertIsInstance(client_recv.message, str)
+        self.assertEqual(client_recv.message, recv_txt)
+
+
+
+        # recv_txt = f"Hello from {server.name}!"
+        # server_send = Message(mid, MsgType.TEXT, recv_txt)
+
+
+        #    # client_recv = client.pipe.recv()
+
+
+
+        # self.debugging = True
+
+        # print(f"\n\ntest_text: server_sent/client_recv: {client_recv}")
+        # # Make sure the client got the correct message back.
+        # self.assertIsNotNone(client_recv)
+        # self.assertIsInstance(client_recv, Message)
+        # self.assertEqual(mid, client_recv.id)
+        # self.assertEqual(server_send.id, client_recv.id)
+        # self.assertEqual(server_send.type, client_recv.type)
+        # self.assertIsInstance(client_recv.message, str)
+        # self.assertEqual(client_recv.message, recv_txt)
+
+    def test_text(self):
+        self.assert_test_ran(
+            self.runner_of_test(self.do_test_text, *self._clients))
