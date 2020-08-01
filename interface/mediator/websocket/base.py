@@ -21,6 +21,8 @@ from typing import Optional, Union, Any
 import websockets
 import websockets.client
 import asyncio
+from io import StringIO
+
 
 # ---
 # Veredi Imports
@@ -28,6 +30,9 @@ import asyncio
 from veredi.logger          import log
 from veredi.data.codec.base import BaseCodec
 from veredi.time.timer      import MonotonicTimer
+
+from ..message               import Message, MsgType
+from ..context                   import MediatorContext
 
 
 # -----------------------------------------------------------------------------
@@ -55,23 +60,26 @@ class VebSocket:
     #     - Authority is:
     #       authority = [userinfo@]host[:port]
     # So:
-    URI_FMT = '{scheme}://{host}{port}'
+    URI_FMT = '{scheme}://{host}{port}{path}'
     PORT_FMT = ':{port}'
+    PATH_FMT = '/{path}'
 
     def __init__(self,
-                 codec:  BaseCodec,
-                 host:   str,
-                 port:   Optional[int]    = None,
-                 secure: Union[str, bool] = True,
-                 close:  asyncio.Event    = None) -> None:
+                 codec:   BaseCodec,
+                 host:    str,
+                 path:    Optional[str]    = None,
+                 port:    Optional[int]    = None,
+                 secure:  Union[str, bool] = True,
+                 close:   asyncio.Event    = None) -> None:
+
         self._codec:  BaseCodec        = codec
         self._host:   str              = host
+        self._path:   str              = path
         self._port:   int              = port
         self._secure: Union[str, bool] = secure
         self._uri:    Optional[str]    = None
 
         self._connection: websockets.connect = None
-        self._socket:     websockets.WebSocketClientProtocol = None
         self._close:      asyncio.Event = asyncio.Event()
 
         log.debug(f"host: {str(type(self._host))}({self._host}), "
@@ -95,6 +103,21 @@ class VebSocket:
         return self._host
 
     @property
+    def path(self) -> str:
+        '''
+        path
+        '''
+        return self._path
+
+    @path.setter
+    def path(self, value: str) -> None:
+        '''
+        Sets self._path, clears URI so it rebuilds if needed.
+        '''
+        self._path = value
+        self._uri = None
+
+    @property
     def port(self) -> str:
         '''
         port number
@@ -114,11 +137,16 @@ class VebSocket:
         if self._port and 0 < self._port < 65535:
             port_str = self.PORT_FMT.format(port=str(self._port))
 
+        path_str = ''
+        if self._path:
+            path_str = self.PATH_FMT.format(path=str(self._path))
+
         self._uri = self.URI_FMT.format(scheme=(self.SCHEME_WS_SECURE
                                                 if self._secure else
                                                 self.SCHEME_WS_STD),
                                         host=self._host,
-                                        port=port_str)
+                                        port=port_str,
+                                        path=path_str)
 
         return self._uri
 
@@ -149,8 +177,8 @@ class VebSocket:
 
         # Shutdown has been signaled to us somehow, but we're just some minion
         # so we only need to put ourselves in order.
-        if self._socket:
-            self._socket.close()
+        # if self._socket:
+        #     self._socket.close()
         # if self._connection:
         #     self._connection.???() = ???
         #     self._connection. = ???
@@ -162,41 +190,122 @@ class VebSocket:
     # -------------------------------------------------------------------------
 
     async def __aenter__(self) -> 'VebSocket':
+        log.debug(f"socket.__aenter__.connect: {self.uri}")
         self._connection = websockets.connect(self.uri)
+        log.debug(f"socket.__aenter__.__aenter__: {self.uri}")
         self._socket = await self._connection.__aenter__()
+        log.debug(f"socket.__aenter__: Done.")
         return self
 
     async def __aexit__(self, *args, **kwargs) -> None:
         await self._connection.__aexit__(*args, **kwargs)
 
+    # # -------------------------------------------------------------------------
+    # # Basic Send/Recv Functions
+    # # -------------------------------------------------------------------------
+
+    # async def send(self, message) -> None:
+    #     # TODO [2020-07-22]: Convert thing to json str?
+    #     await self._socket.send(message)
+
+    # async def receive(self) -> Any:
+    #     # TODO [2020-07-22]: Convert thing from json str?
+    #     return await self._socket.recv()
+
     # -------------------------------------------------------------------------
-    # Basic Send/Recv Functions
+    # Packet Building
     # -------------------------------------------------------------------------
 
-    async def send(self, message) -> None:
-        # TODO [2020-07-22]: Convert thing to json str?
-        await self._socket.send(message)
+    def encode(self, msg: Message, context: MediatorContext) -> str:
+        '''
+        Encodes msg as a structured string using our codec.
+        '''
+        stream = self._codec.encode(msg, context)
+        value = stream.getvalue()
+        stream.close()
+        return value
 
-    async def receive(self) -> Any:
-        # TODO [2020-07-22]: Convert thing from json str?
-        return await self._socket.recv()
+    def decode(self, recvd: str, context: MediatorContext) -> Message:
+        '''
+        Decodes received string using our codec.
+        '''
+        stream = StringIO(recvd)
+        try:
+            value = self._codec.decode(recvd, context)
+        finally:
+            stream.close()
+        msg = Message.decode(value)
+        return msg
 
     # -------------------------------------------------------------------------
     # Ping / Testing
     # -------------------------------------------------------------------------
 
-    async def ping(self) -> float:
+    async def ping(self, msg: Message, context: MediatorContext) -> float:
         '''
         Send out a ping, wait for pong (response) back. Returns the time it
         took in fractional seconds.
         '''
+        if msg.type != MsgType.PING:
+            error = ValueError("Requested ping of non-ping message.", msg)
+            raise log.exception(error,
+                                None,
+                                f"Requested ping of non-ping message: {msg}")
+        self.path = msg.path
+
         timer = MonotonicTimer()  # Timer starts timing on creation.
 
         # Run our actual ping.
-        pong = await self._socket.ping()
-        await pong
+        log.debug('ping connecting...')
+        async with websockets.connect(self.uri) as conn:
+            log.debug('ping pinging...')
+            pong = await conn.ping()
+            log.debug('ping ponging...')
+            await pong
+            log.debug('ping ponged.')
 
         # Return the ping time.
         if log.will_output(log.Level.DEBUG):
             log.debug('ping: {}', timer.elapsed_str)
-        return timer.elapsed()
+        return timer.elapsed
+
+    async def echo(self, msg: Message, context: MediatorContext) -> Message:
+        '''
+        Send msg as echo, returns reply.
+        '''
+        if msg.type != MsgType.ECHO:
+            error = ValueError("Requested echo of non-echo message.", msg)
+            raise log.exception(error,
+                                None,
+                                f"Requested echo of non-echo message: {msg}")
+        self.path = msg.path
+
+        data = self.encode(msg, context)
+        recvd = None
+        async with websockets.connect(self.uri) as conn:
+            await conn.send(data)
+            recvd = await conn.recv()
+
+        reply = self.decode(recvd, context)
+        return reply
+
+    async def text(self, msg: Message, context: MediatorContext) -> Message:
+        '''
+        Send msg as text, returns reply.
+        '''
+        if msg.type != MsgType.TEXT:
+            error = ValueError("Requested text send of non-text message.", msg)
+            raise log.exception(
+                error,
+                None,
+                f"Requested text send of non-text message: {msg}")
+        self.path = msg.path
+
+        data = self.encode(msg, context)
+        recvd = None
+        async with websockets.connect(self.uri) as conn:
+            await conn.send(data)
+            recvd = await conn.recv()
+
+        reply = self.decode(recvd, context)
+        return reply
