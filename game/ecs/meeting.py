@@ -17,16 +17,16 @@ if TYPE_CHECKING:
     from .base.component     import Component
 
 
-from veredi.base.const import VerediHealth
+from veredi.base.const  import VerediHealth
+from veredi.debug.const import DebugFlag
 
-from .time             import TimeManager
-from .event            import EventManager
-from .component        import ComponentManager
-from .entity           import EntityManager
-from .system           import SystemManager
-from .const            import DebugFlag
+from .time              import TimeManager
+from .event             import EventManager
+from .component         import ComponentManager
+from .entity            import EntityManager
+from .system            import SystemManager
 
-from .base.identity    import ComponentId, EntityId
+from .base.identity     import ComponentId, EntityId
 
 
 # -----------------------------------------------------------------------------

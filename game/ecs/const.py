@@ -15,28 +15,6 @@ from veredi.base.enum import FlagCheckMixin
 
 
 # -----------------------------------------------------------------------------
-# Debugging
-# -----------------------------------------------------------------------------
-
-@enum.unique
-class DebugFlag(FlagCheckMixin, enum.Flag):
-    '''
-    has() and any() provided by FlagCheckMixin.
-    '''
-
-    LOG_TICK     = enum.auto()
-    '''Output a log message each tick at debug level.'''
-
-    RAISE_ERRORS = enum.auto()
-    '''Re-raises any errors/exceptions caught in Engine object itself.'''
-
-    SYSTEM_DEBUG = enum.auto()
-    '''Output a log message each tick at debug level.'''
-
-    UNIT_TESTS = LOG_TICK | RAISE_ERRORS | SYSTEM_DEBUG
-
-
-# -----------------------------------------------------------------------------
 # Systems
 # -----------------------------------------------------------------------------
 

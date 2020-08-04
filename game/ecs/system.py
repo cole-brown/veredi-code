@@ -20,6 +20,7 @@ from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data               import background
 from veredi.data.config.config import Configuration
+from veredi.debug.const        import DebugFlag
 
 from .base.identity            import SystemId
 from .base.system              import (System,
@@ -28,7 +29,7 @@ from .base.system              import (System,
 from veredi.base.exceptions    import VerediError
 from .base.exceptions          import SystemErrorV
 
-from .const                    import SystemTick, DebugFlag
+from .const                    import SystemTick
 from .time                     import TimeManager
 from .event                    import EcsManagerWithEvents, EventManager, Event
 from .component                import ComponentManager
@@ -248,7 +249,7 @@ class SystemManager(EcsManagerWithEvents):
                     worst_health,
                     system.update_tick(tick, time, component, entity))
                 # Only do this if we /really/ want logs.
-                if self.debug_flagged(DebugFlag.UNIT_TESTS):
+                if self.debug_flagged(DebugFlag.SYSTEM_DEBUG):
                     self._log_tick("SystemManager.update: {} {} {}",
                                    tick, system, worst_health)
 

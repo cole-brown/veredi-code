@@ -20,7 +20,7 @@ Test debug command(s).
 from ..integrate                      import IntegrationTest
 
 from veredi.logger                    import log
-from veredi.game.ecs.const            import DebugFlag
+from veredi.debug.const               import DebugFlag
 from veredi.base.context              import UnitTestContext
 
 from veredi.interface.input.event     import CommandInputEvent
@@ -53,7 +53,7 @@ class Test_EngineStart_DebugCmds(IntegrationTest):
     def setUp(self):
         super().setUp()
 
-        self.debug_flags = DebugFlag.UNIT_TESTS
+        self.debug_flags = DebugFlag.GAME_ALL
         self.init_required(True)
         self.init_input()
         self.init_many_systems(IdentitySystem)

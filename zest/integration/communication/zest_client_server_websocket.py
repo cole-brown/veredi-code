@@ -11,7 +11,7 @@ Only really tests the websockets and Mediator.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Callable, Iterable
+from typing import Optional, Callable, Iterable
 
 import unittest
 
@@ -21,55 +21,28 @@ import signal
 from collections import namedtuple
 import time
 
-from veredi.zest import zmake, zpath
-from veredi.logger                      import log, log_server, log_client
+from veredi.zest                                import zmake, zpath
+from veredi.logger                              import (log,
+                                                        log_server,
+                                                        log_client)
+from veredi.debug.const                         import DebugFlag
+from veredi.base.identity                       import MonotonicId
+from veredi.time.timer                          import MonotonicTimer
 
 
 # ---
 # Need these to register...
 # ---
-from veredi.data.codec.json import codec
+from veredi.data.codec.json                     import codec
 
 
 # ---
-# Delete these?
+# Mediation
 # ---
-from veredi.base.null                       import Null
-from veredi.base.context                    import UnitTestContext
-from veredi.data.context                    import (DataGameContext,
-                                                    DataLoadContext)
-from veredi.data.exceptions                 import LoadError
-from veredi.time.timer                      import MonotonicTimer
-from veredi.base.identity        import MonotonicId
-
-from veredi.game.ecs.const                  import DebugFlag
-from veredi.game.ecs.base.identity          import ComponentId
-from veredi.game.data.component             import DataComponent
-
-from veredi.game.data.event                 import (DataLoadRequest,
-                                                    DataLoadedEvent)
-
-from veredi.interface.input.event           import CommandInputEvent
-from veredi.interface.input.context         import InputContext
-from veredi.interface.output.system         import OutputSystem
-from veredi.interface.output.event          import OutputType
-
-from veredi.rules.d20.pf2.ability.system    import AbilitySystem
-from veredi.rules.d20.pf2.ability.event     import AbilityResult
-from veredi.rules.d20.pf2.ability.component import AbilityComponent
-
-from veredi.math.system                     import MathSystem
-from veredi.game.data.identity.system       import IdentitySystem
-from veredi.game.data.identity.component    import IdentityComponent
-from veredi.rules.d20.pf2.health.component  import HealthComponent
-
-
-from veredi.interface.mediator.mediator import Mediator
-from veredi.interface.mediator.message  import Message, MsgType
+from veredi.interface.mediator.message          import Message, MsgType
 from veredi.interface.mediator.websocket.server import WebSocketServer
 from veredi.interface.mediator.websocket.client import WebSocketClient
-from veredi.interface.mediator.context           import (MediatorServerContext,
-                                                 MessageContext)
+from veredi.interface.mediator.context          import MessageContext
 
 
 # -----------------------------------------------------------------------------
@@ -228,7 +201,7 @@ class Test_WebSockets(unittest.TestCase):
 
     PER_TEST_TIMEOUT = 5  # seconds
 
-    # TODO [2020-07-25]: 2 or 4 or something!
+    # TODO [2020-07-25]: 2 or 4 or something?
     NUM_CLIENTS = 1
 
     NAME_LOG = 'veredi.test.websockets.log'
@@ -241,7 +214,7 @@ class Test_WebSockets(unittest.TestCase):
     # ------------------------------
 
     def setUp(self):
-        self.debug_flags = DebugFlag.UNIT_TESTS
+        self.debug_flags = DebugFlag.MEDIATOR_ALL
         self.debugging = False
 
         self._shutdown = multiprocessing.Event()
@@ -366,6 +339,21 @@ class Test_WebSockets(unittest.TestCase):
     # -------------------------------------------------------------------------
     # Test Helpers
     # -------------------------------------------------------------------------
+
+    def msg_context(self,
+                    msg_ctx_id: Optional[MonotonicId] = None
+                    ) -> MessageContext:
+        '''
+        Some simple context to pass with messages.
+
+        Makes up an id if none supplied.
+        '''
+        msg_id = msg_ctx_id or MonotonicId(7731, allow=True)
+        ctx = MessageContext(
+            'veredi.zest.integration.communication.'
+            'zest_client_server_websocket',
+            msg_id)
+        return ctx
 
     def per_test_timeout(self, sig_triggered, frame):
         '''
@@ -722,10 +710,10 @@ class Test_WebSockets(unittest.TestCase):
         # then kill them, but it's something.
         self.wait(0.1)
 
-    # def test_nothing(self):
-    #     # No checks for this, really. Just "does it properly not explode"?
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_nothing))
+    def test_nothing(self):
+        # No checks for this, really. Just "does it properly not explode"?
+        self.assert_test_ran(
+            self.runner_of_test(self.do_test_nothing))
 
     # ------------------------------
     # Test cliets pinging server.
@@ -734,10 +722,14 @@ class Test_WebSockets(unittest.TestCase):
     def do_test_ping(self, client):
         mid = self._msg_id.next()
         msg = Message(mid, MsgType.PING, None)
-        client.pipe.send(msg)
-        recv = client.pipe.recv()
+        client.pipe.send((msg, self.msg_context(mid)))
+        recv, ctx = client.pipe.recv()
         # Make sure we got a message back and it has the ping time in it.
         self.assertTrue(recv)
+        self.assertTrue(ctx)
+        self.assertIsInstance(recv, Message)
+        self.assertTrue(ctx, MessageContext)
+        self.assertEqual(msg.id, ctx.id)
         self.assertEqual(mid, recv.id)
         self.assertEqual(msg.id, recv.id)
         self.assertEqual(msg.type, recv.type)
@@ -748,10 +740,10 @@ class Test_WebSockets(unittest.TestCase):
         self.assertGreater(recv.message, -0.0000001)
         self.assertLess(recv.message, 5)
 
-    # def test_ping(self):
-    #     # No other checks for ping outside do_test_ping.
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_ping, *self._clients))
+    def test_ping(self):
+        # No other checks for ping outside do_test_ping.
+        self.assert_test_ran(
+            self.runner_of_test(self.do_test_ping, *self._clients))
 
     # ------------------------------
     # Test Clients sending an echo message.
@@ -762,133 +754,142 @@ class Test_WebSockets(unittest.TestCase):
         send_msg = f"Hello from {client.name}"
         expected = send_msg
         msg = Message(mid, MsgType.ECHO, send_msg)
+        ctx = self.msg_context(mid)
         # self.debugging = True
         with log.LoggingManager.on_or_off(self.debugging, True):
-            client.pipe.send(msg)
-            recv = client.pipe.recv()
+            client.pipe.send((msg, ctx))
+            recv, ctx = client.pipe.recv()
         # Make sure we got a message back and it has the same
         # message as we sent.
         self.assertTrue(recv)
+        self.assertTrue(ctx)
+        self.assertIsInstance(recv, Message)
+        self.assertTrue(ctx, MessageContext)
+        # IDs made it around intact.
+        self.assertEqual(msg.id, ctx.id)
         self.assertEqual(mid, recv.id)
         self.assertEqual(msg.id, recv.id)
-        self.assertEqual(msg.type, recv.type)
+        # Sent echo, got echo-back.
+        self.assertEqual(msg.type, MsgType.ECHO)
+        self.assertEqual(recv.type, MsgType.ECHO_ECHO)
+        # Got what we sent.
         self.assertIsInstance(recv.message, str)
         self.assertEqual(recv.message, expected)
 
-    # def test_echo(self):
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_echo, *self._clients))
-
-    # ------------------------------
-    # Test Clients sending text messages to server.
-    # ------------------------------
-
-    def do_test_text(self, client):
-        mid = self._msg_id.next()
-        self.debugging = True
-
-        # ---
-        # Client -> Server: TEXT
-        # ---
-        print(f"\n\ntest_text: client to server...")
-
-        send_txt = f"Hello from {client.name}?"
-        client_send = Message(mid, MsgType.TEXT, send_txt)
-
-        client_recv = None
-        with log.LoggingManager.on_or_off(self.debugging, True):
-            # Have client send, then receive from server.
-            client.pipe.send(client_send)
-
-            # Server automatically sent an ACK_ID, need to check client.
-            client_recv = client.pipe.recv()
-
-        print(f"\n\ntest_text: client send msg: {client_send}")
-        print(f"\n\ntest_text: client recv ack: {client_recv}")
-        # Make sure that the client received their ACK_ID.
-        self.assertIsNotNone(client_recv)
-        self.assertIsInstance(client_recv, Message)
-        self.assertEqual(mid, client_recv.id)
-        self.assertEqual(client_send.id, client_recv.id)
-        self.assertEqual(client_recv.type, MsgType.ACK_ID)
-        ack_id = mid.decode(client_recv.message)
-        self.assertIsInstance(ack_id, type(mid))
-
-        # ---
-        # Check: Client -> Server: TEXT
-        # ---
-        print(f"\n\ntest_text: server to game...")
-        server_recv = None
-        with log.LoggingManager.on_or_off(self.debugging, True):
-            # Our server should have put the client's packet in its pipe for
-            # us... I hope.
-            print(f"\n\ntest_text: game recv from server...")
-            server_recv = self._server.pipe.recv()
-
-        print(f"\n\ntest_text: client_sent/server_recv: {server_recv}")
-        # Make sure that the server received the correct thing.
-        self.assertIsNotNone(server_recv)
-        self.assertIsInstance(server_recv, tuple)
-        self.assertEqual(len(server_recv), 2)  # Make sure next line is sane...
-        server_recv_msg, server_recv_ctx = server_recv
-        # Check the Message.
-        self.assertEqual(mid, server_recv_msg.id)
-        self.assertEqual(client_send.id, server_recv_msg.id)
-        self.assertEqual(client_send.type, server_recv_msg.type)
-        self.assertIsInstance(server_recv_msg.message, str)
-        self.assertEqual(server_recv_msg.message, send_txt)
-        # Check the Context.
-        self.assertIsInstance(server_recv_ctx, MessageContext)
-        self.assertEqual(server_recv_ctx.id, ack_id)
-
-        # ---
-        # Server -> Client: TEXT
-        # ---
-
-        print(f"\n\ntest_text: server_send/client_recv...")
-        # Tell our server to send a reply to the client's text.
-        recv_txt = f"Hello from {self._server.name}!"
-        server_send = Message(server_recv_ctx.id, MsgType.TEXT, recv_txt)
-        client_recv = None
-        with log.LoggingManager.on_or_off(self.debugging, True):
-            # Make something for server to send and client to recvive.
-            print(f"\n\ntest_text: server_send...")
-            self._server.pipe.send((server_send, server_recv_ctx))
-            print(f"\n\ntest_text: client_recv...")
-            client_recv = client.pipe.recv()
-
-        print(f"\n\ntest_text: server_sent/client_recv: {client_recv}")
-        # Make sure the client got the correct message back.
-        self.assertIsNotNone(client_recv)
-        self.assertIsInstance(client_recv, Message)
-        self.assertEqual(ack_id, client_recv.id)
-        self.assertEqual(server_send.id, client_recv.id)
-        self.assertEqual(server_send.type, client_recv.type)
-        self.assertIsInstance(client_recv.message, str)
-        self.assertEqual(client_recv.message, recv_txt)
-
-
-
-        # recv_txt = f"Hello from {server.name}!"
-        # server_send = Message(mid, MsgType.TEXT, recv_txt)
-
-
-        #    # client_recv = client.pipe.recv()
-
-
-
-        # self.debugging = True
-
-        # print(f"\n\ntest_text: server_sent/client_recv: {client_recv}")
-        # # Make sure the client got the correct message back.
-        # self.assertIsNotNone(client_recv)
-        # self.assertIsInstance(client_recv, Message)
-        # self.assertEqual(mid, client_recv.id)
-        # self.assertEqual(server_send.id, client_recv.id)
-        # self.assertEqual(server_send.type, client_recv.type)
-        # self.assertIsInstance(client_recv.message, str)
-        # self.assertEqual(client_recv.message, recv_txt)
-
-    def test_text(self):
+    def test_echo(self):
         self.assert_test_ran(
-            self.runner_of_test(self.do_test_text, *self._clients))
+            self.runner_of_test(self.do_test_echo, *self._clients))
+
+#     # ------------------------------
+#     # Test Clients sending text messages to server.
+#     # ------------------------------
+#
+#     def do_test_text(self, client):
+#         mid = self._msg_id.next()
+#         self.debugging = True
+#
+#         # ---
+#         # Client -> Server: TEXT
+#         # ---
+#         print(f"\n\ntest_text: client to server...")
+#
+#         send_txt = f"Hello from {client.name}?"
+#         client_send = Message(mid, MsgType.TEXT, send_txt)
+#
+#         client_recv = None
+#         with log.LoggingManager.on_or_off(self.debugging, True):
+#             # Have client send, then receive from server.
+#             client.pipe.send(client_send)
+#
+#             # Server automatically sent an ACK_ID, need to check client.
+#             client_recv = client.pipe.recv()
+#
+#         print(f"\n\ntest_text: client send msg: {client_send}")
+#         print(f"\n\ntest_text: client recv ack: {client_recv}")
+#         # Make sure that the client received their ACK_ID.
+#         self.assertIsNotNone(client_recv)
+#         self.assertIsInstance(client_recv, Message)
+#         self.assertEqual(mid, client_recv.id)
+#         self.assertEqual(client_send.id, client_recv.id)
+#         self.assertEqual(client_recv.type, MsgType.ACK_ID)
+#         ack_id = mid.decode(client_recv.message)
+#         self.assertIsInstance(ack_id, type(mid))
+#
+#         # ---
+#         # Check: Client -> Server: TEXT
+#         # ---
+#         print(f"\n\ntest_text: server to game...")
+#         server_recv = None
+#         with log.LoggingManager.on_or_off(self.debugging, True):
+#             # Our server should have put the client's packet in its pipe for
+#             # us... I hope.
+#             print(f"\n\ntest_text: game recv from server...")
+#             server_recv = self._server.pipe.recv()
+#
+#         print(f"\n\ntest_text: client_sent/server_recv: {server_recv}")
+#         # Make sure that the server received the correct thing.
+#         self.assertIsNotNone(server_recv)
+#         self.assertIsInstance(server_recv, tuple)
+#         self.assertEqual(len(server_recv), 2)  # Make sure next line is sane...
+#         server_recv_msg, server_recv_ctx = server_recv
+#         # Check the Message.
+#         self.assertEqual(mid, server_recv_msg.id)
+#         self.assertEqual(client_send.id, server_recv_msg.id)
+#         self.assertEqual(client_send.type, server_recv_msg.type)
+#         self.assertIsInstance(server_recv_msg.message, str)
+#         self.assertEqual(server_recv_msg.message, send_txt)
+#         # Check the Context.
+#         self.assertIsInstance(server_recv_ctx, MessageContext)
+#         self.assertEqual(server_recv_ctx.id, ack_id)
+#
+#         # ---
+#         # Server -> Client: TEXT
+#         # ---
+#
+#         print(f"\n\ntest_text: server_send/client_recv...")
+#         # Tell our server to send a reply to the client's text.
+#         recv_txt = f"Hello from {self._server.name}!"
+#         server_send = Message(server_recv_ctx.id, MsgType.TEXT, recv_txt)
+#         client_recv = None
+#         with log.LoggingManager.on_or_off(self.debugging, True):
+#             # Make something for server to send and client to recvive.
+#             print(f"\n\ntest_text: server_send...")
+#             self._server.pipe.send((server_send, server_recv_ctx))
+#             print(f"\n\ntest_text: client_recv...")
+#             client_recv = client.pipe.recv()
+#
+#         print(f"\n\ntest_text: server_sent/client_recv: {client_recv}")
+#         # Make sure the client got the correct message back.
+#         self.assertIsNotNone(client_recv)
+#         self.assertIsInstance(client_recv, Message)
+#         self.assertEqual(ack_id, client_recv.id)
+#         self.assertEqual(server_send.id, client_recv.id)
+#         self.assertEqual(server_send.type, client_recv.type)
+#         self.assertIsInstance(client_recv.message, str)
+#         self.assertEqual(client_recv.message, recv_txt)
+#
+#
+#
+#         # recv_txt = f"Hello from {server.name}!"
+#         # server_send = Message(mid, MsgType.TEXT, recv_txt)
+#
+#
+#         #    # client_recv = client.pipe.recv()
+#
+#
+#
+#         # self.debugging = True
+#
+#         # print(f"\n\ntest_text: server_sent/client_recv: {client_recv}")
+#         # # Make sure the client got the correct message back.
+#         # self.assertIsNotNone(client_recv)
+#         # self.assertIsInstance(client_recv, Message)
+#         # self.assertEqual(mid, client_recv.id)
+#         # self.assertEqual(server_send.id, client_recv.id)
+#         # self.assertEqual(server_send.type, client_recv.type)
+#         # self.assertIsInstance(client_recv.message, str)
+#         # self.assertEqual(client_recv.message, recv_txt)
+#
+#     def test_text(self):
+#         self.assert_test_ran(
+#             self.runner_of_test(self.do_test_text, *self._clients))

@@ -31,7 +31,7 @@ from veredi.data.context                    import (DataGameContext,
                                                     DataLoadContext)
 from veredi.data.exceptions                 import LoadError
 
-from veredi.game.ecs.const                  import DebugFlag
+from veredi.debug.const                     import DebugFlag
 from veredi.game.ecs.base.identity          import ComponentId
 from veredi.game.data.component             import DataComponent
 
@@ -107,7 +107,7 @@ class Test_InputToOutput_AbilityCheck(IntegrationTest):
 
     def setUp(self):
         super().setUp()
-        self.debug_flags = DebugFlag.UNIT_TESTS
+        self.debug_flags = DebugFlag.GAME_ALL
         self.output_recvd = None
 
         self.init_required(True)
