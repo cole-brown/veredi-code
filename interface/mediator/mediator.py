@@ -25,13 +25,12 @@ import multiprocessing.connection
 import asyncio
 import signal
 
-from veredi.logger                import log
-from veredi.data.config.config    import Configuration
-from veredi.base.identity        import MonotonicId
+from veredi.logger             import log
+from veredi.debug.const        import DebugFlag
+from veredi.data.config.config import Configuration
 
-from .message import Message, MsgType
-from . import exceptions
-from .context import MediatorContext
+from .                         import exceptions
+from .context                  import MediatorContext
 
 
 # -----------------------------------------------------------------------------
@@ -61,7 +60,11 @@ class Mediator(ABC):
     def __init__(self,
                  config:        Configuration,
                  conn:          multiprocessing.connection.Connection,
-                 shutdown_flag: multiprocessing.Event) -> None:
+                 shutdown_flag: multiprocessing.Event,
+                 debug:         DebugFlag = None) -> None:
+        self._debug: DebugFlag = debug
+        '''Extra debugging output granularity.'''
+
         self._game: multiprocessing.connection.Connection = conn
         '''Our IPC connection to the game process.'''
 
@@ -94,6 +97,24 @@ class Mediator(ABC):
                 lambda s=sig: self._shutdown)
 
         loop.set_exception_handler(exceptions.async_handle_exception)
+
+    # -------------------------------------------------------------------------
+    # Debug
+    # -------------------------------------------------------------------------
+
+    def debug(self,
+              msg: str,
+              *args: Any,
+              **kwargs: Any) -> None:
+        '''
+        Debug logs if our DebugFlag has the proper bits set for Mediator
+        debugging.
+        '''
+        if self._debug and self._debug.has(DebugFlag.MEDIATOR_BASE):
+            kwargs = log.incr_stack_level(kwargs)
+            log.debug(msg,
+                      *args,
+                      **kwargs)
 
     # -------------------------------------------------------------------------
     # Abstracts

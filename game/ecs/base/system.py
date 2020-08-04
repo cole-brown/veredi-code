@@ -27,11 +27,12 @@ import enum
 from veredi.data.config import registry
 from veredi.logger      import log
 from veredi.base.const  import VerediHealth
+from veredi.debug.const import DebugFlag
 
 from .identity          import EntityId, SystemId
 from .exceptions        import SystemErrorV
 
-from ..const            import (SystemTick, SystemPriority, DebugFlag)
+from ..const            import SystemTick, SystemPriority
 from ..exceptions       import TickError
 
 from ..manager          import EcsManager

@@ -11,8 +11,9 @@ Helper for unit test data.
 from typing import Union, Optional
 import pathlib
 
-from . import zpath
-from veredi.data import background
+from .                            import zpath
+from veredi.data                  import background
+from veredi.debug.const           import DebugFlag
 
 # Config Stuff
 from veredi.data.config.config    import Configuration
@@ -21,7 +22,6 @@ from veredi.data.codec.base       import BaseCodec
 from veredi.data.config.hierarchy import Document
 
 # Meeting Stuff
-from veredi.game.ecs.const        import DebugFlag
 from veredi.game.ecs.time         import TimeManager
 from veredi.game.ecs.event        import EventManager
 from veredi.game.ecs.component    import ComponentManager

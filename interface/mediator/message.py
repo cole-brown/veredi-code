@@ -48,6 +48,10 @@ class MsgType(Encodable, enum.Enum):
     '''
     Asks other end of mediation to just bounce back whatever it was given.
     '''
+    ECHO_ECHO = enum.auto()
+    '''
+    Echo bounce-back.
+    '''
 
     # ------------------------------
     # Normal Runtime Messages
@@ -113,6 +117,19 @@ class Message(Encodable):
         self._message: Optional[Any] = message
 
     # ------------------------------
+    # Echo Helper
+    # ------------------------------
+
+    @classmethod
+    def echo(klass: 'Message',
+             msg:   'Message') -> 'Message':
+        '''
+        Create an echo reply for this message.
+        '''
+        # Return same message but with type changed to ECHO_ECHO.
+        return klass(msg.id, MsgType.ECHO_ECHO, msg.message)
+
+    # ------------------------------
     # Properties
     # ------------------------------
 
@@ -146,7 +163,8 @@ class Message(Encodable):
         '''
         if self._type == MsgType.PING:
             return 'ping'
-        elif self._type == MsgType.ECHO:
+        elif (self._type == MsgType.ECHO
+              or self._type == MsgType.ECHO_ECHO):
             return 'echo'
         elif self._type == MsgType.TEXT:
             return 'text'

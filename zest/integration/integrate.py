@@ -18,7 +18,7 @@ from veredi.base.const                  import VerediHealth
 from veredi.logger                      import log
 from veredi.zest                        import zload
 from veredi.zest.zpath                  import TestType
-from veredi.game.ecs.const              import DebugFlag
+from veredi.debug.const                 import DebugFlag
 from veredi.base.context                import VerediContext, UnitTestContext
 from veredi.game.ecs.base.system        import System
 from veredi.game.ecs.base.entity        import (Entity,

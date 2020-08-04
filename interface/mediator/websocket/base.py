@@ -12,7 +12,7 @@ Veredi WebSocket interface.
 # ---
 # Type Hinting Imports
 # ---
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, Callable
 
 
 # ---
@@ -64,32 +64,55 @@ class VebSocket:
     PORT_FMT = ':{port}'
     PATH_FMT = '/{path}'
 
+    PATH_ROOT = '/'
+
     def __init__(self,
-                 codec:   BaseCodec,
-                 host:    str,
-                 path:    Optional[str]    = None,
-                 port:    Optional[int]    = None,
-                 secure:  Union[str, bool] = True,
-                 close:   asyncio.Event    = None) -> None:
+                 codec:    BaseCodec,
+                 host:     str,
+                 path:     Optional[str]              = None,
+                 port:     Optional[int]              = None,
+                 secure:   Optional[Union[str, bool]] = True,
+                 close:    Optional[asyncio.Event]    = None,
+                 debug_fn: Optional[Callable]         = None) -> None:
 
-        self._codec:  BaseCodec        = codec
-        self._host:   str              = host
-        self._path:   str              = path
-        self._port:   int              = port
-        self._secure: Union[str, bool] = secure
-        self._uri:    Optional[str]    = None
+        self._codec:    BaseCodec          = codec
+        self._host:     str                = host
+        self._path:     str                = path
+        self._port:     int                = port
+        self._secure:   Union[str, bool]   = secure
+        self._uri:      Optional[str]      = None
+        self._debug_fn: Optional[Callable] = debug_fn
 
-        self._connection: websockets.connect = None
+        # TODO: Delete this.
+        self._connection: websockets.connection = None
+
+        self._socket: websockets.WebSocketClientProtocol = None
         self._close:      asyncio.Event = asyncio.Event()
 
-        log.debug(f"host: {str(type(self._host))}({self._host}), "
-                  f"port: {str(type(self._port))}({self._port}), "
-                  f"secure: {str(type(secure))}({secure}), "
-                  f"uri: {str(type(self.uri))}({self.uri})")
+        self.debug(f"host: {str(type(self._host))}({self._host}), "
+                   f"port: {str(type(self._port))}({self._port}), "
+                   f"secure: {str(type(secure))}({secure}), "
+                   f"uri: {str(type(self.uri))}({self.uri})")
 
         # TODO [2020-07-25]: Configure logger for websockets.
         # See just above this anchor:
         #   https://websockets.readthedocs.io/en/stable/api.html#websockets.server.unix_serve
+
+    # -------------------------------------------------------------------------
+    # Debug
+    # -------------------------------------------------------------------------
+
+    def debug(self,
+              msg: str,
+              *args: Any,
+              **kwargs: Any) -> None:
+        '''
+        Debug logs go through our callback if we have it. Otherwise just use
+        log.debug.
+        '''
+        kwargs = log.incr_stack_level(kwargs)
+        call = self._debug_fn if self._debug_fn else log.debug
+        call(msg, *args, **kwargs)
 
     # -------------------------------------------------------------------------
     # Properties
@@ -98,16 +121,16 @@ class VebSocket:
     @property
     def host(self) -> str:
         '''
-        hostname
+        Returns hostname
         '''
         return self._host
 
     @property
     def path(self) -> str:
         '''
-        path
+        Returns path or an empty string if path is falsy.
         '''
-        return self._path
+        return self._path or ''
 
     @path.setter
     def path(self, value: str) -> None:
@@ -118,9 +141,16 @@ class VebSocket:
         self._uri = None
 
     @property
+    def path_rooted(self) -> str:
+        '''
+        Returns `self.path` with prefixed '/'.
+        '''
+        return self.PATH_ROOT + (self._path or '')
+
+    @property
     def port(self) -> str:
         '''
-        port number
+        Returns port number
         '''
         return self._port
 
@@ -189,16 +219,16 @@ class VebSocket:
     # Asyncio 'with' Magic
     # -------------------------------------------------------------------------
 
-    async def __aenter__(self) -> 'VebSocket':
-        log.debug(f"socket.__aenter__.connect: {self.uri}")
-        self._connection = websockets.connect(self.uri)
-        log.debug(f"socket.__aenter__.__aenter__: {self.uri}")
-        self._socket = await self._connection.__aenter__()
-        log.debug(f"socket.__aenter__: Done.")
-        return self
+    # async def __aenter__(self) -> 'VebSocket':
+    #     log.debug(f"socket.__aenter__.connect: {self.uri}")
+    #     self._connection = websockets.connect(self.uri)
+    #     log.debug(f"socket.__aenter__.__aenter__: {self.uri}")
+    #     self._socket = await self._connection.__aenter__()
+    #     log.debug(f"socket.__aenter__: Done.")
+    #     return self
 
-    async def __aexit__(self, *args, **kwargs) -> None:
-        await self._connection.__aexit__(*args, **kwargs)
+    # async def __aexit__(self, *args, **kwargs) -> None:
+    #     await self._connection.__aexit__(*args, **kwargs)
 
     # # -------------------------------------------------------------------------
     # # Basic Send/Recv Functions
@@ -241,32 +271,60 @@ class VebSocket:
     # Ping / Testing
     # -------------------------------------------------------------------------
 
+    # async def ping(self, msg: Message, context: MediatorContext) -> float:
+    #     '''
+    #     Send out a ping, wait for pong (response) back. Returns the time it
+    #     took in fractional seconds.
+    #     '''
+    #     if msg.type != MsgType.PING:
+    #         error = ValueError("Requested ping of non-ping message.", msg)
+    #         raise log.exception(error,
+    #                             None,
+    #                             f"Requested ping of non-ping message: {msg}")
+    #     self.path = msg.path
+
+    #     timer = MonotonicTimer()  # Timer starts timing on creation.
+
+    #     # Run our actual ping.
+    #     log.debug('ping connecting...')
+    #     async with websockets.connect(self.uri) as conn:
+    #         log.debug('ping pinging...')
+    #         pong = await conn.ping()
+    #         log.debug('ping ponging...')
+    #         await pong
+    #         log.debug('ping ponged.')
+
+    #     # Return the ping time.
+    #     if log.will_output(log.Level.DEBUG):
+    #         log.debug('ping: {}', timer.elapsed_str)
+    #     return timer.elapsed
+
     async def ping(self, msg: Message, context: MediatorContext) -> float:
         '''
         Send out a ping, wait for pong (response) back. Returns the time it
         took in fractional seconds.
         '''
+        if not self._socket:
+            log.error(f"Cannot ping; no socket connection: {self._socket}")
+            return
+
         if msg.type != MsgType.PING:
             error = ValueError("Requested ping of non-ping message.", msg)
             raise log.exception(error,
                                 None,
                                 f"Requested ping of non-ping message: {msg}")
-        self.path = msg.path
 
         timer = MonotonicTimer()  # Timer starts timing on creation.
 
         # Run our actual ping.
-        log.debug('ping connecting...')
-        async with websockets.connect(self.uri) as conn:
-            log.debug('ping pinging...')
-            pong = await conn.ping()
-            log.debug('ping ponging...')
-            await pong
-            log.debug('ping ponged.')
+        self.debug('ping pinging...')
+        pong = await self._socket.ping()
+        self.debug('ping ponging...')
+        await pong
+        self.debug('ping ponged.')
 
         # Return the ping time.
-        if log.will_output(log.Level.DEBUG):
-            log.debug('ping: {}', timer.elapsed_str)
+        self.debug('ping: {}', timer.elapsed_str)
         return timer.elapsed
 
     async def echo(self, msg: Message, context: MediatorContext) -> Message:

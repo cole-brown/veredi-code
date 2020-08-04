@@ -10,24 +10,25 @@ Tests for engine.py (The Game Itself).
 
 import unittest
 
-from veredi.base.const import VerediHealth
-from veredi.zest import zmake, zontext
+from veredi.base.const   import VerediHealth
+from veredi.zest         import zmake, zontext
 from veredi.base.context import UnitTestContext
+from veredi.debug.const  import DebugFlag
 
-from . import engine
+from .                   import engine
 
-from .ecs.event import EventManager
-from .ecs.time import TimeManager
-from .ecs.component import ComponentManager
-from .ecs.entity import EntityManager
-from .ecs.system import SystemManager
-from .ecs.const import SystemTick, SystemPriority, DebugFlag
+from .ecs.event          import EventManager
+from .ecs.time           import TimeManager
+from .ecs.component      import ComponentManager
+from .ecs.entity         import EntityManager
+from .ecs.system         import SystemManager
+from .ecs.const          import SystemTick, SystemPriority
 
 from .ecs.base.component import (Component,
                                  ComponentLifeCycle)
-from .ecs.base.entity import EntityLifeCycle
-from .ecs.base.system import (System,
-                              SystemLifeCycle)
+from .ecs.base.entity    import EntityLifeCycle
+from .ecs.base.system    import (System,
+                                 SystemLifeCycle)
 
 
 # -----------------------------------------------------------------------------
@@ -227,7 +228,7 @@ class Test_Engine(unittest.TestCase):
                                         self.event_mgr,
                                         self.comp_mgr,
                                         self.entity_mgr,
-                                        DebugFlag.UNIT_TESTS)
+                                        DebugFlag.GAME_ALL)
 
         self.engine = engine.Engine(None, None,
                                     self.config,
@@ -236,7 +237,7 @@ class Test_Engine(unittest.TestCase):
                                     self.comp_mgr,
                                     self.entity_mgr,
                                     self.system_mgr,
-                                    DebugFlag.UNIT_TESTS)
+                                    DebugFlag.GAME_ALL)
 
     def tearDown(self):
         self.debugging  = False

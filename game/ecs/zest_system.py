@@ -10,24 +10,24 @@ Tests for SystemManager.
 
 import unittest
 
-from veredi.base.const import VerediHealth
-from veredi.zest import zmake
+from veredi.base.const   import VerediHealth
+from veredi.zest         import zmake
 from veredi.base.context import UnitTestContext
+from veredi.debug.const  import DebugFlag
 
-from .event import EventManager
-from .time import TimeManager
-from .component import ComponentManager
-from .entity import EntityManager
-from .system import (SystemManager,
-                     SystemEvent,
-                     SystemLifeEvent)
+from .event              import EventManager
+from .time               import TimeManager
+from .component          import ComponentManager
+from .entity             import EntityManager
+from .system             import (SystemManager,
+                                 SystemEvent,
+                                 SystemLifeEvent)
 
-from .const import SystemTick, SystemPriority, DebugFlag
+from .const              import SystemTick, SystemPriority
 
-from .base.identity import SystemId
-from .base.component import Component
-from .base.system import (System,
-                          SystemLifeCycle)
+from .base.identity      import SystemId
+from .base.component     import Component
+from .base.system        import System, SystemLifeCycle
 
 
 # -----------------------------------------------------------------------------
@@ -196,7 +196,7 @@ class Test_SystemManager(unittest.TestCase):
                                         self.event_mgr,
                                         self.comp_mgr,
                                         self.entity_mgr,
-                                        DebugFlag.UNIT_TESTS)
+                                        DebugFlag.GAME_ALL)
 
         self.events_recv = {}
 

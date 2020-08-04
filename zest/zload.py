@@ -10,17 +10,17 @@ Helper for unit test data.
 
 from typing import Union, Optional, Type, NewType, Tuple, Iterable, List
 
-from veredi.logger import log
-from .             import zmake, zontext
-from .zpath        import TestType
+from veredi.logger                      import log
+from .                                  import zmake, zontext
+from .zpath                             import TestType
 
-from veredi.data   import background
+from veredi.data                        import background
+from veredi.debug.const                 import DebugFlag
 
 # Config Stuff
 from veredi.data.config.config          import Configuration
 
 # Meeting Stuff
-from veredi.game.ecs.const              import DebugFlag
 from veredi.game.ecs.base.system        import System
 from veredi.game.ecs.time               import TimeManager
 from veredi.game.ecs.event              import EventManager

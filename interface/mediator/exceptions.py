@@ -17,6 +17,18 @@ from typing import Optional, Callable
 
 
 from veredi.logger import log
+from veredi.base.exceptions import VerediError
+
+
+# -----------------------------------------------------------------------------
+# Exceptions
+# -----------------------------------------------------------------------------
+
+class MediatorError(VerediError):
+    '''
+    Some sort of mediation error.
+    '''
+    ...
 
 
 # -----------------------------------------------------------------------------

@@ -26,9 +26,10 @@ from veredi.base.exceptions             import VerediError
 from veredi.data                        import background
 from veredi.base.const                  import VerediHealth
 from veredi.data.config.config          import Configuration
+from veredi.debug.const                 import DebugFlag
 
 # ECS Managers & Systems
-from .ecs.const                         import SystemTick, DebugFlag
+from .ecs.const                         import SystemTick
 from .ecs.time                          import TimeManager
 from .ecs.event                         import EventManager
 from .ecs.component                     import ComponentManager
