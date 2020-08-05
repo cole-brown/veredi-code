@@ -368,8 +368,6 @@ class WebSocketClient(MediatorClient):
             asyncio.run(self._a_main(self._shutdown_watcher(),
                                      self._queue_watcher(),
                                      self._server_watcher()))
-            #                         self._connect()))  # ,
-            #                          self._game_watcher()))
 
         except websockets.exceptions.ConnectionClosedOK:
             pass
@@ -393,10 +391,6 @@ class WebSocketClient(MediatorClient):
         '''Returns True if queue from game has data to send to server.'''
         return self._game.poll()
 
-    # def _server_has_data(self) -> bool:
-    #     '''Returns True if queue from game has data to send to server.'''
-    #     return self._game.poll()
-
     async def _a_main(self, *aws: Awaitable) -> Iterable[Any]:
         '''
         Runs client async tasks/futures concurrently, returns the aggregate
@@ -414,13 +408,9 @@ class WebSocketClient(MediatorClient):
         # Parent's watcher is non-blocking so we can be simple about this:
         await super()._shutdown_watcher()
 
-        # # Tell our websocket server to finish up.
-        # self.debug("Tell our WebSocket to stop.")
-        # self._socket.close()
-
-        # # Tell ourselves to stop.
-        # self.debug("Tell ourselves to stop.")
-        # # ...nothing I guess?
+        # If we have a server conn, ask it to close too.
+        if self._server:
+            self._server.close()
 
     async def _queue_watcher(self):
         '''
@@ -516,66 +506,6 @@ class WebSocketClient(MediatorClient):
         self.debug("Requesting connection to server...")
         self._connect_request.set()
 
-    # async def _connect_task(self) -> None:
-    #     '''
-    #     Opens connection to the server, then can send and receive in parallel
-    #     in the :meth:`_handle_produce` and :meth:`_handle_consume` functions.
-    #     '''
-    #     # TODO: path for my user? With user key, user secret?
-    #     self.debug("Client._connect: Creating connection to server...")
-    #     self._server = self._server_connection()
-
-    #     self.debug("Client._connect: Starting connection handlers...")
-    #     await self._server.connect_parallel(self._handle_produce,
-    #                                         self._handle_consume)
-    #     self.debug("Client._connect: Done.")
-
-    # async def _game_watcher(self):
-    #     '''
-    #     Loop waiting for messages from our multiprocessing.connection to
-    #     communicate about with the MediatorServer.
-    #     '''
-    #     while True:
-    #         # Die if requested.
-    #         if self._shutdown:
-    #             break
-
-    #         # Check for something in connection to send; don't block.
-    #         if not self._game.poll():
-    #             await asyncio.sleep(0.1)
-    #             continue
-
-    #         self.debug("client._game_watcher has message.")
-    #         # Have something to send; receive it from game connection so
-    #         # we can send it.
-    #         msg = self._game.recv()
-    #         self.debug(f"client._game_watcher: recvd for sending: {msg}")
-
-    #         # ---
-    #         # Send Handlers by MsgType
-    #         # ---
-    #         if msg.type == MsgType.PING:
-    #             self.debug("client._game_watcher: pinging...")
-    #             reply = await self._ping(msg)
-    #             self.debug(f"client._game_watcher: ping'd: {reply}")
-    #             self._game.send(reply)
-
-    #         elif msg.type == MsgType.ECHO:
-    #             self.debug("client._game_watcher: echoing...")
-    #             reply = await self._echo(msg)
-    #             self.debug(f"client._game_watcher: echo'd: {reply}")
-    #             self._game.send(reply)
-
-    #         elif msg.type == MsgType.TEXT:
-    #             self.debug("client._game_watcher: texting...")
-    #             reply = await self._text(msg)
-    #             self.debug(f"client._game_watcher: text'd: {reply}")
-    #             self._game.send(reply)
-
-    #         else:
-    #             log.error(f"Unhandled message type {msg.type} for "
-    #                       f"message: {msg}. Ignoring.")
-
     async def _rx_enqueue(self,
                           msg: Message,
                           ctx: Optional[MessageContext] = None) -> None:
@@ -597,7 +527,6 @@ class WebSocketClient(MediatorClient):
         '''
         Get a new WebSocket connection to our server.
         '''
-        # TODO: an async Event to watch for shutdown?
         socket = VebSocketClient(self._codec,
                                  self.make_context,
                                  self._host,
@@ -829,39 +758,3 @@ class WebSocketClient(MediatorClient):
         log.warning("No handlers for msg; ignoring: "
                     f"path: {path}, match: {match}, msg: {msg}")
         return None
-
-    # ------------------------------
-    # "Handle Basic" Handlers
-    # ------------------------------
-
-    async def _hb_ping(self, msg: Message) -> Message:
-        '''
-        Ping the server, return a Message of the monotonic time ping took.
-        Returns Message with values:
-          id, type - copied from input `msg`
-          message - float elapsed monotonic time
-        '''
-        self.debug("client._ping: start...")
-        # elapsed = await self._server_connection().ping()
-        async with self._server_connection('ping') as conn:
-            self.debug("client._ping: connected...")
-            elapsed = await conn.ping(msg, self.make_context())
-            self.debug(f"client._ping: pinged: {elapsed}")
-        reply = Message(msg.id, msg.type, elapsed)
-        return reply
-
-    async def _hb_echo(self, msg: Message) -> Message:
-        '''
-        Send echo message to server, returns reply.
-        '''
-        async with self._server_connection() as conn:
-            reply = await conn.echo(msg, self.make_context())
-        return reply
-
-    async def _hb_text(self, msg: Message) -> Message:
-        '''
-        Send text message to server, returns reply.
-        '''
-        async with self._server_connection() as conn:
-            reply = await conn.text(msg, self.make_context())
-        return reply
