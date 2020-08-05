@@ -17,19 +17,19 @@ converts it into JSON for sending.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any
+from typing import Any
 
 from abc import ABC, abstractmethod
 import multiprocessing
 import multiprocessing.connection
 import asyncio
-import signal
+# import signal
 
 from veredi.logger             import log
 from veredi.debug.const        import DebugFlag
 from veredi.data.config.config import Configuration
 
-from .                         import exceptions
+# from .                         import exceptions
 from .context                  import MediatorContext
 
 

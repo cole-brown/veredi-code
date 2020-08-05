@@ -107,32 +107,8 @@ class VebSocketServer(VebSocket):
         '''Data producing/sending callback for our `self.handler_ppc`.'''
 
     # -------------------------------------------------------------------------
-    # Serve Modes
+    # Serve
     # -------------------------------------------------------------------------
-
-    async def serve_basic(
-            self,
-            process_data_fn: Callable[[Message, str], Optional[Message]]
-    ) -> None:
-        '''
-        Start WebSocket Server listening on `self._host` and `self._port`.
-        Clients will be expected to send something first, then the
-        `process_data_fn` callback will be used to send the message/path out
-        for processing.
-
-        If `process_data_fn` returns a value, we will send that back to the
-        client before we are done with the connection.
-        '''
-        self._data_process = process_data_fn
-
-        # Create it here, then... don't await it. Let self._a_wait_close() wait
-        # on both server and our close flag.
-        self.debug(f"starting server {self.uri}...")
-        server = await websockets.serve(self.handler_rsd,
-                                        self._host,
-                                        self._port)
-        self.debug(f"serving {self.uri}...")
-        await self._a_wait_close(server)
 
     async def serve_parallel(
             self,
@@ -242,58 +218,6 @@ class VebSocketServer(VebSocket):
         # so we only need to put ourselves in order.
         server.close()
         self._close.set()
-
-    # -------------------------------------------------------------------------
-    # Simple Communication Handler
-    # -------------------------------------------------------------------------
-
-    async def handler_rsd(self,
-                          websocket: websockets.WebSocketServerProtocol,
-                          path:      str) -> None:
-        '''
-        Handles "receiving, sending, done" for some data from/to a client over
-        provided websocket. Doesn't keep the connection around for longer than
-        just the recv/send. May not even send a reply depending on return from
-        our `_data_process` callback.
-
-        `websocket` is the websocket connection to the client.
-
-        `path` is a url-like path. Only one I've gotten so far in tests
-        is root ("/").
-        '''
-        self.debug(f"websocket: {websocket}")
-        self.debug(f"     path: {path}")
-
-        if self.register_for_path(path):
-            self.debug("registering user...")
-            self.register(websocket)
-
-        # TODO: Something like this for keeping conn open?
-        # https://websockets.readthedocs.io/en/stable/intro.html#synchronization-example
-
-        # Get data from this socket we've been given, I guess...
-        try:
-            self.debug("getting data...")
-            raw = await websocket.recv()
-            self.debug(f"svr: <--  :  raw: {raw}")
-            recv = self.decode(raw, self._make_context())
-            self.debug(f"svr: <--  : recv: {recv}")
-        except websockets.ConnectionClosedOK:
-            #  Connection got closed. Ok.
-            return None
-
-        # Call handler to process it.
-        result = None
-        if self._data_process and callable(self._data_process):
-            result = await self._data_process(recv, path)
-
-        # Send result back if we got one.
-        if result:
-            send = self.encode(result, self._make_context())
-            self.debug(f"svr:  -->: raw: {type(send)}({send})")
-            await websocket.send(send)
-
-        self._unregister(websocket)
 
     # -------------------------------------------------------------------------
     # Two-Way Communication Handler
@@ -513,17 +437,6 @@ class WebSocketServer(MediatorServer):
         # Path Regexes to Functions
         # ---
         reic = re.IGNORECASE
-        self._hb_paths = {
-            re.compile(r'^/$',     reic): self._hb_root,
-            re.compile(r'^/ping$', reic): self._hb_ping,
-            re.compile(r'^/echo$', reic): self._hb_echo,
-            re.compile(r'^/text$', reic): self._hb_text,
-        }
-        '''
-        "Handle Basic" Paths (handler receives, can optionally returns for
-        sending based on return value).
-        '''
-
         self._hp_paths_re = {
             re.compile(r'^/$',     reic): (self._htx_root, self._hrx_root),
             re.compile(r'^/ping$', reic): (self._htx_ping, self._hrx_ping),
@@ -599,10 +512,11 @@ class WebSocketServer(MediatorServer):
             # Kick it off into asyncio's hands.
             asyncio.run(self._a_main(self._shutdown_watcher(),
                                      self._serve(),
-                                     self._client_watcher()))  # ,
-            #                         self._game_watcher()))
+                                     self._client_watcher()))
+
         except websockets.exceptions.ConnectionClosedOK:
             pass
+
         except Exception as error:
             # TODO [2020-07-28]: Should we shut it all down, or keep going?
             self.shutdown = True
@@ -640,45 +554,6 @@ class WebSocketServer(MediatorServer):
         # # Tell ourselves to stop.
         # self.debug("Tell ourselves to stop.")
         # We should have our coroutines watching the shutdown flag.
-
-    async def _game_watcher(self):
-        '''
-        Loop waiting for messages from our multiprocessing.connection to
-        communicate to a client.
-
-        Don't use if doing `serve_parallel` with the VebSocketServer.
-        You'll use the producer handler for doing this instead.
-        '''
-        while True:
-            # Die if requested.
-            if self._shutdown:
-                break
-
-            # Check for something in connection to send; don't block.
-            if not self._game.poll():
-                await asyncio.sleep(0.1)
-                continue
-
-            self.debug("Game has message to send.")
-            # Have something to send; receive it from game connection so
-            # we can send it.
-            msg, ctx = self._game.recv()
-            self.debug("recvd from game for sending: "
-                       f"msg: {msg}, ctx: {ctx}")
-
-            if not msg:
-                log.warning("No message for sending? "
-                            f"Ignoring msg: {msg}, ctx: {ctx}")
-                continue
-
-            sender, _ = self._hp_paths_type.get(msg.type, None)
-            if not sender:
-                log.error("No handlers for msg type? "
-                          f"Ignoring msg: {msg}, ctx: {ctx}")
-                continue
-
-            self.debug("sending...")
-            await sender(msg)
 
     async def _client_watcher(self) -> None:
         '''
@@ -739,95 +614,12 @@ class WebSocketServer(MediatorServer):
         self.debug(f"Done serving: {uri}")
 
     # -------------------------------------------------------------------------
-    # Basic Handler
-    # -------------------------------------------------------------------------
-
-    async def _handle_basic(self,
-                            msg: Message,
-                            path: str) -> Optional[Message]:
-        '''
-        Handles a `VebSocketServer.serve_basic` data callback.
-        '''
-        match, handler = self._path_handler_basic(path)
-        if not handler:
-            # TODO [2020-07-29]: Log info about client too.
-            log.error("Unhandled path: ", path)
-            return None
-
-        return await handler(match, path, msg)
-
-    def _path_handler_basic(self, path: str) -> Callable:
-        '''
-        Takes a path and returns:
-          - None: Path is unknown.
-          - A 2-tuple of:
-            - The re.Match object for the path matching.
-            - The handler for that path.
-        '''
-        for regex, func in self._hb_paths.items():
-            match = regex.fullmatch(path)
-            if match:
-                return match, func
-
-        return None, None
-
-    # ------------------------------
-    # "Handle Basic" Specific Path Handlers
-    # ------------------------------
-
-    async def _hb_ping(self,
-                       match: re.Match,
-                       path: str,
-                       msg: Message) -> None:
-        '''
-        Handle a ping.
-        '''
-        return None
-
-    async def _hb_echo(self,
-                       match: re.Match,
-                       path: str,
-                       msg: Message) -> Message:
-        '''
-        Handle an echo.
-        '''
-        return msg
-
-    async def _hb_text(self,
-                       match: re.Match,
-                       path: str,
-                       msg: Message) -> Message:
-        '''
-        Handle a message with text payload.
-        '''
-        qid = self._rx_qid.next()
-        ctx = MessageContext(self.dotted, qid)
-        self.debug(f"queuing: msg: {msg}, ctx: {ctx}")
-        await self._rx_queue.put((msg, ctx))
-        send = Message(msg.id, MsgType.ACK_ID, qid)
-        self.debug(f"sending ack: {send}")
-        return send
-
-    async def _hb_root(self,
-                       match: re.Match,
-                       path: str,
-                       msg: Message) -> None:
-        '''
-        Handle a request to root path ("/").
-        '''
-        raise NotImplementedError("TODO: THIS.")
-        return None
-
-    # -------------------------------------------------------------------------
     # Parallel/Separate TX/RX Handlers
     # -------------------------------------------------------------------------
 
     async def _handle_produce(self) -> Optional[Message]:
         '''
         Handles a `VebSocketServer.serve_parallel` produce data callback.
-
-        Similar to `self._game_watcher`, but we can just block on things if
-        needed.
         '''
         while True:
             # Die if requested.
