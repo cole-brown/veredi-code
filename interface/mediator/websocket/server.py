@@ -37,8 +37,6 @@ from veredi.data.codec.base      import BaseCodec
 from veredi.data.config.registry import register
 
 from ..server                    import MediatorServer
-# TODO: delete this handler
-from ..exceptions                import async_handle_exception
 from .exceptions                 import WebSocketError
 from .base                       import VebSocket
 from ..message                   import Message, MsgType
@@ -71,9 +69,8 @@ class VebSocketServer(VebSocket):
                  path:       Optional[str]              = None,
                  port:       Optional[int]              = None,
                  secure:     Optional[Union[str, bool]] = True,
-                 close:      Optional[asyncio.Event]    = None,
                  debug_fn:   Optional[Callable]         = None) -> None:
-        super().__init__(codec, host, path, port, secure, close, debug_fn)
+        super().__init__(codec, host, path, port, secure, debug_fn)
 
         self.debug(f"host: {str(type(self._host))}({self._host}), "
                    f"port: {str(type(self._port))}({self._port}), "
@@ -91,6 +88,7 @@ class VebSocketServer(VebSocket):
         #   - It gets in the wrong asyncio event loop somehow.
         self._server: websockets.WebSocketServer = None
 
+        # TODO [2020-08-05]: start using _clients instead of _sockets_open?
         self._clients: Dict[UserId, websockets.WebSocketServerProtocol] = {}
         self._sockets_open: Set[websockets.WebSocketServerProtocol] = set()
 
@@ -504,7 +502,6 @@ class WebSocketServer(MediatorServer):
                                          path=None,
                                          port=self._port,
                                          secure=self._ssl,
-                                         # TODO: close?
                                          debug_fn=self.debug)
         self._rx_queue = asyncio.Queue()
         '''Queue for received data from clients.'''
@@ -544,6 +541,7 @@ class WebSocketServer(MediatorServer):
             MsgType.ECHO:      (self._htx_echo, self._hrx_echo),
             MsgType.ECHO_ECHO: (self._htx_echo, self._hrx_echo),
             MsgType.TEXT:      (self._htx_text, self._hrx_text),
+            MsgType.ACK_ID:    (self._htx_ack,  self._hrx_ack),
         }
         '''
         "Handle Parallel" Paths (separate handlers for sending, receiving).
@@ -984,6 +982,34 @@ class WebSocketServer(MediatorServer):
         send = Message(msg.id, MsgType.ACK_ID, qid)
         self.debug(f"sending text ack: {send}")
         return send
+
+    async def _htx_ack(self,
+                       msg: Message) -> Message:
+        '''
+        Handle sending a message with an ACK_ID payload.
+        '''
+        log.warning("...Why is the TX handler for ACK involved?")
+        self.debug(f"sending ack {msg}...")
+        return msg
+
+    async def _hrx_ack(self,
+                       match: re.Match,
+                       path: str,
+                       msg: Message) -> Message:
+        '''
+        Handle receiving a message with an ACK_ID payload.
+        '''
+        # Receive from client; put into rx_queue.
+        #
+        # Game will get it eventually and deal with it. We may get a reply to
+        # send at some point but that's irrelevant here.
+        ctx = MessageContext(self.dotted, msg.message)
+        self.debug("received text msg; queuing: "
+                   f"msg: {msg}, ctx: {ctx}")
+        await self._rx_queue.put((msg, ctx))
+
+        # Don't ack the ack.
+        return None
 
     async def _htx_root(self,
                         match: re.Match,

@@ -127,6 +127,7 @@ def init(shutdown_flag: multiprocessing.Event,
     Returns the logging server. Pass it back into run() to run it.
     '''
     log.init(level=level)
+    log.set_level(level)
 
     log_server = LogRecordSocketReceiver(shutdown_flag)
     return log_server

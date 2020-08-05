@@ -49,9 +49,6 @@ from veredi.interface.mediator.context          import MessageContext
 # Constants
 # -----------------------------------------------------------------------------
 
-# ---
-# TODO: put these in config?
-# -start-
 WAIT_SLEEP_TIME_SEC = 0.1
 '''Main process will wait/sleep on the game_over flag for this long each go.'''
 
@@ -60,12 +57,8 @@ GRACEFUL_SHUTDOWN_TIME_SEC = 15.0
 Main process will give the game/mediator this long to gracefully shutdown.
 If they take longer, it will just terminate them.
 '''
-# -end-
-# TODO
-# ---
 
-# TODO: this is... ignored?
-LOG_LEVEL = log.Level.WARNING
+LOG_LEVEL = log.Level.INFO
 '''Test should set this to desired during setUp()'''
 
 TestProc = namedtuple('TestProc', ['name', 'process', 'pipe'])
@@ -114,8 +107,8 @@ def run_logs(proc_name     = None,
     _sigint_ignore()
     server = log_server.init(shutdown_flag, log_level)
 
-    # TODO: debug level
     lumberjack = log.get_logger(proc_name)
+    lumberjack.setLevel(int(LOG_LEVEL))
     lumberjack.debug(f"Starting log_server '{proc_name}'...")
 
     # log_server.run() should never return (until shutdown signaled) - it just
@@ -127,7 +120,8 @@ def run_server(proc_name     = None,
                conn          = None,
                config        = None,
                log_level     = None,
-               shutdown_flag = None) -> None:
+               shutdown_flag = None,
+               debug_flag    = None) -> None:
     '''
     Init and run client/engine IO mediator.
     '''
@@ -135,6 +129,7 @@ def run_server(proc_name     = None,
     log_client.init(log_level)
 
     lumberjack = log.get_logger(proc_name)
+    lumberjack.setLevel(int(LOG_LEVEL))
     if not conn:
         raise log.exception(
             "Mediator requires a pipe connection; received None.",
@@ -152,9 +147,9 @@ def run_server(proc_name     = None,
             "Mediator requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
 
-    # TODO: debug level
     lumberjack.debug(f"Starting WebSocketServer '{proc_name}'...")
-    mediator = WebSocketServer(config, conn, shutdown_flag)
+    mediator = WebSocketServer(config, conn, shutdown_flag,
+                               debug=debug_flag)
     mediator.start()
 
 
@@ -162,7 +157,8 @@ def run_client(proc_name     = None,
                conn          = None,
                config        = None,
                log_level     = None,
-               shutdown_flag = None) -> None:
+               shutdown_flag = None,
+               debug_flag    = None) -> None:
     '''
     Init and run client/engine IO mediator.
     '''
@@ -170,6 +166,7 @@ def run_client(proc_name     = None,
     log_client.init(log_level)
 
     lumberjack = log.get_logger(proc_name)
+    lumberjack.setLevel(int(LOG_LEVEL))
     if not conn:
         raise log.exception(
             "Mediator requires a pipe connection; received None.",
@@ -187,9 +184,9 @@ def run_client(proc_name     = None,
             "Mediator requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
 
-    # TODO: debug level
     lumberjack.debug(f"Starting WebSocketClient '{proc_name}'...")
-    mediator = WebSocketClient(config, conn, shutdown_flag)
+    mediator = WebSocketClient(config, conn, shutdown_flag,
+                               debug=debug_flag)
     mediator.start()
 
 
@@ -214,7 +211,7 @@ class Test_WebSockets(unittest.TestCase):
     # ------------------------------
 
     def setUp(self):
-        self.debug_flags = DebugFlag.MEDIATOR_ALL
+        self.debug_flag = DebugFlag.MEDIATOR_ALL
         self.debugging = False
 
         self._shutdown = multiprocessing.Event()
@@ -247,7 +244,7 @@ class Test_WebSockets(unittest.TestCase):
         self._stop_logs()
         self._tear_down_log()
 
-        self.debug_flags = None
+        self.debug_flag = None
         self._shutdown = None
         self._shutdown_log = None
         self._msg_id = None
@@ -295,6 +292,7 @@ class Test_WebSockets(unittest.TestCase):
                     'config':        config,
                     'log_level':     LOG_LEVEL,
                     'shutdown_flag': self._shutdown,
+                    'debug_flag':    self.debug_flag,
                 }),
             test_conn)
 
@@ -326,6 +324,7 @@ class Test_WebSockets(unittest.TestCase):
                             'config':        config,
                             'log_level':     LOG_LEVEL,
                             'shutdown_flag': self._shutdown,
+                            'debug_flag':    self.debug_flag,
                         }),
                     test_conn))
 
@@ -710,6 +709,11 @@ class Test_WebSockets(unittest.TestCase):
         # then kill them, but it's something.
         self.wait(0.1)
 
+        # Make sure we don't have anything in the queues...
+        for client in self._clients:
+            self.assertFalse(client.pipe.poll())
+        self.assertFalse(self._server.pipe.poll())
+
     def test_nothing(self):
         # No checks for this, really. Just "does it properly not explode"?
         self.assert_test_ran(
@@ -734,11 +738,15 @@ class Test_WebSockets(unittest.TestCase):
         self.assertEqual(msg.id, recv.id)
         self.assertEqual(msg.type, recv.type)
 
-        # I really hope the ping is between negative nothingish and
+        # I really hope the local ping is between negative nothingish and
         # positive five seconds.
         self.assertIsInstance(recv.message, float)
         self.assertGreater(recv.message, -0.0000001)
         self.assertLess(recv.message, 5)
+
+        # Make sure we don't have anything in the queues...
+        self.assertFalse(client.pipe.poll())
+        self.assertFalse(self._server.pipe.poll())
 
     def test_ping(self):
         # No other checks for ping outside do_test_ping.
@@ -776,120 +784,146 @@ class Test_WebSockets(unittest.TestCase):
         self.assertIsInstance(recv.message, str)
         self.assertEqual(recv.message, expected)
 
+        # Make sure we don't have anything in the queues...
+        self.assertFalse(client.pipe.poll())
+        self.assertFalse(self._server.pipe.poll())
+
     def test_echo(self):
         self.assert_test_ran(
             self.runner_of_test(self.do_test_echo, *self._clients))
 
-#     # ------------------------------
-#     # Test Clients sending text messages to server.
-#     # ------------------------------
-#
-#     def do_test_text(self, client):
-#         mid = self._msg_id.next()
-#         self.debugging = True
-#
-#         # ---
-#         # Client -> Server: TEXT
-#         # ---
-#         print(f"\n\ntest_text: client to server...")
-#
-#         send_txt = f"Hello from {client.name}?"
-#         client_send = Message(mid, MsgType.TEXT, send_txt)
-#
-#         client_recv = None
-#         with log.LoggingManager.on_or_off(self.debugging, True):
-#             # Have client send, then receive from server.
-#             client.pipe.send(client_send)
-#
-#             # Server automatically sent an ACK_ID, need to check client.
-#             client_recv = client.pipe.recv()
-#
-#         print(f"\n\ntest_text: client send msg: {client_send}")
-#         print(f"\n\ntest_text: client recv ack: {client_recv}")
-#         # Make sure that the client received their ACK_ID.
-#         self.assertIsNotNone(client_recv)
-#         self.assertIsInstance(client_recv, Message)
-#         self.assertEqual(mid, client_recv.id)
-#         self.assertEqual(client_send.id, client_recv.id)
-#         self.assertEqual(client_recv.type, MsgType.ACK_ID)
-#         ack_id = mid.decode(client_recv.message)
-#         self.assertIsInstance(ack_id, type(mid))
-#
-#         # ---
-#         # Check: Client -> Server: TEXT
-#         # ---
-#         print(f"\n\ntest_text: server to game...")
-#         server_recv = None
-#         with log.LoggingManager.on_or_off(self.debugging, True):
-#             # Our server should have put the client's packet in its pipe for
-#             # us... I hope.
-#             print(f"\n\ntest_text: game recv from server...")
-#             server_recv = self._server.pipe.recv()
-#
-#         print(f"\n\ntest_text: client_sent/server_recv: {server_recv}")
-#         # Make sure that the server received the correct thing.
-#         self.assertIsNotNone(server_recv)
-#         self.assertIsInstance(server_recv, tuple)
-#         self.assertEqual(len(server_recv), 2)  # Make sure next line is sane...
-#         server_recv_msg, server_recv_ctx = server_recv
-#         # Check the Message.
-#         self.assertEqual(mid, server_recv_msg.id)
-#         self.assertEqual(client_send.id, server_recv_msg.id)
-#         self.assertEqual(client_send.type, server_recv_msg.type)
-#         self.assertIsInstance(server_recv_msg.message, str)
-#         self.assertEqual(server_recv_msg.message, send_txt)
-#         # Check the Context.
-#         self.assertIsInstance(server_recv_ctx, MessageContext)
-#         self.assertEqual(server_recv_ctx.id, ack_id)
-#
-#         # ---
-#         # Server -> Client: TEXT
-#         # ---
-#
-#         print(f"\n\ntest_text: server_send/client_recv...")
-#         # Tell our server to send a reply to the client's text.
-#         recv_txt = f"Hello from {self._server.name}!"
-#         server_send = Message(server_recv_ctx.id, MsgType.TEXT, recv_txt)
-#         client_recv = None
-#         with log.LoggingManager.on_or_off(self.debugging, True):
-#             # Make something for server to send and client to recvive.
-#             print(f"\n\ntest_text: server_send...")
-#             self._server.pipe.send((server_send, server_recv_ctx))
-#             print(f"\n\ntest_text: client_recv...")
-#             client_recv = client.pipe.recv()
-#
-#         print(f"\n\ntest_text: server_sent/client_recv: {client_recv}")
-#         # Make sure the client got the correct message back.
-#         self.assertIsNotNone(client_recv)
-#         self.assertIsInstance(client_recv, Message)
-#         self.assertEqual(ack_id, client_recv.id)
-#         self.assertEqual(server_send.id, client_recv.id)
-#         self.assertEqual(server_send.type, client_recv.type)
-#         self.assertIsInstance(client_recv.message, str)
-#         self.assertEqual(client_recv.message, recv_txt)
-#
-#
-#
-#         # recv_txt = f"Hello from {server.name}!"
-#         # server_send = Message(mid, MsgType.TEXT, recv_txt)
-#
-#
-#         #    # client_recv = client.pipe.recv()
-#
-#
-#
-#         # self.debugging = True
-#
-#         # print(f"\n\ntest_text: server_sent/client_recv: {client_recv}")
-#         # # Make sure the client got the correct message back.
-#         # self.assertIsNotNone(client_recv)
-#         # self.assertIsInstance(client_recv, Message)
-#         # self.assertEqual(mid, client_recv.id)
-#         # self.assertEqual(server_send.id, client_recv.id)
-#         # self.assertEqual(server_send.type, client_recv.type)
-#         # self.assertIsInstance(client_recv.message, str)
-#         # self.assertEqual(client_recv.message, recv_txt)
-#
-#     def test_text(self):
-#         self.assert_test_ran(
-#             self.runner_of_test(self.do_test_text, *self._clients))
+    # ------------------------------
+    # Test Clients sending text messages to server.
+    # ------------------------------
+
+    def do_test_text(self, client):
+        mid = self._msg_id.next()
+
+        # ---
+        # Client -> Server: TEXT
+        # ---
+        log.debug("client to server...")
+
+        send_txt = f"Hello from {client.name}?"
+        client_send = Message(mid, MsgType.TEXT, send_txt)
+        client_send_ctx = self.msg_context(mid)
+
+        client_recv = None
+        client_recv_ctx = None
+        with log.LoggingManager.on_or_off(self.debugging, True):
+            # Have client send, then receive from server.
+            client.pipe.send((client_send, client_send_ctx))
+
+            # Server automatically sent an ACK_ID, need to check client.
+            client_recv = client.pipe.recv()
+
+        log.debug(f"client send msg: {client_send}")
+        log.debug(f"client recv ack: {client_recv}")
+        # Make sure that the client received the correct thing.
+        self.assertIsNotNone(client_recv)
+        self.assertIsInstance(client_recv, tuple)
+        self.assertEqual(len(client_recv), 2)  # Make sure next line is sane...
+        client_recv_msg, client_recv_ctx = client_recv
+        # Make sure that the client received their ACK_ID.
+        self.assertIsNotNone(client_recv_msg)
+        self.assertIsInstance(client_recv_msg, Message)
+        self.assertIsNotNone(client_recv_ctx)
+        self.assertIsInstance(client_recv_ctx, MessageContext)
+        self.assertEqual(mid, client_recv_msg.id)
+        self.assertEqual(client_send.id, client_recv_msg.id)
+        self.assertEqual(client_recv_msg.type, MsgType.ACK_ID)
+        ack_id = mid.decode(client_recv_msg.message)
+        self.assertIsInstance(ack_id, type(mid))
+
+        # ---
+        # Check: Client -> Server: TEXT
+        # ---
+        log.debug("test_text: server to game...")
+        server_recv = None
+        with log.LoggingManager.on_or_off(self.debugging, True):
+            # Our server should have put the client's packet in its pipe for
+            # us... I hope.
+            log.debug("test_text: game recv from server...")
+            server_recv = self._server.pipe.recv()
+
+        log.debug(f"client_sent/server_recv: {server_recv}")
+        # Make sure that the server received the correct thing.
+        self.assertIsNotNone(server_recv)
+        self.assertIsInstance(server_recv, tuple)
+        self.assertEqual(len(server_recv), 2)  # Make sure next line is sane...
+        server_recv_msg, server_recv_ctx = server_recv
+        # Check the Message.
+        self.assertEqual(mid, server_recv_msg.id)
+        self.assertEqual(client_send.id, server_recv_msg.id)
+        self.assertEqual(client_send.type, server_recv_msg.type)
+        self.assertIsInstance(server_recv_msg.message, str)
+        self.assertEqual(server_recv_msg.message, send_txt)
+        # Check the Context.
+        self.assertIsInstance(server_recv_ctx, MessageContext)
+        self.assertEqual(server_recv_ctx.id, ack_id)
+
+        # ---
+        # Server -> Client: TEXT
+        # ---
+
+        log.debug("test_text: server_send/client_recv...")
+        # Tell our server to send a reply to the client's text.
+        recv_txt = f"Hello from {self._server.name}!"
+        server_send = Message(server_recv_ctx.id, MsgType.TEXT, recv_txt)
+        client_recv = None
+        with log.LoggingManager.on_or_off(self.debugging, True):
+            # Make something for server to send and client to recvive.
+            log.debug("test_text: server_send...")
+            log.debug(f"test_text: pipe to game: {server_send}")
+            self._server.pipe.send((server_send, server_recv_ctx))
+            log.debug("test_text: client_recv...")
+            client_recv = client.pipe.recv()
+
+        log.debug(f"server_sent/client_recv: {client_recv}")
+        # Make sure the client got the correct message back.
+        self.assertIsNotNone(client_recv)
+        self.assertIsInstance(client_recv, tuple)
+        self.assertEqual(len(client_recv), 2)  # Make sure next line is sane...
+        client_recv_msg, client_recv_ctx = client_recv
+        self.assertIsNotNone(client_recv_ctx)
+        self.assertIsInstance(client_recv_ctx, MessageContext)
+
+        self.assertIsInstance(client_recv_msg, Message)
+        self.assertEqual(ack_id, client_recv_msg.id)
+        self.assertEqual(server_send.id, client_recv_msg.id)
+        self.assertEqual(server_send.type, client_recv_msg.type)
+        self.assertIsInstance(client_recv_msg.message, str)
+        self.assertEqual(client_recv_msg.message, recv_txt)
+
+        # ---
+        # Server -> Client: ACK
+        # ---
+
+        # Client automatically sent an ACK_ID, need to check server for it.
+        server_recv = self._server.pipe.recv()
+
+        log.debug(f"server sent msg: {server_send}")
+        log.debug(f"server recv ack: {server_recv}")
+        # Make sure that the server received the correct thing.
+        self.assertIsNotNone(server_recv)
+        self.assertIsInstance(server_recv, tuple)
+        self.assertEqual(len(server_recv), 2)  # Make sure next line is sane...
+        server_recv_msg, server_recv_ctx = server_recv
+        # Make sure that the server received their ACK_ID.
+        self.assertIsNotNone(server_recv_msg)
+        self.assertIsInstance(server_recv_msg, Message)
+        self.assertIsNotNone(server_recv_ctx)
+        self.assertIsInstance(server_recv_ctx, MessageContext)
+        self.assertEqual(mid, server_recv_msg.id)
+        self.assertEqual(server_send.id, server_recv_msg.id)
+        self.assertEqual(server_recv_msg.type, MsgType.ACK_ID)
+        ack_id = mid.decode(server_recv_msg.message)
+        self.assertIsInstance(ack_id, type(mid))
+
+        # Make sure we don't have anything in the queues...
+        self.assertFalse(client.pipe.poll())
+        self.assertFalse(self._server.pipe.poll())
+
+    def test_text(self):
+        self.assert_test_ran(
+            self.runner_of_test(self.do_test_text, *self._clients))

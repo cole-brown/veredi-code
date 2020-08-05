@@ -72,7 +72,6 @@ class VebSocket:
                  path:     Optional[str]              = None,
                  port:     Optional[int]              = None,
                  secure:   Optional[Union[str, bool]] = True,
-                 close:    Optional[asyncio.Event]    = None,
                  debug_fn: Optional[Callable]         = None) -> None:
 
         self._codec:    BaseCodec          = codec
@@ -83,9 +82,6 @@ class VebSocket:
         self._uri:      Optional[str]      = None
         self._debug_fn: Optional[Callable] = debug_fn
 
-        # TODO: Delete this.
-        self._connection: websockets.connection = None
-
         self._socket: websockets.WebSocketClientProtocol = None
         self._close:      asyncio.Event = asyncio.Event()
 
@@ -94,13 +90,24 @@ class VebSocket:
                    f"secure: {str(type(secure))}({secure}), "
                    f"uri: {str(type(self.uri))}({self.uri})")
 
-        # TODO [2020-07-25]: Configure logger for websockets.
-        # See just above this anchor:
-        #   https://websockets.readthedocs.io/en/stable/api.html#websockets.server.unix_serve
+        # Configure logger for websockets.
+        self._init_websocket_logging()
 
     # -------------------------------------------------------------------------
     # Debug
     # -------------------------------------------------------------------------
+
+    def _init_websocket_logging(self):
+        '''
+        Initializes websockets lib's logger to be at same logging level as
+        veredi root logger.
+        '''
+        # See just above this anchor for how their docs say to do it:
+        #   https://websockets.readthedocs.io/en/stable/api.html#websockets.server.unix_serve
+        # But we'll do it like we do our logs.
+        level = log.Level.WARNING  # log.get_level()
+        log.init_logger('websockets.server',
+                        level=level)
 
     def debug(self,
               msg: str,
@@ -207,40 +214,10 @@ class VebSocket:
 
         # Shutdown has been signaled to us somehow, but we're just some minion
         # so we only need to put ourselves in order.
-        # if self._socket:
-        #     self._socket.close()
-        # if self._connection:
-        #     self._connection.???() = ???
-        #     self._connection. = ???
+        if self._socket:
+            await self._socket.close()
 
         self._close.set()
-
-    # -------------------------------------------------------------------------
-    # Asyncio 'with' Magic
-    # -------------------------------------------------------------------------
-
-    # async def __aenter__(self) -> 'VebSocket':
-    #     log.debug(f"socket.__aenter__.connect: {self.uri}")
-    #     self._connection = websockets.connect(self.uri)
-    #     log.debug(f"socket.__aenter__.__aenter__: {self.uri}")
-    #     self._socket = await self._connection.__aenter__()
-    #     log.debug(f"socket.__aenter__: Done.")
-    #     return self
-
-    # async def __aexit__(self, *args, **kwargs) -> None:
-    #     await self._connection.__aexit__(*args, **kwargs)
-
-    # # -------------------------------------------------------------------------
-    # # Basic Send/Recv Functions
-    # # -------------------------------------------------------------------------
-
-    # async def send(self, message) -> None:
-    #     # TODO [2020-07-22]: Convert thing to json str?
-    #     await self._socket.send(message)
-
-    # async def receive(self) -> Any:
-    #     # TODO [2020-07-22]: Convert thing from json str?
-    #     return await self._socket.recv()
 
     # -------------------------------------------------------------------------
     # Packet Building
@@ -268,36 +245,8 @@ class VebSocket:
         return msg
 
     # -------------------------------------------------------------------------
-    # Ping / Testing
+    # Messaging Functions
     # -------------------------------------------------------------------------
-
-    # async def ping(self, msg: Message, context: MediatorContext) -> float:
-    #     '''
-    #     Send out a ping, wait for pong (response) back. Returns the time it
-    #     took in fractional seconds.
-    #     '''
-    #     if msg.type != MsgType.PING:
-    #         error = ValueError("Requested ping of non-ping message.", msg)
-    #         raise log.exception(error,
-    #                             None,
-    #                             f"Requested ping of non-ping message: {msg}")
-    #     self.path = msg.path
-
-    #     timer = MonotonicTimer()  # Timer starts timing on creation.
-
-    #     # Run our actual ping.
-    #     log.debug('ping connecting...')
-    #     async with websockets.connect(self.uri) as conn:
-    #         log.debug('ping pinging...')
-    #         pong = await conn.ping()
-    #         log.debug('ping ponging...')
-    #         await pong
-    #         log.debug('ping ponged.')
-
-    #     # Return the ping time.
-    #     if log.will_output(log.Level.DEBUG):
-    #         log.debug('ping: {}', timer.elapsed_str)
-    #     return timer.elapsed
 
     async def ping(self, msg: Message, context: MediatorContext) -> float:
         '''
