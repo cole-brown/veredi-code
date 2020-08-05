@@ -63,9 +63,8 @@ class VebSocketClient(VebSocket):
                  path:       Optional[str]           = None,
                  port:       Optional[int]           = None,
                  secure:     Optional[bool]          = True,
-                 close:      Optional[asyncio.Event] = None,
                  debug_fn:   Optional[Callable]      = None) -> None:
-        super().__init__(codec, host, path, port, secure, close, debug_fn)
+        super().__init__(codec, host, path, port, secure, debug_fn)
         self.debug(f"created client socket: {self.uri}")
 
         self._make_context = context_fn
@@ -216,8 +215,13 @@ class VebSocketClient(VebSocket):
             self.debug("Producing messages...")
             while True:
                 message = await self._data_produce()
-                self.debug(f"client:  -->: send: {message}")
 
+                # Only send out to socket if actually produced anything.
+                if not message:
+                    self.debug("No result send; done.")
+                    return
+
+                self.debug(f"client:  -->: send: {message}")
                 send = self.encode(message, self._make_context())
                 self.debug(f"client:  -->: raw: {send}")
                 await websocket.send(send)
@@ -315,6 +319,7 @@ class WebSocketClient(MediatorClient):
             MsgType.ECHO:      (self._htx_echo, self._hrx_echo),
             MsgType.ECHO_ECHO: (self._htx_echo, self._hrx_echo),
             MsgType.TEXT:      (self._htx_text, self._hrx_text),
+            MsgType.ACK_ID:    (self._htx_ack,  self._hrx_ack),
         }
         '''
         "Handle Parallel" Paths (separate handlers for sending, receiving).
@@ -599,7 +604,6 @@ class WebSocketClient(MediatorClient):
                                  path=path,
                                  port=self._port,
                                  secure=self._ssl,
-                                 # TODO: close?
                                  debug_fn=self.debug)
         return socket
 
@@ -766,6 +770,34 @@ class WebSocketClient(MediatorClient):
         send = Message(msg.id, MsgType.ACK_ID, qid)
         self.debug(f"sending text ack: {send}")
         return send
+
+    async def _htx_ack(self,
+                       msg: Message) -> Message:
+        '''
+        Handle sending a message with an ACK_ID payload.
+        '''
+        log.warning("...Why is the TX handler for ACK involved?")
+        self.debug(f"sending ack {msg}...")
+        return msg
+
+    async def _hrx_ack(self,
+                       match: re.Match,
+                       path: str,
+                       msg: Message) -> Message:
+        '''
+        Handle receiving a message with an ACK_ID payload.
+        '''
+        # Receive from client; put into rx_queue.
+        #
+        # Game will get it eventually and deal with it. We may get a reply to
+        # send at some point but that's irrelevant here.
+        ctx = MessageContext(self.dotted, msg.message)
+        self.debug("received text msg; queuing: "
+                   f"msg: {msg}, ctx: {ctx}")
+        await self._rx_queue.put((msg, ctx))
+
+        # Don't ack the ack.
+        return None
 
     async def _htx_root(self,
                         match: re.Match,

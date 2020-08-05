@@ -53,6 +53,17 @@ class MsgType(Encodable, enum.Enum):
     Echo bounce-back.
     '''
 
+    # TODO [2020-08-05]: IMPLEMENT THIS ONE!!!
+    LOGGING = enum.auto()
+    '''
+    Instructions about logging:
+      - Game can message Mediator on its side asking it to adjust logging.
+      - Server game/mediator can ask client to:
+          - Adjust logging level.
+          - Connect to logging server.
+      - Client can obey or ignore as it sees fit.
+    '''
+
     # ------------------------------
     # Normal Runtime Messages
     # ------------------------------
@@ -66,9 +77,11 @@ class MsgType(Encodable, enum.Enum):
     TEXT = enum.auto()
     '''The payload is text.'''
 
+    # TODO [2020-08-05]: IMPLEMENT THIS ONE!!!
     ENCODED = enum.auto()
     '''The payload is already encoded somehow?'''
 
+    # TODO [2020-08-05]: IMPLEMENT THIS ONE!!!
     CODEC = enum.auto()
     '''
     Please encode(/decode) this using your codec

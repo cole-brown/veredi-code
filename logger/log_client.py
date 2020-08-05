@@ -44,3 +44,4 @@ def init(level: Union[log.Level, int] = log.DEFAULT_LEVEL) -> None:
     log.init(level=level,
              handler=socketHandler,
              formatter=None)
+    log.set_level(level)

@@ -86,17 +86,19 @@ class Mediator(ABC):
         # Make Multiprocessing & Asyncio Stuff.
         # ---
 
+        # TODO [2020-08-05]: Delete this exception handler stuff.
+
         # exceptions.add_exception_callback(???)
 
-        loop = asyncio.get_event_loop()
-        # May want to catch other signals too?
-        signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
-        for sig in signals:
-            loop.add_signal_handler(
-                sig,
-                lambda s=sig: self._shutdown)
+        # loop = asyncio.get_event_loop()
+        # # May want to catch other signals too?
+        # signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+        # for sig in signals:
+        #     loop.add_signal_handler(
+        #         sig,
+        #         lambda s=sig: self._shutdown)
 
-        loop.set_exception_handler(exceptions.async_handle_exception)
+        # loop.set_exception_handler(exceptions.async_handle_exception)
 
     # -------------------------------------------------------------------------
     # Debug

@@ -97,9 +97,9 @@ _unit_test_callback = Null()
 # Logger Code
 # -----------------------------------------------------------------------------
 
-def init(level: Union[Level, int] = DEFAULT_LEVEL,
-         handler: Optional[logging.Handler] = None,
-         formatter: Optional[logging.Formatter] = None) -> None:
+def init(level:       Union[Level, int]           = DEFAULT_LEVEL,
+         handler:     Optional[logging.Handler]   = None,
+         formatter:   Optional[logging.Formatter] = None) -> None:
     '''
     Initializes our root logger.
     '''
@@ -108,9 +108,19 @@ def init(level: Union[Level, int] = DEFAULT_LEVEL,
         return
 
     global logger
+    logger = init_logger(LOGGER_NAME)
 
+
+def init_logger(logger_name: str,
+                level:       Union[Level, int]           = DEFAULT_LEVEL,
+                handler:     Optional[logging.Handler]   = None,
+                formatter:   Optional[logging.Formatter] = None
+                ) -> logging.Logger:
+    '''
+    Initializes and returns a logger with the supplied name.
+    '''
     # Create our logger at our default output level.
-    logger = logging.getLogger(LOGGER_NAME)
+    logger = logging.getLogger(logger_name)
     logger.setLevel(Level.to_logging(level))
 
     if not handler:
@@ -133,7 +143,7 @@ def init(level: Union[Level, int] = DEFAULT_LEVEL,
 
     logger.addHandler(handler)
 
-    __initialized = True
+    return logger
 
 
 def get_logger(*names: str) -> logging.Logger:
