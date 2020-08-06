@@ -12,7 +12,7 @@ Veredi WebSocket interface.
 # ---
 # Type Hinting Imports
 # ---
-from typing import Optional, Union, Any, Callable
+from typing import Optional, Union, NewType, Any, Callable
 
 
 # ---
@@ -32,12 +32,18 @@ from veredi.data.codec.base import BaseCodec
 from veredi.time.timer      import MonotonicTimer
 
 from ..message               import Message, MsgType
-from ..context                   import MediatorContext
+from ..context               import MediatorContext, MessageContext
+from .exceptions             import WebSocketError
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+TxRxProcessor = NewType(
+    'TxRxProcessor',
+    Callable[[Message, Optional[MessageContext]], Optional[Message]]
+)
 
 
 # -----------------------------------------------------------------------------
@@ -66,24 +72,53 @@ class VebSocket:
 
     PATH_ROOT = '/'
 
+    SHORT_NAME = 'base'
+    ''' Should be 'client' or 'server', depending. '''
+
     def __init__(self,
-                 codec:    BaseCodec,
-                 host:     str,
-                 path:     Optional[str]              = None,
-                 port:     Optional[int]              = None,
-                 secure:   Optional[Union[str, bool]] = True,
-                 debug_fn: Optional[Callable]         = None) -> None:
+                 codec:          BaseCodec,
+                 med_context_fn: Callable[[], MediatorContext],
+                 msg_context_fn: Callable[[], MessageContext],
+                 host:           str,
+                 path:           Optional[str]              = None,
+                 port:           Optional[int]              = None,
+                 secure:         Optional[Union[str, bool]] = True,
+                 debug_fn:       Optional[Callable]         = None) -> None:
 
-        self._codec:    BaseCodec          = codec
-        self._host:     str                = host
-        self._path:     str                = path
-        self._port:     int                = port
-        self._secure:   Union[str, bool]   = secure
-        self._uri:      Optional[str]      = None
-        self._debug_fn: Optional[Callable] = debug_fn
+        # ---
+        # Required
+        # ---
+        self._codec:            BaseCodec                     = codec
+        self._med_make_context: Callable[[], MediatorContext] = med_context_fn
+        self._msg_make_context: Callable[[], MessageContext]  = msg_context_fn
+        self._host:             str                           = host
 
+        # ---
+        # Optional
+        # ---
+        self._path:             str                           = path
+        self._port:             int                           = port
+        self._secure:           Union[str, bool]              = secure
+        self._uri:              Optional[str]                 = None
+        self._debug_fn:         Optional[Callable]            = debug_fn
+
+        # ---
+        # Internal
+        # ---
         self._socket: websockets.WebSocketClientProtocol = None
         self._close:      asyncio.Event = asyncio.Event()
+
+        # For self.connect_parallel_txrx
+        self._data_consume: TxRxProcessor = None
+        '''
+        Data receiving/consuming callback for our parallel txrx websocket.
+        '''
+
+        # For self.connect_parallel_txrx
+        self._data_produce: TxRxProcessor = None
+        '''
+        Data sending/producing callback for our parallel txrx websocket.
+        '''
 
         self.debug(f"host: {str(type(self._host))}({self._host}), "
                    f"port: {str(type(self._port))}({self._port}), "
@@ -316,3 +351,119 @@ class VebSocket:
 
         reply = self.decode(recvd, context)
         return reply
+
+    # -------------------------------------------------------------------------
+    # Produce / Consume Coroutines
+    # -------------------------------------------------------------------------
+
+    def _ppc_done_handle(self,
+                         fut: asyncio.Future) -> None:
+        '''
+        Called when a producer/consumer Future is done. Will get result and
+        ignore unless it's an exception that makes it past the ignored filter.
+        '''
+        try:
+            # I don't currently care about the actual return, just if it raises
+            # an exception.
+            fut.result()
+
+        except (websockets.ConnectionClosedOK,
+                asyncio.CancelledError):
+            # The good kind of connection closed.
+            # The 'cancelled on purpose' kind of cancelled.
+            pass
+
+        except (websockets.ConnectionClosedError,
+                websockets.ConnectionClosed) as error:
+            # The error kind and the... parent class of Error and Ok, maybe?
+            # TODO [2020-08-01]: Get UserId for logging.
+            log.exception(error,
+                          WebSocketError,
+                          f"Connection for user 'TODO' closed due to: {error}")
+            # TODO [2020-08-01]: (re)raise this?
+
+        except asyncio.InvalidStateError as error:
+            # This shouldn't be raised, but I want to check for it anyways
+            # since this exception is what this function should be fixing.
+            #
+            # Was raised when a Future wasn't done but was asked for
+            # exception()/result().
+
+            # This trace might not work... Because Async.
+            import traceback
+            trace = traceback.format_exc()
+            log.exception(error,
+                          WebSocketError,
+                          "A Future had InvalidStateError as its exception?!"
+                          f"{error}\n{trace}")
+
+    async def _ppc_consume(self,
+                           websocket: websockets.WebSocketCommonProtocol,
+                           context:   MessageContext
+                           ) -> None:
+        '''
+        Receives a message from the websocket and sends it on to the
+        consume handler.
+
+        Blocking.
+        '''
+        self.debug(f"Consuming messages in context: {context}...")
+        async for raw in websocket:
+            self.debug(f"{self.SHORT_NAME}: <--  : "
+                       f" raw: {raw}")
+            recv = self.decode(raw, self._med_make_context())
+            self.debug(f"{self.SHORT_NAME}: <--  : "
+                       f"recv: {recv}")
+
+            # Actually process the data we're consuming.
+            immediate_reply = await self._data_consume(recv, self.path_rooted)
+
+            # And immediately reply if needed (i.e. ack).
+            if immediate_reply:
+                self.debug(f"{self.SHORT_NAME}:  -->: "
+                           f"reply-msg: {immediate_reply}")
+                send = self.encode(immediate_reply, self._med_make_context())
+                self.debug(f"{self.SHORT_NAME}:  -->: "
+                           f"reply-raw: {send}")
+                await websocket.send(send)
+
+    async def _ppc_produce(self,
+                           websocket: websockets.WebSocketCommonProtocol,
+                           context:   MessageContext
+                           ) -> None:
+        '''
+        Looks for a message from the producer handler (the server) to send to
+        this specific client.
+
+        Blocking.
+        '''
+        try:
+            # A ConnectionClosed exception of some type will knock us out of
+            # this eternal loop.
+            self.debug("Producing messages in context {context}...")
+            while True:
+                message = await self._data_produce()
+
+                # Only send out to socket if actually produced anything.
+                if not message:
+                    self.debug("No result send; done.")
+                    return
+
+                self.debug(f"{self.SHORT_NAME}:  -->: send: {message}")
+                send = self.encode(message, self._med_make_context())
+                self.debug(f"{self.SHORT_NAME}:  -->: raw: {send}")
+                await websocket.send(send)
+
+        except websockets.ConnectionClosedOK:
+            # The good kind of connection closed.
+            pass
+
+        except (websockets.ConnectionClosedError,
+                websockets.ConnectionClosed) as error:
+            # Bad kind, indifferent kind (base class maybe?).
+
+            # TODO [2020-08-01]: Get UserId for logging.
+            log.exception(error,
+                          WebSocketError,
+                          f"Connection on client 'TODO' closed due to: {error}")
+            # TODO [2020-08-01]: (re)raise this?

@@ -28,9 +28,10 @@ import asyncio
 from veredi.logger             import log
 from veredi.debug.const        import DebugFlag
 from veredi.data.config.config import Configuration
+from veredi.base.identity      import MonotonicId
 
 # from .                         import exceptions
-from .context                  import MediatorContext
+from .context                  import MediatorContext, MessageContext
 
 
 # -----------------------------------------------------------------------------
@@ -123,9 +124,16 @@ class Mediator(ABC):
     # -------------------------------------------------------------------------
 
     @abstractmethod
-    def make_context(self) -> MediatorContext:
+    def make_med_context(self) -> MediatorContext:
         '''
         Make a context with our context data, our codec's, etc.
+        '''
+        ...
+
+    @abstractmethod
+    def make_msg_context(self, id: MonotonicId) -> MessageContext:
+        '''
+        Make a context for a message.
         '''
         ...
 
