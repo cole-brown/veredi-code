@@ -17,7 +17,7 @@ converts it into JSON for sending.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any
+from typing import Any, Awaitable, Iterable
 
 from abc import ABC, abstractmethod
 import multiprocessing
@@ -78,29 +78,6 @@ class Mediator(ABC):
         noticed.
         '''
 
-        # ---
-        # Make Our Background Context
-        # ---
-        # TODO [2020-07-30]: Make the background context.
-
-        # ---
-        # Make Multiprocessing & Asyncio Stuff.
-        # ---
-
-        # TODO [2020-08-05]: Delete this exception handler stuff.
-
-        # exceptions.add_exception_callback(???)
-
-        # loop = asyncio.get_event_loop()
-        # # May want to catch other signals too?
-        # signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
-        # for sig in signals:
-        #     loop.add_signal_handler(
-        #         sig,
-        #         lambda s=sig: self._shutdown)
-
-        # loop.set_exception_handler(exceptions.async_handle_exception)
-
     # -------------------------------------------------------------------------
     # Debug
     # -------------------------------------------------------------------------
@@ -122,6 +99,21 @@ class Mediator(ABC):
     # -------------------------------------------------------------------------
     # Abstracts
     # -------------------------------------------------------------------------
+
+    @abstractmethod
+    def _init_background(self):
+        '''
+        Insert the mediator context data into the background.
+        '''
+        ...
+
+    @property
+    @abstractmethod
+    def _background(self):
+        '''
+        Get background data for init_background()/background.mediator.set().
+        '''
+        ...
 
     @abstractmethod
     def make_med_context(self) -> MediatorContext:
@@ -147,6 +139,14 @@ class Mediator(ABC):
     # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
+
+    async def _a_main(self, *aws: Awaitable) -> Iterable[Any]:
+        '''
+        Runs `aws` list of async tasks/futures concurrently, returns the
+        aggregate list of return values for those tasks/futures.
+        '''
+        ret_vals = await asyncio.gather(*aws)
+        return ret_vals
 
     async def _shutdown_watcher(self) -> None:
         '''

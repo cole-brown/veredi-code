@@ -13,7 +13,7 @@ Veredi module for allowing communication via WebSockets.
 # Type Hinting Imports
 # ---
 from typing import (Optional, Union, Any, NewType,
-                    Callable, Awaitable, Iterable, Dict, Set)
+                    Callable, Dict, Set)
 
 
 # ---
@@ -32,6 +32,7 @@ import re
 from veredi.logger               import log
 from veredi.debug.const          import DebugFlag
 from veredi.base.identity        import MonotonicId
+from veredi.data                 import background
 from veredi.data.config.config   import Configuration
 from veredi.data.codec.base      import BaseCodec
 from veredi.data.config.registry import register
@@ -356,6 +357,29 @@ class WebSocketServer(MediatorServer):
         The "I have a message; what do I do?" version.
         '''
 
+        self._init_background()
+
+    def _init_background(self):
+        '''
+        Insert the mediator context data into the background.
+        '''
+        bg_data, bg_owner = self._background
+        background.mediator.set(self.dotted,
+                                bg_data,
+                                bg_owner)
+
+    @property
+    def _background(self):
+        '''
+        Get background data for init_background()/background.mediator.set().
+        '''
+        self._bg = {
+            'dotted': self.dotted,
+            'type': 'websocket.server',
+            'codec': self._codec.dotted,
+        }
+        return self._bg, background.Ownership.SHARE
+
     # -------------------------------------------------------------------------
     # Debug
     # -------------------------------------------------------------------------
@@ -426,14 +450,6 @@ class WebSocketServer(MediatorServer):
     # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
-
-    async def _a_main(self, *aws: Awaitable) -> Iterable[Any]:
-        '''
-        Runs client async tasks/futures concurrently, returns the aggregate
-        list of return values for those tasks/futures.
-        '''
-        ret_vals = await asyncio.gather(*aws)
-        return ret_vals
 
     async def _shutdown_watcher(self) -> None:
         '''

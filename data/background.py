@@ -65,13 +65,30 @@ MutableMapping[enum, JeffObject].'''
 # Context Layout
 # -----------------------------------------------------------------------------
 
+# ------------------------------
 # All our stuff will be namespaced under this:
+# ------------------------------
+
 _ROOT = 'veredi'
 '''Veredi's background context will all be in here.'''
 
-# Top Level Keys:
+
+# ------------------------------
+# Set-Up Stuff
+# ------------------------------
+
 _REGISTRY = 'registry'
 '''Registration by Veredi's Registry will be placed under this key.'''
+
+_CONFIG = 'configuration'
+'''Configuration data will be placed under this key.'''
+
+
+# ------------------------------
+# Game Stuff
+# ------------------------------
+_GAME = 'game'
+'''Game and game systems' root key.'''
 
 _SYSTEM = 'system'
 '''
@@ -82,12 +99,20 @@ here.
 _SYS_VITALS = 'vitals'
 '''A list of dicts of info about a system's vital records: creation, etc...'''
 
-_CONFIG = 'configuration'
-'''Configuration data will be placed under this key.'''
-
 _DATA = 'data'
 '''Game data like character saves, system definitions, character definitions,
 etc.'''
+
+
+# ------------------------------
+# Interface Stuff (IO)
+# ------------------------------
+
+_INTERFACE = 'interface'
+'''Input, output, mediator, etc. root key.'''
+
+_OUTPUT = 'output'
+'''OutputSystem and other output stuff should be placed under this key.'''
 
 _INPUT = 'input'
 '''InputSystem and other input stuff should be placed under this key.'''
@@ -101,25 +126,43 @@ A list where info about command names registered to InputSystem's Commander
 should be placed when registered in Commander.
 '''
 
-_OUTPUT = 'output'
-'''OutputSystem and other output stuff should be placed under this key.'''
+_MEDIATOR = 'mediator'
+'''InputSystem and other input stuff should be placed under this key.'''
 
-_CONTEXT = None
+
+# ------------------------------
+# Testing Stuff
+# ------------------------------
+
+_TESTING = 'testing'
+'''Unit/integration/system tests can store things here.'''
+
+# ------------------------------
+# ==============================
+# The Background Context
+# ==============================
+# ------------------------------
 
 _CONTEXT_LAYOUT = {
     _ROOT: {
         _CONFIG: {},
         _REGISTRY: {},
-        _SYSTEM: {
-            _SYS_VITALS: [],
-        },
-        _DATA: {},
-        _INPUT: {
-            _COMMAND: {
-                _CMDS_EXISTING: [],
+        _GAME: {
+            _SYSTEM: {
+                _SYS_VITALS: [],
             },
+            _DATA: {},
         },
-        _OUTPUT: {},
+        _INTERFACE: {
+            _INPUT: {
+                _COMMAND: {
+                    _CMDS_EXISTING: [],
+                },
+            },
+            _OUTPUT: {},
+            _MEDIATOR: {},
+        },
+        _TESTING: {}
     },
 }
 '''
@@ -127,6 +170,8 @@ Unit tests don't get the background cleaned up automatically, so split out
 the context from its layout to help them reset as needed.
 '''
 
+_CONTEXT = None
+'''The actual background context.'''
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -215,140 +260,6 @@ class veredi:
             from copy import deepcopy
             _CONTEXT = deepcopy(_CONTEXT_LAYOUT)
         return _CONTEXT.get(_ROOT, Null())
-
-
-# -------------------------------------------------------------------------
-# Unit Testing
-# -------------------------------------------------------------------------
-
-class testing:
-    '''
-    Whatever's needed for unit/integration/functional tests.
-    '''
-
-    @classmethod
-    def nuke(klass: Type['testing']) -> None:
-        '''
-        Reset context for unit tests.
-        '''
-        global _CONTEXT
-        _CONTEXT = None
-
-
-# -------------------------------------------------------------------------
-# Registry Namespace
-# -------------------------------------------------------------------------
-
-class registry:
-
-    @classmethod
-    def get(klass: Type['registry']) -> Nullable[ContextMutableMap]:
-        '''
-        Get registry's sub-context from background context.
-        '''
-        global _REGISTRY
-        return veredi.get().get(_REGISTRY, Null())
-
-
-# -------------------------------------------------------------------------
-# System Namespace
-# -------------------------------------------------------------------------
-
-class SystemMeta(type):
-    '''
-    Metaclass shenanigans to make some read-only /class/ property.
-    '''
-    @property
-    def manager(klass: Type['system']) -> Nullable['Meeting']:
-        '''
-        Checks for the Meeting of Managers link in config's spot
-        in this context.
-        '''
-        return klass.meeting
-
-    @property
-    def meeting(klass: Type['system']) -> Nullable['Meeting']:
-        '''
-        Checks for the Meeting of Managers link in config's spot
-        in this context.
-        '''
-        ctx = klass._get()
-        retval = ctx.get(klass.Link.MEETING, Null())
-        return retval
-
-
-class system(metaclass=SystemMeta):
-
-    @enum.unique
-    class Link(enum.Enum):
-        MEETING = enum.auto()
-        '''The Meeting of Managers'''
-
-    # -------------------------------------------------------------------------
-    # Getters / Setters
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def _get(klass: Type['system']) -> Nullable[ContextMutableMap]:
-        '''
-        Get system's sub-context from background context.
-        '''
-        global _SYSTEM
-        return veredi.get().get(_SYSTEM, Null())
-
-    @classmethod
-    def set(klass:       Type['system'],
-            dotted_name: str,
-            data:        ContextMap,
-            ownership:   Ownership) -> None:
-        '''
-        Update a created system's entry with `data`.
-        '''
-        context = klass._get()
-        _set(context, dotted_name, data, ownership)
-
-    # -------------------------------------------------------------------------
-    # Vitals
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def life_cycle(klass: Type['system'],
-                   sys:   'System',
-                   cycle: 'SystemLifeCycle') -> None:
-        '''
-        Add a system's life-cycle state change to the records.
-        '''
-        subctx = klass._get()
-        vital_records = subctx.setdefault(_SYS_VITALS, [])
-        entry = {
-            'dotted': sys.dotted,
-            'time': klass.manager.time.machine.stamp_to_str(),
-            'cycle': cycle.name,
-        }
-        vital_records.append(entry)
-
-    # -------------------------------------------------------------------------
-    # Managers
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def set_meeting(klass: Type['system'],
-                    meeting: NullNoneOr['Meeting']) -> None:
-        '''
-        Sets our managers.
-        '''
-        ctx = klass._get()
-        ctx[klass.Link.MEETING] = meeting
-
-    # Provided by SystemMeta:
-    # @classmethod
-    # def manager(klass: Type['system']) -> Nullable['Meeting']:
-    #     '''
-    #     Checks for a CONFIG link in config's spot in this context.
-    #     '''
-    #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.MEETING, Null())
-    #     return retval
 
 
 # -------------------------------------------------------------------------
@@ -521,6 +432,137 @@ class config(metaclass=ConfigMeta):
         #     config_data[self.Link.KEYCHAIN] = keychain
 
 
+# -------------------------------------------------------------------------
+# Registry Namespace
+# -------------------------------------------------------------------------
+
+class registry:
+
+    @classmethod
+    def get(klass: Type['registry']) -> Nullable[ContextMutableMap]:
+        '''
+        Get registry's sub-context from background context.
+        '''
+        global _REGISTRY
+        return veredi.get().get(_REGISTRY, Null())
+
+
+# -------------------------------------------------------------------------
+# Game Namespace
+# -------------------------------------------------------------------------
+
+class game:
+
+    @classmethod
+    def get(klass: Type['game']) -> Nullable[ContextMutableMap]:
+        '''
+        Get game's sub-context from background context.
+        '''
+        global _GAME
+        return veredi.get().get(_GAME, Null())
+
+
+# -------------------------------------------------------------------------
+# System Namespace
+# -------------------------------------------------------------------------
+
+class SystemMeta(type):
+    '''
+    Metaclass shenanigans to make some read-only /class/ property.
+    '''
+    @property
+    def manager(klass: Type['system']) -> Nullable['Meeting']:
+        '''
+        Checks for the Meeting of Managers link in config's spot
+        in this context.
+        '''
+        return klass.meeting
+
+    @property
+    def meeting(klass: Type['system']) -> Nullable['Meeting']:
+        '''
+        Checks for the Meeting of Managers link in config's spot
+        in this context.
+        '''
+        ctx = klass._get()
+        retval = ctx.get(klass.Link.MEETING, Null())
+        return retval
+
+
+class system(metaclass=SystemMeta):
+
+    @enum.unique
+    class Link(enum.Enum):
+        MEETING = enum.auto()
+        '''The Meeting of Managers'''
+
+    # -------------------------------------------------------------------------
+    # Getters / Setters
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _get(klass: Type['system']) -> Nullable[ContextMutableMap]:
+        '''
+        Get system's sub-context from background context.
+        '''
+        global _SYSTEM
+        return game.get().get(_SYSTEM, Null())
+
+    @classmethod
+    def set(klass:       Type['system'],
+            dotted_name: str,
+            data:        ContextMap,
+            ownership:   Ownership) -> None:
+        '''
+        Update a created system's entry with `data`.
+        '''
+        context = klass._get()
+        _set(context, dotted_name, data, ownership)
+
+    # -------------------------------------------------------------------------
+    # Vitals
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def life_cycle(klass: Type['system'],
+                   sys:   'System',
+                   cycle: 'SystemLifeCycle') -> None:
+        '''
+        Add a system's life-cycle state change to the records.
+        '''
+        subctx = klass._get()
+        vital_records = subctx.setdefault(_SYS_VITALS, [])
+        entry = {
+            'dotted': sys.dotted,
+            'time': klass.manager.time.machine.stamp_to_str(),
+            'cycle': cycle.name,
+        }
+        vital_records.append(entry)
+
+    # -------------------------------------------------------------------------
+    # Managers
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def set_meeting(klass: Type['system'],
+                    meeting: NullNoneOr['Meeting']) -> None:
+        '''
+        Sets our managers.
+        '''
+        ctx = klass._get()
+        ctx[klass.Link.MEETING] = meeting
+
+    # Provided by SystemMeta:
+    # @classmethod
+    # def manager(klass: Type['system']) -> Nullable['Meeting']:
+    #     '''
+    #     Checks for a CONFIG link in config's spot in this context.
+    #     '''
+    #     ctx = klass._get()
+    #     retval = ctx.get(klass.Link.MEETING, Null())
+    #     return retval
+
+
 # -----------------------------------------------------------------------------
 # DATA!
 # -----------------------------------------------------------------------------
@@ -573,7 +615,7 @@ class data(metaclass=DataMeta):
         Get data's sub-context from background context.
         '''
         global _DATA
-        return veredi.get().get(_DATA, Null())
+        return game.get().get(_DATA, Null())
 
     @classmethod
     def set(klass: Type['data'],
@@ -622,6 +664,21 @@ class data(metaclass=DataMeta):
 
 
 # -------------------------------------------------------------------------
+# Interface Namespace
+# -------------------------------------------------------------------------
+
+class interface:
+
+    @classmethod
+    def get(klass: Type['interface']) -> Nullable[ContextMutableMap]:
+        '''
+        Get interface's sub-context from background context.
+        '''
+        global _INTERFACE
+        return veredi.get().get(_INTERFACE, Null())
+
+
+# -------------------------------------------------------------------------
 # Input Namespace
 # -------------------------------------------------------------------------
 
@@ -656,7 +713,7 @@ class input(metaclass=InputMeta):
         Get input's sub-context from background context.
         '''
         global _INPUT
-        return veredi.get().get(_INPUT, Null())
+        return interface.get().get(_INPUT, Null())
 
     @classmethod
     def set(klass:       Type['input'],
@@ -762,7 +819,7 @@ class output(metaclass=OutputMeta):
         Get output's sub-context from background context.
         '''
         global _OUTPUT
-        return veredi.get().get(_OUTPUT, Null())
+        return interface.get().get(_OUTPUT, Null())
 
     @classmethod
     def set(klass:       Type['output'],
@@ -789,6 +846,106 @@ class output(metaclass=OutputMeta):
     #     ctx = klass._get()
     #     retval = ctx.get(klass.Link.PARSERS, Null())
     #     return retval
+
+
+# -------------------------------------------------------------------------
+# Mediator Namespace
+# -------------------------------------------------------------------------
+
+class mediator:
+
+    # -------------------------------------------------------------------------
+    # Getters / Setters
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _get(klass: Type['mediator']) -> Nullable[ContextMutableMap]:
+        '''
+        Get mediator's sub-context from background context.
+        '''
+        global _MEDIATOR
+        return interface.get().get(_MEDIATOR, Null())
+
+    @classmethod
+    def set(klass:       Type['mediator'],
+            dotted_name: str,
+            data:        NullNoneOr[ContextMap],
+            ownership:   Ownership) -> None:
+        '''
+        Update mediator system's entry with `data`.
+        '''
+        ctx = klass._get()
+        # Set data provided.
+        _set(ctx, dotted_name, data, ownership)
+
+
+# -------------------------------------------------------------------------
+# Unit Testing
+# -------------------------------------------------------------------------
+
+class testing:
+    '''
+    Whatever's needed for unit/integration/functional tests.
+    '''
+
+    @classmethod
+    def _get(klass: Type['testing']) -> Nullable[ContextMutableMap]:
+        '''
+        Get testing's sub-context from background context.
+        '''
+        global _TESTING
+        return veredi.get().get(_TESTING, Null())
+
+    @classmethod
+    def set(klass: Type['testing'], key: str, value: str) -> None:
+        '''
+        Store a key/value pair into the testing background context.
+        '''
+        ctx = klass._get()
+        ctx[key] = value
+
+    @classmethod
+    def get(klass: Type['testing'], key: str) -> Nullable[str]:
+        '''
+        Get a key's value from the testing background context.
+        '''
+        ctx = klass._get()
+        return ctx.get(key, Null())
+
+    @classmethod
+    def pop(klass: Type['testing'], key: str) -> Optional[str]:
+        '''
+        Get a key's value from the testing background context.
+        '''
+        value = klass.get(key)
+        # Check if we have it. Otherwise have to try catch del's KeyError.
+        if value:
+            # Have it; remove from dict.
+            ctx = klass._get()
+            del ctx[key]
+
+        return value
+
+    @classmethod
+    def clear(klass: Type['testing']) -> None:
+        '''
+        Deletes all of testing's things, but leaves rest of background context
+        alone.
+        '''
+        try:
+            ctx = veredi.get()
+            del ctx['testing']
+            ctx[_TESTING] = {}
+        except KeyError:
+            pass
+
+    @classmethod
+    def nuke(klass: Type['testing']) -> None:
+        '''
+        Reset context for unit tests.
+        '''
+        global _CONTEXT
+        _CONTEXT = None
 
 
 # -------------------------------------------------------------------------

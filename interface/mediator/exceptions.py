@@ -31,42 +31,44 @@ class MediatorError(VerediError):
     ...
 
 
-# -----------------------------------------------------------------------------
-# Constants
-# -----------------------------------------------------------------------------
+# TODO [2020-08-06]: Delete this:
 
-_exception_callbacks = set()
+# # -----------------------------------------------------------------------------
+# # Constants
+# # -----------------------------------------------------------------------------
 
-
-# -----------------------------------------------------------------------------
-# Code
-# -----------------------------------------------------------------------------
-
-def add_exception_callback(func: Callable[[str, Optional[Exception]], bool]
-                           ) -> None:
-    '''
-    Add a callback of signature "callback_func(exception) -> bool".
-
-    This will be called if the `async_handle_exception()` function catches an
-    exception.
-    '''
-    _exception_callbacks.add(func)
+# _exception_callbacks = set()
 
 
-def async_handle_exception(loop, context):
-    '''
-    Global handler for asyncio exceptions.
-    '''
-    # context["message"] will always be there; but context["exception"] may not
-    error = context.get("exception", None)
-    msg = context["message"]
-    if not error:
-        log.error(f"Caught asyncio exception (with just message): {msg}")
-    else:
-        log.exception(error,
-                      None,
-                      "Caught asyncio exception: "
-                      f"error: {error}, msg: {msg}")
+# # -----------------------------------------------------------------------------
+# # Code
+# # -----------------------------------------------------------------------------
 
-    for callback in _exception_callbacks:
-        callback(msg, error)
+# def add_exception_callback(func: Callable[[str, Optional[Exception]], bool]
+#                            ) -> None:
+#     '''
+#     Add a callback of signature "callback_func(exception) -> bool".
+
+#     This will be called if the `async_handle_exception()` function catches an
+#     exception.
+#     '''
+#     _exception_callbacks.add(func)
+
+
+# def async_handle_exception(loop, context):
+#     '''
+#     Global handler for asyncio exceptions.
+#     '''
+#     # context["message"] will always be there; but context["exception"] may not
+#     error = context.get("exception", None)
+#     msg = context["message"]
+#     if not error:
+#         log.error(f"Caught asyncio exception (with just message): {msg}")
+#     else:
+#         log.exception(error,
+#                       None,
+#                       "Caught asyncio exception: "
+#                       f"error: {error}, msg: {msg}")
+
+#     for callback in _exception_callbacks:
+#         callback(msg, error)

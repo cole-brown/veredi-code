@@ -9,8 +9,6 @@ Interface for Different Mediation Implementations (e.g. WebSockets)
 # Imports
 # -----------------------------------------------------------------------------
 
-from abc import abstractmethod
-
 from .mediator import Mediator
 
 
@@ -29,10 +27,25 @@ class MediatorClient(Mediator):
     Implementations. e.g. WebSockets
     '''
 
-    @abstractmethod
-    def start(self) -> None:
-        '''
-        The client should start up whatever's needed to be able to send to and
-        receive from the game server.
-        '''
-        ...
+    ...
+
+    # # -----------------------------------------------------------------------
+    # # From Base Class:
+    # # -----------------------------------------------------------------------
+    # # (Probably. But see it for an up-to-date list.
+
+    # @abstractmethod
+    # def init_background(self):
+
+    # @abstractmethod
+    # @property
+    # def _background(self):
+
+    # @abstractmethod
+    # def make_med_context(self) -> MediatorContext:
+
+    # @abstractmethod
+    # def make_msg_context(self, id: MonotonicId) -> MessageContext:
+
+    # @abstractmethod
+    # def start(self) -> None:
