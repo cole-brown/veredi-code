@@ -100,12 +100,13 @@ def _sigalrm_end() -> None:
 
 def run_logs(proc_name     = None,
              log_level     = None,
-             shutdown_flag = None) -> None:
+             shutdown_flag = None,
+             ignore_logs   = None) -> None:
     '''
     Inits and runs logging server.
     '''
     _sigint_ignore()
-    server = log_server.init(shutdown_flag, log_level)
+    server = log_server.init(shutdown_flag, log_level, ignore_logs)
 
     lumberjack = log.get_logger(proc_name)
     lumberjack.setLevel(int(LOG_LEVEL))
@@ -927,3 +928,38 @@ class Test_WebSockets(unittest.TestCase):
     def test_text(self):
         self.assert_test_ran(
             self.runner_of_test(self.do_test_text, *self._clients))
+
+    # def do_test_echo(self, client):
+    #     mid = self._msg_id.next()
+    #     send_msg = f"Hello from {client.name}"
+    #     expected = send_msg
+    #     msg = Message(mid, MsgType.ECHO, send_msg)
+    #     ctx = self.msg_context(mid)
+    #     # self.debugging = True
+    #     with log.LoggingManager.on_or_off(self.debugging, True):
+    #         client.pipe.send((msg, ctx))
+    #         recv, ctx = client.pipe.recv()
+    #     # Make sure we got a message back and it has the same
+    #     # message as we sent.
+    #     self.assertTrue(recv)
+    #     self.assertTrue(ctx)
+    #     self.assertIsInstance(recv, Message)
+    #     self.assertTrue(ctx, MessageContext)
+    #     # IDs made it around intact.
+    #     self.assertEqual(msg.id, ctx.id)
+    #     self.assertEqual(mid, recv.id)
+    #     self.assertEqual(msg.id, recv.id)
+    #     # Sent echo, got echo-back.
+    #     self.assertEqual(msg.type, MsgType.ECHO)
+    #     self.assertEqual(recv.type, MsgType.ECHO_ECHO)
+    #     # Got what we sent.
+    #     self.assertIsInstance(recv.message, str)
+    #     self.assertEqual(recv.message, expected)
+
+    #     # Make sure we don't have anything in the queues...
+    #     self.assertFalse(client.pipe.poll())
+    #     self.assertFalse(self._server.pipe.poll())
+
+    # def test_echo(self):
+    #     self.assert_test_ran(
+    #         self.runner_of_test(self.do_test_echo, *self._clients))

@@ -17,7 +17,12 @@ converts it into JSON for sending.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Awaitable, Iterable
+from typing import (TYPE_CHECKING,
+                    Optional, Any, Awaitable, Iterable)
+if TYPE_CHECKING:
+    import re
+
+from veredi.base.null import Null
 
 from abc import ABC, abstractmethod
 import multiprocessing
@@ -32,6 +37,7 @@ from veredi.base.identity      import MonotonicId
 
 # from .                         import exceptions
 from .context                  import MediatorContext, MessageContext
+from .message                  import Message, MsgType
 
 
 # -----------------------------------------------------------------------------
@@ -78,6 +84,17 @@ class Mediator(ABC):
         noticed.
         '''
 
+        self._med_rx_queue = asyncio.Queue()
+        '''
+        Queue for received data from server intended for us, the mediator.
+        '''
+
+        self._rx_queue = asyncio.Queue()
+        '''Queue for received data from server to be passed to the game.'''
+
+        self._rx_qid = MonotonicId.generator()
+        '''ID for _rx_queue items.'''
+
     # -------------------------------------------------------------------------
     # Debug
     # -------------------------------------------------------------------------
@@ -95,6 +112,28 @@ class Mediator(ABC):
             log.debug(msg,
                       *args,
                       **kwargs)
+
+    def update_logging(self, msg: Message) -> None:
+        '''
+        Adjusts our logging.
+        '''
+        if (not msg
+                or msg.type != MsgType.LOGGING
+                or not isinstance(msg.message, dict)):
+            return
+
+        data = msg.message.get('logging', Null())
+
+        # Should we update our logging level?
+        update_level = data.get('level', Null())
+        if update_level:
+            update_level = log.Level(update_level)
+            log.set_level(update_level)
+            log.info(f"Updated {self.__class__.__name__}'s logging to: "
+                     f"{update_level}")
+
+        # We'll have others eventually. Like 'start up log_client and connect
+        # to this WebSocket or Whatever to send logs there now please'.
 
     # -------------------------------------------------------------------------
     # Abstracts
@@ -148,6 +187,10 @@ class Mediator(ABC):
         ret_vals = await asyncio.gather(*aws)
         return ret_vals
 
+    def _game_has_data(self) -> bool:
+        '''Returns True if queue from game has data to send to server.'''
+        return self._game.poll()
+
     async def _shutdown_watcher(self) -> None:
         '''
         Watches `self._shutdown_process`. Will call stop() on our asyncio loop
@@ -168,6 +211,34 @@ class Mediator(ABC):
         # Shutdown has been signaled to us somehow; make sure we signal to
         # other processes/awaitables.
         self._shutdown = True
+
+    async def _med_queue_watcher(self) -> None:
+        '''
+        Loop waiting on messages in our `_med_rx_queue` to change something
+        about our logging.
+        '''
+        while True:
+            # Die if requested.
+            if self._shutdown:
+                break
+
+            # Check for something in connection to send; don't block.
+            if self._med_rx_queue.empty():
+                await asyncio.sleep(0.1)
+                continue
+
+            # Else get one thing and send it off this round.
+            try:
+                msg = self._med_rx_queue.get_nowait()
+                if not msg:
+                    continue
+            except asyncio.QueueEmpty:
+                # get_nowait() got nothing. That's fine; go back to waiting.
+                continue
+
+            # Deal with this msg to us?
+            if msg.type == MsgType.LOGGING:
+                self.update_logging(msg)
 
     @property
     def _shutdown(self) -> bool:
@@ -197,3 +268,4 @@ class Mediator(ABC):
         # Can set; set both.
         self._shutdown_process.set()
         self._shutdown_asyncs.set()
+

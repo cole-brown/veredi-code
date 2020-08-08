@@ -12,7 +12,7 @@ logs from one game/server are well-formatted and in one place.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union
+from typing import Optional, Union
 
 import multiprocessing
 import pickle
@@ -96,7 +96,8 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
     def __init__(
             self,
-            shutdown_flag: multiprocessing.Event,
+            shutdown_flag:    multiprocessing.Event,
+            ignore_logs_flag: Optional[multiprocessing.Event] = None,
             host:    str = 'localhost',
             port:    int = logging.handlers.DEFAULT_TCP_LOGGING_PORT,
             handler: logging.Handler = LogRecordStreamHandler) -> None:
@@ -104,6 +105,19 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
         self.timeout = 1
         self.logname = None
         self.shutdown_flag = shutdown_flag
+        self.ignore_logs_flag = ignore_logs_flag
+
+    def verify_request(self, request, client_address):
+        '''
+        Verifies the request.
+
+        Return True if we should proceed with this request.
+        '''
+        # Black hole it if we're set to ignore.
+        if self.ignore_logs_flag and self.ignore_logs_flag.is_set():
+            return False
+
+        return super().verify_request(request, client_address)
 
     def serve_until_stopped(self) -> None:
         while not self.shutdown_flag.is_set():
@@ -120,8 +134,9 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 # --                           Main Logging Loop                             --
 # ----------------------------Log Til You're Dead.-----------------------------
 
-def init(shutdown_flag: multiprocessing.Event,
-         level: Union[log.Level, int] = log.DEFAULT_LEVEL) -> None:
+def init(shutdown_flag:    multiprocessing.Event,
+         level:            Union[log.Level, int] = log.DEFAULT_LEVEL,
+         ignore_logs_flag: Optional[multiprocessing.Event] = None) -> None:
     '''
     Prepare the logging server.
     Returns the logging server. Pass it back into run() to run it.
@@ -129,7 +144,8 @@ def init(shutdown_flag: multiprocessing.Event,
     log.init(level=level)
     log.set_level(level)
 
-    log_server = LogRecordSocketReceiver(shutdown_flag)
+    log_server = LogRecordSocketReceiver(shutdown_flag,
+                                         ignore_logs_flag=ignore_logs_flag)
     return log_server
 
 
