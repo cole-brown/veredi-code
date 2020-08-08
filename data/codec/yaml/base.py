@@ -118,7 +118,7 @@ class VerediYamlTag(VerediYamlObject):
 # YAML... Entry?
 # -----------------------------------------------------------------------------
 
-# §-TODO-§ [2020-05-21]: Decided which to keep if these three remain the
+# TODO [2020-05-21]: Decided which to keep if these three remain the
 # same: VerediYamlObject, VerediYamlTag, VerediYamlEntry
 class VerediYamlEntry(VerediYamlObject):
     # ---

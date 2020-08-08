@@ -311,47 +311,6 @@ class VebSocket:
         self.debug('ping: {}', timer.elapsed_str)
         return timer.elapsed
 
-    async def echo(self, msg: Message, context: MediatorContext) -> Message:
-        '''
-        Send msg as echo, returns reply.
-        '''
-        if msg.type != MsgType.ECHO:
-            error = ValueError("Requested echo of non-echo message.", msg)
-            raise log.exception(error,
-                                None,
-                                f"Requested echo of non-echo message: {msg}")
-        self.path = msg.path
-
-        data = self.encode(msg, context)
-        recvd = None
-        async with websockets.connect(self.uri) as conn:
-            await conn.send(data)
-            recvd = await conn.recv()
-
-        reply = self.decode(recvd, context)
-        return reply
-
-    async def text(self, msg: Message, context: MediatorContext) -> Message:
-        '''
-        Send msg as text, returns reply.
-        '''
-        if msg.type != MsgType.TEXT:
-            error = ValueError("Requested text send of non-text message.", msg)
-            raise log.exception(
-                error,
-                None,
-                f"Requested text send of non-text message: {msg}")
-        self.path = msg.path
-
-        data = self.encode(msg, context)
-        recvd = None
-        async with websockets.connect(self.uri) as conn:
-            await conn.send(data)
-            recvd = await conn.recv()
-
-        reply = self.decode(recvd, context)
-        return reply
-
     # -------------------------------------------------------------------------
     # Produce / Consume Coroutines
     # -------------------------------------------------------------------------
@@ -440,7 +399,7 @@ class VebSocket:
         try:
             # A ConnectionClosed exception of some type will knock us out of
             # this eternal loop.
-            self.debug("Producing messages in context {context}...")
+            self.debug(f"Producing messages in context {context}...")
             while True:
                 message = await self._data_produce()
 

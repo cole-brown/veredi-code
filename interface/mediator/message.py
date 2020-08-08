@@ -130,8 +130,20 @@ class Message(Encodable):
         self._message: Optional[Any] = message
 
     # ------------------------------
-    # Echo Helper
+    # Helpers
     # ------------------------------
+
+    @classmethod
+    def codec(klass:   'Message',
+              msg:     'Message',
+              payload: Union[Any, str]) -> 'Message':
+        '''
+        Create a 'codec' Message from this message by using `msg` for all
+        fields (except `self._message`, `self._type`), then `payload` for the
+        new Message instance's message (string if encoded, whatever if
+        decoded).
+        '''
+        return klass(msg.id, MsgType.CODEC, payload)
 
     @classmethod
     def echo(klass: 'Message',
@@ -184,6 +196,8 @@ class Message(Encodable):
         elif (self._type == MsgType.ENCODED
               or self._type == MsgType.CODEC):
             return 'encoded'
+        elif self._type == MsgType.LOGGING:
+            return 'logging'
 
         return None
 
