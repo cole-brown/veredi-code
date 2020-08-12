@@ -214,7 +214,7 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
         '''
         A short name for the class for abbreviated outputs (e.g. repr).
         '''
-        return 'id'
+        return self._ENCODE_FIELD_NAME
 
     def __str__(self) -> str:
         return f'{self.__class__.__name__}:{self._format_}'
@@ -391,18 +391,12 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         A short name for the class for abbreviated outputs (e.g. repr).
         '''
         # 'sid' is already used a lot as short-hand for SystemId...
-        return 'szid'
+        return self._ENCODE_FIELD_NAME
 
     def __str__(self) -> str:
         return f'{self.__class__.__name__}:{self._format_}'
 
     def __repr__(self) -> str:
-        return f'{self._short_name_}:{self._format_}'
-
-    def encode(self) -> str:
-        '''
-        String for storing, sending to users.
-        '''
         return f'{self._short_name_}:{self._format_}'
 
 

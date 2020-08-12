@@ -18,7 +18,7 @@ converts it into JSON for sending.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, Awaitable, Iterable)
+                    Optional, Any, Awaitable, Iterable, Tuple)
 if TYPE_CHECKING:
     import re
 
@@ -72,7 +72,7 @@ class Mediator(ABC):
         self._debug: DebugFlag = debug
         '''Extra debugging output granularity.'''
 
-        self._game: multiprocessing.connection.Connection = conn
+        self._game_pipe: multiprocessing.connection.Connection = conn
         '''Our IPC connection to the game process.'''
 
         self._shutdown_process: multiprocessing.Event = shutdown_flag
@@ -89,11 +89,14 @@ class Mediator(ABC):
         Queue for received data from server intended for us, the mediator.
         '''
 
-        self._rx_queue = asyncio.Queue()
-        '''Queue for received data from server to be passed to the game.'''
+        self._med_tx_queue = asyncio.Queue()
+        '''
+        Queue for injecting some send data from this mediator to the other end
+        of mediation.
+        '''
 
-        self._rx_qid = MonotonicId.generator()
-        '''ID for _rx_queue items.'''
+        self._med_to_game_queue = asyncio.Queue()
+        '''Queue for received data from server to be passed to the game.'''
 
     # -------------------------------------------------------------------------
     # Debug
@@ -122,15 +125,15 @@ class Mediator(ABC):
                 or not isinstance(msg.message, dict)):
             return
 
-        data = msg.message.get('logging', Null())
-
         # Should we update our logging level?
-        update_level = data.get('level', Null())
+        update_level = msg.logging()
         if update_level:
+            log.info(f"Updating {self.__class__.__name__}'s logging to "
+                     f"{update_level} by request: {msg}")
             update_level = log.Level(update_level)
             log.set_level(update_level)
-            log.info(f"Updated {self.__class__.__name__}'s logging to: "
-                     f"{update_level}")
+            log.info(f"Updated {self.__class__.__name__}'s logging to "
+                     f"{update_level} by request: {msg}")
 
         # We'll have others eventually. Like 'start up log_client and connect
         # to this WebSocket or Whatever to send logs there now please'.
@@ -176,6 +179,103 @@ class Mediator(ABC):
         ...
 
     # -------------------------------------------------------------------------
+    # Check / Send / Recv for Pipes & Queues.
+    # -------------------------------------------------------------------------
+
+    # ------------------------------
+    # Game -> Mediator Pipe
+    # ------------------------------
+
+    def _game_has_data(self) -> bool:
+        '''
+        No wait/block.
+        Returns True if queue from game has data to send to server.
+        '''
+        return self._game_pipe.poll()
+
+    async def _game_pipe_get(self) -> Tuple[Message, MessageContext]:
+        '''
+        Gets data from game pipe for sending. Waits/blocks until it receives
+        something.
+        '''
+        msg, ctx = self._game_pipe.recv()
+        self.debug(f"Got from game pipe for sending: msg: {msg}, ctx: {ctx}")
+        return msg, ctx
+
+    def _game_pipe_put(self, msg: Message, ctx: MessageContext) -> None:
+        '''Puts data into game pipe for game to receive.'''
+        self.debug("Received into game pipe for game to process: "
+                   f"msg: {msg}, ctx: {ctx}")
+        self._game_pipe.send((msg, ctx))
+        return msg, ctx
+
+    # ------------------------------
+    # Mediator-RX -> Mediator-to-Game Queue
+    # ------------------------------
+
+    def _med_to_game_has_data(self) -> bool:
+        '''Returns True if _med_to_game_queue has data to deal with.'''
+        return not self._med_to_game_queue.empty()
+
+    def _med_to_game_get(self) -> Tuple[Message, MessageContext]:
+        '''Gets (no wait) data from _med_to_game_queue pipe for processing.'''
+        msg, ctx = self._med_to_game_queue.get_nowait()
+        self.debug("Got from _med_to_game_queue for receiving: "
+                   f"msg: {msg}, ctx: {ctx}")
+        return msg, ctx
+
+    async def _med_to_game_put(self,
+                               msg: Message,
+                               ctx: MessageContext) -> None:
+        '''
+        Puts data into _med_to_game_put for us to... just receive again?...
+        '''
+        self.debug("Received into _med_to_game_put pipe to give to game: "
+                   f"msg: {msg}, ctx: {ctx}")
+        await self._med_to_game_queue.put((msg, ctx))
+
+    # ------------------------------
+    # Mediator -> Mediator Send Queue
+    # ------------------------------
+
+    def _med_tx_has_data(self) -> bool:
+        '''Returns True if _med_tx_queue has data to send to server.'''
+        return not self._med_tx_queue.empty()
+
+    def _med_tx_get(self) -> Tuple[Message, MessageContext]:
+        '''Gets (no wait) data from _med_tx_queue pipe for sending.'''
+        msg, ctx = self._med_tx_queue.get_nowait()
+        self.debug(f"Got from med_tx pipe for sending: msg: {msg}, ctx: {ctx}")
+        return msg, ctx
+
+    async def _med_tx_put(self, msg: Message, ctx: MessageContext) -> None:
+        '''Puts data into _med_tx_queue for us to send to other mediator.'''
+        self.debug("Received into med_tx pipe for med_tx to process: "
+                   f"msg: {msg}, ctx: {ctx}")
+        await self._med_tx_queue.put((msg, ctx))
+
+    # ------------------------------
+    # Mediator -> Mediator Receive Queue
+    # ------------------------------
+
+    def _med_rx_has_data(self) -> bool:
+        '''Returns True if _med_rx_queue has data to deal with.'''
+        return not self._med_rx_queue.empty()
+
+    def _med_rx_get(self) -> Tuple[Message, MessageContext]:
+        '''Gets (no wait) data from _med_rx_queue pipe for processing.'''
+        msg, ctx = self._med_rx_queue.get_nowait()
+        self.debug("Got from med_rx pipe for receiving: "
+                   f"msg: {msg}, ctx: {ctx}")
+        return msg, ctx
+
+    async def _med_rx_put(self, msg: Message, ctx: MessageContext) -> None:
+        '''Puts data into _med_rx_queue for us to... just receive again?...'''
+        self.debug("Received into med_rx pipe for med_rx to process: "
+                   f"msg: {msg}, ctx: {ctx}")
+        await self._med_rx_queue.put((msg, ctx))
+
+    # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
 
@@ -187,30 +287,20 @@ class Mediator(ABC):
         ret_vals = await asyncio.gather(*aws)
         return ret_vals
 
-    def _game_has_data(self) -> bool:
-        '''Returns True if queue from game has data to send to server.'''
-        return self._game.poll()
-
     async def _shutdown_watcher(self) -> None:
         '''
-        Watches `self._shutdown_process`. Will call stop() on our asyncio loop
-        when the shutdown flag is set.
+        Watches shutdown flags. Will call stop() on our asyncio loop
+        when a shutdown flag is set.
         '''
-        # # Wait forever on our shutdown flag...
-        # self._shutdown_process.wait(None)
-        # # ...and stop the asyncio loop when it gets set.
-        # self._aio.stop()
-        # # That will stop our listener and let us finish out of self._main().
-
         while True:
-            if self._shutdown:
+            if self.any_shutdown():
                 break
             # Await something so other async tasks can run? IDK.
             await asyncio.sleep(0.1)
 
         # Shutdown has been signaled to us somehow; make sure we signal to
         # other processes/awaitables.
-        self._shutdown = True
+        self.set_all_shutdown()
 
     async def _med_queue_watcher(self) -> None:
         '''
@@ -219,29 +309,24 @@ class Mediator(ABC):
         '''
         while True:
             # Die if requested.
-            if self._shutdown:
+            if self.any_shutdown():
                 break
 
             # Check for something in connection to send; don't block.
-            if self._med_rx_queue.empty():
+            if not self._med_rx_has_data():
                 await asyncio.sleep(0.1)
                 continue
 
-            # Else get one thing and send it off this round.
-            try:
-                msg = self._med_rx_queue.get_nowait()
-                if not msg:
-                    continue
-            except asyncio.QueueEmpty:
-                # get_nowait() got nothing. That's fine; go back to waiting.
+            # Else get one thing and process it.
+            msg, ctx = self._med_rx_get()
+            if not msg:
                 continue
 
             # Deal with this msg to us?
             if msg.type == MsgType.LOGGING:
                 self.update_logging(msg)
 
-    @property
-    def _shutdown(self) -> bool:
+    def any_shutdown(self) -> bool:
         '''
         Returns true if we should shutdown this process.
         '''
@@ -250,22 +335,10 @@ class Mediator(ABC):
             or self._shutdown_asyncs.is_set()
         )
 
-    @_shutdown.setter
-    def _shutdown(self, value: bool) -> None:
+    def set_all_shutdown(self) -> None:
         '''
         Sets all shutdown flags. Cannot unset.
         '''
-        # Can't unset, so error:
-        if not value:
-            flags = (self._shutdown_process.is_set(),
-                     self._shutdown_asyncs.is_set())
-            msg = "Can't unset shutdown flags. process: {}, asyncs: {}"
-            msg = msg.format(*flags)
-            raise log.exception(ValueError(msg, *flags),
-                                None,
-                                msg)
-
-        # Can set; set both.
         self._shutdown_process.set()
         self._shutdown_asyncs.set()
 

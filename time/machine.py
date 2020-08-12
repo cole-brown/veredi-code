@@ -20,7 +20,48 @@ import time as py_time
 
 
 # -----------------------------------------------------------------------------
-# Machine / OS Time
+# Bare Funcs?
+# -----------------------------------------------------------------------------
+
+
+def stamp() -> datetime:
+    '''
+    A datetime timestamp. Use stamp_to_str() if/when it will be serialized.
+    '''
+    return datetime.now(timezone.utc)
+
+
+def stamp_to_str(dt_stamp: Optional[datetime] = None) -> str:
+    '''
+    A datetime timestamp in a format we approve of for parsing. If no `stamp`
+    provided, will use `stamp` property.
+    '''
+    dt_stamp = dt_stamp or stamp
+    # Use the full percision to get a normalized string width.
+    return stamp.isoformat(timespec='microseconds')
+
+
+def utcnow() -> datetime:
+    '''Current UTC datetime.'''
+    return datetime.utcnow()
+
+
+def monotonic_ns() -> int:
+    '''Python.time.monotonic_ns() -> int'''
+    return py_time.monotonic_ns()
+
+
+def unique() -> str:
+    '''Ugly, but unique. Maybe hash it before serving...'''
+    # Ignore the fractional seconds in datetime because monotonic_ns should
+    # cover us...
+    return (utcnow().isoformat(timespec='seconds')
+            + '.'
+            + str(monotonic_ns()))
+
+
+# -----------------------------------------------------------------------------
+# Class?
 # -----------------------------------------------------------------------------
 
 class MachineTime:
