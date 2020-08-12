@@ -96,8 +96,9 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
     def __init__(
             self,
-            shutdown_flag:    multiprocessing.Event,
-            ignore_logs_flag: Optional[multiprocessing.Event] = None,
+            shutdown_flag:   multiprocessing.Event,
+            ignore_flag:     Optional[multiprocessing.Event] = None,
+            ignored_counter: Optional[multiprocessing.Value] = None,
             host:    str = 'localhost',
             port:    int = logging.handlers.DEFAULT_TCP_LOGGING_PORT,
             handler: logging.Handler = LogRecordStreamHandler) -> None:
@@ -105,7 +106,8 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
         self.timeout = 1
         self.logname = None
         self.shutdown_flag = shutdown_flag
-        self.ignore_logs_flag = ignore_logs_flag
+        self.ignore_flag = ignore_flag
+        self.ignored_counter = ignored_counter
 
     def verify_request(self, request, client_address):
         '''
@@ -114,7 +116,12 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
         Return True if we should proceed with this request.
         '''
         # Black hole it if we're set to ignore.
-        if self.ignore_logs_flag and self.ignore_logs_flag.is_set():
+        if self.ignore_flag and self.ignore_flag.is_set():
+            if self.ignored_counter:
+                # If we have a counter, increment it for this ignored log.
+                with self.ignored_counter.get_lock():
+                    self.ignored_counter.value += 1
+
             return False
 
         return super().verify_request(request, client_address)
@@ -134,9 +141,10 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 # --                           Main Logging Loop                             --
 # ----------------------------Log Til You're Dead.-----------------------------
 
-def init(shutdown_flag:    multiprocessing.Event,
-         level:            Union[log.Level, int] = log.DEFAULT_LEVEL,
-         ignore_logs_flag: Optional[multiprocessing.Event] = None) -> None:
+def init(shutdown_flag:   multiprocessing.Event,
+         level:           Union[log.Level, int]           = log.DEFAULT_LEVEL,
+         ignore_flag:     Optional[multiprocessing.Event] = None,
+         ignored_counter: Optional[multiprocessing.Array] = None) -> None:
     '''
     Prepare the logging server.
     Returns the logging server. Pass it back into run() to run it.
@@ -145,7 +153,8 @@ def init(shutdown_flag:    multiprocessing.Event,
     log.set_level(level)
 
     log_server = LogRecordSocketReceiver(shutdown_flag,
-                                         ignore_logs_flag=ignore_logs_flag)
+                                         ignore_flag=ignore_flag,
+                                         ignored_counter=ignored_counter)
     return log_server
 
 
@@ -162,6 +171,21 @@ def run(log_server:    LogRecordSocketReceiver,
         f'(utc: {time_utc})')
 
     log_server.serve_until_stopped()
+    log.get_logger(log_name).debug(
+        'Logging Server stopped. Closing...')
+    # This gets our sockets closed and quiets this message:
+    #   /usr/local/lib/python3.8/multiprocessing/process.py:108:
+    #   ResourceWarning: unclosed <socket.socket fd=10,
+    #     family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0,
+    #     laddr=('127.0.0.1', 9020)> self._target(*self._args, **self._kwargs)
+    #   ResourceWarning: Enable tracemalloc to get the object allocation
+    #     traceback
+    log_server.server_close()
+
+    # # Fake 'run log server' do-nothing loop waiting on shutdown_flag:
+    # # sleep on the shutdown flag, keep sleeping until it returns True
+    # while not log_server.shutdown_flag.wait(timeout=1):
+    #     pass
 
     log.get_logger(log_name).debug(
         'Ending Logging Server.')

@@ -11,23 +11,29 @@ Only really tests the websockets and Mediator.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Callable, Iterable
+from typing import Optional, Callable, Iterable, List
 
 import unittest
 
 import multiprocessing
 import multiprocessing.connection
+from ctypes import c_int
 import signal
 from collections import namedtuple
 import time
+import enum
 
 from veredi.zest                                import zmake, zpath
 from veredi.logger                              import (log,
                                                         log_server,
                                                         log_client)
 from veredi.debug.const                         import DebugFlag
-from veredi.base.identity                       import MonotonicId
+from veredi.base.identity                       import (MonotonicId,
+                                                        MonotonicIdGenerator)
+from veredi.base.enum                           import FlagCheckMixin
 from veredi.time.timer                          import MonotonicTimer
+from veredi.data.identity                       import (UserId,
+                                                        UserIdGenerator)
 
 
 # ---
@@ -58,14 +64,111 @@ Main process will give the game/mediator this long to gracefully shutdown.
 If they take longer, it will just terminate them.
 '''
 
-LOG_LEVEL = log.Level.INFO
+LOG_LEVEL = log.Level.DEBUG  # BACK TO INFO!!!
 '''Test should set this to desired during setUp()'''
-
-TestProc = namedtuple('TestProc', ['name', 'process', 'pipe'])
 
 StopRetVal = namedtuple('StopRetVal',
                         ['mediator_grace', 'log_grace',
                          'mediator_terminate', 'log_terminate'])
+
+
+@enum.unique
+class ProcTest(FlagCheckMixin, enum.Flag):
+    NONE = 0
+    '''No process testing flag.'''
+
+    DNE = enum.auto()
+    '''
+    Do not start/end/etc this process.
+    Make it not exist as much as possible.
+    '''
+
+
+class TestProc:
+    '''
+    Tuple, basically. Holds on to a collection of stuff about our test
+    processes.
+    '''
+
+    def __init__(self,
+                 name:       str                                   = None,
+                 process:    multiprocessing.Process               = None,
+                 pipe:       multiprocessing.connection.Connection = None,
+                 shutdown:   multiprocessing.Event                 = None,
+                 proc_debug: ProcTest                              = None
+                 ) -> None:
+        self.name = name
+        self.process = process
+        self.pipe = pipe
+        self.shutdown = shutdown
+        self.debug = proc_debug
+
+
+class TestLog(TestProc):
+    '''
+    Tuple, basically. Holds on to a collection of stuff about our logging
+    server test processes.
+    '''
+
+    def __init__(self,
+                 name:            str                                   = None,
+                 process:         multiprocessing.Process               = None,
+                 pipe:            multiprocessing.connection.Connection = None,
+                 shutdown:        multiprocessing.Event                 = None,
+                 ignore_logs:     multiprocessing.Event                 = None,
+                 ignored_counter: multiprocessing.Value                 = None,
+                 proc_debug:      ProcTest                              = None
+                 ) -> None:
+        self.name = name
+        self.process = process
+        self.pipe = pipe
+        self.shutdown = shutdown
+        self.ignore_logs = ignore_logs
+        self.ignored_counter = ignored_counter
+        self.debug = proc_debug
+
+
+class Processes:
+    '''
+    Named tuple, basically, for the client/server/log_server processes TestProc
+    objects.
+    '''
+
+    def __init__(self):
+        self.clients: List[TestProc] = []
+        '''List of WebSocket Mediator Client TestProcs.'''
+
+        self.server: TestProc = None
+        '''A WebSocket Mediator Server TestProc.'''
+
+        self.log: TestLog = None
+        '''A Log Server TestLog.'''
+
+    # Just access directly... it's a test.
+
+    # @property
+    # def clients(self):
+    #     return self.clients
+
+    # @clients.setter
+    # def clients(self, value):
+    #     self.clients = value
+
+    # @property
+    # def server(self):
+    #     return self.server
+
+    # @server.setter
+    # def server(self, value):
+    #     self.server = value
+
+    # @property
+    # def log(self):
+    #     return self.log
+
+    # @log.setter
+    # def log(self, value):
+    #     self.log = value
 
 
 # -----------------------------------------------------------------------------
@@ -98,23 +201,52 @@ def _sigalrm_end() -> None:
 # Multiprocessing Runners
 # -----------------------------------------------------------------------------
 
-def run_logs(proc_name     = None,
-             log_level     = None,
-             shutdown_flag = None,
-             ignore_logs   = None) -> None:
+def run_logs(proc_name            = None,
+             log_level            = None,
+             shutdown_flag        = None,
+             ignore_logs_flag     = None,
+             ignored_logs_counter = None,
+             debug_flag           = None,
+             proc_test            = None) -> None:
     '''
     Inits and runs logging server.
     '''
-    _sigint_ignore()
-    server = log_server.init(shutdown_flag, log_level, ignore_logs)
 
     lumberjack = log.get_logger(proc_name)
     lumberjack.setLevel(int(LOG_LEVEL))
+
+    # lumberjack.debug("'running' log_server...")
+    # # sleep on the shutdown flag, keep sleeping until it returns True
+    # while not shutdown_flag.wait(timeout=1):
+    #     lumberjack.debug("log_server is alive.")
+    #     pass
+    # lumberjack.debug("log_server is done?")
+    # return
+
+    # TODO [2020-08-10]: Logging init should take care of level... Try to
+    # get rid of this setLevel().
+    lumberjack = log.get_logger(proc_name)
+    lumberjack.setLevel(int(LOG_LEVEL))
+    if proc_test.has(ProcTest.DNE):
+        # Log Server 'Does Not Exist' right now.
+        lumberjack.critical(f"BAD: log server start: '{proc_name}' "
+                            f"has {proc_test}. Should not have gotten "
+                            "into this function.")
+        return
+
+    # TODO [2020-08-10]: Use debug_flag in log_server?
+    _sigint_ignore()
+    server = log_server.init(shutdown_flag,
+                             level=log_level,
+                             ignore_flag=ignore_logs_flag,
+                             ignored_counter=ignored_logs_counter)
+
     lumberjack.debug(f"Starting log_server '{proc_name}'...")
 
     # log_server.run() should never return (until shutdown signaled) - it just
     # listens on the socket connection for logs to process forever.
     log_server.run(server, proc_name)
+    lumberjack.debug(f"log_server '{proc_name}' done.")
 
 
 def run_server(proc_name     = None,
@@ -122,15 +254,25 @@ def run_server(proc_name     = None,
                config        = None,
                log_level     = None,
                shutdown_flag = None,
-               debug_flag    = None) -> None:
+               debug_flag    = None,
+               proc_test     = None) -> None:
     '''
     Init and run client/engine IO mediator.
     '''
+    # TODO [2020-08-10]: Logging init should take care of level... Try to
+    # get rid of this setLevel().
+    lumberjack = log.get_logger(proc_name)
+    lumberjack.setLevel(int(LOG_LEVEL))
+    if proc_test.has(ProcTest.DNE):
+        # Mediator Server 'Does Not Exist' right now.
+        lumberjack.critical(f"BAD: mediator server start: '{proc_name}' "
+                            f"has {proc_test}. Should not have gotten "
+                            "into this function.")
+        return
+
     _sigint_ignore()
     log_client.init(log_level)
 
-    lumberjack = log.get_logger(proc_name)
-    lumberjack.setLevel(int(LOG_LEVEL))
     if not conn:
         raise log.exception(
             "Mediator requires a pipe connection; received None.",
@@ -152,6 +294,8 @@ def run_server(proc_name     = None,
     mediator = WebSocketServer(config, conn, shutdown_flag,
                                debug=debug_flag)
     mediator.start()
+    log_client.close()
+    lumberjack.debug(f"mediator server '{proc_name}' done.")
 
 
 def run_client(proc_name     = None,
@@ -159,15 +303,26 @@ def run_client(proc_name     = None,
                config        = None,
                log_level     = None,
                shutdown_flag = None,
-               debug_flag    = None) -> None:
+               debug_flag    = None,
+               proc_test     = None,
+               user_key      = None) -> None:
     '''
     Init and run client/engine IO mediator.
     '''
+    # TODO [2020-08-10]: Logging init should take care of level... Try to
+    # get rid of this setLevel().
+    lumberjack = log.get_logger(proc_name)
+    lumberjack.setLevel(int(LOG_LEVEL))
+    if proc_test.has(ProcTest.DNE):
+        # Mediator Server 'Does Not Exist' right now.
+        lumberjack.critical(f"BAD: mediator client start: '{proc_name}' "
+                            f"has {proc_test}. Should not have gotten "
+                            "into this function.")
+        return
+
     _sigint_ignore()
     log_client.init(log_level)
 
-    lumberjack = log.get_logger(proc_name)
-    lumberjack.setLevel(int(LOG_LEVEL))
     if not conn:
         raise log.exception(
             "Mediator requires a pipe connection; received None.",
@@ -187,8 +342,11 @@ def run_client(proc_name     = None,
 
     lumberjack.debug(f"Starting WebSocketClient '{proc_name}'...")
     mediator = WebSocketClient(config, conn, shutdown_flag,
+                               user_key=user_key,
                                debug=debug_flag)
     mediator.start()
+    log_client.close()
+    lumberjack.debug(f"mediator client '{proc_name}' done.")
 
 
 # -----------------------------------------------------------------------------
@@ -215,27 +373,22 @@ class Test_WebSockets(unittest.TestCase):
         self.debug_flag = DebugFlag.MEDIATOR_ALL
         self.debugging = False
 
-        self._shutdown = multiprocessing.Event()
-        self._shutdown_log = multiprocessing.Event()
-
-        self._msg_id = MonotonicId.generator()
+        self._msg_id: MonotonicIdGenerator = MonotonicId.generator()
         '''ID generator for creating Mediator messages.'''
 
-        self._log_server: TestProc = None
-        '''Our Logging Server process.'''
+        self._user_key: UserIdGenerator = UserId.generator()
+        '''For these, just make up user ids.'''
 
-        self._server: TestProc = None
-        '''Our WebSocket Server process and pipe.'''
-
-        self._clients: Iterable[TestProc] = []
-        '''Our WebSocket Client processes and pipes in an indexable list.'''
+        self.proc: Processes = Processes()
+        '''Our test processes.'''
 
         config = zmake.config(zpath.TestType.INTEGRATION,
                               'config.websocket.yaml')
 
-        self._set_up_log(config)
-        self._set_up_server(config)
-        self._set_up_clients(config)
+        default = ProcTest.NONE
+        self._set_up_log(config, default)
+        self._set_up_server(config, default)  # ProcTest.DNE)
+        self._set_up_clients(config, default)  # ProcTest.DNE)
 
     def tearDown(self):
         self._stop_mediators()
@@ -246,45 +399,88 @@ class Test_WebSockets(unittest.TestCase):
         self._tear_down_log()
 
         self.debug_flag = None
-        self._shutdown = None
-        self._shutdown_log = None
+        self.debugging = False
         self._msg_id = None
+        self._user_key = None
+        self.proc = None
 
     # ---
     # Log Set-Up / Tear-Down
     # ---
 
-    def _set_up_log(self, config):
+    def _set_up_log(self, config, proc_test):
+        if proc_test.has(ProcTest.DNE):
+            # Log Server 'Does Not Exist' right now.
+            log.critical(f"Log server set up has {ProcTest.DNE}. "
+                         f"Skipping creation/set-up.")
+            return
+
+        log.debug(f"Set up log server... {proc_test}")
+        # Stuff that both log process and we need.
         name = self.NAME_LOG
-        self._log_server = TestProc(
-            name,
-            multiprocessing.Process(
+        ignore_logs = multiprocessing.Event()
+        shutdown = multiprocessing.Event()
+        ignored_logs_counter = multiprocessing.Value(c_int, 0)
+
+        # Create our log server Process.
+        log_server = TestLog(
+            name=name,
+            process=multiprocessing.Process(
                 target=run_logs,
                 name=name,
                 kwargs={
                     'proc_name':     name,
                     'log_level':     LOG_LEVEL,
-                    'shutdown_flag': self._shutdown_log,
+                    'shutdown_flag': shutdown,
+                    'ignore_logs_flag': ignore_logs,
+                    'ignored_logs_counter': ignored_logs_counter,
+                    'debug_flag': self.debug_flag,
+                    'proc_test': proc_test,
                 }),
-            None)
+            pipe=None,
+            shutdown=shutdown,
+            ignore_logs=ignore_logs,
+            ignored_counter=ignored_logs_counter,
+            proc_debug=proc_test)
+
+        # Assign!
+        self.proc.log = log_server
 
     def _tear_down_log(self):
+        if not self.proc.log:
+            # Log Server 'Does Not Exist' right now.
+            log.critical("No log server exists. Skipping tear-down.")
+            return
+
+        log.debug("Tear down log server...")
+
         # Ask log server to stop if we haven't already...
-        if not self._shutdown_log.is_set():
+        if not self.proc.log.shutdown.is_set():
             self._stop_logs()
 
-        self._log_server = None
+        self.proc.log = None
 
     # ---
     # Server Set-Up / Tear-Down
     # ---
 
-    def _set_up_server(self, config):
+    def _set_up_server(self, config, proc_test):
+        if proc_test.has(ProcTest.DNE):
+            # Mediator Server 'Does Not Exist' right now.
+            log.critical(f"Mediator server set up has {ProcTest.DNE}. "
+                         f"Skipping creation/set-up.")
+            return
+
+        log.debug(f"Set up mediator server... {proc_test}")
+        # Stuff server and us both need.
         name = self.NAME_SERVER
         mediator_conn, test_conn = multiprocessing.Pipe()
-        self._server = TestProc(
-            name,
-            multiprocessing.Process(
+        shutdown = multiprocessing.Event()
+
+        # Create server process.
+        server = TestProc(
+            name=name,
+            process=multiprocessing.Process(
                 target=run_server,
                 name=name,
                 kwargs={
@@ -292,49 +488,93 @@ class Test_WebSockets(unittest.TestCase):
                     'conn':          mediator_conn,
                     'config':        config,
                     'log_level':     LOG_LEVEL,
-                    'shutdown_flag': self._shutdown,
+                    'shutdown_flag': shutdown,
                     'debug_flag':    self.debug_flag,
+                    'proc_test': proc_test,
                 }),
-            test_conn)
+            pipe=test_conn,
+            shutdown=shutdown,
+            proc_debug=proc_test)
+
+        # Assign!
+        self.proc.server = server
 
     def _tear_down_server(self):
+        if not self.proc.server:
+            # Mediator Server 'Does Not Exist' right now.
+            log.critical("No mediator server exists. Skipping tear-down.")
+            return
+
+        log.debug("Tear down mediator server...")
         # Ask all mediators to stop if we haven't already...
-        if not self._shutdown.is_set():
+        if not self.proc.server.shutdown.is_set():
             self._stop_mediators()
 
-        self._server = None
+        self.proc.server = None
 
     # ---
     # Clients Set-Up / Tear-Down
     # ---
 
-    def _set_up_clients(self, config):
-        self._clients = []
+    def _set_up_clients(self, config, proc_test):
+        if proc_test.has(ProcTest.DNE):
+            # Mediator Clients 'Do Not Exist' right now.
+            log.critical(f"Mediator client(s) set up has {ProcTest.DNE}. "
+                         f"Skipping creation/set-up.")
+            return
+
+        log.debug(f"Set up mediator client(s)... {proc_test}")
+        # Shared with all clients.
+        shutdown = multiprocessing.Event()
+
+        # Init the clients to an empty list.
+        self.proc.clients = []
+        # And make as many as we want...
         for i in range(self.NUM_CLIENTS):
+            # Stuff clients and us both need.
             mediator_conn, test_conn = multiprocessing.Pipe()
             name = self.NAME_CLIENT_FMT.format(i=i)
-            self._clients.append(
-                TestProc(
-                    name,
-                    multiprocessing.Process(
-                        target=run_client,
-                        name=name,
-                        kwargs={
-                            'proc_name':     name,
-                            'conn':          mediator_conn,
-                            'config':        config,
-                            'log_level':     LOG_LEVEL,
-                            'shutdown_flag': self._shutdown,
-                            'debug_flag':    self.debug_flag,
-                        }),
-                    test_conn))
+            user_key = self._user_key.next(name)
+
+            # Create this client.
+            client = TestProc(
+                name=name,
+                process=multiprocessing.Process(
+                    target=run_client,
+                    name=name,
+                    kwargs={
+                        'proc_name':     name,
+                        'conn':          mediator_conn,
+                        'config':        config,
+                        'log_level':     LOG_LEVEL,
+                        'shutdown_flag': shutdown,
+                        'debug_flag':    self.debug_flag,
+                        'proc_test':     proc_test,
+                        'user_key':      user_key,
+                    }),
+                pipe=test_conn,
+                shutdown=shutdown,
+                proc_debug=proc_test)
+
+            # Append to the list of clients!
+            self.proc.clients.append(client)
 
     def _tear_down_clients(self):
-        # Ask all mediators to stop if we haven't already...
-        if not self._shutdown.is_set():
-            self._stop_mediators()
+        if not self.proc.clients:
+            # Mediator Clients 'Do Not Exist' right now.
+            log.critical("No mediator client(s) exist. Skipping tear-down.")
+            return
 
-        self._clients = None
+        log.debug("Tear down mediator client(s)...")
+        # Ask all mediators to stop if we haven't already... Checking each
+        # client even though clients all share a shutdown event currently, just
+        # in case that changes later.
+        for each in self.proc.clients:
+            if not each.shutdown.is_set():
+                self._stop_mediators()
+                break
+
+        self.proc.clients = None
 
     # -------------------------------------------------------------------------
     # Test Helpers
@@ -355,6 +595,10 @@ class Test_WebSockets(unittest.TestCase):
             msg_id)
         return ctx
 
+    # -------------------------------------------------------------------------
+    # Once "Per-Test" Helpers
+    # -------------------------------------------------------------------------
+
     def per_test_timeout(self, sig_triggered, frame):
         '''
         Stop our processes and fail test due to timeout.
@@ -368,10 +612,16 @@ class Test_WebSockets(unittest.TestCase):
         # Let it all run and wait for the game to end...
         _sigalrm_start(self.PER_TEST_TIMEOUT, self.per_test_timeout)
 
-        self._log_server.process.start()
-        self._server.process.start()
-        for client in self._clients:
+        self.proc.log.process.start()
+        self.proc.server.process.start()
+        for client in self.proc.clients:
             client.process.start()
+
+        # Can't figure out how to get this to not make log_server unable to die
+        # gracefully...
+        # # Hook this test itself into the log server.
+        # log_client.init(LOG_LEVEL)
+        # log.set_level(LOG_LEVEL)
 
         # Wait for clients, server to settle out.
         self.wait(1)
@@ -407,14 +657,18 @@ class Test_WebSockets(unittest.TestCase):
             else:
                 # No extra args; just run body arg-less.
                 body()
+
         except KeyboardInterrupt as err:
             sig_int = True
             error = err
+
         except AssertionError as err:
             # Reraise these - should be unittest assertions.
             raise err
+
         except Exception as err:
             error = err
+
         finally:
             _sigalrm_end()
             self.per_test_tear_down()
@@ -441,6 +695,7 @@ class Test_WebSockets(unittest.TestCase):
             self.assertFalse(error,
                              msg="Exception raised at some point during test.")
 
+    # TODO [2020-08-10]: move this to a better section?
     def wait(self,
              wait_timeout,
              loop_timeout=WAIT_SLEEP_TIME_SEC) -> None:
@@ -471,12 +726,36 @@ class Test_WebSockets(unittest.TestCase):
 
         timer = MonotonicTimer()  # Timer starts timing on creation.
         try:
-            # check shutdown flag...
-            running = not self._shutdown.wait(timeout=WAIT_SLEEP_TIME_SEC)
+            # Check shutdown flag... Prefer checking server, fall back to first
+            # client, fall back to log server.
+            shutdown_flag = None
+            if self.proc.server:
+                shutdown_flag = self.proc.server.shutdown
+            elif self.proc.clients and len(self.proc.clients) > 0:
+                for client in self.proc.clients:
+                    if client.shutdown:
+                        shutdown_flag = client.shutdown
+                        break
+            elif self.proc.log:
+                shutdown_flag = self.proc.log.shutdown
+            else:
+                log.critical("Nothing is running so... "
+                             "no shutdown flag to check?!")
+
+            running = not shutdown_flag.wait(timeout=WAIT_SLEEP_TIME_SEC)
+            # if log.will_output(log.Level.DEBUG):
+            #     time_ok = not timer.timed_out(wait_timeout)
+            #     log.debug(f"{self.__class__.__name__}: waited "
+            #               f"{timer.elapsed_str}; wait more? "
+            #               f"({running} and {time_ok} "
+            #               f"== {running and time_ok}")
             while running and not timer.timed_out(wait_timeout):
+                # log.debug(f"{self.__class__.__name__}: waited "
+                #           f"{timer.elapsed_str}; wait more.")
+
                 # Do nothing and take naps forever until SIGINT received or
                 # game finished.
-                running = not self._shutdown.wait(timeout=WAIT_SLEEP_TIME_SEC)
+                running = not shutdown_flag.wait(timeout=WAIT_SLEEP_TIME_SEC)
 
         except KeyboardInterrupt:
             # First, ask for a gentle, graceful shutdown...
@@ -484,7 +763,10 @@ class Test_WebSockets(unittest.TestCase):
                       veredi_logger=lumberjack)
 
         else:
-            log.debug("wait finished normally.")
+            log.debug("Wait finished normally.")
+
+    # TODO [2020-08-10]: Move all these functions to a
+    # stop/tear-down/clean-up section?
 
     def stop(self):
         # Finally, stop the processes.
@@ -534,25 +816,32 @@ class Test_WebSockets(unittest.TestCase):
 
         Returns StopRetVal (named 4-tuple of bools) on how it did.
         '''
+        # # Close this test's connection to log server.
+        # log_client.close()
+
         mediators_ok = self._stop_mediators()
         log_ok = self._stop_logs()
+        log.debug(f"Mediators stopped gracefully? {mediators_ok}")
+        log.debug(f"Logs stopped gracefully? {log_ok}")
 
         # Give up and ask for the terminator... If necessary.
         mediator_terminator = False
         log_terminator = False
-        if self._server.process.exitcode is None:
+        if self.proc.server and self.proc.server.process.exitcode is None:
             # Still not exited; terminate it.
-            self._server.process.terminate()
+            self.proc.server.process.terminate()
             mediator_terminator = True
-        for client in self._clients:
+        for client in self.proc.clients:
             if client.process.exitcode is None:
                 # Still not exited; terminate it.
                 client.process.terminate()
                 mediator_terminator = True
-        if self._log_server.process.exitcode is None:
+        if self.proc.log and self.proc.log.process.exitcode is None:
             # Still not exited; terminate it.
-            self._log_server.process.terminate()
+            self.proc.log.process.terminate()
             log_terminator = True
+        log.debug(f"Mediators terminated? {mediator_terminator}")
+        log.debug(f"Logs terminated? {log_terminator}")
 
         return StopRetVal(mediators_ok, log_ok,
                           mediator_terminator, log_terminator)
@@ -583,18 +872,19 @@ class Test_WebSockets(unittest.TestCase):
         # ---
         # Check server:
         # ---
-        if self._server.process.exitcode is None:
-            exitcode = None
-            return exitcode
-        elif self._server.process.exitcode == 0:
-            pass
-        else:
-            exitcode = self._server.process.exitcode
+        if self.proc.server:
+            if self.proc.server.process.exitcode is None:
+                exitcode = None
+                return exitcode
+            elif self.proc.server.process.exitcode == 0:
+                pass
+            else:
+                exitcode = self.proc.server.process.exitcode
 
         # ---
         # Check Clients:
         # ---
-        for client in self._clients:
+        for client in self.proc.clients:
             if client.process.exitcode is None:
                 exitcode = None
                 return exitcode
@@ -606,13 +896,13 @@ class Test_WebSockets(unittest.TestCase):
         # ---
         # Check Log Server:
         # ---
-        if self._log_server.process.exitcode is None:
+        if self.proc.log.process.exitcode is None:
             exitcode = None
             return exitcode
-        elif self._log_server.process.exitcode == 0:
+        elif self.proc.log.process.exitcode == 0:
             pass
         else:
-            exitcode = self._log_server.process.exitcode
+            exitcode = self.proc.log.process.exitcode
 
         return exitcode
 
@@ -621,53 +911,73 @@ class Test_WebSockets(unittest.TestCase):
         Did it all shutdown and gave a good exit code?
         '''
         all_good = True
-        for client in self._clients:
+        for client in self.proc.clients:
             all_good = all_good and (client.process.exitcode == 0)
-        all_good = all_good and (self._server.process.exitcode == 0)
+        if self.proc.server:
+            all_good = all_good and (self.proc.server.process.exitcode == 0)
         return all_good
 
     def _log_stopped(self):
         '''
         Did log server shutdown and gave a good exit code?
         '''
-        return (self._log_server.process.exitcode == 0)
+        all_good = True
+        if self.proc.log:
+            all_good = (self.proc.log.process.exitcode == 0)
+        return all_good
 
     def _stop_mediators(self):
         '''
         Sets the shutdown flag. Mediators should notice and go into
         graceful shutdown.
         '''
-        if ((not self._clients and not self._server)
-                or self._mediators_stopped()):
-            return
-
         lumberjack = log.get_logger(self.NAME_MAIN)
+
+        if (not self.proc.clients and not self.proc.server):
+            log.debug("No mediators to stop.",
+                      veredi_logger=lumberjack)
+            return True
+        if self._mediators_stopped():
+            log.debug("Mediators already stopped.",
+                      veredi_logger=lumberjack)
+            return True
 
         log.debug("Asking mediators to end gracefully...",
                   veredi_logger=lumberjack)
-        # Turn on shutdown flag to do the asking.
-        self._shutdown.set()
+        # Turn on shutdown flag(s) to do the asking.
+        if self.proc.server:
+            self.proc.server.shutdown.set()
+        for client in self.proc.clients:
+            client.shutdown.set()
 
         # Wait on clients to be done.
-        log.debug("Waiting for client mediators to complete "
-                  "structured shutdown...",
-                  veredi_logger=lumberjack)
-        for client in self._clients:
-            log.debug(f"  Client {client.name}...",
+        if self.proc.clients:
+            log.debug("Waiting for client mediators to complete "
+                      "structured shutdown...",
                       veredi_logger=lumberjack)
-            client.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
-            log.debug("    Done.",
+            for client in self.proc.clients:
+                log.debug(f"    Client {client.name}...",
+                          veredi_logger=lumberjack)
+                client.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
+                log.debug("    Client {client.name}: Done.",
+                          veredi_logger=lumberjack)
+        else:
+            log.debug("No client mediators to shutdown. Skipping.",
                       veredi_logger=lumberjack)
 
         # Wait on server now.
-        log.debug("Waiting for server mediator to complete "
-                  "structured shutdown...",
-                  veredi_logger=lumberjack)
-        log.debug(f"  Server {self._server.name}...",
-                  veredi_logger=lumberjack)
-        self._server.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
-        log.debug("    Done.",
-                  veredi_logger=lumberjack)
+        if self.proc.server:
+            log.debug("Waiting for server mediator to complete "
+                      "structured shutdown...",
+                      veredi_logger=lumberjack)
+            log.debug(f"    Server {self.proc.server.name}...",
+                      veredi_logger=lumberjack)
+            self.proc.server.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
+            log.debug("    Server {self.proc.server.name}: Done.",
+                      veredi_logger=lumberjack)
+        else:
+            log.debug("No server mediator to shutdown. Skipping.",
+                      veredi_logger=lumberjack)
 
         # Did it all shutdown and gave a good exit code?
         return self._mediators_stopped()
@@ -677,25 +987,31 @@ class Test_WebSockets(unittest.TestCase):
         Sets the logs_end flag. Logs server should notice and gracefully shut
         down.
         '''
-        if not self._log_server or self._log_stopped():
+        lumberjack = log.get_logger(self.NAME_MAIN)
+        if not self.proc.log:
+            log.debug("No log server to stop.",
+                      veredi_logger=lumberjack)
             return
-
-        lumberjack = log.get_logger(self.NAME_LOG)
+        if self._log_stopped():
+            log.debug("Log server already stopped.",
+                      veredi_logger=lumberjack)
+            return
 
         # Set the game_end flag. They should notice soon and start doing
         # their shutdown.
-        log.debug("Asking logs server to end gracefully...",
+        log.debug("Asking log server to end gracefully...",
                   veredi_logger=lumberjack)
-        self._shutdown_log.set()
+        self.proc.log.shutdown.set()
 
         # Wait for log server to be done.
-        log.debug("Waiting for logs server to complete structured shutdown...",
+        log.debug("Waiting for log server to complete structured shutdown...",
                   veredi_logger=lumberjack)
-        self._log_server.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
+        self.proc.log.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
+        log.debug(f"log_server exit: {str(self.proc.log.process.exitcode)}")
 
         # # Make sure it shutdown and gave a good exit code.
-        # self.assertEqual(self._log_server.exitcode, 0)
-        return (self._log_server.process.exitcode == 0)
+        # self.assertEqual(self.proc.log.exitcode, 0)
+        return self._log_stopped()
 
     # -------------------------------------------------------------------------
     # Tests
@@ -710,10 +1026,14 @@ class Test_WebSockets(unittest.TestCase):
         # then kill them, but it's something.
         self.wait(0.1)
 
-        # Make sure we don't have anything in the queues...
-        for client in self._clients:
+        # Make sure we don't have anything in the queues... Allow for having
+        # neither client nor server. We've had to regress all the way back to
+        # trying to get this running a few times already. Multiprocessing with
+        # multiple threads and multiple asyncios is... fun.
+        for client in self.proc.clients:
             self.assertFalse(client.pipe.poll())
-        self.assertFalse(self._server.pipe.poll())
+        if self.proc.server:
+            self.assertFalse(self.proc.server.pipe.poll())
 
     def test_nothing(self):
         # No checks for this, really. Just "does it properly not explode"?
@@ -726,7 +1046,7 @@ class Test_WebSockets(unittest.TestCase):
 
     def do_test_ping(self, client):
         mid = self._msg_id.next()
-        msg = Message(mid, MsgType.PING, None)
+        msg = Message(mid, MsgType.PING, payload=None)
         client.pipe.send((msg, self.msg_context(mid)))
         recv, ctx = client.pipe.recv()
         # Make sure we got a message back and it has the ping time in it.
@@ -741,18 +1061,18 @@ class Test_WebSockets(unittest.TestCase):
 
         # I really hope the local ping is between negative nothingish and
         # positive five seconds.
-        self.assertIsInstance(recv.message, float)
-        self.assertGreater(recv.message, -0.0000001)
-        self.assertLess(recv.message, 5)
+        self.assertIsInstance(recv.payload, float)
+        self.assertGreater(recv.payload, -0.0000001)
+        self.assertLess(recv.payload, 5)
 
         # Make sure we don't have anything in the queues...
         self.assertFalse(client.pipe.poll())
-        self.assertFalse(self._server.pipe.poll())
+        self.assertFalse(self.proc.server.pipe.poll())
 
     def test_ping(self):
         # No other checks for ping outside do_test_ping.
         self.assert_test_ran(
-            self.runner_of_test(self.do_test_ping, *self._clients))
+            self.runner_of_test(self.do_test_ping, *self.proc.clients))
 
     # ------------------------------
     # Test Clients sending an echo message.
@@ -762,7 +1082,7 @@ class Test_WebSockets(unittest.TestCase):
         mid = self._msg_id.next()
         send_msg = f"Hello from {client.name}"
         expected = send_msg
-        msg = Message(mid, MsgType.ECHO, send_msg)
+        msg = Message(mid, MsgType.ECHO, payload=send_msg)
         ctx = self.msg_context(mid)
         # self.debugging = True
         with log.LoggingManager.on_or_off(self.debugging, True):
@@ -782,16 +1102,16 @@ class Test_WebSockets(unittest.TestCase):
         self.assertEqual(msg.type, MsgType.ECHO)
         self.assertEqual(recv.type, MsgType.ECHO_ECHO)
         # Got what we sent.
-        self.assertIsInstance(recv.message, str)
-        self.assertEqual(recv.message, expected)
+        self.assertIsInstance(recv.payload, str)
+        self.assertEqual(recv.payload, expected)
 
         # Make sure we don't have anything in the queues...
         self.assertFalse(client.pipe.poll())
-        self.assertFalse(self._server.pipe.poll())
+        self.assertFalse(self.proc.server.pipe.poll())
 
     def test_echo(self):
         self.assert_test_ran(
-            self.runner_of_test(self.do_test_echo, *self._clients))
+            self.runner_of_test(self.do_test_echo, *self.proc.clients))
 
     # ------------------------------
     # Test Clients sending text messages to server.
@@ -806,7 +1126,7 @@ class Test_WebSockets(unittest.TestCase):
         log.debug("client to server...")
 
         send_txt = f"Hello from {client.name}?"
-        client_send = Message(mid, MsgType.TEXT, send_txt)
+        client_send = Message(mid, MsgType.TEXT, payload=send_txt)
         client_send_ctx = self.msg_context(mid)
 
         client_recv = None
@@ -833,7 +1153,7 @@ class Test_WebSockets(unittest.TestCase):
         self.assertEqual(mid, client_recv_msg.id)
         self.assertEqual(client_send.id, client_recv_msg.id)
         self.assertEqual(client_recv_msg.type, MsgType.ACK_ID)
-        ack_id = mid.decode(client_recv_msg.message)
+        ack_id = mid.decode(client_recv_msg.payload)
         self.assertIsInstance(ack_id, type(mid))
 
         # ---
@@ -845,7 +1165,7 @@ class Test_WebSockets(unittest.TestCase):
             # Our server should have put the client's packet in its pipe for
             # us... I hope.
             log.debug("test_text: game recv from server...")
-            server_recv = self._server.pipe.recv()
+            server_recv = self.proc.server.pipe.recv()
 
         log.debug(f"client_sent/server_recv: {server_recv}")
         # Make sure that the server received the correct thing.
@@ -857,8 +1177,8 @@ class Test_WebSockets(unittest.TestCase):
         self.assertEqual(mid, server_recv_msg.id)
         self.assertEqual(client_send.id, server_recv_msg.id)
         self.assertEqual(client_send.type, server_recv_msg.type)
-        self.assertIsInstance(server_recv_msg.message, str)
-        self.assertEqual(server_recv_msg.message, send_txt)
+        self.assertIsInstance(server_recv_msg.payload, str)
+        self.assertEqual(server_recv_msg.payload, send_txt)
         # Check the Context.
         self.assertIsInstance(server_recv_ctx, MessageContext)
         self.assertEqual(server_recv_ctx.id, ack_id)
@@ -869,14 +1189,15 @@ class Test_WebSockets(unittest.TestCase):
 
         log.debug("test_text: server_send/client_recv...")
         # Tell our server to send a reply to the client's text.
-        recv_txt = f"Hello from {self._server.name}!"
-        server_send = Message(server_recv_ctx.id, MsgType.TEXT, recv_txt)
+        recv_txt = f"Hello from {self.proc.server.name}!"
+        server_send = Message(server_recv_ctx.id, MsgType.TEXT,
+                              payload=recv_txt)
         client_recv = None
         with log.LoggingManager.on_or_off(self.debugging, True):
             # Make something for server to send and client to recvive.
             log.debug("test_text: server_send...")
             log.debug(f"test_text: pipe to game: {server_send}")
-            self._server.pipe.send((server_send, server_recv_ctx))
+            self.proc.server.pipe.send((server_send, server_recv_ctx))
             log.debug("test_text: client_recv...")
             client_recv = client.pipe.recv()
 
@@ -893,15 +1214,15 @@ class Test_WebSockets(unittest.TestCase):
         self.assertEqual(ack_id, client_recv_msg.id)
         self.assertEqual(server_send.id, client_recv_msg.id)
         self.assertEqual(server_send.type, client_recv_msg.type)
-        self.assertIsInstance(client_recv_msg.message, str)
-        self.assertEqual(client_recv_msg.message, recv_txt)
+        self.assertIsInstance(client_recv_msg.payload, str)
+        self.assertEqual(client_recv_msg.payload, recv_txt)
 
         # ---
         # Server -> Client: ACK
         # ---
 
         # Client automatically sent an ACK_ID, need to check server for it.
-        server_recv = self._server.pipe.recv()
+        server_recv = self.proc.server.pipe.recv()
 
         log.debug(f"server sent msg: {server_send}")
         log.debug(f"server recv ack: {server_recv}")
@@ -918,48 +1239,183 @@ class Test_WebSockets(unittest.TestCase):
         self.assertEqual(mid, server_recv_msg.id)
         self.assertEqual(server_send.id, server_recv_msg.id)
         self.assertEqual(server_recv_msg.type, MsgType.ACK_ID)
-        ack_id = mid.decode(server_recv_msg.message)
+        ack_id = mid.decode(server_recv_msg.payload)
         self.assertIsInstance(ack_id, type(mid))
 
         # Make sure we don't have anything in the queues...
         self.assertFalse(client.pipe.poll())
-        self.assertFalse(self._server.pipe.poll())
+        self.assertFalse(self.proc.server.pipe.poll())
 
     def test_text(self):
         self.assert_test_ran(
-            self.runner_of_test(self.do_test_text, *self._clients))
+            self.runner_of_test(self.do_test_text, *self.proc.clients))
 
-    # def do_test_echo(self, client):
-    #     mid = self._msg_id.next()
-    #     send_msg = f"Hello from {client.name}"
-    #     expected = send_msg
-    #     msg = Message(mid, MsgType.ECHO, send_msg)
-    #     ctx = self.msg_context(mid)
-    #     # self.debugging = True
-    #     with log.LoggingManager.on_or_off(self.debugging, True):
-    #         client.pipe.send((msg, ctx))
-    #         recv, ctx = client.pipe.recv()
-    #     # Make sure we got a message back and it has the same
-    #     # message as we sent.
-    #     self.assertTrue(recv)
-    #     self.assertTrue(ctx)
-    #     self.assertIsInstance(recv, Message)
-    #     self.assertTrue(ctx, MessageContext)
-    #     # IDs made it around intact.
-    #     self.assertEqual(msg.id, ctx.id)
-    #     self.assertEqual(mid, recv.id)
-    #     self.assertEqual(msg.id, recv.id)
-    #     # Sent echo, got echo-back.
-    #     self.assertEqual(msg.type, MsgType.ECHO)
-    #     self.assertEqual(recv.type, MsgType.ECHO_ECHO)
-    #     # Got what we sent.
-    #     self.assertIsInstance(recv.message, str)
-    #     self.assertEqual(recv.message, expected)
+    # ------------------------------
+    # Test Ignoring Logs...
+    # ------------------------------
 
-    #     # Make sure we don't have anything in the queues...
-    #     self.assertFalse(client.pipe.poll())
-    #     self.assertFalse(self._server.pipe.poll())
+    def do_test_logs_ignore(self):
+        self.assertIsNotNone(self.proc.log)
 
-    # def test_echo(self):
+        self.assertEqual(self.proc.log.ignored_counter.value, 0)
+
+        self.proc.log.ignore_logs.set()
+
+        # Does this not get printed and does this increment our counter?
+        self.assertEqual(self.proc.log.ignored_counter.value, 0)
+
+        # Connect this process to the log server, do a long that should be
+        # ignored, and then disconnect.
+        log_client.init()
+        log.critical("You should not see this.")
+        log_client.close()
+        # Gotta wait a bit for the counter to sync back to this process,
+        # I guess.
+        self.wait(1)  # 0.1)
+        self.assertEqual(self.proc.log.ignored_counter.value, 1)
+
+    # def test_logs_ignore(self):
     #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_echo, *self._clients))
+    #         self.runner_of_test(self.do_test_logs_ignore))
+
+    # ------------------------------
+    # Test Server sending LOGGING to client.
+    # ------------------------------
+
+    def do_test_logging(self, client):
+
+        self.assertEqual(self.proc.log.ignored_counter.value, 0)
+        self.assertFalse(self.proc.log.ignore_logs.is_set())
+
+        self.proc.log.ignore_logs.set()
+
+        self.assertEqual(self.proc.log.ignored_counter.value, 0)
+
+        # # Have a client connect to server so we can then tell it to do a
+        # # logging thing.
+        # self.connect_client(client)
+
+        # TODO:
+        # TODO:
+        # TODO: Time for UserIds?
+        # TODO:
+        # TODO:
+        # TODO:
+
+        # Have a client adjust its log level to debug. Should spit out a lot of
+        # logs then.
+        mid = self._msg_id.next()
+        msg = Message.log(mid, log.Level.DEBUG)
+        ctx = self.msg_context(mid)
+        with log.LoggingManager.on_or_off(self.debugging, True):
+            # server -> client
+            self.proc.server.pipe.send((msg, ctx))
+            # client ack
+            ack_msg, ack_ctx = self.proc.server.pipe.recv()
+
+        self.wait(0.1)
+        # We ignored something, at least, right?
+        self.assertGreater(self.proc.log.ignored_counter.value, 2)
+
+        # Make sure we got a message back and it has the same
+        # message as we sent.
+        self.assertTrue(ack_msg)
+        self.assertTrue(ack_ctx)
+        self.assertIsInstance(ack_msg, Message)
+        self.assertTrue(ack_ctx, MessageContext)
+        # Sent logging... right?
+        self.assertEqual(msg.type, MsgType.LOGGING)
+
+        # Make sure we don't have anything in the queues...
+        self.assertFalse(client.pipe.poll())
+        self.assertFalse(self.proc.server.pipe.poll())
+
+    # def test_logging(self):
+    #     self.assert_test_ran(
+    #         self.runner_of_test(self.do_test_logging, *self.proc.clients))
+
+    # ------------------------------
+    # Test Server sending LOGGING to client.
+    # ------------------------------
+
+    def connect_client(self, client):
+        # Send something... Currently client doesn't care and tries to connect
+        # on any message it gets when it has no connection. But it may change
+        # later.
+        mid = Message.SpecialId.CONNECT
+        msg = Message(mid, MsgType.IGNORE, payload=None)
+        print(f"\n\nconnect_client: msg: {msg}")
+        client.pipe.send((msg, self.msg_context(mid)))
+
+        # Received "you're connected now" back?
+        print("\nconnect_client: wait for response...\n\n")
+        recv, ctx = client.pipe.recv()
+
+        # Make sure we got a message back and it has the ping time in it.
+        self.assertTrue(recv)
+        self.assertTrue(ctx)
+        self.assertIsInstance(recv, Message)
+        self.assertTrue(ctx, MessageContext)
+        self.assertEqual(msg.id, ctx.id)
+        self.assertEqual(mid, recv.id)
+        self.assertEqual(msg.id, recv.id)
+        self.assertEqual(msg.type, recv.type)
+
+        # This should be... something.
+        print(f"msg key: {msg.key}")
+        self.assertTrue(msg.key)
+
+    def do_test_connect(self, client):
+
+        self.connect_client(client)
+
+        # self.assertEqual(self.proc.log.ignored_counter.value, 0)
+        # self.assertFalse(self.proc.log.ignore_logs.is_set())
+
+        # self.proc.log.ignore_logs.set()
+
+        # self.assertEqual(self.proc.log.ignored_counter.value, 0)
+
+        # # Have a client connect to server so we can then tell it to do a
+        # # logging thing.
+        # self.connect_client(client)
+
+        # # TODO:
+        # # TODO:
+        # # TODO: Time for UserIds?
+        # # TODO:
+        # # TODO:
+        # # TODO:
+
+        # # Have a client adjust its log level to debug. Should spit out a lot of
+        # # logs then.
+        # mid = self._msg_id.next()
+        # msg = Message.log(mid, log.Level.DEBUG)
+        # ctx = self.msg_context(mid)
+        # with log.LoggingManager.on_or_off(self.debugging, True):
+        #     # server -> client
+        #     self.proc.server.pipe.send((msg, ctx))
+        #     # client ack
+        #     ack_msg, ack_ctx = self.proc.server.pipe.recv()
+
+        # self.wait(0.1)
+        # # We ignored something, at least, right?
+        # print(f"counter: {self.proc.log.ignored_counter.value}")
+        # self.assertGreater(self.proc.log.ignored_counter.value, 2)
+
+        # # Make sure we got a message back and it has the same
+        # # message as we sent.
+        # self.assertTrue(ack_msg)
+        # self.assertTrue(ack_ctx)
+        # self.assertIsInstance(ack_msg, Message)
+        # self.assertTrue(ack_ctx, MessageContext)
+        # # Sent logging... right?
+        # self.assertEqual(msg.type, MsgType.LOGGING)
+
+        # # Make sure we don't have anything in the queues...
+        # self.assertFalse(client.pipe.poll())
+        # self.assertFalse(self.proc.server.pipe.poll())
+
+    # def test_connect(self):
+    #     self.assert_test_ran(
+    #         self.runner_of_test(self.do_test_connect, *self.proc.clients))

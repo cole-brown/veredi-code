@@ -21,7 +21,8 @@ import enum
 import contextlib
 
 from veredi.data.codec.base    import Encodable
-from veredi.base.identity      import MonotonicId
+from veredi.base.identity      import MonotonicId, SerializableId
+import veredi.logger.log
 
 
 # -----------------------------------------------------------------------------
@@ -38,7 +39,7 @@ class MsgType(Encodable, enum.Enum):
     # Testing / Non-Standard
     # ------------------------------
 
-    INVALID = 0
+    IGNORE = 0
     '''Ignore me.'''
 
     PING = enum.auto()
@@ -67,6 +68,12 @@ class MsgType(Encodable, enum.Enum):
     # ------------------------------
     # Normal Runtime Messages
     # ------------------------------
+
+    CONNECT = enum.auto()
+    '''
+    Client connection request to the server. Should include user key, whatever
+    else is needed to auth/register user.
+    '''
 
     ACK_ID = enum.auto()
     '''
@@ -121,13 +128,31 @@ class Message(Encodable):
     Saves id as an int. Casts back to ID type in property return.
     '''
 
+    @enum.unique
+    class SpecialId(enum.IntEnum):
+        '''
+        Super Special Message IDs for Super Special Messages!
+        '''
+
+        INVALID = 0
+        '''Ignore me.'''
+
+        CONNECT = enum.auto()
+        '''
+        Client -> Server: Hello / Auth / Register-Me-Please.
+        Server -> Client: Result.
+        '''
+
     def __init__(self,
-                 id:      Union[MonotonicId, int],
+                 id:      Union[MonotonicId, SpecialId, int],
                  type:    'MsgType',
-                 message: Optional[Any] = None) -> None:
-        self._id:      int           = int(id)
-        self._type:    'MsgType'     = type
-        self._message: Optional[Any] = message
+                 payload: Optional[Any]            = None,
+                 key:     Optional[SerializableId] = None) -> None:
+        # init fields.
+        self._id:      int                      = int(id)
+        self._type:    'MsgType'                = type
+        self._key:     Optional[SerializableId] = key
+        self._payload: Optional[Any]            = payload
 
     # ------------------------------
     # Helpers
@@ -139,8 +164,8 @@ class Message(Encodable):
               payload: Union[Any, str]) -> 'Message':
         '''
         Create a 'codec' Message from this message by using `msg` for all
-        fields (except `self._message`, `self._type`), then `payload` for the
-        new Message instance's message (string if encoded, whatever if
+        fields (except `self._payload`, `self._type`), then `payload` for the
+        new Message instance's payload (string if encoded, whatever if
         decoded).
         '''
         return klass(msg.id, MsgType.CODEC, payload)
@@ -152,7 +177,7 @@ class Message(Encodable):
         Create an echo reply for this message.
         '''
         # Return same message but with type changed to ECHO_ECHO.
-        return klass(msg.id, MsgType.ECHO_ECHO, msg.message)
+        return klass(msg.id, MsgType.ECHO_ECHO, msg.payload)
 
     # ------------------------------
     # Properties
@@ -173,11 +198,25 @@ class Message(Encodable):
         return self._type
 
     @property
-    def message(self) -> Optional[Any]:
+    def key(self) -> Optional['SerializableId']:
         '''
-        Return our message value.
+        Return our message's key, if any.
         '''
-        return self._message
+        return self._key
+
+    @key.setter
+    def key(self, value: Optional['SerializableId']) -> None:
+        '''
+        Sets or clears the message's key.
+        '''
+        return self._key
+
+    @property
+    def payload(self) -> Optional[Any]:
+        '''
+        Return our message payload.
+        '''
+        return self._payload
 
     @property
     def path(self) -> Optional[str]:
@@ -209,15 +248,25 @@ class Message(Encodable):
         '''
         Returns a representation of ourself as a dictionary.
         '''
-        msg = self._message
+        msg = self.payload
         if isinstance(msg, Encodable):
-            msg = self._message.encode()
+            msg = msg.encode()
 
+        # ---
+        # Required
+        # ---
         encoded = {
             'id': self._id,
             'type': self._type.encode(),
-            'message': msg,
+            'payload': msg,
         }
+
+        # ---
+        # Optional
+        # ---
+        if self._key:
+            encoded['key'] = self.key.encode()
+
         return encoded
 
     @classmethod
@@ -225,12 +274,50 @@ class Message(Encodable):
         '''
         Returns a representation of ourself as a dictionary.
         '''
+        # ---
+        # Required
+        # ---
         decoded = klass(
             value['id'],
             MsgType.decode(value['type']),
-            value['message'],
+            value['payload'],
         )
+
+        # ---
+        # Optional
+        # ---
+        if 'key' in value:
+            decoded.key = UserId.decode(value['key'])
+
         return decoded
+
+    # ------------------------------
+    # Logging
+    # ------------------------------
+
+    @classmethod
+    def log(klass:     'Message',
+            id:        Union[MonotonicId, int],
+            log_level: veredi.logger.log.Level) -> 'Message':
+        '''
+        Creates a LOGGING message with the supplied data.
+        '''
+        msg = Message(id, MsgType.LOGGING,
+                      payload={
+                          'logging': {
+                              'level': log_level,
+                          },
+                      })
+        return msg
+
+    def log_level(self) -> Optional[veredi.logger.log.Level]:
+        '''
+        If this message has anything under 'logging.level', return it.
+        '''
+        try:
+            return self.messagage.get('logging', {}).get('level', None)
+        except:
+            return None
 
     # ------------------------------
     # To String
@@ -241,7 +328,7 @@ class Message(Encodable):
             f"{self.__class__.__name__}"
             f"[{self.id}, "
             f"{self.type}]("
-            f"{str(self.message)}): "
+            f"{str(self.payload)}): "
         )
 
     def __repr__(self):
@@ -249,5 +336,5 @@ class Message(Encodable):
             "<Msg["
             f"{repr(self.id)},"
             f"{repr(self.type)}]"
-            f"({repr(self.message)})>"
+            f"({repr(self.payload)})>"
         )

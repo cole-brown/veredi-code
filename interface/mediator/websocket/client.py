@@ -31,6 +31,7 @@ import re
 from veredi.logger               import log
 from veredi.debug.const          import DebugFlag
 from veredi.base.identity        import MonotonicId
+from veredi.data.identity        import UserId
 from veredi.data                 import background
 from veredi.data.config.config   import Configuration
 from veredi.data.codec.base      import BaseCodec
@@ -149,14 +150,19 @@ class WebSocketClient(WebSocketMediator):
                  config:        Configuration,
                  conn:          multiprocessing.connection.Connection,
                  shutdown_flag: multiprocessing.Event,
-                 debug:         DebugFlag = None) -> None:
+                 user_key:      Optional[UserId]    = None,
+                 debug:         Optional[DebugFlag] = None) -> None:
         # Base class init first.
         super().__init__(config, conn, shutdown_flag, 'client', debug)
+        log.critical(f"Init CLIENT: shutdown? {shutdown_flag.is_set()} {self._shutdown_process.is_set()}")
+
+        self._key: Optional[UserId] = user_key
+        '''Our auth key for talking to server.'''
 
         # ---
         # Now we can make our WebSocket stuff...
         # ---
-        self._connect_request: asyncio.Event = None
+        self._connect_request: asyncio.Event = asyncio.Event()
         '''
         Flag to indicate our server connection asyncio task should connect to
         server and start running the producer/consumer pipelines.
@@ -177,6 +183,7 @@ class WebSocketClient(WebSocketMediator):
         if (self._debug
                 and self._debug.any(DebugFlag.MEDIATOR_BASE,
                                     DebugFlag.MEDIATOR_CLIENT)):
+            msg = f"{self._name}: " + msg
             kwargs = log.incr_stack_level(kwargs)
             log.debug(msg,
                       *args,
@@ -231,11 +238,17 @@ class WebSocketClient(WebSocketMediator):
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
 
+    # TODO: delete THIS
+    async def _med_queue_watcher(self) -> None:
+        log.critical(f"CLIENT _med_queue_watcher? {self.any_shutdown()}")
+        await super()._med_queue_watcher()
+
     async def _shutdown_watcher(self) -> None:
         '''
-        Watches `self._shutdown_flag`. Will call stop() on our asyncio loop
+        Watches `self._shutdown_process`. Will call stop() on our asyncio loop
         when the shutdown flag is set.
         '''
+        log.critical(f"CLIENT _shutdown_watcher? {self.any_shutdown()}")
         # Parent's watcher is non-blocking so we can be simple about this:
         await super()._shutdown_watcher()
 
@@ -247,19 +260,20 @@ class WebSocketClient(WebSocketMediator):
         '''
         Loop waiting on messages in our _rx_queue to send down to the game.
         '''
+        log.critical(f"CLIENT _queue_watcher? {self.any_shutdown()}")
         while True:
             # Die if requested.
-            if self._shutdown:
+            if self.any_shutdown():
                 break
 
             # Check for something in connection to send; don't block.
-            if self._rx_queue.empty():
+            if not self._med_to_game_has_data():
                 await asyncio.sleep(0.1)
                 continue
 
             # Else get one thing and send it off this round.
             try:
-                msg, ctx = self._rx_queue.get_nowait()
+                msg, ctx = self._med_to_game_get()
                 if not msg or not ctx:
                     continue
             except asyncio.QueueEmpty:
@@ -269,7 +283,7 @@ class WebSocketClient(WebSocketMediator):
             # Transfer from 'received from server queue' to
             # 'sent to game connection'.
             self.debug(f"Send to game conn: {(msg, ctx)}")
-            self._game.send((msg, ctx))
+            self._game_pipe_put(msg, ctx)
 
             # Skip this - we used get_nowait(), not get().
             # self._rx_queue.task_done()
@@ -283,13 +297,13 @@ class WebSocketClient(WebSocketMediator):
         Opens connection to the server, then can send and receive in parallel
         in the :meth:`_handle_produce` and :meth:`_handle_consume` functions.
         '''
-        self._connect_request = asyncio.Event()
+        log.critical(f"CLIENT _server_watcher? {self.any_shutdown()}")
         self.debug("Starting an endless loop...")
 
         # Wait for someone to want to talk to server...
         while True:
             # Check exit condition.
-            if self._shutdown:
+            if self.any_shutdown():
                 self.debug("Obeying shutdown request...")
                 if self._socket:
                     self._socket.close()
@@ -299,13 +313,13 @@ class WebSocketClient(WebSocketMediator):
             # If game has data to send and we're not running, try
             # maybe running?
             if self._game_has_data():
-                self._connect_request.set()
+                self._request_connect()
 
             # Check... enter condition.
-            if not self._connect_request.is_set():
+            if not self._desire_connect():
                 await asyncio.sleep(0.1)
                 continue
-            self._connect_request.clear()
+            self._clear_connect()
 
             # Ok. Bring server connection online.
             self.debug("Starting connection to server...")
@@ -321,6 +335,12 @@ class WebSocketClient(WebSocketMediator):
             self.debug("Creating connection to server...")
             self._socket = self._server_connection()
 
+            # TODO: get connect message working
+            # self.debug("Queueing connect message...")
+            # ctx = self.make_msg_context(Message.SpecialId.CONNECT)
+            # msg = self._connect_message(ctx)
+            # self._med_tx_put(msg, ctx)
+
             self.debug("Starting connection handlers...")
             await self._socket.connect_parallel(self._handle_produce,
                                                 self._handle_consume)
@@ -329,7 +349,18 @@ class WebSocketClient(WebSocketMediator):
             # And back to waiting on the connection request flag.
             self._socket = None
 
-    async def connect(self) -> None:  # TODO: user param?
+    def _connect_message(self, ctx: MessageContext) -> None:
+        '''
+        Queue up a connection message to server for auth/user registration.
+        '''
+        msg = Message(Message.SpecialId.CONNECT,
+                      MsgType.CONNECT,
+                      # TODO: different payload? second 'password' key?
+                      payload=self._key,
+                      key=self._key)
+        return msg, ctx
+
+    def _request_connect(self) -> None:
         '''
         Flags :meth:`_server_watcher` with a request to get it all going.
         '''
@@ -337,9 +368,66 @@ class WebSocketClient(WebSocketMediator):
         self.debug("Requesting connection to server...")
         self._connect_request.set()
 
+    def _desire_connect(self) -> None:
+        '''
+        Checks `_connect_request` (no block/no wait) to see if we want to
+        connect to server.
+        '''
+        return self._connect_request.is_set()
+
+    def _clear_connect(self) -> None:
+        '''
+        Clears `_connect_request` flag.
+        '''
+        return self._connect_request.clear()
+
     # -------------------------------------------------------------------------
     # WebSocket Functions
     # -------------------------------------------------------------------------
+
+    async def _htx_connect(self,
+                           msg: Message) -> Optional[Message]:
+        '''
+        Send a connection auth/registration request to the server.
+        '''
+        return await self._htx_generic(msg, 'connect')
+
+    async def _hrx_connect(self,
+                           match: re.Match,
+                           path: str,
+                           msg: Message) -> Optional[Message]:
+        '''
+        Receive connect response from server.
+        '''
+        log.critical("client: TODO THIS.", match, path, msg)
+        return None
+
+    async def _hook_produce(self,
+                            msg: Optional[Message]) -> Optional[Message]:
+        '''
+        Add our user's key to the message to be sent to the server.
+        '''
+        if msg == None:
+            return msg
+
+        msg.key = self._key
+        log.critical("TODO: IS THIS ALL WE NEED?! "
+                     "client.hook_produce:", msg, "\n\n")
+        return msg
+
+    async def _hook_consume(self,
+                            msg: Optional[Message]) -> Optional[Message]:
+        '''
+        Check all received messages from server?
+        '''
+        if msg == None:
+            return msg
+
+        # Just log it and return...
+        if msg.key != self._key:
+            log.warning("Client received msg key that doesn't match expected."
+                        f"Expected: {str(self._key)}, Got: {str(msg.key)}")
+        return msg
 
     def _server_connection(self,
                            path: Optional[str] = None) -> VebSocketClient:

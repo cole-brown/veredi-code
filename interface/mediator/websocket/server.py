@@ -321,6 +321,7 @@ class WebSocketServer(WebSocketMediator):
         if (self._debug
                 and self._debug.any(DebugFlag.MEDIATOR_BASE,
                                     DebugFlag.MEDIATOR_SERVER)):
+            msg = f"{self._name}: " + msg
             kwargs = log.incr_stack_level(kwargs)
             log.debug(msg,
                       *args,
@@ -386,7 +387,7 @@ class WebSocketServer(WebSocketMediator):
 
     async def _shutdown_watcher(self) -> None:
         '''
-        Watches `self._shutdown_flag`. Will call stop() on our asyncio loop
+        Watches `self._shutdown_process`. Will call stop() on our asyncio loop
         when the shutdown flag is set.
         '''
         await super()._shutdown_watcher()
@@ -406,16 +407,16 @@ class WebSocketServer(WebSocketMediator):
         '''
         # Don't block...
         while True:
-            if self._shutdown:
+            if self.any_shutdown():
                 # Finish out of this coroutine if we should die.
                 return
 
-            if self._rx_queue.empty():
+            if not self._med_to_game_has_data():
                 await asyncio.sleep(0.1)
 
             # Else get one thing and send it off this round.
             try:
-                msg, ctx = self._rx_queue.get_nowait()
+                msg, ctx = self._med_to_game_get()
                 if not msg or not ctx:
                     continue
             except asyncio.QueueEmpty:
@@ -425,7 +426,7 @@ class WebSocketServer(WebSocketMediator):
             # Transfer from 'received from client queue' to
             # 'sent to game connection'.
             self.debug(f"Send to game conn: {(msg, ctx)}")
-            self._game.send((msg, ctx))
+            self._game_pipe_put(msg, ctx)
 
             # Skip this - we used get_nowait(), not get().
             # self._rx_queue.task_done()
@@ -444,3 +445,20 @@ class WebSocketServer(WebSocketMediator):
         await self._socket.serve_parallel(self._handle_produce,
                                           self._handle_consume)
         self.debug(f"Done serving: {uri}")
+
+    async def _htx_connect(self,
+                           msg: Message) -> Optional[Message]:
+        '''
+        Send auth/registration result back down to the client.
+        '''
+        return await self._htx_generic(msg, 'connect')
+
+    async def _hrx_connect(self,
+                           match: re.Match,
+                           path:  str,
+                           msg:   Message) -> Optional[Message]:
+        '''
+        Handle auth/registration request from a client.
+        '''
+        log.critical("server: TODO THIS.", match, path, msg)
+        return None

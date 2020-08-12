@@ -89,6 +89,10 @@ DEFAULT_LEVEL = Level.INFO
 __initialized = False
 
 logger = None
+'''Our main/default logger.'''
+
+__handlers = []
+'''Our main/default logger's main/default handler(s).'''
 
 _unit_test_callback = Null()
 
@@ -97,18 +101,23 @@ _unit_test_callback = Null()
 # Logger Code
 # -----------------------------------------------------------------------------
 
-def init(level:       Union[Level, int]           = DEFAULT_LEVEL,
-         handler:     Optional[logging.Handler]   = None,
-         formatter:   Optional[logging.Formatter] = None) -> None:
+def init(level:        Union[Level, int]           = DEFAULT_LEVEL,
+         handler:      Optional[logging.Handler]   = None,
+         formatter:    Optional[logging.Formatter] = None,
+         reinitialize: Optional[bool]              = None,
+         debug:        Optional[Any]               = None) -> None:
     '''
     Initializes our root logger.
+
+    `debug` purely here for debugging log_server, log_client setting up their
+    loggers.
     '''
     global __initialized
-    if __initialized:
+    if __initialized: # and not reinitialize:
         return
 
     global logger
-    logger = init_logger(LOGGER_NAME)
+    logger = init_logger(LOGGER_NAME, level, handler, formatter)
 
 
 def init_logger(logger_name: str,
@@ -122,6 +131,14 @@ def init_logger(logger_name: str,
     # Create our logger at our default output level.
     logger = logging.getLogger(logger_name)
     logger.setLevel(Level.to_logging(level))
+
+    # Either got supplied a handler or we'll be making one. Either way, we want
+    # to get rid of any of ours it has.
+    global __handlers
+    if __handlers:
+        for each in __handlers:
+            logger.removeHandler(each)
+        __handlers = []
 
     if not handler:
         # Console Handler, same level.
@@ -141,9 +158,29 @@ def init_logger(logger_name: str,
                                 style=STYLE)
         handler.setFormatter(formatter)
 
+    __handlers.append(handler)
     logger.addHandler(handler)
 
     return logger
+
+
+def remove_handler(handler:     logging.Handler,
+                   logger:      Optional[logging.Logger] = None,
+                   logger_name: Optional[str]            = None):
+    '''
+    Look in log.__handlers for `handler`. If it finds a match, removes it from
+    log.__handlers.
+
+    Calls `removeHandler()` on supplied (or default) logger regardless.
+    '''
+    if __handlers and handler in __handlers:
+        __handlers.remove(handler)
+
+    if logger:
+        logger.removeHandler(handler)
+
+    if logger_name:
+        logging.getLogger(logger_name).removeHandler(handler)
 
 
 def get_logger(*names: str) -> logging.Logger:
