@@ -30,7 +30,8 @@ from veredi.logger                              import (log,
 from veredi.debug.const                         import DebugFlag
 from veredi.base.identity                       import (MonotonicId,
                                                         MonotonicIdGenerator)
-from veredi.base.enum                           import FlagCheckMixin
+from veredi.base.enum                           import (FlagCheckMixin,
+                                                        FlagSetMixin)
 from veredi.time.timer                          import MonotonicTimer
 from veredi.data.identity                       import (UserId,
                                                         UserIdGenerator)
@@ -70,6 +71,37 @@ LOG_LEVEL = log.Level.DEBUG  # BACK TO INFO!!!
 StopRetVal = namedtuple('StopRetVal',
                         ['mediator_grace', 'log_grace',
                          'mediator_terminate', 'log_terminate'])
+
+
+@enum.unique
+class Disabled(FlagCheckMixin, FlagSetMixin, enum.Flag):
+    '''
+    Use the actual test function names so that the disabled property works
+    right.
+    '''
+    NONE             = 0
+
+    test_nothing     = enum.auto()
+    test_ping        = enum.auto()
+    test_echo        = enum.auto()
+    test_text        = enum.auto()
+    test_logs_ignore = enum.auto()
+    test_logging     = enum.auto()
+    test_connect     = enum.auto()
+
+    def disabled(self, test_method_name: str) -> bool:
+        '''
+        Returns true if this enum has a flag set for the
+        `test_method_name`.
+        '''
+        # This will throw KeyError if the test method isn't in our enum
+        # (yet). Let it so the programmer wanders in here and finds this
+        # and adds their enum value.
+        method = self.__class__[test_method_name]
+
+        # Now it's just a check to see if that method name is flagged as
+        # disabled.
+        return self.has(method)
 
 
 @enum.unique
@@ -372,6 +404,10 @@ class Test_WebSockets(unittest.TestCase):
     def setUp(self):
         self.debug_flag = DebugFlag.MEDIATOR_ALL
         self.debugging = False
+        self.disabled_tests = (Disabled.NONE
+                               | Disabled.test_logs_ignore
+                               | Disabled.test_logging
+                               | Disabled.test_connect)
 
         self._msg_id: MonotonicIdGenerator = MonotonicId.generator()
         '''ID generator for creating Mediator messages.'''
@@ -579,6 +615,39 @@ class Test_WebSockets(unittest.TestCase):
     # -------------------------------------------------------------------------
     # Test Helpers
     # -------------------------------------------------------------------------
+
+    def method_name(self, stacklevel: int = 1) -> str:
+        '''
+        Returns caller method's name.
+        Or caller's caller, if `stacklevel` == 2, etc...
+        '''
+        import inspect
+        # Current frame's back-a-frame's code's name.
+        frame = inspect.currentframe()
+        for i in range(stacklevel):
+            if not frame:
+                break
+            frame = frame.f_back
+
+        if not frame:
+            return None
+        return frame.f_code.co_name
+
+    # TODO [2020-08-12]: Switch to using @unittest.skipIf(disabled())...
+    # somehow?
+    def disabled(self) -> bool:
+        '''
+        Uses magic shenanigans to:
+
+        Return true if caller method is disabled by self.disabled_tests flag.
+        Return false if test should run.
+        '''
+        name = self.method_name(stacklevel=2)
+        self.assertIsNotNone(name)
+
+        # Got name, so now we can check if flagged.
+        # Could raise a KeyError, and we'll let it bubble up.
+        return self.disabled_tests.disabled(name)
 
     def msg_context(self,
                     msg_ctx_id: Optional[MonotonicId] = None
@@ -956,25 +1025,35 @@ class Test_WebSockets(unittest.TestCase):
                       "structured shutdown...",
                       veredi_logger=lumberjack)
             for client in self.proc.clients:
-                log.debug(f"    Client {client.name}...",
-                          veredi_logger=lumberjack)
-                client.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
-                log.debug("    Client {client.name}: Done.",
-                          veredi_logger=lumberjack)
+                if client.process and client.process.is_alive():
+                    log.debug(f"    Client {client.name}...",
+                              veredi_logger=lumberjack)
+                    client.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
+                    log.debug("    Client {client.name}: Done.",
+                              veredi_logger=lumberjack)
+                else:
+                    log.debug(f"    Client {client.name} didn't run; "
+                              "skip shutdown...",
+                              veredi_logger=lumberjack)
         else:
             log.debug("No client mediators to shutdown. Skipping.",
                       veredi_logger=lumberjack)
 
         # Wait on server now.
         if self.proc.server:
-            log.debug("Waiting for server mediator to complete "
-                      "structured shutdown...",
-                      veredi_logger=lumberjack)
-            log.debug(f"    Server {self.proc.server.name}...",
-                      veredi_logger=lumberjack)
-            self.proc.server.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
-            log.debug("    Server {self.proc.server.name}: Done.",
-                      veredi_logger=lumberjack)
+            if self.proc.server and self.proc.server.process.is_alive():
+                log.debug("Waiting for server mediator to complete "
+                          "structured shutdown...",
+                          veredi_logger=lumberjack)
+                log.debug(f"    Server {self.proc.server.name}...",
+                          veredi_logger=lumberjack)
+                self.proc.server.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
+                log.debug("    Server {self.proc.server.name}: Done.",
+                          veredi_logger=lumberjack)
+            else:
+                log.debug(f"    Server {self.proc.server.name} didn't run; "
+                          "skip shutdown...",
+                          veredi_logger=lumberjack)
         else:
             log.debug("No server mediator to shutdown. Skipping.",
                       veredi_logger=lumberjack)
@@ -995,7 +1074,7 @@ class Test_WebSockets(unittest.TestCase):
         if self._log_stopped():
             log.debug("Log server already stopped.",
                       veredi_logger=lumberjack)
-            return
+            return True
 
         # Set the game_end flag. They should notice soon and start doing
         # their shutdown.
@@ -1004,10 +1083,17 @@ class Test_WebSockets(unittest.TestCase):
         self.proc.log.shutdown.set()
 
         # Wait for log server to be done.
-        log.debug("Waiting for log server to complete structured shutdown...",
-                  veredi_logger=lumberjack)
-        self.proc.log.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
-        log.debug(f"log_server exit: {str(self.proc.log.process.exitcode)}")
+        if self.proc.log and self.proc.log.process.is_alive():
+            log.debug("Waiting for log server to complete "
+                      "structured shutdown...",
+                      veredi_logger=lumberjack)
+            self.proc.log.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
+            log.debug("log_server exit: "
+                      f"{str(self.proc.log.process.exitcode)}")
+        else:
+            log.debug(f"    Log server {self.proc.log.name} didn't run; "
+                      "skip shutdown...",
+                      veredi_logger=lumberjack)
 
         # # Make sure it shutdown and gave a good exit code.
         # self.assertEqual(self.proc.log.exitcode, 0)
@@ -1016,6 +1102,29 @@ class Test_WebSockets(unittest.TestCase):
     # -------------------------------------------------------------------------
     # Tests
     # -------------------------------------------------------------------------
+
+    # ------------------------------
+    # Check to see if we're blatently ignoring anything...
+    # ------------------------------
+
+    def test_ignored_tests(self):
+
+        # ---
+        # First, test for specifics for nicer error messages.
+        # ---
+
+        self.assertNotIn(Disabled.test_nothing,     self.disabled_tests)
+        self.assertNotIn(Disabled.test_ping,        self.disabled_tests)
+        self.assertNotIn(Disabled.test_echo,        self.disabled_tests)
+        self.assertNotIn(Disabled.test_text,        self.disabled_tests)
+        self.assertNotIn(Disabled.test_logs_ignore, self.disabled_tests)
+        self.assertNotIn(Disabled.test_logging,     self.disabled_tests)
+        self.assertNotIn(Disabled.test_connect,     self.disabled_tests)
+
+        # ---
+        # Last, just check for anything set. Catches all the new flags.
+        # ---
+        self.assertEqual(self.disabled_tests, Disabled.NONE)
 
     # ------------------------------
     # Test doing nothing and cleaning up.
@@ -1036,6 +1145,9 @@ class Test_WebSockets(unittest.TestCase):
             self.assertFalse(self.proc.server.pipe.poll())
 
     def test_nothing(self):
+        if self.disabled():
+            return
+
         # No checks for this, really. Just "does it properly not explode"?
         self.assert_test_ran(
             self.runner_of_test(self.do_test_nothing))
@@ -1070,6 +1182,9 @@ class Test_WebSockets(unittest.TestCase):
         self.assertFalse(self.proc.server.pipe.poll())
 
     def test_ping(self):
+        if self.disabled():
+            return
+
         # No other checks for ping outside do_test_ping.
         self.assert_test_ran(
             self.runner_of_test(self.do_test_ping, *self.proc.clients))
@@ -1110,6 +1225,9 @@ class Test_WebSockets(unittest.TestCase):
         self.assertFalse(self.proc.server.pipe.poll())
 
     def test_echo(self):
+        if self.disabled():
+            return
+
         self.assert_test_ran(
             self.runner_of_test(self.do_test_echo, *self.proc.clients))
 
@@ -1247,6 +1365,9 @@ class Test_WebSockets(unittest.TestCase):
         self.assertFalse(self.proc.server.pipe.poll())
 
     def test_text(self):
+        if self.disabled():
+            return
+
         self.assert_test_ran(
             self.runner_of_test(self.do_test_text, *self.proc.clients))
 
@@ -1274,9 +1395,12 @@ class Test_WebSockets(unittest.TestCase):
         self.wait(1)  # 0.1)
         self.assertEqual(self.proc.log.ignored_counter.value, 1)
 
-    # def test_logs_ignore(self):
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_logs_ignore))
+    def test_logs_ignore(self):
+        if self.disabled():
+            return
+
+        self.assert_test_ran(
+            self.runner_of_test(self.do_test_logs_ignore))
 
     # ------------------------------
     # Test Server sending LOGGING to client.
@@ -1330,9 +1454,12 @@ class Test_WebSockets(unittest.TestCase):
         self.assertFalse(client.pipe.poll())
         self.assertFalse(self.proc.server.pipe.poll())
 
-    # def test_logging(self):
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_logging, *self.proc.clients))
+    def test_logging(self):
+        if self.disabled():
+            return
+
+        self.assert_test_ran(
+            self.runner_of_test(self.do_test_logging, *self.proc.clients))
 
     # ------------------------------
     # Test Server sending LOGGING to client.
@@ -1416,6 +1543,9 @@ class Test_WebSockets(unittest.TestCase):
         # self.assertFalse(client.pipe.poll())
         # self.assertFalse(self.proc.server.pipe.poll())
 
-    # def test_connect(self):
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_connect, *self.proc.clients))
+    def test_connect(self):
+        if self.disabled():
+            return
+
+        self.assert_test_ran(
+            self.runner_of_test(self.do_test_connect, *self.proc.clients))
