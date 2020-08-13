@@ -341,4 +341,3 @@ class Mediator(ABC):
         '''
         self._shutdown_process.set()
         self._shutdown_asyncs.set()
-

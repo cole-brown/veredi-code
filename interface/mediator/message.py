@@ -20,9 +20,10 @@ import asyncio
 import enum
 import contextlib
 
-from veredi.data.codec.base    import Encodable
-from veredi.base.identity      import MonotonicId, SerializableId
 import veredi.logger.log
+from veredi.data.codec.base import Encodable
+from veredi.base.identity   import MonotonicId
+from veredi.data.identity   import UserId
 
 
 # -----------------------------------------------------------------------------
@@ -73,6 +74,11 @@ class MsgType(Encodable, enum.Enum):
     '''
     Client connection request to the server. Should include user key, whatever
     else is needed to auth/register user.
+    '''
+
+    ACK_CONNECT = enum.auto()
+    '''
+    Special ack for connect - payload will indicate success or failure?
     '''
 
     ACK_ID = enum.auto()
@@ -146,17 +152,43 @@ class Message(Encodable):
     def __init__(self,
                  id:      Union[MonotonicId, SpecialId, int],
                  type:    'MsgType',
-                 payload: Optional[Any]            = None,
-                 key:     Optional[SerializableId] = None) -> None:
+                 payload: Optional[Any]    = None,
+                 key:     Optional[UserId] = None) -> None:
         # init fields.
-        self._id:      int                      = int(id)
-        self._type:    'MsgType'                = type
-        self._key:     Optional[SerializableId] = key
-        self._payload: Optional[Any]            = payload
+        self._id:      int              = int(id)
+        self._type:    'MsgType'        = type
+        self._key:     Optional[UserId] = key
+        self._payload: Optional[Any]    = payload
 
     # ------------------------------
     # Helpers
     # ------------------------------
+
+    @classmethod
+    def connected(klass:   'Message',
+                  msg:     'Message',
+                  key:     UserId,
+                  success: bool,
+                  payload: Union[Any, str, None] = None) -> 'Message':
+        '''
+        Creates a MsgType.ACK_CONNECT message reply for success/failure of
+        connection.
+        '''
+        if payload:
+            raise NotImplementedError("TODO: Need to take success/fail "
+                                      "payload generation out of here, "
+                                      "I think...")
+
+        if success:
+            return klass(msg.id, MsgType.ACK_CONNECT,
+                         payload={'text': 'Connected.',
+                                  'code': True},
+                         key=key)
+
+        return klass(msg.id, MsgType.ACK_CONNECT,
+                     payload={'text': 'Failed to connect.',
+                              'code': False},
+                     key=key)
 
     @classmethod
     def codec(klass:   'Message',
@@ -184,10 +216,14 @@ class Message(Encodable):
     # ------------------------------
 
     @property
-    def id(self) -> int:
+    def id(self) -> Union[MonotonicId, SpecialId]:
         '''
-        Return our id int as a MonotonicId.
+        Return our id int as a MonotonicId or SpecialId.
         '''
+        # If a SpecialId type of message, return it as SpecialId.
+        if self.type == MsgType.CONNECT or self.type == MsgType.ACK_CONNECT:
+            return Message.SpecialId(self._id)
+
         return MonotonicId(self._id, allow=True)
 
     @property
@@ -198,18 +234,18 @@ class Message(Encodable):
         return self._type
 
     @property
-    def key(self) -> Optional['SerializableId']:
+    def key(self) -> Optional[UserId]:
         '''
         Return our message's key, if any.
         '''
         return self._key
 
     @key.setter
-    def key(self, value: Optional['SerializableId']) -> None:
+    def key(self, value: Optional[UserId]) -> None:
         '''
         Sets or clears the message's key.
         '''
-        return self._key
+        self._key = value
 
     @property
     def payload(self) -> Optional[Any]:
@@ -256,8 +292,8 @@ class Message(Encodable):
         # Required
         # ---
         encoded = {
-            'id': self._id,
-            'type': self._type.encode(),
+            'id':      self._id,
+            'type':    self._type.encode(),
             'payload': msg,
         }
 
@@ -327,14 +363,16 @@ class Message(Encodable):
         return (
             f"{self.__class__.__name__}"
             f"[{self.id}, "
-            f"{self.type}]("
-            f"{str(self.payload)}): "
+            f"{self.type}, "
+            f"{self.key}]("
+            f"{type(self.payload)}: {str(self.payload)}) "
         )
 
     def __repr__(self):
         return (
             "<Msg["
             f"{repr(self.id)},"
-            f"{repr(self.type)}]"
+            f"{repr(self.type)}, "
+            f"{self.key}]"
             f"({repr(self.payload)})>"
         )

@@ -27,7 +27,7 @@ from veredi.data.codec.base      import BaseCodec
 from veredi.data.config.config   import Configuration
 
 from ..mediator import Mediator
-from ..context  import MessageContext
+from ..context  import MessageContext, MediatorContext
 from ..message  import Message, MsgType
 from .base      import VebSocket
 
@@ -177,16 +177,17 @@ class WebSocketMediator(Mediator):
         '''
 
         self._hp_paths_type = {
-            MsgType.IGNORE:    (self._htx_root,    self._hrx_root),
-            MsgType.PING:      (self._htx_ping,    self._hrx_ping),
-            MsgType.ECHO:      (self._htx_echo,    self._hrx_echo),
-            MsgType.ECHO_ECHO: (self._htx_echo,    self._hrx_echo),
-            MsgType.ACK_ID:    (self._htx_ack,     self._hrx_ack),
-            MsgType.TEXT:      (self._htx_text,    self._hrx_text),
-            MsgType.ENCODED:   (self._htx_encoded, self._hrx_encoded),
-            MsgType.CODEC:     (self._htx_codec,   self._hrx_codec),
-            MsgType.LOGGING:   (self._htx_logging, self._hrx_logging),
-            MsgType.CONNECT:   (self._htx_connect, self._hrx_connect),
+            MsgType.IGNORE:      (self._htx_root,    self._hrx_root),
+            MsgType.PING:        (self._htx_ping,    self._hrx_ping),
+            MsgType.ECHO:        (self._htx_echo,    self._hrx_echo),
+            MsgType.ECHO_ECHO:   (self._htx_echo,    self._hrx_echo),
+            MsgType.ACK_ID:      (self._htx_ack,     self._hrx_ack),
+            MsgType.TEXT:        (self._htx_text,    self._hrx_text),
+            MsgType.ENCODED:     (self._htx_encoded, self._hrx_encoded),
+            MsgType.CODEC:       (self._htx_codec,   self._hrx_codec),
+            MsgType.LOGGING:     (self._htx_logging, self._hrx_logging),
+            MsgType.CONNECT:     (self._htx_connect, self._hrx_connect),
+            MsgType.ACK_CONNECT: (self._htx_connect, self._hrx_connect),
         }
         '''
         "Handle Parallel" Paths (separate handlers for sending, receiving).
@@ -222,8 +223,9 @@ class WebSocketMediator(Mediator):
                            match:    're.Match',
                            path:     str,
                            msg:      Message,
+                           context:  Optional[MediatorContext],
                            send_ack: Optional[bool] = True,
-                           log_type: Optional[str] = 'generic') -> Message:
+                           log_type: Optional[str]  = 'generic') -> Message:
         '''
         Handle receiving a message with generic/unknown payload.
         '''
@@ -249,7 +251,9 @@ class WebSocketMediator(Mediator):
     # -------------------------------------------------------------------------
 
     async def _hook_produce(self,
-                            msg: Optional[Message]) -> Optional[Message]:
+                            msg: Optional[Message],
+                            websocket: websockets.WebSocketCommonProtocol
+                            ) -> Optional[Message]:
         '''
         Hook that gets called right before `_handle_produce` returns a result.
         Can fiddle with the result, return it (or nothing or something entirely
@@ -258,7 +262,9 @@ class WebSocketMediator(Mediator):
         return msg
 
     async def _hook_consume(self,
-                            msg: Optional[Message]) -> Optional[Message]:
+                            msg: Optional[Message],
+                            websocket: websockets.WebSocketCommonProtocol
+                            ) -> Optional[Message]:
         '''
         Hook that gets called right before `_handle_consume` returns a result.
         Can fiddle with the result, return it (or nothing or something entirely
@@ -266,10 +272,17 @@ class WebSocketMediator(Mediator):
         '''
         return msg
 
+    # TODO [2020-08-12]: Type hinting double check of all the mediator code.
+
     async def _handle_produce_get_msg(self):
         '''
         Looks for a message to take from produce buffer(s) and return for
         sending.
+
+        Returns:
+          - (False, False) if it found nothing to produce/send.
+          - (Message, MessageContext) if it found something to produce/send.
+            - Could be Nones or MsgType.IGNORE.
         '''
         # Give our lil' queue priority over game...
         if self._med_tx_has_data():
@@ -305,9 +318,11 @@ class WebSocketMediator(Mediator):
 
         # Nothing in queues. Sleep a bit then return.
         await asyncio.sleep(0.1)
-        return None, None
+        return False, False
 
-    async def _handle_produce(self):
+    async def _handle_produce(self,
+                              websocket: websockets.WebSocketCommonProtocol
+                              ) -> Optional[Message]:
         '''
         Loop waiting for messages from our multiprocessing.connection to
         communicate about with the mediator on the other end.
@@ -321,14 +336,17 @@ class WebSocketMediator(Mediator):
             msg, ctx = await self._handle_produce_get_msg()
             # Checks for actually having a message below...
 
-            # Have something to send!
-            self.debug(f"produced for sending: msg: {msg}, ctx: {ctx}")
-
-            # Don't send a None, please.
-            if not msg:
-                log.warning("No message for sending? "
+            # Don't send nothing, please.
+            if msg is False and ctx is False:
+                # Ignore. Default return from _handle_produce_get_msg().
+                continue
+            if not msg or msg.type == MsgType.IGNORE:
+                log.warning("Produced nothing for sending. "
                             f"Ignoring msg: {msg}, ctx: {ctx}")
                 continue
+
+            # Have something to send!
+            self.debug(f"Produced for sending: msg: {msg}, ctx: {ctx}")
 
             sender, _ = self._hp_paths_type.get(msg.type, None)
             if not sender:
@@ -342,7 +360,7 @@ class WebSocketMediator(Mediator):
             # Only send out to socket if actually produced anything.
             if result:
                 self.debug(f"Sending {result}...")
-                result = await self._hook_produce(result)
+                result = await self._hook_produce(result, websocket)
                 return result
 
             else:
@@ -351,7 +369,10 @@ class WebSocketMediator(Mediator):
 
     async def _handle_consume(self,
                               msg: Message,
-                              path: str) -> Optional[Message]:
+                              path: str,
+                              context: Optional[MediatorContext],
+                              websocket: websockets.WebSocketCommonProtocol
+                              ) -> Optional[Message]:
         '''
         Handles a `VebSocketServer.serve_parallel` consume data callback.
         '''
@@ -365,8 +386,8 @@ class WebSocketMediator(Mediator):
             return None
 
         self.debug("Sending to path processor to consume...")
-        result = await processor(match, path, msg)
-        result = await self._hook_consume(result)
+        result = await processor(match, path, msg, context)
+        result = await self._hook_consume(result, websocket)
         return result
 
     # -------------------------------------------------------------------------
@@ -377,7 +398,7 @@ class WebSocketMediator(Mediator):
     async def _htx_connect(self,
                            msg: Message) -> Optional[Message]:
         '''
-        Handle sending a message with text payload.
+        Sends client their connected ack.
         '''
         raise NotImplementedError(
             "Client/Server must implement this separately.")
@@ -386,7 +407,9 @@ class WebSocketMediator(Mediator):
     async def _hrx_connect(self,
                            match: re.Match,
                            path: str,
-                           msg: Message) -> Optional[Message]:
+                           msg: Message,
+                           context: Optional[MediatorContext]
+                           ) -> Optional[Message]:
         '''
         Handle receiving a message with text payload.
         '''
@@ -413,7 +436,9 @@ class WebSocketMediator(Mediator):
     async def _hrx_ping(self,
                         match: re.Match,
                         path: str,
-                        msg: Message) -> None:
+                        msg: Message,
+                        context: Optional[MediatorContext]
+                        ) -> None:
         '''
         Handle receiving a ping. By doing nothing.
         '''
@@ -431,7 +456,9 @@ class WebSocketMediator(Mediator):
     async def _hrx_echo(self,
                         match: re.Match,
                         path: str,
-                        msg: Message) -> Optional[Message]:
+                        msg: Message,
+                        context: Optional[MediatorContext]
+                        ) -> Optional[Message]:
         '''
         Handles receiving an echo.
 
@@ -463,11 +490,13 @@ class WebSocketMediator(Mediator):
     async def _hrx_text(self,
                         match: re.Match,
                         path: str,
-                        msg: Message) -> Optional[Message]:
+                        msg: Message,
+                        context: Optional[MediatorContext]
+                        ) -> Optional[Message]:
         '''
         Handle receiving a message with text payload.
         '''
-        return await self._hrx_generic(match, path, msg,
+        return await self._hrx_generic(match, path, msg, context,
                                        send_ack=True,
                                        log_type='text')
 
@@ -482,12 +511,14 @@ class WebSocketMediator(Mediator):
     async def _hrx_encoded(self,
                            match: re.Match,
                            path: str,
-                           msg: Message) -> Optional[Message]:
+                           msg: Message,
+                           context: Optional[MediatorContext]
+                           ) -> Optional[Message]:
         '''
         Handle receiving a message with an encoded payload.
         So basically treat like TEXT: do nothing to the message payload.
         '''
-        return await self._hrx_generic(match, path, msg,
+        return await self._hrx_generic(match, path, msg, context,
                                        send_ack=True,
                                        log_type='encoded')
 
@@ -507,7 +538,9 @@ class WebSocketMediator(Mediator):
     async def _hrx_codec(self,
                          match: re.Match,
                          path: str,
-                         msg: Message) -> Optional[Message]:
+                         msg: Message,
+                         context: Optional[MediatorContext]
+                         ) -> Optional[Message]:
         '''
         Handle receiving a message with a payload we've been requested
         to 'codec plz'.
@@ -517,13 +550,16 @@ class WebSocketMediator(Mediator):
         self.debug(f"received 'codec' {msg}...")
 
         # Decode first, then pass on to generic handler for the rest.
+        #
+        # TODO [2020-08-12]: This decode_ctx is just wrong. Should give it our
+        # mediator context.
         decode_ctx = self._codec.make_context_data()
         payload = self._codec.decode(msg.payload, decode_ctx)
         recv = Message.codec(msg, payload)
 
         # recv is our processed msg, feed into _hrx_generic to process (ack,
         # put in rx queue, etc).
-        return await self._hrx_generic(match, path, recv,
+        return await self._hrx_generic(match, path, recv, context,
                                        send_ack=True,
                                        log_type='codec')
 
@@ -540,7 +576,9 @@ class WebSocketMediator(Mediator):
     async def _hrx_logging(self,
                            match: re.Match,
                            path: str,
-                           msg: Message) -> Optional[Message]:
+                           msg: Message,
+                           context: Optional[MediatorContext]
+                           ) -> Optional[Message]:
         '''
         Handle receiving a logging/debug-related message.
 
@@ -563,7 +601,7 @@ class WebSocketMediator(Mediator):
         # recv is our processed msg, feed into _hrx_generic to process (ack,
         # put in rx queue, etc).
         self.debug("passing on to `_hrx_codec`...")
-        return await self._hrx_generic(match, path, recv,
+        return await self._hrx_generic(match, path, recv, context,
                                        send_ack=True,
                                        log_type='logging')
 
@@ -578,7 +616,9 @@ class WebSocketMediator(Mediator):
     async def _hrx_ack(self,
                        match: re.Match,
                        path: str,
-                       msg: Message) -> Optional[Message]:
+                       msg: Message,
+                       context: Optional[MediatorContext]
+                       ) -> Optional[Message]:
         '''
         Handle receiving a message with an ACK_ID payload.
         '''
@@ -595,8 +635,6 @@ class WebSocketMediator(Mediator):
         return None
 
     async def _htx_root(self,
-                        match: re.Match,
-                        path: str,
                         msg: Message) -> None:
         '''
         Handle a send request to root path ("/").
@@ -607,7 +645,9 @@ class WebSocketMediator(Mediator):
     async def _hrx_root(self,
                         match: re.Match,
                         path: str,
-                        msg: Message) -> None:
+                        msg: Message,
+                        context: Optional[MediatorContext]
+                        ) -> None:
         '''
         Handle receiving a request to root path ("/").
         '''
@@ -617,7 +657,7 @@ class WebSocketMediator(Mediator):
         _, receiver = self._hp_paths_type.get(msg.type, None)
         if receiver:
             self.debug(f"Forward to: {receiver}")
-            return await receiver(match, path, msg)
+            return await receiver(match, path, msg, context)
 
         # else:
         # Ok, give up.

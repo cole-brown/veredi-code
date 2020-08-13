@@ -30,6 +30,7 @@ from io import StringIO
 from veredi.logger          import log
 from veredi.data.codec.base import BaseCodec
 from veredi.time.timer      import MonotonicTimer
+from veredi.base.identity   import MonotonicId
 
 from ..message               import Message, MsgType
 from ..context               import MediatorContext, MessageContext
@@ -40,9 +41,31 @@ from .exceptions             import WebSocketError
 # Constants
 # -----------------------------------------------------------------------------
 
-TxRxProcessor = NewType(
-    'TxRxProcessor',
-    Callable[[Message, Optional[MessageContext]], Optional[Message]]
+TxProcessor = NewType(
+    'TxProcessor',
+    Callable[[websockets.WebSocketCommonProtocol],
+             Optional[Message]]
+)
+
+RxProcessor = NewType(
+    'RxProcessor',
+    Callable[[Message,
+              str,
+              Optional[MediatorContext],
+              websockets.WebSocketCommonProtocol],
+             Optional[Message]]
+)
+
+
+MediatorMakeContext = NewType(
+    'MediatorMakeContext',
+    Callable[[websockets.WebSocketCommonProtocol], MediatorContext]
+)
+
+
+MessageMakeContext = NewType(
+    'MessageMakeContext',
+    Callable[[MonotonicId], MessageContext]
 )
 
 
@@ -77,8 +100,8 @@ class VebSocket:
 
     def __init__(self,
                  codec:          BaseCodec,
-                 med_context_fn: Callable[[], MediatorContext],
-                 msg_context_fn: Callable[[], MessageContext],
+                 med_context_fn: MediatorMakeContext,
+                 msg_context_fn: MessageMakeContext,
                  host:           str,
                  path:           Optional[str]              = None,
                  port:           Optional[int]              = None,
@@ -88,19 +111,19 @@ class VebSocket:
         # ---
         # Required
         # ---
-        self._codec:            BaseCodec                     = codec
-        self._med_make_context: Callable[[], MediatorContext] = med_context_fn
-        self._msg_make_context: Callable[[], MessageContext]  = msg_context_fn
-        self._host:             str                           = host
+        self._codec:            BaseCodec           = codec
+        self._med_make_context: MediatorMakeContext = med_context_fn
+        self._msg_make_context: MessageMakeContext  = msg_context_fn
+        self._host:             str                 = host
 
         # ---
         # Optional
         # ---
-        self._path:             str                           = path
-        self._port:             int                           = port
-        self._secure:           Union[str, bool]              = secure
-        self._uri:              Optional[str]                 = None
-        self._debug_fn:         Optional[Callable]            = debug_fn
+        self._path:             str                 = path
+        self._port:             int                 = port
+        self._secure:           Union[str, bool]    = secure
+        self._uri:              Optional[str]       = None
+        self._debug_fn:         Optional[Callable]  = debug_fn
 
         # ---
         # Internal
@@ -109,13 +132,13 @@ class VebSocket:
         self._close:      asyncio.Event = asyncio.Event()
 
         # For self.connect_parallel_txrx
-        self._data_consume: TxRxProcessor = None
+        self._data_consume: RxProcessor = None
         '''
         Data receiving/consuming callback for our parallel txrx websocket.
         '''
 
         # For self.connect_parallel_txrx
-        self._data_produce: TxRxProcessor = None
+        self._data_produce: TxProcessor = None
         '''
         Data sending/producing callback for our parallel txrx websocket.
         '''
@@ -370,12 +393,16 @@ class VebSocket:
         async for raw in websocket:
             self.debug(f"{self.SHORT_NAME}: <--  : "
                        f" raw: {raw}")
-            recv = self.decode(raw, self._med_make_context())
+            mediator_ctx = self._med_make_context(connection=websocket)
+            recv = self.decode(raw, mediator_ctx)
             self.debug(f"{self.SHORT_NAME}: <--  : "
                        f"recv: {recv}")
 
             # Actually process the data we're consuming.
-            immediate_reply = await self._data_consume(recv, self.path_rooted)
+            immediate_reply = await self._data_consume(recv,
+                                                       self.path_rooted,
+                                                       mediator_ctx,
+                                                       websocket)
 
             # And immediately reply if needed (i.e. ack).
             if immediate_reply:
@@ -401,7 +428,7 @@ class VebSocket:
             # this eternal loop.
             self.debug(f"Producing messages in context {context}...")
             while True:
-                message = await self._data_produce()
+                message = await self._data_produce(websocket)
 
                 # Only send out to socket if actually produced anything.
                 if not message:

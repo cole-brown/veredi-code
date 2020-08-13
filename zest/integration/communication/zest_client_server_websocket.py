@@ -14,6 +14,7 @@ Only really tests the websockets and Mediator.
 from typing import Optional, Callable, List
 
 import unittest
+import sys
 
 import multiprocessing
 import multiprocessing.connection
@@ -82,12 +83,12 @@ class Disabled(FlagCheckMixin, FlagSetMixin, enum.Flag):
     NONE             = 0
 
     test_nothing     = enum.auto()
+    test_connect     = enum.auto()
     test_ping        = enum.auto()
     test_echo        = enum.auto()
     test_text        = enum.auto()
     test_logs_ignore = enum.auto()
     test_logging     = enum.auto()
-    test_connect     = enum.auto()
 
     def disabled(self, test_method_name: str) -> bool:
         '''
@@ -402,12 +403,40 @@ class Test_WebSockets(unittest.TestCase):
     # -------------------------------------------------------------------------
 
     def setUp(self):
+        self._ut_is_verbose = ('-v' in sys.argv) or ('--verbose' in sys.argv)
+        if self._ut_is_verbose and LOG_LEVEL == log.Level.DEBUG:
+            # Hope this is enough for log_server to finish printing from
+            # previous test...
+            time.sleep(0.1)
+            # Give ourself a visible output split.
+            print('\n\n' + 'v' * 60)
+            print('v' * 60 + '\n')
+
         self.debug_flag = DebugFlag.MEDIATOR_ALL
         self.debugging = False
-        self.disabled_tests = (Disabled.NONE
-                               | Disabled.test_logs_ignore
-                               | Disabled.test_logging
-                               | Disabled.test_connect)
+        self.disabled_tests = (
+            # Only this, ideally.
+            Disabled.NONE
+
+            # ---
+            # Simplest test.
+            # ---
+            | Disabled.test_nothing
+
+            # ---
+            # More complex tests.
+            # ---
+            # | Disabled.test_connect
+            | Disabled.test_ping
+            | Disabled.test_echo
+            | Disabled.test_text
+
+            # ---
+            # Not ready yet.
+            # ---
+            | Disabled.test_logs_ignore
+            | Disabled.test_logging
+        )
 
         self._msg_id: MonotonicIdGenerator = MonotonicId.generator()
         '''ID generator for creating Mediator messages.'''
@@ -439,6 +468,14 @@ class Test_WebSockets(unittest.TestCase):
         self._msg_id = None
         self._user_key = None
         self.proc = None
+
+        if self._ut_is_verbose and LOG_LEVEL == log.Level.DEBUG:
+            # Hope this is enough for log_server to finish printing from
+            # previous test...
+            time.sleep(0.1)
+            # Give ourself a visible output split.
+            print('\n\n' + '^' * 60)
+            print('^' * 60 + '\n')
 
     # ---
     # Log Set-Up / Tear-Down
@@ -942,8 +979,10 @@ class Test_WebSockets(unittest.TestCase):
         '''
         _sigalrm_end()
         self.per_test_tear_down()
-        self.fail(f"Test failure due to {signal.Signal(sig_triggered)} "
-                  f"timeout. frame: {frame}")
+        self.fail(f'Test failure due to timeout. '
+                  f'Signal: {sig_triggered} '
+                  f'"{signal.strsignal(sig_triggered)}". '
+                  f'Frame: {frame}')
 
     def per_test_set_up(self):
         # Let it all run and wait for the game to end...
@@ -1165,17 +1204,15 @@ class Test_WebSockets(unittest.TestCase):
     # Test Client Requesting Connection to Server.
     # ------------------------------
 
-    def connect_client(self, client):
+    def do_test_connect(self, client):
         # Send something... Currently client doesn't care and tries to connect
         # on any message it gets when it has no connection. But it may change
         # later.
         mid = Message.SpecialId.CONNECT
         msg = Message(mid, MsgType.IGNORE, payload=None)
-        print(f"\n\nconnect_client: msg: {msg}")
         client.pipe.send((msg, self.msg_context(mid)))
 
         # Received "you're connected now" back?
-        print("\nconnect_client: wait for response...\n\n")
         recv, ctx = client.pipe.recv()
 
         # Make sure we got a message back and it has the ping time in it.
@@ -1183,65 +1220,32 @@ class Test_WebSockets(unittest.TestCase):
         self.assertTrue(ctx)
         self.assertIsInstance(recv, Message)
         self.assertTrue(ctx, MessageContext)
-        self.assertEqual(msg.id, ctx.id)
+        self.assertIsInstance(recv.id, Message.SpecialId)
         self.assertEqual(mid, recv.id)
-        self.assertEqual(msg.id, recv.id)
-        self.assertEqual(msg.type, recv.type)
+
+        # Translation from stored int to enum or id class instance borks this
+        # check up. `msg.id` will be MonotonicId, `recv.id` will be SpecialId,
+        # and they won't equal.
+        # self.assertEqual(msg.id, recv.id)
+
+        # Don't check this either. Duh. We create it as IGNORE, we're testing
+        # CONNECT, and we're expecting ACK_CONNECT back.
+        # self.assertEqual(msg.type, recv.type)
+        # Can do this though.
+        self.assertEqual(recv.type, MsgType.ACK_CONNECT)
+        self.assertIsInstance(recv.payload, dict)
+        self.assertIn('code', recv.payload)
+        self.assertIn('text', recv.payload)
+        # Did we connect successfully?
+        self.assertTrue(recv.payload['code'])
 
         # This should be... something.
-        print(f"msg key: {msg.key}")
-        self.assertTrue(msg.key)
+        self.assertIsNotNone(recv.key)
+        self.assertIsInstance(recv.key, UserId)
+        # Not sure what it should be, currently, so can't really test that?
 
-    def do_test_connect(self, client):
-
-        self.connect_client(client)
-
-        # self.assertEqual(self.proc.log.ignored_counter.value, 0)
-        # self.assertFalse(self.proc.log.ignore_logs.is_set())
-
-        # self.proc.log.ignore_logs.set()
-
-        # self.assertEqual(self.proc.log.ignored_counter.value, 0)
-
-        # # Have a client connect to server so we can then tell it to do a
-        # # logging thing.
-        # self.connect_client(client)
-
-        # # TODO:
-        # # TODO:
-        # # TODO: Time for UserIds?
-        # # TODO:
-        # # TODO:
-        # # TODO:
-
-        # # Have a client adjust its log level to debug. Should spit out a lot of
-        # # logs then.
-        # mid = self._msg_id.next()
-        # msg = Message.log(mid, log.Level.DEBUG)
-        # ctx = self.msg_context(mid)
-        # with log.LoggingManager.on_or_off(self.debugging, True):
-        #     # server -> client
-        #     self.proc.server.pipe.send((msg, ctx))
-        #     # client ack
-        #     ack_msg, ack_ctx = self.proc.server.pipe.recv()
-
-        # self.wait(0.1)
-        # # We ignored something, at least, right?
-        # print(f"counter: {self.proc.log.ignored_counter.value}")
-        # self.assertGreater(self.proc.log.ignored_counter.value, 2)
-
-        # # Make sure we got a message back and it has the same
-        # # message as we sent.
-        # self.assertTrue(ack_msg)
-        # self.assertTrue(ack_ctx)
-        # self.assertIsInstance(ack_msg, Message)
-        # self.assertTrue(ack_ctx, MessageContext)
-        # # Sent logging... right?
-        # self.assertEqual(msg.type, MsgType.LOGGING)
-
-        # # Make sure we don't have anything in the queues...
-        # self.assertFalse(client.pipe.poll())
-        # self.assertFalse(self.proc.server.pipe.poll())
+        # TODO [2020-08-13]: Server should know what key client will have
+        # before client connects.
 
     def test_connect(self):
         if self.disabled():
