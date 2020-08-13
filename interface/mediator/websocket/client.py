@@ -151,7 +151,8 @@ class WebSocketClient(WebSocketMediator):
                  conn:          multiprocessing.connection.Connection,
                  shutdown_flag: multiprocessing.Event,
                  user_key:      Optional[UserId]    = None,
-                 debug:         Optional[DebugFlag] = None) -> None:
+                 debug:         Optional[DebugFlag] = None,
+                 unit_testing:  Optional[bool]      = None) -> None:
         # Base class init first.
         super().__init__(config, conn, shutdown_flag, 'client', debug)
 
@@ -174,6 +175,8 @@ class WebSocketClient(WebSocketMediator):
         Note: Not really "are we connected right now". Just "has the server
         confirmed our CONNECT with an ACK_CONNECT at some point in the past?"
         '''
+
+        self._unit_testing: bool = unit_testing
 
     # -------------------------------------------------------------------------
     # Properties
@@ -261,17 +264,11 @@ class WebSocketClient(WebSocketMediator):
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
 
-    # TODO: delete THIS
-    async def _med_queue_watcher(self) -> None:
-        log.critical(f"CLIENT _med_queue_watcher? {self.any_shutdown()}")
-        await super()._med_queue_watcher()
-
     async def _shutdown_watcher(self) -> None:
         '''
         Watches `self._shutdown_process`. Will call stop() on our asyncio loop
         when the shutdown flag is set.
         '''
-        log.critical(f"CLIENT _shutdown_watcher? {self.any_shutdown()}")
         # Parent's watcher is non-blocking so we can be simple about this:
         await super()._shutdown_watcher()
 
@@ -283,7 +280,6 @@ class WebSocketClient(WebSocketMediator):
         '''
         Loop waiting on messages in our _rx_queue to send down to the game.
         '''
-        log.critical(f"CLIENT _queue_watcher? {self.any_shutdown()}")
         while True:
             # Die if requested.
             if self.any_shutdown():
@@ -320,7 +316,6 @@ class WebSocketClient(WebSocketMediator):
         Opens connection to the server, then can send and receive in parallel
         in the :meth:`_handle_produce` and :meth:`_handle_consume` functions.
         '''
-        log.critical(f"CLIENT _server_watcher? {self.any_shutdown()}")
         self.debug("Starting an endless loop...")
 
         # Wait for someone to want to talk to server...
@@ -429,8 +424,9 @@ class WebSocketClient(WebSocketMediator):
 
         # TODO: Whatever builds connect payload should also check it here...
         if 'code' in payload and payload['code'] is True:
-            log.info("{self._name}: Connected to server! "
-                     f"match: {match}, path: {path}, msg: {msg}")
+            if not self._unit_testing:
+                log.info("{self._name}: Connected to server! "
+                         f"match: {match}, path: {path}, msg: {msg}")
             self._connected = True
         else:
             log.error("{self._name}: Failed to connect to server! "
@@ -460,9 +456,8 @@ class WebSocketClient(WebSocketMediator):
         if not msg:
             return msg
 
+        # This is all we need at the moment...
         msg.key = self._key
-        log.critical("TODO: IS THIS ALL WE NEED?! "
-                     "client.hook_produce:", msg, "\n\n")
         return msg
 
     async def _hook_consume(self,

@@ -66,7 +66,7 @@ Main process will give the game/mediator this long to gracefully shutdown.
 If they take longer, it will just terminate them.
 '''
 
-LOG_LEVEL = log.Level.DEBUG  # BACK TO INFO!!!
+LOG_LEVEL = log.Level.INFO
 '''Test should set this to desired during setUp()'''
 
 StopRetVal = namedtuple('StopRetVal',
@@ -376,7 +376,8 @@ def run_client(proc_name     = None,
     lumberjack.debug(f"Starting WebSocketClient '{proc_name}'...")
     mediator = WebSocketClient(config, conn, shutdown_flag,
                                user_key=user_key,
-                               debug=debug_flag)
+                               debug=debug_flag,
+                               unit_testing=True)
     mediator.start()
     log_client.close()
     lumberjack.debug(f"mediator client '{proc_name}' done.")
