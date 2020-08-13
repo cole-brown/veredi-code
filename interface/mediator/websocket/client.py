@@ -39,7 +39,7 @@ from veredi.data.config.registry import register
 
 from ..message                   import Message, MsgType
 from .mediator                   import WebSocketMediator
-from .base                       import VebSocket, TxRxProcessor
+from .base                       import VebSocket, TxProcessor, RxProcessor
 from ..context                   import MediatorClientContext, MessageContext
 from .exceptions                 import WebSocketError
 
@@ -84,8 +84,8 @@ class VebSocketClient(VebSocket):
 
     async def connect_parallel(
             self,
-            produce_fn: TxRxProcessor,
-            consume_fn: TxRxProcessor
+            produce_fn: TxProcessor,
+            consume_fn: RxProcessor
     ) -> None:
         '''
         Connect to the server. Spin up asyncio tasks for messages
@@ -154,7 +154,6 @@ class WebSocketClient(WebSocketMediator):
                  debug:         Optional[DebugFlag] = None) -> None:
         # Base class init first.
         super().__init__(config, conn, shutdown_flag, 'client', debug)
-        log.critical(f"Init CLIENT: shutdown? {shutdown_flag.is_set()} {self._shutdown_process.is_set()}")
 
         self._key: Optional[UserId] = user_key
         '''Our auth key for talking to server.'''
@@ -167,6 +166,28 @@ class WebSocketClient(WebSocketMediator):
         Flag to indicate our server connection asyncio task should connect to
         server and start running the producer/consumer pipelines.
         '''
+
+        self._connected: bool = True
+        '''
+        Have we managed to connect to server yet?
+
+        Note: Not really "are we connected right now". Just "has the server
+        confirmed our CONNECT with an ACK_CONNECT at some point in the past?"
+        '''
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @property
+    def connected(self):
+        '''
+        Have we managed to connect to server yet?
+
+        Note: Not really "are we connected right now". Just "has the server
+        confirmed our CONNECT with an ACK_CONNECT at some point in the past?"
+        '''
+        return self._connected
 
     # -------------------------------------------------------------------------
     # Debug
@@ -193,7 +214,9 @@ class WebSocketClient(WebSocketMediator):
     # Mediator API
     # -------------------------------------------------------------------------
 
-    def make_med_context(self) -> MediatorClientContext:
+    def make_med_context(self,
+                         connection: websockets.WebSocketCommonProtocol = None
+                         ) -> MediatorClientContext:
         '''
         Make a context with our context data, our codec's, etc.
         '''
@@ -336,10 +359,9 @@ class WebSocketClient(WebSocketMediator):
             self._socket = self._server_connection()
 
             # TODO: get connect message working
-            # self.debug("Queueing connect message...")
-            # ctx = self.make_msg_context(Message.SpecialId.CONNECT)
-            # msg = self._connect_message(ctx)
-            # self._med_tx_put(msg, ctx)
+            self.debug("Queueing connect message...")
+            connect_msg, connect_ctx = self._connect_message()
+            await self._med_tx_put(connect_msg, connect_ctx)
 
             self.debug("Starting connection handlers...")
             await self._socket.connect_parallel(self._handle_produce,
@@ -349,10 +371,11 @@ class WebSocketClient(WebSocketMediator):
             # And back to waiting on the connection request flag.
             self._socket = None
 
-    def _connect_message(self, ctx: MessageContext) -> None:
+    def _connect_message(self, ctx: Optional[MessageContext] = None) -> None:
         '''
         Queue up a connection message to server for auth/user registration.
         '''
+        ctx = ctx or self.make_msg_context(Message.SpecialId.CONNECT)
         msg = Message(Message.SpecialId.CONNECT,
                       MsgType.CONNECT,
                       # TODO: different payload? second 'password' key?
@@ -395,19 +418,46 @@ class WebSocketClient(WebSocketMediator):
     async def _hrx_connect(self,
                            match: re.Match,
                            path: str,
-                           msg: Message) -> Optional[Message]:
+                           msg: Message,
+                           context: Optional[MediatorClientContext]
+                           ) -> Optional[Message]:
         '''
-        Receive connect response from server.
+        Receive connect ack/response from server.
         '''
-        log.critical("client: TODO THIS.", match, path, msg)
-        return None
+        payload = msg.payload
+        self.debug(f"Received connect response: {type(payload)}: {payload}")
+
+        # TODO: Whatever builds connect payload should also check it here...
+        if 'code' in payload and payload['code'] is True:
+            log.info("{self._name}: Connected to server! "
+                     f"match: {match}, path: {path}, msg: {msg}")
+            self._connected = True
+        else:
+            log.error("{self._name}: Failed to connect to server! "
+                      f"match: {match}, path: {path}, msg: {msg}")
+            self._connected = False
+
+            # Should we close here? Think so... But currently that'll just have
+            # mediator keep trying. Need mediator or game to give up or
+            # something.
+            # TODO [2020-08-13]: Give up if too many failed connects?
+            # TODO [2020-08-13]: Give up if a 'give up' fail code?
+            self._socket.close()
+            self._socket = None
+
+        return await self._hrx_generic(match, path, msg, context,
+                                       # Don't ack the ack back.
+                                       send_ack=False,
+                                       log_type='connect')
 
     async def _hook_produce(self,
-                            msg: Optional[Message]) -> Optional[Message]:
+                            msg: Optional[Message],
+                            websocket: websockets.WebSocketCommonProtocol
+                            ) -> Optional[Message]:
         '''
         Add our user's key to the message to be sent to the server.
         '''
-        if msg == None:
+        if not msg:
             return msg
 
         msg.key = self._key
@@ -416,11 +466,13 @@ class WebSocketClient(WebSocketMediator):
         return msg
 
     async def _hook_consume(self,
-                            msg: Optional[Message]) -> Optional[Message]:
+                            msg: Optional[Message],
+                            websocket: websockets.WebSocketCommonProtocol
+                            ) -> Optional[Message]:
         '''
         Check all received messages from server?
         '''
-        if msg == None:
+        if not msg:
             return msg
 
         # Just log it and return...

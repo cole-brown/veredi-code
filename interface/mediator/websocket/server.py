@@ -33,13 +33,14 @@ from veredi.logger               import log
 from veredi.debug.const          import DebugFlag
 from veredi.base.identity        import MonotonicId
 from veredi.data                 import background
+from veredi.data.identity        import UserId
 from veredi.data.config.config   import Configuration
 from veredi.data.codec.base      import BaseCodec
 from veredi.data.config.registry import register
 
 from .mediator                   import WebSocketMediator
 from .exceptions                 import WebSocketError
-from .base                       import VebSocket, TxRxProcessor
+from .base                       import VebSocket, TxProcessor, RxProcessor
 from ..message                   import Message, MsgType
 from ..context                   import MediatorServerContext, MessageContext
 
@@ -47,11 +48,6 @@ from ..context                   import MediatorServerContext, MessageContext
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# TODO [2020-08-01]: Make this an actual ID type? Get from game?
-UserId = NewType('UserId',
-                 Union[int, MonotonicId])
-'''A way to track users and their WebSocket connections.'''
 
 
 # -----------------------------------------------------------------------------
@@ -68,8 +64,12 @@ class VebSocketServer(VebSocket):
 
     def __init__(self,
                  codec:          BaseCodec,
-                 med_context_fn: Callable[[], MediatorServerContext],
-                 msg_context_fn: Callable[[], MessageContext],
+                 med_context_fn: Callable[[],
+                                          MediatorServerContext],
+                 msg_context_fn: Callable[[],
+                                          MessageContext],
+                 unregister_fn:  Callable[[websockets.WebSocketCommonProtocol],
+                                          Optional[Message]],
                  host:           str,
                  path:           Optional[str]              = None,
                  port:           Optional[int]              = None,
@@ -81,6 +81,8 @@ class VebSocketServer(VebSocket):
                          port=port,
                          secure=secure,
                          debug_fn=debug_fn)
+
+        self._unregistered = unregister_fn
 
         self.debug(f"host: {str(type(self._host))}({self._host}), "
                    f"port: {str(type(self._port))}({self._port}), "
@@ -96,8 +98,7 @@ class VebSocketServer(VebSocket):
         #   - It gets in the wrong asyncio event loop somehow.
         self._server: websockets.WebSocketServer = None
 
-        # TODO [2020-08-05]: start using _clients instead of _sockets_open?
-        self._clients: Dict[UserId, websockets.WebSocketServerProtocol] = {}
+        # We just know sockets. MediatorServer knows what user has what socket.
         self._sockets_open: Set[websockets.WebSocketServerProtocol] = set()
 
         self._paths_ignored: Set[re.Pattern] = set()
@@ -108,8 +109,8 @@ class VebSocketServer(VebSocket):
 
     async def serve_parallel(
             self,
-            produce_fn: TxRxProcessor,
-            consume_fn: TxRxProcessor
+            produce_fn: TxProcessor,
+            consume_fn: RxProcessor
     ) -> None:
         '''
         Start WebSocket Server listening on `self._host` and `self._port`.
@@ -172,29 +173,27 @@ class VebSocketServer(VebSocket):
         '''
         Add this websocket to our collection of clients.
         '''
-        # TODO [2020-08-01]: Where do I get a UID from?
-        # Need, like, maybe... user key and secret key, like other APIs have?
-        # Web Clients can get it from HTML website before they switch on the
-        # websocket?
-
-        # clients[uid] = websocket
-
         self._sockets_open.add(websocket)
 
     def unregister(self,
-                   websocket: websockets.WebSocketServerProtocol
+                   websocket: websockets.WebSocketServerProtocol,
+                   close: bool = False
                    ) -> None:
         '''
         Remove this websocket from our collection of clients.
+
+        Closes socket if `close` is True.
         '''
-        # TODO [2020-08-01]: Where do I get a UID from?
-        # Need, like, maybe... user key and secret key, like other APIs have?
-        # Web Clients can get it from HTML website before they switch on the
-        # websocket?
-
-        # self._clients.pop(uid)
-
         self._sockets_open.remove(websocket)
+        if self._unregistered:
+            self._unregistered(websocket)
+
+        # Both 'ws.open' and 'ws.closed' are False during opening/closing
+        # sequences so I guess check both?
+        if close and websocket.open and not websocket.closed:
+            # If this takes too long, adjust 'close_timeout' keyword arg of
+            # WebSocketServerProtocol constructor.
+            websocket.close()
 
     async def _a_wait_close(self, server: websockets.WebSocketServer) -> None:
         '''
@@ -300,11 +299,100 @@ class WebSocketServer(WebSocketMediator):
         self._socket = VebSocketServer(self._codec,
                                        self.make_med_context,
                                        self.make_msg_context,
+                                       self.unregister,
                                        self._host,
                                        path=None,
                                        port=self._port,
                                        secure=self._ssl,
                                        debug_fn=self.debug)
+        '''
+        Serving/listening on this socket.
+        '''
+
+        # TODO [2020-08-13]: Should probably get rid of websockets from
+        # Mediator, leave it inside VebSocket. Have VebSocket return a 'token'
+        # of some sort?
+        self._clients: Dict[UserId, websockets.WebSocketServerProtocol] = {}
+        '''
+        Our currently connected users.
+        '''
+
+    # -------------------------------------------------------------------------
+    # User Connection Tracking
+    # -------------------------------------------------------------------------
+
+    def _validate_connect(self,
+                          uid: UserId,
+                          conn: websockets.WebSocketCommonProtocol,
+                          msg: Message) -> bool:
+        '''
+        Validates user, registers if valid, returns valid/invalid user bool.
+        '''
+        # TODO [2020-08-13]: Actually validate. Check against what user_id we
+        # expected. Check user_key or whatever as well.
+        if uid and isinstance(uid, UserId):
+            if uid in self._clients:
+                log.warning("User is already registered; overwriting. "
+                            f"uid: {uid}, "
+                            f"prev_conn: {self._clients[uid]}, "
+                            f"new_conn: {conn}, msg: {msg}")
+                # TODO [2020-08-13]: Should we tell socket to disconnect that
+                # one?
+
+            return True
+            self._clients[uid] = conn
+
+        log.critical("User failer registration... No UserId or need to decode?"
+                     f" uid: {type(uid)} {uid}")
+        return False
+
+    def register(self,
+                 user_id:   UserId,
+                 websocket: websockets.WebSocketServerProtocol,
+                 msg:       Message) -> Optional[Message]:
+        '''
+        Validate client, register as connected if passes validation.
+
+        Return ACK_CONNECT message if needed.
+        '''
+        if not self._validate_connect(user_id, websocket, msg):
+            # Failed. Return ACK_CONNECT for failure.
+            # TODO: Don't always return message? Always return None? IDK?
+            return Message.connected(msg, user_id, False)
+
+        self._clients[user_id] = websocket
+        # Success. Return ACK_CONNECT for failure.
+        ack = Message.connected(msg, user_id, True)
+        self.debug(f"Registered: user: {user_id}, conn: {websocket} -> {ack}")
+        return ack
+
+    # TODO [2020-08-13]: Not sure if we're gonna unregister by socket or
+    # uid. Probably socket because our listening socket is the one who notices?
+    def unregister(self,
+                   # user_id:   UserId
+                   websocket: websockets.WebSocketCommonProtocol
+                   ) -> Optional[Message]:
+        '''
+        Client has disconnected, remove from registered.
+        '''
+        # self._clients.pop(user_id)
+
+        self.debug(f"Unregistering: conn: {websocket}")
+        uid = None
+        for key in self._clients:
+            if self._clients[key] == websocket:
+                uid = key
+                break
+
+        if uid:
+            self._clients.pop(uid)
+            self.debug(f"Unregistered: user: {uid}, conn: {websocket}")
+        else:
+            self.debug(f"No user registered for websocket: {websocket}")
+
+        # Already disconnected, so we can't really say goodbye. Maybe in the
+        # future if there's a structured shutdown or server-initiated...
+        return None
 
     # -------------------------------------------------------------------------
     # Debug
@@ -337,16 +425,22 @@ class WebSocketServer(WebSocketMediator):
     # Mediator API
     # -------------------------------------------------------------------------
 
-    def make_med_context(self) -> MediatorServerContext:
+    def make_med_context(self,
+                         connection: websockets.WebSocketCommonProtocol = None
+                         ) -> MediatorServerContext:
         '''
         Make a context with our context data, our codec's, etc.
         '''
         ctx = MediatorServerContext(self.dotted)
         ctx.sub['type'] = 'websocket.server'
         ctx.sub['codec'] = self._codec.make_context_data()
+        if connection:
+            ctx.sub['connection'] = connection
         return ctx
 
-    def make_msg_context(self, id: MonotonicId) -> MessageContext:
+    def make_msg_context(self,
+                         id: MonotonicId,
+                         ) -> MessageContext:
         '''
         Make a context for a message.
         '''
@@ -449,16 +543,66 @@ class WebSocketServer(WebSocketMediator):
     async def _htx_connect(self,
                            msg: Message) -> Optional[Message]:
         '''
-        Send auth/registration result back down to the client.
+        Send auth/registration result back down to the client?
+        Or was that handled during _hrx_connect?
         '''
         return await self._htx_generic(msg, 'connect')
 
     async def _hrx_connect(self,
                            match: re.Match,
                            path:  str,
-                           msg:   Message) -> Optional[Message]:
+                           msg:   Message,
+                           context: Optional[MediatorServerContext]
+                           ) -> Optional[Message]:
         '''
         Handle auth/registration request from a client.
         '''
-        log.critical("server: TODO THIS.", match, path, msg)
-        return None
+        # Already a dict, I guess?
+        # payload = self._codec.decode(msg.payload, context)
+        # user_id = UserId.decode(payload)
+        user_id = UserId.decode(msg.payload)
+        conn = context.sub.get('connection', None)
+
+        # Validate and register user.
+        reply = self.register(user_id, conn, msg)
+        return reply
+
+    async def _hook_produce(self,
+                            msg: Optional[Message],
+                            websocket: websockets.WebSocketCommonProtocol
+                            ) -> Optional[Message]:
+        '''
+        Hook that gets called right before `_handle_produce` returns a result.
+        Can fiddle with the result, return it (or nothing or something entirely
+        different)...
+        '''
+        if not msg or not websocket:
+            return msg
+
+        # TODO [2020-08-13]: I think msg should have key applied by game or
+        # before it gets here. If that turns out not to be the case, just
+        # quietly inject it without debug message.
+        if not msg.key:
+            for key in self._clients:
+                if self._clients[key] == websocket:
+                    msg.key = key
+                    self.debug(f"Produced message had no key: {msg}. "
+                               f"Adding from registered users: {key}")
+                    break
+            else:
+                # Didn't exit 'for loop' via break; didn't find user.
+                log.error("Produced message had no key and no "
+                          f"registered client: {msg}.")
+
+        return msg
+
+    async def _hook_consume(self,
+                            msg: Optional[Message],
+                            websocket: websockets.WebSocketCommonProtocol
+                            ) -> Optional[Message]:
+        '''
+        Hook that gets called right before `_handle_consume` returns a result.
+        Can fiddle with the result, return it (or nothing or something entirely
+        different)...
+        '''
+        return msg

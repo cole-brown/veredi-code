@@ -8,10 +8,11 @@ ID Base Classes for Various Kinds of IDs.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Type, Mapping
+from typing import Optional, Type, Mapping, Tuple, Dict
 
 import uuid
 
+from veredi.logger        import log
 from veredi.base.identity import SerializableId
 import veredi.time.machine
 
@@ -71,10 +72,12 @@ class UserId(SerializableId):
     # Initialization
     # ------------------------------
 
-    def __new__(klass: Type['SerializableId'],
-                seed: str,
-                name: str,
-                allow: Optional[bool] = False) -> 'SerializableId':
+    def __new__(klass:         Type['UserId'],
+                seed:          str,
+                name:          str,
+                allow:         Optional[bool] = False,
+                decoding:      bool           = False,
+                decoded_value: Optional[int]  = None) -> 'UserId':
         '''
         This is to prevent creating IDs willy-nilly.
         '''
@@ -82,12 +85,15 @@ class UserId(SerializableId):
             # Just make all constructed return the INVALID singleton.
             return klass._INVALID
 
-        inst = super().__new__(klass, name, allow=True)
-        inst.__init__(seed, name, allow=True)
-        # I guess this is magic bullshit cuz I don't need to init it with
-        # `value` but it still gets initialized with `value`?
+        # log.debug(f"UserId.__new__: seed: {seed}, name: {name}, "
+        #           f"allow: {allow}, decoding: {decoding}, "
+        #           f"dec_val: {decoded_value}")
 
-        # no need: inst.__init__(value)
+        inst = super().__new__(klass, name, allow=True)
+        # inst.__init__(seed, name,
+        #               allow=allow,
+        #               decoding=decoding,
+        #               decoded_value=decoded_value)
         return inst
 
     def __init__(self, seed: str, name: str,
@@ -100,11 +106,20 @@ class UserId(SerializableId):
 
         If `decoding`, just use `decode_value'.
         '''
+        # log.debug(f"UserId.__!!INIT!!__: seed: {seed}, name: {name}, "
+        #           f"allow: {allow}, decoding: {decoding}, "
+        #           f"dec_val: {decoded_value}")
+
         # Decoding into a valid UserId?
         if (allow and decoding                        # Decode mode is a go.
                 and not seed and not name             # Normal mode is a no.
                 and isinstance(decoded_value, int)):  # Something decode.
-            self._value = uuid.UUID(decoded_value)
+            self._value = uuid.UUID(int=decoded_value)
+            # log.debug("UserId.__init__: decoded to: "
+            #           f"{self._value}, {str(self)}")
+
+            # Don't forget to return now. >.<
+            return
 
         # Constructing _INVALID instance?
         if not seed or not name:
@@ -117,10 +132,10 @@ class UserId(SerializableId):
     # We get this from our metaclass (InvalidProvider):
     # @property
     # @classmethod
-    # def INVALID(klass: Type['SerializableId']) -> 'SerializableId':
+    # def INVALID(klass: Type['UserId']) -> 'UserId':
     #     '''
     #     Returns a constant value which is considered invalid by whatever
-    #     provides these SerializableIds.
+    #     provides these UserIds.
     #     '''
     #     return klass._INVALID
 
@@ -138,15 +153,36 @@ class UserId(SerializableId):
         return encoded
 
     @classmethod
-    def decode(klass: 'SerializableId',
-               value: Mapping[str, int]) -> 'SerializableId':
+    def decode(klass: 'UserId',
+               value: Mapping[str, int]) -> 'UserId':
         '''
-        Turns our encoded dict into a SerializableId instance.
+        Turns our encoded dict into a UserId instance.
         '''
         decoded = klass(None, None,
                         allow=True, decoding=True,
                         decoded_value=value[klass._ENCODE_FIELD_NAME])
         return decoded
+
+    # ------------------------------
+    # Pickleable API
+    # ------------------------------
+
+    def __getnewargs_ex__(self) -> Tuple[Tuple, Dict]:
+        '''
+        Returns a 2-tuple of:
+          - a tuple for *args
+          - a dict for **kwargs
+        These values will be used in __new__ for unpickling ourself.
+        '''
+        # Set it up for the 'decoding & pickle' path through __new__ for the
+        # unpickle.
+        args = (None, None)  # seed, name
+        kwargs = {
+            'allow': True,
+            'decoding': True,
+            'decoded_value': self.value.int,
+        }
+        return (args, kwargs)
 
     # ------------------------------
     # Generator
