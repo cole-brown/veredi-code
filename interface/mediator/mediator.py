@@ -193,7 +193,7 @@ class Mediator(ABC):
         '''
         return self._game_pipe.poll()
 
-    async def _game_pipe_get(self) -> Tuple[Message, MessageContext]:
+    def _game_pipe_get(self) -> Tuple[Message, MessageContext]:
         '''
         Gets data from game pipe for sending. Waits/blocks until it receives
         something.
@@ -279,6 +279,18 @@ class Mediator(ABC):
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
 
+    async def _continuing(self) -> None:
+        '''
+        Call when about to continue in an asyncio loop.
+        '''
+        await asyncio.sleep(0.1)
+
+    async def _sleep(self) -> None:
+        '''
+        Call when about to continue in an asyncio loop.
+        '''
+        await asyncio.sleep(0.1)
+
     async def _a_main(self, *aws: Awaitable) -> Iterable[Any]:
         '''
         Runs `aws` list of async tasks/futures concurrently, returns the
@@ -296,7 +308,7 @@ class Mediator(ABC):
             if self.any_shutdown():
                 break
             # Await something so other async tasks can run? IDK.
-            await asyncio.sleep(0.1)
+            await self._continuing()
 
         # Shutdown has been signaled to us somehow; make sure we signal to
         # other processes/awaitables.
@@ -314,17 +326,20 @@ class Mediator(ABC):
 
             # Check for something in connection to send; don't block.
             if not self._med_rx_has_data():
-                await asyncio.sleep(0.1)
+                await self._continuing()
                 continue
 
             # Else get one thing and process it.
             msg, ctx = self._med_rx_get()
             if not msg:
+                await self._continuing()
                 continue
 
             # Deal with this msg to us?
             if msg.type == MsgType.LOGGING:
                 self.update_logging(msg)
+
+            await self._continuing()
 
     def any_shutdown(self) -> bool:
         '''

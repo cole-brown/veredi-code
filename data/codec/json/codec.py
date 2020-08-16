@@ -26,7 +26,7 @@ from veredi.data import background
 from veredi.data.config.registry import register
 from veredi.data import exceptions
 
-from ..base import BaseCodec, CodecOutput, CodecInput
+from ..base import BaseCodec, CodecOutput, CodecInput, Encodable
 
 
 # -----------------------------------------------------------------------------
@@ -206,7 +206,7 @@ class JsonCodec(BaseCodec):
             return encoded
 
         # Is it just an Encodable object?
-        with contextlib.suppress(AttributeError):
+        if isinstance(data, Encodable):
             encoded = data.encode()
             return encoded
 

@@ -80,3 +80,10 @@ class DataRequirementsError(VerediError):
     Data error. Data failed requirements?
     '''
     ...
+
+
+class EncodableError(VerediError):
+    '''
+    An Encodable failed to encode() or decode() properly.
+    '''
+    ...

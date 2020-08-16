@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 from io import StringIO
 
+from ..exceptions import EncodableError
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -50,6 +52,18 @@ class Encodable:
         Return the instance.
         '''
         ...
+
+    @classmethod
+    def error_for_key(klass: 'Encodable',
+                      key: str,
+                      value: Mapping[str, Any]) -> None:
+        '''
+        Raises an EncodableError if supplied `key` is not in `value` mapping.
+        '''
+        if key not in value:
+            raise EncodableError(
+                f"Cannot decode value to {klass.__name__}: {value}",
+                None)
 
 
 CodecOutput = NewType('CodecOutput',

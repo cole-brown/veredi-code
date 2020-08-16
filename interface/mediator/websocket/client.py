@@ -150,12 +150,15 @@ class WebSocketClient(WebSocketMediator):
                  config:        Configuration,
                  conn:          multiprocessing.connection.Connection,
                  shutdown_flag: multiprocessing.Event,
+                 user_id:       Optional[UserId]    = None,
                  user_key:      Optional[UserId]    = None,
                  debug:         Optional[DebugFlag] = None,
                  unit_testing:  Optional[bool]      = None) -> None:
         # Base class init first.
         super().__init__(config, conn, shutdown_flag, 'client', debug)
 
+        self._id: Optional[UserId] = user_id
+        '''Our auth id for talking to server.'''
         self._key: Optional[UserId] = user_key
         '''Our auth key for talking to server.'''
 
@@ -287,16 +290,18 @@ class WebSocketClient(WebSocketMediator):
 
             # Check for something in connection to send; don't block.
             if not self._med_to_game_has_data():
-                await asyncio.sleep(0.1)
+                await self._continuing()
                 continue
 
             # Else get one thing and send it off this round.
             try:
                 msg, ctx = self._med_to_game_get()
                 if not msg or not ctx:
+                    await self._continuing()
                     continue
             except asyncio.QueueEmpty:
                 # get_nowait() got nothing. That's fine; go back to waiting.
+                await self._continuing()
                 continue
 
             # Transfer from 'received from server queue' to
@@ -306,6 +311,7 @@ class WebSocketClient(WebSocketMediator):
 
             # Skip this - we used get_nowait(), not get().
             # self._rx_queue.task_done()
+            await self._continuing()
 
     async def _server_watcher(self) -> None:
         '''
@@ -335,7 +341,7 @@ class WebSocketClient(WebSocketMediator):
 
             # Check... enter condition.
             if not self._desire_connect():
-                await asyncio.sleep(0.1)
+                await self._continuing()
                 continue
             self._clear_connect()
 
@@ -349,7 +355,7 @@ class WebSocketClient(WebSocketMediator):
                                     "expecting it not to. {}",
                                     self._socket)
 
-            # TODO: path for my user? With user key, user secret?
+            # TODO: path for my user? With user id, user key?
             self.debug("Creating connection to server...")
             self._socket = self._server_connection()
 
@@ -365,6 +371,7 @@ class WebSocketClient(WebSocketMediator):
 
             # And back to waiting on the connection request flag.
             self._socket = None
+            await self._continuing()
 
     def _connect_message(self, ctx: Optional[MessageContext] = None) -> None:
         '''
@@ -373,16 +380,17 @@ class WebSocketClient(WebSocketMediator):
         ctx = ctx or self.make_msg_context(Message.SpecialId.CONNECT)
         msg = Message(Message.SpecialId.CONNECT,
                       MsgType.CONNECT,
-                      # TODO: different payload? second 'password' key?
-                      payload=self._key,
-                      key=self._key)
+                      # TODO: different payload? add user_key?
+                      payload=self._id,
+                      user_id=self._id,
+                      user_key=None)
         return msg, ctx
 
     def _request_connect(self) -> None:
         '''
         Flags :meth:`_server_watcher` with a request to get it all going.
         '''
-        # TODO: path for my user? With user key, user secret?
+        # TODO: path for my user? With user id, user key?
         self.debug("Requesting connection to server...")
         self._connect_request.set()
 
@@ -451,13 +459,15 @@ class WebSocketClient(WebSocketMediator):
                             websocket: websockets.WebSocketCommonProtocol
                             ) -> Optional[Message]:
         '''
-        Add our user's key to the message to be sent to the server.
+        Add our user's id/key to the message to be sent to the server.
         '''
         if not msg:
             return msg
 
         # This is all we need at the moment...
-        msg.key = self._key
+        msg.user_id = self._id
+        # TODO: key too...
+        # msg.user_key = self._key
         return msg
 
     async def _hook_consume(self,
@@ -471,9 +481,10 @@ class WebSocketClient(WebSocketMediator):
             return msg
 
         # Just log it and return...
-        if msg.key != self._key:
-            log.warning("Client received msg key that doesn't match expected."
-                        f"Expected: {str(self._key)}, Got: {str(msg.key)}")
+        if msg.msg_id != self._id:
+            log.warning("Client received msg id that doesn't match expected."
+                        f"Expected: {str(self._id)}, Got: {str(msg.msg_id)}. "
+                        f"Msg: {msg}")
         return msg
 
     def _server_connection(self,
