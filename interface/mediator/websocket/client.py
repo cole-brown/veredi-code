@@ -481,9 +481,9 @@ class WebSocketClient(WebSocketMediator):
             return msg
 
         # Just log it and return...
-        if msg.msg_id != self._id:
+        if msg.user_id != self._id:
             log.warning("Client received msg id that doesn't match expected."
-                        f"Expected: {str(self._id)}, Got: {str(msg.msg_id)}. "
+                        f"Expected: {str(self._id)}, Got: {str(msg.user_id)}. "
                         f"Msg: {msg}")
         return msg
 
