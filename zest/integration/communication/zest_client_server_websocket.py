@@ -35,7 +35,9 @@ from veredi.base.enum                           import (FlagCheckMixin,
                                                         FlagSetMixin)
 from veredi.time.timer                          import MonotonicTimer
 from veredi.data.identity                       import (UserId,
-                                                        UserIdGenerator)
+                                                        UserIdGenerator,
+                                                        UserKey,
+                                                        UserKeyGenerator)
 
 
 # ---
@@ -66,7 +68,7 @@ Main process will give the game/mediator this long to gracefully shutdown.
 If they take longer, it will just terminate them.
 '''
 
-LOG_LEVEL = log.Level.INFO
+LOG_LEVEL = log.Level.DEBUG # TODO: Back to: INFO
 '''Test should set this to desired during setUp()'''
 
 StopRetVal = namedtuple('StopRetVal',
@@ -128,13 +130,17 @@ class TestProc:
                  process:    multiprocessing.Process               = None,
                  pipe:       multiprocessing.connection.Connection = None,
                  shutdown:   multiprocessing.Event                 = None,
-                 proc_debug: ProcTest                              = None
+                 proc_debug: ProcTest                              = None,
+                 user_id:    UserId                                = None,
+                 user_key:   UserKey                               = None,
                  ) -> None:
         self.name = name
         self.process = process
         self.pipe = pipe
         self.shutdown = shutdown
         self.debug = proc_debug
+        self.user_id = user_id
+        self.user_key = user_key
 
 
 class TestLog(TestProc):
@@ -152,13 +158,15 @@ class TestLog(TestProc):
                  ignored_counter: multiprocessing.Value                 = None,
                  proc_debug:      ProcTest                              = None
                  ) -> None:
-        self.name = name
-        self.process = process
-        self.pipe = pipe
-        self.shutdown = shutdown
+        super().__init__(name=name,
+                         process=process,
+                         pipe=pipe,
+                         shutdown=shutdown,
+                         proc_debug=proc_debug,
+                         user_id=None,
+                         user_key=None)
         self.ignore_logs = ignore_logs
         self.ignored_counter = ignored_counter
-        self.debug = proc_debug
 
 
 class Processes:
@@ -338,6 +346,7 @@ def run_client(proc_name     = None,
                shutdown_flag = None,
                debug_flag    = None,
                proc_test     = None,
+               user_id       = None,
                user_key      = None) -> None:
     '''
     Init and run client/engine IO mediator.
@@ -375,6 +384,7 @@ def run_client(proc_name     = None,
 
     lumberjack.debug(f"Starting WebSocketClient '{proc_name}'...")
     mediator = WebSocketClient(config, conn, shutdown_flag,
+                               user_id=user_id,
                                user_key=user_key,
                                debug=debug_flag,
                                unit_testing=True)
@@ -422,15 +432,15 @@ class Test_WebSockets(unittest.TestCase):
             # ---
             # Simplest test.
             # ---
-            | Disabled.test_nothing
+            # | Disabled.test_nothing
 
             # ---
             # More complex tests.
             # ---
             # | Disabled.test_connect
-            | Disabled.test_ping
-            | Disabled.test_echo
-            | Disabled.test_text
+            # | Disabled.test_ping
+            # | Disabled.test_echo
+            # | Disabled.test_text
 
             # ---
             # Not ready yet.
@@ -442,7 +452,7 @@ class Test_WebSockets(unittest.TestCase):
         self._msg_id: MonotonicIdGenerator = MonotonicId.generator()
         '''ID generator for creating Mediator messages.'''
 
-        self._user_key: UserIdGenerator = UserId.generator()
+        self._user_id: UserIdGenerator = UserId.generator()
         '''For these, just make up user ids.'''
 
         self.proc: Processes = Processes()
@@ -467,7 +477,7 @@ class Test_WebSockets(unittest.TestCase):
         self.debug_flag = None
         self.debugging = False
         self._msg_id = None
-        self._user_key = None
+        self._user_id = None
         self.proc = None
 
         if self._ut_is_verbose and LOG_LEVEL == log.Level.DEBUG:
@@ -608,7 +618,9 @@ class Test_WebSockets(unittest.TestCase):
             # Stuff clients and us both need.
             mediator_conn, test_conn = multiprocessing.Pipe()
             name = self.NAME_CLIENT_FMT.format(i=i)
-            user_key = self._user_key.next(name)
+            user_id = self._user_id.next(name)
+            # TODO: generate a user key
+            user_key = None
 
             # Create this client.
             client = TestProc(
@@ -624,11 +636,14 @@ class Test_WebSockets(unittest.TestCase):
                         'shutdown_flag': shutdown,
                         'debug_flag':    self.debug_flag,
                         'proc_test':     proc_test,
+                        'user_id':       user_id,
                         'user_key':      user_key,
                     }),
                 pipe=test_conn,
                 shutdown=shutdown,
-                proc_debug=proc_test)
+                proc_debug=proc_test,
+                user_id=user_id,
+                user_key=user_key)
 
             # Append to the list of clients!
             self.proc.clients.append(client)
@@ -1072,6 +1087,12 @@ class Test_WebSockets(unittest.TestCase):
             self.assertFalse(error,
                              msg="Exception raised at some point during test.")
 
+    def assert_empty_pipes(self):
+        for client in self.proc.clients:
+            self.assertFalse(client.pipe.poll())
+        if self.proc.server:
+            self.assertFalse(self.proc.server.pipe.poll())
+
     # -------------------------------------------------------------------------
     # Do-Something-During-A-Test Functions
     # -------------------------------------------------------------------------
@@ -1146,6 +1167,30 @@ class Test_WebSockets(unittest.TestCase):
         else:
             log.debug("Wait finished normally.")
 
+    def client_connect(self, client):
+        # Send something... Currently client doesn't care and tries to connect
+        # on any message it gets when it has no connection. But it may change
+        # later.
+        mid = Message.SpecialId.CONNECT
+        msg = Message(mid, MsgType.IGNORE,
+                      payload=None,
+                      user_id=client.user_id,
+                      user_key=client.user_key)
+        client.pipe.send((msg, self.msg_context(mid)))
+
+        # Received "you're connected now" back?
+        recv, ctx = client.pipe.recv()
+
+        # We have a whole test to make sure this goes right, so just
+        # sanity checks.
+        self.assertTrue(recv)
+        self.assertIsInstance(recv, Message)
+        self.assertIsInstance(recv.msg_id, Message.SpecialId)
+        self.assertEqual(recv.type, MsgType.ACK_CONNECT)
+        self.assertIsNotNone(recv.user_id)
+
+        self.assert_empty_pipes()
+
     # =========================================================================
     # =--------------------------------Tests----------------------------------=
     # =--                        Real Actual Tests                          --=
@@ -1188,10 +1233,7 @@ class Test_WebSockets(unittest.TestCase):
         # neither client nor server. We've had to regress all the way back to
         # trying to get this running a few times already. Multiprocessing with
         # multiple threads and multiple asyncios is... fun.
-        for client in self.proc.clients:
-            self.assertFalse(client.pipe.poll())
-        if self.proc.server:
-            self.assertFalse(self.proc.server.pipe.poll())
+        self.assert_empty_pipes()
 
     def test_nothing(self):
         if self.disabled():
@@ -1210,7 +1252,10 @@ class Test_WebSockets(unittest.TestCase):
         # on any message it gets when it has no connection. But it may change
         # later.
         mid = Message.SpecialId.CONNECT
-        msg = Message(mid, MsgType.IGNORE, payload=None)
+        msg = Message(mid, MsgType.IGNORE,
+                      payload=None,
+                      user_id=client.user_id,
+                      user_key=client.user_key)
         client.pipe.send((msg, self.msg_context(mid)))
 
         # Received "you're connected now" back?
@@ -1221,13 +1266,14 @@ class Test_WebSockets(unittest.TestCase):
         self.assertTrue(ctx)
         self.assertIsInstance(recv, Message)
         self.assertTrue(ctx, MessageContext)
-        self.assertIsInstance(recv.id, Message.SpecialId)
-        self.assertEqual(mid, recv.id)
+        self.assertIsInstance(recv.msg_id, Message.SpecialId)
+        self.assertEqual(mid, recv.msg_id)
 
         # Translation from stored int to enum or id class instance borks this
-        # check up. `msg.id` will be MonotonicId, `recv.id` will be SpecialId,
-        # and they won't equal.
-        # self.assertEqual(msg.id, recv.id)
+        # check up. `msg.msg_id` will be MonotonicId, `recv.msg_id` will be
+        # SpecialId, and they won't equal.
+        # TODO: Does this work now?
+        self.assertEqual(msg.msg_id, recv.msg_id)
 
         # Don't check this either. Duh. We create it as IGNORE, we're testing
         # CONNECT, and we're expecting ACK_CONNECT back.
@@ -1241,8 +1287,8 @@ class Test_WebSockets(unittest.TestCase):
         self.assertTrue(recv.payload['code'])
 
         # This should be... something.
-        self.assertIsNotNone(recv.key)
-        self.assertIsInstance(recv.key, UserId)
+        self.assertIsNotNone(recv.user_id)
+        self.assertIsInstance(recv.user_id, UserId)
         # Not sure what it should be, currently, so can't really test that?
 
         # TODO [2020-08-13]: Server should know what key client will have
@@ -1260,8 +1306,14 @@ class Test_WebSockets(unittest.TestCase):
     # ------------------------------
 
     def do_test_ping(self, client):
+        # Get the connect out of the way.
+        self.client_connect(client)
+
         mid = self._msg_id.next()
-        msg = Message(mid, MsgType.PING, payload=None)
+        msg = Message(mid, MsgType.PING,
+                      payload=None,
+                      user_id=client.user_id,
+                      user_key=client.user_key)
         client.pipe.send((msg, self.msg_context(mid)))
         recv, ctx = client.pipe.recv()
         # Make sure we got a message back and it has the ping time in it.
@@ -1269,9 +1321,9 @@ class Test_WebSockets(unittest.TestCase):
         self.assertTrue(ctx)
         self.assertIsInstance(recv, Message)
         self.assertTrue(ctx, MessageContext)
-        self.assertEqual(msg.id, ctx.id)
-        self.assertEqual(mid, recv.id)
-        self.assertEqual(msg.id, recv.id)
+        self.assertEqual(msg.msg_id, ctx.id)
+        self.assertEqual(mid, recv.msg_id)
+        self.assertEqual(msg.msg_id, recv.msg_id)
         self.assertEqual(msg.type, recv.type)
 
         # I really hope the local ping is between negative nothingish and
@@ -1281,8 +1333,7 @@ class Test_WebSockets(unittest.TestCase):
         self.assertLess(recv.payload, 5)
 
         # Make sure we don't have anything in the queues...
-        self.assertFalse(client.pipe.poll())
-        self.assertFalse(self.proc.server.pipe.poll())
+        self.assert_empty_pipes()
 
     def test_ping(self):
         if self.disabled():
@@ -1297,10 +1348,16 @@ class Test_WebSockets(unittest.TestCase):
     # ------------------------------
 
     def do_test_echo(self, client):
+        # Get the connect out of the way.
+        self.client_connect(client)
+
         mid = self._msg_id.next()
         send_msg = f"Hello from {client.name}"
         expected = send_msg
-        msg = Message(mid, MsgType.ECHO, payload=send_msg)
+        msg = Message(mid, MsgType.ECHO,
+                      payload=send_msg,
+                      user_id=client.user_id,
+                      user_key=client.user_key)
         ctx = self.msg_context(mid)
         # self.debugging = True
         with log.LoggingManager.on_or_off(self.debugging, True):
@@ -1313,9 +1370,9 @@ class Test_WebSockets(unittest.TestCase):
         self.assertIsInstance(recv, Message)
         self.assertTrue(ctx, MessageContext)
         # IDs made it around intact.
-        self.assertEqual(msg.id, ctx.id)
-        self.assertEqual(mid, recv.id)
-        self.assertEqual(msg.id, recv.id)
+        self.assertEqual(msg.msg_id, ctx.id)
+        self.assertEqual(mid, recv.msg_id)
+        self.assertEqual(msg.msg_id, recv.msg_id)
         # Sent echo, got echo-back.
         self.assertEqual(msg.type, MsgType.ECHO)
         self.assertEqual(recv.type, MsgType.ECHO_ECHO)
@@ -1324,8 +1381,7 @@ class Test_WebSockets(unittest.TestCase):
         self.assertEqual(recv.payload, expected)
 
         # Make sure we don't have anything in the queues...
-        self.assertFalse(client.pipe.poll())
-        self.assertFalse(self.proc.server.pipe.poll())
+        self.assert_empty_pipes()
 
     def test_echo(self):
         if self.disabled():
@@ -1339,6 +1395,9 @@ class Test_WebSockets(unittest.TestCase):
     # ------------------------------
 
     def do_test_text(self, client):
+        # Get the connect out of the way.
+        self.client_connect(client)
+
         mid = self._msg_id.next()
 
         # ---
@@ -1347,7 +1406,10 @@ class Test_WebSockets(unittest.TestCase):
         log.debug("client to server...")
 
         send_txt = f"Hello from {client.name}?"
-        client_send = Message(mid, MsgType.TEXT, payload=send_txt)
+        client_send = Message(mid, MsgType.TEXT,
+                              payload=send_txt,
+                              user_id=client.user_id,
+                              user_key=client.user_key)
         client_send_ctx = self.msg_context(mid)
 
         client_recv = None
@@ -1371,8 +1433,8 @@ class Test_WebSockets(unittest.TestCase):
         self.assertIsInstance(client_recv_msg, Message)
         self.assertIsNotNone(client_recv_ctx)
         self.assertIsInstance(client_recv_ctx, MessageContext)
-        self.assertEqual(mid, client_recv_msg.id)
-        self.assertEqual(client_send.id, client_recv_msg.id)
+        self.assertEqual(mid, client_recv_msg.msg_id)
+        self.assertEqual(client_send.msg_id, client_recv_msg.msg_id)
         self.assertEqual(client_recv_msg.type, MsgType.ACK_ID)
         ack_id = mid.decode(client_recv_msg.payload)
         self.assertIsInstance(ack_id, type(mid))
@@ -1395,8 +1457,8 @@ class Test_WebSockets(unittest.TestCase):
         self.assertEqual(len(server_recv), 2)  # Make sure next line is sane...
         server_recv_msg, server_recv_ctx = server_recv
         # Check the Message.
-        self.assertEqual(mid, server_recv_msg.id)
-        self.assertEqual(client_send.id, server_recv_msg.id)
+        self.assertEqual(mid, server_recv_msg.msg_id)
+        self.assertEqual(client_send.msg_id, server_recv_msg.msg_id)
         self.assertEqual(client_send.type, server_recv_msg.type)
         self.assertIsInstance(server_recv_msg.payload, str)
         self.assertEqual(server_recv_msg.payload, send_txt)
@@ -1412,7 +1474,9 @@ class Test_WebSockets(unittest.TestCase):
         # Tell our server to send a reply to the client's text.
         recv_txt = f"Hello from {self.proc.server.name}!"
         server_send = Message(server_recv_ctx.id, MsgType.TEXT,
-                              payload=recv_txt)
+                              payload=recv_txt,
+                              user_id=client.user_id,
+                              user_key=client.user_key)
         client_recv = None
         with log.LoggingManager.on_or_off(self.debugging, True):
             # Make something for server to send and client to recvive.
@@ -1432,8 +1496,8 @@ class Test_WebSockets(unittest.TestCase):
         self.assertIsInstance(client_recv_ctx, MessageContext)
 
         self.assertIsInstance(client_recv_msg, Message)
-        self.assertEqual(ack_id, client_recv_msg.id)
-        self.assertEqual(server_send.id, client_recv_msg.id)
+        self.assertEqual(ack_id, client_recv_msg.msg_id)
+        self.assertEqual(server_send.msg_id, client_recv_msg.msg_id)
         self.assertEqual(server_send.type, client_recv_msg.type)
         self.assertIsInstance(client_recv_msg.payload, str)
         self.assertEqual(client_recv_msg.payload, recv_txt)
@@ -1457,15 +1521,14 @@ class Test_WebSockets(unittest.TestCase):
         self.assertIsInstance(server_recv_msg, Message)
         self.assertIsNotNone(server_recv_ctx)
         self.assertIsInstance(server_recv_ctx, MessageContext)
-        self.assertEqual(mid, server_recv_msg.id)
-        self.assertEqual(server_send.id, server_recv_msg.id)
+        self.assertEqual(mid, server_recv_msg.msg_id)
+        self.assertEqual(server_send.msg_id, server_recv_msg.msg_id)
         self.assertEqual(server_recv_msg.type, MsgType.ACK_ID)
         ack_id = mid.decode(server_recv_msg.payload)
         self.assertIsInstance(ack_id, type(mid))
 
         # Make sure we don't have anything in the queues...
-        self.assertFalse(client.pipe.poll())
-        self.assertFalse(self.proc.server.pipe.poll())
+        self.assert_empty_pipes()
 
     def test_text(self):
         if self.disabled():
@@ -1510,6 +1573,8 @@ class Test_WebSockets(unittest.TestCase):
     # ------------------------------
 
     def do_test_logging(self, client):
+        # Get the connect out of the way.
+        self.client_connect(client)
 
         self.assertEqual(self.proc.log.ignored_counter.value, 0)
         self.assertFalse(self.proc.log.ignore_logs.is_set())
@@ -1554,8 +1619,7 @@ class Test_WebSockets(unittest.TestCase):
         self.assertEqual(msg.type, MsgType.LOGGING)
 
         # Make sure we don't have anything in the queues...
-        self.assertFalse(client.pipe.poll())
-        self.assertFalse(self.proc.server.pipe.poll())
+        self.assert_empty_pipes()
 
     def test_logging(self):
         if self.disabled():

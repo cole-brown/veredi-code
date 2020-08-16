@@ -33,7 +33,9 @@ from veredi.time.timer      import MonotonicTimer
 from veredi.base.identity   import MonotonicId
 
 from ..message               import Message, MsgType
-from ..context               import MediatorContext, MessageContext
+from ..context               import (MediatorContext,
+                                     MessageContext,
+                                     UserConnToken)
 from .exceptions             import WebSocketError
 
 
@@ -43,7 +45,7 @@ from .exceptions             import WebSocketError
 
 TxProcessor = NewType(
     'TxProcessor',
-    Callable[[websockets.WebSocketCommonProtocol],
+    Callable[[UserConnToken],
              Optional[Message]]
 )
 
@@ -52,14 +54,14 @@ RxProcessor = NewType(
     Callable[[Message,
               str,
               Optional[MediatorContext],
-              websockets.WebSocketCommonProtocol],
+              UserConnToken],
              Optional[Message]]
 )
 
 
 MediatorMakeContext = NewType(
     'MediatorMakeContext',
-    Callable[[websockets.WebSocketCommonProtocol], MediatorContext]
+    Callable[[UserConnToken], MediatorContext]
 )
 
 
@@ -129,7 +131,7 @@ class VebSocket:
         # Internal
         # ---
         self._socket: websockets.WebSocketClientProtocol = None
-        self._close:      asyncio.Event = asyncio.Event()
+        self._close:  asyncio.Event                      = asyncio.Event()
 
         # For self.connect_parallel_txrx
         self._data_consume: RxProcessor = None
@@ -248,6 +250,14 @@ class VebSocket:
     # -------------------------------------------------------------------------
     # General Functions
     # -------------------------------------------------------------------------
+
+    def token(self,
+              connection: websockets.WebSocketCommonProtocol) -> UserConnToken:
+        '''
+        Converts a websocket instance into a connection token.
+        '''
+        token = UserConnToken(hash(connection))
+        return token
 
     def close(self) -> None:
         '''
@@ -393,7 +403,8 @@ class VebSocket:
         async for raw in websocket:
             self.debug(f"{self.SHORT_NAME}: <--  : "
                        f" raw: {raw}")
-            mediator_ctx = self._med_make_context(connection=websocket)
+            mediator_ctx = self._med_make_context(
+                connection=self.token(websocket))
             recv = self.decode(raw, mediator_ctx)
             self.debug(f"{self.SHORT_NAME}: <--  : "
                        f"recv: {recv}")
@@ -402,13 +413,13 @@ class VebSocket:
             immediate_reply = await self._data_consume(recv,
                                                        self.path_rooted,
                                                        mediator_ctx,
-                                                       websocket)
+                                                       self.token(websocket))
 
             # And immediately reply if needed (i.e. ack).
             if immediate_reply:
                 self.debug(f"{self.SHORT_NAME}:  -->: "
                            f"reply-msg: {immediate_reply}")
-                send = self.encode(immediate_reply, self._med_make_context())
+                send = self.encode(immediate_reply, mediator_ctx)
                 self.debug(f"{self.SHORT_NAME}:  -->: "
                            f"reply-raw: {send}")
                 await websocket.send(send)
@@ -428,7 +439,7 @@ class VebSocket:
             # this eternal loop.
             self.debug(f"Producing messages in context {context}...")
             while True:
-                message = await self._data_produce(websocket)
+                message = await self._data_produce(self.token(websocket))
 
                 # Only send out to socket if actually produced anything.
                 if not message:
@@ -436,7 +447,9 @@ class VebSocket:
                     return
 
                 self.debug(f"{self.SHORT_NAME}:  -->: send: {message}")
-                send = self.encode(message, self._med_make_context())
+                send = self.encode(message,
+                                   self._med_make_context(
+                                       connection=self.token(websocket)))
                 self.debug(f"{self.SHORT_NAME}:  -->: raw: {send}")
                 await websocket.send(send)
 
@@ -449,7 +462,8 @@ class VebSocket:
             # Bad kind, indifferent kind (base class maybe?).
 
             # TODO [2020-08-01]: Get UserId for logging.
-            log.exception(error,
-                          WebSocketError,
-                          f"Connection on client 'TODO' closed due to: {error}")
+            log.exception(
+                error,
+                WebSocketError,
+                f"Connection on client 'TODO' closed due to: {error}")
             # TODO [2020-08-01]: (re)raise this?

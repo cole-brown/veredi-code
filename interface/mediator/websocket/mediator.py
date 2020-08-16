@@ -10,7 +10,7 @@ Interface for WebSocket Mediation Implementations (Client and Server).
 # -----------------------------------------------------------------------------
 
 from typing import (Optional, Union, NewType,
-                    Callable, Dict, Tuple)
+                    Callable, Dict, Tuple, Literal)
 
 from abc import abstractmethod
 import asyncio
@@ -19,17 +19,19 @@ import multiprocessing
 import multiprocessing.connection
 import re
 
-from veredi.logger               import log
-from veredi.base                 import dotted
-from veredi.debug.const          import DebugFlag
-from veredi.data                 import background
-from veredi.data.codec.base      import BaseCodec
-from veredi.data.config.config   import Configuration
+from veredi.logger             import log
+from veredi.base               import dotted
+from veredi.debug.const        import DebugFlag
+from veredi.data               import background
+from veredi.data.codec.base    import BaseCodec
+from veredi.data.config.config import Configuration
 
-from ..mediator import Mediator
-from ..context  import MessageContext, MediatorContext
-from ..message  import Message, MsgType
-from .base      import VebSocket
+from ..mediator                import Mediator
+from ..context                 import (MessageContext,
+                                       MediatorContext,
+                                       UserConnToken)
+from ..message                 import Message, MsgType
+from .base                     import VebSocket
 
 
 # -----------------------------------------------------------------------------
@@ -233,15 +235,20 @@ class WebSocketMediator(Mediator):
         #
         # Game will get it eventually and deal with it. We may get a reply to
         # send at some point but that's irrelevant here.
-        ctx = self.make_msg_context(msg.id)
+        ctx = self.make_msg_context(msg.msg_id)
         self.debug(f"received '{log_type}' msg; queuing: "
                    f"msg: {msg}, ctx: {ctx}")
         await self._med_to_game_put(msg, ctx)
 
         if send_ack:
-            send = Message(msg.id, MsgType.ACK_ID,
-                           payload=ctx.id)
+            send = Message(msg.msg_id, MsgType.ACK_ID,
+                           payload=ctx.id,
+                           user_id=msg.user_id,
+                           user_key=msg.user_key)
+            send = await self._handle_reply(send, context, None)
             self.debug(f"sending '{log_type}' ack: {send}")
+            log.critical(f"{self._name} got '{log_type}': "
+                         "{msg}; sending ack: {send}")
             return send
 
         return None
@@ -251,8 +258,8 @@ class WebSocketMediator(Mediator):
     # -------------------------------------------------------------------------
 
     async def _hook_produce(self,
-                            msg: Optional[Message],
-                            websocket: websockets.WebSocketCommonProtocol
+                            msg:  Optional[Message],
+                            conn: UserConnToken
                             ) -> Optional[Message]:
         '''
         Hook that gets called right before `_handle_produce` returns a result.
@@ -262,8 +269,8 @@ class WebSocketMediator(Mediator):
         return msg
 
     async def _hook_consume(self,
-                            msg: Optional[Message],
-                            websocket: websockets.WebSocketCommonProtocol
+                            msg:  Optional[Message],
+                            conn: UserConnToken
                             ) -> Optional[Message]:
         '''
         Hook that gets called right before `_handle_consume` returns a result.
@@ -272,9 +279,24 @@ class WebSocketMediator(Mediator):
         '''
         return msg
 
+    async def _handle_reply(self,
+                            msg:       Optional[Message],
+                            context:   Optional[MediatorContext],
+                            conn:      UserConnToken
+                            ) -> Optional[Message]:
+        '''
+        Reply helper for hooks and such before handing off an
+        immediate reply.
+        '''
+        return msg
+
     # TODO [2020-08-12]: Type hinting double check of all the mediator code.
 
-    async def _handle_produce_get_msg(self):
+    async def _handle_produce_get_msg(
+            self,
+            conn: UserConnToken
+    ) -> Tuple[Union[Message,        None, Literal[False]],
+               Union[MessageContext, None, Literal[False]]]:
         '''
         Looks for a message to take from produce buffer(s) and return for
         sending.
@@ -303,25 +325,26 @@ class WebSocketMediator(Mediator):
         # Check for something in game connection to send; don't block.
         if self._game_has_data():
             try:
-                msg, ctx = await self._game_pipe_get()
-            except asyncio.QueueEmpty:
-                # get_nowait() got nothing. That's fine; go on to check other
-                # things.
-                pass
-            else:
-                # Someone else check that this isn't None, plz.
-                if msg.type == MsgType.IGNORE:
-                    self.debug(f"send: ignoring IGNORE mediator msg: {msg}")
-                else:
-                    self.debug(f"send: game message: {msg}")
-                    return msg, ctx
+                msg, ctx = self._game_pipe_get()
+                # Just return; let caller deal with if these are none, ignore,
+                # etc.
+                return msg, ctx
+
+            except EOFError as error:
+                log.exception(error,
+                              None,
+                              "Failed getting from game pipe; "
+                              "ignoring and continuing.")
+                # EOFError gets raised if nothing left to receive or other end
+                # closed. Wait til we know what that means to our game/mediator
+                # pair before deciding to take (drastic?) action here...
 
         # Nothing in queues. Sleep a bit then return.
-        await asyncio.sleep(0.1)
+        await self._sleep()
         return False, False
 
     async def _handle_produce(self,
-                              websocket: websockets.WebSocketCommonProtocol
+                              conn: UserConnToken
                               ) -> Optional[Message]:
         '''
         Loop waiting for messages from our multiprocessing.connection to
@@ -333,16 +356,18 @@ class WebSocketMediator(Mediator):
                 break
 
             # Check for something in connection to send.
-            msg, ctx = await self._handle_produce_get_msg()
+            msg, ctx = await self._handle_produce_get_msg(conn)
             # Checks for actually having a message below...
 
             # Don't send nothing, please.
             if msg is False and ctx is False:
                 # Ignore. Default return from _handle_produce_get_msg().
+                await self._continuing()
                 continue
             if not msg or msg.type == MsgType.IGNORE:
                 log.warning("Produced nothing for sending. "
                             f"Ignoring msg: {msg}, ctx: {ctx}")
+                await self._continuing()
                 continue
 
             # Have something to send!
@@ -352,6 +377,7 @@ class WebSocketMediator(Mediator):
             if not sender:
                 log.error("No handlers for msg type? "
                           f"Ignoring msg: {msg}, ctx: {ctx}")
+                await self._continuing()
                 continue
 
             self.debug("Producing result from send processor...")
@@ -360,18 +386,20 @@ class WebSocketMediator(Mediator):
             # Only send out to socket if actually produced anything.
             if result:
                 self.debug(f"Sending {result}...")
-                result = await self._hook_produce(result, websocket)
+                result = await self._hook_produce(result, conn)
                 return result
 
             else:
                 self.debug("No result to send; done.")
-                # reloop
+
+            # reloop
+            await self._continuing()
 
     async def _handle_consume(self,
-                              msg: Message,
-                              path: str,
-                              context: Optional[MediatorContext],
-                              websocket: websockets.WebSocketCommonProtocol
+                              msg:       Message,
+                              path:      str,
+                              context:   Optional[MediatorContext],
+                              conn: UserConnToken
                               ) -> Optional[Message]:
         '''
         Handles a `VebSocketServer.serve_parallel` consume data callback.
@@ -387,7 +415,7 @@ class WebSocketMediator(Mediator):
 
         self.debug("Sending to path processor to consume...")
         result = await processor(match, path, msg, context)
-        result = await self._hook_consume(result, websocket)
+        result = await self._hook_consume(result, conn)
         return result
 
     # -------------------------------------------------------------------------
@@ -405,9 +433,9 @@ class WebSocketMediator(Mediator):
 
     @abstractmethod
     async def _hrx_connect(self,
-                           match: re.Match,
-                           path: str,
-                           msg: Message,
+                           match:   re.Match,
+                           path:    str,
+                           msg:     Message,
                            context: Optional[MediatorContext]
                            ) -> Optional[Message]:
         '''
@@ -426,17 +454,21 @@ class WebSocketMediator(Mediator):
 
         elapsed = await self._socket.ping(msg,
                                           self.make_med_context())
-        result = Message(msg.id, msg.type, payload=elapsed)
+        result = Message(msg.msg_id, msg.type,
+                         payload=elapsed,
+                         user_id=msg.user_id,
+                         user_key=msg.user_key)
         self.debug(f"pinged: {elapsed}, result: {result}")
-        await self._med_to_game_put(result, self.make_msg_context(result.id))
+        await self._med_to_game_put(result,
+                                    self.make_msg_context(result.msg_id))
 
         # No return; don't want to actually send anything.
         return None
 
     async def _hrx_ping(self,
-                        match: re.Match,
-                        path: str,
-                        msg: Message,
+                        match:   re.Match,
+                        path:    str,
+                        msg:     Message,
                         context: Optional[MediatorContext]
                         ) -> None:
         '''
@@ -454,9 +486,9 @@ class WebSocketMediator(Mediator):
         return await self._htx_generic(msg, 'echo')
 
     async def _hrx_echo(self,
-                        match: re.Match,
-                        path: str,
-                        msg: Message,
+                        match:   re.Match,
+                        path:    str,
+                        msg:     Message,
                         context: Optional[MediatorContext]
                         ) -> Optional[Message]:
         '''
@@ -469,14 +501,15 @@ class WebSocketMediator(Mediator):
             # Received echo from server to send back.
             self.debug("Got echo; returning it."
                        f"path: {path}, match: {match}, msg: {msg}...")
-            return Message.echo(msg)
+            reply = Message.echo(msg)
+            return await self._handle_reply(reply, context, None)
 
         else:
             self.debug("Got echo-back; enqueuing."
                        f"path: {path}, match: {match}, msg: {msg}...")
             # Received echo-back from server; send to game.
             # TODO: add path into context
-            await self._med_to_game_put(msg, self.make_msg_context(msg.id))
+            await self._med_to_game_put(msg, self.make_msg_context(msg.msg_id))
 
         return None
 
@@ -488,9 +521,9 @@ class WebSocketMediator(Mediator):
         return await self._htx_generic(msg, 'text')
 
     async def _hrx_text(self,
-                        match: re.Match,
-                        path: str,
-                        msg: Message,
+                        match:   re.Match,
+                        path:    str,
+                        msg:     Message,
                         context: Optional[MediatorContext]
                         ) -> Optional[Message]:
         '''
@@ -509,9 +542,9 @@ class WebSocketMediator(Mediator):
         return await self._htx_generic(msg, 'encoded')
 
     async def _hrx_encoded(self,
-                           match: re.Match,
-                           path: str,
-                           msg: Message,
+                           match:   re.Match,
+                           path:    str,
+                           msg:     Message,
                            context: Optional[MediatorContext]
                            ) -> Optional[Message]:
         '''
@@ -536,9 +569,9 @@ class WebSocketMediator(Mediator):
         return await self._htx_generic(send, 'codec')
 
     async def _hrx_codec(self,
-                         match: re.Match,
-                         path: str,
-                         msg: Message,
+                         match:   re.Match,
+                         path:    str,
+                         msg:     Message,
                          context: Optional[MediatorContext]
                          ) -> Optional[Message]:
         '''
@@ -574,9 +607,9 @@ class WebSocketMediator(Mediator):
         return await self._htx_codec(msg)
 
     async def _hrx_logging(self,
-                           match: re.Match,
-                           path: str,
-                           msg: Message,
+                           match:   re.Match,
+                           path:    str,
+                           msg:     Message,
                            context: Optional[MediatorContext]
                            ) -> Optional[Message]:
         '''
@@ -600,7 +633,7 @@ class WebSocketMediator(Mediator):
 
         # recv is our processed msg, feed into _hrx_generic to process (ack,
         # put in rx queue, etc).
-        self.debug("passing on to `_hrx_codec`...")
+        self.debug("passing on to `_hrx_generic`...")
         return await self._hrx_generic(match, path, recv, context,
                                        send_ack=True,
                                        log_type='logging')
@@ -614,9 +647,9 @@ class WebSocketMediator(Mediator):
         return await self._htx_generic(msg, 'ack')
 
     async def _hrx_ack(self,
-                       match: re.Match,
-                       path: str,
-                       msg: Message,
+                       match:   re.Match,
+                       path:    str,
+                       msg:     Message,
                        context: Optional[MediatorContext]
                        ) -> Optional[Message]:
         '''
@@ -643,9 +676,9 @@ class WebSocketMediator(Mediator):
         return None
 
     async def _hrx_root(self,
-                        match: re.Match,
-                        path: str,
-                        msg: Message,
+                        match:   re.Match,
+                        path:    str,
+                        msg:     Message,
                         context: Optional[MediatorContext]
                         ) -> None:
         '''

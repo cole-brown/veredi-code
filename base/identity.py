@@ -153,6 +153,7 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
         '''
         Turns our encoded dict into a MonotonicId instance.
         '''
+        klass.error_for_key(klass._ENCODE_FIELD_NAME, value)
         decoded = klass(value[klass._ENCODE_FIELD_NAME],
                         allow=True)
         return decoded
@@ -349,6 +350,7 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         '''
         Turns our encoded dict into a SerializableId instance.
         '''
+        klass.error_for_key(klass._ENCODE_FIELD_NAME, value)
         decoded = klass(value[klass._ENCODE_FIELD_NAME],
                         allow=True)
         return decoded

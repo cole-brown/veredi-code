@@ -22,8 +22,9 @@ import contextlib
 
 import veredi.logger.log
 from veredi.data.codec.base import Encodable
+from veredi.data.exceptions import EncodableError
 from veredi.base.identity   import MonotonicId
-from veredi.data.identity   import UserId
+from veredi.data.identity   import UserId, UserKey
 
 
 # -----------------------------------------------------------------------------
@@ -72,7 +73,7 @@ class MsgType(Encodable, enum.Enum):
 
     CONNECT = enum.auto()
     '''
-    Client connection request to the server. Should include user key, whatever
+    Client connection request to the server. Should include user id, whatever
     else is needed to auth/register user.
     '''
 
@@ -110,7 +111,7 @@ class MsgType(Encodable, enum.Enum):
         Returns a representation of ourself as a dictionary.
         '''
         encoded = {
-            'msg-type': self.value,
+            'msg_type': self.value,
         }
         return encoded
 
@@ -119,7 +120,8 @@ class MsgType(Encodable, enum.Enum):
         '''
         Turns our encoded dict into a MsgType instance.
         '''
-        decoded = klass(value['msg-type'])
+        klass.error_for_key('msg_type', value)
+        decoded = klass(value['msg_type'])
         return decoded
 
 
@@ -135,7 +137,7 @@ class Message(Encodable):
     '''
 
     @enum.unique
-    class SpecialId(enum.IntEnum):
+    class SpecialId(Encodable, enum.IntEnum):
         '''
         Super Special Message IDs for Super Special Messages!
         '''
@@ -149,16 +151,41 @@ class Message(Encodable):
         Server -> Client: Result.
         '''
 
+        # ------------------------------
+        # Encodable API (Codec Support)
+        # ------------------------------
+
+        def encode(self) -> Mapping[str, int]:
+            '''
+            Returns a representation of ourself as a dictionary.
+            '''
+            encoded = {
+                'spid': self.value,
+            }
+            return encoded
+
+        @classmethod
+        def decode(klass: 'SpecialId',
+                   value: Mapping[str, int]) -> 'SpecialId':
+            '''
+            Turns our encoded dict into an enum value..
+            '''
+            klass.error_for_key('spid', value)
+            decoded_value=value['spid']
+            return klass(decoded_value)
+
     def __init__(self,
-                 id:      Union[MonotonicId, SpecialId, int],
-                 type:    'MsgType',
-                 payload: Optional[Any]    = None,
-                 key:     Optional[UserId] = None) -> None:
+                 msg_id:   Union[MonotonicId, SpecialId, int],
+                 type:     'MsgType',
+                 payload:  Optional[Any]     = None,
+                 user_id:  Optional[UserId]  = None,
+                 user_key: Optional[UserKey] = None) -> None:
         # init fields.
-        self._id:      int              = int(id)
-        self._type:    'MsgType'        = type
-        self._key:     Optional[UserId] = key
-        self._payload: Optional[Any]    = payload
+        self._msg_id:   MonotonicId      = msg_id
+        self._type:     'MsgType'        = type
+        self._user_id:  Optional[UserId] = user_id
+        self._user_key: Optional[UserId] = user_key
+        self._payload:  Optional[Any]    = payload
 
     # ------------------------------
     # Helpers
@@ -167,7 +194,8 @@ class Message(Encodable):
     @classmethod
     def connected(klass:   'Message',
                   msg:     'Message',
-                  key:     UserId,
+                  id:      UserId,
+                  key:     UserKey,
                   success: bool,
                   payload: Union[Any, str, None] = None) -> 'Message':
         '''
@@ -180,15 +208,17 @@ class Message(Encodable):
                                       "I think...")
 
         if success:
-            return klass(msg.id, MsgType.ACK_CONNECT,
+            return klass(msg.msg_id, MsgType.ACK_CONNECT,
                          payload={'text': 'Connected.',
                                   'code': True},
-                         key=key)
+                         user_id=id,
+                         user_key=key)
 
-        return klass(msg.id, MsgType.ACK_CONNECT,
+        return klass(msg.msg_id, MsgType.ACK_CONNECT,
                      payload={'text': 'Failed to connect.',
                               'code': False},
-                     key=key)
+                     user_id=id,
+                     user_key=key)
 
     @classmethod
     def codec(klass:   'Message',
@@ -200,7 +230,10 @@ class Message(Encodable):
         new Message instance's payload (string if encoded, whatever if
         decoded).
         '''
-        return klass(msg.id, MsgType.CODEC, payload)
+        return klass(msg.msg_id, MsgType.CODEC,
+                     payload=payload,
+                     user_id=msg.user_id,
+                     user_key=msg.user_key)
 
     @classmethod
     def echo(klass: 'Message',
@@ -209,22 +242,26 @@ class Message(Encodable):
         Create an echo reply for this message.
         '''
         # Return same message but with type changed to ECHO_ECHO.
-        return klass(msg.id, MsgType.ECHO_ECHO, msg.payload)
+        return klass(msg.msg_id, MsgType.ECHO_ECHO,
+                     payload=msg.payload,
+                     user_id=msg.user_id,
+                     user_key=msg.user_key)
 
     # ------------------------------
     # Properties
     # ------------------------------
 
     @property
-    def id(self) -> Union[MonotonicId, SpecialId]:
+    def msg_id(self) -> Union[MonotonicId, SpecialId]:
         '''
-        Return our id int as a MonotonicId or SpecialId.
+        Return our msg_id as a MonotonicId or SpecialId.
         '''
-        # If a SpecialId type of message, return it as SpecialId.
-        if self.type == MsgType.CONNECT or self.type == MsgType.ACK_CONNECT:
-            return Message.SpecialId(self._id)
+        return self._msg_id
+        # # If a SpecialId type of message, return it as SpecialId.
+        # if self.type == MsgType.CONNECT or self.type == MsgType.ACK_CONNECT:
+        #     return Message.SpecialId(self._id)
 
-        return MonotonicId(self._id, allow=True)
+        # return MonotonicId(self._id, allow=True)
 
     @property
     def type(self) -> 'MsgType':
@@ -234,18 +271,32 @@ class Message(Encodable):
         return self._type
 
     @property
-    def key(self) -> Optional[UserId]:
+    def user_id(self) -> Optional[UserId]:
         '''
-        Return our message's key, if any.
+        Return our message's UserId, if any.
         '''
-        return self._key
+        return self._user_id
 
-    @key.setter
-    def key(self, value: Optional[UserId]) -> None:
+    @user_id.setter
+    def user_id(self, value: Optional[UserId]) -> None:
         '''
-        Sets or clears the message's key.
+        Sets or clears the message's UserId.
         '''
-        self._key = value
+        self._user_id = value
+
+    @property
+    def user_key(self) -> Optional[UserId]:
+        '''
+        Return our message's UserKey, if any.
+        '''
+        return self._user_key
+
+    @user_key.setter
+    def user_key(self, value: Optional[UserId]) -> None:
+        '''
+        Sets or clears the message's UserKey.
+        '''
+        self._user_key = value
 
     @property
     def payload(self) -> Optional[Any]:
@@ -284,24 +335,21 @@ class Message(Encodable):
         '''
         Returns a representation of ourself as a dictionary.
         '''
-        msg = self.payload
-        if isinstance(msg, Encodable):
-            msg = msg.encode()
+        payload = self.payload
+        if isinstance(payload, Encodable):
+            payload = payload.encode()
 
-        # ---
-        # Required
-        # ---
         encoded = {
-            'id':      self._id,
-            'type':    self._type.encode(),
-            'payload': msg,
+            'msg_id':   self._msg_id.encode(),
+            'type':     self._type.encode(),
+            'payload':  payload,
+            'user_id':  (self._user_id.encode()
+                         if self._user_id
+                         else None),
+            'user_key': (self._user_key.encode()
+                         if self._user_key
+                         else None),
         }
-
-        # ---
-        # Optional
-        # ---
-        if self._key:
-            encoded['key'] = self.key.encode()
 
         return encoded
 
@@ -310,20 +358,41 @@ class Message(Encodable):
         '''
         Returns a representation of ourself as a dictionary.
         '''
-        # ---
-        # Required
-        # ---
-        decoded = klass(
-            value['id'],
-            MsgType.decode(value['type']),
-            value['payload'],
-        )
+        klass.error_for_key('msg_id',   value)
+        klass.error_for_key('type',     value)
+        klass.error_for_key('payload',  value)
+        klass.error_for_key('user_id',  value)
+        klass.error_for_key('user_key', value)
 
-        # ---
-        # Optional
-        # ---
-        if 'key' in value:
-            decoded.key = UserId.decode(value['key'])
+        msg_id = value['msg_id']
+        msg_id_dec = None
+        try:
+            msg_id_dec = MonotonicId.decode(msg_id)
+        except EncodableError:
+            try:
+                msg_id_dec = klass.SpecialId.decode(msg_id)
+            except EncodableError:
+                msg_id_dec = msg_id
+                veredi.logger.log.warning("Unknown Message Id type? Not sure "
+                                          f"about decoding... {msg_id}")
+
+        # Let these be None if they were encoded as None?..
+        user_id = value['user_id']
+        user_key = value['user_key']
+        if user_id:
+            user_id = UserId.decode(user_id)
+        if user_key:
+            user_key = UserKey.decode(user_key)
+
+        decoded = klass(
+            msg_id_dec,
+            MsgType.decode(value['type']),
+            # Let someone else figure out if payload needs decoding or not, and
+            # by what.
+            value['payload'],
+            user_id,
+            user_key
+        )
 
         return decoded
 
@@ -333,12 +402,12 @@ class Message(Encodable):
 
     @classmethod
     def log(klass:     'Message',
-            id:        Union[MonotonicId, int],
+            msg_id:    Union[MonotonicId, int],
             log_level: veredi.logger.log.Level) -> 'Message':
         '''
         Creates a LOGGING message with the supplied data.
         '''
-        msg = Message(id, MsgType.LOGGING,
+        msg = Message(msg_id, MsgType.LOGGING,
                       payload={
                           'logging': {
                               'level': log_level,
@@ -362,17 +431,19 @@ class Message(Encodable):
     def __str__(self):
         return (
             f"{self.__class__.__name__}"
-            f"[{self.id}, "
+            f"[{self.msg_id}, "
             f"{self.type}, "
-            f"{self.key}]("
+            f"{self.user_id}, "
+            f"{self.user_key}]("
             f"{type(self.payload)}: {str(self.payload)}) "
         )
 
     def __repr__(self):
         return (
             "<Msg["
-            f"{repr(self.id)},"
+            f"{repr(self.msg_id)},"
             f"{repr(self.type)}, "
-            f"{self.key}]"
+            f"{self.user_id}, "
+            f"{self.user_key}]"
             f"({repr(self.payload)})>"
         )
