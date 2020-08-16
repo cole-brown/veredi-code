@@ -246,9 +246,8 @@ class WebSocketMediator(Mediator):
                            user_id=msg.user_id,
                            user_key=msg.user_key)
             send = await self._handle_reply(send, context, None)
-            self.debug(f"sending '{log_type}' ack: {send}")
-            log.critical(f"{self._name} got '{log_type}': "
-                         "{msg}; sending ack: {send}")
+            self.debug(f"{self._name} got '{log_type}': "
+                       f"{msg}; sending ack: {send}")
             return send
 
         return None
@@ -365,8 +364,9 @@ class WebSocketMediator(Mediator):
                 await self._continuing()
                 continue
             if not msg or msg.type == MsgType.IGNORE:
-                log.warning("Produced nothing for sending. "
-                            f"Ignoring msg: {msg}, ctx: {ctx}")
+                debug_fn = log.warning if not msg else self.debug
+                debug_fn("Produced nothing for sending. "
+                         f"Ignoring msg: {msg}, ctx: {ctx}")
                 await self._continuing()
                 continue
 
