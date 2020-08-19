@@ -68,6 +68,14 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
         return pickle.loads(data)
 
     def handle_log_record(self, record: logging.LogRecord) -> None:
+        # Check if we should be ignoring log records (unit testing).
+        if (isinstance(self.server, LogRecordSocketReceiver)
+                and self.server.should_ignore_record()):
+            # Tell our server we're ignoring this one.
+            self.server.ignored_record()
+            # Black hole it if we're set to ignore.
+            return
+
         # if a name is specified, we use the named logger rather than the one
         # implied by the record.
         if self.server.logname is not None:
@@ -99,9 +107,10 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
             shutdown_flag:   multiprocessing.Event,
             ignore_flag:     Optional[multiprocessing.Event] = None,
             ignored_counter: Optional[multiprocessing.Value] = None,
-            host:    str = 'localhost',
-            port:    int = logging.handlers.DEFAULT_TCP_LOGGING_PORT,
-            handler: logging.Handler = LogRecordStreamHandler) -> None:
+            host:            str = 'localhost',
+            port:            int = logging.handlers.DEFAULT_TCP_LOGGING_PORT,
+            handler:         logging.Handler = LogRecordStreamHandler
+    ) -> None:
         socketserver.ThreadingTCPServer.__init__(self, (host, port), handler)
         self.timeout = 1
         self.logname = None
@@ -109,22 +118,25 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
         self.ignore_flag = ignore_flag
         self.ignored_counter = ignored_counter
 
-    def verify_request(self, request, client_address):
+    def should_ignore_record(self):
         '''
-        Verifies the request.
-
-        Return True if we should proceed with this request.
+        Returns whether a log record should be ignored based
+        on `self.ignore_flag`.
         '''
-        # Black hole it if we're set to ignore.
-        if self.ignore_flag and self.ignore_flag.is_set():
-            if self.ignored_counter:
-                # If we have a counter, increment it for this ignored log.
-                with self.ignored_counter.get_lock():
-                    self.ignored_counter.value += 1
+        ignore = self.ignore_flag and self.ignore_flag.is_set()
+        return ignore
 
-            return False
+    def ignored_record(self):
+        '''
+        Called when a handler ignores a log record. Increments
+        `self.ignored_counter` if possible.
+        '''
+        if not self.ignored_counter:
+            return
 
-        return super().verify_request(request, client_address)
+        # If we have a counter, increment it for this ignored log.
+        with self.ignored_counter.get_lock():
+            self.ignored_counter.value += 1
 
     def serve_until_stopped(self) -> None:
         while not self.shutdown_flag.is_set():
@@ -132,6 +144,8 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
                                        [], [],
                                        self.timeout)
             if rd:
+                # New client connection to handle. Will keep open and running
+                # on its own thread after this.
                 self.handle_request()
 
         # Shutdown flag was set so we're done.

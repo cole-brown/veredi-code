@@ -24,6 +24,13 @@ class DebugFlag(FlagCheckMixin, enum.Flag):
     '''
 
     # ------------------------------
+    # General Flags
+    # ------------------------------
+
+    LOG_SKIP     = enum.auto()
+    '''Enabled when certain logs should be skipped if unit testing.'''
+
+    # ------------------------------
     # veredi.game
     # ------------------------------
 

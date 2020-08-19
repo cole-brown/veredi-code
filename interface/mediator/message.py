@@ -21,10 +21,11 @@ import enum
 import contextlib
 
 import veredi.logger.log
-from veredi.data.codec.base import Encodable
-from veredi.data.exceptions import EncodableError
-from veredi.base.identity   import MonotonicId
-from veredi.data.identity   import UserId, UserKey
+from veredi.data.codec.base                    import Encodable
+from veredi.data.exceptions                    import EncodableError
+from veredi.base.identity                      import MonotonicId
+from veredi.data.identity                      import UserId, UserKey
+from veredi.interface.mediator.payload.logging import LogPayload
 
 
 # -----------------------------------------------------------------------------
@@ -62,6 +63,7 @@ class MsgType(Encodable, enum.Enum):
     Instructions about logging:
       - Game can message Mediator on its side asking it to adjust logging.
       - Server game/mediator can ask client to:
+          - Report current logging meta-data.
           - Adjust logging level.
           - Connect to logging server.
       - Client can obey or ignore as it sees fit.
@@ -110,18 +112,17 @@ class MsgType(Encodable, enum.Enum):
         '''
         Returns a representation of ourself as a dictionary.
         '''
-        encoded = {
-            'msg_type': self.value,
-        }
+        encoded = super().encode()
+        encoded['msg_type'] = self.value
         return encoded
 
     @classmethod
-    def decode(klass: 'MsgType', value: Mapping[str, str]) -> 'MsgType':
+    def decode(klass: 'MsgType', mapping: Mapping[str, str]) -> 'MsgType':
         '''
         Turns our encoded dict into a MsgType instance.
         '''
-        klass.error_for_key('msg_type', value)
-        decoded = klass(value['msg_type'])
+        klass.error_for(mapping, keys=['msg_type'])
+        decoded = klass(mapping['msg_type'])
         return decoded
 
 
@@ -159,19 +160,18 @@ class Message(Encodable):
             '''
             Returns a representation of ourself as a dictionary.
             '''
-            encoded = {
-                'spid': self.value,
-            }
+            encoded = super().encode()
+            encoded['spid'] =  self.value
             return encoded
 
         @classmethod
-        def decode(klass: 'SpecialId',
-                   value: Mapping[str, int]) -> 'SpecialId':
+        def decode(klass: 'Message.SpecialId',
+                   mapping: Mapping[str, int]) -> 'Message.SpecialId':
             '''
             Turns our encoded dict into an enum value..
             '''
-            klass.error_for_key('spid', value)
-            decoded_value=value['spid']
+            klass.error_for(mapping, keys=['spid'])
+            decoded_value = mapping['spid']
             return klass(decoded_value)
 
     def __init__(self,
@@ -305,6 +305,15 @@ class Message(Encodable):
         '''
         return self._payload
 
+    @payload.setter
+    def payload(self, value: str) -> None:
+        '''
+        Replace payload with its encoded/decoded equal. Should only really be
+        used by e.g. CODEC messages for replacing an object/str with its
+        encoded str/decoded object.
+        '''
+        self._payload = value
+
     @property
     def path(self) -> Optional[str]:
         '''
@@ -335,11 +344,15 @@ class Message(Encodable):
         '''
         Returns a representation of ourself as a dictionary.
         '''
+        # Get the base dict from Encodable.
+        encoded = super().encode()
+
         payload = self.payload
         if isinstance(payload, Encodable):
             payload = payload.encode()
 
-        encoded = {
+        # Add all our actual fields.
+        encoded.update({
             'msg_id':   self._msg_id.encode(),
             'type':     self._type.encode(),
             'payload':  payload,
@@ -349,22 +362,24 @@ class Message(Encodable):
             'user_key': (self._user_key.encode()
                          if self._user_key
                          else None),
-        }
+        })
 
         return encoded
 
     @classmethod
-    def decode(klass: 'Message', value: Mapping[str, str]) -> 'Message':
+    def decode(klass: 'Message', mapping: Mapping[str, str]) -> 'Message':
         '''
         Returns a representation of ourself as a dictionary.
         '''
-        klass.error_for_key('msg_id',   value)
-        klass.error_for_key('type',     value)
-        klass.error_for_key('payload',  value)
-        klass.error_for_key('user_id',  value)
-        klass.error_for_key('user_key', value)
+        klass.error_for(mapping, keys=[
+            'msg_id',
+            'type',
+            'payload',
+            'user_id',
+            'user_key',
+        ])
 
-        msg_id = value['msg_id']
+        msg_id = mapping['msg_id']
         msg_id_dec = None
         try:
             msg_id_dec = MonotonicId.decode(msg_id)
@@ -377,8 +392,8 @@ class Message(Encodable):
                                           f"about decoding... {msg_id}")
 
         # Let these be None if they were encoded as None?..
-        user_id = value['user_id']
-        user_key = value['user_key']
+        user_id = mapping['user_id']
+        user_key = mapping['user_key']
         if user_id:
             user_id = UserId.decode(user_id)
         if user_key:
@@ -386,10 +401,10 @@ class Message(Encodable):
 
         decoded = klass(
             msg_id_dec,
-            MsgType.decode(value['type']),
+            MsgType.decode(mapping['type']),
             # Let someone else figure out if payload needs decoding or not, and
             # by what.
-            value['payload'],
+            mapping['payload'],
             user_id,
             user_key
         )
@@ -401,28 +416,19 @@ class Message(Encodable):
     # ------------------------------
 
     @classmethod
-    def log(klass:     'Message',
-            msg_id:    Union[MonotonicId, int],
-            log_level: veredi.logger.log.Level) -> 'Message':
+    def log(klass:       'Message',
+            msg_id:      Union[MonotonicId, int],
+            user_id:     UserId,
+            user_key:    UserKey,
+            log_payload: LogPayload) -> 'Message':
         '''
         Creates a LOGGING message with the supplied data.
         '''
         msg = Message(msg_id, MsgType.LOGGING,
-                      payload={
-                          'logging': {
-                              'level': log_level,
-                          },
-                      })
+                      payload=log_payload,
+                      user_id=user_id,
+                      user_key=user_key)
         return msg
-
-    def log_level(self) -> Optional[veredi.logger.log.Level]:
-        '''
-        If this message has anything under 'logging.level', return it.
-        '''
-        try:
-            return self.messagage.get('logging', {}).get('level', None)
-        except:
-            return None
 
     # ------------------------------
     # To String

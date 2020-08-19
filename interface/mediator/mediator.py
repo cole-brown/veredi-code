@@ -18,7 +18,7 @@ converts it into JSON for sending.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, Awaitable, Iterable, Tuple)
+                    Optional, Union, Any, Awaitable, Iterable, Tuple, Literal)
 if TYPE_CHECKING:
     import re
 
@@ -38,11 +38,15 @@ from veredi.base.identity      import MonotonicId
 # from .                         import exceptions
 from .context                  import MediatorContext, MessageContext
 from .message                  import Message, MsgType
+from .payload.logging          import LogPayload, LogField
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+_UT_ENABLE  = "unit-testing enable"
+_UT_DISABLE = "unit-testing disable"
 
 
 # -----------------------------------------------------------------------------
@@ -65,12 +69,29 @@ class Mediator(ABC):
     SHUTDOWN_TIMEOUT_SEC = 5.0
 
     def __init__(self,
-                 config:        Configuration,
-                 conn:          multiprocessing.connection.Connection,
-                 shutdown_flag: multiprocessing.Event,
-                 debug:         DebugFlag = None) -> None:
+                 config:         Configuration,
+                 conn:           multiprocessing.connection.Connection,
+                 shutdown_flag:  multiprocessing.Event,
+                 debug:          DebugFlag                             = None,
+                 unit_test_pipe: multiprocessing.connection.Connection = None
+                 ) -> None:
+
         self._debug: DebugFlag = debug
         '''Extra debugging output granularity.'''
+
+        self._testing: bool = False
+        '''
+        Whatever abnormal shenanigans are needed for unit testing are hidden
+        behind this flag. For example, server shouldn't push MsgType.LOGGING
+        reply messages into its _med_to_game_queue, but will if unit testing so
+        that the unit test can inspect the client's response.
+        '''
+
+        self._test_pipe: multiprocessing.connection.Connection = unit_test_pipe
+        '''
+        A little backchannel for unit-testing IPC to tell us to do weird stuff
+        like toggle self._unit_testing flag.
+        '''
 
         self._game_pipe: multiprocessing.connection.Connection = conn
         '''Our IPC connection to the game process.'''
@@ -102,6 +123,10 @@ class Mediator(ABC):
     # Debug
     # -------------------------------------------------------------------------
 
+    # §-TODO-§ [2020-08-18]: Make a "debuggable" or "loggable" class/interface,
+    # move this debug() there.
+    # Also make the other debug level functions.
+    # Also also make a 'print'.
     def debug(self,
               msg: str,
               *args: Any,
@@ -116,27 +141,74 @@ class Mediator(ABC):
                       *args,
                       **kwargs)
 
-    def update_logging(self, msg: Message) -> None:
+    def logging_request(self, msg: Message) -> None:
         '''
-        Adjusts our logging.
+        Deal with a logging request. Adjust our logging level, add/remote log
+        handlers, ignore the whole thing... whatever you want.
         '''
         if (not msg
                 or msg.type != MsgType.LOGGING
-                or not isinstance(msg.message, dict)):
+                or not isinstance(msg.payload, LogPayload)):
+            self.debug(f"logging_request: wrong type or payload: {msg}")
             return
 
         # Should we update our logging level?
-        update_level = msg.logging()
-        if update_level:
-            log.info(f"Updating {self.__class__.__name__}'s logging to "
-                     f"{update_level} by request: {msg}")
-            update_level = log.Level(update_level)
-            log.set_level(update_level)
-            log.info(f"Updated {self.__class__.__name__}'s logging to "
-                     f"{update_level} by request: {msg}")
+        payload_recv = msg.payload
+        request = payload_recv.request
+        if not request:
+            log.info("Received LoggingPayload with nothing in request? "
+                     f"Cannot do anything with: {msg}")
+            return None
+
+        report_action = False
+        if LogField.LEVEL in request:
+            report_action = True
+            self._logging_req_level(request[LogField.LEVEL])
 
         # We'll have others eventually. Like 'start up log_client and connect
         # to this WebSocket or Whatever to send logs there now please'.
+
+        # Default to not sending reply...
+        send = None
+
+        # If report requested or if we did something as requested, report back!
+        # LogField.REPORT is bool, so check that it exists and also is True.
+        report_requested = (LogField.REPORT in request
+                            and request[LogField.REPORT])
+        if report_requested or report_action:
+            # Reuse received; send 'em back their data?
+            payload_send = payload_recv
+            payload_send = self._logging_req_report(payload_send)
+
+            send = Message.log(msg.msg_id,
+                               msg.user_id, msg.user_key,
+                               payload_send)
+
+        return send
+
+    def _logging_req_level(self,
+                           level: Optional[log.Level]) -> None:
+        '''
+        Update our logging to level or ignore.
+        '''
+        if level is None:
+            return None
+
+        self.debug("_logging_req_level: Updating logging level from "
+                   f"{log.get_level()} to {level}.")
+        log.set_level(level)
+
+    def _logging_req_report(self,
+                            response: LogPayload) -> LogPayload:
+        '''
+        Set logging report fields in `response` LogPayload.
+        Returns `response`.
+        '''
+        response.create_report(level=log.get_level()
+                               # TODO: get remotes into report at some point.
+                               # remotes=...
+                               )
+        return response
 
     # -------------------------------------------------------------------------
     # Abstracts
@@ -207,7 +279,6 @@ class Mediator(ABC):
         self.debug("Received into game pipe for game to process: "
                    f"msg: {msg}, ctx: {ctx}")
         self._game_pipe.send((msg, ctx))
-        return msg, ctx
 
     # ------------------------------
     # Mediator-RX -> Mediator-to-Game Queue
@@ -275,6 +346,33 @@ class Mediator(ABC):
                    f"msg: {msg}, ctx: {ctx}")
         await self._med_rx_queue.put((msg, ctx))
 
+    # ------------------------------
+    # Unit Test Case -> Mediator
+    # ------------------------------
+
+    def _test_has_data(self) -> bool:
+        '''
+        No wait/block.
+        Returns True if queue from unit test has data for us.
+        '''
+        return self._test_pipe.poll()
+
+    def _test_pipe_get(self) -> str:
+        '''
+        Gets data from unit test pipe for sending. Waits/blocks until it
+        receives something.
+        '''
+        recv = self._test_pipe.recv()
+        self.debug("Got from unit test pipe for sending: "
+                   f"string: {recv}")
+        return recv
+
+    def _test_pipe_put(self, send: str) -> None:
+        '''Puts data into unit test pipe for unit test to receive.'''
+        self.debug("Putting into test pipe for unit test to process: "
+                   f"string: {send}")
+        self._test_pipe.send(send)
+
     # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
@@ -337,9 +435,64 @@ class Mediator(ABC):
 
             # Deal with this msg to us?
             if msg.type == MsgType.LOGGING:
-                self.update_logging(msg)
+                self.debug(f"_med_queue_watcher: _med_rx_get got: {msg}")
+                reply = self.logging_request(msg)
+                if reply:
+                    await self._med_tx_put(msg, ctx)
+                    # Done; _continue() and reloop.
 
             await self._continuing()
+
+    async def _test_watcher(self) -> None:
+        '''
+        Looks for a unit testing message to take from unit testing pipe and
+        handle. It is always for this mediator.
+        '''
+        while True:
+            # Die if requested.
+            if self.any_shutdown():
+                break
+
+            # Check for something in connection; don't block.
+            if not self._test_has_data():
+                await self._continuing()
+                continue
+
+            # Get that something, do something with it.
+            try:
+                string = self._test_pipe_get()
+
+            except EOFError as error:
+                log.exception(error,
+                              None,
+                              "Failed getting from test pipe; "
+                              "ignoring and continuing.")
+                # EOFError gets raised if nothing left to receive or other end
+                # closed. Wait til we know what that means to our test/mediator
+                # pair before deciding to take (drastic?) action here...
+
+            if string == _UT_ENABLE:
+                self._unit_testing = True
+                self.debug("Enabled unit testing flag.")
+
+            elif string == _UT_DISABLE:
+                self._unit_testing = True
+                self.debug("Disabled unit testing flag.")
+
+            else:
+                message = (f"{self._name} doesn't know what to do "
+                           f"with received testing string: {string}")
+                raise log.exception(
+                    ValueError(message),
+                    None,
+                    message)
+
+            # Done processing; sleep a bit then continue.
+            await self._continue()
+
+    # ------------------------------
+    # Shutdown Flags
+    # ------------------------------
 
     def any_shutdown(self) -> bool:
         '''

@@ -73,16 +73,17 @@ class VebSocketServer(VebSocket):
                  unregister_fn:  Callable[[UserConnToken],
                                           Optional[Message]],
                  host:           str,
-                 path:           Optional[str]              = None,
-                 port:           Optional[int]              = None,
-                 secure:         Optional[Union[str, bool]] = True,
-                 debug_fn:       Optional[Callable]         = None) -> None:
+                 path:           Optional[str]                         = None,
+                 port:           Optional[int]                         = None,
+                 secure:         Optional[Union[str, bool]]            = True,
+                 debug_fn:       Optional[Callable]                    = None
+                 ) -> None:
         super().__init__(codec, med_context_fn, msg_context_fn,
                          host,
-                         path=path,
-                         port=port,
-                         secure=secure,
-                         debug_fn=debug_fn)
+                         path     = path,
+                         port     = port,
+                         secure   = secure,
+                         debug_fn = debug_fn)
 
         self._unregistered = unregister_fn
 
@@ -98,7 +99,7 @@ class VebSocketServer(VebSocket):
         #   - but issues with things running in the 'wrong' asyncio event loop.
         # so... bad?: init-ing here?
         #   - It gets in the wrong asyncio event loop somehow.
-        self._server: websockets.WebSocketServer = None
+        self._listener: websockets.WebSocketServer = None
 
         # We just know sockets. MediatorServer knows what user has what socket.
         self._sockets_open: Set[websockets.WebSocketServerProtocol] = set()
@@ -130,11 +131,11 @@ class VebSocketServer(VebSocket):
         # Create it here, then... don't await it. Let self._a_wait_close() wait
         # on both server and our close flag.
         self.debug(f"starting server {self.uri}...")
-        server = await websockets.serve(self.handler_ppc,
-                                        self._host,
-                                        self._port)
+        self._listener = await websockets.serve(self.handler_ppc,
+                                                self._host,
+                                                self._port)
         self.debug(f"serving {self.uri}...")
-        await self._a_wait_close(server)
+        await self._a_wait_close(self._listener)
 
     # -------------------------------------------------------------------------
     # Helper Functions
@@ -197,7 +198,8 @@ class VebSocketServer(VebSocket):
             # WebSocketServerProtocol constructor.
             websocket.close()
 
-    async def _a_wait_close(self, server: websockets.WebSocketServer) -> None:
+    async def _a_wait_close(self,
+                            listener: websockets.WebSocketServer) -> None:
         '''
         A future that just waits for our close flag or
         websockets.WebSocketServer's close future to be set.
@@ -206,14 +208,22 @@ class VebSocketServer(VebSocket):
         '''
         while True:
             if (self._close.is_set()
-                    or server.closed_waiter.done()):
+                    or listener.closed_waiter.done()):
                 break
             # Await something so other async tasks can run? IDK.
             await asyncio.sleep(0.1)
 
-        # Shutdown has been signaled to us somehow, but we're just some minion
-        # so we only need to put ourselves in order.
-        server.close()
+        # This is supposed to close connections with code 1001 ('going
+        # away'), which is supposed to raise a ConnectionClosedOK exception
+        # on the clients. If you forget to wait_closed() or get killed
+        # early, you might send out 1006 instead ('connection closed
+        # abnormally [internal]') which is ConnectionClosedError exception
+        # on client.
+        listener.close()
+        await listener.wait_closed()
+
+        # Make sure close flag is set. Could have triggered close by the other
+        # flag check.
         self._close.set()
 
     # -------------------------------------------------------------------------
@@ -231,8 +241,7 @@ class VebSocketServer(VebSocket):
 
         `websocket` is the websocket connection to the client.
 
-        `path` is a url-like path. Only one I've gotten so far in tests
-        is root ("/").
+        `path` is a url-like path. Only one used so far is root ("/").
 
         https://websockets.readthedocs.io/en/stable/intro.html#both
         '''
@@ -257,11 +266,11 @@ class VebSocketServer(VebSocket):
             self._msg_make_context(path)))
         produce.add_done_callback(self._ppc_done_handle)
 
-        # Client has to do this, but we're already using _a_wait_close() for
+        # Client has to do this, but we're already using _a_wait_closed() for
         # waiting on the socket listener so do not do this 'poison pill' on
         # server.
         # # And this one is just to exit when asked to close().
-        # poison = asyncio.ensure_future(self._a_wait_close())
+        # poison = asyncio.ensure_future(self._a_wait_closed())
         # poison.add_done_callback(self._ppc_done_handle)
 
         self.debug("Running produce/consume for user on socket...")
@@ -520,9 +529,13 @@ class WebSocketServer(WebSocketMediator):
                  config:        Configuration,
                  conn:          multiprocessing.connection.Connection,
                  shutdown_flag: multiprocessing.Event,
-                 debug:         DebugFlag = None) -> None:
+                 debug:         DebugFlag                              = None,
+                 unit_test_pipe: multiprocessing.connection.Connection = None
+                 ) -> None:
         # Base class init first.
-        super().__init__(config, conn, shutdown_flag, 'server', debug)
+        super().__init__(config, conn, shutdown_flag, 'server',
+                         debug=debug,
+                         unit_test_pipe=unit_test_pipe)
 
         # ---
         # Now we can make our WebSocket stuff...
@@ -658,7 +671,7 @@ class WebSocketServer(WebSocketMediator):
                       *args,
                       **kwargs)
 
-    def update_logging(self, msg: Message) -> None:
+    def logging_request(self, msg: Message) -> None:
         '''
         Ignore this on server; client doesn't get to tell us what to do.
         '''
@@ -702,7 +715,8 @@ class WebSocketServer(WebSocketMediator):
                                      self._serve(),
                                      self._med_queue_watcher(),
                                      self._to_game_watcher(),
-                                     self._from_game_watcher()))
+                                     self._from_game_watcher(),
+                                     self._test_watcher()))
 
         except websockets.exceptions.ConnectionClosedOK:
             pass
@@ -988,7 +1002,7 @@ class WebSocketServer(WebSocketMediator):
 
             self.debug(f"Client-Conn: {conn}: "
                        "Producing result from send processor...")
-            result = await sender(msg)
+            result = await sender(msg, ctx, conn)
 
             # Only send out to socket if actually produced anything.
             if result:
@@ -1016,6 +1030,7 @@ class WebSocketServer(WebSocketMediator):
         if not msg or not conn:
             return msg
 
+        # log.critical(f"\n\n
         msg = self._hook_user_auth(msg, None, conn)
         return msg
 
@@ -1024,12 +1039,14 @@ class WebSocketServer(WebSocketMediator):
     # -------------------------------------------------------------------------
 
     async def _htx_connect(self,
-                           msg: Message) -> Optional[Message]:
+                           msg:  Message,
+                           ctx:  Optional[MediatorServerContext],
+                           conn: UserConnToken) -> Optional[Message]:
         '''
         Send auth/registration result back down to the client?
         Or was that handled during _hrx_connect?
         '''
-        return await self._htx_generic(msg, 'connect')
+        return await self._htx_generic(msg, ctx, conn, 'connect')
 
     async def _hrx_connect(self,
                            match:   re.Match,
