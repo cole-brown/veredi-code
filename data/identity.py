@@ -147,21 +147,20 @@ class UserId(SerializableId):
         '''
         Returns a representation of ourself as a dictionary.
         '''
-        encoded = {
-            self._ENCODE_FIELD_NAME: self.value.int,
-        }
+        encoded = super().encode()
+        encoded[self._ENCODE_FIELD_NAME] = self.value.int
         return encoded
 
     @classmethod
     def decode(klass: 'UserId',
-               value: Mapping[str, int]) -> 'UserId':
+               mapping: Mapping[str, int]) -> 'UserId':
         '''
         Turns our encoded dict into a UserId instance.
         '''
-        klass.error_for_key(klass._ENCODE_FIELD_NAME, value)
+        klass.error_for(mapping, keys=[klass._ENCODE_FIELD_NAME])
         decoded = klass(None, None,
                         allow=True, decoding=True,
-                        decoded_value=value[klass._ENCODE_FIELD_NAME])
+                        decoded_value=mapping[klass._ENCODE_FIELD_NAME])
         return decoded
 
     # ------------------------------
@@ -334,21 +333,20 @@ class UserKey(SerializableId):
         '''
         Returns a representation of ourself as a dictionary.
         '''
-        encoded = {
-            self._ENCODE_FIELD_NAME: self.value.int,
-        }
+        encoded = super().encode()
+        encoded[self._ENCODE_FIELD_NAME] = self.value.int
         return encoded
 
     @classmethod
     def decode(klass: 'UserKey',
-               value: Mapping[str, int]) -> 'UserKey':
+               mapping: Mapping[str, int]) -> 'UserKey':
         '''
         Turns our encoded dict into a UserKey instance.
         '''
-        klass.error_for_key(klass._ENCODE_FIELD_NAME, value)
+        klass.error_for(mapping, keys=[klass._ENCODE_FIELD_NAME])
         decoded = klass(None, None,
                         allow=True, decoding=True,
-                        decoded_value=value[klass._ENCODE_FIELD_NAME])
+                        decoded_value=mapping[klass._ENCODE_FIELD_NAME])
         return decoded
 
     # ------------------------------

@@ -142,9 +142,10 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
         '''
         Returns a representation of ourself as a dictionary.
         '''
-        encoded = {
+        encoded = super().encode()
+        encoded.update({
             self._ENCODE_FIELD_NAME: self.value,
-        }
+        })
         return encoded
 
     @classmethod
@@ -339,9 +340,10 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         '''
         Returns a representation of ourself as a dictionary.
         '''
-        encoded = {
+        encoded = super().encode()
+        encoded.update({
             self._ENCODE_FIELD_NAME: self.value,
-        }
+        })
         return encoded
 
     @classmethod

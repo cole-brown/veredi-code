@@ -45,7 +45,9 @@ from .exceptions             import WebSocketError
 
 TxProcessor = NewType(
     'TxProcessor',
-    Callable[[UserConnToken],
+    Callable[[Message,
+              Optional[MediatorContext],
+              UserConnToken],
              Optional[Message]]
 )
 
@@ -283,8 +285,17 @@ class VebSocket:
         # Shutdown has been signaled to us somehow, but we're just some minion
         # so we only need to put ourselves in order.
         if self._socket:
-            await self._socket.close()
+            # This is supposed to close connections with code 1001 ('going
+            # away'), which is supposed to raise a ConnectionClosedOK exception
+            # on the other side. If you forget to wait_closed() or get killed
+            # early, you might send out 1006 instead ('connection closed
+            # abnormally [internal]') which is ConnectionClosedError exception
+            # on the other side.
+            self._socket.close()
+            await self._socket.wait_closed()
 
+        # Make sure close flag is set. Could have triggered close by the other
+        # flag check.
         self._close.set()
 
     # -------------------------------------------------------------------------

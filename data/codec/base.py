@@ -37,14 +37,27 @@ class Encodable:
     encoding/decoding, the class should ask it to during the encode/decode.
     '''
 
+    _TYPE_FIELD = '_encodable'
+
     def encode(self) -> Mapping[str, Any]:
         '''
         Encode self as a Mapping of strings to (basic) values (str, int, etc).
         '''
-        ...
+        return {
+            self._TYPE_FIELD: self.__class__.__name__,
+        }
 
     @classmethod
-    def decode(klass: 'Encodable', value: Mapping[str, Any]) -> 'Encodable':
+    def claim(klass: 'Encodable', mapping: Mapping[str, Any]) -> bool:
+        '''
+        Returns true if this Encodable class thinks it can/should decode this
+        mapping.
+        '''
+        return (klass._TYPE_FIELD in mapping
+                and mapping[klass._TYPE_FIELD] == klass.__name__)
+
+    @classmethod
+    def decode(klass: 'Encodable', mapping: Mapping[str, Any]) -> 'Encodable':
         '''
         Decode a Mapping of strings to (basic) values (str, int, etc), using it
         to build an instance of this class.
@@ -54,16 +67,65 @@ class Encodable:
         ...
 
     @classmethod
+    def error_for_claim(klass: 'Encodable',
+                        mapping: Mapping[str, Any]) -> None:
+        '''
+        Raises an EncodableError if claim() returns false.
+        '''
+        if not klass.claim(mapping):
+            raise EncodableError(
+                f"Cannot claim for {klass.__name__} for decoding: {mapping}",
+                None)
+
+    @classmethod
     def error_for_key(klass: 'Encodable',
                       key: str,
-                      value: Mapping[str, Any]) -> None:
+                      mapping: Mapping[str, Any]) -> None:
         '''
-        Raises an EncodableError if supplied `key` is not in `value` mapping.
+        Raises an EncodableError if supplied `key` is not in `mapping`.
         '''
-        if key not in value:
+        if key not in mapping:
             raise EncodableError(
-                f"Cannot decode value to {klass.__name__}: {value}",
+                f"Cannot decode to {klass.__name__}: {mapping}",
                 None)
+
+    @classmethod
+    def error_for_value(klass:   'Encodable',
+                        key:     str,
+                        value:   Any,
+                        mapping: Mapping[str, Any]) -> None:
+        '''
+        Raises an EncodableError if `key` value in `mapping` is not equal to
+        supplied `value`.
+
+        Assumes `error_for_key()` has been called for the key.
+        '''
+        if mapping[key] != value:
+            raise EncodableError(
+                f"Cannot decode to {klass.__name__}. "
+                f"Value of '{key}' is incorrect. "
+                f"Expected '{value}'; got '{mapping[key]}"
+                f": {mapping}",
+                None)
+
+    @classmethod
+    def error_for(klass:   'Encodable',
+                  mapping: Mapping[str, Any],
+                  keys:    Iterable[str]     = [],
+                  values:  Mapping[str, Any] = {}) -> None:
+        '''
+        Runs:
+          - error_for_claim()
+          - error_for_key() on all `keys`
+          - error_for_value() on all key/value pairs in `values`.
+        '''
+        klass.error_for_claim(mapping)
+
+        for key in keys:
+            klass.error_for_key(key, mapping)
+
+        for key in values:
+            klass.error_for_value(key, values[key], mapping)
 
 
 CodecOutput = NewType('CodecOutput',

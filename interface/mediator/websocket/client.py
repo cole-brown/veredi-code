@@ -40,7 +40,9 @@ from veredi.data.config.registry import register
 from ..message                   import Message, MsgType
 from .mediator                   import WebSocketMediator
 from .base                       import VebSocket, TxProcessor, RxProcessor
-from ..context                   import MediatorClientContext, MessageContext
+from ..context                   import (MediatorClientContext,
+                                         MessageContext,
+                                         UserConnToken)
 from .exceptions                 import WebSocketError
 
 
@@ -126,8 +128,9 @@ class VebSocketClient(VebSocket):
                 [produce, consume, poison],
                 return_when=asyncio.FIRST_COMPLETED)
 
-            self.debug(f"Client done with connection to {self.uri}. Cancelling "
-                       "still pending tasks produce/consume tasks...")
+            self.debug(f"Client done with connection to {self.uri}. "
+                       "Cancelling still pending tasks "
+                       "produce/consume tasks...")
             # Whoever didn't finish first gets the axe.
             for task in pending:
                 task.cancel()
@@ -147,15 +150,18 @@ class WebSocketClient(WebSocketMediator):
     '''
 
     def __init__(self,
-                 config:        Configuration,
-                 conn:          multiprocessing.connection.Connection,
-                 shutdown_flag: multiprocessing.Event,
-                 user_id:       Optional[UserId]    = None,
-                 user_key:      Optional[UserId]    = None,
-                 debug:         Optional[DebugFlag] = None,
-                 unit_testing:  Optional[bool]      = None) -> None:
+                 config:         Configuration,
+                 conn:           multiprocessing.connection.Connection,
+                 shutdown_flag:  multiprocessing.Event,
+                 user_id:        Optional[UserId]                      = None,
+                 user_key:       Optional[UserId]                      = None,
+                 debug:          Optional[DebugFlag]                   = None,
+                 unit_test_pipe: multiprocessing.connection.Connection = None
+                 ) -> None:
         # Base class init first.
-        super().__init__(config, conn, shutdown_flag, 'client', debug)
+        super().__init__(config, conn, shutdown_flag, 'client',
+                         debug=debug,
+                         unit_test_pipe=unit_test_pipe)
 
         self._id: Optional[UserId] = user_id
         '''Our auth id for talking to server.'''
@@ -178,8 +184,6 @@ class WebSocketClient(WebSocketMediator):
         Note: Not really "are we connected right now". Just "has the server
         confirmed our CONNECT with an ACK_CONNECT at some point in the past?"
         '''
-
-        self._unit_testing: bool = unit_testing
 
     # -------------------------------------------------------------------------
     # Properties
@@ -247,7 +251,8 @@ class WebSocketClient(WebSocketMediator):
             asyncio.run(self._a_main(self._shutdown_watcher(),
                                      self._queue_watcher(),
                                      self._med_queue_watcher(),
-                                     self._server_watcher()))
+                                     self._server_watcher(),
+                                     self._test_watcher()))
 
         except websockets.exceptions.ConnectionClosedOK:
             pass
@@ -412,11 +417,13 @@ class WebSocketClient(WebSocketMediator):
     # -------------------------------------------------------------------------
 
     async def _htx_connect(self,
-                           msg: Message) -> Optional[Message]:
+                           msg:  Message,
+                           ctx:  Optional[MediatorClientContext],
+                           conn: UserConnToken) -> Optional[Message]:
         '''
         Send a connection auth/registration request to the server.
         '''
-        return await self._htx_generic(msg, 'connect')
+        return await self._htx_generic(msg, ctx, conn, 'connect')
 
     async def _hrx_connect(self,
                            match: re.Match,
@@ -432,7 +439,7 @@ class WebSocketClient(WebSocketMediator):
 
         # TODO: Whatever builds connect payload should also check it here...
         if 'code' in payload and payload['code'] is True:
-            if not self._unit_testing:
+            if self._debug and not self._debug.has(DebugFlag.LOG_SKIP):
                 log.info("{self._name}: Connected to server! "
                          f"match: {match}, path: {path}, msg: {msg}")
             self._connected = True

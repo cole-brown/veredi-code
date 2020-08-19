@@ -53,6 +53,10 @@ from veredi.interface.mediator.message          import Message, MsgType
 from veredi.interface.mediator.websocket.server import WebSocketServer
 from veredi.interface.mediator.websocket.client import WebSocketClient
 from veredi.interface.mediator.context          import MessageContext
+from veredi.interface.mediator.payload.logging  import (LogPayload,
+                                                        LogReply,
+                                                        LogField,
+                                                        _NC_LEVEL)
 
 
 # -----------------------------------------------------------------------------
@@ -68,7 +72,7 @@ Main process will give the game/mediator this long to gracefully shutdown.
 If they take longer, it will just terminate them.
 '''
 
-LOG_LEVEL = log.Level.DEBUG # TODO: Back to: INFO
+LOG_LEVEL = log.Level.INFO
 '''Test should set this to desired during setUp()'''
 
 StopRetVal = namedtuple('StopRetVal',
@@ -133,14 +137,16 @@ class TestProc:
                  proc_debug: ProcTest                              = None,
                  user_id:    UserId                                = None,
                  user_key:   UserKey                               = None,
+                 ut_pipe:    multiprocessing.connection.Connection = None,
                  ) -> None:
-        self.name = name
-        self.process = process
-        self.pipe = pipe
+        self.name     = name
+        self.process  = process
+        self.pipe     = pipe
         self.shutdown = shutdown
-        self.debug = proc_debug
-        self.user_id = user_id
+        self.debug    = proc_debug
+        self.user_id  = user_id
         self.user_key = user_key
+        self.ut_pipe  = ut_pipe
 
 
 class TestLog(TestProc):
@@ -296,7 +302,8 @@ def run_server(proc_name     = None,
                log_level     = None,
                shutdown_flag = None,
                debug_flag    = None,
-               proc_test     = None) -> None:
+               proc_test     = None,
+               ut_conn       = None) -> None:
     '''
     Init and run client/engine IO mediator.
     '''
@@ -331,9 +338,13 @@ def run_server(proc_name     = None,
             "Mediator requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
 
+    # Always set LOG_SKIP flag in case its wanted.
+    debug_flag = debug_flag | DebugFlag.LOG_SKIP
+
     lumberjack.debug(f"Starting WebSocketServer '{proc_name}'...")
     mediator = WebSocketServer(config, conn, shutdown_flag,
-                               debug=debug_flag)
+                               debug=debug_flag,
+                               unit_test_pipe=ut_conn)
     mediator.start()
     log_client.close()
     lumberjack.debug(f"mediator server '{proc_name}' done.")
@@ -347,7 +358,8 @@ def run_client(proc_name     = None,
                debug_flag    = None,
                proc_test     = None,
                user_id       = None,
-               user_key      = None) -> None:
+               user_key      = None,
+               ut_conn       = None) -> None:
     '''
     Init and run client/engine IO mediator.
     '''
@@ -382,12 +394,15 @@ def run_client(proc_name     = None,
             "Mediator requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
 
+    # Always set LOG_SKIP flag - client uses it to skip a bit of log spam.
+    debug_flag = debug_flag | DebugFlag.LOG_SKIP
+
     lumberjack.debug(f"Starting WebSocketClient '{proc_name}'...")
     mediator = WebSocketClient(config, conn, shutdown_flag,
                                user_id=user_id,
                                user_key=user_key,
                                debug=debug_flag,
-                               unit_testing=True)
+                               unit_test_pipe=ut_conn)
     mediator.start()
     log_client.close()
     lumberjack.debug(f"mediator client '{proc_name}' done.")
@@ -432,21 +447,21 @@ class Test_WebSockets(unittest.TestCase):
             # ---
             # Simplest test.
             # ---
-            # | Disabled.test_nothing
+            | Disabled.test_nothing
 
             # ---
             # More complex tests.
             # ---
-            # | Disabled.test_connect
-            # | Disabled.test_ping
-            # | Disabled.test_echo
-            # | Disabled.test_text
+            | Disabled.test_connect
+            | Disabled.test_ping
+            | Disabled.test_echo
+            | Disabled.test_text
 
             # ---
             # Not ready yet.
             # ---
-            | Disabled.test_logs_ignore
-            | Disabled.test_logging
+            # | Disabled.test_logs_ignore
+            # | Disabled.test_logging
         )
 
         self._msg_id: MonotonicIdGenerator = MonotonicId.generator()
@@ -558,7 +573,10 @@ class Test_WebSockets(unittest.TestCase):
         log.debug(f"Set up mediator server... {proc_test}")
         # Stuff server and us both need.
         name = self.NAME_SERVER
+        # The standard mediator<->game pipe.
         mediator_conn, test_conn = multiprocessing.Pipe()
+        # The side-channel mediator<->unit-test pipe.
+        ut_mediator_conn, ut_test_conn = multiprocessing.Pipe()
         shutdown = multiprocessing.Event()
 
         # Create server process.
@@ -574,11 +592,13 @@ class Test_WebSockets(unittest.TestCase):
                     'log_level':     LOG_LEVEL,
                     'shutdown_flag': shutdown,
                     'debug_flag':    self.debug_flag,
-                    'proc_test': proc_test,
+                    'proc_test':     proc_test,
+                    'ut_conn':       ut_mediator_conn,
                 }),
             pipe=test_conn,
             shutdown=shutdown,
-            proc_debug=proc_test)
+            proc_debug=proc_test,
+            ut_pipe=ut_test_conn)
 
         # Assign!
         self.proc.server = server
@@ -621,6 +641,8 @@ class Test_WebSockets(unittest.TestCase):
             user_id = self._user_id.next(name)
             # TODO: generate a user key
             user_key = None
+            # The side-channel mediator<->unit-test pipe.
+            ut_mediator_conn, ut_test_conn = multiprocessing.Pipe()
 
             # Create this client.
             client = TestProc(
@@ -638,12 +660,14 @@ class Test_WebSockets(unittest.TestCase):
                         'proc_test':     proc_test,
                         'user_id':       user_id,
                         'user_key':      user_key,
+                        'ut_conn':       ut_mediator_conn,
                     }),
                 pipe=test_conn,
                 shutdown=shutdown,
                 proc_debug=proc_test,
                 user_id=user_id,
-                user_key=user_key)
+                user_key=user_key,
+                ut_pipe=ut_test_conn)
 
             # Append to the list of clients!
             self.proc.clients.append(client)
@@ -1090,8 +1114,10 @@ class Test_WebSockets(unittest.TestCase):
     def assert_empty_pipes(self):
         for client in self.proc.clients:
             self.assertFalse(client.pipe.poll())
+            self.assertFalse(client.ut_pipe.poll())
         if self.proc.server:
             self.assertFalse(self.proc.server.pipe.poll())
+            self.assertFalse(self.proc.server.ut_pipe.poll())
 
     # -------------------------------------------------------------------------
     # Do-Something-During-A-Test Functions
@@ -1572,51 +1598,168 @@ class Test_WebSockets(unittest.TestCase):
     # Test Server sending LOGGING to client.
     # ------------------------------
 
+    def _check_ignored_counter(self,
+                               assert_eq_value=None,
+                               assert_gt_value=None):
+        # Check counter if asked.
+        if assert_eq_value is not None:
+            self.assertEqual(self.proc.log.ignored_counter.value,
+                             assert_eq_value)
+
+        if assert_gt_value is not None:
+            self.assertGreater(self.proc.log.ignored_counter.value,
+                               assert_gt_value)
+
+    def ignore_logging(self,
+                       enable,
+                       assert_eq_value=None,
+                       assert_gt_value=None):
+        '''
+        Instruct log_server to start or stop ignoring log messages. Will
+        assertEqual() or assertGreater() on the ignored_counter if those values
+        are not None.
+
+        `enable` should be:
+          - True or False to toggle. Asserts before and after values.
+          - None to leave alone.
+        '''
+        if enable is True:
+            # Sanity check.
+            self.assertFalse(self.proc.log.ignore_logs.is_set())
+            was = self.proc.log.ignore_logs.is_set()
+
+            # Check counter if asked.
+            self._check_ignored_counter(assert_eq_value, assert_gt_value)
+
+            # Start ignoring logs.
+            self.proc.log.ignore_logs.set()
+
+            # print('\n\n'
+            #       + ('-=' * 40) + '-\n'
+            #       + '<logging="IGNORE"'
+            #       + f'was="{was}" '
+            #       + f'set="{self.proc.log.ignore_logs.is_set()}" '
+            #       + f'count="{self.proc.log.ignored_counter.value}>'
+            #       + '\n'
+            #       + ('-=' * 40) + '-'
+            #       '\n\n')
+            log.debug('\n\n'
+                      + ('-=' * 40) + '-\n'
+                      + '<logging="IGNORE"'
+                      + f'was="{was}" '
+                      + f'set="{self.proc.log.ignore_logs.is_set()}" '
+                      + f'count="{self.proc.log.ignored_counter.value}>'
+                      + '\n'
+                      + ('-=' * 40) + '-'
+                      '\n\n')
+
+        elif enable is False:
+            # Sanity check.
+            self.assertTrue(self.proc.log.ignore_logs.is_set())
+
+            # Stop ignoring logs.
+            was = self.proc.log.ignore_logs.is_set()
+            self.proc.log.ignore_logs.clear()
+
+            # print('\n\n'
+            #       + ('-=' * 40) + '-\n'
+            #       + '</logging="IGNORE" '
+            #       + f'was="{was}" '
+            #       + f'set="{self.proc.log.ignore_logs.is_set()}" '
+            #       + f'count="{self.proc.log.ignored_counter.value}>'
+            #       + '\n'
+            #       + ('-=' * 40) + '-'
+            #       '\n\n')
+            log.debug('\n\n'
+                      + ('-=' * 40) + '-\n'
+                      + '</logging="IGNORE" '
+                      + f'was="{was}" '
+                      + f'set="{self.proc.log.ignore_logs.is_set()}" '
+                      + f'count="{self.proc.log.ignored_counter.value}>'
+                      + '\n'
+                      + ('-=' * 40) + '-'
+                      '\n\n')
+
+            # Check counter if asked.
+            self._check_ignored_counter(assert_eq_value, assert_gt_value)
+
+        elif enable is None:
+            # Check counter if asked.
+            self._check_ignored_counter(assert_eq_value, assert_gt_value)
+
+        # Um... what?
+        else:
+            self.fail(f'enabled must be True/False/None. Got: {enable}')
+
+        # Wait a bit so flag propogates to log_server? Maybe? Why isn't
+        # this working?
+        # It wasn't working because a LogRecordSocketReceiver's 'request' is a
+        # whole client, actually, whereas I thought it was a log record.
+        self.wait(0.1)
+
     def do_test_logging(self, client):
         # Get the connect out of the way.
         self.client_connect(client)
 
-        self.assertEqual(self.proc.log.ignored_counter.value, 0)
-        self.assertFalse(self.proc.log.ignore_logs.is_set())
-
-        self.proc.log.ignore_logs.set()
-
-        self.assertEqual(self.proc.log.ignored_counter.value, 0)
-
-        # # Have a client connect to server so we can then tell it to do a
-        # # logging thing.
-        # self.connect_client(client)
-
-        # TODO:
-        # TODO:
-        # TODO: Time for UserIds?
-        # TODO:
-        # TODO:
-        # TODO:
+        # Start ignoring logs.
+        self.ignore_logging(True, assert_eq_value=0)
 
         # Have a client adjust its log level to debug. Should spit out a lot of
         # logs then.
+        payload = LogPayload()
+        payload.request_level(log.Level.DEBUG)
+
         mid = self._msg_id.next()
-        msg = Message.log(mid, log.Level.DEBUG)
-        ctx = self.msg_context(mid)
-        with log.LoggingManager.on_or_off(self.debugging, True):
-            # server -> client
-            self.proc.server.pipe.send((msg, ctx))
-            # client ack
-            ack_msg, ack_ctx = self.proc.server.pipe.recv()
+        send_msg = Message.log(mid,
+                               client.user_id, client.user_key,
+                               payload)
+
+        send_ctx = self.msg_context(mid)
+        # server -> client
+        self.proc.server.pipe.send((send_msg, send_ctx))
+        # Server should have put client's reply into the unit test pipe so we
+        # can check it.
+        ut_msg = self.proc.server.ut_pipe.recv()
+
+        # Make sure we got a LOGGING message reply back.
+        self.assertTrue(ut_msg)
+        self.assertIsInstance(ut_msg, Message)
+        # Sent logging... right?
+        self.assertEqual(send_msg.type, MsgType.LOGGING)
+        # Got logging... right?
+        self.assertEqual(ut_msg.type, MsgType.LOGGING)
+
+        # Got logging response?
+        self.assertIsInstance(ut_msg.payload, LogPayload)
+        report = ut_msg.payload.report
+        self.assertIsNotNone(report)
+        level = report[LogField.LEVEL]
+
+        # Got reply for our level request?
+        self.assertIsInstance(level, LogReply)
+        self.assertEqual(level.valid, LogReply.Valid.VALID)
+
+        # Got /valid/ reply?
+        self.assertTrue(LogReply.validity(level.value, _NC_LEVEL),
+                        LogReply.Valid.VALID)
+
+        # Client reports they're now at the level we requested?
+        self.assertEqual(level.value, log.Level.DEBUG)
+
+        # Client should have push into the ut_pipe too.
+        # Don't really care, at the moment, but we do care to
+        # assert_empty_pipes() for other reasons so get this one out.
+        ut_msg_client = client.ut_pipe.recv()
+        self.assertTrue(ut_msg_client)
+        self.assertIsInstance(ut_msg_client, Message)
+        self.assertEqual(ut_msg_client.type, MsgType.LOGGING)
 
         self.wait(0.1)
-        # We ignored something, at least, right?
-        self.assertGreater(self.proc.log.ignored_counter.value, 2)
-
-        # Make sure we got a message back and it has the same
-        # message as we sent.
-        self.assertTrue(ack_msg)
-        self.assertTrue(ack_ctx)
-        self.assertIsInstance(ack_msg, Message)
-        self.assertTrue(ack_ctx, MessageContext)
-        # Sent logging... right?
-        self.assertEqual(msg.type, MsgType.LOGGING)
+        # Stop ignoring logs and make sure we ignored something, at least,
+        # right? Well... either have to tell client to go back to previous
+        # logging level or we have to keep ignoring. Clean-up / tear-down has
+        # logs too.
+        self.ignore_logging(None, assert_gt_value=2)
 
         # Make sure we don't have anything in the queues...
         self.assert_empty_pipes()
