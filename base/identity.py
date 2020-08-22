@@ -161,20 +161,20 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
         decoded = klass(value[klass._ENCODE_FIELD_NAME])
         return decoded
 
-    # # ------------------------------
-    # # Pickleable API
-    # # ------------------------------
+    # ------------------------------
+    # Pickleable API
+    # ------------------------------
 
-    # def __getnewargs_ex__(self) -> Tuple[Tuple, Dict]:
-    #     '''
-    #     Returns a 2-tuple of:
-    #       - a tuple for *args
-    #       - a dict for **kwargs
-    #     These values will be used in __new__ for unpickling ourself.
-    #     '''
-    #     args = (self.value, )
-    #     kwargs = {}
-    #     return (args, kwargs)
+    def __getnewargs_ex__(self) -> Tuple[Tuple, Dict]:
+        '''
+        Returns a 2-tuple of:
+          - a tuple for *args
+          - a dict for **kwargs
+        These values will be used in __new__ for unpickling ourself.
+        '''
+        args = (self.value, )
+        kwargs = {}
+        return (args, kwargs)
 
     # ------------------------------
     # To Int
@@ -317,13 +317,14 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
             # Make our invalid singleton instance.
             klass._INVALID = klass(klass._INVALID_VALUE)
 
-    def __init__(self, value: Any,
+    def __init__(self,
                  decoding:      bool          = False,
                  decoded_value: Optional[int] = None) -> None:
         '''
-        Initialize our ID value.
+        Subclasses should implement their __init__().
+        We currently have nothing to do.
         '''
-        self._value = value
+        ...
 
     # ------------------------------
     # Concrete Properties
