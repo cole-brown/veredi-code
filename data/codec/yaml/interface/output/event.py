@@ -12,6 +12,7 @@ from typing import Tuple
 
 import yaml
 
+from veredi.logger                  import log
 from veredi.interface.output.event  import OutputEvent
 from veredi.math.event              import MathOutputEvent
 

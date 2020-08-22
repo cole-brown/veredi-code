@@ -87,3 +87,10 @@ class EncodableError(VerediError):
     An Encodable failed to encode() or decode() properly.
     '''
     ...
+
+
+class SerializableError(VerediError):
+    '''
+    An Serializable failed to serialize() or deserialize() properly.
+    '''
+    ...

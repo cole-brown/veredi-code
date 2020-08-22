@@ -26,9 +26,14 @@ from veredi.data                 import exceptions
 
 from ..base                      import BaseCodec, CodecOutput
 
+# TODO [2020-08-21]: Move all these 'import to register' into the __init__.py
+# file? Or even that plus moving them into a subdir so this dir stops getting
+# inundated with things?
+#
 # import these so they register with PyYAML.
 from .                           import (function,
-                                         document)
+                                         document,
+                                         identity)
 from .ecs                        import (general,
                                          template,
                                          component,
@@ -268,6 +273,7 @@ class YamlCodec(BaseCodec):
         '''
 
         # self._context_encode_data(context)
+        log.debug(f"encode data: {data}")
         output = self._write(data, context)
         if not output:
             raise log.exception(
