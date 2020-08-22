@@ -57,19 +57,22 @@ from veredi.rules.d20.pf2.health.component  import HealthComponent
 # Constants
 # -----------------------------------------------------------------------------
 
-# regex is:
-#   "iid:"
-#   hexadecimal string with dash separators:
-#   word boundry
-# This works for InputIds like:
-#   iid:53a296bb-4240-5e84-a5ce-b7293b648138
-IID_RE_STR = r'iid:[0-9A-Fa-f-]*\b'
+# # regex is:
+# #   "iid:"
+# #   hexadecimal string with dash separators:
+# #   word boundry
+# # This works for InputIds like:
+# #   iid:53a296bb-4240-5e84-a5ce-b7293b648138
+# IID_RE_STR = r'iid:[0-9A-Fa-f-]*\b'
+# Currently encode IIDs to dict via Encodable.encode(), so currently id value
+# is an int:
+IID_RE_STR = r'iid:\s?[0-9]*\b'
 IID_REPLACEMENT = '<input-id>'
 
 EXPECTED_OUTPUT = '''!effect.math
 title: {caption: Fake Subtitle, name: Fake Title}
 input: ability $dex.mod + 4
-id: <input-id>
+id: {_encodable: InputId, <input-id>}
 type: veredi.math.event.output
 output:
   children:
@@ -285,6 +288,7 @@ class Test_InputToOutput_AbilityCheck(IntegrationTest):
         #   value: 4\nnames: {\'EntityId:001\': aluminum dragon}'
         #   Diff is 697 characters long. Set self.maxDiff to None to see it.
 
+        # log.ultra_mega_debug(f"output payload: '{str(self.output_recvd.payload)}'")
         regex = re.compile(IID_RE_STR, re.IGNORECASE)
         payload = regex.sub(IID_REPLACEMENT, self.output_recvd.payload)
         i = 0

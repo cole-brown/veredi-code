@@ -39,14 +39,6 @@ class Encodable:
 
     _TYPE_FIELD = '_encodable'
 
-    def encode(self) -> Mapping[str, Any]:
-        '''
-        Encode self as a Mapping of strings to (basic) values (str, int, etc).
-        '''
-        return {
-            self._TYPE_FIELD: self.__class__.__name__,
-        }
-
     @classmethod
     def claim(klass: 'Encodable', mapping: Mapping[str, Any]) -> bool:
         '''
@@ -56,6 +48,14 @@ class Encodable:
         return (klass._TYPE_FIELD in mapping
                 and mapping[klass._TYPE_FIELD] == klass.__name__)
 
+    def encode(self) -> Mapping[str, Any]:
+        '''
+        Encode self as a Mapping of strings to (basic) values (str, int, etc).
+        '''
+        return {
+            self._TYPE_FIELD: self.__class__.__name__,
+        }
+
     @classmethod
     def decode(klass: 'Encodable', mapping: Mapping[str, Any]) -> 'Encodable':
         '''
@@ -63,6 +63,48 @@ class Encodable:
         to build an instance of this class.
 
         Return the instance.
+        '''
+        ...
+
+    def encode_str(self) -> str:
+        '''
+        If it is a simple Encodable, perhaps it can be encoded into just a str
+        field. If so, implement encode_str(), decode_str() and
+        get_decode_str_rx().
+
+        Encode this instance into a string.
+
+        Return the string.
+        '''
+        return str(self)
+
+    @classmethod
+    def decode_str(klass: 'Encodable', string: str) -> 'Encodable':
+        '''
+        If it is a simple Encodable, perhaps it can be encoded into just a str
+        field. If so, implement encode_str(), decode_str() and
+        get_decode_str_rx().
+
+        Decode the `string` to a `klass` instance.
+
+        Return the instance.
+        '''
+        ...
+
+    @classmethod
+    def get_decode_str_rx(klass: 'Encodable') -> Optional[str]:
+        '''
+        Returns regex /string/ (not compiled regex) of what to look for to
+        claim just a string as this class.
+
+        For example, perhaps a UserId for 'jeff' has a normal decode of:
+          {
+            '_encodable': 'UserId',
+            'uid': 'deadbeef-cafe-1337-1234-e1ec771cd00d',
+          }
+        And perhaps it has str() of 'uid:deadbeef-cafe-1337-1234-e1ec771cd00d'
+
+        This would expect an rx string for the str.
         '''
         ...
 
@@ -128,12 +170,22 @@ class Encodable:
             klass.error_for_value(key, values[key], mapping)
 
 
+# TODO [2020-08-22]: Rename; CodecInput and CodecOutput are both
+# inputs/outputs to codec because codec is coder/decoder so this name makes me
+# sad that I came up with it...
+# EncodeTypes/DecodeTypes?
 CodecOutput = NewType('CodecOutput',
                       Union[List[Any], Dict[str, Any], None])
 
 
+# TODO [2020-08-22]: Rename; CodecInput and CodecOutput are both
+# inputs/outputs to codec because codec is coder/decoder so this name makes me
+# sad that I came up with it...
+# EncodeTypes/DecodeTypes?
 CodecInput = NewType('CodecInput',
                      Union[Encodable, Iterable[Any], Mapping[str, Any], None])
+
+# TODO [2020-08-22]: YAML Codec should use the renamed CodecInput/Output.
 
 
 # -----------------------------------------------------------------------------

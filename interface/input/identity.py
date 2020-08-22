@@ -8,7 +8,7 @@ IDs for InputEvents, Commands, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Type
+from typing import Optional, Type
 
 import uuid
 
@@ -38,7 +38,7 @@ class InputIdGenerator:
         self._time = time_manager
 
     def next(self) -> 'InputId':
-        return self._id_class(self._time, allow=True)
+        return self._id_class(self._time)
 
 
 class InputId(SerializableId):
@@ -74,11 +74,27 @@ class InputId(SerializableId):
     _ENCODE_FIELD_NAME = 'iid'
     '''Can override in sub-classes if needed. E.g. 'iid' for input id.'''
 
-    def __init__(self, time_manager: TimeManager, allow: bool = False) -> None:
+    def __init__(self,
+                 time_manager: TimeManager,
+                 decoding:      bool          = False,
+                 decoded_value: Optional[int] = None) -> None:
         '''
         Initialize our ID value. ID is based on:
           current time string + str(sequence)
+
+        If `decoding`, just use `decode_value'.
         '''
+        # Decoding into a valid UserId?
+        if (decoding                                  # Decode mode is a go.
+                and not time_manager                  # Normal mode is a no.
+                and isinstance(decoded_value, int)):  # Something decode.
+            self._value = uuid.UUID(int=decoded_value)
+            # log.debug("UserId.__init__: decoded to: "
+            #           f"{self._value}, {str(self)}")
+
+            # Don't forget to return now. >.<
+            return
+
         # Constructing _INVALID instance?
         if time_manager is self._INVALID_VALUE:
             self._value = self._INVALID_VALUE

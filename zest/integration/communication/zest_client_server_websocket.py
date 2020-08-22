@@ -447,20 +447,16 @@ class Test_WebSockets(unittest.TestCase):
             # ---
             # Simplest test.
             # ---
-            | Disabled.test_nothing
+            # | Disabled.test_nothing
+            # | Disabled.test_logs_ignore
 
             # ---
             # More complex tests.
             # ---
-            | Disabled.test_connect
-            | Disabled.test_ping
-            | Disabled.test_echo
-            | Disabled.test_text
-
-            # ---
-            # Not ready yet.
-            # ---
-            # | Disabled.test_logs_ignore
+            # | Disabled.test_connect
+            # | Disabled.test_ping
+            # | Disabled.test_echo
+            # | Disabled.test_text
             # | Disabled.test_logging
         )
 

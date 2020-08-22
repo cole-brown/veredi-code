@@ -13,6 +13,7 @@ import yaml
 
 from veredi.logger import pretty
 from veredi.data.config.hierarchy import Hierarchy
+from . import tags
 
 
 # -----------------------------------------------------------------------------

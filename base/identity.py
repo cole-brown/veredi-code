@@ -10,6 +10,9 @@ ID Base Classes for Various Kinds of IDs.
 
 from typing import Optional, Any, Type, Mapping, Tuple, List, Dict
 
+import re
+import uuid
+
 # General Stuff in General
 from abc import abstractmethod
 # from veredi.base.decorators import abstract_class_attribute
@@ -155,26 +158,23 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
         Turns our encoded dict into a MonotonicId instance.
         '''
         klass.error_for_key(klass._ENCODE_FIELD_NAME, value)
-        decoded = klass(value[klass._ENCODE_FIELD_NAME],
-                        allow=True)
+        decoded = klass(value[klass._ENCODE_FIELD_NAME])
         return decoded
 
-    # ------------------------------
-    # Pickleable API
-    # ------------------------------
+    # # ------------------------------
+    # # Pickleable API
+    # # ------------------------------
 
-    def __getnewargs_ex__(self) -> Tuple[Tuple, Dict]:
-        '''
-        Returns a 2-tuple of:
-          - a tuple for *args
-          - a dict for **kwargs
-        These values will be used in __new__ for unpickling ourself.
-        '''
-        args = (self.value, )
-        kwargs = {
-            'allow': True,
-        }
-        return (args, kwargs)
+    # def __getnewargs_ex__(self) -> Tuple[Tuple, Dict]:
+    #     '''
+    #     Returns a 2-tuple of:
+    #       - a tuple for *args
+    #       - a dict for **kwargs
+    #     These values will be used in __new__ for unpickling ourself.
+    #     '''
+    #     args = (self.value, )
+    #     kwargs = {}
+    #     return (args, kwargs)
 
     # ------------------------------
     # To Int
@@ -242,13 +242,12 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
 #
 #     def next(self) -> 'MonotonicId':
 #         self._last_id += 1
-#         return self._id_class(self._last_id, allow=True)
+#         return self._id_class(self._last_id)
 #
 #     def peek(self) -> 'MonotonicId':
 #         return self._last_id
 
 
-# @abstract_class_attribute('INVALID')  # Attribute to return the INVALID inst.
 class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
     '''
     Base class for a serializable ID (e.g. to a file, or primary key value from
@@ -268,6 +267,42 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
     _ENCODE_FIELD_NAME = 'serid'
     '''Can override in sub-classes if needed. E.g. 'iid' for input id.'''
 
+    _DECODE_UUID_PREFIX = '{short_name}'
+    '''
+    Static ident string at front of regex for the class. e.g. 'uid:' for UserId.
+    '''
+
+    _DECODE_UUID_PREFIX_SEP = r':'
+
+    _DECODE_UUID_FORM = (
+        r'[0-9A-Fa-f]{8}-'
+        r'[0-9A-Fa-f]{4}-'
+        r'[0-9A-Fa-f]{4}-'
+        r'[0-9A-Fa-f]{4}-'
+        r'[0-9A-Fa-f]{12}'
+    )
+    '''
+    UUID has hexadecimals separated by dashes in the form 8-4-4-4-12.
+    '''
+
+    _DECODE_UUID_RX = re.compile(
+        # Start at beginning of string, only allow whitespace until us.
+        r'^\s*'
+        # Start 'name' capture group.
+        + r'(?P<name>'
+          # Name capture is our _ENCODE_FIELD_NAME.
+        + _DECODE_UUID_PREFIX.format(short_name=_ENCODE_FIELD_NAME)
+        + r')'
+        + _DECODE_UUID_PREFIX_SEP
+          # Start 'value' capture group.
+        + r'(?P<value>'
+          # Value capture is our UUID hexadecimal form.
+        + _DECODE_UUID_FORM
+        + r')'
+          # More whitespace is ok; anything else isn't. End at end of strig.
+        + r'\s*$'
+    )
+
     # ------------------------------
     # Initialization
     # ------------------------------
@@ -275,30 +310,16 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
     @classmethod
     def _init_invalid_(klass: Type['SerializableId']) -> None:
         '''
-        This is to prevent creating IDs willy-nilly.
+        Creates our invalid instance that can be gotten from read-only class
+        property INVALID.
         '''
         if not klass._INVALID:
             # Make our invalid singleton instance.
-            klass._INVALID = klass(klass._INVALID_VALUE, True)
+            klass._INVALID = klass(klass._INVALID_VALUE)
 
-    def __new__(klass: Type['SerializableId'],
-                value: Any,
-                allow: Optional[bool] = False) -> 'SerializableId':
-        '''
-        This is to prevent creating IDs willy-nilly.
-        '''
-        if not allow:
-            # Just make all constructed return the INVALID singleton.
-            return klass._INVALID
-
-        inst = super().__new__(klass)
-        # I guess this is magic bullshit cuz I don't need to init it with
-        # `value` but it still gets initialized with `value`?
-
-        # no need: inst.__init__(value)
-        return inst
-
-    def __init__(self, value: Any, allow: bool = False) -> None:
+    def __init__(self, value: Any,
+                 decoding:      bool          = False,
+                 decoded_value: Optional[int] = None) -> None:
         '''
         Initialize our ID value.
         '''
@@ -341,8 +362,13 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         Returns a representation of ourself as a dictionary.
         '''
         encoded = super().encode()
+        # So far all of our subclasses are UUID-based, so a check for that
+        # makes sense...
+        enc_value = self.value
+        if isinstance(enc_value, uuid.UUID):
+            enc_value = self.value.int
         encoded.update({
-            self._ENCODE_FIELD_NAME: self.value,
+            self._ENCODE_FIELD_NAME: enc_value,
         })
         return encoded
 
@@ -353,9 +379,60 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         Turns our encoded dict into a SerializableId instance.
         '''
         klass.error_for_key(klass._ENCODE_FIELD_NAME, value)
-        decoded = klass(value[klass._ENCODE_FIELD_NAME],
-                        allow=True)
+        decoded = klass(None,
+                        decoding=True,
+                        decoded_value=value[klass._ENCODE_FIELD_NAME])
         return decoded
+
+    def encode_str(self) -> str:
+        '''
+        Encode this instance into a string.
+
+        Return the string.
+        '''
+        return str(self)
+
+    @classmethod
+    def decode_str(klass: 'SerializableId', string: str) -> 'SerializableId':
+        '''
+        Decode the `string` to a SerializableId instance.
+
+        Return the instance.
+        '''
+        match = re.match(klass._DECODE_UUID_RX, string)
+        if not match:
+            return None
+        # Get actual value from match, remove nice separators so we have just a
+        # hex number...
+        hex_str = match.group('value')
+        hex_str = hex_str.replace('-', '')
+        # Convert that into an actual number.
+        # Could throw a value error if something's wrong...
+        hex_value = int(hex_str, 16)
+
+        # And now we should be able to decode?
+        encoded = super().encode()
+        encoded.update({
+            klass._ENCODE_FIELD_NAME: hex_value,
+        })
+        return klass.decode(encoded)
+
+    @classmethod
+    def get_decode_rx(klass: 'Encodable') -> Optional[str]:
+        '''
+        Returns compiled regex of what to look for to claim just a string as
+        this class.
+
+        For example, perhaps a UserId for 'jeff' has a normal decode of:
+          {
+            '_encodable': 'UserId',
+            'uid': 'deadbeef-cafe-1337-1234-e1ec771cd00d',
+          }
+        And perhaps it has str() of 'uid:deadbeef-cafe-1337-1234-e1ec771cd00d'
+
+        This would expect an rx string for the str.
+        '''
+        return klass._DECODE_UUID_RX
 
     # ------------------------------
     # Abstract Methods
@@ -402,16 +479,3 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
 
     def __repr__(self) -> str:
         return f'{self._short_name_}:{self._format_}'
-
-
-# Could do something like this, if there's an id class that doesn't have a
-# generator or other good spot to init its INVALID instance.
-#
-# # ---------------------------------------------------------------------------
-# # Module Setup
-# # ---------------------------------------------------------------------------
-#
-# __initialized = False
-#
-# if not __initialized:
-#     JeffId._init_invalid_()

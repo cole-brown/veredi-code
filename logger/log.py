@@ -54,6 +54,24 @@ FMT_LINE_HUMAN = (
 LOGGER_NAME = "veredi"
 
 
+_ULTRA_MEGA_DEBUG_BT = '!~'
+_ULTRA_MEGA_DEBUG_TB = '~!'
+_ULTRA_MEGA_DEBUG_DBG = (
+    _ULTRA_MEGA_DEBUG_BT
+    + 'DEBUG'
+    + _ULTRA_MEGA_DEBUG_TB
+)
+_ULTRA_MEGA_DEBUG_FMT = (
+    '\n\n'
+    + _ULTRA_MEGA_DEBUG_DBG + (_ULTRA_MEGA_DEBUG_TB * 30) + '\n'
+    + ('v' * 69) + '\n\n'
+    + '{output}' + '\n\n'
+    + ('^' * 69) + '\n'
+    + _ULTRA_MEGA_DEBUG_DBG + (_ULTRA_MEGA_DEBUG_TB * 30) + '\n'
+    + '\n\n'
+)
+
+
 # ---
 # Log Levels
 # ---
@@ -318,6 +336,51 @@ def incr_stack_level(
     stacklevel += 1
     set_stack_level(stacklevel, kwargs)
     return kwargs
+
+
+def ultra_mega_debug(msg: str,
+                     *args: Any,
+                     veredi_logger: NullNoneOr[logging.Logger] = None,
+                     **kwargs: Any) -> None:
+    '''
+    Logs at Level.CRITICAL using either passed in logger or logger named:
+      'veredi.debug.DEBUG.!!!DEBUG!!!'
+
+    All logs start with two newlines characters.
+
+    All logs are prepended with a row starting with '!~DEBUG~!' and
+    then repeating '~!'.
+    All logs are prepended with a row of 'v'.
+
+    All logs are appended with a row of '^'.
+    All logs are appended with a row starting with '!~DEBUG~!' and
+    then repeating '~!'.
+
+    All logs end with two newlines characters.
+
+    In other words, a log.ultra_mega_debug('test') is this:
+
+      <log line prefix output>
+
+      !~DEBUG~!~!~!~!~!~!~!~!~!....
+      vvvvvvvvvvvvvvvvvvvvvvvvv....
+
+      test
+
+      ^^^^^^^^^^^^^^^^^^^^^^^^^....
+      !~DEBUG~!~!~!~!~!~!~!~!~!....
+
+
+    '''
+    stacklevel = pop_stack_level(kwargs)
+    output = brace_message(msg,
+                           *args, **kwargs)
+    if not ut_call(Level.CRITICAL, output):
+        this = (veredi_logger
+                or get_logger('veredi.debug.DEBUG.!!!DEBUG!!!'))
+        log_out = _ULTRA_MEGA_DEBUG_FMT.format(output=output)
+        this.critical(log_out,
+                      stacklevel=stacklevel)
 
 
 def debug(msg: str,

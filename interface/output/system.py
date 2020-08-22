@@ -41,6 +41,7 @@ from veredi.data                         import background
 from veredi.logger                       import log
 from veredi.base.const                   import VerediHealth
 from veredi.data.config.registry         import register
+from veredi.data.serdes.string           import StringSerdes
 
 # Game / ECS Stuff
 from veredi.game.ecs.event               import EventManager
@@ -136,6 +137,9 @@ class OutputSystem(System):
         # ---
         # Config Stuff
         # ---
+        self._codec = None
+        self._serdes = StringSerdes()
+
         config = background.config.config
         if config:
             self._codec = config.make(None,
@@ -158,9 +162,11 @@ class OutputSystem(System):
         Get background data for background.output.set().
         '''
         codec_data, _ = self._codec.background
+        serdes_data, _ = self._serdes.background
         self._bg = {
             'dotted': self.dotted,
             'codec': codec_data,
+            'serdes': serdes_data,
         }
         return self._bg, background.Ownership.SHARE
 
@@ -281,10 +287,15 @@ class OutputSystem(System):
             self._log(log.Level.DEBUG,
                       "encoded output: {}",
                       encoded)
+        serialized = self._serdes.serialize(encoded, output.context)
+        if self._should_debug():
+            self._log(log.Level.DEBUG,
+                      "serialized output: {}",
+                      serialized)
 
         # Queue up output to be sent... wherever it should go.
         send_to = OutputType.BROADCAST
-        entry = SendEntry(encoded, encoded_for, send_to)
+        entry = SendEntry(serialized, encoded_for, send_to)
         self._send_queue.append(entry)
 
         # And... Done? Nothing more to do now at this point?
