@@ -146,7 +146,13 @@ def _internal_register(tag: str, klass: Type) -> None:
 # Veredi Class / YAML encode/decode Registry Functions
 # -----------------------------------------------------------------------------
 
-# TODO [2020-08-21]: make a property like Veredi's registry.register()?
+# Thought about making this a property like Veredi's registry.register(), and
+# that would work great for the YAMLObject classes, but the decode/encode
+# functions (aka representer/constructor by YAML) can't be registered so
+# easily? And in some cases one function pair is used for multiple things... So
+# for now it's not a property unless I figure out a way I like for those
+# reasons.
+
 def register(name:        str,
              klass:       Type,
              decode_fn:   Optional[YamlDecode],

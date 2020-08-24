@@ -10,25 +10,33 @@ YAML library subclasses for encoding/decoding system data.
 
 import yaml
 
-from .. import base
-from ...adapter import meta
+from .. import registry
+from ..base import VerediYamlDocument
+from ....adapter import meta
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
+# TODO [2020-08-23]: Change to using register & tags!
+
 
 # -----------------------------------------------------------------------------
 # Document Types
 # -----------------------------------------------------------------------------
 
-# class DocComponent(base.VerediYamlDocument):
-#     yaml_tag = '!system'
+# class DocComponent(VerediYamlDocument):
+#     _YAML_TAG_NAME = 'system'
 
 
-class DocSystemDefinition(base.VerediYamlDocument):
-    yaml_tag = '!system.definition'
+class DocSystemDefinition(VerediYamlDocument):
+    _YAML_TAG_NAME = 'system.definition'
+
+
+registry.register(VerediYamlDocument._YAML_TAG_NAME,
+                  VerediYamlDocument,
+                  None, None)
 
 
 # -----------------------------------------------------------------------------

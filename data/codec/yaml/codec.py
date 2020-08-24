@@ -26,19 +26,7 @@ from veredi.data                 import exceptions
 
 from ..base                      import BaseCodec, CodecOutput
 
-# TODO [2020-08-21]: Move all these 'import to register' into the __init__.py
-# file? Or even that plus moving them into a subdir so this dir stops getting
-# inundated with things?
-#
-# import these so they register with PyYAML.
-from .                           import (function,
-                                         document,
-                                         identity)
-from .ecs                        import (general,
-                                         template,
-                                         component,
-                                         system)
-from .interface.output           import event
+from . import adapters
 
 
 # -----------------------------------------------------------------------------
@@ -62,6 +50,8 @@ class YamlCodec(BaseCodec):
                  context: Optional['VerediContext'] = None) -> None:
         super().__init__(YamlCodec._CODEC_NAME,
                          context)
+
+        adapters.import_and_register()
 
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:

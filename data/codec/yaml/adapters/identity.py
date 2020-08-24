@@ -8,16 +8,14 @@ YAML library subclasses for encoding identities.
 # Imports
 # -----------------------------------------------------------------------------
 
-# from typing import Type
-
 import yaml
 
 from veredi.logger        import log
 from veredi.base.identity import MonotonicId, SerializableId
 from .exceptions          import (VerediYamlEncodeError,
                                   VerediYamlDecodeError)
-from . import tags
-from . import registry
+from .. import tags
+from .. import registry
 
 # ---
 # Serializable IDs

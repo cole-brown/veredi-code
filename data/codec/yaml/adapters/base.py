@@ -13,7 +13,8 @@ import yaml
 
 from veredi.logger import pretty
 from veredi.data.config.hierarchy import Hierarchy
-from . import tags
+from .. import tags
+from .. import registry
 
 
 # -----------------------------------------------------------------------------
@@ -26,9 +27,16 @@ from . import tags
 # -----------------------------------------------------------------------------
 
 class VerediYamlDocument(yaml.YAMLObject):
+    # ---
+    # Set This in Subclasses!
+    # ---
+    _YAML_TAG_NAME = 'document'
+
+    # ---
+    # YAMLObject's class vars:
+    # ---
     yaml_loader = yaml.SafeLoader
-    # Set in subclasses!
-    yaml_tag = '!document'
+    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     @classmethod
     def from_yaml(cls: Type['VerediYamlDocument'],
@@ -69,11 +77,23 @@ class VerediYamlDocument(yaml.YAMLObject):
         return f"{self.__class__.__name__}:\n{self.__dict__}"
 
 
+registry.register(VerediYamlDocument._YAML_TAG_NAME,
+                  VerediYamlDocument,
+                  None, None)
+
+
 # -----------------------------------------------------------------------------
 # YAML Object?
 # -----------------------------------------------------------------------------
 
 class VerediYamlObject(yaml.YAMLObject):
+    # Set in subclasses!
+    _YAML_TAG_NAME = 'document'
+
+    # YAMLObject's class vars:
+    yaml_loader = yaml.SafeLoader
+    yaml_tag = tags.make(_YAML_TAG_NAME)
+
     yaml_loader = yaml.SafeLoader
 
     # ---
@@ -98,7 +118,14 @@ class VerediYamlTag(VerediYamlObject):
     # ---
     # Set This in Subclasses!
     # ---
-    # yaml_tag = '!veredi.example'
+    # _YAML_TAG_NAME = ''
+
+    # ---
+    # YAMLObject's class vars:
+    # ---
+    yaml_loader = yaml.SafeLoader
+    # SET THIS IN SUBCLASSES TOO!
+    # yaml_tag = tags.make(_YAML_TAG_NAME)
 
     def __init__(self, value):
         self.tag = value
@@ -116,39 +143,21 @@ class VerediYamlTag(VerediYamlObject):
 
 
 # -----------------------------------------------------------------------------
-# YAML... Entry?
-# -----------------------------------------------------------------------------
-
-# TODO [2020-05-21]: Decided which to keep if these three remain the
-# same: VerediYamlObject, VerediYamlTag, VerediYamlEntry
-class VerediYamlEntry(VerediYamlObject):
-    # ---
-    # Set This in Subclasses!
-    # ---
-    # yaml_tag = '!veredi.example'
-
-    def __init__(self, value):
-        self.data = value
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        # print(cls.yaml_tag, "from_yaml", str(cls), str(loader), str(node))
-        return cls(node.value)
-
-    def __str__(self):
-        return f"{self.__class__.__name__}: {self.data}"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__}: {self.data}>"
-
-
-# -----------------------------------------------------------------------------
 # Requirements Objects
 # -----------------------------------------------------------------------------
 
 class VerediYamlRequirement(VerediYamlTag):
-    # Set in subclasses!
-    # yaml_tag = '!optional'
+    # ---
+    # Set This in Subclasses!
+    # ---
+    # _YAML_TAG_NAME = ''
+
+    # ---
+    # YAMLObject's class vars:
+    # ---
+    yaml_loader = yaml.SafeLoader
+    # SET THIS IN SUBCLASSES TOO!
+    # yaml_tag = tags.make(_YAML_TAG_NAME)
 
     def __init__(self, value):
         super().__init__(value)
