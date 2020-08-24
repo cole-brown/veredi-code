@@ -13,12 +13,14 @@ from pydoc import locate  # For str->type.
 from veredi.data import exceptions
 from veredi.math import mathing
 
-from .. import base
+from ..base import VerediYamlRequirement
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+# TODO [2020-08-23]: Change to using register & tags!
 
 
 # -----------------------------------------------------------------------------
@@ -29,7 +31,7 @@ from .. import base
 # Fallback Value
 # ------------------------------
 
-class Fallback(base.VerediYamlRequirement):
+class Fallback(VerediYamlRequirement):
     yaml_tag = '!fallback'
 
     def normalize(self):
@@ -47,7 +49,7 @@ class Fallback(base.VerediYamlRequirement):
 # Optionals
 # ------------------------------
 
-class Optional(base.VerediYamlRequirement):
+class Optional(VerediYamlRequirement):
     yaml_tag = '!optional'
 
     def normalize(self):
@@ -275,7 +277,7 @@ class RequiresFromComponents(OptionalFromComponents):
 # Keys
 # ------------------------------
 
-class KeyFrom(base.VerediYamlRequirement):
+class KeyFrom(VerediYamlRequirement):
     yaml_tag = '!key.from'
 
     def __init__(self, value):
@@ -305,7 +307,7 @@ class KeyFrom(base.VerediYamlRequirement):
 # Variables
 # ------------------------------
 
-class Variable(base.VerediYamlRequirement):
+class Variable(VerediYamlRequirement):
     yaml_tag = '!variable'
 
 

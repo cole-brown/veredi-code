@@ -109,3 +109,7 @@ def output_math_representer(dumper: yaml.SafeDumper,
 yaml.add_representer(MathOutputEvent,
                      output_math_representer,
                      Dumper=yaml.SafeDumper)
+
+
+# TODO [2020-08-23]: Add constructor!
+# TODO [2020-08-23]: Change to using register!

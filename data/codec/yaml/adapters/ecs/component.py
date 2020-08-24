@@ -8,7 +8,7 @@ YAML library subclasses for encoding/decoding components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from .. import base
+from ..base import VerediYamlDocument, VerediYamlTag
 
 
 # -----------------------------------------------------------------------------
@@ -28,20 +28,20 @@ from .. import base
 # Document Types
 # -----------------------------------------------------------------------------
 
-class DocComponent(base.VerediYamlDocument):
-    yaml_tag = '!component'
+class DocComponent(VerediYamlDocument):
+    _YAML_TAG_NAME = 'component'
 
 
-class DocComponentExample(base.VerediYamlDocument):
-    yaml_tag = '!component.example'
+class DocComponentExample(VerediYamlDocument):
+    _YAML_TAG_NAME = 'component.example'
 
 
-class DocComponentTemplate(base.VerediYamlDocument):
-    yaml_tag = '!component.template'
+class DocComponentTemplate(VerediYamlDocument):
+    _YAML_TAG_NAME = 'component.template'
 
 
-class DocComponentRequirements(base.VerediYamlDocument):
-    yaml_tag = '!component.requirements'
+class DocComponentRequirements(VerediYamlDocument):
+    _YAML_TAG_NAME = 'component.requirements'
 
 
 # -----------------------------------------------------------------------------
@@ -52,5 +52,5 @@ class DocComponentRequirements(base.VerediYamlDocument):
 # Property
 # ---
 
-class PropertyPsuedo(base.VerediYamlTag):
-    yaml_tag = '!veredi.psuedo-property'
+class PropertyPsuedo(VerediYamlTag):
+    _YAML_TAG_NAME = 'veredi.psuedo-property'

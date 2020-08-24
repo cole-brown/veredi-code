@@ -11,6 +11,8 @@ The Power Of '--- !a-document-incoming'
 # -----------------------------------------------------------------------------
 
 from . import base
+from .. import registry
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -26,7 +28,12 @@ from . import base
 # ---
 
 class DocMetadata(base.VerediYamlDocument):
-    yaml_tag = '!metadata'
+    _YAML_TAG_NAME = 'metadata'
+
+
+registry.register(DocMetadata._YAML_TAG_NAME,
+                  DocMetadata,
+                  None, None)
 
 
 # ---
@@ -34,7 +41,12 @@ class DocMetadata(base.VerediYamlDocument):
 # ---
 
 class DocConfiguration(base.VerediYamlDocument):
-    yaml_tag = '!configuration'
+    _YAML_TAG_NAME = 'configuration'
+
+
+registry.register(DocConfiguration._YAML_TAG_NAME,
+                  DocConfiguration,
+                  None, None)
 
 
 # ---

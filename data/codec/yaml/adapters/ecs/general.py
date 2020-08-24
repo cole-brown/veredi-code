@@ -17,6 +17,8 @@ from ...adapter.group import KeyGroupMarker, UserDefinedMarker
 # Constants
 # -----------------------------------------------------------------------------
 
+# TODO [2020-08-23]: Change to using register & tags!
+
 
 # -----------------------------------------------------------------------------
 # Grouping
