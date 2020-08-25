@@ -8,16 +8,18 @@ Tests for the Math system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.zystem    import BaseSystemTest
+from veredi.zest.base.system import ZestSystem
 
-from veredi.zest           import zontext
-from veredi.base.const     import VerediHealth
-from veredi.game.ecs.const import SystemTick
+from veredi.zest             import zontext
+from veredi.base.const       import VerediHealth
+from veredi.data             import background
 
-from .system               import MathSystem
-from .event                import MathResult
-from .parser               import MathTree
-from .d20.parser           import D20Parser
+from .system                 import MathSystem
+from .event                  import MathResult
+from .parser                 import MathTree
+from .d20.parser             import D20Parser
+
+from veredi.interface.input.parse import UTParcel
 
 # from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
 #                                                 CommandRegisterReply,
@@ -35,42 +37,42 @@ from .d20.parser           import D20Parser
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_MathSystem(BaseSystemTest):
+class Test_MathSystem(ZestSystem):
     '''
     Test our MathSystem.
     '''
 
-    def setUp(self):
-        super().setUp()
-        self.init_managers()
-        self.init_system_self(MathSystem)
+    def set_up(self):
+        super().set_up()
+        self.init_self_system(MathSystem)
         self.parser = D20Parser(None)
         self.value_canon = None
         self.value_fill = None
 
         self.context = zontext.test(self.__class__.__name__,
-                                    'setUp')
+                                    'set_up')
 
-    def tearDown(self):
-        super().tearDown()
+        # Set up parser in background for MathSystem to grab.
+        parcel = UTParcel(self.parser, self.context)
+        background.input.set(self.dotted(__file__),
+                             parcel,
+                             None,
+                             background.Ownership.SHARE)
+
+        self.set_up_events(clear_self=True,
+                           clear_manager=True)
+
+    def tear_down(self):
+        super().tear_down()
         self.value_canon = None
         self.value_fill = None
 
-    def _sub_events_test(self):
+    def sub_events(self):
         self.manager.event.subscribe(MathResult, self.event_math_res)
 
     # -------------------------------------------------------------------------
     # Events
     # -------------------------------------------------------------------------
-
-    def clear_events(self) -> None:
-        '''
-        Clears out the `self.events` queue.
-        '''
-        # Clear our events.
-        super().clear_events()
-        # Then clear EventManager's events.
-        self.manager.event.publish()
 
     def event_math_res(self, event):
         self.assertIsInstance(event,
@@ -101,8 +103,6 @@ class Test_MathSystem(BaseSystemTest):
         '''
         Just check that whatever happened, we think we succeeded at it.
         '''
-        self.event_set_up()
-
         math = self.parser.parse('40 + 2')
         self.assertTrue(math)
         # Not evaluated yet.
@@ -121,9 +121,6 @@ class Test_MathSystem(BaseSystemTest):
         '''
         Check to make sure some easy math gets an actual, correct result.
         '''
-        self.event_set_up()
-        self.clear_events()
-
         math = self.parser.parse('40 + 2')
         self.assertTrue(math)
         # Not evaluated yet.
@@ -172,9 +169,6 @@ class Test_MathSystem(BaseSystemTest):
         '''
         Check to make sure a var gets replaced with more maths.
         '''
-        self.event_set_up()
-        self.clear_events()
-
         # replace the variable with this:
         self.value_canon = 'jeff.jefferson'
         self.value_fill = '20 * 2'
@@ -244,3 +238,16 @@ class Test_MathSystem(BaseSystemTest):
     #         self.assertEqual(var.milieu, self.canon)
     #     # Make sure we actually checked a var?
     #     self.assertEqual(num_vars, 1)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.math.d20.zest_tree
+
+if __name__ == '__main__':
+    import unittest
+    unittest.main()

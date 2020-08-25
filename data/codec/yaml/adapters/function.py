@@ -55,12 +55,12 @@ class FnHas(yaml.YAMLObject):
     # registry / YAML tag
     # ---
     _YAML_TAG_NAME = 'veredi.has'
+    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     # ---
     # YAMLObject's class vars:
     # ---
     yaml_loader = yaml.SafeLoader
-    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     def __init__(self, val):
         # print(FnHas.yaml_tag, "init", val)
@@ -82,12 +82,12 @@ class FnAuto(yaml.YAMLObject):
     # registry / YAML tag
     # ---
     _YAML_TAG_NAME = 'veredi.auto'
+    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     # ---
     # YAMLObject's class vars:
     # ---
     yaml_loader = yaml.SafeLoader
-    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     def __init__(self, val):
         # print(FnAuto.yaml_tag, "init", val)
@@ -109,12 +109,12 @@ class FnTag(yaml.YAMLObject):
     # registry / YAML tag
     # ---
     _YAML_TAG_NAME = 'veredi.tag'
+    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     # ---
     # YAMLObject's class vars:
     # ---
     yaml_loader = yaml.SafeLoader
-    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     def __init__(self, val):
         # print(FnTag.yaml_tag, "init", val)
@@ -136,12 +136,12 @@ class FnSum(yaml.YAMLObject):
     # registry / YAML tag
     # ---
     _YAML_TAG_NAME = 'veredi.sum'
+    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     # ---
     # YAMLObject's class vars:
     # ---
     yaml_loader = yaml.SafeLoader
-    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     def __init__(self, val):
         # print(FnSum.yaml_tag, "init", val)

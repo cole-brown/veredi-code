@@ -239,8 +239,9 @@ def get(dotted_keys_str: str,
             raise log.exception(
                 error,
                 exceptions.RegistryError,
-                "Registry has nothing at: {}",
-                split_keys[: i + 1]) from error
+                "Registry has nothing at: {} (full path: {})",
+                split_keys[: i + 1],
+                split_keys) from error
 
         i += 1
 
@@ -287,3 +288,20 @@ def create(dotted_keys_str: str,
             "Registry failed creating '{}' with: args: {}, "
             "kwargs: {},  context: {}",
             entry, args, kwargs, context) from error
+
+
+# -----------------------------------------------------------------------------
+# Unit Testing
+# -----------------------------------------------------------------------------
+
+def _ut_unregister() -> None:
+    '''
+    Looks like we don't need to do anything. Well, more like: we have to leave
+    registered right now or tests will fail because nothing is registered.
+    '''
+    # '''
+    # Nuke everything from the register; reset it completely.
+    # '''
+    # global _REGISTRY
+    # _REGISTRY = {}
+    pass

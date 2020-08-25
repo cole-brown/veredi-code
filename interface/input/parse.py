@@ -33,12 +33,14 @@ class Parcel:
     A collection of parsers.
     '''
 
-    def __init__(self, context: VerediContext) -> None:
+    def __init__(self,
+                 context: VerediContext) -> None:
         '''
         Configure ourselves by getting our specific parser and transformer from
         the configuratiion.
         '''
-        self._math = Mather(context)
+        if not self._math:
+            self._math = Mather(context)
 
         # TODO [2020-06-14]: Others.
         #  - chat
@@ -64,6 +66,9 @@ class Mather:
         Configure ourselves by getting our specific parser and transformer from
         the configuratiion.
         '''
+        if self._parser:
+            return
+
         config = background.config.config
         if not config:
             raise log.exception(
@@ -82,3 +87,22 @@ class Mather:
         Parse input and transform into Veredi Math Tree.
         '''
         return self._parser.parse(string, milieu)
+
+
+# -----------------------------------------------------------------------------
+# Unit Testing
+# -----------------------------------------------------------------------------
+
+class UTMather(Mather):
+    def __init__(self,
+                 parser: MathParser,
+                 context: VerediContext) -> None:
+        self._parser = parser
+        super().__init__(context)
+
+class UTParcel(Parcel):
+    def __init__(self,
+                 parser: MathParser,
+                 context: VerediContext) -> None:
+        self._math = UTMather(parser, context)
+        super().__init__(context)

@@ -46,6 +46,8 @@ from veredi.interface.output.system     import OutputSystem
 # Base Class
 # -----------------------------------------------------------------------------
 
+TODO: DERIVE FROM ZestEcs OR SOMETHING
+
 class IntegrationTest(unittest.TestCase):
     '''
     Base testing class with some setup and helpers.

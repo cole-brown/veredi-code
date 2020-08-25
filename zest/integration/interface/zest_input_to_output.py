@@ -288,7 +288,6 @@ class Test_InputToOutput_AbilityCheck(IntegrationTest):
         #   value: 4\nnames: {\'EntityId:001\': aluminum dragon}'
         #   Diff is 697 characters long. Set self.maxDiff to None to see it.
 
-        # log.ultra_mega_debug(f"output payload: '{str(self.output_recvd.payload)}'")
         regex = re.compile(IID_RE_STR, re.IGNORECASE)
         payload = regex.sub(IID_REPLACEMENT, self.output_recvd.payload)
         i = 0

@@ -39,6 +39,9 @@ from veredi.game.data.system            import DataSystem
 
 # Registry
 import veredi.math.d20.parser
+# import veredi.data.repository.file
+# import veredi.data.codec.yaml.codec
+# import veredi.data.codec.json.codec
 
 
 # -----------------------------------------------------------------------------
@@ -111,25 +114,25 @@ def create_systems(system_manager: SystemManager,
 # Enough to load some data from the zata dir related to `test_type`.
 # -----------------------------------------------------------------------------
 
-def set_up(
-        test_name_class:   str,
-        test_name_func:    str,
-        enable_debug_logs: bool,
-        require_engine:    Optional[bool]                    = False,
-        desired_systems:   Optional[Iterable[SysCreateType]] = None,
-        test_type:         Optional[TestType]                = TestType.UNIT,
-        configuration:     Optional[Configuration]           = None,
-        time_manager:      Optional[TimeManager]             = None,
-        event_manager:     Optional[EventManager]            = None,
-        component_manager: Optional[ComponentManager]        = None,
-        entity_manager:    Optional[EntityManager]           = None,
-        system_manager:    Optional[SystemManager]           = None,
-        engine:            Optional[Engine]                  = None,
-        debug_flags:       Optional[DebugFlag]               = None,
-        # This closing paren is a fucked up way to make pycodestyle happy...
-        # May need to get flake8 so I can "# noqa" this one?
-        # Oh. This comment itself lets me do whatever I want now. Yay.
-        ) -> Tuple[Meeting, VerediContext, List[SystemId]]:
+def set_up(test_name_class:   str,
+           test_name_func:    str,
+           enable_debug_logs: bool,
+           # Optional Debug Stuff:
+           test_type:         TestType                   = TestType.UNIT,
+           debug_flags:       Optional[DebugFlag]        = None,
+           # Optional ECS:
+           require_engine:    Optional[bool]             = False,
+           desired_systems:   Iterable[SysCreateType]    = None,
+           # Optional to pass in - else we'll make:
+           configuration:     Optional[Configuration]    = None,
+           time_manager:      Optional[TimeManager]      = None,
+           event_manager:     Optional[EventManager]     = None,
+           component_manager: Optional[ComponentManager] = None,
+           entity_manager:    Optional[EntityManager]    = None,
+           system_manager:    Optional[SystemManager]    = None,
+           # Optional to pass in - else we'll make  if asked:
+           engine:            Optional[Engine]           = None,
+           ) -> Tuple[Meeting, VerediContext, List[SystemId]]:
     '''
     Creates config, managers, if not supplied (via zmake.meeting).
     Creates a managers' meeting (via zmake.meeting).
@@ -173,8 +176,8 @@ def set_up(
 
         log.debug("zload.loader creating Context...")
         context = zontext.real_config(test_name_class,
-                                      test_name_func)
-
+                                      test_name_func,
+                                      config=configuration)
         log.debug("zload.loader creating systems...")
         sids = []
         if desired_systems:
@@ -195,6 +198,7 @@ def set_up(
 
 BACKGROUND_COPY = None
 
+
 def set_up_background() -> None:
     '''
     Get the context cleared out and ready for a new test.
@@ -202,6 +206,7 @@ def set_up_background() -> None:
     # Context will create an empty data structure to fill if it has none, so we
     # just need to nuke it from orbit.
     background.testing.nuke()
+
 
 def tear_down_background() -> None:
     '''

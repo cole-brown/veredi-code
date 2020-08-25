@@ -9,14 +9,10 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
-import unittest
+from veredi.zest.base.unit import ZestBase
 
-# Veredi
 from . import parser
 from . import tree
-
-# Our Stuff
 
 
 # -----------------------------------------------------------------------------
@@ -33,7 +29,7 @@ from . import tree
 # Test::Parser's Nodes
 # -----------------------------------------------------------------------------
 
-class Test_Parser(unittest.TestCase):
+class Test_Parser(ZestBase):
 
     # NOTE!
     #  Don't test Lark itself. Just test some basics so I can know my grammar
@@ -293,7 +289,7 @@ class Test_Parser(unittest.TestCase):
 # Test::Transformer (Lark tree -> Veredi tree Step)
 # -----------------------------------------------------------------------------
 
-class Test_Transformer(unittest.TestCase):
+class Test_Transformer(ZestBase):
 
     # NOTE!
     #  Don't test Lark. Test my Transformer!
@@ -490,5 +486,9 @@ class Test_Transformer(unittest.TestCase):
 # --                      Main Command Line Entry Point                      --
 # -----------------------------------------------------------------------------
 
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.math.d20.zest_parser
+
 if __name__ == '__main__':
+    import unittest
     unittest.main()

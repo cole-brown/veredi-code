@@ -9,15 +9,11 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
-import unittest
+from veredi.zest.base.unit import ZestBase
 
-# Veredi
 from . import tree
 from . import parser
 from . import evaluator
-
-# Our Stuff
 
 
 # -----------------------------------------------------------------------------
@@ -33,7 +29,7 @@ from . import evaluator
 # Test::Evaluator
 # -----------------------------------------------------------------------------
 
-class Test_Evaluator(unittest.TestCase):
+class Test_Evaluator(ZestBase):
 
     def str_to_transformed(self, string):
         ast = parser.Parser.parse(string)
@@ -77,5 +73,10 @@ class Test_Evaluator(unittest.TestCase):
 # --                      Main Command Line Entry Point                      --
 # -----------------------------------------------------------------------------
 
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.math.d20.zest_evaluator
+
 if __name__ == '__main__':
+    import unittest
     unittest.main()

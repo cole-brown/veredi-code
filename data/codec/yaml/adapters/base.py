@@ -28,15 +28,15 @@ from .. import registry
 
 class VerediYamlDocument(yaml.YAMLObject):
     # ---
-    # Set This in Subclasses!
+    # Set These in Subclasses!
     # ---
     _YAML_TAG_NAME = 'document'
+    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     # ---
     # YAMLObject's class vars:
     # ---
     yaml_loader = yaml.SafeLoader
-    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     @classmethod
     def from_yaml(cls: Type['VerediYamlDocument'],
@@ -89,15 +89,13 @@ registry.register(VerediYamlDocument._YAML_TAG_NAME,
 class VerediYamlObject(yaml.YAMLObject):
     # Set in subclasses!
     _YAML_TAG_NAME = 'document'
+    yaml_tag = tags.make(_YAML_TAG_NAME)
 
     # YAMLObject's class vars:
     yaml_loader = yaml.SafeLoader
-    yaml_tag = tags.make(_YAML_TAG_NAME)
-
-    yaml_loader = yaml.SafeLoader
 
     # ---
-    # Set This in Subclasses!
+    # Set These in Subclasses!
     # ---
     # yaml_tag = '!veredi.example'
 
@@ -116,16 +114,15 @@ class VerediYamlObject(yaml.YAMLObject):
 
 class VerediYamlTag(VerediYamlObject):
     # ---
-    # Set This in Subclasses!
+    # Set These in Subclasses!
     # ---
     # _YAML_TAG_NAME = ''
+    # yaml_tag = tags.make(_YAML_TAG_NAME)
 
     # ---
     # YAMLObject's class vars:
     # ---
     yaml_loader = yaml.SafeLoader
-    # SET THIS IN SUBCLASSES TOO!
-    # yaml_tag = tags.make(_YAML_TAG_NAME)
 
     def __init__(self, value):
         self.tag = value
@@ -148,16 +145,15 @@ class VerediYamlTag(VerediYamlObject):
 
 class VerediYamlRequirement(VerediYamlTag):
     # ---
-    # Set This in Subclasses!
+    # Set These in Subclasses!
     # ---
     # _YAML_TAG_NAME = ''
+    # yaml_tag = tags.make(_YAML_TAG_NAME)
 
     # ---
     # YAMLObject's class vars:
     # ---
     yaml_loader = yaml.SafeLoader
-    # SET THIS IN SUBCLASSES TOO!
-    # yaml_tag = tags.make(_YAML_TAG_NAME)
 
     def __init__(self, value):
         super().__init__(value)
