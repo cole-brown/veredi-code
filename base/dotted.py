@@ -8,7 +8,7 @@ Helpers for names.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, List, Tuple
+from typing import Optional, Union, List, Tuple
 from .null import Nullable, Null
 
 import pathlib
@@ -57,7 +57,7 @@ def split(dotted: str) -> List[str]:
     return dotted.split('.')
 
 
-def path(*args: str) -> Nullable[pathlib.Path]:
+def to_path(*args: str) -> Nullable[pathlib.Path]:
     '''
     Takes either iterable of strings or dotted string.
     Converts to iterable of strings if needed via dotted().
@@ -74,6 +74,42 @@ def path(*args: str) -> Nullable[pathlib.Path]:
         args = split(args[0])
 
     return pathlib.Path(*args)
+
+
+def from_path(path: Union[str, pathlib.Path, Null]) -> Optional[str]:
+    '''
+    Builds a dotted string from the path. If something in the path ends with
+    '.py', strip that out.
+
+    Builds dotted output back-to-front, stopping at first 'veredi' it
+    encounters in the path.
+
+    So '/srv/veredi/veredi/jeff/system.py' becomes:
+      'veredi.jeff.system'
+
+    `file` can be __file__ for some auto-magic-ish-ness.
+    '''
+    if not path:
+        return None
+
+    # Make sure we have a full path...
+    path = pathlib.Path(path).resolve()
+    # Split into the dirs and file...
+    path_components = path.parts
+    # Process parts in reverse order. We want from the last 'veredi' to the
+    # end, since the Docker container has veredi in '/srv/veredi/veredi'.
+    dotted_parts = []
+    for part in reversed(path_components):
+        # Drop '.py' ending.
+        if part.endswith('.py'):
+            dotted_parts.append(part[:-3])
+        else:
+            dotted_parts.append(part)
+        # Done once we hid a 'veredi'.
+        if part == 'veredi':
+            break
+
+    return join(*list(reversed(dotted_parts)))
 
 
 def this(find: str,

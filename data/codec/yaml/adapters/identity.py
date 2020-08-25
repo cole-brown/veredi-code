@@ -12,7 +12,7 @@ import yaml
 
 from veredi.logger        import log
 from veredi.base.identity import MonotonicId, SerializableId
-from .exceptions          import (VerediYamlEncodeError,
+from ..exceptions         import (VerediYamlEncodeError,
                                   VerediYamlDecodeError)
 from .. import tags
 from .. import registry

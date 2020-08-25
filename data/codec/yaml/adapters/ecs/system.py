@@ -10,16 +10,15 @@ YAML library subclasses for encoding/decoding system data.
 
 import yaml
 
-from .. import registry
 from ..base import VerediYamlDocument
+from ... import tags
+from ... import registry
 from ....adapter import meta
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# TODO [2020-08-23]: Change to using register & tags!
 
 
 # -----------------------------------------------------------------------------
@@ -28,14 +27,20 @@ from ....adapter import meta
 
 # class DocComponent(VerediYamlDocument):
 #     _YAML_TAG_NAME = 'system'
+#    yaml_tag = tags.make(_YAML_TAG_NAME)
+#
+# registry.register(DocComponent._YAML_TAG_NAME,
+#                   DocComponent,
+#                   None, None)
 
 
 class DocSystemDefinition(VerediYamlDocument):
     _YAML_TAG_NAME = 'system.definition'
+    yaml_tag = tags.make(_YAML_TAG_NAME)
 
 
-registry.register(VerediYamlDocument._YAML_TAG_NAME,
-                  VerediYamlDocument,
+registry.register(DocSystemDefinition._YAML_TAG_NAME,
+                  DocSystemDefinition,
                   None, None)
 
 
@@ -47,14 +52,17 @@ registry.register(VerediYamlDocument._YAML_TAG_NAME,
 # '!meta'
 # ------------------------------
 
+# TODO [2020-08-23]: Change to using register & tags!
+_META_TAG_NAME = 'meta'
+_META_YAML_TAG = tags.make(_META_TAG_NAME)
+
+
 # Constructor for our MetaMarker adapter class.
 def tag_meta_constructor(loader, node):
     '''
     Single pass constructor for this tag since it's easy and also it needs to
     know its name for it to hash.
     '''
-    # yaml_tag = '!meta'
-
     instance = meta.MetaMarker.__new__(meta.MetaMarker)
     name = loader.construct_scalar(node)
     try:
@@ -66,6 +74,6 @@ def tag_meta_constructor(loader, node):
     return instance
 
 
-yaml.add_constructor('!meta',
+yaml.add_constructor(_META_TAG_NAME,
                      tag_meta_constructor,
                      Loader=yaml.SafeLoader)

@@ -184,7 +184,7 @@ class FileBareRepository(base.BaseRepository):
         '''
         Turns a dotted name into a path.
         '''
-        path = dotted.path(dotted_name)
+        path = dotted.to_path(dotted_name)
         return self.root / self._ext_glob(path)
 
     def load(self,
@@ -416,7 +416,7 @@ class FileTreeRepository(base.BaseRepository):
         '''
         Turns a dotted name into a path.
         '''
-        path = dotted.path(dotted_name)
+        path = dotted.to_path(dotted_name)
         return self.rooted_path(self.Category.DEFINITIONS,
                                 self._ext_glob(path))
 

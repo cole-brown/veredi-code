@@ -10,7 +10,7 @@ YAML library subclasses for encoding/decoding components.
 
 import yaml
 
-from ...adapter.group import KeyGroupMarker, UserDefinedMarker
+from veredi.data.codec.adapter.group import KeyGroupMarker, UserDefinedMarker
 
 
 # -----------------------------------------------------------------------------

@@ -8,7 +8,7 @@ Helpers for registering Veredi classes to YAML libraryfor encoding/decoding.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Type, NewType, Callable, Dict, List, Tuple
+from typing import Optional, Type, NewType, Callable, List, Tuple
 
 import yaml
 import re
@@ -44,11 +44,6 @@ _TAG_TO_CLASS = {}
 
 _CLASS_TO_TAG = {}
 '''Dictionary of class to YAML tag strings.'''
-
-
-# -----------------------------------------------------------------------------
-# Helpers
-# -----------------------------------------------------------------------------
 
 
 # -----------------------------------------------------------------------------
@@ -91,6 +86,14 @@ def get_class_all(klass: Type) -> List[Type]:
 def _internal_register(tag: str, klass: Type) -> None:
     '''
     Add YAML `tag` / `klass` type to both tag->class and class->tag registries.
+
+    Try to prevent overwriting one tag/class pair with a different pair that
+    shares a value. That is, try to prevent a tag from being stolen from a
+    class and vice versa.
+
+    DO NOT try to prevent re-registrations. Currently files register stuff when
+    imported, and we don't want to have to police some weird 'only import once'
+    thing.
     '''
     # Just make sure they have a good tag name...
     if not tags.valid(tag):
@@ -100,14 +103,14 @@ def _internal_register(tag: str, klass: Type) -> None:
                             f"Got: {tag}.")
 
     # Prevent overwrites.
-    if tag in _TAG_TO_CLASS:
+    if tag in _TAG_TO_CLASS and _TAG_TO_CLASS[tag] != klass:
         ex_klass = _TAG_TO_CLASS[tag]
         raise log.exception(None,
                             RegistryError,
                             "Tag already exists in registry. "
                             f"Existing: {tag} -> {ex_klass}. "
                             f"Requested: {tag} -> {klass}.")
-    if klass in _CLASS_TO_TAG:
+    if klass in _CLASS_TO_TAG and _CLASS_TO_TAG[klass] != tag:
         ex_tag = _CLASS_TO_TAG[klass]
         raise log.exception(None,
                             RegistryError,
@@ -198,7 +201,7 @@ def register(name:        str,
                              Dumper=yaml.SafeDumper)
 
     elif not decode_fn and not encode_fn:
-        if not isinstance(klass, yaml.YAMLObject):
+        if not issubclass(klass, yaml.YAMLObject):
             raise log.exception(
                 None,
                 RegistryError,
@@ -220,3 +223,17 @@ def register(name:        str,
         yaml.add_implicit_resolver(tag, implicit_rx)
 
     log.debug(f"YAML Registry added: {name}, {klass}")
+
+
+# -----------------------------------------------------------------------------
+# Unit Testing
+# -----------------------------------------------------------------------------
+
+def _ut_unregister() -> None:
+    '''
+    Nuke everything from the register; reset it completely.
+    '''
+    global _TAG_TO_CLASS
+    global _CLASS_TO_TAG
+    _TAG_TO_CLASS = {}
+    _CLASS_TO_TAG = {}

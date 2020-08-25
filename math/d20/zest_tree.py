@@ -9,8 +9,7 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
-
+from veredi.zest.base.unit import ZestBase
 from veredi.logger import log
 
 from . import tree
@@ -30,9 +29,9 @@ from ..parser import NodeType
 # Test::Node (The OG Tree)
 # -----------------------------------------------------------------------------
 
-class Test_Node(unittest.TestCase):
+class Test_Node(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.node0 = tree.Node(NodeType.INVALID)
         self.value0 = 42
 
@@ -53,7 +52,7 @@ class Test_Node(unittest.TestCase):
         self.assertEqual(self.node1.value, self.value1)
         self.assertEqual(self.node1,       self.node1.value)
 
-    def tearDown(self):
+    def tear_down(self):
         self.node0 = None
         self.node1 = None
 
@@ -227,9 +226,9 @@ class Test_Node(unittest.TestCase):
 # Test::Leaf (of Node)
 # -----------------------------------------------------------------------------
 
-class Test_Leaf(unittest.TestCase):
+class Test_Leaf(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.leaf0 = tree.Leaf(NodeType.INVALID)
         self.value0 = 42
 
@@ -250,7 +249,7 @@ class Test_Leaf(unittest.TestCase):
         self.assertEqual(self.leaf1.value, self.value1)
         self.assertEqual(self.leaf1,       self.leaf1.value)
 
-    def tearDown(self):
+    def tear_down(self):
         self.leaf0 = None
         self.leaf1 = None
 
@@ -294,14 +293,14 @@ class Test_Leaf(unittest.TestCase):
 # Test::Dice (of Leaf of Node)
 # -----------------------------------------------------------------------------
 
-class Test_Dice(unittest.TestCase):
+class Test_Dice(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.dice0 = tree.Dice(1, 20)
 
         self.dice1 = tree.Dice(3, 6)
 
-    def tearDown(self):
+    def tear_down(self):
         self.dice0 = None
         self.dice1 = None
 
@@ -338,15 +337,15 @@ class Test_Dice(unittest.TestCase):
 # Test::Constant (of Leaf of Node)
 # -----------------------------------------------------------------------------
 
-class Test_Constant(unittest.TestCase):
+class Test_Constant(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.value0 = 42
         self.const0 = tree.Constant(self.value0)
         self.value1 = 9001
         self.const1 = tree.Constant(self.value1)
 
-    def tearDown(self):
+    def tear_down(self):
         self.const0 = None
         self.const1 = None
 
@@ -380,9 +379,9 @@ class Test_Constant(unittest.TestCase):
 # Test::Variable (of Leaf of Node)
 # -----------------------------------------------------------------------------
 
-class Test_Variable(unittest.TestCase):
+class Test_Variable(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.name0 = "$jeff-mod"
         self.value0 = 3
         self.var0 = tree.Variable(self.name0)
@@ -390,7 +389,7 @@ class Test_Variable(unittest.TestCase):
         self.value1 = 1336
         self.var1 = tree.Variable(self.name1)
 
-    def tearDown(self):
+    def tear_down(self):
         self.var0 = None
         self.var1 = None
 
@@ -458,7 +457,7 @@ class Test_Variable(unittest.TestCase):
 # Test::Branch (of Node)
 # -----------------------------------------------------------------------------
 
-class Test_Branch(unittest.TestCase):
+class Test_Branch(ZestBase):
 
     def test_eval(self):
         with self.assertRaises(AttributeError):
@@ -471,7 +470,7 @@ class Test_Branch(unittest.TestCase):
 # Test::OperatorMath (of Branch of Node)
 # -----------------------------------------------------------------------------
 
-class Test_OperatorMath(unittest.TestCase):
+class Test_OperatorMath(ZestBase):
 
     def test_eval(self):
         with self.assertRaises(TypeError):
@@ -484,8 +483,8 @@ class Test_OperatorMath(unittest.TestCase):
 # Test::OperatorAdd (of OperatorMath of Branch of Node)
 # -----------------------------------------------------------------------------
 
-class Test_OperatorAdd(unittest.TestCase):
-    def setUp(self):
+class Test_OperatorAdd(ZestBase):
+    def set_up(self):
         self.value0 = 42
         self.value1 = 9001
         self.children = [
@@ -494,7 +493,7 @@ class Test_OperatorAdd(unittest.TestCase):
         ]
         self.add = tree.OperatorAdd(self.children)
 
-    def tearDown(self):
+    def tear_down(self):
         self.add = None
         self.children = None
 
@@ -518,8 +517,8 @@ class Test_OperatorAdd(unittest.TestCase):
 # Test::OperatorSub (of OperatorMath of Branch of Node)
 # -----------------------------------------------------------------------------
 
-class Test_OperatorSub(unittest.TestCase):
-    def setUp(self):
+class Test_OperatorSub(ZestBase):
+    def set_up(self):
         self.value0 = 42
         self.value1 = 9001
         self.children = [
@@ -528,7 +527,7 @@ class Test_OperatorSub(unittest.TestCase):
         ]
         self.sub = tree.OperatorSub(self.children)
 
-    def tearDown(self):
+    def tear_down(self):
         self.sub = None
         self.children = None
 
@@ -552,8 +551,8 @@ class Test_OperatorSub(unittest.TestCase):
 # Test::OperatorMult (of OperatorMath of Branch of Node)
 # -----------------------------------------------------------------------------
 
-class Test_OperatorMult(unittest.TestCase):
-    def setUp(self):
+class Test_OperatorMult(ZestBase):
+    def set_up(self):
         self.value0 = 42
         self.value1 = 9001
         self.children = [
@@ -562,7 +561,7 @@ class Test_OperatorMult(unittest.TestCase):
         ]
         self.mult = tree.OperatorMult(self.children)
 
-    def tearDown(self):
+    def tear_down(self):
         self.mult = None
         self.children = None
 
@@ -586,8 +585,8 @@ class Test_OperatorMult(unittest.TestCase):
 # Test::OperatorDiv (of OperatorMath of Branch of Node)
 # -----------------------------------------------------------------------------
 
-class Test_OperatorDiv(unittest.TestCase):
-    def setUp(self):
+class Test_OperatorDiv(ZestBase):
+    def set_up(self):
         self.value0 = 42
         self.value1 = 9001
         self.children = [
@@ -596,7 +595,7 @@ class Test_OperatorDiv(unittest.TestCase):
         ]
         self.div = tree.OperatorDiv(self.children)
 
-    def tearDown(self):
+    def tear_down(self):
         self.div = None
         self.children = None
 
@@ -620,8 +619,8 @@ class Test_OperatorDiv(unittest.TestCase):
 # Test::OperatorMod (of OperatorMath of Branch of Node)
 # -----------------------------------------------------------------------------
 
-class Test_OperatorMod(unittest.TestCase):
-    def setUp(self):
+class Test_OperatorMod(ZestBase):
+    def set_up(self):
         self.value0 = 42
         self.value1 = 9001
         self.children = [
@@ -630,7 +629,7 @@ class Test_OperatorMod(unittest.TestCase):
         ]
         self.mod = tree.OperatorMod(self.children)
 
-    def tearDown(self):
+    def tear_down(self):
         self.mod = None
         self.children = None
 
@@ -654,8 +653,8 @@ class Test_OperatorMod(unittest.TestCase):
 # Test::OperatorPow (of OperatorMath of Branch of Node)
 # -----------------------------------------------------------------------------
 
-class Test_OperatorPow(unittest.TestCase):
-    def setUp(self):
+class Test_OperatorPow(ZestBase):
+    def set_up(self):
         self.value0 = 42
         self.value1 = 9001
         self.children = [
@@ -664,7 +663,7 @@ class Test_OperatorPow(unittest.TestCase):
         ]
         self.pow = tree.OperatorPow(self.children)
 
-    def tearDown(self):
+    def tear_down(self):
         self.pow = None
         self.children = None
 
@@ -688,5 +687,9 @@ class Test_OperatorPow(unittest.TestCase):
 # --                      Main Command Line Entry Point                      --
 # -----------------------------------------------------------------------------
 
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.math.d20.zest_tree
+
 if __name__ == '__main__':
+    import unittest
     unittest.main()

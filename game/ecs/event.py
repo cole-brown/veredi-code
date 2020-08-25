@@ -265,3 +265,29 @@ class EventManager(EcsManager):
         # About all we can do is make sure the event queue is empty.
         self.publish()
         return VerediHealth.APOPTOSIS
+
+    # -------------------------------------------------------------------------
+    # Unit Test Functions
+    # -------------------------------------------------------------------------
+
+    def _ut_clear_events(self) -> None:
+        '''
+        Replace our event queue with a fresh queue (basically, clear out all
+        our queued events).
+
+        Returns the old event queue with whatever was or wasn't in it.
+        '''
+        queued_events = self._events
+        self._events = []
+        return queued_events
+
+    def _ut_clear_subs(self) -> None:
+        '''
+        Replace our subscriptions with a fresh dictionary (basically, clear
+        them all out).
+
+        Returns the old subs dict with whatever was in it.
+        '''
+        prev_subs = self._subscriptions
+        self._subscriptions = {}
+        return prev_subs
