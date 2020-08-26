@@ -8,13 +8,13 @@ Tests for the generic System class.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
+from veredi.zest.base.unit import ZestBase
 
 from veredi.base.const import VerediHealth
 
-from . import system
+from .  import system
 from .. import const
-from . import component
+from .  import component
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -98,12 +98,12 @@ class SysJill(system.System):
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_System(unittest.TestCase):
+class Test_System(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.sys = SysJeff(None, 1, None)
 
-    def tearDown(self):
+    def tear_down(self):
         self.sys = None
 
     def test_init(self):
@@ -139,3 +139,16 @@ class Test_System(unittest.TestCase):
         health = self.sys._update_post(1.0, None, None)
         self.assertTrue(self.sys.last_tick, const.SystemTick.POST)
         self.assertTrue(health, VerediHealth.HEALTHY)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.game.ecs.base.zest_system
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

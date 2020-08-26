@@ -8,7 +8,7 @@ Tests for the DataDict and KeyGroup classes.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
+from veredi.zest.base.unit import ZestBase
 
 from .dict import DataDict, KeyGroupMarker
 
@@ -22,14 +22,12 @@ from .dict import DataDict, KeyGroupMarker
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_DataDict(unittest.TestCase):
+class Test_DataDict(ZestBase):
     '''
     Test that fancy sorta-dictionary.
     '''
 
-    def setUp(self):
-        self.debugging = False
-
+    def set_up(self):
         self.raw_data = {
             'running': {
                 'class': True,
@@ -88,8 +86,7 @@ class Test_DataDict(unittest.TestCase):
             },
         }
 
-    def tearDown(self):
-        self.debugging       = False
+    def tear_down(self):
         self.raw_data        = None
         self.expected_map    = None
         self.expected_groups = None
@@ -126,7 +123,6 @@ class Test_DataDict(unittest.TestCase):
         self.assertTrue(data['profession (weirdologist)'],
                         self.expected_groups['profession']['weirdologist'])
 
-
 #     def test_skill_req(self):
 #         self.set_up_subs()
 #         entity = self.create_entity()
@@ -148,3 +144,15 @@ class Test_DataDict(unittest.TestCase):
 #
 # #         with log.LoggingManager.on_or_off(self.debugging):
 # #             self.make_it_so(skill_request)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.data.codec.adapter.zest_dict
+
+if __name__ == '__main__':
+    import unittest
+    unittest.main()
