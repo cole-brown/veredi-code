@@ -8,20 +8,21 @@ Tests for the FileTreeRepository.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
 import os
 
-from veredi.logger import log
 
-from veredi.data.exceptions import LoadError
+from veredi.zest.base.unit        import ZestBase
+from veredi.logger                import log
+
+from veredi.data.exceptions       import LoadError
 from veredi.data.config.hierarchy import Document
-from veredi.data.config.context import ConfigContext
-from veredi.data.context import (DataGameContext,
-                                 DataLoadContext,
-                                 DataSaveContext)
-from .file import FileTreeRepository
-from veredi.zest import zpath
-from veredi.zest import zmake
+from veredi.data.config.context   import ConfigContext
+from veredi.data.context          import (DataGameContext,
+                                          DataLoadContext,
+                                          DataSaveContext)
+from .file                        import FileTreeRepository
+from veredi.zest                  import zpath
+from veredi.zest                  import zmake
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -32,10 +33,9 @@ from veredi.zest import zmake
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_FileTreeRepo(unittest.TestCase):
+class Test_FileTreeRepo(ZestBase):
 
-    def setUp(self):
-        self.debugging = False
+    def set_up(self):
         self.path = zpath.repository_file_tree()
         self.config = zmake.config()
         self.context = ConfigContext(self.path,
@@ -60,7 +60,6 @@ class Test_FileTreeRepo(unittest.TestCase):
         self.repo = FileTreeRepository(self.context)
 
     def tearDown(self):
-        self.debugging = False
         self.repo = None
         self.path = None
 
@@ -133,3 +132,15 @@ class Test_FileTreeRepo(unittest.TestCase):
 
     def test_load_item(self):
         self.do_load_test(DataGameContext.DataType.ITEM)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.data.repository.zest_file
+
+if __name__ == '__main__':
+    import unittest
+    unittest.main()

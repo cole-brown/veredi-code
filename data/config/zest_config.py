@@ -9,16 +9,14 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
 from datetime import date
 
-from veredi.logger import log
+from veredi.zest.base.unit       import ZestBase
+from veredi.zest                 import zpath, zmake
+from veredi.logger               import log
 
-from . import hierarchy
-
+from .                           import hierarchy
 from veredi.data.repository.file import FileTreeRepository
-
-from veredi.zest import zpath, zmake
 
 
 # -----------------------------------------------------------------------------
@@ -30,10 +28,9 @@ from veredi.zest import zpath, zmake
 # Test Stuff for a Player Entity
 # -----------------------------------------------------------------------------
 
-class Test_Configuration(unittest.TestCase):
+class Test_Configuration(ZestBase):
 
-    def setUp(self):
-        self.debugging = False
+    def set_up(self):
         self.path = zpath.config('test-target.yaml')
         self.config = zmake.config(zpath.TestType.UNIT,
                                    config_path=self.path,
@@ -41,7 +38,6 @@ class Test_Configuration(unittest.TestCase):
                                    config_codec=None)
 
     def tearDown(self):
-        self.debugging = False
         self.path = None
         self.config = None
 
@@ -118,6 +114,10 @@ class Test_Configuration(unittest.TestCase):
 # --                      Main Command Line Entry Point                      --
 # -----------------------------------------------------------------------------
 
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.data.config.zest_config
+
 if __name__ == '__main__':
+    import unittest
     # log.set_level(log.Level.DEBUG)
     unittest.main()

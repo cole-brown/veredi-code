@@ -8,14 +8,15 @@ Tests for the generic System class.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
 import datetime
 
-from .codec import YamlCodec
-from .document import DocMetadata
-from .ecs.component import DocComponent
+from veredi.zest.base.unit   import ZestBase
 
-from veredi.zest import zpath
+from .codec                  import YamlCodec
+from .adapters.document      import DocMetadata
+from .adapters.ecs.component import DocComponent
+
+from veredi.zest             import zpath
 
 
 # -----------------------------------------------------------------------------
@@ -27,13 +28,13 @@ from veredi.zest import zpath
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_YamlCodec(unittest.TestCase):
+class Test_YamlCodec(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.codec = YamlCodec()
         self.path = zpath.codec() / 'component.health.yaml'
 
-    def tearDown(self):
+    def tear_down(self):
         self.codec = None
         self.path = None
 
@@ -145,3 +146,15 @@ class Test_YamlCodec(unittest.TestCase):
         self.assertEqual(resistance['piercing'], 1)
         self.assertEqual(resistance['bludgeoning'], 1)
         self.assertEqual(resistance['slashing'], 1)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.data.codec.yaml.zest_codec
+
+if __name__ == '__main__':
+    import unittest
+    unittest.main()
