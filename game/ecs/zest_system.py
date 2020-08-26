@@ -8,26 +8,26 @@ Tests for SystemManager.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
+from veredi.zest.base.unit import ZestBase
+from veredi.zest           import zmake
 
-from veredi.base.const   import VerediHealth
-from veredi.zest         import zmake
-from veredi.base.context import UnitTestContext
-from veredi.debug.const  import DebugFlag
+from veredi.base.const     import VerediHealth
+from veredi.base.context   import UnitTestContext
+from veredi.debug.const    import DebugFlag
 
-from .event              import EventManager
-from .time               import TimeManager
-from .component          import ComponentManager
-from .entity             import EntityManager
-from .system             import (SystemManager,
-                                 SystemEvent,
-                                 SystemLifeEvent)
+from .event                import EventManager
+from .time                 import TimeManager
+from .component            import ComponentManager
+from .entity               import EntityManager
+from .system               import (SystemManager,
+                                   SystemEvent,
+                                   SystemLifeEvent)
 
-from .const              import SystemTick, SystemPriority
+from .const                import SystemTick, SystemPriority
 
-from .base.identity      import SystemId
-from .base.component     import Component
-from .base.system        import System, SystemLifeCycle
+from .base.identity        import SystemId
+from .base.component       import Component
+from .base.system          import System, SystemLifeCycle
 
 
 # -----------------------------------------------------------------------------
@@ -177,13 +177,13 @@ class SysFour(SysTest):
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_SystemManager(unittest.TestCase):
+class Test_SystemManager(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.event_mgr  = None
-        self.finish_setUp()
+        self.finish_set_up()
 
-    def finish_setUp(self):
+    def finish_set_up(self):
         self.config     = zmake.config()
         self.time_mgr   = TimeManager()
         self.comp_mgr   = ComponentManager(self.config,
@@ -478,10 +478,23 @@ class Test_SystemManager(unittest.TestCase):
 
 
 class Test_SystemManager_Events(Test_SystemManager):
-    def setUp(self):
+    def set_up(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.
         self.config    = zmake.config()
         self.event_mgr = EventManager(self.config)
-        self.finish_setUp()
+        self.finish_set_up()
         self.register_events()
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.game.ecs.zest_system
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

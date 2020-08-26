@@ -11,9 +11,9 @@ Base class for testing an ECS System.
 # Imports
 # -----------------------------------------------------------------------------
 
-from .ecs                               import ZestEcs
+from .ecs                        import ZestEcs
 
-from veredi.game.ecs.base.system        import System
+from veredi.game.ecs.base.system import System
 
 
 # -----------------------------------------------------------------------------

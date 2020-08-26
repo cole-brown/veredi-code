@@ -9,8 +9,8 @@ Tests for the generic System class.
 # -----------------------------------------------------------------------------
 
 from datetime import datetime, timezone
-import unittest
 
+from veredi.zest.base.unit import ZestBase
 from . import time
 
 # -----------------------------------------------------------------------------
@@ -22,7 +22,7 @@ from . import time
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_Time(unittest.TestCase):
+class Test_Time(ZestBase):
 
     def setUp(self):
         self.time = time.TimeManager()
@@ -57,3 +57,16 @@ class Test_Time(unittest.TestCase):
                          self.time.tick.seconds)
         self.assertEqual(now,
                          self.time.seconds)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.game.ecs.zest_time
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

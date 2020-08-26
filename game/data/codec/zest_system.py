@@ -8,16 +8,14 @@ Tests for the CodecSystem class.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
 from io import StringIO
 
-from veredi.zest import zmake, zontext
-from veredi.base.context import UnitTestContext
+from veredi.zest.base.system import ZestSystem
+from veredi.base.context     import UnitTestContext
 
-from .system import CodecSystem
-from ..event import (DeserializedEvent, DataSaveRequest,
-                     DecodedEvent, EncodedEvent)
-from ...ecs.event import EventManager
+from .system                 import CodecSystem
+from ..event                 import (DeserializedEvent, DataSaveRequest,
+                                     DecodedEvent, EncodedEvent)
 
 
 # -----------------------------------------------------------------------------
@@ -56,44 +54,36 @@ health:
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_CodecSystem(unittest.TestCase):
+class Test_CodecSystem(ZestSystem):
 
-    def setUp(self):
-        self.debugging = False
-        self.config        = zmake.config()
-        self.event_manager = EventManager(self.config)
-        self.manager       = zmake.meeting(configuration=self.config,
-                                           event_manager=self.event_manager)
+    def set_up(self):
+        super().set_up()
         self.codec         = CodecSystem(None, 1, self.manager)
-        self.events        = []
 
-    def tearDown(self):
-        self.debugging     = False
+    def tear_down(self):
+        super().tear_down()
         self.codec         = None
-        self.config        = None
-        self.event_manager = None
-        self.events        = None
 
     def sub_decoded(self):
-        self.event_manager.subscribe(DecodedEvent, self.event_decoded)
+        self.manager.event.subscribe(DecodedEvent, self.event_decoded)
 
     def set_up_subs(self):
         self.sub_decoded()
-        self.codec.subscribe(self.event_manager)
+        self.codec.subscribe(self.manager.event)
 
     def event_decoded(self, event):
         self.events.append(event)
 
     def test_init(self):
         self.assertTrue(self.codec)
-        self.assertTrue(self.event_manager)
+        self.assertTrue(self.manager.event)
 
     def test_subscribe(self):
-        self.assertFalse(self.event_manager._subscriptions)
-        self.codec.subscribe(self.event_manager)
-        self.assertTrue(self.event_manager._subscriptions)
+        self.assertFalse(self.manager.event._subscriptions)
+        self.codec.subscribe(self.manager.event)
+        self.assertTrue(self.manager.event._subscriptions)
 
-        self.assertEqual(self.event_manager,
+        self.assertEqual(self.manager.event,
                          self.codec._manager.event)
 
     def test_event_deserialize(self):
@@ -111,13 +101,13 @@ class Test_CodecSystem(unittest.TestCase):
                     {'unit-testing': "string 'test-data' in zest_system.py"}),
                 data=stream)
             self.assertTrue(event)
-            self.event_manager.notify(event, True)
+            self.manager.event.notify(event, True)
             # CodecSystem will reply with its own event (not immediately
             # published?)... publish it for it.
-            self.event_manager.publish()
+            self.manager.event.publish()
             self.assertTrue(self.events)
 
-            # §-TODO-§ [2020-05-22]: test what we got back!
+            # Test what we got back.
             received = self.events[0]
             self.assertIsNotNone(received)
             self.assertEqual(type(received), DecodedEvent)
@@ -148,3 +138,16 @@ class Test_CodecSystem(unittest.TestCase):
             self.assertEqual(klass[0]['hit-points'], 12)
             self.assertEqual(klass[1]['angry-unschooled-fighter'], 2)
             self.assertEqual(klass[1]['hit-points'], 9)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.game.data.codec.zest_system
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

@@ -8,17 +8,16 @@ Tests for the RepositorySystem class.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
-
-from veredi.zest import zpath, zmake
-from veredi.data.context import (DataLoadContext,
-                                 DataSaveContext,
-                                 DataGameContext)
-from .system import RepositorySystem
-from ..event import (SerializedEvent, DeserializedEvent,
-                     EncodedEvent, DataLoadRequest)
-from ...ecs.event import EventManager
-from veredi.data.exceptions import LoadError
+from veredi.zest.base.system import ZestSystem
+from veredi.zest             import zmake, zpath
+from veredi.data.context     import (DataLoadContext,
+                                     DataSaveContext,
+                                     DataGameContext)
+from .system                 import RepositorySystem
+from ..event                 import (SerializedEvent, DeserializedEvent,
+                                     EncodedEvent, DataLoadRequest)
+from ...ecs.event            import EventManager
+from veredi.data.exceptions  import LoadError
 
 
 # -----------------------------------------------------------------------------
@@ -35,50 +34,44 @@ from veredi.data.exceptions import LoadError
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_RepoSystem(unittest.TestCase):
+class Test_RepoSystem(ZestSystem):
 
-    def setUp(self):
-        self.debugging     = False
-        self.config        = zmake.config(
+    def set_up(self):
+        super().set_up()
+        self.init_self_system(RepositorySystem)
+        # self.system = RepositorySystem(None, 1, self.manager)
+        self.path = self.system._repository.root
+
+    def _set_up_ecs(self):
+        '''
+        Overriding this to get the config we want and roll on into the manager
+        that ZestEcs._set_up_ecs() normally makes.
+        '''
+        self.config = zmake.config(
             repo_dotted='veredi.repository.file-tree',
             repo_path=zpath.repository_file_tree(),
             repo_clean='veredi.sanitize.human.path-safe'
         )
-        self.event_manager = EventManager(self.config)
-        self.manager       = zmake.meeting(configuration=self.config,
-                                           event_manager=self.event_manager)
-        self.repo          = RepositorySystem(None, 1, self.manager)
-        self.events        = []
-        self.path          = self.repo._repository.root
 
-    def tearDown(self):
-        self.debugging     = False
-        self.config        = None
-        self.repo          = None
-        self.event_manager = None
-        self.events        = None
-        self.path          = None
+        self.manager = zmake.meeting(
+            configuration=self.config,
+            event_manager=EventManager(self.config))
 
-    def sub_deserialized(self):
-        self.event_manager.subscribe(DeserializedEvent,
+    def tear_down(self):
+        super().tear_down()
+        self.config = None
+        self.path   = None
+
+    def sub_events(self):
+        self.manager.event.subscribe(DeserializedEvent,
                                      self.event_deserialized)
 
-    def set_up_subs(self):
-        self.sub_deserialized()
-        self.repo.subscribe(self.event_manager)
+    def set_up_events(self):
+        self._sub_events_systems()
+        self.sub_events()
 
     def event_deserialized(self, event):
         self.events.append(event)
-
-    def make_it_so(self, event):
-        '''
-        Notifies the event for immediate action.
-        Which /should/ cause something to process it and queue up an event.
-        So we publish() in order to get that one sent out.
-        '''
-        self.event_manager.notify(event, True)
-        self.event_manager.publish()
-        self.assertTrue(self.events)
 
     def context_load(self, type):
         ctx = DataLoadContext('unit-testing',
@@ -114,22 +107,24 @@ class Test_RepoSystem(unittest.TestCase):
         return ctx, path
 
     def test_init(self):
-        self.assertTrue(self.event_manager)
-        self.assertTrue(self.repo)
-        self.assertTrue(self.repo._repository)
+        self.assertTrue(self.manager.event)
+        self.assertTrue(self.system)
+        self.assertTrue(self.system._repository)
 
     def test_subscribe(self):
-        self.assertFalse(self.event_manager._subscriptions)
-        self.repo.subscribe(self.event_manager)
-        self.assertTrue(self.event_manager._subscriptions)
+        self.assertFalse(self.manager.event._subscriptions)
+        self.system.subscribe(self.manager.event)
+        self.assertTrue(self.manager.event._subscriptions)
 
-        self.assertEqual(self.event_manager,
-                         self.repo._manager.event)
+        self.assertEqual(self.manager.event,
+                         self.system._manager.event)
 
     def test_event_load_req(self):
-        self.set_up_subs()
+        self.set_up_events()
+        self.clear_events(clear_manager=True)
 
-        load_ctx, load_path = self.context_load(DataGameContext.DataType.PLAYER)
+        load_ctx, load_path = self.context_load(
+            DataGameContext.DataType.PLAYER)
         load_ctx.sub['user'] = 'u/jeff'
         load_ctx.sub['player'] = 'Sir Jeffsmith'
 
@@ -138,7 +133,7 @@ class Test_RepoSystem(unittest.TestCase):
             load_ctx.type,
             load_ctx)
         self.assertFalse(self.events)
-        self.make_it_so(event)
+        self.trigger_events(event)
 
         self.assertEqual(len(self.events), 1)
         self.assertIsInstance(self.events[0], DeserializedEvent)
@@ -155,3 +150,16 @@ class Test_RepoSystem(unittest.TestCase):
             self.assertIsNotNone(file_data)
             self.assertIsNotNone(repo_data)
             self.assertEqual(repo_data, file_data)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.game.data.repository.zest_system
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

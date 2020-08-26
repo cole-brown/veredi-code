@@ -8,19 +8,19 @@ Tests for component.py (ComponentManager class).
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
+from veredi.zest.base.unit import ZestBase
+from veredi.zest           import zmake
 
-from veredi.zest import zmake
-from veredi.base.context import UnitTestContext
-from veredi.base.null import Null
+from veredi.base.context   import UnitTestContext
+from veredi.base.null      import Null
 
-from .event import EventManager
-from .component import (ComponentManager,
-                        ComponentEvent,
-                        ComponentLifeEvent)
-from .base.identity import ComponentId
-from .base.component import (ComponentLifeCycle,
-                             Component)
+from .event                import EventManager
+from .component            import (ComponentManager,
+                                   ComponentEvent,
+                                   ComponentLifeEvent)
+from .base.identity        import ComponentId
+from .base.component       import (ComponentLifeCycle,
+                                   Component)
 
 
 # -----------------------------------------------------------------------------
@@ -53,19 +53,19 @@ class CompThree(Component):
 # -----------------------------------------------------------------------------
 
 
-class Test_ComponentManager(unittest.TestCase):
+class Test_ComponentManager(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.config    = zmake.config()
         self.event_mgr = None
-        self.finish_setUp()
+        self.finish_set_up()
 
-    def finish_setUp(self):
+    def finish_set_up(self):
         self.comp_mgr = ComponentManager(self.config, self.event_mgr)
 
         self.events_recv = {}
 
-    def tearDown(self):
+    def tear_down(self):
         self.config    = None
         self.event_mgr = None
         self.comp_mgr  = None
@@ -289,10 +289,23 @@ class Test_ComponentManager(unittest.TestCase):
 
 
 class Test_ComponentManager_Events(Test_ComponentManager):
-    def setUp(self):
+    def set_up(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.
         self.config    = zmake.config()
         self.event_mgr = EventManager(self.config)
-        self.finish_setUp()
+        self.finish_set_up()
         self.register_events()
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.game.ecs.zest_component
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

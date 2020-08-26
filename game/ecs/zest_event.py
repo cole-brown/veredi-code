@@ -8,7 +8,7 @@ Test that event manager.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
+from veredi.zest.base.unit import ZestBase
 
 from veredi.zest import zmake
 
@@ -40,15 +40,15 @@ class EventThree:
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_Events(unittest.TestCase):
+class Test_Events(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.config          = zmake.config()
         self.events          = EventManager(self.config)
         self.events_recvd    = {}
         self.handlers_called = {}
 
-    def tearDown(self):
+    def tear_down(self):
         self.config          = None
         self.events          = None
         self.events_recvd    = None
@@ -148,3 +148,16 @@ class Test_Events(unittest.TestCase):
         self.assertEqual(self.handlers_called[1], 2)
         self.assertEqual(self.handlers_called[2], 1)
         self.assertEqual(self.handlers_called[3], 1)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.game.ecs.zest_event
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

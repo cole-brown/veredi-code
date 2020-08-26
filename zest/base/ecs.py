@@ -112,7 +112,7 @@ class ZestEcs(ZestBase):
         '''
         (self.manager, _,
          self.context, _) = zload.set_up(self.__class__.__name__,
-                                         'set_up_ecs',
+                                         '_set_up_ecs',
                                          self.debugging,
                                          debug_flags=self.debug_flags,
                                          require_engine=False,
@@ -285,7 +285,7 @@ class ZestEcs(ZestBase):
                        num_publishes:   int = 3,
                        expected_events: int = 1) -> None:
         '''
-        Sanity asserts on inputs, then we call event_now() to immediately
+        Sanity asserts on inputs, then we call _event_now() to immediately
         trigger event and response. Then we check our events queue against
         `expected_events` (set to zero if you don't expect any).
 
@@ -298,7 +298,7 @@ class ZestEcs(ZestBase):
 
         # This has a LoggingManager in it, so set self.debugging to true if you
         # need to output all the logs during events.
-        self.event_now(event, num_publishes)
+        self._event_now(event, num_publishes)
 
         if expected_events == 0:
             self.assertFalse(self.events)

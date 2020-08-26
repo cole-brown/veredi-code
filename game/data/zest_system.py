@@ -8,9 +8,8 @@ Tests for the DataSystem class.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
-
-from veredi.zest import zmake, zontext
+from veredi.zest.base.system import ZestSystem
+from veredi.zest import zload
 from veredi.base.context import UnitTestContext
 from veredi.logger import log
 
@@ -78,67 +77,35 @@ test_data = [
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_DataSystem(unittest.TestCase):
+class Test_DataSystem(ZestSystem):
     '''
     Test our DataSystem with HealthComponent class against some health data.
     '''
 
-    def setUp(self):
-        self.debugging         = False
-        self.config            = zmake.config()
-        self.context           = zontext.test(self.__class__.__name__,
-                                              'setUp')
-        self.event_manager     = EventManager(self.config)
-        self.component_manager = ComponentManager(self.config,
-                                                  self.event_manager)
+    def set_up(self):
+        super().set_up()
+        self.system = self.manager.system.get(DataSystem)
 
-        self.manager          = zmake.meeting(
-            configuration=self.config,
-            event_manager=self.event_manager,
-            component_manager=self.component_manager)
-
-        self.system            = DataSystem(self.context,
-                                            1,
-                                            self.manager)
-        self.events            = []
-
-    def tearDown(self):
-        self.debugging         = False
-        self.config            = None
-        self.context           = None
-        self.event_manager     = None
-        self.component_manager = None
-        self.system            = None
-        self.events            = None
-
-    def sub_loaded(self):
-        self.event_manager.subscribe(DataLoadedEvent, self.event_decoded)
-
-    def set_up_subs(self):
-        self.sub_loaded()
-        self.system.subscribe(self.event_manager)
-
-    def event_decoded(self, event):
-        self.events.append(event)
-
-    def make_it_so(self, event):
+    def _set_up_ecs(self):
         '''
-        Notifies the event for immediate action.
-        Which /should/ cause something to process it and queue up an event.
-        So we publish() in order to get that one sent out.
+        Calls zload.set_up to create Meeting of EcsManagers, and a context from
+        a config file.
         '''
-        self.event_manager.notify(event, True)
-        self.event_manager.publish()
-        self.assertTrue(self.events)
+        (self.manager, _,
+         self.context, _) = zload.set_up(self.__class__.__name__,
+                                         '_set_up_ecs',
+                                         self.debugging,
+                                         debug_flags=self.debug_flags,
+                                         require_engine=False,
+                                         desired_systems=[DataSystem])
 
     def test_init(self):
-        self.assertTrue(self.config)
-        self.assertTrue(self.event_manager)
-        self.assertTrue(self.component_manager)
+        self.assertTrue(self.manager.event)
+        self.assertTrue(self.manager.component)
         self.assertTrue(self.system)
 
     def test_event_loaded(self):
-        self.set_up_subs()
+        self.set_up_events(clear_self=True, clear_manager=True)
 
         ctx = UnitTestContext(
             self.__class__.__name__,
@@ -154,7 +121,7 @@ class Test_DataSystem(unittest.TestCase):
         self.assertTrue(decode_event)
         self.assertFalse(self.events)
         with log.LoggingManager.on_or_off(self.debugging):
-            self.make_it_so(decode_event)
+            self.trigger_events(decode_event)
 
         self.assertEqual(len(self.events), 1)
         self.assertIsInstance(self.events[0], DataLoadedEvent)
@@ -162,7 +129,7 @@ class Test_DataSystem(unittest.TestCase):
         event = self.events[0]
         cid = event.component_id
         self.assertNotEqual(cid, ComponentId.INVALID)
-        component = self.component_manager.get(cid)
+        component = self.manager.component.get(cid)
         self.assertIsInstance(component, DataComponent)
 
         self.assertIsInstance(component, HealthComponent)
@@ -173,3 +140,16 @@ class Test_DataSystem(unittest.TestCase):
 
         data_processed = component.persistent
         self.assertEqual(data_source, data_processed)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.game.data.zest_system
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()
