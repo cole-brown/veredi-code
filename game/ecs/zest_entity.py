@@ -8,24 +8,25 @@ Tests for entity.py (EntityManager class).
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
+from veredi.zest.base.unit import ZestBase
 
-from veredi.logger import log
-from veredi.zest import zmake
-from veredi.base.context import UnitTestContext
-from veredi.base.null import Null
+from veredi.logger         import log
+from veredi.zest           import zmake
+from veredi.base.context   import UnitTestContext
+from veredi.base.null      import Null
 
-from .event import EventManager
-from .component import (ComponentManager,
-                        ComponentLifeCycle)
-from .entity import (EntityManager,
-                     EntityEvent,
-                     EntityEventType,
-                     EntityLifeEvent)
-from .base.identity import EntityId
-from .base.component import Component
-from .base.entity import (Entity,
-                          EntityLifeCycle)
+from .event                import EventManager
+from .component            import (ComponentManager,
+                                   ComponentLifeCycle)
+from .entity               import (EntityManager,
+                                   EntityEvent,
+                                   EntityEventType,
+                                   EntityLifeEvent)
+from .base.identity        import EntityId
+from .base.component       import Component
+from .base.entity          import (Entity,
+                                   EntityLifeCycle)
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -52,7 +53,7 @@ class CompThree(Component):
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_EntityManager(unittest.TestCase):
+class Test_EntityManager(ZestBase):
     _TYPE_DONT_CARE = 1
 
     def setUp(self):
@@ -395,3 +396,16 @@ class Test_EntityManager_Events(Test_EntityManager):
         self.event_mgr = EventManager(self.config)
         self.finish_setUp()
         self.register_events()
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.game.ecs.zest_entity
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

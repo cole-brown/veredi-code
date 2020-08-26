@@ -36,40 +36,6 @@ from veredi.data.codec.yaml             import registry as yaml_registry
 #     -  [a-z_][a-zA-Z_]*: called by subclasses for actual unit tests.
 #     - _[a-z_][a-zA-Z_]*: Just used by this internally, most likely.
 
-# todo-marker-todo
-# TODO: Change these tests to use the new ZestBaseAndFriends classes:
-#   - [X] ./math/d20/zest_evaluator.py
-#   - [X] ./math/d20/zest_parser.py
-#   - [X] ./math/d20/zest_tree.py
-#   - [X] ./math/zest_system.py
-#   - [ ] ./data/codec/adapter/zest_dict.py
-#   - [ ] ./data/codec/yaml/zest_codec.py
-#   - [ ] ./data/config/zest_config.py
-#   - [ ] ./data/repository/zest_file.py
-#   - [ ] ./data/repository/_old_stuff/template/zest_template.py
-#   - [ ] ./data/repository/_old_stuff/xxxzest_data/zest.py
-#   - [ ] ./data/repository/_old_stuff/zest_player.py
-#   - [ ] ./game/data/codec/zest_system.py
-#   - [ ] ./game/data/identity/zest_system.py
-#   - [ ] ./game/data/repository/zest_system.py
-#   - [ ] ./game/data/zest_system.py
-#   - [ ] ./game/ecs/base/zest_system.py
-#   - [ ] ./game/ecs/zest_component.py
-#   - [ ] ./game/ecs/zest_entity.py
-#   - [ ] ./game/ecs/zest_event.py
-#   - [ ] ./game/ecs/zest_system.py
-#   - [ ] ./game/ecs/zest_time.py
-#   - [ ] ./game/zest_engine.py
-#   - [ ] ./interface/input/command/zest_commander.py
-#   - [ ] ./interface/input/zest_system.py
-#   - [ ] ./rules/d20/pf2/ability/zest_system.py
-#   - [ ] ./rules/d20/pf2/skill/zest_system.py
-#   - [ ] ./zest/integration/communication/zest_client_server_websocket.py
-#   - [ ] ./zest/integration/data/zest_data_disk_to_game.py
-#   - [ ] ./zest/integration/interface/zest_debug_command.py
-#   - [ ] ./zest/integration/interface/zest_input_cmd_skill_check.py
-#   - [ ] ./zest/integration/interface/zest_input_to_output.py
-
 
 # -----------------------------------------------------------------------------
 # Base Class
