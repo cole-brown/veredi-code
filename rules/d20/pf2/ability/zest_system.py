@@ -8,7 +8,7 @@ Tests for the Ability system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.zystem                  import BaseSystemTest
+from veredi.zest.base.system             import ZestSystem
 
 from veredi.base.context                 import UnitTestContext
 from veredi.data.exceptions              import LoadError
@@ -43,7 +43,7 @@ from .component                          import AbilityComponent
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_AbilitySystem(BaseSystemTest):
+class Test_AbilitySystem(ZestSystem):
     '''
     Test our AbilitySystem with some on-disk data.
     '''
@@ -63,24 +63,21 @@ class Test_AbilitySystem(BaseSystemTest):
     EXPECTED_STR_SCORE = 30
     EXPECTED_STR_MOD   = "(${this.score} - 10) // 2"
 
-    def setUp(self):
-        super().setUp()
-        self.init_managers()
-        self.init_system_self(AbilitySystem)
-        self.init_system_others(InputSystem, IdentitySystem)
-        self.reg_open = None
+    def set_up(self):
+        super().set_up()
+        self.set_up_input()
+        self.init_self_system(AbilitySystem)
+        self.init_one_system(IdentitySystem)
         self.test_cmd_recv = None
         self.test_cmd_ctx = None
 
-    def tearDown(self):
-        super().tearDown()
-        self.reg_open = None
+    def tear_down(self):
+        super().tear_down()
         self.test_cmd_recv = None
         self.test_cmd_ctx = None
 
-    def _sub_events_test(self):
+    def sub_events(self):
         self.manager.event.subscribe(AbilityResult, self.event_ability_res)
-        self.manager.event.subscribe(DataLoadedEvent, self.event_loaded)
 
     # -------------------------------------------------------------------------
     # Loading data.
@@ -165,9 +162,6 @@ class Test_AbilitySystem(BaseSystemTest):
     # Events
     # -------------------------------------------------------------------------
 
-    def event_loaded(self, event):
-        self.events.append(event)
-
     def ability_request(self, entity, ability):
         context = UnitTestContext(
             self.__class__.__name__,
@@ -221,7 +215,7 @@ class Test_AbilitySystem(BaseSystemTest):
         self.assertTrue(self.system)
 
     def test_ability_req(self):
-        self.event_set_up()
+        self.set_up_events()
         entity = self.create_entity()
 
         request = self.ability_request(entity, "strength")
@@ -242,7 +236,7 @@ class Test_AbilitySystem(BaseSystemTest):
                          'strength.score')
 
     def test_ability_req_mod(self):
-        self.event_set_up()
+        self.set_up_events()
         entity = self.create_entity()
 
         request = self.ability_request(entity, "strength.modifier")
@@ -263,7 +257,7 @@ class Test_AbilitySystem(BaseSystemTest):
                          'strength.modifier')
 
     def test_ability_req_mod_alias(self):
-        self.event_set_up()
+        self.set_up_events()
         entity = self.create_entity()
 
         # 'str' is 'strength' alias
@@ -290,7 +284,7 @@ class Test_AbilitySystem(BaseSystemTest):
     # ------------------------------
 
     def test_cmd_reg(self):
-        self.event_set_up()
+        self.set_up_events()
         self.allow_registration()
 
         # Nothing exploded?
@@ -298,7 +292,7 @@ class Test_AbilitySystem(BaseSystemTest):
         # Success!
 
     def test_cmd_score(self):
-        self.event_set_up()
+        self.set_up_events()
         self.allow_registration()
         entity = self.create_entity()
 
@@ -316,7 +310,7 @@ class Test_AbilitySystem(BaseSystemTest):
         self.trigger_events(event, expected_events=0)
 
     def test_cmd_mod(self):
-        self.event_set_up()
+        self.set_up_events()
         self.allow_registration()
         entity = self.create_entity()
 
@@ -334,7 +328,7 @@ class Test_AbilitySystem(BaseSystemTest):
         self.trigger_events(event, expected_events=0)
 
     def test_cmd_shortcut(self):
-        self.event_set_up()
+        self.set_up_events()
         self.allow_registration()
         entity = self.create_entity()
 
@@ -352,7 +346,7 @@ class Test_AbilitySystem(BaseSystemTest):
         self.trigger_events(event, expected_events=0)
 
     def test_cmd_alias(self):
-        self.event_set_up()
+        self.set_up_events()
         self.allow_registration()
         entity = self.create_entity()
 
@@ -368,3 +362,16 @@ class Test_AbilitySystem(BaseSystemTest):
             context,
             "/ability $str.mod + 4")
         self.trigger_events(event, expected_events=0)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.rules.d20.pf2.ability.zest_system
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

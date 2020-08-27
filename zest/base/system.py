@@ -42,7 +42,6 @@ class ZestSystem(ZestEcs):
 
         super().set_up()
         <your test stuff>
-        self.init_managers(...)
         self.init_system(...)
         '''
         super().set_up()
@@ -76,7 +75,6 @@ class ZestSystem(ZestEcs):
     # System Creation Helpers
     # -------------------------------------------------------------------------
 
-    # PREVIOUSLY init_system_self !!!
     def init_self_system(self, sys_type: System) -> System:
         '''
         Initializes, returns your test's system.

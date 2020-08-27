@@ -74,6 +74,6 @@ def tag_meta_constructor(loader, node):
     return instance
 
 
-yaml.add_constructor(_META_TAG_NAME,
+yaml.add_constructor(_META_YAML_TAG,
                      tag_meta_constructor,
                      Loader=yaml.SafeLoader)

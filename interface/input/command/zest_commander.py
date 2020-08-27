@@ -8,8 +8,7 @@ Tests for the Commander sub-system, events, components, commands......
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
-
+from veredi.zest.base.ecs         import ZestEcs
 from veredi.zest                  import zonfig
 from veredi.logger                import log
 
@@ -39,14 +38,13 @@ from .                            import const
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_Commander(unittest.TestCase):
+class Test_Commander(ZestEcs):
     '''
     Test our Commander with some commands.
     '''
 
-    def setUp(self):
-        self.debugging = False
-
+    def set_up(self):
+        super().set_up()
         self.config = zonfig.manual({
             Document.CONFIG: {
                 'data': {
@@ -72,8 +70,6 @@ class Test_Commander(unittest.TestCase):
         self.parsers           = Parcel(None)
         self.commander         = Commander(None)
 
-        self.reg_open          = False
-        self.events            = []
         self.cmd_was_triggered = False
 
         background.input.set('veredi.interface.input.command.zest_commander',
@@ -81,27 +77,39 @@ class Test_Commander(unittest.TestCase):
                              None,
                              background.Ownership.SHARE)
 
-        self._set_up_subs()
+        self.set_up_events()
 
-    def tearDown(self):
-        self.debugging         = False
+    def tear_down(self):
+        super().tear_down()
         self.config            = None
         self.event_manager     = None
-        self.commander         = None
         self.parsers           = None
-        self.reg_open          = False
+        self.commander         = None
         self.cmd_was_triggered = False
-        self.events            = None
 
-    def _sub_events(self):
+    def sub_events(self):
         self.event_manager.subscribe(CommandRegistrationBroadcast,
-                                     self.event_cmd_reg)
+                                     self._eventsub_cmd_reg)
         self.event_manager.subscribe(CommandRegisterReply,
                                      self.event_cmd_reply)
 
-    def _set_up_subs(self):
-        self._sub_events()
+    def set_up_events(self):
         self.commander.subscribe(self.event_manager)
+        self.sub_events()
+        self.clear_events(clear_manager=True)
+
+    def _event_now(self,
+                   event,
+                   num_publishes=3) -> None:
+        '''
+        Redefine cuz no self.managers or self.managers.event.
+        Just self.event_manager.
+        '''
+        with log.LoggingManager.on_or_off(self.debugging):
+            self.event_manager.notify(event, True)
+
+            for each in range(num_publishes):
+                self.event_manager.publish()
 
     # -------------------------------------------------------------------------
     # Helpers and Events
@@ -122,45 +130,8 @@ class Test_Commander(unittest.TestCase):
         # Now registration is open.
         self.assertTrue(self.reg_open)
 
-    def event_cmd_reg(self, event):
-        self.assertIsInstance(event, CommandRegistrationBroadcast)
-        self.reg_open = event
-
     def event_cmd_reply(self, event):
         self.events.append(event)
-
-    def clear_events(self):
-        self.events.clear()
-
-    def make_it_so(self, event, num_publishes=1):
-        '''
-        Notifies the event for immediate action. Which /should/ cause something
-        to process it and queue up an event. So we publish() in order to get
-        that one sent out. Which /should/ cause something to process that?
-
-        Adjust num_publishes if you need to keep going from there.
-        '''
-        with log.LoggingManager.on_or_off(self.debugging):
-            self.event_manager.notify(event, True)
-
-            for each in range(num_publishes):
-                self.event_manager.publish()
-
-    def trigger_events(self, event, num_publishes=3, expected_events=1):
-        self.assertTrue(event)
-        self.assertTrue(num_publishes > 0)
-        self.assertTrue(expected_events >= 0)
-
-        with log.LoggingManager.on_or_off(self.debugging):
-            self.make_it_so(event, num_publishes)
-
-        if expected_events == 0:
-            self.assertFalse(self.events)
-            self.assertEqual(len(self.events), 0)
-            return
-
-        self.assertTrue(self.events)
-        self.assertEqual(len(self.events), expected_events)
 
     def trigger_cmd(self, math, context=None):
         self.cmd_was_triggered = True
@@ -205,9 +176,10 @@ class Test_Commander(unittest.TestCase):
         self.assertFalse(self.reg_open)
 
         event = self.commander.registration(42, None)
-        self.trigger_events(event,
-                            expected_events=0,
-                            num_publishes=1)
+        with log.LoggingManager.on_or_off(self.debugging):
+            self.trigger_events(event,
+                                expected_events=0,
+                                num_publishes=1)
 
         # Now registration is open.
         self.assertTrue(self.reg_open)
@@ -269,3 +241,16 @@ class Test_Commander(unittest.TestCase):
         self.assertIsInstance(status, CommandStatus)
         self.assertTrue(status.success)
         self.assertEqual(status.command_safe, cmd_str)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.interface.input.command.zest_commander
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

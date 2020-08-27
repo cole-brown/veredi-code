@@ -8,8 +8,7 @@ Tests for the Skill system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-import unittest
-
+from veredi.zest.base.system import ZestSystem
 from veredi.zest import zload
 from veredi.base.context import UnitTestContext
 from veredi.data.exceptions import LoadError
@@ -35,97 +34,21 @@ from .component import SkillComponent
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_SkillSystem(unittest.TestCase):
+class Test_SkillSystem(ZestSystem):
     '''
     Test our SkillSystem with some on-disk data.
     '''
 
-    def setUp(self):
-        self.debugging    = False
-
-        (self.manager, _,
-         self.context, _) = zload.set_up(self.__class__.__name__,
-                                         'setUp',
-                                         self.debugging)
-        sid               = zload.create_system(self.manager.system,
-                                                self.context,
-                                                SkillSystem)
-        self.skill        = self.manager.system.get(sid)
-        self.events       = []
-
-    def tearDown(self):
-        self.debugging      = False
-        self.manager        = None
-        self.context        = None
-        self.skill          = None
-        self.events         = None
+    def set_up(self):
+        super().set_up()
+        self.set_up_input()
+        self.init_self_system(SkillSystem)
 
     def sub_events(self):
-        self.manager.event.subscribe(DataLoadedEvent, self.event_loaded)
         self.manager.event.subscribe(SkillResult, self.event_skill_res)
-
-    def set_up_subs(self):
-        self.sub_events()
-        self.manager.system.subscribe(self.manager.event)
-
-    def event_loaded(self, event):
-        self.events.append(event)
 
     def event_skill_res(self, event):
         self.events.append(event)
-
-    def clear_events(self):
-        self.events.clear()
-
-    def create_entity(self):
-        _TYPE_DONT_CARE = 1
-        # TODO [2020-06-01]: When we get to Entities-For-Realsies,
-        # probably change to an EntityContext or something...
-        context = UnitTestContext(
-            self.__class__.__name__,
-            'test_create',
-            {})  # no initial sub-context
-
-        # Set up an entity to load the component on to.
-        eid = self.manager.entity.create(_TYPE_DONT_CARE,
-                                         context)
-        self.assertNotEqual(eid, EntityId.INVALID)
-        entity = self.manager.entity.get(eid)
-        self.assertTrue(entity)
-
-        return entity
-
-    def make_it_so(self, event, num_publishes=3):
-        '''
-        Notifies the event for immediate action. Which /should/ cause something
-        to process it and queue up an event. So we publish() in order to get
-        that one sent out. Which /should/ cause something to process that and
-        queue up another. So we'll publish as many times as asked. Then assert
-        we ended up with an event in our self.events list.
-        '''
-        with log.LoggingManager.on_or_off(self.debugging):
-            self.manager.event.notify(event, True)
-
-            for each in range(num_publishes):
-                self.manager.event.publish()
-
-        self.assertTrue(self.events)
-
-    def trigger_events(self, event, num_publishes=3, expected_events=1):
-        self.assertTrue(event)
-        self.assertTrue(num_publishes > 0)
-        self.assertTrue(expected_events >= 0)
-
-        with log.LoggingManager.on_or_off(self.debugging):
-            self.make_it_so(event, num_publishes)
-
-        if expected_events == 0:
-            self.assertFalse(self.events)
-            self.assertEqual(len(self.events), 0)
-            return
-
-        self.assertTrue(self.events)
-        self.assertEqual(len(self.events), expected_events)
 
     def load_request(self, entity_id, type):
         ctx = DataLoadContext('unit-testing',
@@ -155,7 +78,7 @@ class Test_SkillSystem(unittest.TestCase):
 
         # Ask for our Skill Guy data to be loaded.
         with log.LoggingManager.on_or_off(self.debugging):
-            self.make_it_so(request)
+            self.trigger_events(request)
         self.assertTrue(self.events)
         self.assertEqual(len(self.events), 1)
 
@@ -197,17 +120,17 @@ class Test_SkillSystem(unittest.TestCase):
         self.assertTrue(self.manager)
         self.assertTrue(self.context)
         self.assertTrue(self.manager.system)
-        self.assertTrue(self.skill)
+        self.assertTrue(self.system)
 
     def test_load(self):
-        self.set_up_subs()
+        self.set_up_events()
         entity = self.create_entity()
         self.assertTrue(entity)
         component = self.load(entity)
         self.assertTrue(component)
 
     def test_skill_req_standard(self):
-        self.set_up_subs()
+        self.set_up_events()
         entity = self.create_entity()
         self.load(entity)
         # Throw away loading events.
@@ -228,7 +151,7 @@ class Test_SkillSystem(unittest.TestCase):
         self.assertEqual(result.amount, 9)
 
     def test_skill_req_grouped(self):
-        self.set_up_subs()
+        self.set_up_events()
         entity = self.create_entity()
         self.load(entity)
         # Throw away loading events.
@@ -248,6 +171,15 @@ class Test_SkillSystem(unittest.TestCase):
         # Skill Guy should have Four Nature Knowledges.
         self.assertEqual(result.amount, 4)
 
-    def test_todo(self):
-        log.debug("TODO: Convert to zystem base class like Test_InputSystem")
-        self.assertTrue(True)
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.rules.d20.pf2.skill.zest_system
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()
