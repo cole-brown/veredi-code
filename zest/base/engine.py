@@ -21,8 +21,8 @@ from ..                                 import zload
 from ..zpath                            import TestType
 from veredi.base.const                  import VerediHealth
 
-from veredi.game.ecs.base.engine        import (Engine,
-                                                EngineLifeCycle)
+from veredi.game.engine        import (Engine,
+                                       EngineLifeCycle)
 
 
 # -----------------------------------------------------------------------------
@@ -62,9 +62,6 @@ class ZestEngine(ZestEcs):
         '''
         super().set_up()
 
-        self._set_up_ecs()
-        self._set_up_managers()
-
         # ---
         # Set-Up subclasses might want to do:
         # ---
@@ -83,7 +80,7 @@ class ZestEngine(ZestEcs):
         '''
         Defines ZestSystem's instance variables with type hinting, docstrs.
         '''
-        super._define_vars()
+        super()._define_vars()
 
         self.engine:         Engine        = None
         '''
@@ -110,8 +107,8 @@ class ZestEngine(ZestEcs):
                                          'set_up_ecs',
                                          self.debugging,
                                          debug_flags=self.debug_flags,
-                                         require_engine=False,
-                                         test_type=TestType.INTEGRATION)
+                                         require_engine=True,
+                                         test_type=test_type)
 
     # -------------------------------------------------------------------------
     # Tear-Down

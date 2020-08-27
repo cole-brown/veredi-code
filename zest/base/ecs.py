@@ -9,7 +9,7 @@ ZestEngine. No one currently uses this directly [2020-08-24].
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, List, Iterable
+from typing import Optional, Union, Any, List, Iterable
 
 from veredi.logger                      import log
 from .unit                              import ZestBase
@@ -18,6 +18,8 @@ from ..zpath                            import TestType
 from veredi.base.context                import VerediContext, UnitTestContext
 
 from veredi.base.null                   import Null
+from veredi.data.config.config          import Configuration
+
 from veredi.game.ecs.base.system        import System
 from veredi.game.ecs.base.entity        import (Entity,
                                                 EntityLifeCycle)
@@ -26,6 +28,13 @@ from veredi.game.ecs.base.component     import (Component,
                                                 ComponentLifeCycle)
 from veredi.game.ecs.event              import Event
 from veredi.game.data.event             import DataLoadedEvent
+
+from veredi.game.ecs.time               import TimeManager
+from veredi.game.ecs.event              import EventManager
+from veredi.game.ecs.component          import ComponentManager
+from veredi.game.ecs.entity             import EntityManager
+from veredi.game.ecs.system             import SystemManager
+from veredi.game.engine                 import Engine
 from veredi.game.ecs.meeting            import Meeting
 
 from veredi.interface.input.system      import InputSystem
@@ -103,20 +112,42 @@ class ZestEcs(ZestBase):
     # Set-Up ECS
     # ------------------------------
 
-    # PREVIOUSLY init_managers !!!
     def _set_up_ecs(self,
-                    test_type: Optional[TestType] = TestType.UNIT) -> None:
+                    test_type:      TestType                 = TestType.UNIT,
+                    # Optional ECS:
+                    require_engine:    Optional[bool]                = False,
+                    desired_systems:   Iterable[zload.SysCreateType] = None,
+                    # Optional to pass in - else we'll make:
+                    configuration:     Optional[Configuration]       = None,
+                    time_manager:      Optional[TimeManager]         = None,
+                    event_manager:     Optional[EventManager]        = None,
+                    component_manager: Optional[ComponentManager]    = None,
+                    entity_manager:    Optional[EntityManager]       = None,
+                    system_manager:    Optional[SystemManager]       = None,
+                    # Optional to pass in - else we'll make  if asked:
+                    engine:            Optional[Engine]              = None
+                    ) -> None:
         '''
         Calls zload.set_up to create Meeting of EcsManagers, and a context from
         a config file.
+
+        None of the args are needed, usually.
         '''
         (self.manager, _,
          self.context, _) = zload.set_up(self.__class__.__name__,
                                          '_set_up_ecs',
                                          self.debugging,
+                                         test_type=test_type,
                                          debug_flags=self.debug_flags,
-                                         require_engine=False,
-                                         test_type=test_type)
+                                         require_engine=require_engine,
+                                         desired_systems=desired_systems,
+                                         configuration=configuration,
+                                         time_manager=time_manager,
+                                         event_manager=event_manager,
+                                         component_manager=component_manager,
+                                         entity_manager=entity_manager,
+                                         system_manager=system_manager,
+                                         engine=engine)
 
     # ------------------------------
     # Input / Output Set-Up
@@ -224,13 +255,33 @@ class ZestEcs(ZestBase):
                                     *sys_types)
         return sids
 
-    def init_one_system(self, sys_type: System) -> System:
+    # Could do something like this if we need args/kwargs and many systems.
+    # def init_many_systems(self, *args, **kwargs):
+    #     sids = []
+    #     for each in args:
+    #         if isinstance(each, tuple):
+    #             sids.append(self.init_one_system(each[0], self.context,
+    #                                              *each[1:], **each[2:]))
+    #         else:
+    #             sids.append(self.init_one_system(each, self.context))
+    #
+    #     return sids
+
+    def init_one_system(self,
+                        sys_type: System,
+                        *args:    Any,
+                        **kwargs: Any) -> System:
         '''
         Initializes a system and returns its instance object.
         '''
-        sid = zload.create_system(self.manager.system,
-                                  self.context,
-                                  sys_type)
+        context = UnitTestContext(
+            self.__class__.__name__,
+            'test_create',
+            {}
+            if not kwargs else
+            {'system': kwargs})
+
+        sid = self.manager.system.create(sys_type, context)
         return self.manager.system.get(sid)
 
     # -------------------------------------------------------------------------

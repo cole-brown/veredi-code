@@ -39,7 +39,7 @@ class Parcel:
         Configure ourselves by getting our specific parser and transformer from
         the configuratiion.
         '''
-        if not self._math:
+        if not hasattr(self, '_math') or not self._math:
             self._math = Mather(context)
 
         # TODO [2020-06-14]: Others.
@@ -66,7 +66,7 @@ class Mather:
         Configure ourselves by getting our specific parser and transformer from
         the configuratiion.
         '''
-        if self._parser:
+        if hasattr(self, '_parser') and self._parser:
             return
 
         config = background.config.config

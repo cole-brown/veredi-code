@@ -8,7 +8,7 @@ Tests for the Input system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.zystem                  import BaseSystemTest
+from veredi.zest.base.system         import ZestSystem
 
 from veredi.base.context                 import UnitTestContext
 
@@ -37,7 +37,7 @@ from veredi.interface.input.command.reg  import (CommandRegisterReply,
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_InputSystem(BaseSystemTest):
+class Test_InputSystem(ZestSystem):
     '''
     Test our InputSystem with some on-disk data.
     '''
@@ -54,16 +54,19 @@ class Test_InputSystem(BaseSystemTest):
         },
     }
 
-    def setUp(self):
-        super().setUp()
-        self.init_managers()
-        self.init_system_self(InputSystem)
-        self.init_system_others(IdentitySystem)
+    def set_up(self):
+        super().set_up()
+        # set_up_input() sets up this test's system.
+        self.set_up_input()
+        # ...so assign it to the traditional self.system
+        self.system = self.input_system
+
+        self.init_one_system(IdentitySystem)
         self.test_cmd_recv = None
         self.test_cmd_ctx = None
 
-    def tearDown(self):
-        super().tearDown()
+    def tear_down(self):
+        super().tear_down()
         self.test_cmd_recv = None
         self.test_cmd_ctx = None
 
@@ -71,7 +74,10 @@ class Test_InputSystem(BaseSystemTest):
     # Commands
     # -------------------------------------------------------------------------
 
-    def _make_cmd(self, event):
+    def register_commands(self, event):
+        super().register_commands(event)
+
+        # Register our testing command.
         reply = CommandRegisterReply(event,
                                      'veredi.interface.input.zest_system',
                                      'test',
@@ -136,7 +142,7 @@ class Test_InputSystem(BaseSystemTest):
         self.assertTrue(self.system)
 
     def test_input_cmd(self):
-        self.event_set_up()
+        self.set_up_events()
         self.allow_registration()
 
         entity = self.create_entity()
@@ -170,3 +176,16 @@ class Test_InputSystem(BaseSystemTest):
 
         self.assertTrue(self.test_cmd_recv)
         self.assertTrue(self.test_cmd_ctx)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.interface.input.zest_system
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()
