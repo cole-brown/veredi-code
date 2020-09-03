@@ -20,7 +20,7 @@ and doesn't really need the engine.
 # Imports
 # -----------------------------------------------------------------------------
 
-from ..integrate                          import IntegrationTest
+from veredi.zest.base.integrate import ZestIntegrateEcs
 
 from veredi.base.null                     import Null
 from veredi.base.context                  import UnitTestContext
@@ -50,34 +50,13 @@ from veredi.rules.d20.pf2.skill.component import SkillComponent
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_InputCmd_SkillCheck(IntegrationTest):
+class Test_InputCmd_SkillCheck(ZestIntegrateEcs):
 
-    # ---
-    # Set-Up & Tear-Down
-    # --
-    # Leaving here even if only calling super(). So I remember about them
-    # when next I stumble in here.
-    # ---
-
-    def setUp(self):
-        super().setUp()
-        self.init_required(False)
-        self.init_input()
+    def set_up(self):
+        super().set_up()
         self.init_many_systems(IdentitySystem, SkillSystem)
-        # self.whatever = self.init_a_system(...)
 
-    def tearDown(self):
-        super().tearDown()
-
-    def apoptosis(self):
-        super().apoptosis()
-
-    # ---
-    # Events
-    # ---
-
-    def _sub_events_test(self) -> None:
-        self.sub_loaded()
+    def sub_events(self) -> None:
         self.manager.event.subscribe(SkillResult, self.event_skill_res)
 
     def event_skill_res(self, event):
@@ -108,7 +87,7 @@ class Test_InputCmd_SkillCheck(IntegrationTest):
     # -------------------------------------------------------------------------
 
     def per_test_set_up(self):
-        self.event_set_up()
+        self.set_up_events()
         entity = self.create_entity()
 
         # Make our request event.
@@ -186,3 +165,16 @@ class Test_InputCmd_SkillCheck(IntegrationTest):
             context,
             "/skill $perception + 4")
         self.trigger_events(event, expected_events=0)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.zest.integration.interface.zest_input_cmd_skill_check
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

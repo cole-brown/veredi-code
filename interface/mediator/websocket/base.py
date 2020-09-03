@@ -291,7 +291,7 @@ class VebSocket:
             # early, you might send out 1006 instead ('connection closed
             # abnormally [internal]') which is ConnectionClosedError exception
             # on the other side.
-            self._socket.close()
+            await self._socket.close()
             await self._socket.wait_closed()
 
         # Make sure close flag is set. Could have triggered close by the other

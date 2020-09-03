@@ -392,12 +392,12 @@ class Message(Encodable):
                                           f"about decoding... {msg_id}")
 
         # Let these be None if they were encoded as None?..
-        user_id = mapping['user_id']
-        user_key = mapping['user_key']
-        if user_id:
-            user_id = UserId.decode(user_id)
-        if user_key:
-            user_key = UserKey.decode(user_key)
+        user_id = None
+        user_key = None
+        if mapping['user_id'] is not None:
+            user_id = UserId.decode(mapping['user_id'])
+        if mapping['user_key'] is not None:
+            user_key = UserKey.decode(mapping['user_key'])
 
         decoded = klass(
             msg_id_dec,
@@ -441,7 +441,8 @@ class Message(Encodable):
             f"{self.type}, "
             f"{self.user_id}, "
             f"{self.user_key}]("
-            f"{type(self.payload)}: {str(self.payload)}) "
+            f"{type(self.payload)}: "
+            f"{str(self.payload)})"
         )
 
     def __repr__(self):

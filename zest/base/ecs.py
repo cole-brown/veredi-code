@@ -58,25 +58,18 @@ class ZestEcs(ZestBase):
     ZestEngine. No one currently uses this directly [2020-08-24].
     '''
 
+    _REQUIRE_ENGINE = False
+
     # -------------------------------------------------------------------------
     # Set-Up
     # -------------------------------------------------------------------------
-
-    def set_up(self) -> None:
-        '''
-        Override this!
-
-        super().set_up()
-        <your test stuff>
-        self.init_self_system(...)
-        '''
-        self._define_vars()
-        self._set_up_ecs()
 
     def _define_vars(self) -> None:
         '''
         Defines ZestSystem's instance variables with type hinting, docstrs.
         '''
+        super()._define_vars()
+
         # ------------------------------
         # Events
         # ------------------------------
@@ -108,14 +101,31 @@ class ZestEcs(ZestBase):
         zload.set_up() can provide this.
         '''
 
+        self.config:         Configuration = None
+        '''
+        If class uses a special config, it should be saved here so set-up(s)
+        can use it.
+        '''
+
+    def set_up(self) -> None:
+        '''
+        Override this!
+
+        super().set_up()
+        <your test stuff>
+        self.init_self_system(...)
+        '''
+        self._set_up_ecs()
+
     # ------------------------------
     # Set-Up ECS
     # ------------------------------
 
     def _set_up_ecs(self,
-                    test_type:      TestType                 = TestType.UNIT,
+                    # Will be class._TEST_TYPE if None:
+                    test_type:         Optional[TestType]            = None,
                     # Optional ECS:
-                    require_engine:    Optional[bool]                = False,
+                    require_engine:    Optional[bool]                = None,
                     desired_systems:   Iterable[zload.SysCreateType] = None,
                     # Optional to pass in - else we'll make:
                     configuration:     Optional[Configuration]       = None,
@@ -132,8 +142,17 @@ class ZestEcs(ZestBase):
         a config file.
 
         None of the args are needed, usually.
+          - `test_type` will become `self._TEST_TYPE` if it is None.
+          - `require_engine` will become `self._REQUIRE_ENGINE` if it is None.
         '''
-        (self.manager, _,
+        if test_type is None:
+            test_type = self._TEST_TYPE
+        if require_engine is None:
+            require_engine = self._REQUIRE_ENGINE
+        if configuration is None and self.config:
+            configuration = self.config
+
+        (self.manager, self.engine,
          self.context, _) = zload.set_up(self.__class__.__name__,
                                          '_set_up_ecs',
                                          self.debugging,
@@ -180,7 +199,9 @@ class ZestEcs(ZestBase):
         Does all event subscription/set-up by calling self._sub_*() functions.
         '''
         self._sub_data_loaded()
-        self._sub_events_systems()
+        if not self.engine and not self._REQUIRE_ENGINE:
+            # Engine should be in charge of telling people to "subscribe now!"
+            self._sub_events_systems()
         self.sub_events()
 
         # Clear out events if needed.

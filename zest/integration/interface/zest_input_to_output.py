@@ -22,7 +22,7 @@ Make sure output meets expectations.
 import re
 from itertools import zip_longest
 
-from ..integrate                            import IntegrationTest
+from veredi.zest.base.integrate import ZestIntegrateEngine
 
 from veredi.logger                          import log
 from veredi.base.null                       import Null
@@ -99,44 +99,25 @@ names: {'EntityId:001': aluminum dragon}
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_InputToOutput_AbilityCheck(IntegrationTest):
+class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
 
-    # ---
-    # Set-Up & Tear-Down
-    # --
-    # Leaving here even if only calling super(). So I remember about them
-    # when next I stumble in here.
-    # ---
-
-    def setUp(self):
-        super().setUp()
+    def set_up(self):
         self.debug_flags = DebugFlag.GAME_ALL
+        super().set_up()
+
         self.output_recvd = None
-
-        self.init_required(True)
-        self.init_input()
-        self.init_many_systems(IdentitySystem, MathSystem, AbilitySystem)
-        self.init_output()
-        # self.whatever = self.init_a_system(...)
-
         self.expected_components = {IdentityComponent,
                                     AbilityComponent,
                                     HealthComponent}
 
-    def tearDown(self):
-        super().tearDown()
+        self.init_many_systems(IdentitySystem, MathSystem, AbilitySystem)
+
+    def tear_down(self):
+        super().tear_down()
         self.expected_components = None
         self.output_recvd = None
 
-    def apoptosis(self):
-        super().apoptosis()
-
-    # ---
-    # Events
-    # ---
-
-    def _sub_events_test(self) -> None:
-        self.sub_loaded()
+    def sub_events(self) -> None:
         self.manager.event.subscribe(AbilityResult, self.event_ability_res)
 
     def event_ability_res(self, event):
@@ -163,6 +144,9 @@ class Test_InputToOutput_AbilityCheck(IntegrationTest):
         return event
 
     def recv_output(self, send_entry):
+        '''
+        Unit testing callback for OutputSystem.
+        '''
         self.output_recvd = send_entry
 
     # -------------------------------------------------------------------------
@@ -171,7 +155,7 @@ class Test_InputToOutput_AbilityCheck(IntegrationTest):
 
     def per_test_set_up(self):
         self.engine_set_up()
-        self.event_set_up()
+        self.set_up_events()
         entity = self.create_entity()
 
         # import veredi.zest.debug.background
@@ -303,3 +287,16 @@ class Test_InputToOutput_AbilityCheck(IntegrationTest):
             i += 1
 
         self.manager.system.get(OutputSystem)._unit_test()
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.zest.integration.interface.zest_input_to_output
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

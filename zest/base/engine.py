@@ -47,9 +47,29 @@ class ZestEngine(ZestEcs):
       - r'_[a-z_][a-zA-Z_]*[a-z]': Just used by this internally, most likely.
     '''
 
+    _REQUIRE_ENGINE = True
+
     # -------------------------------------------------------------------------
     # Set-Up
     # -------------------------------------------------------------------------
+
+    def _define_vars(self) -> None:
+        '''
+        Defines ZestSystem's instance variables with type hinting, docstrs.
+        '''
+        super()._define_vars()
+
+        self.engine:         Engine        = None
+        '''
+        The ECS Game Engine.
+        zload.set_up() can provide this.
+        '''
+
+        self.engine_ready = False
+        '''
+        Flag we set after we initialize the engine in engine_set_up(). Prevents
+        double-init of engine via programmer stupidity... >.>
+        '''
 
     def set_up(self) -> None:
         '''
@@ -57,8 +77,6 @@ class ZestEngine(ZestEcs):
 
         super().set_up()
         <your test stuff>
-        self.init_managers(...)
-        self.init_system(...)
         '''
         super().set_up()
 
@@ -75,40 +93,6 @@ class ZestEngine(ZestEcs):
         #
         # self.set_up_events()
         #   - Subscribes to test's desired events, tells ECS to subscribe.
-
-    def _define_vars(self) -> None:
-        '''
-        Defines ZestSystem's instance variables with type hinting, docstrs.
-        '''
-        super()._define_vars()
-
-        self.engine:         Engine        = None
-        '''
-        The ECS Game Engine.
-        zload.set_up() can provide this.
-        '''
-
-        self.engine_ready = True
-        '''
-        Flag we set after we initialize the engine in engine_set_up(). Prevents
-        double-init of engine via programmer stupidity... >.>
-        '''
-
-    def _set_up_ecs(self,
-                    test_type: Optional[TestType] = TestType.UNIT) -> None:
-        '''
-        Calls zload.set_up to create Meeting of EcsManagers, and a context from
-        a config file.
-        '''
-        # Do not call parent's _set_up_ecs(). Does the same thing but ignores
-        # the engine return value.
-        (self.manager, self.engine,
-         self.context, _) = zload.set_up(self.__class__.__name__,
-                                         'set_up_ecs',
-                                         self.debugging,
-                                         debug_flags=self.debug_flags,
-                                         require_engine=True,
-                                         test_type=test_type)
 
     # -------------------------------------------------------------------------
     # Tear-Down
@@ -140,7 +124,7 @@ class ZestEngine(ZestEcs):
         if not self.engine:
             return
 
-        # §-TODO-§ [2020-08-24]: Make sure managers and systems get apoptosis
+        # TODO [2020-08-24]: Make sure managers and systems get apoptosis
         # calls.
 
         self.engine.apoptosis()
