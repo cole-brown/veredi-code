@@ -18,7 +18,7 @@ and doesn't really need the engine.
 # Imports
 # -----------------------------------------------------------------------------
 
-from ..integrate import IntegrationTest
+from veredi.zest.base.integrate import ZestIntegrateEcs
 
 from veredi.data.context                    import (DataGameContext,
                                                     DataLoadContext)
@@ -44,37 +44,21 @@ from veredi.game.data.identity.component    import IdentityComponent
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_DataLoad_DiskToGame(IntegrationTest):
+class Test_DataLoad_DiskToGame(ZestIntegrateEcs):
 
-    # ---
-    # Set-Up & Tear-Down
-    # Leaving here even though only calling super(). So I remember about them
-    # when next I stumble in here.
-    # ---
-
-    def setUp(self):
-        super().setUp()
-        self.init_required(False)
-        # self.init_many_systems(...)
-        # self.whatever = self.init_a_system(...)
-
+    def set_up(self):
+        super().set_up()
         self.expected_components = {IdentityComponent,
                                     AbilityComponent,
                                     HealthComponent}
 
-    def tearDown(self):
-        super().tearDown()
+    def tear_down(self):
+        super().tear_down()
         self.expected_components = None
-
-    def apoptosis(self):
-        super().apoptosis()
 
     # ---
     # Events
     # ---
-
-    def _sub_events_test(self) -> None:
-        self.sub_loaded()
 
     def load_request(self, type):
         ctx = DataLoadContext('unit-testing',
@@ -109,7 +93,7 @@ class Test_DataLoad_DiskToGame(IntegrationTest):
         self.assertTrue(self.manager.system)
 
     def test_set_up(self):
-        self.event_set_up()
+        self.set_up_events()
 
         # Make our request event.
         request = self.load_request(DataGameContext.DataType.MONSTER)
@@ -157,3 +141,16 @@ class Test_DataLoad_DiskToGame(IntegrationTest):
                          3)
         self.assertEqual(health_data['health']['immunity']['bludgeoning'],
                          True)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.zest.integration.data.zest_data_disk_to_game
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()

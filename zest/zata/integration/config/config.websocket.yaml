@@ -1,6 +1,7 @@
 --- !metadata
+
 record-type: veredi.config
-version: 2020-07.23
+version: 2020-07-23
 
 source: veredi.config
 author: Cole Brown

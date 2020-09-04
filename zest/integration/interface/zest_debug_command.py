@@ -17,7 +17,7 @@ Test debug command(s).
 # Imports
 # -----------------------------------------------------------------------------
 
-from ..integrate                      import IntegrationTest
+from veredi.zest.base.integrate import ZestIntegrateEngine
 
 from veredi.logger                    import log
 from veredi.debug.const               import DebugFlag
@@ -41,46 +41,12 @@ import veredi.zest.debug.background
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_EngineStart_DebugCmds(IntegrationTest):
+class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
 
-    # ---
-    # Set-Up & Tear-Down
-    # --
-    # Leaving here even if only calling super(). So I remember about them
-    # when next I stumble in here.
-    # ---
-
-    def setUp(self):
-        super().setUp()
-
+    def set_up(self):
         self.debug_flags = DebugFlag.GAME_ALL
-        self.init_required(True)
-        self.init_input()
-        self.init_many_systems(IdentitySystem)
-        # self.whatever = self.init_a_system(...)
-        self._logs = []
-
-    def tearDown(self):
-        super().tearDown()
-        self._logs = None
-        # Just in case anyone forgot to do this when they're done.
-        log.ut_tear_down()
-
-    def apoptosis(self):
-        super().apoptosis()
-
-    # ---
-    # Events
-    # ---
-
-    # No result event... yet.
-
-    # def _sub_events_test(self) -> None:
-    #     self.sub_loaded()
-    #     self.manager.event.subscribe(SkillResult, self.event_skill_res)
-
-    # def event_skill_res(self, event):
-    #     self.events.append(event)
+        super().set_up()
+        self.init_one_system(IdentitySystem)
 
     # -------------------------------------------------------------------------
     # Tests
@@ -140,12 +106,12 @@ class Test_EngineStart_DebugCmds(IntegrationTest):
         self.trigger_events(event, expected_events=0)
         self.capture_logs(False)
 
-        self.assertTrue(self._logs)
+        self.assertTrue(self.logs)
 
         # Look through any received logs for our command output.
         log_level = None
         log_msg = None
-        for captured_log in self._logs:
+        for captured_log in self.logs:
             if veredi.zest.debug.background._LOG_TITLE in captured_log[1]:
                 log_level = captured_log[0]
                 log_msg = captured_log[1]
@@ -179,12 +145,12 @@ class Test_EngineStart_DebugCmds(IntegrationTest):
         self.trigger_events(event, expected_events=0)
         self.capture_logs(False)
 
-        self.assertTrue(self._logs)
+        self.assertTrue(self.logs)
 
         # Look through any received logs for our command output.
         log_level = None
         log_msg = None
-        for captured_log in self._logs:
+        for captured_log in self.logs:
             if veredi.zest.debug.background._LOG_TITLE in captured_log[1]:
                 log_level = captured_log[0]
                 log_msg = captured_log[1]
@@ -194,3 +160,16 @@ class Test_EngineStart_DebugCmds(IntegrationTest):
         self.assertEqual(log_level, log.Level.CRITICAL)
         self.assertIn(veredi.zest.debug.background._LOG_TITLE,
                       log_msg)
+
+
+# --------------------------------Unit Testing---------------------------------
+# --                      Main Command Line Entry Point                      --
+# -----------------------------------------------------------------------------
+
+# Can't just run file from here... Do:
+#   doc-veredi python -m veredi.zest.integration.interface.zest_debug_command
+
+if __name__ == '__main__':
+    import unittest
+    # log.set_level(log.Level.DEBUG)
+    unittest.main()
