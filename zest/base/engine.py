@@ -59,12 +59,6 @@ class ZestEngine(ZestEcs):
         '''
         super()._define_vars()
 
-        self.engine:         Engine        = None
-        '''
-        The ECS Game Engine.
-        zload.set_up() can provide this.
-        '''
-
         self.engine_ready = False
         '''
         Flag we set after we initialize the engine in engine_set_up(). Prevents

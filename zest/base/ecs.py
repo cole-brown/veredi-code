@@ -107,6 +107,16 @@ class ZestEcs(ZestBase):
         can use it.
         '''
 
+        # ------------------------------
+        # Engine
+        # ------------------------------
+
+        self.engine:         Engine        = None
+        '''
+        The ECS Game Engine.
+        zload.set_up() can provide this.
+        '''
+
     def set_up(self) -> None:
         '''
         Override this!
