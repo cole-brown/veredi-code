@@ -60,6 +60,13 @@ class ZestEcs(ZestBase):
 
     _REQUIRE_ENGINE = False
 
+    LOG_LEVEL = log.Level.INFO
+    '''
+    Test should set this to desired during setUp().
+
+    TODO: Start using this in base classes?
+    '''
+
     # -------------------------------------------------------------------------
     # Set-Up
     # -------------------------------------------------------------------------
@@ -382,13 +389,17 @@ class ZestEcs(ZestBase):
         # need to output all the logs during events.
         self._event_now(event, num_publishes)
 
-        if expected_events == 0:
-            self.assertFalse(self.events)
-            self.assertEqual(len(self.events), 0)
-            return
-
-        self.assertTrue(self.events)
-        self.assertEqual(len(self.events), expected_events)
+        # Build a message for all the events existing if we are about to fail
+        # and we are verbose?
+        event_msg = None
+        if (len(self.events) != expected_events
+                and (self._ut_is_verbose or self.LOG_LEVEL >= log.Level.INFO)):
+            event_strs = [str(event) for event in self.events]
+            event_msg = "\nUnexpected number of events in self.events!:"
+            for string in event_strs:
+                event_msg += f"\n\n  {string}"
+        self.assertEqual(len(self.events), expected_events,
+                         event_msg)
 
     def _eventsub_loaded(self, event: Event) -> None:
         '''

@@ -30,15 +30,18 @@ import multiprocessing.connection
 import asyncio
 # import signal
 
-from veredi.logger             import log
-from veredi.debug.const        import DebugFlag
-from veredi.data.config.config import Configuration
-from veredi.base.identity      import MonotonicId
+from veredi.logger              import log
+from veredi.debug.const         import DebugFlag
+from veredi.data                import background
+from veredi.data.config.context import ConfigContext
+from veredi.base.identity       import MonotonicId
+from veredi.base.context        import VerediContext
+from veredi.parallel.multiproc  import SubToProcComm
 
-# from .                         import exceptions
-from .context                  import MediatorContext, MessageContext
-from .message                  import Message, MsgType
-from .payload.logging          import LogPayload, LogField
+# from .                        import exceptions
+from .context                   import MediatorContext, MessageContext
+from .message                   import Message, MsgType
+from .payload.logging           import LogPayload, LogField
 
 
 # -----------------------------------------------------------------------------
@@ -68,38 +71,41 @@ class Mediator(ABC):
 
     SHUTDOWN_TIMEOUT_SEC = 5.0
 
-    def __init__(self,
-                 config:         Configuration,
-                 conn:           multiprocessing.connection.Connection,
-                 shutdown_flag:  multiprocessing.Event,
-                 debug:          DebugFlag                             = None,
-                 unit_test_pipe: multiprocessing.connection.Connection = None
-                 ) -> None:
+    def _define_vars(self) -> None:
+        '''
+        Set up our vars with type hinting, docstrs.
+        '''
 
-        self._debug: DebugFlag = debug
+        self._comms: SubToProcComm = None
+        '''
+        This sub-process to parent process connections, flags, debug info.
+        '''
+
+        self._debug: DebugFlag = None
         '''Extra debugging output granularity.'''
 
+        # TODO [2020-09-11]: Remove all self._testing stuff - unused.
         self._testing: bool = False
         '''
         Whatever abnormal shenanigans are needed for unit testing are hidden
         behind this flag. For example, server shouldn't push MsgType.LOGGING
-        reply messages into its _med_to_game_queue, but will if unit testing so
-        that the unit test can inspect the client's response.
+        reply messages into its _med_to_game_queue, but will if unit testing
+        so that the unit test can inspect the client's response.
         '''
 
-        self._test_pipe: multiprocessing.connection.Connection = unit_test_pipe
-        '''
-        A little backchannel for unit-testing IPC to tell us to do weird stuff
-        like toggle self._unit_testing flag.
-        '''
+        # self._test_pipe: multiprocessing.connection.Connection = None
+        # '''
+        # A little backchannel for unit-testing IPC to tell us to do weird
+        # stuff like toggle self._testing flag.
+        # '''
 
-        self._game_pipe: multiprocessing.connection.Connection = conn
-        '''Our IPC connection to the game process.'''
+        # self._game_pipe: multiprocessing.connection.Connection = None
+        # '''Our IPC connection to the game process.'''
 
-        self._shutdown_process: multiprocessing.Event = shutdown_flag
-        '''Event to check to see if we have been asked to shutdown.'''
+        # self._shutdown_process: multiprocessing.Event = None
+        # '''Event to check to see if we have been asked to shutdown.'''
 
-        self._shutdown_asyncs:  asyncio.Event         = asyncio.Event()
+        self._shutdown_asyncs:  asyncio.Event = asyncio.Event()
         '''
         Async event that gets set once `self._shutdown_process` is set and
         noticed.
@@ -119,11 +125,58 @@ class Mediator(ABC):
         self._med_to_game_queue = asyncio.Queue()
         '''Queue for received data from server to be passed to the game.'''
 
+    def __init__(self, context: VerediContext) -> None:
+        # ------------------------------
+        # Make our vars first.
+        # ------------------------------
+        self._define_vars()
+
+        # ------------------------------
+        # Get/check for required stuff.
+        # ------------------------------
+
+        # Must have context and subproc.
+        if context:
+            self._comms = ConfigContext.subproc(context)
+        else:
+            raise background.config.exception(
+                context,
+                None,
+                "Cannot configure {} without a supplied context.",
+                self.__class__.__name__)
+
+        if not self._comms:
+            raise background.config.exception(
+                context,
+                None,
+                "Cannot configure {} without SubToProcComm object in context.",
+                self.__class__.__name__)
+
+        # Get (required) config.
+        config = background.config.config
+        if not config:
+            raise background.config.exception(
+                context,
+                None,
+                "Cannot configure {} without a Configuration in the "
+                "supplied context.",
+                self.__class__.__name__)
+
+        # ------------------------------
+        # Grab some things from comms.
+        # ------------------------------
+
+        # Leave all the 'communications' stuff in self._comms.
+        # E.g. connections/pipes, multiproc event flags (shutdown flag), etc.
+
+        # Pull debug up to class.
+        self._debug = self._comms.debug_flag
+
     # -------------------------------------------------------------------------
     # Debug
     # -------------------------------------------------------------------------
 
-    # §-TODO-§ [2020-08-18]: Make a "debuggable" or "loggable" class/interface,
+    # TODO [2020-08-18]: Make a "debuggable" or "loggable" class/interface,
     # move this debug() there.
     # Also make the other debug level functions.
     # Also also make a 'print'.
@@ -263,14 +316,14 @@ class Mediator(ABC):
         No wait/block.
         Returns True if queue from game has data to send to server.
         '''
-        return self._game_pipe.poll()
+        return self._comms.pipe.poll()
 
     def _game_pipe_get(self) -> Tuple[Message, MessageContext]:
         '''
         Gets data from game pipe for sending. Waits/blocks until it receives
         something.
         '''
-        msg, ctx = self._game_pipe.recv()
+        msg, ctx = self._comms.pipe.recv()
         self.debug(f"Got from game pipe for sending: msg: {msg}, ctx: {ctx}")
         return msg, ctx
 
@@ -278,7 +331,7 @@ class Mediator(ABC):
         '''Puts data into game pipe for game to receive.'''
         self.debug("Received into game pipe for game to process: "
                    f"msg: {msg}, ctx: {ctx}")
-        self._game_pipe.send((msg, ctx))
+        self._comms.pipe.send((msg, ctx))
 
     # ------------------------------
     # Mediator-RX -> Mediator-to-Game Queue
@@ -350,28 +403,44 @@ class Mediator(ABC):
     # Unit Test Case -> Mediator
     # ------------------------------
 
+    def _test_pipe_exists(self) -> bool:
+        '''
+        Returns True if self._comms.ut_pipe is truthy.
+        '''
+        return bool(self._comms.ut_pipe)
+
     def _test_has_data(self) -> bool:
         '''
         No wait/block.
         Returns True if queue from unit test has data for us.
         '''
-        return self._test_pipe.poll()
+        if not self._test_pipe_exists():
+            return False
+        return self._comms.ut_pipe.poll()
 
-    def _test_pipe_get(self) -> str:
+    def _test_pipe_get(self) -> Optional[str]:
         '''
-        Gets data from unit test pipe for sending. Waits/blocks until it
-        receives something.
+        Returns 'None' immediately if no unit test pipe. Otherwise gets data
+        from unit test pipe for sending. Waits/blocks until it receives
+        something.
         '''
-        recv = self._test_pipe.recv()
+        if not self._test_pipe_exists():
+            return None
+        recv = self._comms.ut_pipe.recv()
         self.debug("Got from unit test pipe for sending: "
                    f"string: {recv}")
         return recv
 
     def _test_pipe_put(self, send: str) -> None:
-        '''Puts data into unit test pipe for unit test to receive.'''
+        '''
+        Ignored if unit test pipe doesn't exist. Otherwise puts data into unit
+        test pipe for unit test to receive.
+        '''
+        if not self._test_pipe_exists():
+            return
         self.debug("Putting into test pipe for unit test to process: "
                    f"string: {send}")
-        self._test_pipe.send(send)
+        self._comms.ut_pipe.send(send)
 
     # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
@@ -472,11 +541,11 @@ class Mediator(ABC):
                 # pair before deciding to take (drastic?) action here...
 
             if string == _UT_ENABLE:
-                self._unit_testing = True
+                self._testing = True
                 self.debug("Enabled unit testing flag.")
 
             elif string == _UT_DISABLE:
-                self._unit_testing = True
+                self._testing = True
                 self.debug("Disabled unit testing flag.")
 
             else:
@@ -499,7 +568,7 @@ class Mediator(ABC):
         Returns true if we should shutdown this process.
         '''
         return (
-            self._shutdown_process.is_set()
+            self._comms.shutdown.is_set()
             or self._shutdown_asyncs.is_set()
         )
 
@@ -507,5 +576,5 @@ class Mediator(ABC):
         '''
         Sets all shutdown flags. Cannot unset.
         '''
-        self._shutdown_process.set()
+        self._comms.shutdown.set()
         self._shutdown_asyncs.set()

@@ -22,6 +22,7 @@ import enum
 
 
 from veredi.base.null import Null, Nullable, NullNoneOr
+from veredi.base      import dotted
 
 
 # -----------------------------------------------------------------------------
@@ -51,8 +52,6 @@ FMT_LINE_HUMAN = (
     '{module:s}.{funcName:s}: {message:s}'
 )
 
-LOGGER_NAME = "veredi"
-
 
 _ULTRA_MEGA_DEBUG_BT = '!~'
 _ULTRA_MEGA_DEBUG_TB = '~!'
@@ -72,9 +71,9 @@ _ULTRA_MEGA_DEBUG_FMT = (
 )
 
 
-# ---
+# ------------------------------
 # Log Levels
-# ---
+# ------------------------------
 
 @enum.unique
 class Level(enum.IntEnum):
@@ -98,6 +97,50 @@ class Level(enum.IntEnum):
 
 
 DEFAULT_LEVEL = Level.INFO
+
+
+# ------------------------------
+# Logger Names
+# ------------------------------
+
+@enum.unique
+class LogName(enum.Enum):
+    ROOT = dotted.join('veredi')
+    '''
+    The default/root veredi logger.
+    '''
+
+    MULTIPROC = dotted.join(ROOT, 'multiproc')
+    '''
+    multiproc's logger for setting up/tearing down sub-processes.
+    '''
+
+    # TODO [2020-09-12]: More logger names. Some formats?
+
+    def _make(*name: str) -> str:
+        '''
+        Make **ANY** LogName from `*name` strings.
+
+        Should use `rooted()` unless you're special.
+        '''
+        return dotted.join(*name)
+
+    def rooted(self, *name: str) -> str:
+        '''
+        Make a LogName rooted from LogName enum called from.
+        Examples:
+          LogName.ROOT.rooted('jeff')
+            -> 'veredi.jeff'
+          LogName.MULTIPROC.rooted('server', 'jeff')
+            -> 'veredi.multiproc.server.jeff'
+        '''
+        return dotted.join(str(self), *name)
+
+    def __str__(self) -> str:
+        '''
+        Returns value string of enum.
+        '''
+        return self.value
 
 
 # -----------------------------------------------------------------------------
@@ -131,11 +174,11 @@ def init(level:        Union[Level, int]           = DEFAULT_LEVEL,
     loggers.
     '''
     global __initialized
-    if __initialized: # and not reinitialize:
+    if __initialized:  # and not reinitialize:
         return
 
     global logger
-    logger = init_logger(LOGGER_NAME, level, handler, formatter)
+    logger = init_logger(str(LogName.ROOT), level, handler, formatter)
 
 
 def init_logger(logger_name: str,
@@ -274,7 +317,7 @@ class BestTimeFmt(logging.Formatter):
 
     def formatTime(self,
                    record: logging.LogRecord,
-                   fmt_date: str = None):
+                   fmt_date: str = None) -> str:
         converted = self.converter(record.created)
         if fmt_date:
             time_str = converted.strftime(fmt_date)
@@ -564,7 +607,7 @@ def at_level(level: 'Level',
 #       something_log_spammy_we_dont_care_about_right_now()
 
 class LoggingManager:
-    def __init__(self, level: Level, no_op: bool = False):
+    def __init__(self, level: Level, no_op: bool = False) -> None:
         self._desired = level
         self._original = get_level()
         self._do_nothing = no_op

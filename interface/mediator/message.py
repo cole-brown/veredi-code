@@ -418,16 +418,16 @@ class Message(Encodable):
     @classmethod
     def log(klass:       'Message',
             msg_id:      Union[MonotonicId, int],
-            user_id:     UserId,
-            user_key:    UserKey,
+            user_id:     Optional[UserId],
+            user_key:    Optional[UserKey],
             log_payload: LogPayload) -> 'Message':
         '''
         Creates a LOGGING message with the supplied data.
         '''
         msg = Message(msg_id, MsgType.LOGGING,
-                      payload=log_payload,
                       user_id=user_id,
-                      user_key=user_key)
+                      user_key=user_key,
+                      payload=log_payload)
         return msg
 
     # ------------------------------

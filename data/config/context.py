@@ -12,6 +12,8 @@ from typing import (TYPE_CHECKING,
                     Optional, Any, Type, Iterable)
 if TYPE_CHECKING:
     from .config import Configuration
+    from veredi.parallel.multiproc import SubToProcComm
+
 from veredi.base.null import Nullable, Null
 
 import enum
@@ -52,6 +54,18 @@ class ConfigContext(EphemerealContext):
         PATH = enum.auto()
         '''A pathlib.Path to somewhere. Can look in background.data if none
         supplied.'''
+
+        LOG_LEVEL = enum.auto()
+        '''
+        A log level for things to config their sub-loggers.
+        Should just be used for main set-up (of primary logger) or
+        set-up of sub-processes (like mediator server).
+        '''
+
+        SUB_PROC = enum.auto()
+        '''
+        A SubToProcComm object to hold on to for a sub-process.
+        '''
 
     def __init__(self,
                  path:        pathlib.Path,
@@ -127,6 +141,47 @@ class ConfigContext(EphemerealContext):
             msg, *args, **kwargs,
             context=context,
             stacklevel=3)
+
+    @classmethod
+    def set_log_level(klass:   Type['ConfigContext'],
+                      context: VerediContext,
+                      level:   Optional[log.Level]) -> Nullable[log.Level]:
+        '''
+        Sets log_level in `context`. Pops if `level` is None.
+        '''
+        context._sub_set(klass.KEY,
+                         klass.Link.LOG_LEVEL,
+                         level)
+
+    @classmethod
+    def log_level(klass: Type['ConfigContext'],
+                  context: VerediContext) -> Nullable[log.Level]:
+        '''
+        Returns log_level in `context` or Null.
+        '''
+        return context._sub_get(klass.KEY,
+                                klass.Link.LOG_LEVEL)
+
+    @classmethod
+    def set_subproc(klass:   Type['config'],
+                    context: VerediContext,
+                    value:   'SubToProcComm') -> None:
+        '''
+        Sets a SubToProcComm. Pops if `value` is None.
+        '''
+        context._sub_set(klass.KEY,
+                         klass.Link.SUB_PROC,
+                         value)
+
+    @classmethod
+    def subproc(klass:   Type['config'],
+                context: VerediContext) -> Nullable['SubToProcComm']:
+        '''
+        Returns a SubToProcComm or Null.
+        '''
+        comms = context._sub_get(klass.KEY,
+                                 klass.Link.SUB_PROC)
+        return comms or Null()
 
     # -------------------------------------------------------------------------
     # Unit Testing

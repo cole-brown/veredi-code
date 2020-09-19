@@ -206,6 +206,7 @@ def set_up_background() -> None:
     # Context will create an empty data structure to fill if it has none, so we
     # just need to nuke it from orbit.
     background.testing.nuke()
+    background.testing.set_unit_testing(True)
 
 
 def tear_down_background() -> None:

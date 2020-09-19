@@ -31,6 +31,7 @@ import re
 from veredi.logger               import log
 from veredi.debug.const          import DebugFlag
 from veredi.base.identity        import MonotonicId
+from veredi.base.context         import VerediContext
 from veredi.data.identity        import UserId
 from veredi.data                 import background
 from veredi.data.config.config   import Configuration
@@ -149,27 +150,23 @@ class WebSocketClient(WebSocketMediator):
     Mediator for... client-ing over WebSockets.
     '''
 
-    def __init__(self,
-                 config:         Configuration,
-                 conn:           multiprocessing.connection.Connection,
-                 shutdown_flag:  multiprocessing.Event,
-                 user_id:        Optional[UserId]                      = None,
-                 user_key:       Optional[UserId]                      = None,
-                 debug:          Optional[DebugFlag]                   = None,
-                 unit_test_pipe: multiprocessing.connection.Connection = None
-                 ) -> None:
-        # Base class init first.
-        super().__init__(config, conn, shutdown_flag, 'client',
-                         debug=debug,
-                         unit_test_pipe=unit_test_pipe)
+    def _define_vars(self) -> None:
+        '''
+        Set up our vars with type hinting, docstrs.
+        '''
+        super()._define_vars()
 
-        self._id: Optional[UserId] = user_id
+        # ---
+        # Client's Auth Info
+        # ---
+        self._id: Optional[UserId] = None
         '''Our auth id for talking to server.'''
-        self._key: Optional[UserId] = user_key
+
+        self._key: Optional[UserId] = None
         '''Our auth key for talking to server.'''
 
         # ---
-        # Now we can make our WebSocket stuff...
+        # Client WebSocket stuff...
         # ---
         self._connect_request: asyncio.Event = asyncio.Event()
         '''
@@ -177,13 +174,25 @@ class WebSocketClient(WebSocketMediator):
         server and start running the producer/consumer pipelines.
         '''
 
-        self._connected: bool = True
+        self._connected: bool = False
         '''
         Have we managed to connect to server yet?
 
         Note: Not really "are we connected right now". Just "has the server
         confirmed our CONNECT with an ACK_CONNECT at some point in the past?"
         '''
+
+    def __init__(self,
+                 context: VerediContext) -> None:
+        # Base class init first.
+        super().__init__(context, 'client')
+
+        # TODO [2020-09-12]: Remove this and get or generate auth id/key some
+        # other way.
+        subctx = context.sub
+        if 'id' in subctx:
+            self._id = subctx['id']
+            self._key = subctx['key']
 
     # -------------------------------------------------------------------------
     # Properties
@@ -388,7 +397,7 @@ class WebSocketClient(WebSocketMediator):
                       # TODO: different payload? add user_key?
                       payload=self._id,
                       user_id=self._id,
-                      user_key=None)
+                      user_key=self._key)
         return msg, ctx
 
     def _request_connect(self) -> None:
@@ -473,8 +482,7 @@ class WebSocketClient(WebSocketMediator):
 
         # This is all we need at the moment...
         msg.user_id = self._id
-        # TODO: key too...
-        # msg.user_key = self._key
+        msg.user_key = self._key
         return msg
 
     async def _hook_consume(self,

@@ -32,6 +32,7 @@ import re
 from veredi.logger               import log
 from veredi.debug.const          import DebugFlag
 from veredi.base.identity        import MonotonicId
+from veredi.base.context         import VerediContext
 from veredi.data                 import background
 from veredi.data.identity        import UserId, UserKey
 from veredi.data.config.config   import Configuration
@@ -525,17 +526,21 @@ class WebSocketServer(WebSocketMediator):
     Mediator for serving over WebSockets.
     '''
 
+    def _define_vars(self) -> None:
+        '''
+        Set up our vars with type hinting, docstrs.
+        '''
+        super()._define_vars()
+
+        self._clients: ClientRegistry = ClientRegistry(self.debug)
+        '''
+        Our currently connected users.
+        '''
+
     def __init__(self,
-                 config:        Configuration,
-                 conn:          multiprocessing.connection.Connection,
-                 shutdown_flag: multiprocessing.Event,
-                 debug:         DebugFlag                              = None,
-                 unit_test_pipe: multiprocessing.connection.Connection = None
-                 ) -> None:
+                 context: VerediContext) -> None:
         # Base class init first.
-        super().__init__(config, conn, shutdown_flag, 'server',
-                         debug=debug,
-                         unit_test_pipe=unit_test_pipe)
+        super().__init__(context, 'server')
 
         # ---
         # Now we can make our WebSocket stuff...
@@ -549,14 +554,6 @@ class WebSocketServer(WebSocketMediator):
                                        port=self._port,
                                        secure=self._ssl,
                                        debug_fn=self.debug)
-        '''
-        Serving/listening on this socket.
-        '''
-
-        self._clients: ClientRegistry = ClientRegistry(self.debug)
-        '''
-        Our currently connected users.
-        '''
 
     # -------------------------------------------------------------------------
     # User Connection Tracking
