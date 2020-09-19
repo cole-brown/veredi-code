@@ -16,11 +16,12 @@ from typing import Optional
 import multiprocessing
 import multiprocessing.connection
 
+from veredi.zest                                import zontext
+from veredi.parallel                            import multiproc
 from veredi.zest.base.multiproc                 import (ZestIntegrateMultiproc,
                                                         Processes,
                                                         ProcTest,
-                                                        TestProc,
-                                                        _sigint_ignore)
+                                                        ClientProcToSubComm)
 from veredi.logger                              import (log,
                                                         log_client)
 from veredi.debug.const                         import DebugFlag
@@ -30,6 +31,8 @@ from veredi.data.identity                       import (UserId,
                                                         UserIdGenerator,
                                                         UserKey,
                                                         UserKeyGenerator)
+from veredi.base.context         import VerediContext
+from veredi.data.config.context         import ConfigContext
 
 
 # ---
@@ -62,117 +65,124 @@ LOG_LEVEL = log.Level.INFO
 # -----------------------------------------------------------------------------
 # Multiprocessing Runners
 # -----------------------------------------------------------------------------
+def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
+    '''
+    Init and run server-side client/engine IO mediator.
+    '''
+    # ------------------------------
+    # Set Up Logging, Get from Context
+    # ------------------------------
+    comms = ConfigContext.subproc(context)
+    if not comms:
+        raise log.exception(
+            "MediatorServer requires a SubToProcComm; received None.")
 
-def run_server(proc_name     = None,
-               conn          = None,
-               config        = None,
-               log_level     = None,
-               shutdown_flag = None,
-               debug_flag    = None,
-               proc_test     = None,
-               ut_conn       = None) -> None:
-    '''
-    Init and run client/engine IO mediator.
-    '''
-    # TODO [2020-08-10]: Logging init should take care of level... Try to
-    # get rid of this setLevel().
-    lumberjack = log.get_logger(proc_name)
+    log_level = ConfigContext.log_level(context)
+    lumberjack = log.get_logger(comms.name)
     lumberjack.setLevel(int(log_level))
-    if proc_test.has(ProcTest.DNE):
-        # Mediator Server 'Does Not Exist' right now.
-        lumberjack.critical(f"BAD: mediator server start: '{proc_name}' "
-                            f"has {proc_test}. Should not have gotten "
-                            "into this function.")
-        return
 
-    _sigint_ignore()
+    multiproc._sigint_ignore()
     log_client.init(log_level)
 
-    if not conn:
+    # ------------------------------
+    # Sanity Check
+    # ------------------------------
+    # It's a test - and the first multiprocess test - so... don't assume the
+    # basics.
+    if not comms.pipe:
         raise log.exception(
-            "Mediator requires a pipe connection; received None.",
+            "MediatorServer requires a pipe connection; received None.",
             veredi_logger=lumberjack)
-    if not config:
+    if not comms.config:
         raise log.exception(
-            "Mediator requires a configuration; received None.",
+            "MediatorServer requires a configuration; received None.",
             veredi_logger=lumberjack)
     if not log_level:
         raise log.exception(
-            "Mediator requires a default log level (int); received None.",
+            "MediatorServer requires a default log level (int); "
+            "received None.",
             veredi_logger=lumberjack)
-    if not shutdown_flag:
+    if not comms.shutdown:
         raise log.exception(
-            "Mediator requires a shutdown flag; received None.",
+            "MediatorServer requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
+
+    # ------------------------------
+    # Finish Set-Up and Start It.
+    # ------------------------------
 
     # Always set LOG_SKIP flag in case its wanted.
-    debug_flag = debug_flag | DebugFlag.LOG_SKIP
+    comms.debug_flag = comms.debug_flag | DebugFlag.LOG_SKIP
 
-    lumberjack.debug(f"Starting WebSocketServer '{proc_name}'...")
-    mediator = WebSocketServer(config, conn, shutdown_flag,
-                               debug=debug_flag,
-                               unit_test_pipe=ut_conn)
+    lumberjack.debug(f"Starting WebSocketServer '{comms.name}'...")
+    mediator = WebSocketServer(context)
     mediator.start()
+
+    # ------------------------------
+    # Sub-Process is done now.
+    # ------------------------------
     log_client.close()
-    lumberjack.debug(f"mediator server '{proc_name}' done.")
+    lumberjack.debug(f"MediatorServer '{comms.name}' done.")
 
 
-def run_client(proc_name     = None,
-               conn          = None,
-               config        = None,
-               log_level     = None,
-               shutdown_flag = None,
-               debug_flag    = None,
-               proc_test     = None,
-               user_id       = None,
-               user_key      = None,
-               ut_conn       = None) -> None:
+def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     '''
-    Init and run client/engine IO mediator.
+    Init and run one client-side client/engine IO mediator.
     '''
-    # TODO [2020-08-10]: Logging init should take care of level... Try to
-    # get rid of this setLevel().
-    lumberjack = log.get_logger(proc_name)
+    # ------------------------------
+    # Set Up Logging, Get from Context
+    # ------------------------------
+    comms = ConfigContext.subproc(context)
+    if not comms:
+        raise log.exception(
+            "MediatorClient requires a SubToProcComm; received None.")
+
+    log_level = ConfigContext.log_level(context)
+    lumberjack = log.get_logger(comms.name)
     lumberjack.setLevel(int(log_level))
-    if proc_test.has(ProcTest.DNE):
-        # Mediator Server 'Does Not Exist' right now.
-        lumberjack.critical(f"BAD: mediator client start: '{proc_name}' "
-                            f"has {proc_test}. Should not have gotten "
-                            "into this function.")
-        return
 
-    _sigint_ignore()
+    multiproc._sigint_ignore()
     log_client.init(log_level)
 
-    if not conn:
+    # ------------------------------
+    # Sanity Check
+    # ------------------------------
+    # It's a test - and the first multiprocess test - so... don't assume the
+    # basics.
+    if not comms.pipe:
         raise log.exception(
-            "Mediator requires a pipe connection; received None.",
+            "MediatorClient requires a pipe connection; received None.",
             veredi_logger=lumberjack)
-    if not config:
+    if not comms.config:
         raise log.exception(
-            "Mediator requires a configuration; received None.",
+            "MediatorClient requires a configuration; received None.",
             veredi_logger=lumberjack)
     if not log_level:
         raise log.exception(
-            "Mediator requires a default log level (int); received None.",
+            "MediatorClient requires a default log level (int); "
+            "received None.",
             veredi_logger=lumberjack)
-    if not shutdown_flag:
+    if not comms.shutdown:
         raise log.exception(
-            "Mediator requires a shutdown flag; received None.",
+            "MediatorClient requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
 
-    # Always set LOG_SKIP flag - client uses it to skip a bit of log spam.
-    debug_flag = debug_flag | DebugFlag.LOG_SKIP
+    # ------------------------------
+    # Finish Set-Up and Start It.
+    # ------------------------------
 
-    lumberjack.debug(f"Starting WebSocketClient '{proc_name}'...")
-    mediator = WebSocketClient(config, conn, shutdown_flag,
-                               user_id=user_id,
-                               user_key=user_key,
-                               debug=debug_flag,
-                               unit_test_pipe=ut_conn)
+    # Always set LOG_SKIP flag in case its wanted.
+    comms.debug_flag = comms.debug_flag | DebugFlag.LOG_SKIP
+
+    lumberjack.debug(f"Starting WebSocketClient '{comms.name}'...")
+    mediator = WebSocketClient(context)
     mediator.start()
+
+    # ------------------------------
+    # Sub-Process is done now.
+    # ------------------------------
     log_client.close()
-    lumberjack.debug(f"mediator client '{proc_name}' done.")
+    lumberjack.debug(f"MediatorClient '{comms.name}' done.")
 
 
 # -----------------------------------------------------------------------------
@@ -264,37 +274,18 @@ class Test_WebSockets(ZestIntegrateMultiproc):
 
         self.log_debug("Set up mediator server... {}",
                        proc_test)
-        # Stuff server and us both need.
         name = self.NAME_SERVER
-        # The standard mediator<->game pipe.
-        mediator_conn, test_conn = multiprocessing.Pipe()
-        # The side-channel mediator<->unit-test pipe.
-        ut_mediator_conn, ut_test_conn = multiprocessing.Pipe()
-        shutdown = multiprocessing.Event()
+        context = zontext.empty(self.__class__.__name__,
+                                '_set_up_server')
 
-        # Create server process.
-        server = TestProc(
-            name=name,
-            process=multiprocessing.Process(
-                target=run_server,
-                name=name,
-                kwargs={
-                    'proc_name':     name,
-                    'conn':          mediator_conn,
-                    'config':        config,
-                    'log_level':     LOG_LEVEL,
-                    'shutdown_flag': shutdown,
-                    'debug_flag':    self.debug_flag,
-                    'proc_test':     proc_test,
-                    'ut_conn':       ut_mediator_conn,
-                }),
-            pipe=test_conn,
-            shutdown=shutdown,
-            proc_debug=proc_test,
-            ut_pipe=ut_test_conn)
-
-        # Assign!
-        self.proc.server = server
+        self.proc.server = multiproc.set_up(proc_name=name,
+                                            config=self.config,
+                                            context=context,
+                                            entry_fn=run_server,
+                                            initial_log_level=LOG_LEVEL,
+                                            debug_flag=self.debug_flag,
+                                            unit_testing=True,
+                                            proc_test=proc_test)
 
     def _tear_down_server(self):
         if not self.proc.server:
@@ -330,39 +321,33 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.proc.clients = []
         # And make as many as we want...
         for i in range(self.NUM_CLIENTS):
-            # Stuff clients and us both need.
-            mediator_conn, test_conn = multiprocessing.Pipe()
             name = self.NAME_CLIENT_FMT.format(i=i)
+            context = zontext.empty(self.__class__.__name__,
+                                    f"_set_up_clients('{name}')")
+
+            # Give the client an id/key directly for now...
             user_id = self._user_id.next(name)
             # TODO: generate a user key
             user_key = None
-            # The side-channel mediator<->unit-test pipe.
-            ut_mediator_conn, ut_test_conn = multiprocessing.Pipe()
+            ut_data = context.sub
+            ut_data['id'] = user_id
+            ut_data['key'] = user_key
 
-            # Create this client.
-            client = TestProc(
-                name=name,
-                process=multiprocessing.Process(
-                    target=run_client,
-                    name=name,
-                    kwargs={
-                        'proc_name':     name,
-                        'conn':          mediator_conn,
-                        'config':        config,
-                        'log_level':     LOG_LEVEL,
-                        'shutdown_flag': shutdown,
-                        'debug_flag':    self.debug_flag,
-                        'proc_test':     proc_test,
-                        'user_id':       user_id,
-                        'user_key':      user_key,
-                        'ut_conn':       ut_mediator_conn,
-                    }),
-                pipe=test_conn,
-                shutdown=shutdown,
-                proc_debug=proc_test,
-                user_id=user_id,
-                user_key=user_key,
-                ut_pipe=ut_test_conn)
+            # Set up client. Use ClientProcToSubComm subclass so unit tests can
+            # have easy access to client's id/key.
+            client = multiproc.set_up(proc_name=name,
+                                      config=self.config,
+                                      context=context,
+                                      entry_fn=run_client,
+                                      t_proc_to_sub=ClientProcToSubComm,
+                                      initial_log_level=LOG_LEVEL,
+                                      debug_flag=self.debug_flag,
+                                      unit_testing=True,
+                                      proc_test=proc_test,
+                                      shutdown=shutdown)
+
+            # Save id/key where test can access them.
+            client.set_user(user_id, user_key)
 
             # Append to the list of clients!
             self.proc.clients.append(client)
@@ -414,9 +399,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # later.
         mid = Message.SpecialId.CONNECT
         msg = Message(mid, MsgType.IGNORE,
-                      payload=None,
-                      user_id=client.user_id,
-                      user_key=client.user_key)
+                      payload=None)
         client.pipe.send((msg, self.msg_context(mid)))
 
         # Received "you're connected now" back?
@@ -453,10 +436,10 @@ class Test_WebSockets(ZestIntegrateMultiproc):
 
     def do_test_nothing(self):
         self.assertIsInstance(self.proc, Processes)
-        self.assertIsInstance(self.proc.server, TestProc)
+        self.assertIsInstance(self.proc.server, multiproc.ProcToSubComm)
         self.assertIsInstance(self.proc.clients, list)
         for client in self.proc.clients:
-            self.assertIsInstance(client, TestProc)
+            self.assertIsInstance(client, multiproc.ProcToSubComm)
 
         # This really doesn't do much other than bring up the processes and
         # then kill them, but it's something.
@@ -483,9 +466,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # later.
         mid = Message.SpecialId.CONNECT
         msg = Message(mid, MsgType.IGNORE,
-                      payload=None,
-                      user_id=client.user_id,
-                      user_key=client.user_key)
+                      payload=None)
         client.pipe.send((msg, self.msg_context(mid)))
 
         # Received "you're connected now" back?
@@ -541,9 +522,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
 
         mid = self._msg_id.next()
         msg = Message(mid, MsgType.PING,
-                      payload=None,
-                      user_id=client.user_id,
-                      user_key=client.user_key)
+                      payload=None)
         client.pipe.send((msg, self.msg_context(mid)))
         recv, ctx = client.pipe.recv()
         # Make sure we got a message back and it has the ping time in it.
@@ -582,9 +561,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         send_msg = f"Hello from {client.name}"
         expected = send_msg
         msg = Message(mid, MsgType.ECHO,
-                      payload=send_msg,
-                      user_id=client.user_id,
-                      user_key=client.user_key)
+                      payload=send_msg)
         ctx = self.msg_context(mid)
         # self.debugging = True
         with log.LoggingManager.on_or_off(self.debugging, True):
@@ -631,9 +608,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
 
         send_txt = f"Hello from {client.name}?"
         client_send = Message(mid, MsgType.TEXT,
-                              payload=send_txt,
-                              user_id=client.user_id,
-                              user_key=client.user_key)
+                              payload=send_txt)
         client_send_ctx = self.msg_context(mid)
 
         client_recv_msg = None
@@ -697,9 +672,9 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # Tell our server to send a reply to the client's text.
         recv_txt = f"Hello from {self.proc.server.name}!"
         server_send = Message(server_recv_ctx.id, MsgType.TEXT,
-                              payload=recv_txt,
-                              user_id=client.user_id,
-                              user_key=client.user_key)
+                              user_id=server_recv_msg.user_id,
+                              user_key=server_recv_msg.user_key,
+                              payload=recv_txt)
 
         client_recv_msg = None
         client_recv_ctx = None
@@ -834,24 +809,26 @@ class Test_WebSockets(ZestIntegrateMultiproc):
             # Start ignoring logs.
             self.proc.log.ignore_logs.set()
 
-            # print('\n\n'
-            #       + ('-=' * 40) + '-\n'
-            #       + '<logging="IGNORE"'
-            #       + f'was="{was}" '
-            #       + f'set="{self.proc.log.ignore_logs.is_set()}" '
-            #       + f'count="{self.proc.log.ignored_counter.value}>'
-            #       + '\n'
-            #       + ('-=' * 40) + '-'
-            #       '\n\n')
-            self.log_debug('\n\n'
-                           + ('-=' * 40) + '-\n'
-                           + '<logging="IGNORE"'
-                           + f'was="{was}" '
-                           + f'set="{self.proc.log.ignore_logs.is_set()}" '
-                           + f'count="{self.proc.log.ignored_counter.value}>'
-                           + '\n'
-                           + ('-=' * 40) + '-'
-                           '\n\n')
+            line_pre = '-='
+            line_post = '=-'
+            line_title = 'logging'
+            line_width = 80
+            line_padding = line_width - len(line_title)
+            line_pad_half = line_padding // 2
+            line_titled = ((line_pre * (line_pad_half // len(line_pre)))
+                           + line_title
+                           + (line_post * (line_pad_half // len(line_post))))
+            line_untitled = line_pre * (line_width // 2 - 1) + '-'
+
+            self.log_debug(
+                '\n\n'
+                + line_titled + '\n'
+                + 'IGNORE LOGGING: \n'
+                + f'  was    = "{was}" \n'
+                + f'  set    = "{self.proc.log.ignore_logs.is_set()}" \n'
+                + f'  count  = "{self.proc.log.ignored_counter.value} \n'
+                + line_untitled
+                + '\n\n')
 
         elif enable is False:
             # Sanity check.
@@ -861,24 +838,26 @@ class Test_WebSockets(ZestIntegrateMultiproc):
             was = self.proc.log.ignore_logs.is_set()
             self.proc.log.ignore_logs.clear()
 
-            # print('\n\n'
-            #       + ('-=' * 40) + '-\n'
-            #       + '</logging="IGNORE" '
-            #       + f'was="{was}" '
-            #       + f'set="{self.proc.log.ignore_logs.is_set()}" '
-            #       + f'count="{self.proc.log.ignored_counter.value}>'
-            #       + '\n'
-            #       + ('-=' * 40) + '-'
-            #       '\n\n')
-            self.log_debug('\n\n'
-                           + ('-=' * 40) + '-\n'
-                           + '</logging="IGNORE" '
-                           + f'was="{was}" '
-                           + f'set="{self.proc.log.ignore_logs.is_set()}" '
-                           + f'count="{self.proc.log.ignored_counter.value}>'
-                           + '\n'
-                           + ('-=' * 40) + '-'
-                           '\n\n')
+            line_pre = '-='
+            line_post = '=-'
+            line_title = 'logging'
+            line_width = 80
+            line_padding = line_width - len(line_title)
+            line_pad_half = line_padding // 2
+            line_titled = ((line_pre * (line_pad_half // len(line_pre)))
+                           + line_title
+                           + (line_post * (line_pad_half // len(line_post))))
+            line_untitled = line_pre * (line_width - 1) + '-'
+
+            self.log_debug(
+                '\n\n'
+                + line_untitled + '\n'
+                + 'IGNORE LOGGING: \n'
+                + f'  was    = "{was}" \n'
+                + f'  set    = "{self.proc.log.ignore_logs.is_set()}" \n'
+                + f'  count  = "{self.proc.log.ignored_counter.value} \n'
+                + line_titled
+                + '\n\n')
 
             # Check counter if asked.
             self._check_ignored_counter(assert_eq_value, assert_gt_value)
@@ -911,7 +890,8 @@ class Test_WebSockets(ZestIntegrateMultiproc):
 
         mid = self._msg_id.next()
         send_msg = Message.log(mid,
-                               client.user_id, client.user_key,
+                               client.user_id,
+                               client.user_key,
                                payload)
 
         send_ctx = self.msg_context(mid)

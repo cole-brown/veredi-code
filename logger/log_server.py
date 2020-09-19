@@ -13,8 +13,11 @@ logs from one game/server are well-formatted and in one place.
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Union
+from veredi.base.null import Null, null_to_none
 
 import multiprocessing
+from multiprocessing.connection import Connection as mp_conn
+from ctypes import c_int
 import pickle
 import logging
 import logging.handlers
@@ -23,16 +26,89 @@ import struct
 import select
 from datetime import datetime
 
+
 from . import log
+from veredi.parallel import multiproc
+from veredi.debug.const                         import DebugFlag
+from veredi.data                         import background
+from veredi.data.config.config import Configuration
+from veredi.base.context       import VerediContext
+from veredi.data.config.context         import ConfigContext
 
 
 # -----------------------------------------------------------------------------
-# Constants
+# Log Server's multiproc Sub-Classes
 # -----------------------------------------------------------------------------
+
+class LogServerComm(multiproc.ProcToSubComm):
+    '''
+    The parent process's object for communicating to the LogServer sub-process.
+    '''
+
+    def __init__(self,
+                 name:            str                                   = None,
+                 process:         multiprocessing.Process               = None,
+                 pipe:            mp_conn = None,
+                 shutdown:        multiprocessing.Event                 = None,
+                 ignore_logs:     multiprocessing.Event                 = None,
+                 ignored_counter: multiprocessing.Value                 = None,
+                 ut_pipe:            mp_conn = None
+                 ) -> None:
+        super().__init__(name=name,
+                         process=process,
+                         pipe=pipe,
+                         shutdown=shutdown,
+                         ut_pipe=ut_pipe)
+        self.ignore_logs = ignore_logs
+        self.ignored_counter = ignored_counter
+
+    def finalize_init(self,
+                      ignore_logs:     multiprocessing.Event,
+                      ignored_counter: multiprocessing.Value) -> None:
+        '''
+        Set vars specific to log process comms.
+        '''
+        self.ignore_logs = ignore_logs
+        self.ignored_counter = ignored_counter
+
+
+class LogServerSub(multiproc.SubToProcComm):
+    '''
+    The child process's object for communicating with the parent.
+    '''
+
+    def __init__(self,
+                 name:       str,
+                 config:     Optional[Configuration],
+                 entry_fn:   multiproc.StartProcFn,
+                 pipe:       mp_conn,
+                 shutdown:   multiprocessing.Event,
+                 ignore_logs:     multiprocessing.Event                 = None,
+                 ignored_counter: multiprocessing.Value                 = None,
+                 debug_flag: Optional[DebugFlag] = None,
+                 ut_pipe:    Optional[mp_conn]   = None) -> None:
+        super().__init__(name=name,
+                         config=config,
+                         entry_fn=entry_fn,
+                         pipe=pipe,
+                         shutdown=shutdown,
+                         debug_flag=debug_flag,
+                         ut_pipe=ut_pipe)
+        self.ignore_logs = ignore_logs
+        self.ignored_counter = ignored_counter
+
+    def finalize_init(self,
+                      ignore_logs:     multiprocessing.Event,
+                      ignored_counter: multiprocessing.Value) -> None:
+        '''
+        Set vars specific to log process comms.
+        '''
+        self.ignore_logs = ignore_logs
+        self.ignored_counter = ignored_counter
 
 
 # -----------------------------------------------------------------------------
-# Code
+# Log Server Implementation
 # -----------------------------------------------------------------------------
 
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
@@ -155,37 +231,99 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 # --                           Main Logging Loop                             --
 # ----------------------------Log Til You're Dead.-----------------------------
 
-def init(shutdown_flag:   multiprocessing.Event,
-         level:           Union[log.Level, int]           = log.DEFAULT_LEVEL,
-         ignore_flag:     Optional[multiprocessing.Event] = None,
-         ignored_counter: Optional[multiprocessing.Array] = None) -> None:
+# ------------------------------
+# Init / Create
+# ------------------------------
+
+def init(process_name: str = 'veredi.log.server',
+         initial_log_level: Optional[log.Level] = None,
+         context: VerediContext = None,
+         config: Configuration = None,
+         debug_flag: DebugFlag = None) -> LogServerComm:
     '''
-    Prepare the logging server.
-    Returns the logging server. Pass it back into run() to run it.
+    Create / Set-Up the Log Server according to context/config data.
     '''
-    log.init(level=level)
-    log.set_level(level)
+    # ---
+    # Prep Work
+    # ---
 
-    log_server = LogRecordSocketReceiver(shutdown_flag,
-                                         ignore_flag=ignore_flag,
-                                         ignored_counter=ignored_counter)
-    return log_server
+    # Grab ut flag from background?
+    ut_flagged = background.testing.get_unit_testing()
+
+    # ---
+    # Init
+    # ---
+
+    # ...And get ready for running our sub-proc.
+    server = multiproc.set_up(
+        # Override types with our subtypes.
+        t_proc_to_sub=LogServerComm,
+        t_sub_to_proc=LogServerSub,
+        # Add finalize so we can give 'em the ignore_logs stuff.
+        finalize_fn=_finalize_proc,
+        # Normal params:
+        proc_name=process_name,
+        config=config,
+        context=context,
+        entry_fn=run,
+        initial_log_level=initial_log_level,
+        debug_flag=debug_flag,
+        unit_testing=ut_flagged)
+
+    return server
 
 
-def run(log_server:    LogRecordSocketReceiver,
-        log_name:      str) -> None:
+def _finalize_proc(proc: multiproc.ProcToSubComm,
+                   sub:  multiproc.SubToProcComm) -> None:
+    '''
+    Finalize the ProcToSubComm and SubToProcComm objects before init finishes.
+    '''
+    # LogServer-specific multiprocessing stuff.
+    ignore_logs = multiprocessing.Event()
+    ignored_logs_counter = multiprocessing.Value(c_int, 0)
+
+    proc.finalize_init(ignore_logs, ignored_logs_counter)
+    sub.finalize_init(ignore_logs, ignored_logs_counter)
+
+
+def run(comms: multiproc.SubToProcComm, context: VerediContext = None) -> None:
     '''
     Run the logging server til death do you part.
     '''
+
+    # ------------------------------
+    # Set Up Logging, Init Server
+    # ------------------------------
+    log_level = ConfigContext.log_level(context)
+    log.init(level=log_level)
+    # TODO [2020-09-12]: Ideally init would stick the level but that wasn't
+    # the case back when I started doing the multiproc stuff... Check
+    # again/fix.
+    log.set_level(log_level)
+
+    log_server = LogRecordSocketReceiver(comms.shutdown,
+                                         ignore_flag=comms.ignore_logs,
+                                         ignored_counter=comms.ignored_counter)
+
+    # ---
+    # Announce thyself, Mr. Lumberjack.
+    # ---
     time_utc   = datetime.utcnow().isoformat(timespec='seconds', sep=' ')
     time_local = datetime.now().isoformat(timespec='seconds', sep=' ')
-    log.get_logger(log_name).debug(
+    log.get_logger(comms.name).debug(
         'Started Logging Server at time: '
         f'{time_local} '
         f'(utc: {time_utc})')
 
+    # ------------------------------
+    # Run Logging Server!
+    # ------------------------------
     log_server.serve_until_stopped()
-    log.get_logger(log_name).debug(
+
+    # ------------------------------
+    # Clean-Up / Tear-Down Server
+    # ------------------------------
+    log.get_logger(comms.name).debug(
         'Logging Server stopped. Closing...')
     # This gets our sockets closed and quiets this message:
     #   /usr/local/lib/python3.8/multiprocessing/process.py:108:
@@ -196,12 +334,7 @@ def run(log_server:    LogRecordSocketReceiver,
     #     traceback
     log_server.server_close()
 
-    # # Fake 'run log server' do-nothing loop waiting on shutdown_flag:
-    # # sleep on the shutdown flag, keep sleeping until it returns True
-    # while not log_server.shutdown_flag.wait(timeout=1):
-    #     pass
-
-    log.get_logger(log_name).debug(
+    log.get_logger(comms.name).debug(
         'Ending Logging Server.')
 
 

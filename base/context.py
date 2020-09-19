@@ -208,11 +208,46 @@ class VerediContext:
 
         sub[sub_key] = value
 
+    def _sub_get(self,
+                 ctx_key: str,
+                 field: Union[str, enum.Enum]) -> Optional[Any]:
+        '''
+        Gets `ctx_key` sub-context, then gets and returns value of `field`.
+        Returns None if ctx_key or field does not exist in this context.
+        '''
+        config_ctx = self._get().get(ctx_key, {})
+        return config_ctx.get(field, None)
+
+    def _sub_set(self,
+                 ctx_key: str,
+                 field: Union[str, enum.Enum],
+                 value: Any) -> None:
+        '''
+        Gets `ctx_key` sub-context, then sets `field` to `value`. Pops `field`
+        out of sub-context if `value` is None.
+
+        Pops `ctx_key` out of context if it is empty after set/pop of field is
+        done.
+        '''
+        # Set/pop field.
+        config_ctx = self._get().get(ctx_key, {})
+        if value is None:
+            config_ctx.pop(field, None)
+
+        else:
+            config_ctx[field] = value
+
+        # And make sure the context is up to date.
+        if not config_ctx:
+            self.data.pop(ctx_key)
+        else:
+            self.data[ctx_key] = config_ctx
+
     # -------------------------------------------------------------------------
     # Getters / Mergers
     # -------------------------------------------------------------------------
 
-    def _get(self) -> Dict[str, str]:
+    def _get(self) -> Any:
         '''
         Returns our context dictionary. If it doesn't exist, creates it with
         our bare sub-entry.

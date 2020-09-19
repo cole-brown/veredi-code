@@ -21,6 +21,7 @@ import re
 
 from veredi.logger             import log
 from veredi.base               import dotted
+from veredi.base.context       import VerediContext
 from veredi.debug.const        import DebugFlag
 from veredi.data               import background
 from veredi.data.codec.base    import BaseCodec
@@ -59,38 +60,25 @@ class WebSocketMediator(Mediator):
     Implementations.
     '''
 
-    def __init__(self,
-                 config:        Configuration,
-                 conn:          multiprocessing.connection.Connection,
-                 shutdown_flag: multiprocessing.Event,
-                 species:       str,
-                 debug:         DebugFlag                              = None,
-                 unit_test_pipe: multiprocessing.connection.Connection = None
-                 ) -> None:
-        # Base class init first.
-        super().__init__(config, conn, shutdown_flag,
-                         debug=debug, unit_test_pipe=unit_test_pipe)
+    def _define_vars(self) -> None:
+        '''
+        Set up our vars with type hinting, docstrs.
+        '''
+        super()._define_vars()
 
-        self._name:  str              = species
+        self._name:  str              = None
         '''Should be 'client' or 'server'.'''
 
-        # Grab our data from the config...
-        self._codec: BaseCodec        = config.make(None,
-                                                    self._name,
-                                                    'mediator',
-                                                    'codec')
+        self._codec: BaseCodec        = None
+        '''Mediator's codec will be from Configuration.'''
 
-        self._host:  str              = config.get(self._name,
-                                                   'mediator',
-                                                   'hostname')
+        self._host:  str              = None
+        '''Mediator's host name/ip string will be from Configuration.'''
 
-        self._port:  int              = int(config.get(self._name,
-                                                       'mediator',
-                                                       'port'))
+        self._port:  int              = None
+        '''Mediator's port number will be from Configuration.'''
 
-        self._ssl:   Union[str, bool] = config.get(self._name,
-                                                   'mediator',
-                                                   'ssl')
+        self._ssl:   Union[str, bool] = None
         '''
         Client can just True/False this if not using self-certs.
         Server has a bit more to go through to set up ssl after this.
@@ -120,6 +108,40 @@ class WebSocketMediator(Mediator):
         The "I have a message; what do I do?" version.
         '''
 
+    def __init__(self,
+                 context: VerediContext,
+                 species: str) -> None:
+        # ---
+        # Base class init first. This will call our _define_vars().
+        # ---
+        super().__init__(context)
+
+        # ---
+        # Configuration
+        # ---
+        # Parent makes sure this exists.
+        config = background.config.config
+
+        self._name = species
+
+        # Grab our data from the config...
+        self._codec = config.make(None,
+                                  self._name,
+                                  'mediator',
+                                  'codec')
+
+        self._host = config.get(self._name,
+                                'mediator',
+                                'hostname')
+
+        self._port = int(config.get(self._name,
+                                    'mediator',
+                                    'port'))
+
+        self._ssl = config.get(self._name,
+                               'mediator',
+                               'ssl')
+
         self._register_paths()
 
         self._init_background()
@@ -133,7 +155,7 @@ class WebSocketMediator(Mediator):
         Insert the mediator context data into the background.
         '''
         bg_data, bg_owner = self._background
-        background.mediator.set(self.dotted,
+        background.mediator.set(self._name,
                                 bg_data,
                                 bg_owner)
 
@@ -715,7 +737,7 @@ class WebSocketMediator(Mediator):
         msg_ctx = self.make_msg_context(msg.msg_id)
         await self._med_rx_put(msg, msg_ctx)
 
-        if self._test_pipe:
+        if self._test_pipe_exists():
             self.debug("UNIT TESTING ONLY!!! Passing into the unit "
                        "testing pipe so that unit test can check out "
                        "the logging reply...")

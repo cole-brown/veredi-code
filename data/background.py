@@ -867,16 +867,16 @@ class mediator:
         return interface.get().get(_MEDIATOR, Null())
 
     @classmethod
-    def set(klass:       Type['mediator'],
-            dotted_name: str,
-            data:        NullNoneOr[ContextMap],
-            ownership:   Ownership) -> None:
+    def set(klass:     Type['mediator'],
+            name:      str,
+            data:      NullNoneOr[ContextMap],
+            ownership: Ownership) -> None:
         '''
         Update mediator system's entry with `data`.
         '''
         ctx = klass._get()
         # Set data provided.
-        _set(ctx, dotted_name, data, ownership)
+        _set(ctx, name, data, ownership)
 
 
 # -------------------------------------------------------------------------
@@ -925,6 +925,29 @@ class testing:
             del ctx[key]
 
         return value
+
+    @classmethod
+    def set_unit_testing(klass: Type['testing'],
+                         value: Optional[bool]) -> None:
+        '''
+        Sets unit_testing background flag. Pops it if `value` is none, which
+        /should/ be the same as setting false, except it makes for a cleaner
+        full background output.
+        '''
+        ctx = klass._get()
+        if value is None:
+            ctx.pop('unit_testing', None)
+        else:
+            ctx['unit_testing'] = value
+
+    @classmethod
+    def get_unit_testing(klass: Type['testing']) -> bool:
+        '''
+        Returns True/False for whether we've been flagged up for
+        unit-testing mode.
+        '''
+        ctx = klass._get()
+        return ctx.get('unit_testing', False)
 
     @classmethod
     def clear(klass: Type['testing']) -> None:

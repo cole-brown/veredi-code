@@ -8,11 +8,12 @@ Context Helpers for unit test data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+from typing import Optional, Type
 import pathlib
 
 from veredi.data.config.context import ConfigContext
 from veredi.data.config.config  import Configuration
+from veredi.base.context       import VerediContext, UnitTestContext
 
 
 # -----------------------------------------------------------------------------
@@ -23,6 +24,23 @@ from veredi.data.config.config  import Configuration
 # -----------------------------------------------------------------------------
 # General Unit Test Context
 # -----------------------------------------------------------------------------
+
+def empty(klass_name:  str,
+          func_name:   str,
+          context_type: Type[VerediContext] = UnitTestContext
+          ) -> VerediContext:
+    '''
+    `klass_name` and `func_name` should be caller - they are supplied to
+    UnitTestContext's constructor if that type of context is used.
+
+    Creates and returns an empty context.
+    '''
+    if context_type == UnitTestContext:
+        return context_type(test_class=klass_name,
+                            test_name=func_name,
+                            data={})
+    return context_type()
+
 
 def test(klass_name:  str,
          func_name:   str,

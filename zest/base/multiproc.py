@@ -9,44 +9,28 @@ mediator testing.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Any, Callable, Generator, Tuple, List, Literal
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Any, Callable, Generator,
+                    Tuple, List, Literal)
 
-import multiprocessing
-import multiprocessing.connection
-from ctypes import c_int
+
 import signal
-from collections import namedtuple
 import time as py_time
-from datetime import datetime, time as dt_time
 import enum
 
+
 from .integrate                                 import ZestIntegrateEngine
-from veredi.zest                                import zmake
+from veredi.parallel                            import multiproc
+from veredi.zest                                import zmake, zontext
 from veredi.logger                              import log, log_server
 from veredi.base.enum                           import FlagCheckMixin
 from veredi.time.timer                          import MonotonicTimer
 from veredi.data.identity                       import UserId, UserKey
-from veredi.data.config.config                  import Configuration
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-WAIT_SLEEP_TIME_SEC = 0.1
-'''Main process will wait/sleep on the game_over flag for this long each go.'''
-
-GRACEFUL_SHUTDOWN_TIME_SEC = 15.0
-'''
-Main process will give the game/mediator this long to gracefully shutdown.
-If they take longer, it will just terminate them.
-'''
-
-ExitCodeTuple = namedtuple('ExitCodeTuple', ['name', 'exitcode'])
-'''
-Name and exitcode tuple.
-'''
-
 
 # ------------------------------
 # Test Processes
@@ -64,57 +48,41 @@ class ProcTest(FlagCheckMixin, enum.Flag):
     '''
 
 
-class TestProc:
-    '''
-    Tuple, basically. Holds on to a collection of stuff about our test
-    processes.
-    '''
+# ------------------------------
+# Client Proc Info
+# ------------------------------
 
-    def __init__(self,
-                 name:       str                                   = None,
-                 process:    multiprocessing.Process               = None,
-                 pipe:       multiprocessing.connection.Connection = None,
-                 shutdown:   multiprocessing.Event                 = None,
-                 proc_debug: ProcTest                              = None,
-                 user_id:    UserId                                = None,
-                 user_key:   UserKey                               = None,
-                 ut_pipe:    multiprocessing.connection.Connection = None,
-                 ) -> None:
-        self.name     = name
-        self.process  = process
-        self.pipe     = pipe
-        self.shutdown = shutdown
-        self.debug    = proc_debug
-        self.user_id  = user_id
-        self.user_key = user_key
-        self.ut_pipe  = ut_pipe
-
-
-class TestLog(TestProc):
+class ClientProcToSubComm(multiproc.ProcToSubComm):
     '''
-    Tuple, basically. Holds on to a collection of stuff about our logging
-    server test processes.
+    ProcToSubComm with UserId and UserKey added for testing purposes.
     '''
 
     def __init__(self,
-                 name:            str                                   = None,
-                 process:         multiprocessing.Process               = None,
-                 pipe:            multiprocessing.connection.Connection = None,
-                 shutdown:        multiprocessing.Event                 = None,
-                 ignore_logs:     multiprocessing.Event                 = None,
-                 ignored_counter: multiprocessing.Value                 = None,
-                 proc_debug:      ProcTest                              = None
-                 ) -> None:
-        super().__init__(name=name,
-                         process=process,
-                         pipe=pipe,
-                         shutdown=shutdown,
-                         proc_debug=proc_debug,
-                         user_id=None,
-                         user_key=None)
-        self.ignore_logs = ignore_logs
-        self.ignored_counter = ignored_counter
+                 *args:    Any,
+                 **kwargs: Any):
+        super().__init__(*args, **kwargs)
 
+        self._user_id:  Optional[UserId]  = None
+        self._user_key: Optional[UserKey] = None
+
+    def set_user(self,
+                 id:  Optional[UserId],
+                 key: Optional[UserKey]) -> None:
+        self._user_id  = id
+        self._user_key = key
+
+    @property
+    def user_id(self) -> Optional[UserId]:
+        return self._user_id
+
+    @property
+    def user_key(self) -> Optional[UserKey]:
+        return self._user_key
+
+
+# ------------------------------
+# All Processes Collection
+# ------------------------------
 
 class Processes:
     '''
@@ -128,13 +96,13 @@ class Processes:
         TEAR_DOWN = enum.auto()
 
     def __init__(self):
-        self.clients: List[TestProc] = []
+        self.clients: List[multiproc.ClientProcToSubComm] = []
         '''List of WebSocket Mediator Client TestProcs.'''
 
-        self.server: TestProc = None
+        self.server: multiproc.ProcToSubComm = None
         '''A WebSocket Mediator Server TestProc.'''
 
-        self.log: TestLog = None
+        self.log: log_server.LogServerComm = None
         '''A Log Server TestLog.'''
 
     # ------------------------------
@@ -148,7 +116,7 @@ class Processes:
 
     def all(self,
             direction: 'Processes.Direction' = Direction.SET_UP
-            ) -> Generator['TestProc', None, None]:
+            ) -> Generator['multiproc.ProcToSubComm', None, None]:
         '''
         Generator for iterating over all Processes.
         '''
@@ -163,7 +131,7 @@ class Processes:
             raise ValueError("Don't have a way of iterating over "
                              f"clients in this direction: {direction}")
 
-    def _all_forward(self) -> Generator['TestProc', None, None]:
+    def _all_forward(self) -> Generator['multiproc.ProcToSubComm', None, None]:
         '''
         Generator for iterating over all Processes in a 'forwardsly' manner.
         '''
@@ -178,7 +146,8 @@ class Processes:
         for client in self.all_clients(Processes.Direction.SET_UP):
             yield client
 
-    def _all_reversed(self) -> Generator['TestProc', None, None]:
+    def _all_reversed(self
+                      ) -> Generator['multiproc.ProcToSubComm', None, None]:
         '''
         Generator for iterating over all Processes in a 'forwardsly' manner.
         '''
@@ -195,7 +164,7 @@ class Processes:
 
     def all_clients(self,
                     direction: 'Processes.Direction' = Direction.SET_UP
-                    ) -> Generator['TestProc', None, None]:
+                    ) -> Generator['multiproc.ProcToSubComm', None, None]:
         '''
         Generator for iterating over all client processes.
         '''
@@ -213,74 +182,6 @@ class Processes:
 
         for each in clients:
             yield each
-
-
-# -----------------------------------------------------------------------------
-# Multiprocessing Helper
-# -----------------------------------------------------------------------------
-
-def _sigint_ignore() -> None:
-    # Child processes will ignore sigint and rely on the main process to
-    # tell them to stop.
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-
-def _sigalrm_start(timeout: float, handler: Callable) -> None:
-    '''
-    Sets SIGALRM to go off in `timeout` seconds if not cancelled. Will call
-    `handler` function if it raises the signal.
-    '''
-    signal.signal(signal.SIGALRM, handler)
-    signal.alarm(timeout)
-
-
-def _sigalrm_end() -> None:
-    '''
-    Disables SIGALRM.
-    '''
-    signal.alarm(0)
-
-
-# -----------------------------------------------------------------------------
-# Multiprocessing Runners
-# -----------------------------------------------------------------------------
-
-def run_logs(proc_name            = None,
-             log_level            = None,
-             shutdown_flag        = None,
-             ignore_logs_flag     = None,
-             ignored_logs_counter = None,
-             debug_flag           = None,
-             proc_test            = None) -> None:
-    '''
-    Inits and runs logging server.
-    '''
-
-    lumberjack = log.get_logger(proc_name)
-    # TODO [2020-08-10]: Logging init should take care of level... Try to
-    # get rid of this setLevel().
-    lumberjack.setLevel(int(log_level))
-
-    if proc_test.has(ProcTest.DNE):
-        # Log Server 'Does Not Exist' right now.
-        lumberjack.critical(f"BAD: log server start: '{proc_name}' "
-                            f"has {proc_test}. Should not have gotten "
-                            "into this function.")
-        return
-
-    # TODO [2020-08-10]: Use debug_flag in log_server?
-    _sigint_ignore()
-    server = log_server.init(shutdown_flag,
-                             level=log_level,
-                             ignore_flag=ignore_logs_flag,
-                             ignored_counter=ignored_logs_counter)
-
-    lumberjack.debug(f"Starting log_server '{proc_name}'...")
-
-    # log_server.run() should never return (until shutdown signaled) - it just
-    # listens on the socket connection for logs to process forever.
-    log_server.run(server, proc_name)
-    lumberjack.debug(f"log_server '{proc_name}' done.")
 
 
 # -----------------------------------------------------------------------------
@@ -385,36 +286,16 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
                               f"Skipping creation/set-up.")
             return
 
-        self.log_debug(f"Set up log server... {proc_test}")
-        # Stuff that both log process and we need.
-        name = self.NAME_LOG
-        ignore_logs = multiprocessing.Event()
-        shutdown = multiprocessing.Event()
-        ignored_logs_counter = multiprocessing.Value(c_int, 0)
-
         # Create our log server Process.
-        log_server = TestLog(
-            name=name,
-            process=multiprocessing.Process(
-                target=run_logs,
-                name=name,
-                kwargs={
-                    'proc_name':     name,
-                    'log_level':     log_level,
-                    'shutdown_flag': shutdown,
-                    'ignore_logs_flag': ignore_logs,
-                    'ignored_logs_counter': ignored_logs_counter,
-                    'debug_flag': self.debug_flag,
-                    'proc_test': proc_test,
-                }),
-            pipe=None,
-            shutdown=shutdown,
-            ignore_logs=ignore_logs,
-            ignored_counter=ignored_logs_counter,
-            proc_debug=proc_test)
-
-        # Assign!
-        self.proc.log = log_server
+        self.log_debug(f"Set up log server... {proc_test}")
+        name = self.NAME_LOG
+        context = zontext.empty(self.__class__.__name__,
+                                '_set_up_log')
+        self.proc.log = log_server.init(process_name=name,
+                                        initial_log_level=log_level,
+                                        context=context,
+                                        config=self.config,
+                                        debug_flag=self.debug_flag)
 
     def _tear_down_log(self) -> None:
         if not self.proc.log:
@@ -436,46 +317,14 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
     # This is before actual tear down. Could even be more self.assert*(...)
     # to do... But the actual client/server should be stopped and such.
 
-    def _stop(self, proc: TestProc) -> ExitCodeTuple:
+    def _stop(self, proc: multiproc.ProcToSubComm) -> multiproc.ExitCodeTuple:
         '''
         Stops process. First tries to ask it to stop (i.e. stop gracefully). If
         that takes too long, terminates the process.
 
         Returns an ExitCodeTuple (the proc name and its exit code).
         '''
-        if not proc or not proc.process:
-            self.log_debug(f"No {proc.name} to stop.")
-            # Pretend it exited with good exit code.
-            return ExitCodeTuple(proc.name, 0)
-        if proc.process.exitcode == 0:
-            self.log_debug(f"{proc.name} already stopped.")
-            return ExitCodeTuple(proc.name, proc.process.exitcode)
-
-        # Set process's shutdown flag. It should notice soon and start doing
-        # its shutdown.
-        self.log_debug(f"Asking {proc.name} to end gracefully...")
-        proc.shutdown.set()
-
-        # Wait for process to be done.
-        if proc and proc.process.is_alive():
-            self.log_debug(f"Waiting for {proc.name} to complete "
-                           "structured shutdown...")
-            proc.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
-            self.log_debug(f"    {proc.name} exit: "
-                           f"{str(proc.process.exitcode)}")
-        else:
-            self.log_debug(f"    {proc.name} didn't run; "
-                           "skip shutdown...")
-
-        # Make sure it shut down and gave a good exit code.
-        if (proc.process
-                and proc.process.is_alive()
-                and proc.process.exitcode is None):
-            # Still not exited; terminate it.
-            proc.process.terminate()
-
-        exitcode = (proc.process.exitcode if (proc and proc.process) else None)
-        return ExitCodeTuple(proc.name, exitcode)
+        return multiproc.tear_down(proc)
 
     def stop_processes(self) -> None:
         '''
@@ -597,7 +446,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         '''
         Stop our processes and fail test due to timeout.
         '''
-        _sigalrm_end()
+        multiproc._sigalrm_end()
         self.per_test_tear_down()
         self.fail(f'Test failure due to timeout. '
                   f'Signal: {sig_triggered} '
@@ -610,7 +459,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         for start-up of processes to settle out.
         '''
         # Let it all run and wait for the game to end...
-        _sigalrm_start(self.PER_TEST_TIMEOUT, self.per_test_timeout)
+        multiproc._sigalrm_start(self.PER_TEST_TIMEOUT, self.per_test_timeout)
 
         for each in self.proc.all(Processes.Direction.SET_UP):
             each.process.start()
@@ -625,7 +474,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
 
         # Wait for clients, server to settle out.
         self.wait(wait_sec)
-        _sigalrm_end()
+        multiproc._sigalrm_end()
 
     def per_test_tear_down(self) -> None:
         '''
@@ -650,13 +499,13 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         error = False
         sig_int = False
 
-        _sigalrm_start(self.PER_TEST_TIMEOUT, self.per_test_timeout)
+        multiproc._sigalrm_start(self.PER_TEST_TIMEOUT, self.per_test_timeout)
         try:
             if args:
                 for test_arg in args:
                     # If we have args, call body for each one. Unpack its args
                     # for call if it is a (normal) tuple.
-                    if (not isinstance(test_arg, TestProc)
+                    if (not isinstance(test_arg, multiproc.ProcToSubComm)
                             and isinstance(test_arg, tuple)):
                         body(*test_arg)
                     else:
@@ -671,7 +520,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
             # Let interrupt through like this.
             # We'll fail on it in assert_test_ran().
 
-        except AssertionError as err:
+        except AssertionError:
             # Reraise these - should be unittest assertions.
             raise
 
@@ -688,7 +537,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
             raise
 
         finally:
-            _sigalrm_end()
+            multiproc._sigalrm_end()
             self.per_test_tear_down()
 
         return (sig_int, error)
@@ -731,7 +580,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
 
     def wait(self,
              wait_timeout,
-             loop_timeout=WAIT_SLEEP_TIME_SEC) -> None:
+             loop_timeout=multiproc.WAIT_SLEEP_TIME_SEC) -> None:
         '''
         Loops waiting on `self._shutdown` flag or Ctrl-C/SIGINT. Each loop it
         will sleep/await the shutdown flag for `loop_timeout` seconds. The
@@ -773,7 +622,8 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
                 self.log_critical("Nothing is running so... "
                                   "no shutdown flag to check?!")
 
-            running = not shutdown_flag.wait(timeout=WAIT_SLEEP_TIME_SEC)
+            running = not shutdown_flag.wait(
+                timeout=multiproc.WAIT_SLEEP_TIME_SEC)
             # if log.will_output(log.Level.DEBUG):
             #     time_ok = not timer.timed_out(wait_timeout)
             #     self.log_debug(f"{self.__class__.__name__}: waited "
@@ -786,7 +636,8 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
 
                 # Do nothing and take naps forever until SIGINT received or
                 # wait finished.
-                running = not shutdown_flag.wait(timeout=WAIT_SLEEP_TIME_SEC)
+                running = not shutdown_flag.wait(
+                    timeout=multiproc.WAIT_SLEEP_TIME_SEC)
 
         except KeyboardInterrupt:
             # First, ask for a gentle, graceful shutdown...
