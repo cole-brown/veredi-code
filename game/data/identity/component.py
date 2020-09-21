@@ -8,9 +8,13 @@ Data component - a component that has persistent data on it.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, MutableMapping
+from typing import (TYPE_CHECKING,
+                    Optional, Any, MutableMapping)
+if TYPE_CHECKING:
+    from veredi.data.config.context import ConfigContext
 
 from veredi.data.config.registry import register
+from veredi.data.identity        import UserId, UserKey
 
 from ..component import DataComponent
 
@@ -91,6 +95,25 @@ class IdentityComponent(DataComponent):
     # Init Stuff
     # -------------------------------------------------------------------------
 
+    def _configure(self,
+                   context: Optional['ConfigContext']) -> None:
+        '''
+        Create instance vars for some transient (per-session) identity data.
+        '''
+        self._user_id:  Optional[UserId]  = None
+        '''
+        User Identity of user that should be communicated with about this
+        specific entity. E.g. a player-character should have the UserId of the
+        user controlling that character this session.
+        '''
+
+        self._user_key: Optional[UserKey] = None
+        '''
+        User Key of user that should be communicated with about this specific
+        entity. E.g. a player-character should have the UserKey of the user
+        controlling that character this session.
+        '''
+
     def _from_data(self, data: MutableMapping[str, Any] = None) -> None:
         '''
         Configure our data into whatever it needs to be for runtime.
@@ -101,6 +124,7 @@ class IdentityComponent(DataComponent):
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------
+
     def _join(self, *args: str) -> Optional[str]:
         '''
         Join names together into a name, ignoring any nulls, nones,
@@ -242,3 +266,35 @@ class IdentityComponent(DataComponent):
         '''
         return (self._persistent.get('allonym', None)
                 or self._persistent.get('owner', None))
+
+    # -------------------------------------------------------------------------
+    # User Identity: UserId & UserKey
+    # -------------------------------------------------------------------------
+
+    @property
+    def user_id(self) -> Optional[UserId]:
+        '''
+        Returns UserId or None.
+        '''
+        return self._user_id
+
+    @user_id.setter
+    def user_id(self, value: Optional[UserId]) -> None:
+        '''
+        Set this entity's UserId. Set to 'None' to unset.
+        '''
+        return self._user_id
+
+    @property
+    def user_key(self) -> Optional[UserKey]:
+        '''
+        Returns UserKey or None.
+        '''
+        return self._user_key
+
+    @user_key.setter
+    def user_key(self, value: Optional[UserKey]) -> None:
+        '''
+        Set this entity's UserKey. Set to 'None' to unset.
+        '''
+        return self._user_key
