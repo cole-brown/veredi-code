@@ -16,8 +16,7 @@ Papers, please.
 # Typing
 # ---
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Set, Type)
-from veredi.base.null import Nullable, Null
+                    Optional, Union, Type, Set, List)
 if TYPE_CHECKING:
     from veredi.game.ecs.manager import EcsManager
     from decimal import Decimal
@@ -30,7 +29,9 @@ if TYPE_CHECKING:
 # ---
 from veredi.logger                   import log
 from veredi.base.const               import VerediHealth
+from veredi.base.dicts               import BidirectionalDict
 from veredi.data.config.registry     import register
+from veredi.data.identity            import UserId, UserKey
 
 # Game / ECS Stuff
 from veredi.game.ecs.event           import EventManager
@@ -41,7 +42,7 @@ from veredi.game.ecs.entity          import EntityManager
 from veredi.game.ecs.const           import (SystemTick,
                                              SystemPriority)
 
-from veredi.game.ecs.base.identity   import ComponentId
+from veredi.game.ecs.base.identity   import EntityId, ComponentId
 from veredi.game.ecs.base.system     import System
 from veredi.game.ecs.base.exceptions import SystemErrorV
 
@@ -94,10 +95,58 @@ class IdentitySystem(System):
         # Just the normal one, for now.
         self._ticks: SystemTick = SystemTick.STANDARD
 
+        # ------------------------------
+        # Quick Lookups
+        # ------------------------------
+        self._uids:  BidirectionalDict[EntityId,  UserId] = {}
+        '''
+        UserId to EntityId and the inverse. Any number of EntityIds can be
+        assigned the same UserId because familiars, companions, the DM...
+        '''
+
+        self._ukeys: BidirectionalDict[EntityId, UserKey] = {}
+        '''
+        UserKey to EntityId and the inverse. Any number of EntityIds can be
+        assigned the same UserKey because familiars, companions, the DM...
+        '''
+
     @property
     def dotted(self) -> str:
         # self._DOTTED magically provided by @register
         return self._DOTTED
+
+    # -------------------------------------------------------------------------
+    # Direct Getters
+    # -------------------------------------------------------------------------
+
+    # Requried Game System, so we don't necessarily have to go through event
+    # system or components...
+
+    def user_id(self, entity_id: EntityId) -> Optional[UserId]:
+        '''
+        Gets the UserId assigned to the entity. Can be None.
+        '''
+        return self._uids.get(entity_id, None)
+
+    def user_key(self, entity_id: EntityId) -> Optional[UserKey]:
+        '''
+        Gets the UserKey assigned to the entity. Can be None.
+        '''
+        return self._ukeys.get(entity_id, None)
+
+    def user_id_to_entity_ids(self,
+                              user_id: UserId) -> Optional[List[EntityId]]:
+        '''
+        Gets the list of EntityIds that are assigned to UserId. Can be None.
+        '''
+        return self._uids.inverse.get(user_id, None)
+
+    def user_key_to_entity_ids(self,
+                               user_key: UserKey) -> Optional[List[EntityId]]:
+        '''
+        Gets the list of EntityIds that are assigned to UserKey. Can be None.
+        '''
+        return self._ukeys.inverse.get(user_key, None)
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

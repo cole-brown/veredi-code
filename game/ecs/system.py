@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 from veredi.logger             import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
+from veredi.base.dicts         import DoubleIndexDict
 from veredi.data               import background
 from veredi.data.config.config import Configuration
 from veredi.debug.const        import DebugFlag
@@ -84,9 +85,10 @@ class SystemManager(EcsManagerWithEvents):
         self._system_destroy: Set[SystemId]          = set()
 
         # TODO: Pool instead of allowing stuff to be allocated/deallocated?
-        self._system:         Dict[SystemId, System]   = {}
-        self._schedule:       List[System]             = []
-        self._reschedule:     bool                     = False
+        self._system:         DoubleIndexDict        = DoubleIndexDict('id',
+                                                                       'type')
+        self._schedule:       List[System]           = []
+        self._reschedule:     bool                   = False
         # self._health = {} # TODO: impl this? or put in game class?
 
     # -------------------------------------------------------------------------
@@ -167,8 +169,8 @@ class SystemManager(EcsManagerWithEvents):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        for sid in self._system:
-            system = self._system[sid]
+        for sid in self._system.id:
+            system = self._system.id[sid]
             if system:
                 system.subscribe(event_manager)
 
@@ -179,8 +181,8 @@ class SystemManager(EcsManagerWithEvents):
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
         # Mark every ent for destruction, then run destruction.
-        for sid in self._system:
-            system = self._system[sid]
+        for sid in self._system.id:
+            system = self._system.id[sid]
             if system:
                 system.apoptosis(time)
             self.destroy(sid)
@@ -203,8 +205,8 @@ class SystemManager(EcsManagerWithEvents):
 
         # Clear out our current schedule, and remake it.
         self._schedule.clear()
-        for sid in self._system:
-            system = self._system[sid]
+        for sid in self._system.id:
+            system = self._system.id[sid]
             self._schedule.append(system)
 
         # Priority sort (highest priority firstest)
@@ -285,15 +287,10 @@ class SystemManager(EcsManagerWithEvents):
 
         Does not care about current life cycle state of system.
         '''
-        by_id = self._system.get(desired, None)
-        if by_id:
-            return by_id
-
-        # Else, type?
-        for id in self._system:
-            by_type = self._system.get(id, None)
-            if isinstance(by_type, desired):
-                return by_type
+        # DoubleIndexDict's get() will look for both SystemId and Type[System].
+        system = self._system.get(desired, None)
+        if system:
+            return system
 
         return Null()
 
@@ -308,7 +305,7 @@ class SystemManager(EcsManagerWithEvents):
 
         System will be cycled to ALIVE during the CREATION tick.
         '''
-        for system in self._system.values():
+        for system in self._system.id.values():
             if isinstance(system, sys_class):
                 raise log.exception(
                     None,
@@ -325,7 +322,7 @@ class SystemManager(EcsManagerWithEvents):
         system = sys_class(context,
                            sid,
                            background.system.meeting)
-        self._system[sid] = system
+        self._system.set(sid, sys_class, system)
         self._system_create.add(sid)
         system._life_cycled(SystemLifeCycle.CREATING)
         background.system.life_cycle(system, SystemLifeCycle.CREATING)
@@ -421,7 +418,7 @@ class SystemManager(EcsManagerWithEvents):
                 system._life_cycled(SystemLifeCycle.DEAD)
                 background.system.life_cycle(system, SystemLifeCycle.DEAD)
                 # ...and forget about it.
-                self._system.pop(system_id, None)
+                self._system.del_by_keys(system_id, type(system))
 
             except SystemErrorV as error:
                 log.exception(
