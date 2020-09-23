@@ -1,0 +1,6 @@
+Copyright (C) Cole Brown - All Rights Reserved
+
+Unauthorized copying of this project, via any medium, is strictly prohibited.
+Proprietary and confidential.
+
+Written by Cole Brown <code@brown.dev>, 2020
