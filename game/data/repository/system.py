@@ -150,7 +150,7 @@ class RepositorySystem(System):
         Data is encoded and now must be saved.
         '''
         # Doctor checkup.
-        if not self._healthy():
+        if not self._healthy(self._manager.time.engine_tick_current):
             self._health_meter_event = self._health_log(
                 self._health_meter_event,
                 log.Level.WARNING,

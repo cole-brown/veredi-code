@@ -207,7 +207,7 @@ class InputSystem(System):
         Command Input thingy requested to happen; please resolve.
         '''
         # Doctor checkup.
-        if not self._healthy():
+        if not self._healthy(self._manager.time.engine_tick_current):
             self._health_meter_event = self._health_log(
                 self._health_meter_event,
                 log.Level.WARNING,
@@ -293,7 +293,7 @@ class InputSystem(System):
             return self._health_check(SystemTick.INTRA_SYSTEM)
 
         # Doctor checkup.
-        if not self._healthy():
+        if not self._healthy(SystemTick.INTRA_SYSTEM):
             self._health_meter_update = self._health_log(
                 self._health_meter_update,
                 log.Level.WARNING,

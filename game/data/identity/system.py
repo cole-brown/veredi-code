@@ -163,7 +163,7 @@ class IdentitySystem(System):
     # Events
     # -------------------------------------------------------------------------
 
-    def _subscribe(self, event_manager: EventManager) -> VerediHealth:
+    def _subscribe(self) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
@@ -218,7 +218,7 @@ class IdentitySystem(System):
         Identity thingy want; make with the component plz.
         '''
         # Doctor checkup.
-        if not self._healthy():
+        if not self._healthy(self._manager.time.engine_tick_current):
             self._health_meter_event = self._health_log(
                 self._health_meter_event,
                 log.Level.WARNING,

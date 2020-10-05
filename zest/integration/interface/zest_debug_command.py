@@ -76,7 +76,7 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
         self.assertFalse(self.reg_open)
 
         # Run create ticks.
-        self.engine._run_create()
+        self.engine_life_start()
 
         # Life'd, registration'd, and some commands exist now.
         self.assertEqual(self.engine.life_cycle, SystemTick.TICKS_START)
@@ -84,7 +84,7 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
         self.assertTrue(self.input_system._commander._commands)
 
     def test_background_cmd(self):
-        self.engine_set_up()
+        self.engine_life_start()
 
         # Set up entity. Not much use right now but we need to test debug
         # command permissions someday so hi there debug guy.
@@ -123,7 +123,7 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
                       log_msg)
 
     def test_debug_background_cmd(self):
-        self.engine_set_up()
+        self.engine_life_start()
 
         # Set up entity. Not much use right now but we need to test debug
         # command permissions someday so hi there debug guy.
