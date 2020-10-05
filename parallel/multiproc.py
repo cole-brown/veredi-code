@@ -11,7 +11,7 @@ Only really tests the websockets and Mediator.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Type, NewType, Callable
+from typing import Optional, Any, Type, NewType, Callable, Tuple
 
 import multiprocessing
 from multiprocessing.connection import Connection as mp_conn
@@ -19,11 +19,14 @@ from ctypes import c_int
 import signal
 from collections import namedtuple
 import time as py_time
-from datetime import datetime, time as dt_time
+from datetime import datetime
 import enum
 
 
 from veredi.base.enum                           import FlagCheckMixin
+from veredi.base.const                           import VerediHealth
+import veredi.time.machine
+from veredi.game.ecs.base.system                           import SystemLifeCycle
 from veredi.logger                       import log, log_client
 from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
@@ -130,24 +133,43 @@ class ProcToSubComm:
                  pipe:       mp_conn,
                  shutdown:   multiprocessing.Event,
                  ut_pipe:    Optional[mp_conn] = None) -> None:
-        self.name       = name
-        self.process    = process
-        self.pipe       = pipe
-        self.shutdown   = shutdown
-        self.ut_pipe    = ut_pipe
+        self.name:       str                     = name
+        self.process:    multiprocessing.Process = process
+        self.pipe:       mp_conn                 = pipe
+        self.shutdown:   multiprocessing.Event   = shutdown
+        self.ut_pipe:    Optional[mp_conn]       = ut_pipe
+
+        self.timer_val:  Optional[float]         = None
+        '''
+        We don't (currently) manage this, but do hold on to it for
+        encapusulation's sake. It can be optionally set in start() and stop().
+        '''
+
+        self.time_start: Optional[datetime]      = None
+        '''Time we asked process to start.'''
+
+        self.time_end:   Optional[datetime]      = None
+        '''Time that the process ended.'''
 
     # -------------------------------------------------------------------------
     # Process Control
     # -------------------------------------------------------------------------
 
-    def start(self) -> None:
+    def start(self,
+              time_sec: Optional[float] = None) -> None:
         '''
         Runs the sub-process.
+
+        Sets `self.timer_val` based on optional param `time_sec`.
+        Also sets `self.time_start` to current time.
         '''
+        self.timer_val = time_sec
+        self.time_start = veredi.time.machine.utcnow()
         self.process.start()
 
     def stop(self,
-             wait_timeout: float = GRACEFUL_SHUTDOWN_TIME_SEC) -> None:
+             wait_timeout: float = GRACEFUL_SHUTDOWN_TIME_SEC,
+             time_sec:  Optional[float]    = None) -> None:
         '''
         Asks this sub-process to stop/shutdown.
 
@@ -156,6 +178,11 @@ class ProcToSubComm:
         out).
 
         If graceful shutdown times out, this will kill the process.
+
+        Sets `self.timer_val` based on optional params `time_sec`.
+
+        Only sets `self.time_end` if this function stops the process. If it was
+        already non-existant or stopped it will not be set.
         '''
         if not self.process:
             # Not sure this should be an exception. Have as a log for now.
@@ -195,35 +222,148 @@ class ProcToSubComm:
             # Still not exited; terminate it.
             self.process.terminate()
 
+        # We stopped it so we know what time_end to set.
+        self.time_end = veredi.time.machine.utcnow()
         return ExitCodeTuple(self.name, self.process.exitcode)
+
+    # -------------------------------------------------------------------------
+    # Health Check
+    # -------------------------------------------------------------------------
+
+    def exitcode_healthy(self,
+                         healthy_return: VerediHealth,
+                         unhealthy_return: VerediHealth) -> VerediHealth:
+        '''
+        NOTE: If process is alive, returns VerediHealth.FATAL!!!
+
+        Returns VerediHealth.HEALTHY for good exitcode (0).
+        Returns VerediHealth.UNHEALTHY for bad exitcodes.
+        '''
+        if self.process.is_alive():
+            return VerediHealth.FATAL
+
+        return (healthy_return
+                if self.process.exitcode == 0 else
+                unhealthy_return)
+
+    def healthy(self, life_cycle: SystemLifeCycle) -> VerediHealth:
+        '''
+        Returns a health value based on sub-process's status.
+
+        If `life_cycle` is SystemLifeCycle.APOPTOSIS, this will return
+        APOPTOSIS_FAILURE, APOPTOSIS_SUCCESSFUL, etc instead of FATAL, HEALTHY,
+        DYING, etc.
+        '''
+        # ------------------------------
+        # Process DNE.
+        # ------------------------------
+        if not self.process:
+            # If trying to die and have no process... uh...
+            # You should have a process.
+            if life_cycle == SystemLifeCycle.APOPTOSIS:
+                return VerediHealth.APOPTOSIS_FAILURE
+
+            # No process is pretty bad for a multiprocess thing.
+            return VerediHealth.FATAL
+
+        # ------------------------------
+        # Process Exists.
+        # ------------------------------
+
+        # ---
+        # Shutdown?
+        # ---
+        # Did we tell it to shut down?
+        if self.shutdown.is_set():
+            # Do we want it to shut down?
+            if life_cycle != VerediHealth.APOPTOSIS:
+                # Let's indicate something that says we want to let the
+                # shutdown continue, but that it's also during the wrong
+                # SystemLifeCycle...
+                return VerediHealth.DYING
+
+            # Ok: SystemLifeCycle is apoptosis. A nice structured death.
+            if self.process.is_alive():
+                # We're still in apoptosis?
+                # TODO: time-out at system manager and/or game engine level.
+                return VerediHealth.APOPTOSIS
+
+            # Healthy Exit Code == A Good Death
+            elif self.process.exitcode == 0:
+                return VerediHealth.APOPTOSIS_SUCCESSFUL
+
+            # Unhealthy Exit Code == Not So Good of a Death
+            return VerediHealth.APOPTOSIS_FAILURE
+
+        # ---
+        # Not Running but not Shutdown?!
+        # ---
+        if not self.process.is_alive():
+            if life_cycle == VerediHealth.APOPTOSIS:
+                log.error("Process '{}' is in "
+                          "SystemLifeCycle.APOPTOSIS and "
+                          "process is not alive, but shutdown flag isn't set "
+                          "and it should be.",
+                          self.name)
+                # Might be a successful apoptosis from the multiproc standpoint
+                # but we don't know. Someone changed the shutdown flag we want
+                # to check.
+                return VerediHealth.APOPTOSIS_FAILURE
+
+            # Not running and not in apoptosis life-cycle... Dunno but not
+            # healthy.
+            return VerediHealth.UNHEALTHY
+
+        # ---
+        # Running and should be, so... Healthy.
+        # ---
+        return VerediHealth.HEALTHY
 
     # -------------------------------------------------------------------------
     # IPC Helpers
     # -------------------------------------------------------------------------
 
-    def send(self) -> None:
+    def send(self, package: Any, context: VerediContext) -> None:
         '''
-        TODO
+        Push package & context into IPC pipe.
+        Waits/blocks until it receives something.
         '''
-        pass
+        self.pipe.send((package, context))
 
-    def recv(self) -> None:
+    def has_data(self) -> bool:
         '''
-        TODO
+        No wait/block.
+        Returns True if pipe has data to recv().
         '''
-        pass
+        return self.pipe.poll()
 
-    def _ut_send(self) -> None:
+    def recv(self) -> Tuple[Any, VerediContext]:
         '''
-        TODO
+        Pull a package & context from the IPC pipe.
         '''
-        pass
+        package, context = self.pipe.recv()
+        return (package, context)
 
-    def _ut_recv(self) -> None:
+    def _ut_send(self, package: Any, context: VerediContext) -> None:
         '''
-        TODO
+        Push package & context into IPC unit-testing pipe.
+        Waits/blocks until it receives something.
         '''
-        pass
+        self.ut_pipe.send((package, context))
+
+    def _ut_has_data(self) -> bool:
+        '''
+        No wait/block.
+        Returns True if unit-testing pipe has data to recv().
+        '''
+        return self.pipe.poll()
+
+    def _ut_recv(self) -> Tuple[Any, VerediContext]:
+        '''
+        Pull a package & context from the IPC unit-testing pipe.
+        '''
+        package, context = self.ut_pipe.recv()
+        return (package, context)
 
     # -------------------------------------------------------------------------
     # Strings
@@ -269,29 +409,31 @@ class SubToProcComm:
     # IPC Helpers
     # -------------------------------------------------------------------------
 
-    def send(self) -> None:
+    def send(self, package: Any, context: VerediContext) -> None:
         '''
-        TODO
+        Push package & context into IPC pipe.
         '''
-        pass
+        self.pipe.send((package, context))
 
-    def recv(self) -> None:
+    def recv(self) -> Tuple[Any, VerediContext]:
         '''
-        TODO
+        Pull a package & context from the IPC pipe.
         '''
-        pass
+        package, context = self.pipe.recv()
+        return (package, context)
 
-    def _ut_send(self) -> None:
+    def _ut_send(self, package: Any, context: VerediContext) -> None:
         '''
-        TODO
+        Push package & context into IPC unit-testing pipe.
         '''
-        pass
+        self.ut_pipe.send((package, context))
 
-    def _ut_recv(self) -> None:
+    def _ut_recv(self) -> Tuple[Any, VerediContext]:
         '''
-        TODO
+        Pull a package & context from the IPC unit-testing pipe.
         '''
-        pass
+        package, context = self.ut_pipe.recv()
+        return (package, context)
 
     # -------------------------------------------------------------------------
     # Strings
@@ -335,10 +477,8 @@ def set_up(proc_name:         str,
     Returns a `t_proc_to_sub` (default: ProcToSubComm) object. When ready to
     start/run the subprocess, call start() on it.
     '''
-    # TODO [2020-08-10]: Logging init should take care of level... Try to
-    # get rid of this setLevel(). Add level to get_logger()?
-    lumberjack = log.get_logger(proc_name)
-    lumberjack.setLevel(int(initial_log_level))
+    lumberjack = log.get_logger(proc_name,
+                                min_log_level=initial_log_level)
 
     if proc_test and proc_test.has(ProcTest.DNE):
         # This process 'Does Not Exist' right now.
@@ -510,14 +650,130 @@ def _subproc_entry(context: VerediContext) -> None:
 # Multiprocess End
 # -----------------------------------------------------------------------------
 
-def tear_down(proc: ProcToSubComm) -> ExitCodeTuple:
+def blocking_tear_down(proc: ProcToSubComm,
+                       graceful_wait: Optional[float] = -1) -> ExitCodeTuple:
     '''
     Stops process. First tries to ask it to stop (i.e. stop gracefully). If
     that takes too long, terminates the process.
 
+    If `graceful_wait` is set to:
+      - positive number: This will block for that many seconds for the
+        multiprocessing.join() call to finish.
+      - `None`: This will block forever until the process stops gracefully.
+      - negative number: It will block for `GRACEFUL_SHUTDOWN_TIME_SEC` by
+        default.
+
     Returns an ExitCodeTuple (the proc name and its exit code).
     '''
+    if isinstance(graceful_wait, (int, float)) and graceful_wait < 0:
+        graceful_wait = GRACEFUL_SHUTDOWN_TIME_SEC
+
     lumberjack = log.get_logger(proc.name)
+
+    # ------------------------------
+    # Sanity Check, Early Out.
+    # ------------------------------
+    result = _tear_down_check(proc, lumberjack)
+    if result:
+        return result
+
+    # ------------------------------
+    # Kick off tear-down.
+    # ------------------------------
+    result = _tear_down_start(proc, lumberjack)
+    if result:
+        return result
+
+    # ------------------------------
+    # Wait for tear-down.
+    # ------------------------------
+    result = _tear_down_wait(proc, lumberjack, graceful_wait,
+                             log_enter=True,
+                             log_wait_timeout=True,
+                             log_exit=True)
+    if result:
+        return result
+
+    # ------------------------------
+    # Finish tear-down.
+    # ------------------------------
+    result = _tear_down_end(proc, lumberjack)
+    return result
+
+
+def nonblocking_tear_down_start(proc: ProcToSubComm
+                                ) -> Optional[ExitCodeTuple]:
+    '''
+    Kicks off tear-down. Caller will have to loop calling
+    `nonblocking_tear_down_wait` for however long they want to wait for a clean
+    shutdown, then call `nonblocking_tear_down_end` to finish.
+    '''
+    lumberjack = log.get_logger(proc.name)
+
+    # ------------------------------
+    # Sanity Check, Early Out.
+    # ------------------------------
+    result = _tear_down_check(proc, lumberjack)
+    if result:
+        return result
+
+    # ------------------------------
+    # Kick off tear-down.
+    # ------------------------------
+    result = _tear_down_start(proc, lumberjack)
+    if result:
+        return result
+
+
+def nonblocking_tear_down_wait(proc:             ProcToSubComm,
+                               graceful_wait:    float = 0.1,
+                               log_enter:        bool            = False,
+                               log_wait_timeout: bool            = False,
+                               log_exit:         bool            = False
+                               ) -> Optional[ExitCodeTuple]:
+    '''
+    Wait for `graceful_wait` seconds for process to end gracefully.
+
+    `log_<something>` flags are for help when looping for a small wait so other
+    systems can do things. Logs are guarded by `log_<something>`, so a caller
+    can have enter logged once, then just loop logging exit (for example).
+    '''
+    lumberjack = log.get_logger(proc.name)
+
+    # ------------------------------
+    # Wait for tear-down.
+    # ------------------------------
+    result = _tear_down_wait(proc, lumberjack, graceful_wait,
+                             log_enter=log_enter,
+                             log_wait_timeout=log_wait_timeout,
+                             log_exit=log_exit)
+    if result:
+        return result
+
+
+def nonblocking_tear_down_end(proc: ProcToSubComm
+                              ) -> Optional[ExitCodeTuple]:
+    '''
+    Finishes tear-down. Checks that process finished shutdown. If not, we
+    terminate it immediately.
+
+    In any case, we return its exit code.
+    '''
+    lumberjack = log.get_logger(proc.name)
+
+    # ------------------------------
+    # Finish tear-down.
+    # ------------------------------
+    result = _tear_down_end(proc, lumberjack)
+    return result
+
+
+def _tear_down_check(proc: ProcToSubComm,
+                     lumberjack: Optional[log.PyLogType]
+                     ) -> Optional[ExitCodeTuple]:
+    '''
+    Checks that process exists, then if process has good exit code.
+    '''
 
     if not proc or not proc.process:
         if proc:
@@ -526,25 +782,79 @@ def tear_down(proc: ProcToSubComm) -> ExitCodeTuple:
             lumberjack.debug(f"Cannot stop None/Null: {proc}")
         # Pretend it exited with good exit code?
         return ExitCodeTuple(proc.name, 0)
+
     if proc.process.exitcode == 0:
         lumberjack.debug(f"{proc.name}: Already stopped.")
         return ExitCodeTuple(proc.name, proc.process.exitcode)
 
-    # Set process's shutdown flag. It should notice soon and start doing
-    # its shutdown.
+    return None
+
+
+def _tear_down_start(proc: ProcToSubComm,
+                     lumberjack: Optional[log.PyLogType],
+                     ) -> Optional[ExitCodeTuple]:
+    '''
+    Set shutdown flag. Proc should notice soon (not immediately) and start its
+    shutdown.
+    '''
     lumberjack.debug(f"{proc.name}: Asking it to end gracefully...")
     proc.shutdown.set()
 
+
+def _tear_down_wait(proc:             ProcToSubComm,
+                    lumberjack:       Optional[log.PyLogType],
+                    graceful_wait:    Optional[float] = -1,
+                    log_enter:        bool            = True,
+                    log_wait_timeout: bool            = True,
+                    log_exit:         bool            = True
+                    ) -> Optional[ExitCodeTuple]:
+    '''
+    Waits for process to stop gracefully.
+
+    If `graceful_wait` is set to:
+      - positive number: This will block for that many seconds for the
+        multiprocessing.join() call to finish.
+      - `None`: This will block forever until the process stops gracefully.
+      - negative number: It will block for `GRACEFUL_SHUTDOWN_TIME_SEC` by
+        default.
+
+    `log_<something>` flags are for help when looping for a small wait so other
+    systems can do things. Logs are guarded by `log_<something>`, so a caller
+    can have enter logged once, then just loop logging exit (for example).
+
+    Returns an ExitCodeTuple (the proc name and its exit code).
+    '''
+    if isinstance(graceful_wait, (int, float)) and graceful_wait < 0:
+        graceful_wait = GRACEFUL_SHUTDOWN_TIME_SEC
+
     # Wait for process to be done.
     if proc.process.is_alive():
-        lumberjack.debug(f"{proc.name}: Waiting for completion of "
-                         "structured shutdown...")
+        if log_enter:
+            lumberjack.debug(f"{proc.name}: Waiting for completion of "
+                             "structured shutdown...")
         proc.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
-        lumberjack.debug(f"{proc.name} exit: "
-                         f"{str(proc.process.exitcode)}")
+        if log_wait_timeout and proc.process.exitcode is None:
+            lumberjack.debug(f"{proc.name} exit timeout: "
+                             f"{str(proc.process.exitcode)}")
+        elif log_exit and proc.process.exitcode is not None:
+            lumberjack.debug(f"{proc.name} exit: "
+                             f"{str(proc.process.exitcode)}")
+            return ExitCodeTuple(proc.name, proc.process.exitcode)
     else:
-        lumberjack.debug(f"{proc.name}: didn't run; skip shutdown...")
+        if log_enter:
+            lumberjack.debug(f"{proc.name}: didn't run; skip shutdown...")
 
+    return None
+
+
+def _tear_down_end(proc: ProcToSubComm,
+                   lumberjack: Optional[log.PyLogType]
+                   ) -> ExitCodeTuple:
+    '''
+    Checks that process finished shutdown. If not, we terminate it immediately.
+
+    In any case, we return its exit code.
+    '''
     # Make sure it shut down and gave a good exit code.
     if (proc.process
             and proc.process.is_alive()

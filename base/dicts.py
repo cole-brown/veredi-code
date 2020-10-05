@@ -16,6 +16,9 @@ import enum
 from veredi.logger import log
 
 
+# TODO [2020-09-22]: Use typing something or other to allow these to take
+# in & use type hinting. E.g. self.foo: DoubleIndexDict[[str, int], Jeff]
+
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
@@ -25,6 +28,7 @@ from veredi.logger import log
 # Double-Index Dictionaries
 # -----------------------------------------------------------------------------
 
+# TODO [2020-10-03]: Iterators for items(), keys(), values().
 class DoubleIndexDict:
     '''
     Dictionary that indexes values via two different keys (in two different

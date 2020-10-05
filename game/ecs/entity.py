@@ -108,21 +108,45 @@ class EntityManager(EcsManagerWithEvents):
             ...
     '''
 
-    def __init__(self,
-                 config:        Optional[Configuration],
-                 event_manager:     Optional[EventManager],
-                 component_manager: ComponentManager) -> None:
-        '''Initializes this thing.'''
-        self._config:            Configuration          = config
-        self._event_manager:     EventManager           = event_manager
-        self._component_manager: ComponentManager       = component_manager
+    def _define_vars(self) -> None:
+        super()._define_vars()
+
+        self._event_manager:     EventManager           = None
+        '''TODO: remove this from interface and here.'''
+
+        self._component_manager: ComponentManager       = None
+        '''
+        Handle to the ComponentManager so we can do common things for entities
+        like attach a component, check for components, etc.
+        '''
 
         self._entity_id:         'MonotonicIdGenerator' = EntityId.generator()
+        '''
+        EntityId generator for entity creation.
+
+        This is the definitive place for EntityIds and they should only be
+        created from this generator.
+        '''
+
         self._entity_create:     Set[EntityId]          = set()
+        '''Entities that will be created soon.'''
+
         self._entity_destroy:    Set[EntityId]          = set()
+        '''Systems that will be destroyed soon.'''
 
         # TODO: Pool instead of allowing stuff to be allocated/deallocated?
         self._entity:            Dict[EntityId, Entity] = {}
+        '''Collection of all Entities. Indexed by ID.'''
+
+    def __init__(self,
+                 config:            Optional[Configuration],
+                 event_manager:     Optional[EventManager],
+                 component_manager: ComponentManager) -> None:
+        super().__init__()
+
+        self._config            = config
+        self._event_manager     = event_manager
+        self._component_manager = component_manager
 
     def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''

@@ -99,20 +99,41 @@ class ComponentManager(EcsManagerWithEvents):
             ...
     '''
 
+    def _define_vars(self) -> None:
+        super()._define_vars()
+
+        self._component_id:    'MonotonicIdGenerator' = ComponentId.generator()
+        '''Our ID Generator for our components.'''
+
+        self._component_create:  Set[ComponentId]     = set()
+        '''Set of components to be created.'''
+
+        self._component_destroy: Set[ComponentId]     = set()
+        '''Set of components to be destroyed.'''
+
+        # TODO: Pools instead of allowing stuff to be allocated/deallocated?
+        self._component_by_id:   Dict[ComponentId, Component]           = {}
+        '''Existing Components indexed by ID.'''
+
+        self._component_by_type: Dict[Type[Component], List[Component]] = {}
+        '''Existing Components indexed by Type (a list for each type).'''
+
+        # TODO [2020-10-02]: Remove this or no?
+        self._event_manager:     EventManager         = None
+        '''The Event Manager.'''
+
+        # TODO [2020-10-02]: Remove this or no?
+        self._config:            Configuration        = None
+        '''The Configuration.'''
+
     def __init__(self,
                  config:        Optional[Configuration],
                  event_manager: Optional[EventManager]) -> None:
         '''Initializes this thing.'''
-        self._component_id:    'MonotonicIdGenerator' = ComponentId.generator()
-        self._component_create:  Set[ComponentId]     = set()
-        self._component_destroy: Set[ComponentId]     = set()
+        super().__init__()
 
-        # TODO: Pools instead of allowing stuff to be allocated/deallocated?
-        self._component_by_id:   Dict[ComponentId, Component]           = {}
-        self._component_by_type: Dict[Type[Component], List[Component]] = {}
-
-        self._event_manager:     EventManager         = event_manager
-        self._config:            Configuration        = config
+        self._event_manager = event_manager
+        self._config        = config
 
     def apoptosis(self, time: 'TimeManager') -> VerediHealth:
         '''

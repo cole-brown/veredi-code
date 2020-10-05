@@ -107,12 +107,11 @@ class CodecSystem(System):
     # Events
     # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
+    def _subscribe(self) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        super().subscribe(event_manager)
 
         # Codec subs to:
         # - DeserializedEvent
@@ -128,7 +127,7 @@ class CodecSystem(System):
         self._manager.event.subscribe(DataSaveRequest,
                                       self.event_data_save_request)
 
-        return self._health_check()
+        return VerediHealth.HEALTHY
 
     def event_deserialized(self, event: DeserializedEvent) -> None:
         '''

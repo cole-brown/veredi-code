@@ -22,6 +22,7 @@ from veredi.base.dicts         import DoubleIndexDict
 from veredi.data               import background
 from veredi.data.config.config import Configuration
 from veredi.debug.const        import DebugFlag
+from veredi.time.timer         import MonotonicTimer
 
 from .base.identity            import SystemId
 from .base.system              import (System,
@@ -31,7 +32,7 @@ from veredi.base.exceptions    import VerediError
 from .base.exceptions          import SystemErrorV
 
 from .const                    import SystemTick
-from .time                     import TimeManager
+from .time                     import TimeManager, MonotonicTimer
 from .event                    import EcsManagerWithEvents, EventManager, Event
 from .component                import ComponentManager
 from .entity                   import EntityManager
@@ -63,6 +64,68 @@ class SystemManager(EcsManagerWithEvents):
     # Init / Set Up
     # -------------------------------------------------------------------------
 
+    def _define_vars(self) -> None:
+        super()._define_vars()
+
+        self._debug: Nullable[DebugFlag] = Null()
+        '''Debug Flags.'''
+
+        # Need to keep EventManager in self._event_manager to conform
+        # to EcsManagerWithEvents interface.
+        # §-TODO-§ [2020-10-03]: Remove EventManager or keep in the interface?
+        self._event_manager: NullNoneOr[EventManager] = Null()
+        '''ECS Event Manager.'''
+
+        self._system_id:      'MonotonicIdGenerator' = SystemId.generator()
+        '''
+        SystemId generator for during system creation.
+
+        This is the definitive place for SystemIds and they should only be
+        created from this generator.
+        '''
+
+        self._system_create:  Set[SystemId]          = set()
+        '''Systems that will be created soon.'''
+
+        self._system_destroy: Set[SystemId]          = set()
+        '''Systems that will be destroyed soon.'''
+
+        # TODO: Pool instead of allowing stuff to be allocated/deallocated?
+        self._system:         DoubleIndexDict        = DoubleIndexDict('id',
+                                                                       'type')
+        '''Collection of all Systems. Indexed by both ID and TYPE.'''
+
+        self._schedule:       List[System]           = []
+        '''
+        Our schedule for the next/current game-loop (SystemTick.TICKS_RUN)
+        cycle. Not rescheduled every tick - only when something bumps
+        self._reschedule to True.
+        '''
+
+        self._reschedule:     bool                   = False
+        '''
+        Flag for redoing our System tick priority schedule (self._schedule).
+        '''
+
+        self._timer: Optional['MonotonicTimer'] = MonotonicTimer()
+        '''
+        We'll use this timer in certain life-cycles/tick-cycles (e.g.
+        apoptosis) to let systems time how long it's been since the start of
+        that cycle.
+        '''
+
+        # TODO NOW!!!
+        # TODO [2020-09-30]: Remove - use the cycle transition functions instead!!!
+        # TODO NOW!!!
+        self._tick_type_prev: SystemTick = SystemTick.INVALID
+        '''For finding transitions to/from e.g. SystemTick.INTRASYS.'''
+
+        self._life_cycle_general: SystemLifeCycle = SystemLifeCycle.INVALID
+        '''
+        Overall life-cycle. Used to track entrance into each phase of the
+        life cycle.
+        '''
+
     def __init__(self,
                  config:            NullNoneOr[Configuration],
                  time_manager:      NullNoneOr[TimeManager],
@@ -70,26 +133,11 @@ class SystemManager(EcsManagerWithEvents):
                  component_manager: NullNoneOr[ComponentManager],
                  entity_manager:    NullNoneOr[EntityManager],
                  debug_flags:       NullNoneOr[DebugFlag]) -> None:
-        '''Initializes this thing.'''
-        self._debug: Nullable[DebugFlag] = debug_flags or Null()
 
-        # TODO [2020-06-01]: get rid of this class's link to config?
-        self._config: NullNoneOr[Configuration] = config or Null()
+        super().__init__()
 
-        # Need to keep EventManager in self._event_manager to conform
-        # to EcsManagerWithEvents interface.
-        self._event_manager: NullNoneOr[EventManager] = event_manager or Null()
-
-        self._system_id:      'MonotonicIdGenerator' = SystemId.generator()
-        self._system_create:  Set[SystemId]          = set()
-        self._system_destroy: Set[SystemId]          = set()
-
-        # TODO: Pool instead of allowing stuff to be allocated/deallocated?
-        self._system:         DoubleIndexDict        = DoubleIndexDict('id',
-                                                                       'type')
-        self._schedule:       List[System]           = []
-        self._reschedule:     bool                   = False
-        # self._health = {} # TODO: impl this? or put in game class?
+        self._debug = debug_flags or Null()
+        self._event_manager = event_manager or Null()
 
     # -------------------------------------------------------------------------
     # Debugging
@@ -161,6 +209,123 @@ class SystemManager(EcsManagerWithEvents):
                 **kwargs)
 
     # -------------------------------------------------------------------------
+    # Life-Cycle Transitions
+    # -------------------------------------------------------------------------
+
+    def _cycle_genesis(self) -> VerediHealth:
+        '''
+        Entering TICKS_START life-cycle's first tick: genesis. System creation,
+        initializing stuff, etc.
+        '''
+        self._life_cycle_general = SystemLifeCycle.CREATING
+        self._timer.start()
+        return VerediHealth.HEALTHY
+
+    def _cycle_intrasystem(self) -> VerediHealth:
+        '''
+        Entering TICKS_START life-cycle's next tick - intra-system
+        communication, loading, configuration...
+        '''
+        self._life_cycle_general = SystemLifeCycle.ALIVE
+        self._timer.start()
+        return VerediHealth.HEALTHY
+
+    def _cycle_game_loop(self) -> VerediHealth:
+        '''
+        Entering TICKS_RUN life-cycle, aka the main game loop.
+
+        Prepare for the main event.
+        '''
+        # self._life_cycle_general stays in ALIVE
+        self._timer.start()
+        return VerediHealth.HEALTHY
+
+    def _cycle_apoptosis(self) -> VerediHealth:
+        '''
+        Entering TICKS_END life-cycle's first tick: apoptosis. Initial
+        structured shut-down tick cycle. Systems, managers, etc must still be
+        in working order for this - saving data, unloading, final
+        communications, etc.
+
+        Game is ending gracefully. Call each system once to alert them of this.
+        '''
+        # Set up timer, set ourself to in apoptosis phase.
+        self._timer.start()
+        self._life_cycle_general = SystemLifeCycle.APOPTOSIS
+
+        # Set each system to apoptosis phase.
+        health = VerediHealth.INVALID
+        for sid in self._system.id:
+            system = self._system.id[sid]
+            if (system
+                    and not self._system_in_cycle(system,
+                                                  SystemLifeCycle.APOPTOSIS)):
+                health = health.update(
+                    self._life_cycle_set(system, SystemLifeCycle.APOPTOSIS))
+
+        return health
+
+    def _cycle_apocalypse(self) -> VerediHealth:
+        '''
+        Entering TICKS_END life-cycle's next tick: apocalypse. Systems can now
+        become unresponsive. Managers must stay responsive.
+
+        Game is ending systems gracefully or not. Call each system once to
+        alert them of this.
+        '''
+        # Reset timer, set ourself to in apocalypse phase.
+        self._timer.start()
+        self._life_cycle_general = SystemLifeCycle.APOCALYPSE
+
+        # Set each system to apocalypse phase.
+        health = VerediHealth.INVALID
+        for sid in self._system.id:
+            system = self._system.id[sid]
+            if (system
+                    and not self._system_in_cycle(system,
+                                                  SystemLifeCycle.APOCALYPSE)):
+                health = health.update(
+                    self._life_cycle_set(system, SystemLifeCycle.APOCALYPSE))
+
+        return health
+
+    def _cycle_the_end(self) -> VerediHealth:
+        '''
+        Entering TICKS_END life-cycle's final tick: the_end.
+
+        Managers must finish the tick, so don't kill yourself here... Not quite
+        yet.
+
+        Game is ending. This is our 'entering the end' call.
+        Systems will also have a chance at 'update the end'.
+        Then they will all be destroyed.
+        '''
+        # Reset timer, set ourself to in the_end phase.
+        self._timer.start()
+        self._life_cycle_general = SystemLifeCycle.THE_END
+
+        # Set each system to the_end phase.
+        health = VerediHealth.INVALID
+        for sid in self._system.id:
+            system = self._system.id[sid]
+            if (system
+                    and not self._system_in_cycle(system,
+                                                  SystemLifeCycle.THE_END)):
+                health = health.update(
+                    self._life_cycle_set(system, SystemLifeCycle.THE_END))
+
+        return health
+
+    def _cycle_thanatos(self) -> VerediHealth:
+        '''
+        The God Of Death is here.
+
+        We may die now.
+        '''
+        self._life_cycle_general = SystemLifeCycle.DEAD
+        return VerediHealth.THE_END
+
+    # -------------------------------------------------------------------------
     # EcsManagerWithEvents Interface
     # -------------------------------------------------------------------------
 
@@ -169,26 +334,23 @@ class SystemManager(EcsManagerWithEvents):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
+        health = VerediHealth.INVALID
         for sid in self._system.id:
             system = self._system.id[sid]
             if system:
-                system.subscribe(event_manager)
+                health = health.update(system.subscribe(event_manager))
 
-        return VerediHealth.HEALTHY
+        return health
 
-    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
+    def _system_in_cycle(self,
+                         system: System,
+                         desired: SystemLifeCycle) -> bool:
         '''
-        Game is ending gracefully. Do graceful end-of-the-world stuff...
-        '''
-        # Mark every ent for destruction, then run destruction.
-        for sid in self._system.id:
-            system = self._system.id[sid]
-            if system:
-                system.apoptosis(time)
-            self.destroy(sid)
-        self.destruction(time)
+        Checks `system`'s life-cycle.
 
-        return super().apoptosis(time)
+        Returns true if it matches `desired` cycle.
+        '''
+        return system.life_cycle == desired
 
     # -------------------------------------------------------------------------
     # API: System Collection Iteration
@@ -214,6 +376,57 @@ class SystemManager(EcsManagerWithEvents):
 
         self._reschedule = False
 
+    def _reset_timer(self, time: 'TimeManager') -> None:
+        '''
+        Creates timer if it's None. Else restarts it.
+        '''
+        if not self._timer:
+            self._timer = time.make_timer()
+            return
+
+        self._timer.start()
+
+    def _update_timer(self, time: 'TimeManager', tick: SystemTick) -> None:
+        '''
+        Checks `tick`, `self._tick_type_prev`. Starts/stops/resets timer if
+        needed.
+        '''
+        # ---
+        # In 'start-up'?
+        # ---
+        if tick.has(SystemTick.TICKS_START):
+            # We'll run a timer for each tick type in start as they loop
+            # one-by-one.
+            if tick == self._tick_type_prev:
+                return
+
+            # New starting tick type; restart timer for it.
+            self._reset_timer(time)
+
+        # ---
+        # In 'end'?
+        # ---
+        elif tick.has(SystemTick.TICKS_END):
+            # We'll run a timer for each tick type in end as they loop
+            # one-by-one.
+            if tick == self._tick_type_prev:
+                return
+
+            # New ending tick type; restart timer for it.
+            self._reset_timer(time)
+
+        # ---
+        # Otherwise in 'run'?
+        # ---
+        elif tick.has(SystemTick.TICKS_RUN):
+            # Only reset timer when transitioning in for first time.
+            if self._tick_type_prev.has(SystemTick.TICKS_START):
+                self._reset_timer(time)
+
+        # ---
+        # Else I don't care.
+        # ---
+
     def update(self,
                tick: SystemTick,
                time: 'TimeManager',
@@ -223,6 +436,9 @@ class SystemManager(EcsManagerWithEvents):
         Engine calls us for each update tick, and we'll call all our
         game systems.
         '''
+        # Is this a tick transition and do we care?
+        self._update_timer(time, tick)
+
         # Update schedule at start of the tick, if it needs it.
         if (SystemTick.RESCHEDULE_SYSTEMS.has(tick)
                 or not self._schedule):
@@ -230,7 +446,6 @@ class SystemManager(EcsManagerWithEvents):
             self._log_tick("Updated schedule. tick: {}", tick)
 
         worst_health = VerediHealth.HEALTHY
-
         # TODO: self._schedule[tick] is a priority/topographical tree or
         # something that doesn't pop off members each loop?
         for system in self._schedule:
@@ -246,10 +461,16 @@ class SystemManager(EcsManagerWithEvents):
             # Try/catch each system, so they don't kill each other with a
             # single repeating exception.
             try:
+                # Call the tick.
+                sys_tick_health = system.update_tick(tick,
+                                                     time,
+                                                     component,
+                                                     entity)
                 # Update worst_health var with this system's tick return value.
                 worst_health = VerediHealth.set(
                     worst_health,
-                    system.update_tick(tick, time, component, entity))
+                    sys_tick_health)
+
                 # Only do this if we /really/ want logs.
                 if self.debug_flagged(DebugFlag.SYSTEM_DEBUG):
                     self._log_tick("SystemManager.update: {} {} {}",
@@ -274,7 +495,32 @@ class SystemManager(EcsManagerWithEvents):
                     "during {} tick (time={}).",
                     str(system), tick, time.seconds)
 
+        if tick == SystemTick.THE_END:
+            # Set all to destroy, then run destruction().
+            self._destroy_all(tick, time)
+
+        # Update this for next go.
+        self._tick_type_prev = tick
+
         return worst_health
+
+    # -------------------------------------------------------------------------
+    # System Life-Cycle Management
+    # -------------------------------------------------------------------------
+
+    def _life_cycle_set(self,
+                        system:            System,
+                        cycle:             SystemLifeCycle,
+                        log_to_background: bool = True) -> None:
+        '''
+        Set system's life-cycle to cycle (if it isn't already).
+
+        Creats a life-cycle record in background.system if `log_to_background`.
+        '''
+        health = system._life_cycled(cycle)
+        if log_to_background:
+            background.system.life_cycle(system, cycle, health)
+        return health
 
     # -------------------------------------------------------------------------
     # API: Component/System Management
@@ -324,8 +570,7 @@ class SystemManager(EcsManagerWithEvents):
                            background.system.meeting)
         self._system.set(sid, sys_class, system)
         self._system_create.add(sid)
-        system._life_cycled(SystemLifeCycle.CREATING)
-        background.system.life_cycle(system, SystemLifeCycle.CREATING)
+        self._life_cycle_set(system, SystemLifeCycle.CREATING)
 
         self._event_create(SystemLifeEvent,
                            sid,
@@ -345,14 +590,60 @@ class SystemManager(EcsManagerWithEvents):
         if not system:
             return
 
-        system._life_cycle = SystemLifeCycle.DESTROYING
+        self._life_cycle_set(system, SystemLifeCycle.DESTROYING)
         self._system_destroy.add(system.id)
-        background.system.life_cycle(system, SystemLifeCycle.DESTROYING)
 
         self._event_create(SystemLifeEvent,
                            system_id,
                            SystemLifeCycle.DESTROYING,
                            None, False)
+
+    def _destroy_all(self, tick: SystemTick, time: 'TimeManager') -> None:
+        '''
+        Set all systems to DESTROYING. Then destroy them.
+        '''
+        for system in self._schedule:
+            self._log_tick(
+                "SystemManager._destory_all({tick})",
+                tick=tick)
+
+            # Try/catch each system, so they don't kill each other with a
+            # single exception.
+            try:
+                self.destroy(system.id)
+
+                # Only do this if we /really/ want logs.
+                if self.debug_flagged(DebugFlag.SYSTEM_DEBUG):
+                    self._log_tick("SystemManager._destroy_all({tick}): "
+                                   "{system}",
+                                   tick=tick,
+                                   system=system)
+
+            except VerediError as error:
+                # TODO: health thingy
+                # Plow on ahead anyways or raise due to debug flags.
+                self._error_maybe_raise(
+                    error,
+                    "SystemManager._destroy_all({tick}): System '{system}' "
+                    "threw VerediError type '{error_type}' "
+                    "during destroy().",
+                    tick=tick,
+                    system=str(system),
+                    error_type=type(error))
+
+            except Exception as error:
+                # TODO: health thingy
+                # Plow on ahead anyways or raise due to debug flags.
+                self._error_maybe_raise(
+                    error,
+                    "SystemManager._destroy_all({tick}): System '{system}' "
+                    "threw (general) Exception type '{error_type}' "
+                    "during destroy().",
+                    tick=tick,
+                    system=str(system),
+                    error_type=type(error))
+
+        self.destruction(time)
 
     # -------------------------------------------------------------------------
     # Game Loop: Component/System Life Cycle Updates
@@ -366,31 +657,39 @@ class SystemManager(EcsManagerWithEvents):
         Updates entities in CREATING state to ALIVE state.
         '''
 
+        finished = set()
         for system_id in self._system_create:
             # System should exist in our pool, otherwise we don't
             # care about it...
             system = self.get(system_id)
             if (not system
                     or system._life_cycle != SystemLifeCycle.CREATING):
+                log.error("Cannot transition {} to created; needs to be "
+                          "in CREATING. Removing from creation pool.",
+                          system, system._life_cycle)
+                finished.add(system_id)
                 continue
 
             try:
                 # Bump it to alive now.
-                system._life_cycled(SystemLifeCycle.ALIVE)
-                background.system.life_cycle(system, SystemLifeCycle.ALIVE)
+                self._life_cycle_set(system, SystemLifeCycle.ALIVE)
 
             except SystemErrorV as error:
+                finished.add(system_id)
                 log.exception(
                     error,
                     "SystemErrorV in creation() for system_id {}.",
                     system_id)
                 # TODO: put this system in... jail or something? Delete?
 
+            finished.add(system_id)
             self._event_create(SystemLifeEvent,
                                system_id,
                                SystemLifeCycle.ALIVE,
                                None, False)
 
+        for system_id in finished:
+            self._system_create.remove(system_id)
         self._reschedule = True
         return VerediHealth.HEALTHY
 
@@ -415,8 +714,7 @@ class SystemManager(EcsManagerWithEvents):
 
             try:
                 # Bump it to dead now.
-                system._life_cycled(SystemLifeCycle.DEAD)
-                background.system.life_cycle(system, SystemLifeCycle.DEAD)
+                self._life_cycle_set(system, SystemLifeCycle.DEAD)
                 # ...and forget about it.
                 self._system.del_by_keys(system_id, type(system))
 

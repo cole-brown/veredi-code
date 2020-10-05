@@ -36,7 +36,7 @@ from ..const            import SystemTick, SystemPriority
 from ..exceptions       import TickError
 
 from ..manager          import EcsManager
-from ..time             import TimeManager
+from ..time             import TimeManager, MonotonicTimer
 from ..event            import EventManager, Event
 from ..component        import ComponentManager
 from ..entity           import EntityManager
@@ -52,11 +52,63 @@ from ..entity           import EntityManager
 
 @enum.unique
 class SystemLifeCycle(enum.Enum):
+    '''
+    General state in the life-cycle of a system.
+    The usual flow is:
+      INVALID    -> CREATING
+      CREATING   -> ALIVE
+      ALIVE      -> DESTROYING
+      DESTROYING -> DEAD
+
+    Sidetracks include:
+      1) Structured death:
+         ALIVE     -> APOPTOSIS
+         APOPTOSIS -> DESTROYING
+    '''
+
     INVALID    = 0
+    '''
+    A bad Life-Cycle to be in. Systems are briefly here before set to CREATING.
+    '''
+
     CREATING   = enum.auto()
+    '''
+    System is awaiting creation.
+    '''
+
     ALIVE      = enum.auto()
+    '''
+    System is created and ready to run or already running.
+    The majority of a system's life will be here.
+    '''
+
+    APOPTOSIS  = enum.auto()
+    '''
+    Game has asked for a structured shutdown of systems. This is for systems
+    to do clean up and saving and such while remaining responsive.
+    '''
+
+    APOCALYPSE = enum.auto()
+    '''
+    Game has started the shutdown of systems. This is for systems
+    to do final clean up. They can now become unresponsive to events, etc.
+    '''
+
+    THE_END = enum.auto()
+    '''
+    A very transitive state. Lasts for part of a single tick. Systems will then
+    be transitioned to DESTROYING and then finally DEAD.
+    '''
+
     DESTROYING = enum.auto()
+    '''
+    Systems are no longer considered ALIVE, but are awaiting destruction.
+    '''
+
     DEAD       = enum.auto()
+    '''
+    Systems have been destroyed.
+    '''
 
     def __str__(self):
         return (
@@ -96,10 +148,19 @@ class System(ABC):
         '''This system's component. Used in get().'''
 
         # ---
+        # Subscriptions
+        # ---
+        self._subscribed: bool = False
+        '''
+        Set to true once you've sent off any subscription stuff to EventManager
+        during SystemTick.INTRA_SYSTEM.
+        '''
+
+        # ---
         # Self-Health Set Up
         # ---
         # If we get in a not-healthy state, we'll start just dropping inputs.
-        self._health_state: VerediHealth = VerediHealth.HEALTHY
+        self._health: VerediHealth = VerediHealth.HEALTHY
         self._required_managers: Optional[Set[Type[EcsManager]]] = None
 
         # Most systems have these, so we'll just define 'em in the base.
@@ -161,15 +222,151 @@ class System(ABC):
     def life_cycle(self) -> SystemLifeCycle:
         return self._life_cycle
 
-    def _life_cycled(self, new_state: SystemLifeCycle) -> None:
+    def _life_cycled(self, new_state: SystemLifeCycle) -> VerediHealth:
         '''
         SystemManager calls this to update life cycle. Will be called on:
-          - INVALID  -> CREATING   : During SystemManager.create().
-          - CREATING -> ALIVE      : During SystemManager.creation()
-          - ALIVE    -> DESTROYING : During SystemManager.destroy().
-          - DESTROYING -> DEAD     : During SystemManager.destruction()
+          - INVALID    -> CREATING   : During SystemManager.create()
+          - CREATING   -> ALIVE      : During SystemManager.creation()
+          - ALIVE?     -> APOPTOSIS  : During SystemManager.apoptosis()
+          - AOPTOSIS   -> APOCALYPSE : During SystemManager.apocalypse()
+          - APOCALYPSE -> THE_END    : During SystemManager.the_end()
+          - THE_END    -> DESTROYING : During SystemManager._update_the_end()
+          - DESTROYING -> DEAD       : During SystemManager.destruction()
         '''
-        self._life_cycle = new_state
+        # Sanity.
+        if new_state == self._life_cycle:
+            log.warning("Already in {}.", new_state)
+            return self.health
+
+        # ------------------------------
+        # Do transition.
+        # ------------------------------
+        # Bad transition?
+        if new_state == SystemLifeCycle.INVALID:
+            msg = (f"{str(self)}: {self._life_cycle}->{new_state} "
+                   "is an invalid life-cycle to transition to.")
+            raise log.exception(ValueError(msg,
+                                           self._life_cycle,
+                                           new_state),
+                                None,
+                                msg)
+
+        # Valid life-cycles; call specific cycle function.
+        elif new_state == SystemLifeCycle.CREATING:
+            self._health = self._health.update(
+                self._cycle_creating())
+
+        elif new_state == SystemLifeCycle.ALIVE:
+            self._health = self._health.update(
+                self._cycle_alive())
+
+        elif new_state == SystemLifeCycle.APOPTOSIS:
+            self._health = self._health.update(
+                self._cycle_apoptosis())
+
+        elif new_state == SystemLifeCycle.APOCALYPSE:
+            self._health = self._health.update(
+                self._cycle_apocalypse())
+
+        elif new_state == SystemLifeCycle.THE_END:
+            self._health = self._health.update(
+                self._cycle_the_end())
+
+        elif new_state == SystemLifeCycle.DESTROYING:
+            self._health = self._health.update(
+                self._cycle_destroying())
+
+        elif new_state == SystemLifeCycle.DEAD:
+            self._health = self._health.update(
+                self._cycle_dead())
+
+        # Unknown transition? Should add it to valids or bad, probably.
+        else:
+            msg = (f"{str(self)}: {self._life_cycle}->{new_state} "
+                   "is an unknown life-cycle to transition to.")
+            raise log.exception(ValueError(msg,
+                                           self._life_cycle,
+                                           new_state),
+                                None,
+                                msg)
+
+        return self._health
+
+    def _cycle_creating(self) -> VerediHealth:
+        '''
+        System is being cycled into creating state from current state.
+        Current state is still set in self._life_cycle.
+        '''
+        self._life_cycle = SystemLifeCycle.CREATING
+        self._health = self._health.update(VerediHealth.HEALTHY)
+        return self.health
+
+    def _cycle_alive(self) -> VerediHealth:
+        '''
+        System is being cycled into alive state from current state.
+        Current state is still set in self._life_cycle.
+        '''
+        self._life_cycle = SystemLifeCycle.ALIVE
+        self._health = self._health.update(VerediHealth.HEALTHY)
+        return self.health
+
+    def _cycle_apoptosis(self) -> VerediHealth:
+        '''
+        System is being cycled into apoptosis state from current state.
+        Current state is still set in self._life_cycle.
+        '''
+        self._life_cycle = SystemLifeCycle.APOPTOSIS
+        # Default to just being done with apoptosis?
+        self._health = self._health.update(VerediHealth.APOPTOSIS_SUCCESSFUL)
+
+        return self.health
+
+    def _cycle_apocalypse(self) -> VerediHealth:
+        '''
+        System is being cycled into apocalypse state from current state.
+        Current state is still set in self._life_cycle.
+        '''
+        self._life_cycle = SystemLifeCycle.APOCALYPSE
+        # Default to just being done with apocalypse?
+        self._health = self._health.update(VerediHealth.APOCALYPSE_DONE)
+
+        return self.health
+
+    def _cycle_the_end(self) -> VerediHealth:
+        '''
+        System is being cycled into the_end state from current state.
+        Current state is still set in self._life_cycle.
+        '''
+        self._life_cycle = SystemLifeCycle.THE_END
+        # Set our health to THE_END so destroying/dead know we're ending the
+        # expected way.
+        self._health = self._health.update(VerediHealth.THE_END)
+        return self.health
+
+    def _cycle_destroying(self) -> VerediHealth:
+        '''
+        System is being cycled into destroying state from current state.
+        Current state is still set in self._life_cycle.
+        '''
+        self._life_cycle = SystemLifeCycle.DESTROYING
+        # If our health is THE_END, ok. We expect to be destroying/dead then.
+        # Otherwise set ourselves to the bad dying.
+        if self._health != VerediHealth.THE_END:
+            self._health = self._health.update(VerediHealth.DYING)
+        return self.health
+
+    def _cycle_dead(self) -> VerediHealth:
+        '''
+        System is being cycled into dead state from current state.
+        Current state is still set in self._life_cycle.
+        '''
+        self._life_cycle = SystemLifeCycle.DEAD
+        # If our health is THE_END, ok. We expect to be destroying/dead then.
+        # Otherwise set ourselves to the bad dying.
+        if self._health != VerediHealth.THE_END:
+            self._health = self._health.update(VerediHealth.FATAL)
+
+        return self.health
 
     # -------------------------------------------------------------------------
     # System Set Up
@@ -315,36 +512,57 @@ class System(ABC):
         return (entity, component)
 
     # -------------------------------------------------------------------------
-    # System Death / Health
+    # System Death
     # -------------------------------------------------------------------------
 
-    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
+    def apoptosis_time_desired(self) -> Optional[float]:
         '''
-        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        If a system wants some minimum time, they can override this function.
+        This is only a request, though. The SystemManager or Engine may not
+        grant it.
         '''
-        self._health_state = VerediHealth.APOPTOSIS
-        return VerediHealth.APOPTOSIS
+        return None
+
+    # -------------------------------------------------------------------------
+    # System Health
+    # -------------------------------------------------------------------------
 
     @property
     def health(self) -> VerediHealth:
-        return self._health_state
+        return self._health
 
-    def _healthy(self) -> bool:
+    @health.setter
+    def health(self, update_value: VerediHealth) -> None:
         '''
-        Are we in a runnable state?
+        Sets self._health to the worst of current value and `update_value`.
         '''
-        return self._health_state.good
+        self._health = self._health.update(update_value)
+
+    def _healthy(self, tick: SystemTick) -> bool:
+        '''
+        Are we in a healthy/runnable state?
+
+        For ticks at end of game (TICKS_END), this is just any 'runnable'
+        health.
+
+        For the rest of the ticks (namely TICKS_RUN), this is only the 'best'
+        of health.
+        '''
+        if SystemTick.TICKS_END.has(tick):
+            return self._health.in_runnable_health
+        return self._health.in_best_health
 
     def _health_check(self,
-                      current_health=VerediHealth.HEALTHY) -> VerediHealth:
+                      tick: SystemTick,
+                      current_health: VerediHealth = VerediHealth.HEALTHY
+                      ) -> VerediHealth:
         '''
         Tracks our system health. Returns either `current_health` or something
         worse from what all we track.
         '''
         manager_health = self._manager.healthy(self._required_managers)
-        if not manager_health.good:
-            self._health_state = VerediHealth.set(manager_health,
-                                                  self._health_state)
+        if not manager_health.in_best_health:
+            self._health = self._health.update(manager_health)
             # We rely on those managers to function, so we're bad if
             # they don't exist.
             return self.health
@@ -352,8 +570,7 @@ class System(ABC):
         # Set our state to whatever's worse and return that.
         # TODO [2020-06-04]: Eventually maybe a gradient of health so one
         # bad thing doesn't knock us offline?
-        self._health_state = VerediHealth.worse(current_health,
-                                                self._health_state)
+        self._health = self._health.update(current_health)
         return self.health
 
     def _health_log(self,
@@ -383,7 +600,8 @@ class System(ABC):
                        context:  NullNoneOr['VerediContext'],
                        **kwargs: Any) -> bool:
         '''Check health, log if needed, and return True if able to proceed.'''
-        if not self._healthy():
+        tick = self._manager.time.engine_tick_current()
+        if not self._healthy(tick):
             kwargs = log.incr_stack_level(None)
             self._health_meter_event = self._health_log(
                 self._health_meter_event,
@@ -398,7 +616,8 @@ class System(ABC):
     def _health_ok_event(self,
                          event: 'Event') -> bool:
         '''Check health, log if needed, and return True if able to proceed.'''
-        if not self._healthy():
+        tick = self._manager.time.engine_tick_current()
+        if not self._healthy(tick):
             msg = ("Dropping event {} - our system health "
                    "isn't good enough to process.")
             kwargs = log.incr_stack_level(None)
@@ -416,7 +635,7 @@ class System(ABC):
                         tick: 'SystemTick',
                         context:  NullNoneOr['VerediContext'] = None) -> bool:
         '''Check health, log if needed, and return True if able to proceed.'''
-        if not self._healthy():
+        if not self._healthy(tick):
             msg = ("Skipping tick {} - our system health "
                    "isn't good enough to process.")
             kwargs = log.incr_stack_level(None)
@@ -434,11 +653,26 @@ class System(ABC):
     # Events
     # -------------------------------------------------------------------------
 
+    def _subscribe(self) -> VerediHealth:
+        '''
+        Implement this to subscribe to events/etc. Will only be called
+        (successfully) once in INTRA_SYSTEM tick from self.subscribe().
+
+        Return HEALTHY if everything went well.
+        Return PENDING if you want to be called again.
+        Return something else if you want to die.
+        '''
+        return VerediHealth.HEALTHY
+
     def subscribe(self, event_manager: EventManager) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
+        # Prevent reregistration.
+        if self._subscribed:
+            return VerediHealth.HEALTHY
+
         # Sanity checks...
         if (event_manager
                 and self._manager and self._manager.event
@@ -458,7 +692,14 @@ class System(ABC):
                                 "but requires one.",
                                 self._manager.event, event_manager)
 
-        return VerediHealth.HEALTHY
+        # Have our sub-class do whatever it wants this one time.
+        # Or, you know, more than once... depending on the health returned.
+        subscribe_health = self._subscribe()
+        if subscribe_health == VerediHealth.HEALTHY:
+            self._subscribed = True
+
+        self.health = subscribe_health
+        return subscribe_health
 
     def _event_create(self,
                       event_class:                Type[Event],
@@ -498,7 +739,19 @@ class System(ABC):
         '''
         Returns a boolean for whether this system wants to run during this tick
         update function.
+
+        Default is:
+          Always want: APOPTOSIS, APOCALYPSE, THE_END
+            - These update functions work by default so no change needed if you
+              don't actually need them.
+          Optional: The rest of the ticks.
+            - Checks if self._ticks has `tick`.
         '''
+        if (tick == SystemTick.APOPTOSIS
+                or tick == SystemTick.APOCALYPSE
+                or tick == SystemTick.THE_END):
+            return True
+
         return self._ticks is not None and self._ticks.has(tick)
 
     def required(self) -> Optional[Iterable['Component']]:
@@ -550,9 +803,7 @@ class System(ABC):
             return self._update_genesis(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.INTRA_SYSTEM:
-            return self._update_intra_system(time_mgr,
-                                             component_mgr,
-                                             entity_mgr)
+            return self._update_intra_system(time_mgr.timer)
 
         elif tick is SystemTick.TIME:
             return self._update_time(time_mgr, component_mgr, entity_mgr)
@@ -574,6 +825,21 @@ class System(ABC):
                                             component_mgr,
                                             entity_mgr)
 
+        elif tick is SystemTick.APOPTOSIS:
+            return self._update_apoptosis(time_mgr,
+                                          component_mgr,
+                                          entity_mgr)
+
+        elif tick is SystemTick.APOCALYPSE:
+            return self._update_apocalypse(time_mgr,
+                                           component_mgr,
+                                           entity_mgr)
+
+        elif tick is SystemTick.THE_END:
+            return self._update_the_end(time_mgr,
+                                        component_mgr,
+                                        entity_mgr)
+
         else:
             # This, too, should be treated as a VerediHealth.FATAL...
             raise TickError(
@@ -589,19 +855,21 @@ class System(ABC):
         stuff that takes multiple cycles or is otherwise unwieldy
         during __init__.
         '''
-        return VerediHealth.FATAL
+        default_return = VerediHealth.FATAL
+        self.health = default_return
+        return self.health
 
     def _update_intra_sys(self,
-                          time_mgr:      TimeManager,
-                          component_mgr: ComponentManager,
-                          entity_mgr:    EntityManager) -> VerediHealth:
+                          timer: MonotonicTimer) -> VerediHealth:
         '''
         Part of the set-up ticks. Systems should use this for any
         system-to-system setup. For examples:
           - System.subscribe() gets called here.
           - Command registration happens here.
         '''
-        return VerediHealth.FATAL
+        default_return = VerediHealth.FATAL
+        self.health = default_return
+        return self.health
 
     def _update_time(self,
                      time_mgr:      TimeManager,
@@ -611,7 +879,9 @@ class System(ABC):
         First in Game update loop. Systems should use this rarely as the game
         time clock itself updates in this part of the loop.
         '''
-        return VerediHealth.FATAL
+        default_return = VerediHealth.FATAL
+        self.health = default_return
+        return self.health
 
     def _update_creation(self,
                          time_mgr:      TimeManager,
@@ -620,7 +890,9 @@ class System(ABC):
         '''
         Before Standard upate. Creation part of life cycles managed here.
         '''
-        return VerediHealth.FATAL
+        default_return = VerediHealth.FATAL
+        self.health = default_return
+        return self.health
 
     def _update_pre(self,
                     time_mgr:      TimeManager,
@@ -630,7 +902,9 @@ class System(ABC):
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
         '''
-        return VerediHealth.FATAL
+        default_return = VerediHealth.FATAL
+        self.health = default_return
+        return self.health
 
     def _update(self,
                 time_mgr:      TimeManager,
@@ -639,7 +913,9 @@ class System(ABC):
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
-        return VerediHealth.FATAL
+        default_return = VerediHealth.FATAL
+        self.health = default_return
+        return self.health
 
     def _update_post(self,
                      time_mgr:      TimeManager,
@@ -649,16 +925,65 @@ class System(ABC):
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
         '''
-        return VerediHealth.FATAL
+        default_return = VerediHealth.FATAL
+        self.health = default_return
+        return self.health
 
     def _update_destruction(self,
                             time_mgr:      TimeManager,
                             component_mgr: ComponentManager,
                             entity_mgr:    EntityManager) -> VerediHealth:
         '''
-        Final upate. Death/deletion part of life cycles managed here.
+        Final game-loop update. Death/deletion part of life cycles
+        managed here.
         '''
-        return VerediHealth.FATAL
+        default_return = VerediHealth.FATAL
+        self.health = default_return
+        return self.health
+
+    def _update_apoptosis(self,
+                          time_mgr:      TimeManager,
+                          component_mgr: ComponentManager,
+                          entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        Structured death phase. System should be responsive until it the next
+        phase, but should be doing stuff for shutting down, like saving off
+        data, etc.
+
+        Default is "do nothing and return done."
+        '''
+        default_return = VerediHealth.APOPTOSIS_SUCCESSFUL
+        self.health = default_return
+        return self.health
+
+    def _update_apocalypse(self,
+                           time_mgr:      TimeManager,
+                           component_mgr: ComponentManager,
+                           entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        "Die now" death phase. System may now go unresponsive to events,
+        function calls, etc. Systems cannot expect to have done a successful
+        apoptosis.
+
+        Default is "do nothing and return done."
+        '''
+        default_return = VerediHealth.APOCALYPSE_DONE
+        self.health = default_return
+        return self.health
+
+    def _update_the_end(self,
+                        time_mgr:      TimeManager,
+                        component_mgr: ComponentManager,
+                        entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        Final game update. This is only called once. Systems should most likely
+        have nothing to do here.
+
+        Default is "do nothing and return that we're dead now."
+        '''
+        default_return = VerediHealth.THE_END
+        self.health = default_return
+        return self.health
 
     # -------------------------------------------------------------------------
     # Logging and String

@@ -182,7 +182,7 @@ class MathSystem(System):
 
     # TODO: subscribe to cmd reg event? Subscribe to 'math me plz' event.
 
-    # def subscribe(self, event_manager: EventManager) -> VerediHealth:
+    # def _subscribe(self) -> VerediHealth:
     #     '''
     #     Subscribe to any life-long event subscriptions here. Can hold on to
     #     event_manager if need to sub/unsub more dynamically.
@@ -195,7 +195,7 @@ class MathSystem(System):
     #                                   self.event_cmd_reg)
     #     self._manager.event.subscribe(SkillRequest,
     #                                   self.event_skill_req)
-    #     return self._health_check()
+    #     return VerediHealth.HEALTHY
 
     # def event_cmd_reg(self, event: CommandRegistrationBroadcast) -> None:
     #     '''
@@ -483,4 +483,5 @@ class MathSystem(System):
                       self._finalize)
 
         # Done for this tick.
-        return self._health_check()
+        # TODO: Should time manager have current engine tick/life-cycle?
+        return self._health_check(SystemTick.STANDARD)

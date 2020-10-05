@@ -43,7 +43,12 @@ class DebugFlag(FlagCheckMixin, enum.Flag):
     SYSTEM_DEBUG = enum.auto()
     '''Output extra SystemManager/System logs at debug level.'''
 
-    GAME_ALL = LOG_TICK | RAISE_ERRORS | SYSTEM_DEBUG
+    MANUAL_ENGINE_TICK = enum.auto()
+    '''
+    Makes the engine only do one tick at a time, instead of infinitely looping.
+    '''
+
+    GAME_ALL = LOG_TICK | RAISE_ERRORS | SYSTEM_DEBUG | MANUAL_ENGINE_TICK
     '''All the game debugging flags.'''
 
     # ------------------------------

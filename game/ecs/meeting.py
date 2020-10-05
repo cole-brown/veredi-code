@@ -10,7 +10,7 @@ Manager interface for ECS managers.
 
 from typing import (TYPE_CHECKING,
                     Union, Optional, Type, Any, Set)
-from veredi.base.null import NullNoneOr, NullFalseOr, Null
+from veredi.base.null import NullNoneOr, NullFalseOr, Null, null_or_none
 if TYPE_CHECKING:
     from .manager            import EcsManager
     from veredi.base.context import VerediContext
@@ -26,6 +26,7 @@ from .component         import ComponentManager
 from .entity            import EntityManager
 from .system            import SystemManager
 
+from .const             import SystemTick
 from .base.identity     import ComponentId, EntityId
 
 
@@ -85,11 +86,14 @@ class Meeting:
                 required_set: NullNoneOr[Set[Type['EcsManager']]]
                 ) -> VerediHealth:
         '''
-        Returns HEALTHY if all required managers are attending the meeting.
-        Returns UNHEALTHY if a required manager is explicitly absent
-        (that is, we have it set to False).
-        Returns PENDING if a required manager is implicitly absent
-        (that is, we have it as a Falsy value like Null).
+        Returns:
+          - HEALTHY if all required managers are attending the meeting.
+
+          - UNHEALTHY if a required manager is explicitly absent
+            (that is, we have it set to False).
+
+          - PENDING if a required manager is implicitly absent
+            (that is, we have it as a Falsy value like Null).
         '''
         # If nothing is required, ok.
         if not required_set:
@@ -216,3 +220,117 @@ class Meeting:
         self.entity.attach(entity_id, retval)
 
         return retval
+
+    # -------------------------------------------------------------------------
+    # Life-Cycle Management
+    # -------------------------------------------------------------------------
+
+    def life_cycle(self,
+                   cycle_from: SystemTick,
+                   cycle_to:   SystemTick,
+                   tick_from:  SystemTick,
+                   tick_to:    SystemTick) -> VerediHealth:
+        '''
+        Engine calls this for a valid life-cycle transition and for valid tick
+        transitions of interest.
+
+        Valid life-cycle transitions are best checked in engine's
+        _run_trans_validate(), but here's a summary of both life-cycle and tick
+        transitions:
+
+          - INVALID -> TICKS_START:
+            - INVALID -> GENESIS
+            - GENESIS -> INTRA_SYSTEM
+
+          - TICKS_START -> TICKS_RUN
+
+          - ??? -> TICKS_END:
+            - ???        -> APOPTOSIS
+            - APOPTOSIS  -> APOCALYPSE
+            - APOCALYPSE -> THE_END
+
+        NOTE: This is only called if there is a valid life-cycle/tick-cycle of
+        interest.
+
+        Updates self._health with result of life-cycle function. Returnns
+        result of life-cycle function (not necessarily what self._health is).
+        '''
+        health = self._each_existing('life_cycle',
+                                     cycle_from, cycle_to,
+                                     tick_from, tick_to)
+        return health
+
+    # -------------------------------------------------------------------------
+    # Life-Cycle Management
+    # -------------------------------------------------------------------------
+
+    def _each_existing(self,
+                       function_name: str,
+                       *args: Any,
+                       **kwargs: Any) -> VerediHealth:
+        '''
+        Gets function attribute from each non-None/Null manager. Runs
+        "manager.`function`(*`args`, **`kwargs`)" if attribute is found.
+
+        Returns VerediHealth.
+          - If functions return a VerediHealth value, keep a running total and
+            return that. Otherwise returns HEALTHY.
+        '''
+        health = VerediHealth.HEALTHY
+
+        # ------------------------------
+        # Time Manager
+        # ------------------------------
+        if not null_or_none(self._time_manager):
+            function = getattr(self._time_manager,
+                               function_name,
+                               Null())
+            result = function(*args, **kwargs)
+            if isinstance(result, VerediHealth):
+                health = health.update(result)
+
+        # ------------------------------
+        # Event Manager
+        # ------------------------------
+        if not null_or_none(self._event_manager):
+            function = getattr(self._event_manager,
+                               function_name,
+                               Null())
+            result = function(*args, **kwargs)
+            if isinstance(result, VerediHealth):
+                health = health.update(result)
+
+        # ------------------------------
+        # Component Manager
+        # ------------------------------
+        if not null_or_none(self._component_manager):
+            function = getattr(self._component_manager,
+                               function_name,
+                               Null())
+            result = function(*args, **kwargs)
+            if isinstance(result, VerediHealth):
+                health = health.update(result)
+
+        # ------------------------------
+        # Entity Manager
+        # ------------------------------
+        if not null_or_none(self._entity_manager):
+            function = getattr(self._entity_manager,
+                               function_name,
+                               Null())
+            result = function(*args, **kwargs)
+            if isinstance(result, VerediHealth):
+                health = health.update(result)
+
+        # ------------------------------
+        # System Manager
+        # ------------------------------
+        if not null_or_none(self._system_manager):
+            function = getattr(self._system_manager,
+                               function_name,
+                               Null())
+            result = function(*args, **kwargs)
+            if isinstance(result, VerediHealth):
+                health = health.update(result)
+
+        return health

@@ -25,7 +25,7 @@ from veredi.base.context              import UnitTestContext
 
 from veredi.interface.input.event     import CommandInputEvent
 from veredi.game.data.identity.system import IdentitySystem
-from veredi.game.engine               import EngineLifeCycle
+from veredi.game.ecs.const            import SystemTick
 
 # import veredi.zest.debug.debug
 import veredi.zest.debug.background
@@ -72,14 +72,14 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
         '''
 
         # Not life'd or registration'd yet.
-        self.assertEqual(self.engine.life_cycle, EngineLifeCycle.INVALID)
+        self.assertEqual(self.engine.life_cycle, SystemTick.INVALID)
         self.assertFalse(self.reg_open)
 
         # Run create ticks.
         self.engine._run_create()
 
         # Life'd, registration'd, and some commands exist now.
-        self.assertEqual(self.engine.life_cycle, EngineLifeCycle.CREATING)
+        self.assertEqual(self.engine.life_cycle, SystemTick.TICKS_START)
         self.assertTrue(self.reg_open)
         self.assertTrue(self.input_system._commander._commands)
 

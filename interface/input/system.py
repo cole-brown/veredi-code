@@ -45,7 +45,7 @@ from veredi.data.config.registry         import register
 
 # Game / ECS Stuff
 from veredi.game.ecs.event               import EventManager
-from veredi.game.ecs.time                import TimeManager
+from veredi.game.ecs.time                import TimeManager, MonotonicTimer
 
 from veredi.game.ecs.const               import (SystemTick,
                                                  SystemPriority)
@@ -185,13 +185,11 @@ class InputSystem(System):
     # Events
     # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: EventManager) -> VerediHealth:
+    def _subscribe(self) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        super().subscribe(event_manager)
-
         # InputSystem subs to:
         # - InputRequests
         # TODO [2020-06-04]: Is that a base class we can cover everything
@@ -200,9 +198,9 @@ class InputSystem(System):
                                       self.event_input_cmd)
 
         # Commander needs to sub too:
-        self._commander.subscribe(event_manager)
+        self._commander.subscribe(self._manager.event)
 
-        return self._health_check()
+        return VerediHealth.HEALTHY
 
     def event_input_cmd(self, event: CommandInputEvent) -> None:
         '''
@@ -284,9 +282,7 @@ class InputSystem(System):
     # -------------------------------------------------------------------------
 
     def _update_intra_system(self,
-                             time_mgr:      TimeManager,
-                             component_mgr: 'ComponentManager',
-                             entity_mgr:    'EntityManager') -> VerediHealth:
+                             timer: MonotonicTimer) -> VerediHealth:
         '''
         Generic tick function. We do the same thing every tick state we process
         so do it all here.
@@ -294,7 +290,7 @@ class InputSystem(System):
         # Already did our broadcast - nothing more to do.
         if self._registration_broadcast:
             log.debug("CommandRegistrationBroadcast: Did our thing already.")
-            return self._health_check()
+            return self._health_check(SystemTick.INTRA_SYSTEM)
 
         # Doctor checkup.
         if not self._healthy():
@@ -304,7 +300,7 @@ class InputSystem(System):
                 "HEALTH({}): Skipping ticks - our system health "
                 "isn't good enough to process.",
                 self.health)
-            return self._health_check()
+            return self._health_check(SystemTick.INTRA_SYSTEM)
 
         reg_broadcast = self._commander.registration(self.id,
                                                      Null())

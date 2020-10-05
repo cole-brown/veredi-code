@@ -100,13 +100,11 @@ class RepositorySystem(System):
     # Events
     # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
+    def _subscribe(self) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        super().subscribe(event_manager)
-
         # Repository subs to:
         # - DataLoadRequest
         #   The data needs to be fetched and deserialized.
@@ -121,7 +119,7 @@ class RepositorySystem(System):
         self._manager.event.subscribe(EncodedEvent,
                                       self.event_encoded)
 
-        return self._health_check()
+        return VerediHealth.HEALTHY
 
     def event_data_load_request(self, event: DataLoadRequest) -> None:
         '''

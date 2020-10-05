@@ -191,19 +191,17 @@ class OutputSystem(System):
     # Events
     # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: EventManager) -> VerediHealth:
+    def _subscribe(self) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        super().subscribe(event_manager)
-
         # OutputSystem subs to:
         # - OutputEvents
         self._manager.event.subscribe(OutputEvent,
                                       self.event_output)
 
-        return self._health_check()
+        return VerediHealth.HEALTHY
 
     def event_output(self, event: OutputEvent) -> None:
         '''
@@ -256,7 +254,7 @@ class OutputSystem(System):
         # tick.
         self._send_queue.clear()
 
-        return self._health_check()
+        return self._health_check(SystemTick.POST)
 
     # -------------------------------------------------------------------------
     # Output Processing
