@@ -15,6 +15,15 @@ if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
     from veredi.base.exceptions import VerediError
 
+# ------------------------------
+# Imports for helping others do type hinting
+# ------------------------------
+from logging import Logger as PyLogType  # noqa
+
+
+# ------------------------------
+# Imports to Do Stuff
+# ------------------------------
 import logging
 import datetime
 import math
@@ -92,8 +101,53 @@ class Level(enum.IntEnum):
         return False
 
     @staticmethod
-    def to_logging(lvl: Union['Level', int]) -> int:
+    def to_logging(lvl: Union['Level', int, None]) -> int:
+        if lvl is None:
+            lvl = Level.NOTSET
         return int(lvl)
+
+    @staticmethod
+    def from_logging(lvl: Union['Level', int, None]) -> 'Level':
+        if lvl is None:
+            return Level.NOTSET
+        return Level(lvl)
+
+    @staticmethod
+    def most_verbose(lvl_a: Union['Level', int, None],
+                     lvl_b: Union['Level', int, None],
+                     ignore_notset: bool = True) -> 'Level':
+        '''
+        Returns whichever of `a` or `b` is the most verbose logging level.
+
+        Converts 'None' to Level.NOTSET.
+
+        if `ignore_notset` is True, this will try to get the most verbose and
+        return 'the other one' if one is logging level NOTSET. Otherwise, this
+        will consider logging level NOTSET as the MOST verbose level.
+
+        NOTSET actually means "use the parent's logging level", so take care.
+        '''
+        lvl_a = Level.to_logging(lvl_a)
+        lvl_b = Level.to_logging(lvl_b)
+
+        # If we're ignoring NOTSET, check for it and return 'the other one' if
+        # found. If 'the other one' is also NOTSET, well... we tried.
+        if ignore_notset:
+            if lvl_a == Level.NOTSET.value:
+                return Level.from_logging(lvl_b)
+            if lvl_b == Level.NOTSET.value:
+                return Level.from_logging(lvl_a)
+
+        # The logging levels are:
+        #   NOTSET:    0
+        #   DEBUG:    10
+        #   ...
+        #   CRITICAL: 50
+        # So for the most verbose, we want the minimum. NOTSET was addressed
+        # above in the 'ignore_notset' check, so here we just assume NOTSET is
+        # the most verbose.
+        lvl = min(lvl_a, lvl_b)
+        return lvl
 
 
 DEFAULT_LEVEL = Level.INFO
@@ -244,23 +298,38 @@ def remove_handler(handler:     logging.Handler,
         logging.getLogger(logger_name).removeHandler(handler)
 
 
-def get_logger(*names: str) -> logging.Logger:
+def get_logger(*names: str,
+               min_log_level: Union[int, Level, None] = None
+               ) -> logging.Logger:
     '''
     Get a logger by name. Names should be module name, or module and
     class name. ...Or dotted name? Not sure.
 
     Ignores any 'Falsy' values in `names` when building a name from parts.
 
+    If `min_log_level` is an int or Level, this will check the logger's level
+    and set it if it doesn't meet the requirement.
+
     E.g.:
       get_logger(__name__, self.__class__.__name__)
       get_logger(__name__)
-      ???
-        get_logger(self.dotted)
-      ???
+      get_logger(self.dotted, min_log_level=log.Level.DEBUG)
+      get_logger(self.dotted, 'client', '{:02d}'.format(client_num))
     '''
     # Ignore any Falsy values in names
     logger_name = '.'.join([each for each in names if each])
-    return logging.getLogger(logger_name)
+
+    named_logger = logging.getLogger(logger_name)
+
+    # Do we need to adjust the level?
+    if min_log_level:
+        current = get_level(named_logger)
+        desired = Level.to_logging(min_log_level)
+        if desired != current:
+            set_level(Level.most_verbose(current, desired),
+                      named_logger)
+
+    return named_logger
 
 
 def _logger(veredi_logger: NullNoneOr[logging.Logger] = None

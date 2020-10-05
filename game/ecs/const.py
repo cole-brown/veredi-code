@@ -28,7 +28,19 @@ class SystemTick(FlagCheckMixin, enum.Flag):
     has() and any() provided by FlagCheckMixin.
     '''
 
+    # ------------------------------
+    # Tick Meta-Values
+    # ------------------------------
+
     INVALID     = 0
+    '''Generic invalid/uninitialized value.'''
+
+    ERROR       = enum.auto()
+    '''Engine is in an invalid tick/life-cycle state.'''
+
+    # ------------------------------
+    # Actual Tick Values
+    # ------------------------------
 
     # ---
     # Pre-Game-Loop Ticks
@@ -76,6 +88,50 @@ class SystemTick(FlagCheckMixin, enum.Flag):
     '''Tick where ECS destruction happens.'''
 
     # ---
+    # Post-Game Ticks
+    # ---
+
+    APOPTOSIS = enum.auto()
+    '''
+    Structured death of the game. Systems should save off data, tell their
+    loved ones goodbye, and try to die in an orderly fashion.
+    '''
+
+    APOCALYPSE = enum.auto()
+    '''
+    "Terminate with extreme prejudice" death of the game. Systems should expect
+    to just be murdered at any time if the aren't dead yet.
+    '''
+
+    THE_END = enum.auto()
+    '''
+    Goodbye.
+    '''
+
+    FUNERAL     = enum.auto()
+    '''Engine has finished running; goodbye.'''
+
+    # ------------------------------
+    # Tick Collections & Masks
+    # ------------------------------
+
+    # ---
+    # Ticks Collected into start/run/end.
+    # ---
+
+    TICKS_START = GENESIS | INTRA_SYSTEM
+    '''All ticks considered part of start-up.'''
+
+    TICKS_RUN = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
+    '''All ticks considered part of the standard game loop.'''
+
+    TICKS_END = APOPTOSIS | APOCALYPSE | THE_END
+    '''The game will die now.'''
+
+    AFTER_THE_END = FUNERAL | THE_END
+    '''The game has finished running TICKS_END.'''
+
+    # ---
     # Masks
     # ---
 
@@ -85,10 +141,44 @@ class SystemTick(FlagCheckMixin, enum.Flag):
     to see if anything changed to require a reschedule.
     '''
 
-    ALL = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
+    # Use: TICKS_RUN
+    # ALL = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
+    # '''
+    # ALL of the (standard) ticks.
+    # '''
+
+
+_GAME_LOOP_SEQUENCE = [
+    (SystemTick.TIME,        SystemTick.CREATION),
+    (SystemTick.CREATION,    SystemTick.PRE),
+    (SystemTick.PRE,         SystemTick.STANDARD),
+    (SystemTick.STANDARD,    SystemTick.POST),
+    (SystemTick.POST,        SystemTick.DESTRUCTION),
+    (SystemTick.DESTRUCTION, SystemTick.TIME),
+]
+'''The game-loop ticks in proper order, as (current, next) tuples.'''
+
+
+def game_loop_next():
     '''
-    ALL of the (standard) ticks.
+    Generator loops over the _GAME_LOOP_SEQUENCE ticks once.
     '''
+    for tick in _GAME_LOOP_SEQUENCE:
+        yield tick
+
+
+def game_loop_start() -> bool:
+    '''
+    Returns the first element in the game loop sequence.
+    '''
+    return _GAME_LOOP_SEQUENCE[0][0]
+
+
+def game_loop_end() -> bool:
+    '''
+    Returns the last element in the game loop sequence.
+    '''
+    return _GAME_LOOP_SEQUENCE[-1][0]
 
 
 class SystemPriority(enum.IntEnum):

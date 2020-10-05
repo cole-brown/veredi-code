@@ -102,17 +102,15 @@ class D20RulesSystem(System):
     # Events
     # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
+    def _subscribe(self) -> VerediHealth:
         '''
         Default to subscribing to CommandRegistrationBroadcast. Most rules
         systems should have commands to invoke things related to them...
         '''
-        super().subscribe(event_manager)
-
         self._manager.event.subscribe(CommandRegistrationBroadcast,
                                       self.event_cmd_reg)
 
-        return self._health_check()
+        return VerediHealth.HEALTHY
 
     @abstractmethod
     def event_cmd_reg(self, event: CommandRegistrationBroadcast) -> None:

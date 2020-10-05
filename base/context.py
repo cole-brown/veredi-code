@@ -65,24 +65,6 @@ class VerediContext:
         self._dotted = dotted
         self._key  = key
 
-    def _ensure(self, top_key: Any = None) -> Dict[str, Any]:
-        '''
-        Make sure our subcontext exists (and by extension, our context).
-        Returns our subcontext entry of the context dict.
-
-        if top_key is None, ensures our subcontext (self.key) exists.
-        '''
-        if not top_key:
-            top_key = self.key
-
-        self.data = self.data or {}
-        sub_context = self.data.setdefault(top_key, {})
-        # Ensure our name if we're ensuring our subcontext.
-        if (top_key is self.key
-                and self._KEY_DOTTED not in sub_context):
-            sub_context[self._KEY_DOTTED] = self.dotted
-        return sub_context
-
     @property
     def dotted(self) -> str:
         '''
@@ -163,7 +145,7 @@ class VerediContext:
             key: Any,
             value: Any) -> None:
         '''
-        Adds to our sub-context.
+        Adds to /our/ sub-context.
 
         That is, this is a shortcut for:
           self.sub[key] = value
@@ -184,7 +166,7 @@ class VerediContext:
                 sub_key: Any,
                 value: Any) -> None:
         '''
-        Adds to a sub-context.
+        Adds to the `ctx_key` sub-context.
 
         That is, this is a shortcut for:
           context[ctx_key][sub_key] = value
@@ -208,6 +190,28 @@ class VerediContext:
 
         sub[sub_key] = value
 
+    def sub_get(self,
+                field: Union[str, enum.Enum]) -> Optional[Any]:
+        '''
+        Gets this context's sub-context, then gets and returns value
+        of `field`.
+
+        Returns None if sub-context or field does not exist in this context.
+        '''
+        return self._sub_get(self.key, field)
+
+    def sub_set(self,
+                field: Union[str, enum.Enum],
+                value: Optional[Any]) -> None:
+        '''
+        Gets this context's sub-context, then sets `field` to `value`. Pops
+        `field` out of sub-context if `value` is None.
+
+        Pops `ctx_key` out of context if it is empty after set/pop of field is
+        done.
+        '''
+        return self._sub_set(self.key, field, value)
+
     def _sub_get(self,
                  ctx_key: str,
                  field: Union[str, enum.Enum]) -> Optional[Any]:
@@ -215,8 +219,12 @@ class VerediContext:
         Gets `ctx_key` sub-context, then gets and returns value of `field`.
         Returns None if ctx_key or field does not exist in this context.
         '''
-        config_ctx = self._get().get(ctx_key, {})
-        return config_ctx.get(field, None)
+        full_ctx = self._get(False)
+        if full_ctx:
+            sub_ctx = full_ctx.get(ctx_key, None)
+            if sub_ctx:
+                return sub_ctx.get(field, None)
+        return None
 
     def _sub_set(self,
                  ctx_key: str,
@@ -226,34 +234,97 @@ class VerediContext:
         Gets `ctx_key` sub-context, then sets `field` to `value`. Pops `field`
         out of sub-context if `value` is None.
 
-        Pops `ctx_key` out of context if it is empty after set/pop of field is
-        done.
+        Pops `ctx_key` (sub-context) out of context if it is empty after
+        set/pop of field is done.
         '''
+        # Get sub-context.
+        sub_ctx = self._get_sub(ctx_key, False)
+        if not sub_ctx:
+            # No current sub-context. Check for early exits or make one.
+
+            # Early exits: no value to set and no sub-context. Ok; done.
+            if not value:
+                return
+
+            # Otherwise, ensure sub-context exists.
+            else:
+                sub_ctx = self._get_sub(ctx_key, True)
+
         # Set/pop field.
-        config_ctx = self._get().get(ctx_key, {})
         if value is None:
-            config_ctx.pop(field, None)
+            sub_ctx.pop(field, None)
 
         else:
-            config_ctx[field] = value
+            # Re-get to ensure the subcontext exists.
+            sub_ctx = self._get_sub(ctx_key, True)
+            sub_ctx[field] = value
 
         # And make sure the context is up to date.
-        if not config_ctx:
-            self.data.pop(ctx_key)
+        if not sub_ctx:
+            # Remove it if it's empty now.
+            self.data.pop(ctx_key, None)
         else:
-            self.data[ctx_key] = config_ctx
+            # Make sure it's updated if some action replaced the sub_ctx
+            # dictionary here but not in the context.
+            self.data[ctx_key] = sub_ctx
 
     # -------------------------------------------------------------------------
     # Getters / Mergers
     # -------------------------------------------------------------------------
 
-    def _get(self) -> Any:
+    def _ensure(self, top_key: Any = None) -> Dict[str, Any]:
         '''
-        Returns our context dictionary. If it doesn't exist, creates it with
-        our bare sub-entry.
+        Make sure our subcontext exists (and by extension, our context).
+        Returns our subcontext entry of the context dict.
+
+        if top_key is None, ensures our subcontext (self.key) exists.
         '''
-        self._ensure()
+        if not top_key:
+            top_key = self.key
+
+        self.data = self.data or {}
+        sub_context = self.data.setdefault(top_key, {})
+        # Ensure our name if we're ensuring our subcontext.
+        if (top_key is self.key
+                and self._KEY_DOTTED not in sub_context):
+            sub_context[self._KEY_DOTTED] = self.dotted
+        return sub_context
+
+    # TODO: rename to _get_full?
+    def _get(self, ensure_sub_existance: bool = True) -> Dict[Any, Any]:
+        '''
+        Returns our /entire/ context dictionary. If it doesn't exist, creates
+        it with our bare sub-entry.
+        '''
+        if ensure_sub_existance:
+            self._ensure()
         return self.data
+
+    def _get_sub(self,
+                 key: Optional[str] = None,
+                 ensure_sub_existance: bool = True) -> Dict[Any, Any]:
+        '''
+        Returns a /specific/ sub-context dictionary.
+
+        If `key` is None, this will return the `self.key` sub-context (/our/
+        sub-context).
+
+        If `ensure_sub_existance`, make sure it exists before returning it
+        (create it with our bare entry if needed).
+        '''
+        full_ctx = None
+        sub_ctx = None
+        if ensure_sub_existance:
+            sub_ctx = self._ensure(key)
+            full_ctx = self._get(False)
+        else:
+            full_ctx = self._get(False)
+            if not full_ctx:
+                return None
+
+        key = key or self.key
+        sub_ctx = self.data.get(key, None)
+        return sub_ctx
 
     def push(self,
              other: Optional['VerediContext'],

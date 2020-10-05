@@ -26,6 +26,7 @@ from veredi.data.exceptions                    import EncodableError
 from veredi.base.identity                      import MonotonicId
 from veredi.data.identity                      import UserId, UserKey
 from veredi.interface.mediator.payload.logging import LogPayload
+from veredi.game.ecs.base.identity             import EntityId
 
 
 # -----------------------------------------------------------------------------
@@ -93,11 +94,9 @@ class MsgType(Encodable, enum.Enum):
     TEXT = enum.auto()
     '''The payload is text.'''
 
-    # TODO [2020-08-05]: IMPLEMENT THIS ONE!!!
     ENCODED = enum.auto()
     '''The payload is already encoded somehow?'''
 
-    # TODO [2020-08-05]: IMPLEMENT THIS ONE!!!
     CODEC = enum.auto()
     '''
     Please encode(/decode) this using your codec
@@ -175,17 +174,19 @@ class Message(Encodable):
             return klass(decoded_value)
 
     def __init__(self,
-                 msg_id:   Union[MonotonicId, SpecialId, int],
-                 type:     'MsgType',
-                 payload:  Optional[Any]     = None,
-                 user_id:  Optional[UserId]  = None,
-                 user_key: Optional[UserKey] = None) -> None:
+                 msg_id:    Union[MonotonicId, SpecialId, int],
+                 type:      'MsgType',
+                 payload:   Optional[Any]      = None,
+                 entity_id: Optional[EntityId] = None,
+                 user_id:   Optional[UserId]   = None,
+                 user_key:  Optional[UserKey]  = None) -> None:
         # init fields.
-        self._msg_id:   MonotonicId      = msg_id
-        self._type:     'MsgType'        = type
-        self._user_id:  Optional[UserId] = user_id
-        self._user_key: Optional[UserId] = user_key
-        self._payload:  Optional[Any]    = payload
+        self._msg_id:     MonotonicId        = msg_id
+        self._type:       'MsgType'          = type
+        self._entity_id:  Optional[EntityId] = entity_id
+        self._user_id:    Optional[UserId]   = user_id
+        self._user_key:   Optional[UserId]   = user_key
+        self._payload:    Optional[Any]      = payload
 
     # ------------------------------
     # Helpers
@@ -269,6 +270,20 @@ class Message(Encodable):
         Return our message type.
         '''
         return self._type
+
+    @property
+    def entity_id(self) -> Optional[EntityId]:
+        '''
+        Return our message's EntityId, if any.
+        '''
+        return self._entity_id
+
+    @entity_id.setter
+    def entity_id(self, value: Optional[EntityId]) -> None:
+        '''
+        Sets or clears the message's EntityId.
+        '''
+        self._entity_id = value
 
     @property
     def user_id(self) -> Optional[UserId]:

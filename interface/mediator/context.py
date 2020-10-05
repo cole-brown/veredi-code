@@ -8,10 +8,14 @@ Context for Mediators.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Type, NewType, Mapping
+from typing import Optional, Any, Type, NewType, Mapping, List
 
-from veredi.base.context  import EphemerealContext
-from veredi.base.identity import MonotonicId
+from veredi.logger                 import log
+from veredi.base.context           import EphemerealContext
+from veredi.base.identity          import MonotonicId
+from veredi.game.ecs.base.identity import EntityId
+
+from .message                      import MsgType
 
 
 # -----------------------------------------------------------------------------
@@ -117,16 +121,139 @@ class MessageContext(EphemerealContext):
                               path=ctx.path)
 
     # ------------------------------
-    # Properties
+    # Properties: Mediator
     # ------------------------------
 
     @property
     def id(self) -> Optional[MonotonicId]:
+        '''
+        Message's ID.
+        '''
         return self.sub.get('id', None)
 
     @property
     def path(self) -> Optional[MonotonicId]:
+        '''
+        Path message was received on.
+        '''
         return self.sub.get('path', None)
+
+    # ------------------------------
+    # Properties: Game
+    # ------------------------------
+
+    @property
+    def entity_ids(self) -> Optional[List[EntityId]]:
+        '''
+        List of EntityIds that the UserId/Key matches.
+        '''
+        return self.sub_get('entity_ids')
+
+    @entity_ids.setter
+    def entity_ids(self, value: Optional[List[EntityId]]) -> None:
+        '''
+        List of EntityIds that the UserId/Key matches.
+        '''
+        return self.sub_set('entity_ids', value)
+
+    # ------------------------------
+    # Getter/Setters: Message Types
+    # ------------------------------
+
+    def _msgtype_to_str(self, type: MsgType) -> str:
+        '''
+        Converts the MsgType `type` into its field key string.
+
+        Raises a ValueError if an unsupported `type` is supplied.
+        '''
+        field = None
+        if MsgType.TEXT:
+            field = 'text'
+
+        elif MsgType.ENCODED:
+            field = 'encoded'
+
+        elif MsgType.CODEC:
+            field = 'codec'
+
+        # Other MsgTypes are invalid for the Game so we error on them.
+        else:
+            supported = {MsgType.TEXT, MsgType.ENCODED, MsgType.CODEC}
+            msg = (f"Invalid MsgType. Can only support: {supported}. "
+                   f"Got: {type}.")
+            raise log.exception(ValueError(msg, type, value),
+                                None,
+                                msg,
+                                context=self)
+
+        return field
+
+    def get_msg_payload(self, type: MsgType) -> Optional[Any]:
+        '''
+        Gets the message sub-context of our sub-context, then looks for an
+        entry in it based on MsgType `type`.
+        '''
+        field = self._msgtype_to_str(type)
+        msg_ctx = self.sub_get('message')
+        if not msg_ctx:
+            return None
+        return msg_ctx.get(field, None)
+
+    def set_msg_payload(self, type: MsgType, value: Any) -> None:
+        '''
+        Sets the `value` into the proper place in the message sub-context of
+        our sub-context.
+        '''
+        field = self._msgtype_to_str(type)
+        msg_ctx = self.sub_get('message') or {}
+        msg_ctx[field] = value
+        return self.sub_set('message', msg_ctx)
+
+    @property
+    def msg_text(self) -> Optional[str]:
+        '''
+        If a text-based message, this will return the string.
+        '''
+        return self.get_msg_payload(MsgType.TEXT)
+
+    @msg_text.setter
+    def msg_text(self, value: Optional[str]) -> None:
+        '''
+        Set the text string of the text-based message.
+        '''
+        return self.set_msg_payload(MsgType.TEXT, value)
+
+    @property
+    def msg_encoded(self) -> Optional[str]:
+        '''
+        If a encoded-based message, this will return the string.
+        '''
+        return self.get_msg_payload(MsgType.ENCODED)
+
+    @msg_encoded.setter
+    def msg_encoded(self, value: Optional[str]) -> None:
+        '''
+        Set the value of the encoded-based message.
+        '''
+        return self.set_msg_payload(MsgType.ENCODED, value)
+
+    @property
+    def msg_codec(self) -> Optional[str]:
+        '''
+        If a codec-based message, this will return the string.
+        '''
+        return self.get_msg_payload(MsgType.CODEC)
+
+    @msg_codec.setter
+    def msg_codec(self, value: Optional[str]) -> None:
+        '''
+        Set the value of the codec-based message.
+        '''
+        return self.set_msg_payload(MsgType.CODEC, value)
+
+    # ------------------------------
+    # Pythonic Functions
+    # ------------------------------
 
     def __repr_name__(self):
         return 'MessCtx'

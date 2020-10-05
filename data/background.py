@@ -23,6 +23,7 @@ from typing import (TYPE_CHECKING,
                     Type, NewType,
                     Mapping, MutableMapping)
 if TYPE_CHECKING:
+    from veredi.base.const            import VerediHealth
     from veredi.base.context          import VerediContext
     from veredi.data.repository.base  import BaseRepository
     from veredi.data.codec.base       import BaseCodec
@@ -526,7 +527,8 @@ class system(metaclass=SystemMeta):
     @classmethod
     def life_cycle(klass: Type['system'],
                    sys:   'System',
-                   cycle: 'SystemLifeCycle') -> None:
+                   cycle: 'SystemLifeCycle',
+                   health: 'VerediHealth') -> None:
         '''
         Add a system's life-cycle state change to the records.
         '''
@@ -536,6 +538,7 @@ class system(metaclass=SystemMeta):
             'dotted': sys.dotted,
             'time': klass.manager.time.machine.stamp_to_str(),
             'cycle': cycle.name,
+            'health': health.name,
         }
         vital_records.append(entry)
 

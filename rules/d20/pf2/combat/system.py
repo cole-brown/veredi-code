@@ -140,13 +140,11 @@ class CombatSystem(D20RulesSystem):
     # Events
     # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
+    def _subscribe(self) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        super().subscribe(event_manager)
-
         # CombatSystem subs to:
         # - AttackRequestEvent
         #   - Attacker wants to start an attack.
@@ -157,7 +155,7 @@ class CombatSystem(D20RulesSystem):
         self._manager.event.subscribe(DefenseRequest,
                                       self.event_defense_request)
 
-        return self._health_check()
+        return VerediHealth.HEALTHY
 
     def event_cmd_reg(self, event: CommandRegistrationBroadcast) -> None:
         '''
@@ -298,7 +296,7 @@ class CombatSystem(D20RulesSystem):
 
         # check for entities to add to turn order tracker
 
-        return self._health_check()
+        return self._health_check(SystemTick.TIME)
 
     def _update_pre(self,
                     time_manager:      TimeManager,

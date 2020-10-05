@@ -324,7 +324,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
 
         Returns an ExitCodeTuple (the proc name and its exit code).
         '''
-        return multiproc.tear_down(proc)
+        return multiproc.blocking_tear_down(proc)
 
     def stop_processes(self) -> None:
         '''

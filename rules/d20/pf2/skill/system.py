@@ -145,17 +145,15 @@ class SkillSystem(D20RulesSystem):
     # Events
     # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: EventManager) -> VerediHealth:
+    def _subscribe(self) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        super().subscribe(event_manager)
-
         self._manager.event.subscribe(SkillRequest,
                                       self.event_skill_req)
 
-        return self._health_check()
+        return VerediHealth.HEALTHY
 
     def event_cmd_reg(self, event: CommandRegistrationBroadcast) -> None:
         '''
@@ -275,7 +273,7 @@ class SkillSystem(D20RulesSystem):
         '''
         # Doctor checkup.
         if not self._health_ok_tick(SystemTick.STANDARD):
-            return self._health_check()
+            return self.health
 
         for entity in self._wanted_entities(tick, time_mgr,
                                             component_mgr, entity_mgr):
@@ -300,4 +298,4 @@ class SkillSystem(D20RulesSystem):
             # process action
             print('todo: a skill thingy', action)
 
-        return self._health_check()
+        return self._health_check(SystemTick.STANDARD)

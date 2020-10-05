@@ -204,6 +204,18 @@ class ConfigHierarchy(Hierarchy):
             },
         },
 
+        'engine': {
+            'time': {
+                'timeouts': {
+                    'default': Info.LEAF,
+                    'genesis': Info.LEAF,
+                    'intrasystem': Info.LEAF,
+                    'apoptosis': Info.LEAF,
+                    'apocalypse': Info.LEAF,
+                },
+            },
+        },
+
         'server': {
             'mediator': {
                 'type': Info.LEAF,

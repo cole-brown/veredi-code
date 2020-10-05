@@ -9,18 +9,11 @@ Tests for engine.py (The Game Itself).
 # -----------------------------------------------------------------------------
 
 from veredi.zest.base.engine import ZestEngine
-from veredi.zest         import zmake, zontext
 from veredi.base.const   import VerediHealth
-from veredi.base.context import UnitTestContext
 from veredi.debug.const  import DebugFlag
 
 from .                   import engine
 
-from .ecs.event          import EventManager
-from .ecs.time           import TimeManager
-from .ecs.component      import ComponentManager
-from .ecs.entity         import EntityManager
-from .ecs.system         import SystemManager
 from .ecs.const          import SystemTick, SystemPriority
 
 from .ecs.base.component import (Component,
@@ -261,13 +254,164 @@ class Test_Engine(ZestEngine):
         self.assertTrue(self.manager.entity)
         self.assertTrue(self.engine)
 
+    def test_ticks_start(self):
+        self.assertEqual(self.engine.life_cycle, SystemTick.INVALID)
+        self.assertEqual(self.engine.tick, SystemTick.INVALID)
+
+        run = {
+            # ---
+            # Life-Cycle
+            # ---
+            # Max ticks in start life-cycle.
+            SystemTick.TICKS_START: 10,
+
+            # ---
+            # Ticks
+            # ---
+            # Max ticks for each tick in TICKS_START.
+            SystemTick.GENESIS:      5,
+            SystemTick.INTRA_SYSTEM: 5,
+        }
+
+        # - - - - - - - - - - - - - - -
+        # Run the entire test!!!
+        # - - - - - - - - - - - - - - -
+        # This is simple because we want engine_run() to be capable of the
+        # entire start life-cycle.
+        ran = self.engine_run(SystemTick.TICKS_START,
+                              run)
+
+        max_life = run[SystemTick.TICKS_START]
+        self.assertLess(ran[SystemTick.TICKS_START],     max_life)
+        self.assertGreater(ran[SystemTick.GENESIS],      0)
+        self.assertGreater(ran[SystemTick.INTRA_SYSTEM], 0)
+
+    def test_ticks_end(self):
+        # Engine shouldn't've started yet...
+        self.assertEqual(self.engine.life_cycle, SystemTick.INVALID)
+        self.assertEqual(self.engine.tick, SystemTick.INVALID)
+
+        # Start it so we can stop it.
+        self.engine_life_start()
+
+        # Stop it so we can test it.
+        self.engine.stop()
+
+        run = {
+            # ---
+            # Life-Cycle
+            # ---
+            # Max ticks in end life-cycle.
+            SystemTick.TICKS_END: 20,
+
+            # ---
+            # Ticks
+            # ---
+            # Max ticks for each tick in TICKS_END.
+            SystemTick.APOPTOSIS:  5,
+            SystemTick.APOCALYPSE: 5,
+            SystemTick.THE_END:    1,
+            SystemTick.FUNERAL:    1,
+        }
+
+        # - - - - - - - - - - - - - - -
+        # Run the entire test!!!
+        # - - - - - - - - - - - - - - -
+        # This is simple because we want engine_run() to be capable of the
+        # entire end life-cycle.
+        ran = self.engine_run(SystemTick.TICKS_END,
+                              run)
+
+        max_life = run[SystemTick.TICKS_END]
+        self.assertLess(ran[SystemTick.TICKS_END],     max_life)
+        self.assertGreater(ran[SystemTick.APOPTOSIS],  0)
+        self.assertGreater(ran[SystemTick.APOCALYPSE], 0)
+        self.assertEqual(ran[SystemTick.THE_END],      1)
+        self.assertEqual(ran[SystemTick.FUNERAL],      1)
+
+        self.assertNotIn(SystemTick.FUNERAL | SystemTick.THE_END, ran)
+
+    def test_ticks_run(self):
+        # Engine shouldn't've started yet...
+        self.assertEqual(self.engine.life_cycle, SystemTick.INVALID)
+        self.assertEqual(self.engine.tick, SystemTick.INVALID)
+
+        # Start it so we can run it.
+        self.engine_life_start()
+
+        run = {
+            # ---
+            # Life-Cycle
+            # ---
+            # Run 2 to make sure it cycles properly.
+            SystemTick.TICKS_RUN: 2,
+
+            # ---
+            # Ticks
+            # ---
+            # These are ignored since a 'running' tick is one cycle through all
+            # of these in order.
+            #
+            # SystemTick.TIME:     1,
+            # SystemTick.CREATION: 1,
+            # SystemTick.PRE:      1,
+            # SystemTick.STANDARD: 1,
+            # SystemTick.POST:     1,
+        }
+
+        # - - - - - - - - - - - - - - -
+        # Run the entire test!!!
+        # - - - - - - - - - - - - - - -
+        # This is simple because we want engine_run() to be capable of the
+        # entire running life-cycle.
+        ran = self.engine_run(SystemTick.TICKS_RUN,
+                              run)
+
+        expected = run[SystemTick.TICKS_RUN]
+        self.assertEqual(ran[SystemTick.TICKS_RUN], expected)
+        self.assertEqual(ran[SystemTick.TIME],      expected)
+        self.assertEqual(ran[SystemTick.CREATION],  expected)
+        self.assertEqual(ran[SystemTick.PRE],       expected)
+        self.assertEqual(ran[SystemTick.STANDARD],  expected)
+        self.assertEqual(ran[SystemTick.POST],      expected)
+
+    def test_a_full_life(self):
+        # Engine shouldn't've started yet...
+        self.assertEqual(self.engine.life_cycle, SystemTick.INVALID)
+        self.assertEqual(self.engine.tick, SystemTick.INVALID)
+
+        # Start, run, end via base class.
+        # It should do what we've just tested in test_ticks_<cycle>().
+        self.engine_life_start()
+
+        tick_amounts = {
+            # Max ticks of standard game loop.
+            SystemTick.TICKS_RUN: 10,
+        }
+        self.engine_run(SystemTick.TICKS_RUN,
+                        tick_amounts)
+
+        self.engine_life_end()
+
     def test_set_up(self):
-        # Create stuff.
-        self.create_entities()
+        # Push our systems into the engine before we start it so they go
+        # through a normal engine TICKS_START.
         jeff_id, jill_id = self.init_many_systems(SysJeff, SysJill)
 
-        # Tick should get it all created and alive and scheduled.
-        self.engine.tick()
+        # Get engine started.
+        self.engine_life_start()
+
+        self.assertTrue(len(self.manager.system._system) > 0)
+        for sid in self.manager.system._system._data0:
+            sys = self.manager.system.get(sid)
+            self.assertIsNotNone(sys)
+            self.assertEqual(sys.life_cycle, SystemLifeCycle.ALIVE)
+
+        # Create stuff.
+        self.create_entities()
+
+        # Tick once for any systems to deal with entity's creation.
+        self.engine_tick()
 
         self.assertTrue(len(self.manager.component._component_by_id) > 0)
         for cid in self.manager.component._component_by_id:
@@ -281,12 +425,6 @@ class Test_Engine(ZestEngine):
             self.assertIsNotNone(ent)
             self.assertEqual(ent.life_cycle, EntityLifeCycle.ALIVE)
 
-        self.assertTrue(len(self.manager.system._system) > 0)
-        for sid in self.manager.system._system:
-            sys = self.manager.system.get(sid)
-            self.assertIsNotNone(sys)
-            self.assertEqual(sys.life_cycle, SystemLifeCycle.ALIVE)
-
         # Filter out the required systems that were created. Just want to check
         # Jeff and Jill.
         j_and_j_schedule = [
@@ -298,37 +436,46 @@ class Test_Engine(ZestEngine):
                          [self.manager.system.get(jill_id),
                           self.manager.system.get(jeff_id)])
 
-    def test_empty_engine_tick(self):
-        # Tick an empty engine.
-        # Raise exceptions if things go wrong
-        self.engine.tick()
-
     def test_tickless_sys(self):
-        self.create_entities()
-        # Register, set up, and run it... and assert, uhh... no exceptions.
+        # Push our systems into the engine before we start it so they go
+        # through a normal engine TICKS_START.
         sids = self.init_many_systems(SysNoTick)
-        self.engine.tick()
-        # Guess we can check this too...
+
+        # Get engine started.
+        self.engine_life_start()
+
+        self.create_entities()
+
+        # Tick.
+        self.engine_tick()
+
+        # Shouldn't've been called.
         noop = self.manager.system.get(sids[0])
         self.assertIsInstance(noop, SysNoTick)
         self.assertEqual(noop.test_saw_total(), 0)
 
         # Once more with entity.
         self.create_entities()
-        self.engine.tick()
+        self.engine_tick()
         self.assertEqual(noop.test_saw_total(), 0)
 
     def test_reqless_sys(self):
-        # Register, set up, and run it... and assert, uhh... no exceptions.
+        # Push our systems into the engine before we start it so they go
+        # through a normal engine TICKS_START.
         sids = self.init_many_systems(SysNoReq)
         chill_sys = self.manager.system.get(sids[0])
-        self.engine.tick()
+
+        # Get engine started.
+        self.engine_life_start()
+
+        # Run a tick.
+        self.engine_tick()
         # guess we can check this too...
         self.assertEqual(chill_sys.test_saw_total(), 0)
 
         # Once more with entity.
         self.create_entities()
-        self.engine.tick()
+        self.engine_tick()
         self.assertEqual(chill_sys.test_saw_total(), 0)
 
     def test_multi_sys_see_ents(self):
@@ -342,17 +489,21 @@ class Test_Engine(ZestEngine):
         jeff = self.manager.system.get(sids[2])
         jill = self.manager.system.get(sids[3])
 
-        self.engine.tick()
+        # Get engine started.
+        self.engine_life_start()
 
-        # guess we can check this too...
+        # Run one tick.
+        self.engine_tick()
+
+        # Check that no entities were seen.
         self.assertEqual(no_req.test_saw_total(), 0)
         self.assertEqual(no_tick.test_saw_total(), 0)
         self.assertEqual(jeff.test_saw_total(), 0)
         self.assertEqual(jill.test_saw_total(), 0)
 
-        # Once more with entity.
+        # Once more with entities.
         self.create_entities()
-        self.engine.tick()
+        self.engine_tick()
         self.assertEqual(no_req.test_saw_total(), 0)
         self.assertEqual(no_tick.test_saw_total(), 0)
         # Jeff wants:

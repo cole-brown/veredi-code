@@ -87,7 +87,7 @@ class DataSystem(System):
         # ---
         self._components: Optional[Set[Type[Component]]] = [DataComponent]
         # Experimental: Keep data processing out of the standard tick?
-        self._ticks: SystemTick = (SystemTick.ALL & ~SystemTick.STANDARD)
+        self._ticks: SystemTick = (SystemTick.TICKS_RUN & ~SystemTick.STANDARD)
         # Apoptosis will be our end-of-game saving.
         # ---
 
@@ -137,13 +137,11 @@ class DataSystem(System):
     # Events
     # -------------------------------------------------------------------------
 
-    def subscribe(self, event_manager: EventManager) -> VerediHealth:
+    def _subscribe(self) -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        super().subscribe(event_manager)
-
         # DataSystem subs to:
         # - DecodedEvent
         #   The data has been interpreted into Python/Veredi. Now it needs to
@@ -160,7 +158,7 @@ class DataSystem(System):
         self._manager.event.subscribe(SerializedEvent,
                                       self.event_serialized)
 
-        return self._health_check()
+        return VerediHealth.HEALTHY
 
     def request_creation(self,
                          doc: Mapping[str, Any],
@@ -301,18 +299,18 @@ class DataSystem(System):
         so do it all here.
         '''
         # Doctor checkup.
-        if not self._healthy():
+        if not self._healthy(tick):
             self._health_meter_update = self._health_log(
                 self._health_meter_update,
                 log.Level.WARNING,
                 "HEALTH({}): Skipping ticks - our system health "
                 "isn't good enough to process.",
                 self.health)
-            return self._health_check()
+            return self._health_check(tick)
 
-        # §-TODO-§ [2020-05-26]: this
+        # TODO [2020-05-26]: this
 
         # Do DataLoadRequest / DataSaveRequest?
         # Or is DataLoadRequest an event we should subscribe to?
 
-        return self._health_check()
+        return self._health_check(tick)

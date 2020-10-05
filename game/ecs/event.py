@@ -9,7 +9,7 @@ Event Manager. Pub/Sub style. Subscribe to events by class type.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Callable, Type, Any, Union, Optional)
+                    Optional, Union, Callable, Type, Any, Dict, List)
 if TYPE_CHECKING:
     from .const import SystemTick
     from .time import TimeManager
@@ -153,10 +153,19 @@ class Event:
 # --------------------------------(oh well...)---------------------------------
 
 class EventManager(EcsManager):
+
+    def _define_vars(self) -> None:
+        super()._define_vars()
+
+        self._subscriptions: Dict[Type[Event], Callable[[Any], None]] = {}
+        '''Our subscribers. Event types to functions dictionary.'''
+
+        self._events:        List[Event]                              = []
+        '''FIFO queue of events that came in, if saving up.'''
+
     def __init__(self,
                  config: Optional[Configuration]) -> None:
-        self._subscriptions = {}
-        self._events = []  # FIFO queue of events that came in, if saving up.
+        super().__init__()
 
         # Pool for event objects?
 
@@ -262,9 +271,15 @@ class EventManager(EcsManager):
         '''
         Game is ending gracefully. Do graceful end-of-the-world stuff...
         '''
-        # About all we can do is make sure the event queue is empty.
-        self.publish()
-        return VerediHealth.APOPTOSIS
+        health = VerediHealth.APOPTOSIS
+        # If we published nothing, then systems and such are probably done...
+        # So guess that we're successful.
+        #
+        # If stuff isn't done and it was just a lull, they will say they're not
+        # and next round of apoptosis we'll be back here again anyways.
+        if self.publish() == 0:
+            health = VerediHealth.APOPTOSIS_SUCCESSFUL
+        return health
 
     # -------------------------------------------------------------------------
     # Unit Test Functions
