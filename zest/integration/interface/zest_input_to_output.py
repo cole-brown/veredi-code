@@ -154,7 +154,7 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
     # -------------------------------------------------------------------------
 
     def per_test_set_up(self):
-        self.engine_set_up()
+        self.engine_life_start()
         self.set_up_events()
         entity = self.create_entity()
 

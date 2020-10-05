@@ -271,11 +271,6 @@ class ZestEngine(ZestEcs):
                       "so... fail? engine_ready: ready?: "
                       f"{self.engine_ready}, life-cycle: "
                       f"{self.engine.life_cycle}")
-        if self.reg_open:
-            self.fail("Registration is already set up, so engine cannot "
-                      "do all of its setup properly. "
-                      f"systems subbed: {self.events_ready}, "
-                      f"reg open: {self.reg_open}")
 
     def _increment_tick_dict(self,
                              values: Dict[SystemTick, int],

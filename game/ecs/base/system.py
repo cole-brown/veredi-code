@@ -171,7 +171,7 @@ class System(ABC):
         # self._health_log(). E.g.:
         # Then call self._health_log() like, say...
         #     # Doctor checkup.
-        #     if not self._healthy():
+        #     if not self._healthy(self._manager.time.engine_tick_current):
         #         self._health_meter_jeff = self._health_log(
         #             self._health_meter_jeff,
         #             log.Level.WARNING,
@@ -600,7 +600,7 @@ class System(ABC):
                        context:  NullNoneOr['VerediContext'],
                        **kwargs: Any) -> bool:
         '''Check health, log if needed, and return True if able to proceed.'''
-        tick = self._manager.time.engine_tick_current()
+        tick = self._manager.time.engine_tick_current
         if not self._healthy(tick):
             kwargs = log.incr_stack_level(None)
             self._health_meter_event = self._health_log(
@@ -616,7 +616,7 @@ class System(ABC):
     def _health_ok_event(self,
                          event: 'Event') -> bool:
         '''Check health, log if needed, and return True if able to proceed.'''
-        tick = self._manager.time.engine_tick_current()
+        tick = self._manager.time.engine_tick_current
         if not self._healthy(tick):
             msg = ("Dropping event {} - our system health "
                    "isn't good enough to process.")
