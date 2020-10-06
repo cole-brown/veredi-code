@@ -409,19 +409,23 @@ class Message(Encodable):
         # Let these be None if they were encoded as None?..
         user_id = None
         user_key = None
-        if mapping['user_id'] is not None:
+        entity_id = None
+        if 'user_id' in mapping and mapping['user_id'] is not None:
             user_id = UserId.decode(mapping['user_id'])
-        if mapping['user_key'] is not None:
+        if 'user_key' in mapping and mapping['user_key'] is not None:
             user_key = UserKey.decode(mapping['user_key'])
+        if 'entity_id' in mapping and mapping['entity_id'] is not None:
+            entity_id = EntityId.decode(mapping['entity_id'])
 
         decoded = klass(
             msg_id_dec,
             MsgType.decode(mapping['type']),
             # Let someone else figure out if payload needs decoding or not, and
             # by what.
-            mapping['payload'],
-            user_id,
-            user_key
+            payload=mapping['payload'],
+            entity_id=entity_id,
+            user_id=user_id,
+            user_key=user_key,
         )
 
         return decoded
