@@ -34,6 +34,7 @@ from veredi.data.exceptions                 import LoadError
 from veredi.debug.const                     import DebugFlag
 from veredi.game.ecs.base.identity          import ComponentId
 from veredi.game.data.component             import DataComponent
+from veredi.game.ecs.base.entity            import Entity
 
 from veredi.game.data.event                 import (DataLoadRequest,
                                                     DataLoadedEvent)
@@ -154,8 +155,7 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
     # -------------------------------------------------------------------------
 
     def per_test_set_up(self):
-        self.engine_life_start()
-        self.set_up_events()
+        self.engine_and_events_start()
         entity = self.create_entity()
 
         # import veredi.zest.debug.background
@@ -232,9 +232,18 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
         self.assertTrue(self.input_system)
         self.assertTrue(self.output_system)
 
-    def test_ent_set_up(self):
+    def test_per_test_set_up(self):
         # Just make sure we did the set up successfully...
-        self.per_test_set_up()
+        entity = self.per_test_set_up()
+        self.assertIsNotNone(entity)
+        self.assertIsInstance(entity, Entity)
+        self.assertIsNotNone(entity.id)
+
+        self.assertIsNotNone(self.reg_open)
+
+        ability = self.manager.system.get(AbilitySystem)
+        self.assertIsNotNone(ability)
+        self.assertEqual(ability._subscribed, True)
 
     def test_input_to_output(self):
         # Set up entity with ability data

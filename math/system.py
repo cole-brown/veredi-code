@@ -420,10 +420,37 @@ class MathSystem(System):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
+    def _update_pre(self,
+                    time_mgr:      TimeManager,
+                    component_mgr: ComponentManager,
+                    entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        SystemTick.PRE
+        '''
+        return self._update_any(time_mgr, component_mgr, entity_mgr)
+
     def _update(self,
                 time_mgr:      TimeManager,
                 component_mgr: ComponentManager,
                 entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        SystemTick.PRE
+        '''
+        return self._update_any(time_mgr, component_mgr, entity_mgr)
+
+    def _update_post(self,
+                     time_mgr:      TimeManager,
+                     component_mgr: ComponentManager,
+                     entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        SystemTick.PRE
+        '''
+        return self._update_any(time_mgr, component_mgr, entity_mgr)
+
+    def _update_any(self,
+                    time_mgr:      TimeManager,
+                    component_mgr: ComponentManager,
+                    entity_mgr:    EntityManager) -> VerediHealth:
         '''
         Generic tick function. We do the same thing every tick state we process
         so do it all here.

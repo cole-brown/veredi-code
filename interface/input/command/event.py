@@ -237,3 +237,19 @@ class CommandRegisterReply(CommandEvent):
 
     def __repr_name__(self):
         return "CmdRegReply"
+
+    def __str__(self):
+        return (f"{self._str_name()}: "
+                f"name:{self.name}, "
+                f"source:{self.source}, "
+                f"perms:{self.permissions}, "
+                f"func:{self.function}, "
+                f"context: {str(self._context)}")
+
+    def __repr__(self):
+        return (f"<{self._str_name(self.__repr_name__())}: "
+                f"name:{self.name}, "
+                f"source:{self.source}, "
+                f"perms:{self.permissions}, "
+                f"func:{self.function}, "
+                f"context:{repr(self._context)}>")
