@@ -97,7 +97,7 @@ class ZestEngine(ZestEcs):
 
     def engine_life_start(self,
                           tick_amounts: Optional[Dict[SystemTick, int]] = None
-                          ) -> None:
+                          ) -> Dict[SystemTick, int]:
         '''
         Run Engine through TICKS_START life-cycle.
 
@@ -134,6 +134,33 @@ class ZestEngine(ZestEcs):
         return self.engine_run(SystemTick.TICKS_START,
                                tick_amounts)
 
+    def engine_and_events_start(
+            self,
+            skip_event_setup: bool                            = False,
+            tick_amounts:     Optional[Dict[SystemTick, int]] = None
+    ) -> Dict[SystemTick, int]:
+        '''
+        Sets up events and runs Engine through TICKS_START life-cycle.
+          - Calls self.engine_life_start(`tick_amounts`)
+          - Calls self.set_up_events()
+
+        If `tick_amounts` is defined, this will use the number of ticks
+        allowabled in TICKS_START, and in specific starting ticks (GENESIS,
+        etc) as a maximum. See here for an example:
+          veredi.game.zest_engine.ZestEngine.test_ticks_start()
+
+        If `tick_amounts` is None, we will allow a whole lotta ticks and trust
+        in the engine to timeout of TICKS_START if something is amiss.
+
+        Returns a dictionary of ticks/life-cycles ran. Layout is the same as
+        the input `tick_amounts` dict.
+        '''
+        if not skip_event_setup:
+            self.set_up_events()
+        result = self.engine_life_start(tick_amounts)
+
+        return result
+
     # -------------------------------------------------------------------------
     # Tear-Down
     # -------------------------------------------------------------------------
@@ -151,11 +178,10 @@ class ZestEngine(ZestEcs):
         # Apoptosis mode, I suppose. Or maybe just apoptosis.
         # Structured death, basically.
         # ---
-        if self.engine.life_cycle != SystemTick.FUNERAL:
-            # Not dead yet, so do the TICKS_END life_cycle.
-
-            # self.engine_life_end()
-            pass
+        # if (self.engine.life_cycle != SystemTick.INVALID
+        #         and self.engine.life_cycle != SystemTick.FUNERAL):
+        #     # Not dead yet, so do the TICKS_END life_cycle.
+        #     self.engine_life_end()
 
         self.engine_ready = False
         self.engine = None
@@ -163,7 +189,7 @@ class ZestEngine(ZestEcs):
 
     def engine_life_end(self,
                         tick_amounts: Optional[Dict[SystemTick, int]] = None
-                        ) -> None:
+                        ) -> Dict[SystemTick, int]:
         '''
         Does nothing if engine is in INVALID life-cycle, as we assume that
         means it never started.
