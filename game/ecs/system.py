@@ -114,18 +114,6 @@ class SystemManager(EcsManagerWithEvents):
         that cycle.
         '''
 
-        # TODO NOW!!!
-        # TODO [2020-09-30]: Remove - use the cycle transition functions instead!!!
-        # TODO NOW!!!
-        self._tick_type_prev: SystemTick = SystemTick.INVALID
-        '''For finding transitions to/from e.g. SystemTick.INTRASYS.'''
-
-        self._life_cycle_general: SystemLifeCycle = SystemLifeCycle.INVALID
-        '''
-        Overall life-cycle. Used to track entrance into each phase of the
-        life cycle.
-        '''
-
     def __init__(self,
                  config:            NullNoneOr[Configuration],
                  time_manager:      NullNoneOr[TimeManager],
@@ -217,7 +205,6 @@ class SystemManager(EcsManagerWithEvents):
         Entering TICKS_START life-cycle's first tick: genesis. System creation,
         initializing stuff, etc.
         '''
-        self._life_cycle_general = SystemLifeCycle.CREATING
         self._timer.start()
         return VerediHealth.HEALTHY
 
@@ -226,7 +213,6 @@ class SystemManager(EcsManagerWithEvents):
         Entering TICKS_START life-cycle's next tick - intra-system
         communication, loading, configuration...
         '''
-        self._life_cycle_general = SystemLifeCycle.ALIVE
         self._timer.start()
         return VerediHealth.HEALTHY
 
@@ -236,7 +222,6 @@ class SystemManager(EcsManagerWithEvents):
 
         Prepare for the main event.
         '''
-        # self._life_cycle_general stays in ALIVE
         self._timer.start()
         return VerediHealth.HEALTHY
 
@@ -251,7 +236,6 @@ class SystemManager(EcsManagerWithEvents):
         '''
         # Set up timer, set ourself to in apoptosis phase.
         self._timer.start()
-        self._life_cycle_general = SystemLifeCycle.APOPTOSIS
 
         # Set each system to apoptosis phase.
         health = VerediHealth.INVALID
@@ -275,7 +259,6 @@ class SystemManager(EcsManagerWithEvents):
         '''
         # Reset timer, set ourself to in apocalypse phase.
         self._timer.start()
-        self._life_cycle_general = SystemLifeCycle.APOCALYPSE
 
         # Set each system to apocalypse phase.
         health = VerediHealth.INVALID
@@ -302,7 +285,6 @@ class SystemManager(EcsManagerWithEvents):
         '''
         # Reset timer, set ourself to in the_end phase.
         self._timer.start()
-        self._life_cycle_general = SystemLifeCycle.THE_END
 
         # Set each system to the_end phase.
         health = VerediHealth.INVALID
@@ -322,7 +304,6 @@ class SystemManager(EcsManagerWithEvents):
 
         We may die now.
         '''
-        self._life_cycle_general = SystemLifeCycle.DEAD
         return VerediHealth.THE_END
 
     # -------------------------------------------------------------------------
@@ -376,57 +357,6 @@ class SystemManager(EcsManagerWithEvents):
 
         self._reschedule = False
 
-    def _reset_timer(self, time: 'TimeManager') -> None:
-        '''
-        Creates timer if it's None. Else restarts it.
-        '''
-        if not self._timer:
-            self._timer = time.make_timer()
-            return
-
-        self._timer.start()
-
-    def _update_timer(self, time: 'TimeManager', tick: SystemTick) -> None:
-        '''
-        Checks `tick`, `self._tick_type_prev`. Starts/stops/resets timer if
-        needed.
-        '''
-        # ---
-        # In 'start-up'?
-        # ---
-        if tick.has(SystemTick.TICKS_START):
-            # We'll run a timer for each tick type in start as they loop
-            # one-by-one.
-            if tick == self._tick_type_prev:
-                return
-
-            # New starting tick type; restart timer for it.
-            self._reset_timer(time)
-
-        # ---
-        # In 'end'?
-        # ---
-        elif tick.has(SystemTick.TICKS_END):
-            # We'll run a timer for each tick type in end as they loop
-            # one-by-one.
-            if tick == self._tick_type_prev:
-                return
-
-            # New ending tick type; restart timer for it.
-            self._reset_timer(time)
-
-        # ---
-        # Otherwise in 'run'?
-        # ---
-        elif tick.has(SystemTick.TICKS_RUN):
-            # Only reset timer when transitioning in for first time.
-            if self._tick_type_prev.has(SystemTick.TICKS_START):
-                self._reset_timer(time)
-
-        # ---
-        # Else I don't care.
-        # ---
-
     def update(self,
                tick: SystemTick,
                time: 'TimeManager',
@@ -436,9 +366,6 @@ class SystemManager(EcsManagerWithEvents):
         Engine calls us for each update tick, and we'll call all our
         game systems.
         '''
-        # Is this a tick transition and do we care?
-        self._update_timer(time, tick)
-
         # Update schedule at start of the tick, if it needs it.
         if (SystemTick.RESCHEDULE_SYSTEMS.has(tick)
                 or not self._schedule):
