@@ -72,7 +72,7 @@ class SystemManager(EcsManagerWithEvents):
 
         # Need to keep EventManager in self._event_manager to conform
         # to EcsManagerWithEvents interface.
-        # §-TODO-§ [2020-10-03]: Remove EventManager or keep in the interface?
+        # TODO [2020-10-03]: Remove EventManager or keep in the interface?
         self._event_manager: NullNoneOr[EventManager] = Null()
         '''ECS Event Manager.'''
 

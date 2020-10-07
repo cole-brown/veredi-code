@@ -13,19 +13,16 @@ Base Veredi Class for Testing ECS Engine.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Dict
+from typing import Optional, Dict, Set
 
-from veredi.logger                      import log
-from .ecs                               import ZestEcs
-from ..                                 import zload
-from ..zpath                            import TestType
-from veredi.base.const                  import VerediHealth
+from veredi.logger               import log
+from .ecs                        import ZestEcs
 
-from veredi.game.engine        import Engine
-from veredi.game.ecs.const        import (SystemTick,
-                                          game_loop_start,
-                                          game_loop_end,
-                                          _GAME_LOOP_SEQUENCE)
+from veredi.game.ecs.base.system import System
+from veredi.game.ecs.const       import (SystemTick,
+                                         game_loop_start,
+                                         game_loop_end,
+                                         _GAME_LOOP_SEQUENCE)
 
 
 # -----------------------------------------------------------------------------
@@ -71,6 +68,12 @@ class ZestEngine(ZestEcs):
         Flag we set after we initialize the engine in engine_set_up(). Prevents
         double-init of engine via programmer stupidity... >.>
         '''
+
+        self._required_systems: Set[System] = set({
+            # InputSystem:  Covered by ZestIntegrateEngine.set_up()
+            # OutputSystem: Covered by ZestIntegrateEngine.set_up()
+        })
+        '''Extra systems we need to fill in this game's systems.'''
 
     def set_up(self) -> None:
         '''
@@ -134,7 +137,7 @@ class ZestEngine(ZestEcs):
         return self.engine_run(SystemTick.TICKS_START,
                                tick_amounts)
 
-    def engine_and_events_start(
+    def start_engine_and_events(
             self,
             skip_event_setup: bool                            = False,
             tick_amounts:     Optional[Dict[SystemTick, int]] = None
@@ -159,6 +162,42 @@ class ZestEngine(ZestEcs):
             self.set_up_events()
         result = self.engine_life_start(tick_amounts)
 
+        return result
+
+    def start_engine_events_systems_etc(
+            self,
+            skip_event_setup: bool                            = False,
+            tick_amounts:     Optional[Dict[SystemTick, int]] = None
+    ) -> Dict[SystemTick, int]:
+        '''
+        Sets up events and runs Engine through TICKS_START life-cycle.
+        Calls:
+          - self.engine_life_start(`tick_amounts`)
+          - self.init_many_systems(*self._required_systems)
+          - if not skip_event_setup:
+            - self.set_up_events()
+          - self.allow_registration()
+
+        If `tick_amounts` is defined, this will use the number of ticks
+        allowabled in TICKS_START, and in specific starting ticks (GENESIS,
+        etc) as a maximum. See here for an example:
+          veredi.game.zest_engine.ZestEngine.test_ticks_start()
+
+        If `tick_amounts` is None, we will allow a whole lotta ticks and trust
+        in the engine to timeout of TICKS_START if something is amiss.
+
+        Returns a dictionary of ticks/life-cycles ran. Layout is the same as
+        the input `tick_amounts` dict.
+        '''
+        if not skip_event_setup:
+            self.set_up_events()
+        if self._required_systems:
+            self.init_many_systems(*self._required_systems)
+        result = self.engine_life_start(tick_amounts)
+
+        # Engine and InputSystem should have opened up registration on their
+        # own as part of engine_life_start().
+        # self.allow_registration()
         return result
 
     # -------------------------------------------------------------------------

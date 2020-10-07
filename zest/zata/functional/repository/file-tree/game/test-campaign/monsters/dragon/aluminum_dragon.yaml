@@ -1,0 +1,93 @@
+# This is just test data; it's not a real/final/actual stuff.
+# I just wanted something relatively non-simple for testing repos.
+
+--- !metadata
+record-type: veredi.monster.saved
+version: 2020-05-30
+
+source: veredi.integration-test
+author: Cole Brown
+date:   2020-05-30
+
+system: integration-test
+name: veredi.integration-test.data.load-path
+display-name: Veredi Integration-Testing Data Load Path
+
+
+--- !component
+
+meta:
+  registry: veredi.game.data.identity.component
+
+identity:
+  name: 'aluminum dragon'
+  group: 'monster'
+  owner: 'u/gm_dm'
+
+
+--- !component
+
+meta:
+  registry: veredi.rules.d20.pf2.ability.component
+
+ability:
+  strength:
+    score: 30
+    modifier: (${this.score} - 10) // 2
+  dexterity:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  constitution:
+    score: 32
+    modifier: (${this.score} - 10) // 2
+  intelligence:
+    score: 20
+    modifier: (${this.score} - 10) // 2
+  wisdom:
+    score: 10
+    modifier: (${this.score} - 10) // 2
+  charisma:
+    score: 11
+    modifier: (${this.score} - 10) // 2
+
+--- !component
+
+meta:
+  registry: veredi.rules.d20.pf2.health.component
+
+
+health:
+  # Tracks current hit point amounts.
+  current:
+    hit-points: ${sum(${health.current.*})}
+    permanent: 200
+    temporary: 50
+
+  # Tracks maximums from e.g. leveling, monster templates, etc.
+  maximum:
+    hit-points: 200
+
+  # Threshold value for falling unconscious.
+  unconscious:
+    hit-points: 0
+
+  # Threshold value for actually dying.
+  death:
+    hit-points: -50
+
+  # Tracks resistance to damage types in order to subtract from damage taken.
+  resistance:
+    piercing: 10
+    slashing: 10
+    fire: 3
+    acid: 3
+    cold: 3
+    electricity: 3
+    sonic: 3
+
+  immunity:
+    bludgeoning: true
+
+    # Get it? Cuz gallium eats up aluminum? hahahaha. :|
+#  vulnerability:
+#    gallium: true

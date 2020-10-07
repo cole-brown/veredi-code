@@ -170,7 +170,7 @@ class Mediator(ABC):
         # E.g. connections/pipes, multiproc event flags (shutdown flag), etc.
 
         # Pull debug up to class.
-        self._debug = self._comms.debug_flag
+        self._debug = self._comms.debug_flags
 
     # -------------------------------------------------------------------------
     # Debug

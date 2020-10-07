@@ -59,7 +59,8 @@ SysCreateType = NewType('SysCreateType',
 
 def create_system(system_manager: SystemManager,
                   context: VerediContext,
-                  sys_type: Type[System]) -> SystemId:
+                  sys_type: Type[System],
+                  debug_flags: Optional[DebugFlag] = None) -> SystemId:
     '''
     Helper to create a system. Returns a list of SystemIds.
 
@@ -82,7 +83,8 @@ def create_system(system_manager: SystemManager,
 
 def create_systems(system_manager: SystemManager,
                    context: VerediContext,
-                   *args: SysCreateType) -> List[SystemId]:
+                   *args: SysCreateType,
+                   debug_flags: Optional[DebugFlag] = None) -> List[SystemId]:
     '''
     Helper to create systems. Takes in either types or tuples of
     (type, context). Returns a list of SystemIds.
