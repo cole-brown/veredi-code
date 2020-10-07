@@ -13,27 +13,28 @@ Only really tests the websockets and Mediator.
 
 from typing import Optional, Any, Type, NewType, Callable, Tuple
 
+import enum
+import signal
+import time as py_time
 import multiprocessing
 from multiprocessing.connection import Connection as mp_conn
-from ctypes import c_int
-import signal
-from collections import namedtuple
-import time as py_time
-from datetime import datetime
-import enum
+from ctypes                     import c_int
+from collections                import namedtuple
+from datetime                   import datetime
 
 
-from veredi.base.enum                           import FlagCheckMixin
-from veredi.base.const                           import VerediHealth
 import veredi.time.machine
-from veredi.game.ecs.base.system                           import SystemLifeCycle
-from veredi.logger                       import log, log_client
-from veredi.base.context       import VerediContext
-from veredi.data.config.config import Configuration
-from veredi.data.config.context         import ConfigContext
-from veredi.debug.const                         import DebugFlag
 
-from .exceptions import MultiProcError
+from veredi.base.enum            import FlagCheckMixin
+from veredi.base.const           import VerediHealth
+from veredi.game.ecs.base.system import SystemLifeCycle
+from veredi.logger               import log, log_client
+from veredi.base.context         import VerediContext
+from veredi.data.config.config   import Configuration
+from veredi.data.config.context  import ConfigContext
+from veredi.debug.const          import DebugFlag
+
+from .exceptions                 import MultiProcError
 
 
 # -----------------------------------------------------------------------------
@@ -380,20 +381,20 @@ class SubToProcComm:
     '''
 
     def __init__(self,
-                 name:       str,
-                 config:     Optional[Configuration],
-                 entry_fn:   StartProcFn,
-                 pipe:       mp_conn,
-                 shutdown:   multiprocessing.Event,
-                 debug_flag: Optional[DebugFlag] = None,
-                 ut_pipe:    Optional[mp_conn]   = None) -> None:
-        self.name       = name
-        self.config     = config
-        self.pipe       = pipe
-        self.shutdown   = shutdown
-        self.debug_flag = debug_flag
-        self.ut_pipe    = ut_pipe
-        self._entry_fn  = entry_fn
+                 name:        str,
+                 config:      Optional[Configuration],
+                 entry_fn:    StartProcFn,
+                 pipe:        mp_conn,
+                 shutdown:    multiprocessing.Event,
+                 debug_flags: Optional[DebugFlag] = None,
+                 ut_pipe:     Optional[mp_conn]   = None) -> None:
+        self.name        = name
+        self.config      = config
+        self.pipe        = pipe
+        self.shutdown    = shutdown
+        self.debug_flags = debug_flags
+        self.ut_pipe     = ut_pipe
+        self._entry_fn   = entry_fn
 
     # -------------------------------------------------------------------------
     # Process Control
@@ -455,7 +456,7 @@ def set_up(proc_name:         str,
            t_sub_to_proc:     Type['SubToProcComm']           = SubToProcComm,
            finalize_fn:       FinalizeInitFn                  = None,
            initial_log_level: Optional[log.Level]             = None,
-           debug_flag:        Optional[DebugFlag]             = None,
+           debug_flags:       Optional[DebugFlag]             = None,
            unit_testing:      Optional[bool]                  = False,
            proc_test:         Optional[ProcTest]              = None,
            shutdown:          Optional[multiprocessing.Event] = None
@@ -516,7 +517,7 @@ def set_up(proc_name:         str,
                           entry_fn=entry_fn,
                           pipe=child_pipe,
                           shutdown=shutdown,
-                          debug_flag=debug_flag,
+                          debug_flags=debug_flags,
                           ut_pipe=ut_child_pipe)
 
     # ---
@@ -591,7 +592,7 @@ def _subproc_entry(context: VerediContext) -> None:
     # TODO [2020-08-10]: Logging init should take care of level... Try to
     # get rid of this setLevel().
     proc_log = log.get_logger(proc.name)
-    proc_log.setLevel(int(initial_log_level))
+    proc_log.setLevel(initial_log_level)
 
     # Sub-proc will ignore sig-int; primarily pay attention to shutdown flag.
     _sigint_ignore()

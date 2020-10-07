@@ -155,7 +155,7 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
     # -------------------------------------------------------------------------
 
     def per_test_set_up(self):
-        self.engine_and_events_start()
+        self.start_engine_and_events()
         entity = self.create_entity()
 
         # import veredi.zest.debug.background

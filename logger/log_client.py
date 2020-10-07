@@ -35,7 +35,7 @@ _socket_handler = None
 # -----------------------------------------------------------------------------
 
 
-def init(level: Union[log.Level, int] = log.DEFAULT_LEVEL) -> None:
+def init(level: Union[log.Level, int, None] = log.DEFAULT_LEVEL) -> None:
     '''
     Initialize log.py for non-local logging.
     '''

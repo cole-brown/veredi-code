@@ -78,21 +78,21 @@ class LogServerSub(multiproc.SubToProcComm):
     '''
 
     def __init__(self,
-                 name:       str,
-                 config:     Optional[Configuration],
-                 entry_fn:   multiproc.StartProcFn,
-                 pipe:       mp_conn,
-                 shutdown:   multiprocessing.Event,
-                 ignore_logs:     multiprocessing.Event                 = None,
-                 ignored_counter: multiprocessing.Value                 = None,
-                 debug_flag: Optional[DebugFlag] = None,
-                 ut_pipe:    Optional[mp_conn]   = None) -> None:
+                 name:            str,
+                 config:          Optional[Configuration],
+                 entry_fn:        multiproc.StartProcFn,
+                 pipe:            mp_conn,
+                 shutdown:        multiprocessing.Event,
+                 ignore_logs:     multiprocessing.Event = None,
+                 ignored_counter: multiprocessing.Value = None,
+                 debug_flags:     Optional[DebugFlag]   = None,
+                 ut_pipe:         Optional[mp_conn]     = None) -> None:
         super().__init__(name=name,
                          config=config,
                          entry_fn=entry_fn,
                          pipe=pipe,
                          shutdown=shutdown,
-                         debug_flag=debug_flag,
+                         debug_flags=debug_flags,
                          ut_pipe=ut_pipe)
         self.ignore_logs = ignore_logs
         self.ignored_counter = ignored_counter
@@ -239,7 +239,7 @@ def init(process_name: str = 'veredi.log.server',
          initial_log_level: Optional[log.Level] = None,
          context: VerediContext = None,
          config: Configuration = None,
-         debug_flag: DebugFlag = None) -> LogServerComm:
+         debug_flags: DebugFlag = None) -> LogServerComm:
     '''
     Create / Set-Up the Log Server according to context/config data.
     '''
@@ -267,7 +267,7 @@ def init(process_name: str = 'veredi.log.server',
         context=context,
         entry_fn=run,
         initial_log_level=initial_log_level,
-        debug_flag=debug_flag,
+        debug_flags=debug_flags,
         unit_testing=ut_flagged)
 
     return server

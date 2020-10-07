@@ -145,7 +145,8 @@ class ConfigContext(EphemerealContext):
     @classmethod
     def set_log_level(klass:   Type['ConfigContext'],
                       context: VerediContext,
-                      level:   Optional[log.Level]) -> Nullable[log.Level]:
+                      level:   log.LogLvlConversion
+                      ) -> None:
         '''
         Sets log_level in `context`. Pops if `level` is None.
         '''
@@ -155,12 +156,14 @@ class ConfigContext(EphemerealContext):
 
     @classmethod
     def log_level(klass: Type['ConfigContext'],
-                  context: VerediContext) -> Nullable[log.Level]:
+                  context: VerediContext) -> log.Level:
         '''
         Returns log_level in `context` or Null.
         '''
-        return context._sub_get(klass.KEY,
-                                klass.Link.LOG_LEVEL)
+        return log.Level.to_logging(
+            context._sub_get(
+                klass.KEY,
+                klass.Link.LOG_LEVEL))
 
     @classmethod
     def set_subproc(klass:   Type['config'],

@@ -78,8 +78,8 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
             "MediatorServer requires a SubToProcComm; received None.")
 
     log_level = ConfigContext.log_level(context)
-    lumberjack = log.get_logger(comms.name)
-    lumberjack.setLevel(int(log_level))
+    lumberjack = log.get_logger(comms.name,
+                                min_log_level=log_level)
 
     multiproc._sigint_ignore()
     log_client.init(log_level)
@@ -112,7 +112,7 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # ------------------------------
 
     # Always set LOG_SKIP flag in case its wanted.
-    comms.debug_flag = comms.debug_flag | DebugFlag.LOG_SKIP
+    comms.debug_flags = comms.debug_flags | DebugFlag.LOG_SKIP
 
     lumberjack.debug(f"Starting WebSocketServer '{comms.name}'...")
     mediator = WebSocketServer(context)
@@ -138,8 +138,8 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
             "MediatorClient requires a SubToProcComm; received None.")
 
     log_level = ConfigContext.log_level(context)
-    lumberjack = log.get_logger(comms.name)
-    lumberjack.setLevel(int(log_level))
+    lumberjack = log.get_logger(comms.name,
+                                min_log_level=log_level)
 
     multiproc._sigint_ignore()
     log_client.init(log_level)
@@ -172,7 +172,7 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # ------------------------------
 
     # Always set LOG_SKIP flag in case its wanted.
-    comms.debug_flag = comms.debug_flag | DebugFlag.LOG_SKIP
+    comms.debug_flags = comms.debug_flags | DebugFlag.LOG_SKIP
 
     lumberjack.debug(f"Starting WebSocketClient '{comms.name}'...")
     mediator = WebSocketClient(context)
@@ -204,7 +204,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
     # -------------------------------------------------------------------------
 
     def set_up(self):
-        self.debug_flag = DebugFlag.MEDIATOR_ALL
+        self.debug_flags = DebugFlag.MEDIATOR_ALL
         self.DISABLED_TESTS = set({
             # Nothing, ideally.
 
@@ -283,7 +283,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
                                             context=context,
                                             entry_fn=run_server,
                                             initial_log_level=LOG_LEVEL,
-                                            debug_flag=self.debug_flag,
+                                            debug_flags=self.debug_flags,
                                             unit_testing=True,
                                             proc_test=proc_test)
 
@@ -341,7 +341,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
                                       entry_fn=run_client,
                                       t_proc_to_sub=ClientProcToSubComm,
                                       initial_log_level=LOG_LEVEL,
-                                      debug_flag=self.debug_flag,
+                                      debug_flags=self.debug_flags,
                                       unit_testing=True,
                                       proc_test=proc_test,
                                       shutdown=shutdown)

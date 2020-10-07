@@ -295,7 +295,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
                                         initial_log_level=log_level,
                                         context=context,
                                         config=self.config,
-                                        debug_flag=self.debug_flag)
+                                        debug_flags=self.debug_flags)
 
     def _tear_down_log(self) -> None:
         if not self.proc.log:

@@ -193,6 +193,8 @@ class TimeManager(EcsManagerWithEvents):
 
         Use make_timer() or get your own timer for special cases.
         '''
+        if not self._timer:
+            self._timer = MonotonicTimer()
         return self._timer
 
     def start_timeout(self) -> None:
@@ -218,9 +220,15 @@ class TimeManager(EcsManagerWithEvents):
         return self._timer.timing
 
     def is_timed_out(self,
-                     timer:   MonotonicTimer,
-                     timeout: Union[str, float, int, None] = None) -> bool:
+                     timer:            Optional[MonotonicTimer],
+                     timeout:          Union[str, float, int, None] = None,
+                     use_engine_timer: bool = False) -> bool:
         '''
+        If `use_engine_timer` is true /and/ `timer` is None, this will check
+        self.timer, which the engine is in charge of for the engine
+        ticks/life-cycle, to check against the timeout. Otherwise it requires a
+        timer to be passed in.
+
         If `timeout` is None, uses _DEFAULT_TIMEOUT_SEC.
         If `timeout` is a number, uses that.
         If `timeout` is a string, checks config for a setting associated with
@@ -232,7 +240,16 @@ class TimeManager(EcsManagerWithEvents):
           - Past timeout value.
             - or past _DEFAULT_TIMEOUT_SEC if timeout value is None.
         '''
-        if not timer or not timer.timing:
+        if not timer:
+            if use_engine_timer and self.timer:
+                timer = self.timer
+            else:
+                msg = f"is_timed_out() requires a timer. Got: {timer}"
+                raise log.exception(ValueError(msg, timer, timeout),
+                                    None,
+                                    msg + f", timeout: {timeout}")
+
+        if not timer.timing:
             return True
 
         # ------------------------------

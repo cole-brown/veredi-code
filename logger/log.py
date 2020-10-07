@@ -9,11 +9,12 @@ Logging utilities for Veredi.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Type, Callable,
+                    Optional, Union, Any, NewType, Type, Callable,
                     Mapping, MutableMapping, Iterable)
 if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
     from veredi.base.exceptions import VerediError
+
 
 # ------------------------------
 # Imports for helping others do type hinting
@@ -30,13 +31,16 @@ import math
 import enum
 
 
-from veredi.base.null import Null, Nullable, NullNoneOr
+from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
 from veredi.base      import dotted
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+LogLvlConversion = NewType('', NullNoneOr[Union['Level', int]])
+
 
 FMT_DATETIME = '%Y-%m-%d %H:%M:%S.{msecs:03d}%z'  # Yeah, this is fun.
 
@@ -101,14 +105,14 @@ class Level(enum.IntEnum):
         return False
 
     @staticmethod
-    def to_logging(lvl: Union['Level', int, None]) -> int:
-        if lvl is None:
+    def to_logging(lvl: LogLvlConversion) -> int:
+        if null_or_none(lvl):
             lvl = Level.NOTSET
         return int(lvl)
 
     @staticmethod
-    def from_logging(lvl: Union['Level', int, None]) -> 'Level':
-        if lvl is None:
+    def from_logging(lvl: LogLvlConversion) -> 'Level':
+        if null_or_none(lvl):
             return Level.NOTSET
         return Level(lvl)
 
@@ -216,7 +220,7 @@ _unit_test_callback = Null()
 # Logger Code
 # -----------------------------------------------------------------------------
 
-def init(level:        Union[Level, int]           = DEFAULT_LEVEL,
+def init(level:        LogLvlConversion            = DEFAULT_LEVEL,
          handler:      Optional[logging.Handler]   = None,
          formatter:    Optional[logging.Formatter] = None,
          reinitialize: Optional[bool]              = None,
@@ -236,7 +240,7 @@ def init(level:        Union[Level, int]           = DEFAULT_LEVEL,
 
 
 def init_logger(logger_name: str,
-                level:       Union[Level, int]           = DEFAULT_LEVEL,
+                level:       LogLvlConversion            = DEFAULT_LEVEL,
                 handler:     Optional[logging.Handler]   = None,
                 formatter:   Optional[logging.Formatter] = None
                 ) -> logging.Logger:
@@ -299,7 +303,7 @@ def remove_handler(handler:     logging.Handler,
 
 
 def get_logger(*names: str,
-               min_log_level: Union[int, Level, None] = None
+               min_log_level: LogLvlConversion = None
                ) -> logging.Logger:
     '''
     Get a logger by name. Names should be module name, or module and
@@ -350,7 +354,7 @@ def get_level(veredi_logger: NullNoneOr[logging.Logger] = None) -> Level:
     return level
 
 
-def set_level(level: Union[Level, int] = DEFAULT_LEVEL,
+def set_level(level:         LogLvlConversion           = DEFAULT_LEVEL,
               veredi_logger: NullNoneOr[logging.Logger] = None) -> None:
     '''Change logger's log level. Options are:
       - log.CRITICAL
@@ -370,7 +374,7 @@ def set_level(level: Union[Level, int] = DEFAULT_LEVEL,
     this.setLevel(Level.to_logging(level))
 
 
-def will_output(level: Union[Level, int],
+def will_output(level:         LogLvlConversion,
                 veredi_logger: NullNoneOr[logging.Logger] = None) -> bool:
     '''
     Returns true if supplied `level` is high enough to output a log.
