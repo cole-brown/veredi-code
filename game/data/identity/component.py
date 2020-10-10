@@ -9,7 +9,7 @@ Data component - a component that has persistent data on it.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, MutableMapping)
+                    Optional, Union, Any, MutableMapping, Literal)
 if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
@@ -95,11 +95,12 @@ class IdentityComponent(DataComponent):
     # Init Stuff
     # -------------------------------------------------------------------------
 
-    def _configure(self,
-                   context: Optional['ConfigContext']) -> None:
+    def _define_vars(self) -> None:
         '''
-        Create instance vars for some transient (per-session) identity data.
+        Set up our vars with type hinting, docstrs.
         '''
+        super()._define_vars()
+
         self._user_id:  Optional[UserId]  = None
         '''
         User Identity of user that should be communicated with about this
@@ -113,6 +114,29 @@ class IdentityComponent(DataComponent):
         entity. E.g. a player-character should have the UserKey of the user
         controlling that character this session.
         '''
+
+    def _verify(self,
+                data: Union[MutableMapping[str, Any], Literal[False]],
+                requirements: MutableMapping[str, Any]) -> None:
+        '''
+        Verifies our `data` against a template/requirements data set provided
+        by `requirements`.
+
+        If `data` is False, we allow it through as verified. Otherwise we only
+        accept valid data.
+
+        Raises:
+          - DataNotPresentError (VerediError)
+          - DataRestrictedError (VerediError)
+          - NotImplementedError - temporarily
+        '''
+        # If no data, allow an empty identity, otherwise require valid data.
+        if data is False:
+            return
+
+        super()._verify(data, requirements)
+        for key in self._REQ_KEYS:
+            self._verify_key(key, data, self._REQ_KEYS[key])
 
     def _from_data(self, data: MutableMapping[str, Any] = None) -> None:
         '''

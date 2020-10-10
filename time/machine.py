@@ -8,10 +8,11 @@ Machine Time (Computer Time (OS Time)) for logs, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+from typing import Optional, Union
 
 from datetime import datetime, timezone
 import time as py_time
+from decimal import Decimal
 
 
 # -----------------------------------------------------------------------------
@@ -68,6 +69,18 @@ class MachineTime:
     '''
     Time functions for non-game times.
     '''
+
+    SEC_TO_NS = 1_000_000_000
+
+    def sec_to_ns(self, seconds: Union[int, float, Decimal]) -> int:
+        '''
+        Convert seconds to a nanoseconds value compatible with
+        self.monotonic_ns.
+        '''
+        nano = seconds * self.SEC_TO_NS
+        # Our monotonic_ns property returns an int, and we don't care about any
+        # precision below nanoseconds anyways.
+        return int(nano)
 
     @property
     def stamp(self) -> datetime:

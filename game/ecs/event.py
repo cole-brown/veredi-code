@@ -9,18 +9,24 @@ Event Manager. Pub/Sub style. Subscribe to events by class type.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Callable, Type, Any, Dict, List)
+                    Optional, Union, Callable, Any, Type, NewType, Dict, List)
 if TYPE_CHECKING:
-    from .const import SystemTick
     from .time import TimeManager
 
+from veredi.base.null import NullNoneOr
+
+
 import enum
+
 
 from veredi.logger             import log
 from veredi.base.context       import VerediContext
 from veredi.base.const         import VerediHealth
 from veredi.data.config.config import Configuration
+from veredi.base.exceptions    import VerediError
+from veredi.debug.const        import DebugFlag
 
+from .const                    import SystemTick
 from .manager                  import EcsManager
 from .base.identity            import MonotonicId
 from .exceptions               import EventError
@@ -29,6 +35,8 @@ from .exceptions               import EventError
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+EventNotifyFn = NewType('EventNotifyFn', Callable[['Event'], None])
 
 
 # -----------------------------------------------------------------------------
@@ -154,24 +162,92 @@ class Event:
 
 class EventManager(EcsManager):
 
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def _define_vars(self) -> None:
         super()._define_vars()
 
-        self._subscriptions: Dict[Type[Event], Callable[[Any], None]] = {}
+        self._subscriptions: Dict[Type[Event], EventNotifyFn] = {}
         '''Our subscribers. Event types to functions dictionary.'''
 
-        self._events:        List[Event]                              = []
+        self._events:        List[Event]                      = []
         '''FIFO queue of events that came in, if saving up.'''
 
+        self._debug: DebugFlag = None
+        '''Debugging flags.'''
+
     def __init__(self,
-                 config: Optional[Configuration]) -> None:
+                 config:      Optional[Configuration],
+                 debug_flags: NullNoneOr[DebugFlag]) -> None:
         super().__init__()
+
+        self._debug = debug_flags
 
         # Pool for event objects?
 
+    # -------------------------------------------------------------------------
+    # Debug Stuff
+    # -------------------------------------------------------------------------
+
+    def debug_flagged(self, desired) -> bool:
+        '''
+        Returns true if Engine's debug flags are set to something and that
+        something has the desired flag. Returns false otherwise.
+        '''
+        return self._debug and self._debug.has(desired)
+
+    @property
+    def debug(self) -> DebugFlag:
+        '''Returns current debug flags.'''
+        return self._debug
+
+    @debug.setter
+    def debug(self, value: DebugFlag) -> None:
+        '''
+        Set current debug flags. No error/sanity checks.
+        Universe could explode; use wisely.
+        '''
+        self._debug = value
+
+    def _error_maybe_raise(self,
+                           error:      Exception,
+                           v_err_wrap: Optional[Type[VerediError]],
+                           msg:        Optional[str],
+                           *args:      Any,
+                           context:    Optional['VerediContext'] = None,
+                           **kwargs:   Any):
+        '''
+        Log an error, and raise it if `self.debug_flagged` to do so.
+        '''
+        kwargs = kwargs or {}
+        log.incr_stack_level(kwargs)
+        if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+            raise log.exception(
+                error,
+                v_err_wrap,
+                msg,
+                *args,
+                context=context,
+                **kwargs
+            ) from error
+        else:
+            log.exception(
+                error,
+                v_err_wrap,
+                msg,
+                *args,
+                context=context,
+                **kwargs)
+
+    # -------------------------------------------------------------------------
+    # Subscribing
+    # -------------------------------------------------------------------------
+
     def subscribe(self,
                   target_class: Type[Any],
-                  handler_fn: Callable[[Any], None]) -> None:
+                  handler_fn:   EventNotifyFn) -> None:
         '''
         Subscribe to all events triggered for `target_class` and any of its
         sub-classes.
@@ -187,6 +263,10 @@ class EventManager(EcsManager):
                                 handler_fn, target_class)
         subs.add(handler_fn)
 
+    # -------------------------------------------------------------------------
+    # Event Helpers
+    # -------------------------------------------------------------------------
+
     def create(self,
                event_class:                Type[Event],
                owner_id:                   int,
@@ -198,6 +278,22 @@ class EventManager(EcsManager):
         '''
         event = event_class(owner_id, type, context)
         self.notify(event, requires_immediate_publish)
+
+    def _drop_events(self) -> None:
+        '''
+        Clears events out of our queue.
+        '''
+        self._events.clear()
+
+    # -------------------------------------------------------------------------
+    # Event Publishing / Notification
+    # -------------------------------------------------------------------------
+
+    def has_queued(self) -> bool:
+        '''
+        Returns True if our events queue has anything in it, False otherwise.
+        '''
+        return len(self._events) > 0
 
     def notify(self,
                event: Any,
@@ -224,6 +320,79 @@ class EventManager(EcsManager):
             return
         self._events.append(event)
 
+    def _call_catch(self,
+                    notice: EventNotifyFn,
+                    event:  Event) -> None:
+        '''
+        Call an event notification function, catching exceptions.
+
+        Logs, reraises, or both, depending on DebugFlags.
+        '''
+        try:
+            notice(event)
+
+        # ------------------------------
+        # Veredi Exceptions: Specific -> Generic
+        # ------------------------------
+        except EventError as error:
+            self.health = VerediHealth.UNHEALTHY
+            # Plow on ahead anyways or raise due to debug flags.
+            self._error_maybe_raise(
+                error,
+                None,
+                "EventManager tried to notify a subscriber about an event, "
+                "but got an EventError of type '{}'.",
+                type(error))
+
+        # Most generic of our exceptions.
+        except VerediError as error:
+            self.health = VerediHealth.UNHEALTHY
+            # Plow on ahead anyways or raise due to debug flags.
+            self._error_maybe_raise(
+                error,
+                None,
+                "EventManager tried to notify a subscriber about an event, "
+                "but got an error of type '{}'.",
+                type(error))
+
+        # ------------------------------
+        # Python Exceptions
+        # ------------------------------
+        except AttributeError as error:
+            self.health = VerediHealth.UNHEALTHY
+            # Plow on ahead anyways or raise due to debug flags.
+            self._error_maybe_raise(
+                error,
+                None,
+                "EventManager tried to notify a subscriber about an event, "
+                "but got an error of type '{}'.",
+                type(error))
+
+        # Most generic python exception.
+        except Exception as error:
+            self.health = VerediHealth.UNHEALTHY
+            # Plow on ahead anyways or raise due to debug flags.
+            self._error_maybe_raise(
+                error,
+                None,
+                "EventManager tried to notify a subscriber about an event, "
+                "but got an error of type '{}'.",
+                type(error))
+            raise
+
+        except:  # noqa E722
+            self.health = VerediHealth.FATAL
+
+            # Always log in catch-all?
+            # For now anyways.
+            log.exception(
+                None,
+                VerediError,
+                "EventManager tried to notify a subscriber about an event, "
+                "but got a _very_ unknown exception.")
+            # Always re-raise in catch-all.
+            raise
+
     def _push(self, event: Any) -> None:
         '''
         Pushes one event to all of its subscribers.
@@ -237,7 +406,7 @@ class EventManager(EcsManager):
                           event, push_type, subs)
             for notice in subs:
                 has_subs = True
-                notice(event)
+                self._call_catch(notice, event)
 
         if not has_subs:
             log.debug("Tried to push {}, but it has no subscribers.",
@@ -259,33 +428,90 @@ class EventManager(EcsManager):
 
         return publishing
 
-    def update(self, tick: 'SystemTick', time: 'TimeManager') -> int:
+    # -------------------------------------------------------------------------
+    # Engine Ticks
+    # -------------------------------------------------------------------------
+
+    def update(self, tick: SystemTick, time: 'TimeManager') -> int:
         '''
         Engine calls us for each update tick, and we'll call all our
         game systems.
         '''
-        # Publish whatever we've built up and return however many that is.
-        return self.publish()
+        # For the starting and running ticks, just publish.
+        if SystemTick.TICKS_START.has(tick) or SystemTick.TICKS_RUN.has(tick):
+            return self.publish()
 
-    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
+        # For the ending ticks, bit more complicated -
+        # call the function for them.
+        if SystemTick.TICKS_END.has(tick):
+            return self._update_ticks_end(tick)
+
+        # ---
+        # Error!
+        # ---
+        # For other ticks... WTF - should be no others.
+        msg = f"EventManager doesn't know what to do for update tick: {tick}"
+        error = ValueError(msg, tick)
+        raise log.exception(error, None, msg)
+
+    def _update_ticks_end(self, tick: SystemTick) -> int:
         '''
-        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        Game is ending gracefully.
+
+        Set our health to APOPTOSIS_SUCCESSFUL on ticks we don't publish
+        any events.
+
+        Set our health to APOPTOSIS (in progress) on ticks we do publish
+        events.
+
+        Return should mirror self.update().
+
+        Returns: Number of events published.
         '''
-        health = VerediHealth.APOPTOSIS
-        # If we published nothing, then systems and such are probably done...
-        # So guess that we're successful.
-        #
-        # If stuff isn't done and it was just a lull, they will say they're not
-        # and next round of apoptosis we'll be back here again anyways.
-        if self.publish() == 0:
-            health = VerediHealth.APOPTOSIS_SUCCESSFUL
-        return health
+        published = 0
+        if tick == SystemTick.APOPTOSIS:
+            # If we published nothing, then systems and such are probably done?
+            # So guess that we're successful.
+            #
+            # If stuff isn't done and it was just a lull, they will say they're
+            # not and next round of apoptosis we'll be back here again anyways.
+            health = VerediHealth.APOPTOSIS
+            published = self.publish()
+            if published == 0:
+                health = VerediHealth.APOPTOSIS_SUCCESSFUL
+
+        elif tick == SystemTick.APOCALYPSE:
+            # Most systems should be dead now. But we need to still do our
+            # thing because we are a manager and cannot die until THE_END.
+            health = VerediHealth.APOCALYPSE
+            published = self.publish()
+            if published == 0:
+                health = VerediHealth.APOCALYPSE_DONE
+
+        elif tick == SystemTick.THE_END or tick == SystemTick.FUNERAL:
+            # Just drop and ignore all events we might have.
+            health = VerediHealth.THE_END
+            self._drop_events()
+
+        else:
+            # Should not have another tick?
+            # There is 'FUNERAL', but that should not ever tick.
+            health = VerediHealth.FATAL
+            self.health = health
+
+            msg = ("EventManager doesn't know what to do for ending "
+                   f"update tick: {tick}")
+            error = ValueError(msg, tick)
+            raise log.exception(error, None, msg)
+
+        self.health = health
+        return published
 
     # -------------------------------------------------------------------------
     # Unit Test Functions
     # -------------------------------------------------------------------------
 
-    def _ut_clear_events(self) -> None:
+    def _ut_clear_events(self) -> List[Event]:
         '''
         Replace our event queue with a fresh queue (basically, clear out all
         our queued events).
@@ -296,7 +522,7 @@ class EventManager(EcsManager):
         self._events = []
         return queued_events
 
-    def _ut_clear_subs(self) -> None:
+    def _ut_clear_subs(self) -> Dict[Type[Event], EventNotifyFn]:
         '''
         Replace our subscriptions with a fresh dictionary (basically, clear
         them all out).

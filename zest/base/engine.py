@@ -75,6 +75,11 @@ class ZestEngine(ZestEcs):
         })
         '''Extra systems we need to fill in this game's systems.'''
 
+        self._in_shutdown: bool = False
+        '''
+        Set to True while in ending ticks.
+        '''
+
     def set_up(self) -> None:
         '''
         Override this!
@@ -134,8 +139,18 @@ class ZestEngine(ZestEcs):
                 SystemTick.INTRA_SYSTEM: self._ENGINE_TICKS_DEFAULT_START_END,
             }
 
-        return self.engine_run(SystemTick.TICKS_START,
-                               tick_amounts)
+        # If we fail starting the engine somewhere along the way, try to stop
+        # it. Maybe some systems can run through shutdown and clean up for the
+        # next test.
+        #
+        # Only an issue (so far) for multiprocess stuff, but we have that.
+        try:
+            return self.engine_run(SystemTick.TICKS_START,
+                                   tick_amounts)
+        except:
+            # Attempt emergency shutdown.
+            self.engine_emergency_stop()
+            raise
 
     def start_engine_and_events(
             self,
@@ -226,6 +241,22 @@ class ZestEngine(ZestEcs):
         self.engine = None
         super().tear_down()
 
+    def engine_emergency_stop(self) -> None:
+        '''
+        Run engine through TICKS_END due to bad things happening.
+        '''
+        # Something bad happened during shutdown? Nothing we can do.
+        if self._in_shutdown:
+            return
+
+        try:
+            # Attempt the end-of-life stuff.
+            self.engine_life_end()
+        except:
+            # Don't care about any exceptions. Just trying to clean up engine
+            # as much as possible.
+            pass
+
     def engine_life_end(self,
                         tick_amounts: Optional[Dict[SystemTick, int]] = None
                         ) -> Dict[SystemTick, int]:
@@ -278,13 +309,32 @@ class ZestEngine(ZestEcs):
     # -------------------------------------------------------------------------
 
     def engine_tick(self,
-                    amount: int = 1) -> None:
+                    amount: int = 1) -> bool:
         '''
         Ticks engine `amount` times. Does whatever engine life-cycle/tick have
         it set to do next tick.
+
+        Returns 'success'. False means we got a bad return value from the
+        engine for one of the ticks.
         '''
+        if self._in_shutdown:
+            self.assertTrue(self.engine.running())
+
+        emergency_stop = False
         for i in range(amount):
-            self.engine.run_tick()
+            health = self.engine.run_tick()
+            # health == None means engine refused to run a tick due to being in
+            # a bad state. If we are in shutdown, no point doing emergency
+            # stop. But otherwise, try to have the engine do it's TICKS_END so
+            # things have a chance to clean up.
+            if not self.engine.running():
+                # Do emergency stop if not already stopping...
+                emergency_stop = not self._in_shutdown
+                break
+
+        if emergency_stop:
+            self.engine_emergency_stop()
+        return not emergency_stop
 
     def engine_run(self,
                    run_life_cycle:      SystemTick,
@@ -385,7 +435,7 @@ class ZestEngine(ZestEcs):
         tick_num = ticks.get(SystemTick.GENESIS, 1)
         last_tick = tick_num - 1
         for i in range(tick_num):
-            self.engine.run_tick()
+            success = self.engine_tick()
 
             # Update our ticks counter...
             self._increment_tick_dict(
@@ -393,6 +443,7 @@ class ZestEngine(ZestEcs):
                 self.engine.life_cycle,
                 self.engine.tick)
 
+            self.assertTrue(success)
             self.assertEqual(self.engine.life_cycle,
                              SystemTick.TICKS_START)
             self.assertEqual(self.engine.tick,
@@ -422,7 +473,7 @@ class ZestEngine(ZestEcs):
         tick_num = ticks.get(SystemTick.INTRA_SYSTEM, 1)
         last_tick = tick_num - 1
         for i in range(tick_num):
-            self.engine.run_tick()
+            success = self.engine_tick()
 
             # Update our ticks counter...
             self._increment_tick_dict(
@@ -430,6 +481,7 @@ class ZestEngine(ZestEcs):
                 self.engine.life_cycle,
                 self.engine.tick)
 
+            self.assertTrue(success)
             self.assertEqual(self.engine.life_cycle,
                              SystemTick.TICKS_START)
             self.assertEqual(self.engine.tick,
@@ -496,7 +548,7 @@ class ZestEngine(ZestEcs):
                       f"{requested_ticks}. ")
 
         for i in range(requested_ticks):
-            self.engine.run_tick()
+            success = self.engine_tick()
 
             # Update our ticks counter...
             # Assume we ran one of each standard tick in the TICKS_RUN cycle,
@@ -506,6 +558,8 @@ class ZestEngine(ZestEcs):
             self._increment_tick_dict(
                 ran_ticks,
                 *ran_list)
+
+            self.assertTrue(success)
 
             # Should have just done a TICKS_RUN
             self.assertEqual(self.engine.life_cycle,
@@ -539,6 +593,7 @@ class ZestEngine(ZestEcs):
         tick type (APOPTOSIS, APOCALYPSE...).
         '''
         ran_ticks = {}
+        self._in_shutdown = True
 
         # Don't care where we start out.
         # self.assertEqual(self.engine.life_cycle, SystemTick.INVALID)
@@ -580,7 +635,7 @@ class ZestEngine(ZestEcs):
         tick_num = ticks.get(SystemTick.APOPTOSIS, 1)
         last_tick = tick_num - 1
         for i in range(tick_num):
-            self.engine.run_tick()
+            success = self.engine_tick()
 
             # Update our ticks counter...
             self._increment_tick_dict(
@@ -588,6 +643,7 @@ class ZestEngine(ZestEcs):
                 self.engine.life_cycle,
                 self.engine.tick)
 
+            self.assertTrue(success)
             self.assertEqual(self.engine.life_cycle,
                              SystemTick.TICKS_END)
             self.assertEqual(self.engine.tick,
@@ -616,7 +672,7 @@ class ZestEngine(ZestEcs):
         tick_num = ticks.get(SystemTick.APOCALYPSE, 1)
         last_tick = tick_num - 1
         for i in range(tick_num):
-            self.engine.run_tick()
+            success = self.engine_tick()
 
             # Update our ticks counter...
             self._increment_tick_dict(
@@ -624,6 +680,7 @@ class ZestEngine(ZestEcs):
                 self.engine.life_cycle,
                 self.engine.tick)
 
+            self.assertTrue(success)
             self.assertEqual(self.engine.life_cycle,
                              SystemTick.TICKS_END)
             self.assertEqual(self.engine.tick,
@@ -651,13 +708,14 @@ class ZestEngine(ZestEcs):
         # Tick THE_END for up to as many times as requested.
         tick_num = ticks.get(SystemTick.THE_END, 1)
         if tick_num:
+            success = False
             if tick_num != 1:
                 self.fail("Got a request for THE_END != 1 tick. This is not "
                           "currently how the engine works. "
                           f"THE_END ticks: {tick_num}")
             else:
                 # Do the one tick.
-                self.engine.run_tick()
+                success = self.engine_tick()
 
             # Update our ticks counter...
             self._increment_tick_dict(
@@ -665,6 +723,7 @@ class ZestEngine(ZestEcs):
                 self.engine.life_cycle,
                 self.engine.tick)
 
+            self.assertTrue(success)
             self.assertEqual(self.engine.life_cycle,
                              SystemTick.TICKS_END)
             self.assertEqual(self.engine.tick,
@@ -682,13 +741,14 @@ class ZestEngine(ZestEcs):
         # Tick Funeral for up to as many times as requested.
         tick_num = ticks.get(SystemTick.FUNERAL, 1)
         if tick_num:
+            success = False
             if tick_num != 1:
                 self.fail("Got a request for FUNERAL != 1 tick. This is not "
                           "currently how the engine works. "
                           f"FUNERAL ticks: {tick_num}")
             else:
                 # Do the one tick.
-                self.engine.run_tick()
+                success = self.engine_tick()
 
             # Update our ticks counter...
             self._increment_tick_dict(
@@ -696,6 +756,7 @@ class ZestEngine(ZestEcs):
                 self.engine.life_cycle,
                 self.engine.tick)
 
+            self.assertTrue(success)
             self.assertEqual(self.engine.life_cycle,
                              SystemTick.TICKS_END)
             self.assertEqual(self.engine.tick,

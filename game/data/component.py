@@ -40,6 +40,24 @@ class DataComponent(Component):
     Component with persistent data.
     '''
 
+    def _define_vars(self) -> None:
+        '''
+        Set up our vars with type hinting, docstrs.
+        '''
+        super()._define_vars()
+
+        self._persistent = None
+        '''
+        All persistent data should go here, or be gathered up in return value
+        of persistent property.
+        '''
+
+        self._dirty: bool = False
+        '''
+        Flag for indicating that this component wants its
+        persistent data saved.
+        '''
+
     def __init__(self,
                  context: Optional['VerediContext'],
                  cid: ComponentId,
@@ -68,31 +86,26 @@ class DataComponent(Component):
         '''
         Configure our data into whatever it needs to be for runtime.
         '''
-        # All persistent data should go here, or be gathered up in return value
-        # of persistent property.
-        self._persistent = None
-
-        # Flag for indicating that this component wants its
-        # persistent data saved.
-        self._dirty = False
-
         # ---
         # Data Init Section for subclasses.
         # ---
         # Verify on raw data, then call our init data function?
-        self._verify(data)
+        self._verify(data, self._REQ_KEYS)
         self._from_data(data)
 
-    def _verify(self, data) -> None:  # §-TODO-§: pass in `requirements`.
+    def _verify(self,
+                data: MutableMapping[str, Any],
+                requirements: MutableMapping[str, Any]) -> None:
         '''
-        Verifies our data against a template/requirements data set.
+        Verifies our `data` against a template/requirements data set provided
+        by `requirements`.
 
         Raises:
           - DataNotPresentError (VerediError)
           - DataRestrictedError (VerediError)
           - NotImplementedError - temporarily
         '''
-        # §-TODO-§ [2020-05-26]: Use component-template,
+        # TODO [2020-05-26]: Use component-template,
         # component-requirements here to do the verification? For now, simpler
         # verify...
 
