@@ -118,6 +118,9 @@ class Test_IdentitySystem(ZestSystem):
         self.assertTrue(component_entity.allonym, 'u/jill')
         self.assertTrue(component_entity.controller, 'u/jill')
 
+    # TODO [2020-10-09]: test user_id and user_key dicts stay synced with
+    # games entities.
+
 
 # --------------------------------Unit Testing---------------------------------
 # --                      Main Command Line Entry Point                      --

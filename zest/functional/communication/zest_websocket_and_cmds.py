@@ -591,19 +591,27 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.client_send_with_ack(client, mid, msg)
 
         # Game should process events set off by the message...
-        # TODO
+        max_ticks = 10
+        ticked = 0
+        for i in range(max_ticks):
+            self.engine_tick()
+            ticked += 1
+            if not self.manager.event.has_queued():
+                # Cut out early if we have no more events to process?
+                break
 
-        # Client should receive a follow-up from server with results.
+        # Client should have received a follow-up from server with results.
+        self.assertTrue(client.has_data())
 
         # Make sure we don't have anything in the queues.
         self.assert_empty_pipes()
 
-    def test_ability_cmd(self):
-        if self.disabled():
-            return
+    # def test_ability_cmd(self):
+    #     if self.disabled():
+    #         return
 
-        self.assert_test_ran(
-            self.runner_of_test(self.do_test_ability_cmd, *self.proc.clients))
+    #     self.assert_test_ran(
+    #         self.runner_of_test(self.do_test_ability_cmd, *self.proc.clients))
 
     # # ------------------------------
     # # Test cliets pinging server.

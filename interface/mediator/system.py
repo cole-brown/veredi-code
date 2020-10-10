@@ -72,8 +72,8 @@ from ..input.history.history                    import Historian
 
 
 # Mediator Stuff
-from .event                              import (MediatorSendEvent,
-                                                 MediatorReceiveEvent)
+from .event                              import (GameToMediatorEvent,
+                                                 MediatorToGameEvent)
 from .context                  import MediatorContext, MessageContext
 from .message                  import Message, MsgType
 from .payload.logging          import LogPayload, LogField
@@ -168,7 +168,7 @@ class MediatorSystem(System):
         MsgType.CODEC,
     })
 
-    TIME_APOPTOSIS_SEC = 10.0
+    TIME_TICKS_END_SEC = 10.0
     '''
     We request this many seconds to let apoptosis run. We can only request it,
     not assume we'll get it all.
@@ -349,14 +349,14 @@ class MediatorSystem(System):
             # Really need server to be able to do anything.
             mediator_health = VerediHealth.FATAL
         else:
-            multiproc_health = self.server.healthy(phase=self._life_cycle)
+            multiproc_health = self.server.healthy(self._life_cycle)
 
         # Set our state to whatever's worse and return that.
         self._health = self._health.update(current_health,
                                            manager_health,
                                            mediator_health,
                                            multiproc_health)
-        return self._health_check(tick, self._health)
+        return self.health
 
     # -------------------------------------------------------------------------
     # Events
@@ -368,8 +368,8 @@ class MediatorSystem(System):
         event_manager if need to sub/unsub more dynamically.
         '''
         # MediatorSystem subs to:
-        # - MediatorSendEvent
-        self._manager.event.subscribe(MediatorSendEvent,
+        # - GameToMediatorEvent
+        self._manager.event.subscribe(GameToMediatorEvent,
                                       self.event_to_message)
 
         return VerediHealth.HEALTHY
@@ -389,7 +389,7 @@ class MediatorSystem(System):
     # Data Flow: Game -> MediatorServer
     # -------------------------------------------------------------------------
 
-    def event_to_message(self, event: MediatorSendEvent) -> None:
+    def event_to_message(self, event: GameToMediatorEvent) -> None:
         '''
         MediatorSystem needs to turn this event into a Message and Context,
         then push into the MediatorServer's IPC pipe.
@@ -534,7 +534,7 @@ class MediatorSystem(System):
             id_list = self._identity.user_id_to_entity_ids(message.user_id)
             context.entity_ids = id_list
 
-            if len(id_list) == 1:
+            if id_list and len(id_list) == 1:
                 entity_id = context.entity_ids[0]
 
         # ------------------------------
@@ -544,11 +544,11 @@ class MediatorSystem(System):
         event_payload = self.validate_message(message, context)
 
         # Build event.
-        event = MediatorReceiveEvent(entity_id,
-                                     # TODO: MsgType? Something else?
-                                     message.type,
-                                     context,
-                                     event_payload)
+        event = MediatorToGameEvent(entity_id,
+                                    # TODO: MsgType? Something else?
+                                    message.type,
+                                    context,
+                                    event_payload)
 
         # ------------------------------
         # Publish Event
@@ -673,18 +673,64 @@ class MediatorSystem(System):
         return self._health_check(SystemTick.POST)
 
     # -------------------------------------------------------------------------
-    # Apoptosis Functions
+    # Life-Cycle Functions
     # -------------------------------------------------------------------------
 
-    def apoptosis_time_desired(self) -> Optional[float]:
+    def timeout_desired(self, cycle: SystemTick) -> Optional[float]:
         '''
         If a system wants some minimum time, they can override this function.
         This is only a request, though. The SystemManager or Engine may not
         grant it.
         '''
-        return self.TIME_APOPTOSIS_SEC
+        if cycle == SystemTick.APOPTOSIS or cycle  == SystemTick.APOCALYPSE:
+            return self.TIME_TICKS_END_SEC
+        return None
 
-    def _apoptosis_done_check(self) -> Union[Literal[False], VerediHealth]:
+    # -------------------------------------------------------------------------
+    # Apoptosis Functions
+    # -------------------------------------------------------------------------
+
+    def _cycle_apoptosis(self) -> VerediHealth:
+        '''
+        System is being cycled into apoptosis state from current state.
+        Current state is still set in self._life_cycle.
+
+        Does not shut down MediatorServer. That is saved for the APOCALYPSE.
+        '''
+        super()._cycle_apoptosis()
+        self._health = self._health.update(VerediHealth.APOPTOSIS)
+
+        # TODO: Just return APOPTOSIS even if our health is different?
+        # Not sure...
+        return VerediHealth.APOPTOSIS
+
+    def _update_apoptosis(self,
+                          time_mgr:      TimeManager,
+                          component_mgr: 'ComponentManager',
+                          entity_mgr:    'EntityManager') -> VerediHealth:
+        '''
+        Structured death phase. System should be responsive until apocalypse,
+        so just check if MediatorServer is busy right now or not.
+        '''
+        # Say we can be done if we have nothing from Mediator to deal with
+        # right now... Probably also want some flag or something from Mediator
+        # to say they're idle-ish?
+        # §-TODO-§ [2020-10-08]: Flag or something for MediatorServer /
+        # ProcToSubComm&SubToProcComm to indicate idle/busy status.
+        if self.server.has_data() or self.server._ut_has_data():
+            self._health = self._health.update(VerediHealth.APOPTOSIS)
+            return VerediHealth.APOPTOSIS
+
+        # Otherwise update our health with an apoptosis done value, and return
+        # that specific value.
+        self._health = self._health.update(VerediHealth.APOPTOSIS_SUCCESSFUL)
+        return VerediHealth.APOPTOSIS_SUCCESSFUL
+
+    # -------------------------------------------------------------------------
+    # Apocalypse Functions
+    # -------------------------------------------------------------------------
+
+    def _apocalypse_done_check(self) -> Union[Literal[False], VerediHealth]:
         '''
         Are we done dying yet?
 
@@ -705,44 +751,39 @@ class MediatorSystem(System):
         multiproc.nonblocking_tear_down_end(self.server)
 
         healthy_exit = self.server.exitcode_healthy(
-            VerediHealth.APOPTOSIS_SUCCESSFUL,
-            VerediHealth.APOPTOSIS_FAILURE)
+            VerediHealth.APOCALYPSE_DONE,
+            VerediHealth.FATAL)
         return healthy_exit
 
-    def _cycle_apoptosis(self) -> VerediHealth:
+    def _cycle_apocalypse(self) -> VerediHealth:
         '''
-        System is being cycled into apoptosis state from current state.
+        System is being cycled into apocalypse state from current state.
         Current state is still set in self._life_cycle.
         '''
+        super()._cycle_apocalypse()
         # Use the non-blocking multiproc functions!
 
         # ------------------------------
         # Start our Graceful Death.
         # ------------------------------
-        self._health = self._health.update(VerediHealth.APOPTOSIS)
+        self._health = self._health.update(VerediHealth.APOCALYPSE)
 
-        # Start the teardown... We'll wait on it during _update_apoptosis().
+        # Start the teardown... We'll wait on it during _update_apocalypse().
         multiproc.nonblocking_tear_down_start(self.server)
 
-        # TODO: Just return APOPTOSIS even if our health is different?
-        # Not sure...
-        return VerediHealth.APOPTOSIS
+        return VerediHealth.APOCALYPSE
 
-    def _update_apoptosis(self,
-                          time_mgr:      TimeManager,
-                          component_mgr: 'ComponentManager',
-                          entity_mgr:    'EntityManager') -> VerediHealth:
+    def _update_apocalypse(self,
+                           time_mgr:      TimeManager,
+                           component_mgr: 'ComponentManager',
+                           entity_mgr:    'EntityManager') -> VerediHealth:
         '''
-        Structured death phase. System should be responsive until it the next
-        phase, but should be doing stuff for shutting down, like saving off
-        data, etc.
-
-        Default is "do nothing and return done."
+        Structured death phase. We actually shut down our MediatorServer now.
         '''
         # Set to failure state if over time.
         if self._manager.time.is_timed_out(
                 None,
-                self.apoptosis_time_desired(),
+                self.timeout_desired(SystemTick.APOCALYPSE),
                 use_engine_timer=True):
             # Don't care about tear_down_end result; we'll check it with
             # exitcode_healthy().
@@ -750,23 +791,58 @@ class MediatorSystem(System):
             # Update with exitcode's health, and...
             self._health = self._health.update(
                 self.server.exitcode_healthy(
-                    VerediHealth.APOPTOSIS_SUCCESSFUL,
-                    VerediHealth.APOPTOSIS_FAILURE))
+                    VerediHealth.APOCALYPSE_SUCCESSFUL,
+                    VerediHealth.APOCALYPSE_FAILURE))
 
             # Update with our health (failed due to overtime), and return.
             self._health = self._health.update(
-                VerediHealth.APOPTOSIS_FAILURE)
+                VerediHealth.APOCALYPSE_FAILURE)
             return self.health
 
         # Else we still have time to wait.
         multiproc.nonblocking_tear_down_wait(self.server,
                                              log_enter=True)
-        done = self._apoptosis_done_check()
+        done = self._apocalypse_done_check()
         if done is not False:
             # Update with done's health since we're done.
             self._health = self._health.update(done)
         else:
-            # Update health with APOPTOSIS, since we're in progress.
-            self._health = self._health.update(VerediHealth.APOPTOSIS)
+            # Update health with APOCALYPSE, since we're in progress.
+            self._health = self._health.update(VerediHealth.APOCALYPSE)
 
         return self.health
+
+    # -------------------------------------------------------------------------
+    # The End Functions
+    # -------------------------------------------------------------------------
+
+    def _cycle_the_end(self) -> VerediHealth:
+        '''
+        System is being cycled into the_end state from current state.
+        Current state is still set in self._life_cycle.
+        '''
+        super()._cycle_the_end()
+
+        exit_health = self.server.exitcode_healthy(
+            VerediHealth.THE_END,
+            VerediHealth.UNHEALTHY)
+
+        # FATAL from exitcode_healthy means it's not dead. So tear it down now.
+        if exit_health == VerediHealth.FATAL:
+            # Don't care about tear_down_end result; we'll check it with
+            # exitcode_healthy().
+            exit_tuple = multiproc.nonblocking_tear_down_end(self.server)
+
+            # I'd like to wait to recheck the health, but it's THE_END
+            # so no choice.
+            exit_health = self.server.exitcode_healthy(
+                VerediHealth.THE_END,
+                VerediHealth.FATAL)
+        elif exit_health == VerediHealth.UNHEALTHY:
+            # Used UNHEALTHY as an indication that server did actually exited,
+            # but exited poorly. FATAL is reserved for "still alive, actually".
+            # Now that we know it's not alive, upgrade unhealthy to fatal.
+            exit_health = VerediHealth.FATAL
+
+        self._health = self._health.update(exit_health)
+        return exit_health

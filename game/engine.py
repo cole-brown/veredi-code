@@ -9,16 +9,18 @@ A game of something or other.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type, Any, Iterable)
+                    Optional, Union, Type, Any, Iterable, Dict)
 if TYPE_CHECKING:
+    from decimal             import Decimal
     from veredi.base.context import VerediContext
 import collections  # collections.Iterable
 
-# from typing import Optional
-from veredi.base.null                   import NullNoneOr
+from veredi.base.null                   import NullNoneOr, null_or_none
+
 
 # Error Handling
 from veredi.logger                      import log
+from veredi.logger.metered              import MeteredLog
 from veredi.base.exceptions             import VerediError
 
 # Other More Basic Stuff
@@ -219,6 +221,14 @@ class Engine:
     one time-step loop (currently).
     '''
 
+    DOTTED = 'veredi.game.engine'
+
+    _METER_LOG_AMT = 10  # seconds
+    '''
+    Amount of time (in seconds) that we want our MeteredLog to squelch/ignore
+    the same/similar logging messages.
+    '''
+
     def _define_vars(self) -> None:
         self._engine_health: VerediHealth = VerediHealth.INVALID
         '''Overall engine health.'''
@@ -266,6 +276,9 @@ class Engine:
         self.meeting: Meeting = None
         '''ECS Managers'''
 
+        self._metered_log: MeteredLog = None
+        '''Metered logging for things that could be spammy, like tick logs.'''
+
     def __init__(self,
                  owner:             Entity,
                  campaign_id:       int,
@@ -301,7 +314,8 @@ class Engine:
         # ---
         # Make the Managers go to their Meeting.
         # ---
-        event     = event_manager     or EventManager(configuration)
+        event     = event_manager     or EventManager(configuration,
+                                                      self._debug)
         time      = time_manager      or TimeManager()
         component = component_manager or ComponentManager(configuration,
                                                           event)
@@ -324,6 +338,32 @@ class Engine:
         background.system.set_meeting(self.meeting)
 
         time.engine_init(self._tick, self._life_cycle)
+
+        # ---
+        # Logging
+        # ---
+        self._metered_log = MeteredLog(self.dotted,
+                                       log.Level.NOTSET,
+                                       time.machine,
+                                       fingerprint=True)
+        # Tick Life-Cycles
+        self._metered_log.meter(SystemTick.TICKS_START,  self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TICKS_RUN,    self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TICKS_END,    self._METER_LOG_AMT)
+
+        # Ticks
+        self._metered_log.meter(SystemTick.GENESIS,      self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.INTRA_SYSTEM, self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TIME,         self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.CREATION,     self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.PRE,          self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.STANDARD,     self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.POST,         self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.DESTRUCTION,  self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.APOPTOSIS,    self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.APOCALYPSE,   self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.THE_END,      self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.FUNERAL,      self._METER_LOG_AMT)
 
         # ---
         # Engine Status
@@ -350,6 +390,10 @@ class Engine:
         for sys_type in required:
             self.meeting.system.create(sys_type, context)
 
+    @property
+    def dotted(self) -> str:
+        return self.DOTTED
+
     # -------------------------------------------------------------------------
     # Debug Stuff
     # -------------------------------------------------------------------------
@@ -374,7 +418,7 @@ class Engine:
         '''
         self._debug = value
 
-    def _log_tick(self,
+    def _dbg_tick(self,
                   msg: str,
                   *args: Any,
                   **kwargs: Any) -> None:
@@ -389,8 +433,96 @@ class Engine:
         log.debug(msg, *args, **kwargs)
 
     # -------------------------------------------------------------------------
+    # Log Stuff
+    # -------------------------------------------------------------------------
+
+    def log_tick(self,
+                 tick:     SystemTick,
+                 level:    log.Level,
+                 msg:      str,
+                 *args:    Any,
+                 **kwargs: Any) -> bool:
+        '''
+        Use our MeteredLog to log this tick-related log message. Will be logged
+        under our dotted name (that is, the logger is named by the self.dotted
+        property).
+
+        WARNING: Log may be squelched if its too similar to other recent log
+        messages in the `tick`.
+
+        Returns True if logged, False if squelched.
+        '''
+        kwargs = kwargs or {}
+        log.incr_stack_level(kwargs)
+        return self._metered_log.log(tick,
+                                     level,
+                                     msg,
+                                     *args,
+                                     **kwargs)
+
+    def log_tick_maybe_raise(self,
+                             tick:       SystemTick,
+                             error:      Exception,
+                             v_err_wrap: Optional[Type[VerediError]],
+                             msg:        Optional[str],
+                             *args:      Any,
+                             context:    Optional['VerediContext'] = None,
+                             **kwargs:   Any):
+        '''
+        Log a tick-related error via log_tick().
+
+        Regardless of whether the log message was squelched, this will decided
+        whether or not to raise a new error from the passed in error based on
+        `self.debug_flags`.
+        '''
+        kwargs = kwargs or {}
+        log.incr_stack_level(kwargs)
+
+        # Send everything to MeteredLog. Don't care whether it logged or
+        # ignored. Do care about the error it gives back - we'll reraise that
+        # if needed.
+        _, logged_error = self._metered_log.exception(tick,
+                                                      error,
+                                                      v_err_wrap,
+                                                      msg,
+                                                      *args,
+                                                      context=context,
+                                                      **kwargs)
+
+        if self.debug_flagged(DebugFlag.RAISE_ERRORS):
+            raise logged_error from error
+
+    # -------------------------------------------------------------------------
     # Engine Overall Health
     # -------------------------------------------------------------------------
+
+    def _runnable(self, health: VerediHealth) -> bool:
+        '''
+        Returns true if `health` is not null/none, and is a health over the min
+        for running.
+        '''
+        # ---
+        # Bad Value?
+        # ---
+        # If the health is None/Null, straight up fail.
+        if null_or_none(health):
+            return False
+
+        # ---
+        # Bad Health?
+        # ---
+        return health >= VerediHealth._RUN_OK_HEALTH_MIN
+
+    def running(self, *args: VerediHealth) -> bool:
+        '''
+        Returns true if our engine health, our tick health, and all `args`
+        health are good enough to run a tick.
+        '''
+        valid_healths = (self._runnable(self.engine_health)
+                         or self._runnable(self.tick_health))
+        for each in args:
+            valid_healths = valid_healths or self._runnable(each)
+        return valid_healths
 
     def set_all_health(self,
                        value: VerediHealth,
@@ -441,36 +573,6 @@ class Engine:
         self._tick_health = VerediHealth.set(self._tick_health,
                                              value)
 
-    def _error_maybe_raise(self,
-                           error:      Exception,
-                           v_err_type: Optional[Type[VerediError]],
-                           msg:        Optional[str],
-                           *args:      Any,
-                           context:    Optional['VerediContext'] = None,
-                           **kwargs:   Any):
-        '''
-        Log an error, and raise it if `self.debug_flagged` to do so.
-        '''
-        kwargs = kwargs or {}
-        log.incr_stack_level(kwargs)
-        if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-            raise log.exception(
-                error,
-                v_err_type,
-                msg,
-                *args,
-                context=context,
-                **kwargs
-            ) from error
-        else:
-            log.exception(
-                error,
-                v_err_type,
-                msg,
-                *args,
-                context=context,
-                **kwargs)
-
     # -------------------------------------------------------------------------
     # Life / Tick
     # -------------------------------------------------------------------------
@@ -501,23 +603,27 @@ class Engine:
         # Currently, both INVALID means 'about to run first tick ever'.
         if (self.tick == SystemTick.INVALID
                 and self.life_cycle == SystemTick.INVALID):
-            log.debug("Engine tick/life-cycle both INVALID - starting up? "
-                      "{} {} {}",
-                      self.tick, self._life_cycle,
-                      str(self.engine_health))
+            self._dbg_tick(
+                "Engine tick/life-cycle both INVALID - starting up? {} {} {}",
+                self.tick, self._life_cycle,
+                str(self.engine_health))
             return True
 
         healthy = True
-        if self.engine_health < VerediHealth._RUN_OK_HEALTH_MIN:
-            log.critical("Engine overall health is bad - "
-                         "cannot run next tick: {} {}",
-                         self.tick, str(self.engine_health))
+        if not self._runnable(self.engine_health):
+            self.log_tick(self.life_cycle,
+                          log.Level.CRITICAL,
+                          "Engine overall health is bad - "
+                          "cannot run next tick: {} {}",
+                          self.tick, str(self.engine_health))
             healthy = False
 
-        if self.tick_health < VerediHealth._RUN_OK_HEALTH_MIN:
-            log.critical("Engine tick health is bad - "
-                         "cannot run next tick: {} {}",
-                         self.tick, str(self.engine_health))
+        if not self._runnable(self.tick_health):
+            self.log_tick(self.life_cycle,
+                          log.Level.CRITICAL,
+                          "Engine tick health is bad - "
+                          "cannot run next tick: {} {}",
+                          self.tick, str(self.engine_health))
             healthy = False
 
         return healthy
@@ -529,7 +635,7 @@ class Engine:
         # TODO [2020-09-28]: Implement this.
         raise NotImplementedError
 
-    def run_tick(self) -> VerediHealth:
+    def run_tick(self) -> Optional[VerediHealth]:
         '''
         Run through one Tick Cycle of the Engine: START, RUN, STOP
 
@@ -541,36 +647,41 @@ class Engine:
         Post-STOP: DESTROYING -> DEAD
 
         Returns the health for the entire cycle.
+        Returns None if it refused to run.
         '''
         # ---
         # Sanity checks.
         # ---
         bail_out_now = False
         if not self._run_ok():
-            log.critical("Engine.run() ignored due to engine being in "
-                         "poor health. Health: {} {}. "
-                         "Life-Cycle: {} -> {}",
-                         str(self.engine_health),
-                         str(self.tick_health),
-                         str(self._life_cycle.current),
-                         str(self._life_cycle.next))
+            self.log_tick(self.life_cycle,
+                          log.Level.CRITICAL,
+                          "Engine.run() ignored due to engine being in "
+                          "poor health. Health: {} {}. "
+                          "Life-Cycle: {} -> {}",
+                          str(self.engine_health),
+                          str(self.tick_health),
+                          str(self._life_cycle.current),
+                          str(self._life_cycle.next))
             bail_out_now = True
 
         if self._should_stop():
-            log.critical("Engine.run() ignored due to engine being in "
-                         "incorrect state for running. (_should_stop() "
-                         "returned True; engine health is {}). ",
-                         "Life-Cycle: {} -> {}",
-                         str(self.engine_health),
-                         str(self._life_cycle.current),
-                         str(self._life_cycle.next))
+            self.log_tick(self.life_cycle,
+                          log.Level.CRITICAL,
+                          "Engine.run() ignored due to engine being in "
+                          "incorrect state for running. (_should_stop() "
+                          "returned True; engine health is {}). ",
+                          "Life-Cycle: {} -> {}",
+                          str(self.engine_health),
+                          str(self._life_cycle.current),
+                          str(self._life_cycle.next))
             bail_out_now = True
 
         if bail_out_now:
             self.set_all_health(VerediHealth.set(self.engine_health,
                                                  self.tick_health))
             # TODO: set to be shutdown, or run shutdown, or something?
-            return
+            return None
 
         # ---
         # Promote next cycle & tick to current.
@@ -599,7 +710,7 @@ class Engine:
             - The new current life-cycle.
           - Valid Transition:
             - The new current life-cycle.
-        g  - Invalid Transition:
+          - Invalid Transition:
             - SystemTick.ERROR
         '''
         # ------------------------------
@@ -685,10 +796,14 @@ class Engine:
             # ---
             else:
                 health = health.update(VerediHealth.HEALTHY_BUT_WARNING)
-                log.warning("_run_trans_to() does not know about life-cycle "
-                            "{}->{} tick transition: {} -> {}",
-                            cycle_from, cycle_to,
-                            tick_from, tick_to)
+                # We're technically in between?
+                # I guess where we were will be the squelch...
+                self.log_tick(cycle_from,
+                              log.Level.WARNING,
+                              "_run_trans_to() does not know about life-cycle "
+                              "{}->{} tick transition: {} -> {}",
+                              cycle_from, cycle_to,
+                              tick_from, tick_to)
 
         # ------------------------------
         # Life-Cycle: TICKS_RUN
@@ -725,10 +840,14 @@ class Engine:
             # Tick-Cycle: New Tick?
             # ---
             else:
-                log.warning("_run_trans_to() does not know about life-cycle "
-                            "{}->{} tick transition: {} -> {}",
-                            cycle_from, cycle_to,
-                            tick_from, tick_to)
+                # We're technically in between ticks?
+                # I guess where we were will be the squelch...
+                self.log_tick(cycle_from,
+                              log.Level.WARNING,
+                              "_run_trans_to() does not know about life-cycle "
+                              "{}->{} tick transition: {} -> {}",
+                              cycle_from, cycle_to,
+                              tick_from, tick_to)
 
     def _run_trans_validate(self,
                             cycle_from: SystemTick,
@@ -834,8 +953,8 @@ class Engine:
         Start the timer for the new life-cycle.
         '''
         # Log new life-cycle/tick.
-        self._log_tick("Start life-cycle: {}...", new_life)
-        self._log_tick("Start tick: {}...", new_tick)
+        self._dbg_tick("Start life-cycle: {}...", new_life)
+        self._dbg_tick("Start tick: {}...", new_tick)
 
         # And start the new life-cycle's timer.
         self._timer_life.start()
@@ -859,7 +978,9 @@ class Engine:
         msg = (f"Cannot transition to '{cycle_to}' from "
                f"'{cycle_from}'; only from '{valid_str}'")
         error = ValueError(msg)
-        self._error_maybe_raise(error, None, msg)
+        kwargs = {}
+        log.incr_stack_level(kwargs)
+        self.log_tick_maybe_raise(cycle_from, error, None, msg, **kwargs)
         self.set_tick_health(VerediHealth.FATAL, True)
         return SystemTick.ERROR
 
@@ -884,7 +1005,8 @@ class Engine:
             run_health = self._run_cycle_end()
 
         else:
-            raise log.exception(
+            self.log_tick_maybe_raise(
+                cycle,
                 None,
                 VerediError,
                 "{}._run_cycle({}) received an un-runnable SystemTick: {}. "
@@ -935,11 +1057,13 @@ class Engine:
             if (health != VerediHealth.HEALTHY
                     and self.meeting.time.is_timed_out(self._timer_life,
                                                        'genesis')):
-                log.error("FATAL: {}'s {} took too long "
-                          "and timed out! (took {})",
-                          self.__class__.__name__,
-                          self.tick,
-                          self._timer_life.elapsed_str)
+                self.log_tick(self.tick,
+                              log.Level.ERROR,
+                              "FATAL: {}'s {} took too long "
+                              "and timed out! (took {})",
+                              self.__class__.__name__,
+                              self.tick,
+                              self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
 
@@ -965,11 +1089,13 @@ class Engine:
             if (health != VerediHealth.HEALTHY
                     and self.meeting.time.is_timed_out(self._timer_life,
                                                        'intrasystem')):
-                log.error("FATAL: {}'s {} took too long "
-                          "and timed out! (took {})",
-                          self.__class__.__name__,
-                          self.tick,
-                          self._timer_life.elapsed_str)
+                self.log_tick(self.tick,
+                              log.Level.ERROR,
+                              "FATAL: {}'s {} took too long "
+                              "and timed out! (took {})",
+                              self.__class__.__name__,
+                              self.tick,
+                              self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
 
@@ -983,11 +1109,13 @@ class Engine:
             return health
 
         # Else, um... How and why are we here? This is a bad place.
-        log.error("FATAL: {} is in {} but not in any "
-                  "creation/start-up ticks? {}",
-                  self.__class__.__name__,
-                  self.tick,
-                  self._timer_life.elapsed_str)
+        self.log_tick(self.tick,
+                      log.Level.ERROR,
+                      "FATAL: {} is in {} but not in any "
+                      "creation/start-up ticks? {}",
+                      self.__class__.__name__,
+                      self.tick,
+                      self._timer_life.elapsed_str)
         self.set_all_health(VerediHealth.FATAL, True)
         return self.tick_health
 
@@ -1024,7 +1152,7 @@ class Engine:
             msg = (f"_run_cycle_run must start in "
                    f"{str(valid_start)}, not {str(self.tick)}.")
             error = ValueError(msg)
-            self._error_maybe_raise(error, None, msg)
+            self.log_tick_maybe_raise(self.tick, error, None, msg)
             health = VerediHealth.UNHEALTHY
             self.set_all_health(health)
             return health
@@ -1050,7 +1178,7 @@ class Engine:
             msg = (f"_run_cycle_run must end at "
                    f"{str(valid_end)}, not {str(self.tick)}.")
             error = ValueError(msg)
-            self._error_maybe_raise(error, None, msg)
+            self.log_tick_maybe_raise(self.tick, error, None, msg)
             health = VerediHealth.UNHEALTHY
             self.set_all_health(health)
             return health
@@ -1094,15 +1222,17 @@ class Engine:
 
             # Allow a healthy tick that technically overran the timeout to
             # pass. It's close enough, right?
-            if (health != VerediHealth.APOPTOSIS_SUCCESSFUL
-                    and health != VerediHealth.APOPTOSIS_FAILURE
-                    and self.meeting.time.is_timed_out(self._timer_life,
-                                                       'apoptosis')):
-                log.error("FATAL: {}'s {} took too long "
-                          "and timed out! (took {})",
-                          self.__class__.__name__,
-                          self.tick,
-                          self._timer_life.elapsed_str)
+            if ((health != VerediHealth.APOPTOSIS_SUCCESSFUL
+                 or health != VerediHealth.APOPTOSIS_FAILURE)
+                and self.meeting.time.is_timed_out(self._timer_life,
+                                                   'apoptosis')):
+                self.log_tick(self.tick,
+                              log.Level.ERROR,
+                              "FATAL: {}'s {} took too long "
+                              "and timed out! (took {})",
+                              self.__class__.__name__,
+                              self.tick,
+                              self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
 
@@ -1130,11 +1260,13 @@ class Engine:
             if (health != VerediHealth.APOCALYPSE_DONE
                     and self.meeting.time.is_timed_out(self._timer_life,
                                                        'apocalypse')):
-                log.error("FATAL: {}'s {} took too long "
-                          "and timed out! (took {})",
-                          self.__class__.__name__,
-                          self.tick,
-                          self._timer_life.elapsed_str)
+                self.log_tick(self.tick,
+                              log.Level.ERROR,
+                              "FATAL: {}'s {} took too long "
+                              "and timed out! (took {})",
+                              self.__class__.__name__,
+                              self.tick,
+                              self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
 
@@ -1161,11 +1293,13 @@ class Engine:
             # really this is the end and whatever. The health is the health at
             # this point.
             if health != VerediHealth.THE_END:
-                log.warning("{}'s {} completed with poor "
-                            "or incorrect health. (time: {})",
-                            self.__class__.__name__,
-                            self.tick,
-                            self._timer_life.elapsed_str)
+                self.log_tick(self.tick,
+                              log.Level.WARNING,
+                              "{}'s {} completed with poor "
+                              "or incorrect health. (time: {})",
+                              self.__class__.__name__,
+                              self.tick,
+                              self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
 
@@ -1196,25 +1330,29 @@ class Engine:
             # really this is the end and whatever. The health is the health at
             # this point.
             if health != VerediHealth.THE_END:
-                log.warning("{}'s {} completed with poor "
-                            "or incorrect health: {} (expected: {}). "
-                            "(time: {})",
-                            self.__class__.__name__,
-                            str(self.tick),
-                            str(health),
-                            str(VerediHealth.THE_END),
-                            self._timer_life.elapsed_str)
+                self.log_tick(self.tick,
+                              log.Level.WARNING,
+                              "{}'s {} completed with poor "
+                              "or incorrect health: {} (expected: {}). "
+                              "(time: {})",
+                              self.__class__.__name__,
+                              str(self.tick),
+                              str(health),
+                              str(VerediHealth.THE_END),
+                              self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
 
             return health
 
         # Else, um... How and why are we here? This is a bad place.
         # TODO [2020-09-27]: Do we need to funeral ourselves here or anything?
-        log.error("FATAL: {} is in {} but not in any "
-                  "tear-down/end ticks? {}",
-                  self.__class__.__name__,
-                  self.tick,
-                  self._timer_life.elapsed_str)
+        self.log_tick(self.tick,
+                      log.Level.ERROR,
+                      "FATAL: {} is in {} but not in any "
+                      "tear-down/end ticks? {}",
+                      self.__class__.__name__,
+                      self.tick,
+                      self._timer_life.elapsed_str)
         self.set_all_health(VerediHealth.FATAL, True)
         return self.tick_health
 
@@ -1231,19 +1369,61 @@ class Engine:
         way - going into the TICKS_END life-cycle and running all the
         end-of-life ticks.
         '''
-        self.set_engine_health(VerediHealth.APOPTOSIS, True)
+        # ---
+        # Can't Stop - Log and Leave.
+        # ---
+        if (self.life_cycle != SystemTick.INVALID
+                and self.life_cycle != SystemTick.TICKS_START
+                and self.life_cycle != SystemTick.TICKS_RUN):
+            if self.life_cycle == SystemTick.TICKS_END:
+                self.log_tick(self.life_cycle,
+                              log.Level.ERROR,
+                              "Cannot stop engine - it is stopping already. "
+                              "Current life-cycle: {}, tick: {}",
+                              str(self.life_cycle), str(self.tick))
+            elif self.life_cycle == SystemTick.AFTER_THE_END:
+                self.log_tick(self.life_cycle,
+                              log.Level.ERROR,
+                              "Cannot stop engine - it is stopped already. "
+                              "Current life-cycle: {}, tick: {}",
+                              str(self.life_cycle), str(self.tick))
+            else:
+                self.log_tick(self.life_cycle,
+                              log.Level.ERROR,
+                              "Cannot stop engine - it is in an unknown "
+                              "state. Current life-cycle: {}, tick: {}",
+                              str(self.life_cycle), str(self.tick))
+            return
+
+        # ---
+        # Stop it!
+        # ---
+        self.set_all_health(VerediHealth.APOPTOSIS, True)
         self._tick.next = SystemTick.APOPTOSIS
         self._life_cycle.next = SystemTick.TICKS_END
 
     # -------------------------------------------------------------------------
     # Tick Helpers
     # -------------------------------------------------------------------------
+
     def _update_init(self) -> None:
         '''
         Resets tick variables for the upcoming tick:
           self._tick_health
         '''
         self.set_tick_health(VerediHealth.INVALID, True)
+
+    def _do_tick(self, tick: SystemTick) -> VerediHealth:
+        '''
+        Call EventManager's and SystemManager's update() functions with
+        this tick.
+        '''
+        self.meeting.event.update(tick, self.meeting.time)
+        health = self.meeting.system.update(tick,
+                                            self.meeting.time,
+                                            self.meeting.component,
+                                            self.meeting.entity)
+        return health
 
     # -------------------------------------------------------------------------
     # Life-Cycle: TICKS_START: Pre-Game Loading
@@ -1273,18 +1453,18 @@ class Engine:
         # Events haven't started or haven't died down: keep going.
         if (events_published != 0
                 and events_published is not True):
-            self._log_tick("Events in progress. Published: {}",
+            self._dbg_tick("Events in progress. Published: {}",
                            events_published)
             return True
 
         # Systems that run in set up ticks aren't stabalized to a good or bad
         # health yet: keep going.
         if health.limbo:
-            self._log_tick("Health in limbo: {}", health)
+            self._dbg_tick("Health in limbo: {}", health)
             return True
 
         # Else... Done I guess?
-        self._log_tick("Successfully fell through to success case. health: {}",
+        self._dbg_tick("Successfully fell through to success case. health: {}",
                        health)
         return False
 
@@ -1318,7 +1498,7 @@ class Engine:
                                             self.meeting.component,
                                             self.meeting.entity)
 
-        self._log_tick("Tick: {}, Tick health: {}",
+        self._dbg_tick("Tick: {}, Tick health: {}",
                        self.tick, health)
 
         events_dont_care = True
@@ -1368,7 +1548,7 @@ class Engine:
             SystemTick.INTRA_SYSTEM,
             self.meeting.time)
 
-        self._log_tick("Tick: {}, Tick health: {}, # Events: {}",
+        self._dbg_tick("Tick: {}, Tick health: {}, # Events: {}",
                        self.tick,
                        health,
                        events_published)
@@ -1414,11 +1594,13 @@ class Engine:
                 # Else, um... How and why are we here? This is a bad place.
                 # TODO [2020-09-27]: Do we need to funeral ourselves here or
                 # anything?
-                log.error("FATAL: In {}._update_game_loop() but not in any "
-                          "game-loop ticks? Tick: {}. Valid: {}",
-                          self.__class__.__name__,
-                          self.tick,
-                          _GAME_LOOP_SEQUENCE)
+                self.log_tick(self.tick,
+                              log.Level.ERROR,
+                              "FATAL: In {}._update_game_loop() but not in "
+                              "any game-loop ticks? Tick: {}. Valid: {}",
+                              self.__class__.__name__,
+                              self.tick,
+                              _GAME_LOOP_SEQUENCE)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
 
@@ -1427,7 +1609,8 @@ class Engine:
         except VerediError as error:
             # TODO: health thingy
             # Plow on ahead anyways or raise due to debug flags.
-            self._error_maybe_raise(
+            self.log_tick_maybe_raise(
+                self.tick,
                 error,
                 None,
                 "Engine's tick() received an error of type '{}' "
@@ -1437,7 +1620,8 @@ class Engine:
         except Exception as error:
             # TODO: health thingy
             # Plow on ahead anyways or raise due to debug flags.
-            self._error_maybe_raise(
+            self.log_tick_maybe_raise(
+                self.tick,
                 error,
                 None,
                 "Engine's tick() received an unknown exception "
@@ -1460,7 +1644,8 @@ class Engine:
 
             # Always log in catch-all?
             # For now anyways.
-            log.exception(
+            self._metered_log.exception(
+                self.tick,
                 None,
                 VerediError,
                 "Engine's tick() received a _very_ "
@@ -1469,18 +1654,6 @@ class Engine:
 
             # Always re-raise in catch-all.
             raise
-
-    def _do_tick(self, tick: SystemTick) -> VerediHealth:
-        '''
-        Call EventManager's and SystemManager's update() functions with
-        this tick.
-        '''
-        self.meeting.event.update(tick, self.meeting.time)
-        health = self.meeting.system.update(tick,
-                                            self.meeting.time,
-                                            self.meeting.component,
-                                            self.meeting.entity)
-        return health
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # Life-Cycle: TICKS_RUN: Specific Ticks

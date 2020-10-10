@@ -68,7 +68,7 @@ class MediatorEvent(Event):
 # Send Events: Server-to-Client Mediation Events
 # -----------------------------------------------------------------------------
 
-class MediatorSendEvent(MediatorEvent):
+class GameToMediatorEvent(MediatorEvent):
     '''
     Event for Mediator sending to an outside source. For example, server
     sending something to a client will receive this event from the
@@ -76,14 +76,14 @@ class MediatorSendEvent(MediatorEvent):
     '''
 
     def __repr_name__(self):
-        return "MedSendEvent"
+        return "Game2MedEvent"
 
 
 # -----------------------------------------------------------------------------
 # Receive Events: Client-to-Server Mediation Events
 # -----------------------------------------------------------------------------
 
-class MediatorReceiveEvent(MediatorEvent):
+class MediatorToGameEvent(MediatorEvent):
     '''
     Event for Mediator receiving from an outside source. For example, the
     MediatorServer receiving something from a client will cause the
@@ -91,4 +91,4 @@ class MediatorReceiveEvent(MediatorEvent):
     '''
 
     def __repr_name__(self):
-        return "MedRecvEvent"
+        return "Med2GameEvent"

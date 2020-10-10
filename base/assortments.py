@@ -8,7 +8,7 @@ Generic collection-type or pair-ish or (named) tuple-ish things.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (Optional, Union, Type, Any, NamedTuple, Iterable,
+from typing import (Optional, Union, Type, Any,
                     TypeVar, Generic)
 
 # -----------------------------------------------------------------------------
@@ -90,3 +90,69 @@ class CurrentNext(Generic[CurrNextT]):
 
 
 # TODO [2020-10-03]: PreviousCurrentNext seems useful? Implement if needed.
+
+
+# -----------------------------------------------------------------------------
+# Delta / Next
+# -----------------------------------------------------------------------------
+
+DeltaNextT = TypeVar('DeltaNextT')
+'''Generic type for DeltaNext type hinting.'''
+
+
+class DeltaNext(Generic[DeltaNextT]):
+    '''
+    Holds a delta and future value of something.
+
+    E.g. delta of 10 and next of '103' could be for a system that wants to tick
+    some part of a tick only every tenth tick.
+    '''
+
+    def __init__(self, delta, next) -> None:
+        self._delta: DeltaNextT = delta
+        self._next:  DeltaNextT = next
+
+    # ------------------------------
+    # Properties
+    # ------------------------------
+
+    @property
+    def delta(self) -> DeltaNextT:
+        '''
+        Returns delta value.
+        '''
+        return self._delta
+
+    @delta.setter
+    def delta(self, value: DeltaNextT) -> None:
+        '''
+        Sets delta value.
+        '''
+        self._delta = value
+
+    @property
+    def next(self) -> DeltaNextT:
+        '''
+        Returns next value.
+        '''
+        return self._next
+
+    @next.setter
+    def next(self, value: DeltaNextT) -> None:
+        '''
+        Sets next value.
+        '''
+        self._next = value
+
+    # ------------------------------
+    # Helpers
+    # ------------------------------
+
+    def cycle(self, current: DeltaNextT) -> DeltaNextT:
+        '''
+        Moves self.next value to `current` + self.delta.
+
+        Returns self.next.
+        '''
+        self.next = current + self.delta
+        return self.next

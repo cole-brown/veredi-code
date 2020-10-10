@@ -9,7 +9,7 @@ Base class for game update loop systems.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type, Any, Iterable, Set)
+                    Optional, Union, Type, Any, Iterable, Set, Dict)
 from veredi.base.null import NullNoneOr, Nullable, Null
 if TYPE_CHECKING:
     from decimal                    import Decimal
@@ -24,22 +24,24 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 import enum
 
-from veredi.data.config import registry
-from veredi.logger      import log
-from veredi.base.const  import VerediHealth
-from veredi.debug.const import DebugFlag
 
-from .identity          import EntityId, SystemId
-from .exceptions        import SystemErrorV
+from veredi.data.config      import registry
+from veredi.logger           import log
+from veredi.base.const       import VerediHealth
+from veredi.debug.const      import DebugFlag
+from veredi.base.assortments import DeltaNext
 
-from ..const            import SystemTick, SystemPriority
-from ..exceptions       import TickError
+from .identity               import EntityId, SystemId
+from .exceptions             import SystemErrorV
 
-from ..manager          import EcsManager
-from ..time             import TimeManager, MonotonicTimer
-from ..event            import EventManager, Event
-from ..component        import ComponentManager
-from ..entity           import EntityManager
+from ..const                 import SystemTick, SystemPriority
+from ..exceptions            import TickError
+
+from ..manager               import EcsManager
+from ..time                  import TimeManager, MonotonicTimer
+from ..event                 import EventManager, Event
+from ..component             import ComponentManager
+from ..entity                import EntityManager
 
 
 # -----------------------------------------------------------------------------
@@ -130,22 +132,53 @@ class SystemLifeCycle(enum.Enum):
 # -----------------------------------------------------------------------------
 
 class System(ABC):
-    def __init__(self,
-                 context:  Optional['VerediContext'],
-                 sid:      SystemId,
-                 managers: 'Meeting') -> None:
 
+    def _define_vars(self):
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
         self._life_cycle: SystemLifeCycle = SystemLifeCycle.INVALID
-        self._system_id:          SystemId                         = sid
+        '''
+        Our current life cycle.
+        '''
+
+        self._system_id:          SystemId                         = None
+        '''
+        Our ID. Set by SystemManager. Do not touch!
+        '''
 
         self._components_req:     Optional[Set[Type['Component']]] = None
-        self._components_req_all: bool                             = True
-        self._ticks:              Optional[SystemTick]             = None
+        '''
+        The components we /absolutely require/ to function.
+        '''
 
-        self._manager:            'Meeting'                        = managers
+        self._components_req_all: bool                             = True
+        '''
+        True: self._components_req is a Union of all components required.
+
+        False: Any one of the components in self._components_req is enough for
+        us to do something with the entity for our tick.
+        '''
+
+        self._ticks:              Optional[SystemTick]             = None
+        '''
+        The ticks we desire to run in.
+
+        Systems will always get the TICKS_START and TICKS_END ticks. The
+        default _cycle_<tick> and _update_<tick> for those ticks should be
+        acceptable if the system doesn't care.
+        '''
+
+        self._manager:            'Meeting'                        = None
+        '''
+        A link to the engine's Meeting of ECS Managers.
+        '''
 
         self._component_type:     Type['Component']                = None
-        '''This system's component. Used in get().'''
+        '''
+        This system's component type. Used in get().
+        For systems that aren't tied to a specifc component, leave as 'None'.
+        '''
 
         # ---
         # Subscriptions
@@ -161,28 +194,52 @@ class System(ABC):
         # ---
         # If we get in a not-healthy state, we'll start just dropping inputs.
         self._health: VerediHealth = VerediHealth.HEALTHY
+        '''
+        Overall health of the system.
+        '''
+
         self._required_managers: Optional[Set[Type[EcsManager]]] = None
+        '''
+        All ECS Managers that we /require/ in order to function.
+        '''
 
         # Most systems have these, so we'll just define 'em in the base.
         self._health_meter_event:   Optional['Decimal'] = None
-        self._health_meter_update:  Optional['Decimal'] = None
+        '''
+        Store timing information for our timed/metered 'system isn't healthy'
+        messages that fire off during event things.
+        '''
 
-        # Systems can set up more logging meters like those for use with
-        # self._health_log(). E.g.:
-        # Then call self._health_log() like, say...
-        #     # Doctor checkup.
-        #     if not self._healthy(self._manager.time.engine_tick_current):
-        #         self._health_meter_jeff = self._health_log(
-        #             self._health_meter_jeff,
-        #             log.Level.WARNING,
-        #             "HEALTH({}): Skipping jeff - our system health "
-        #             "isn't good enough to process.",
-        #             self._state, event,
-        #             context=event.context)
-        #         return
+        self._health_meter_update:  Optional['Decimal'] = None
+        '''
+        Stores timing information for our timed/metered 'system isn't healthy'
+        messages that fire off during system tick things.
+        '''
+
+        self._reduced_tick_rate: Optional[Dict[SystemTick, DeltaNext]] = {}
+        '''
+        If systems want to only do some tick (or part of a tick), they can put
+        the tick and how often they want to do it here.
+
+        e.g. if we want every 10th SystemTick.CREATION for checking that some
+        data is in sync, set:
+          self._set_reduced_tick_rate(SystemTick.CREATION, 10)
+        '''
+
+    def __init__(self,
+                 context:  Optional['VerediContext'],
+                 sid:      SystemId,
+                 managers: 'Meeting') -> None:
+        self._define_vars()
 
         # ---
-        # Final init set up/configuration from context/config and
+        # Set our variables.
+        # ---
+        self._system_id = sid
+        self._manager = managers
+
+        # ---
+        # Final set up/configuration from context/config and
         # system-specific stuff.
         # ---
         self._configure(context)
@@ -515,7 +572,9 @@ class System(ABC):
     # System Death
     # -------------------------------------------------------------------------
 
-    def apoptosis_time_desired(self) -> Optional[float]:
+    # TODO [2020-10-08]: Use this timeout_desired() in TICKS_START,
+    # TICKS_END to see if there's a smaller max timeout engine/sysmgr can use.
+    def timeout_desired(self, cycle: SystemTick) -> Optional[float]:
         '''
         If a system wants some minimum time, they can override this function.
         This is only a request, though. The SystemManager or Engine may not
@@ -732,6 +791,30 @@ class System(ABC):
     # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
+
+    def _set_reduced_tick_rate(self, tick: SystemTick, rate: int) -> None:
+        '''
+        Set an entry into our reduced tick rate dict. This does nothing on its
+        own. System must use self._is_reduced_tick() to check for if/when they
+        want to do their reduced processing.
+        '''
+        self._reduced_tick_rate[tick] = DeltaNext(rate,
+                                                  self._manager.time.tick_num)
+
+    def _is_reduced_tick(self, tick: SystemTick) -> bool:
+        '''
+        Checks to see if this tick is the reduced-tick-rate tick.
+        '''
+        red_tick = self._reduced_tick_rate.get(tick, None)
+        if not red_tick:
+            return False
+
+        if self._manager.time.tick_num >= red_tick.next:
+            # Update our DeltaNext to the next reduced tick number.
+            red_tick.cycle(self._manager.time.tick_num)
+            return True
+
+        return False
 
     def wants_update_tick(self,
                           tick: SystemTick,
