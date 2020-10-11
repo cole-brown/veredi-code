@@ -606,12 +606,12 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # Make sure we don't have anything in the queues.
         self.assert_empty_pipes()
 
-    # def test_ability_cmd(self):
-    #     if self.disabled():
-    #         return
+    def test_ability_cmd(self):
+        if self.disabled():
+            return
 
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_ability_cmd, *self.proc.clients))
+        self.assert_test_ran(
+            self.runner_of_test(self.do_test_ability_cmd, *self.proc.clients))
 
     # # ------------------------------
     # # Test cliets pinging server.

@@ -21,7 +21,8 @@ from veredi.base.null                   import NullNoneOr, null_or_none
 # Error Handling
 from veredi.logger                      import log
 from veredi.logger.metered              import MeteredLog
-from veredi.base.exceptions             import VerediError
+from veredi.base.exceptions             import VerediError, HealthError
+from .ecs.exceptions                    import TickError
 
 # Other More Basic Stuff
 from veredi.data                        import background
@@ -230,11 +231,17 @@ class Engine:
     '''
 
     def _define_vars(self) -> None:
-        self._engine_health: VerediHealth = VerediHealth.INVALID
-        '''Overall engine health.'''
+        self._engine_health_: VerediHealth = VerediHealth.INVALID
+        '''
+        Overall engine health. Do not use directly. Get/set via
+        properties/helper functions.
+        '''
 
-        self._tick_health: VerediHealth = VerediHealth.INVALID
-        '''Engine health of last/current tick.'''
+        self._tick_health_: VerediHealth = VerediHealth.INVALID
+        '''
+        Engine health of last/current tick. Do not use directly. Get/set via
+        properties/helper functions.
+        '''
 
         self._life_cycle: CurrentNext[SystemTick] = CurrentNext(
             SystemTick.INVALID,
@@ -278,6 +285,12 @@ class Engine:
 
         self._metered_log: MeteredLog = None
         '''Metered logging for things that could be spammy, like tick logs.'''
+
+        self._logger: log.PyLogType = log.get_logger(self.dotted)
+        '''
+        Named logger for engine logging. Metered logger will end up getting the
+        same one because we use the same name.
+        '''
 
     def __init__(self,
                  owner:             Entity,
@@ -430,7 +443,36 @@ class Engine:
 
         # Bump up stack by one so it points to our caller.
         log.incr_stack_level(kwargs)
-        log.debug(msg, *args, **kwargs)
+        log.debug(msg, *args, **kwargs,
+                  veredi_logger=self._logger)
+
+    def _dbg_health(self,
+                    tick:        SystemTick,
+                    curr_health: VerediHealth,
+                    prev_health: VerediHealth,
+                    info:        str,
+                    *args:       Any,
+                    **kwargs:    Any) -> None:
+        '''
+        Raises an error if health is less than the minimum for runnable engine.
+
+        Adds:
+          "Engine's health became unrunnable: {prev} -> {curr}."
+          to info/args/kwargs for log message.
+        '''
+        if (not self.debug_flagged(DebugFlag.RAISE_HEALTH)
+                or curr_health.in_runnable_health):
+            return
+
+        msg = (f"Engine's health became unrunnable during {tick}: "
+               f"{str(prev_health)} -> {str(curr_health)}. ")
+        error = HealthError(curr_health, prev_health, msg, None)
+        raise log.exception(error,
+                            None,
+                            msg + info,
+                            *args,
+                            **kwargs,
+                            veredi_logger=self._logger)
 
     # -------------------------------------------------------------------------
     # Log Stuff
@@ -461,19 +503,24 @@ class Engine:
                                      **kwargs)
 
     def log_tick_maybe_raise(self,
-                             tick:       SystemTick,
-                             error:      Exception,
-                             v_err_wrap: Optional[Type[VerediError]],
-                             msg:        Optional[str],
-                             *args:      Any,
-                             context:    Optional['VerediContext'] = None,
-                             **kwargs:   Any):
+                             tick:         SystemTick,
+                             error:        Exception,
+                             v_err_wrap:   Optional[Type[VerediError]],
+                             msg:          Optional[str],
+                             *args:        Any,
+                             context:      Optional['VerediContext'] = None,
+                             always_raise: bool                      = False,
+                             **kwargs:     Any):
         '''
         Log a tick-related error via log_tick().
 
         Regardless of whether the log message was squelched, this will decided
         whether or not to raise a new error from the passed in error based on
         `self.debug_flags`.
+
+        If `always_raise` is True, this will disregard DebugFlags. Otherwise
+        this only raises if it has the DebugFlag to do so
+        (DebugFlag.RAISE_ERRORS).
         '''
         kwargs = kwargs or {}
         log.incr_stack_level(kwargs)
@@ -502,16 +549,16 @@ class Engine:
         for running.
         '''
         # ---
-        # Bad Value?
+        # Bad Value? -> not runnable (False)
         # ---
         # If the health is None/Null, straight up fail.
         if null_or_none(health):
             return False
 
         # ---
-        # Bad Health?
+        # Good Health? -> runnable (True)
         # ---
-        return health >= VerediHealth._RUN_OK_HEALTH_MIN
+        return health.in_runnable_health
 
     def running(self, *args: VerediHealth) -> bool:
         '''
@@ -534,44 +581,132 @@ class Engine:
         If `forced`, just straight up sets it.
         Else, uses VerediHealth.set() to pick the worst of current and value.
         '''
-        self.set_engine_health(value, forced)
-        self.set_tick_health(value, forced)
+        prev_tick = self.tick_health
+        prev_engine = self.engine_health
+        self.set_engine_health(value, forced, never_raise=True)
+        self.set_tick_health(value, forced, never_raise=True)
+        self._dbg_health(self.tick,
+                         value,
+                         VerediHealth.set(prev_tick, prev_engine),
+                         (f"set_all_health "
+                          f"{'forcing' if forced else 'setting'} "
+                          f"to poor value: {value}."))
 
     @property
     def engine_health(self) -> VerediHealth:
         '''
         Overall health of the engine itself.
         '''
-        return self._engine_health
+        return self._engine_health_
 
-    def set_engine_health(self, value: VerediHealth, forced: bool) -> None:
+    def set_engine_health(self,
+                          value:       VerediHealth,
+                          forced:      bool,
+                          never_raise: bool = False) -> None:
         '''
         Set the current health of the engine overall.
         If `forced`, just straight up sets it.
         Else, uses VerediHealth.set() to pick the worst of current and value.
         '''
+        prev_health = self._engine_health_
         if forced:
-            self._engine_health = value
-        self._engine_health = VerediHealth.set(self._engine_health,
-                                               value)
+            self._engine_health_ = value
+        self._engine_health_ = self._engine_health_.update(value)
+
+        # ---
+        # Log if bad. Let MeteredLog filter down on the spam.
+        # ---
+        if not value.in_runnable_health:
+            self.log_tick(self.tick,
+                          log.Level.ERROR,
+                          "Setting Engine Health to an unrunnable value! "
+                          "Being set to {} minimum resulted in "
+                          "current engine health of {} (previously {}). {}",
+                          str(value),
+                          str(self._engine_health_),
+                          str(prev_health),
+                          self.meeting.time.error_game_time)
+
+        elif not self._engine_health_.in_runnable_health:
+            self.log_tick(self.tick,
+                          log.Level.ERROR,
+                          "Setting Engine Health... but already at an "
+                          "unrunnable value! Setter desired {}, but "
+                          "current engine health is {} (previously {}). {}",
+                          str(value),
+                          str(self._engine_health_),
+                          str(prev_health),
+                          self.meeting.time.error_game_time)
+
+        # ---
+        # Raise if flagged to do so.
+        # ---
+        if not never_raise and not self._engine_health_.in_runnable_health:
+            self._dbg_health(self.tick,
+                             self.engine_health,
+                             prev_health,
+                             (f"set_all_health "
+                              f"{'forcing' if forced else 'setting'} "
+                              f"to poor value: {value}."))
 
     @property
     def tick_health(self) -> VerediHealth:
         '''
         Health of current tick.
         '''
-        return self._tick_health
+        return self._tick_health_
 
-    def set_tick_health(self, value: VerediHealth, forced: bool) -> None:
+    def set_tick_health(self,
+                        value:       VerediHealth,
+                        forced:      bool,
+                        never_raise: bool = False) -> None:
         '''
         Set the health of current tick.
         If `forced`, just straight up sets it.
         Else, uses VerediHealth.set() to pick the worst of current and value.
         '''
+        prev_health = self._tick_health_
         if forced:
-            self._tick_health = value
-        self._tick_health = VerediHealth.set(self._tick_health,
-                                             value)
+            self._tick_health_ = value
+        self._tick_health_ = self._tick_health_.update(value)
+
+        # ---
+        # Log if bad. Let MeteredLog filter down on the spam.
+        # ---
+        if not value.in_runnable_health:
+            self.log_tick(self.tick,
+                          log.Level.ERROR,
+                          f"{'Forcing' if forced else 'Setting'} "
+                          "Tick Health to an unrunnable value! "
+                          "Being set to {} minimum resulted in "
+                          "current tick health of {} (previously {}). {}",
+                          str(value),
+                          str(self._tick_health_),
+                          str(prev_health),
+                          self.meeting.time.error_game_time)
+
+        elif not self._tick_health_.in_runnable_health:
+            self.log_tick(self.tick,
+                          log.Level.ERROR,
+                          f"{'Forcing' if forced else 'Setting'} "
+                          "Tick Health... but already at an "
+                          "unrunnable value! Setter desired {}, but "
+                          "current tick health is {} (previously {}). {}",
+                          str(value),
+                          str(self._tick_health_),
+                          str(prev_health),
+                          self.meeting.time.error_game_time)
+
+        # ---
+        # Raise if flagged to do so.
+        # ---
+        if not never_raise and not self._tick_health_.in_runnable_health:
+            self._dbg_health(self.tick,
+                             self.engine_health,
+                             prev_health,
+                             (f"set_all_health "
+                              f"{'forcing' if forced else 'setting'} "
+                              f"to poor value: {value}."))
 
     # -------------------------------------------------------------------------
     # Life / Tick
@@ -649,9 +784,9 @@ class Engine:
         Returns the health for the entire cycle.
         Returns None if it refused to run.
         '''
-        # ---
+        # ------------------------------
         # Sanity checks.
-        # ---
+        # ------------------------------
         bail_out_now = False
         if not self._run_ok():
             self.log_tick(self.life_cycle,
@@ -669,10 +804,11 @@ class Engine:
             self.log_tick(self.life_cycle,
                           log.Level.CRITICAL,
                           "Engine.run() ignored due to engine being in "
-                          "incorrect state for running. (_should_stop() "
-                          "returned True; engine health is {}). ",
+                          "incorrect state for running. _should_stop() "
+                          "returned True. Health is {} {}. ",
                           "Life-Cycle: {} -> {}",
                           str(self.engine_health),
+                          str(self.tick_health),
                           str(self._life_cycle.current),
                           str(self._life_cycle.next))
             bail_out_now = True
@@ -683,16 +819,23 @@ class Engine:
             # TODO: set to be shutdown, or run shutdown, or something?
             return None
 
-        # ---
-        # Promote next cycle & tick to current.
-        # ---
-        cycle = self._run_transition()
+        # ------------------------------
+        # Try to do tick; always do the time step after.
+        # ------------------------------
+        try:
+            # ---
+            # Promote next cycle & tick to current.
+            # ---
+            cycle = self._run_transition()
 
-        # ---
-        # Run the cycle asked for!
-        # ---
-        health = self._run_cycle(cycle)
-        # This has updated the engine health based on cycle health results.
+            # ---
+            # Run the cycle asked for!
+            # ---
+            health = self._run_cycle(cycle)
+            # This has updated the engine health based on cycle health results.
+
+        finally:
+            self.meeting.time.step
 
         # We're going to return the actual run's health instead of the engine's
         # health since the caller can always get the latter themselves.
@@ -1168,6 +1311,13 @@ class Engine:
             self._tick.current = current_tick
             self._tick.next = next_tick
             health = self._update_game_loop()
+
+            # Debug Health if flagged.
+            self._dbg_health(self.tick,
+                             health,
+                             cycle_health,
+                             ("_run_cycle_run's tick health became "
+                              f"too poor: {str(health)}."))
             cycle_health = cycle_health.update(health)
 
         # ---
@@ -1558,6 +1708,7 @@ class Engine:
             # Set to PENDING if a healthy but not finished tick.
             health = VerediHealth.PENDING
 
+        self.set_tick_health(health, False)
         return health
 
     # -------------------------------------------------------------------------
@@ -1616,6 +1767,8 @@ class Engine:
                 "Engine's tick() received an error of type '{}' "
                 "at: {}",
                 type(error), self.meeting.time.error_game_time)
+            self.set_all_health(VerediHealth.FATAL, True)
+            return self.tick_health
 
         except Exception as error:
             # TODO: health thingy
@@ -1627,6 +1780,8 @@ class Engine:
                 "Engine's tick() received an unknown exception "
                 "at: {}",
                 self.meeting.time.error_game_time)
+            self.set_all_health(VerediHealth.FATAL, True)
+            return self.tick_health
 
         # ---
         # pycodestyle E722 - bare 'except'
@@ -1654,6 +1809,15 @@ class Engine:
 
             # Always re-raise in catch-all.
             raise
+
+        self.set_all_health(VerediHealth.FATAL, True)
+        msg = ("Engine's _update_game_loop called for a tick it doesn't "
+               f"handle. Tick: {self.tick} at "
+               f"{self.meeting.time.error_game_time}.")
+        error = TickError(msg, None)
+        self.log_tick_maybe_raise(self.tick, error, None, msg,
+                                  always_raise=True)
+        return self.tick_health
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # Life-Cycle: TICKS_RUN: Specific Ticks
@@ -1836,8 +2000,8 @@ class Engine:
         # Are we HEALTHY? Whatever. Use THE_END for 'healthy dead'.
         if health.in_best_health:
             health = health.update(VerediHealth.THE_END)
-        self.set_tick_health(health, False)
 
+        self.set_tick_health(health, False)
         return health
 
     # TODO: Check return values of system ticks and kill off any that are

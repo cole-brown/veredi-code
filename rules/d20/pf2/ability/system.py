@@ -245,3 +245,51 @@ class AbilitySystem(D20RulesSystem):
         # next step.
         next_event = AbilityResult(event, result)
         self._event_notify(next_event)
+
+    # -------------------------------------------------------------------------
+    # System Ticks
+    # -------------------------------------------------------------------------
+
+    def _update_pre(self,
+                    time_mgr:      TimeManager,
+                    component_mgr: ComponentManager,
+                    entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        Pre-update. For any systems that need to squeeze in something just
+        before actual tick.
+        '''
+        health = VerediHealth.HEALTHY
+
+        # TODO: implement or remove from self._ticks.
+
+        self.health = health
+        return self.health
+
+    def _update(self,
+                time_mgr:      TimeManager,
+                component_mgr: ComponentManager,
+                entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        Normal/Standard upate. Basically everything should happen here.
+        '''
+        health = VerediHealth.HEALTHY
+
+        # TODO: implement or remove from self._ticks.
+
+        self.health = health
+        return self.health
+
+    def _update_post(self,
+                     time_mgr:      TimeManager,
+                     component_mgr: ComponentManager,
+                     entity_mgr:    EntityManager) -> VerediHealth:
+        '''
+        Post-update. For any systems that need to squeeze in something just
+        after actual tick.
+        '''
+        health = VerediHealth.HEALTHY
+
+        # TODO: implement or remove from self._ticks.
+
+        self.health = health
+        return self.health

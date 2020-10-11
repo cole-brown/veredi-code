@@ -317,8 +317,15 @@ class ZestEngine(ZestEcs):
         Returns 'success'. False means we got a bad return value from the
         engine for one of the ticks.
         '''
+        tick = self.engine.tick
         if self._in_shutdown:
-            self.assertTrue(self.engine.running())
+            self.assertTrue(self.engine.running(),
+                            ("ZestEngine thinks engine is in shutdown, but "
+                             "Engine is not running() (anymore?). "
+                             f"Tick is: {self.engine.tick}, engine health is: "
+                             f"{str(self.engine.engine_health)} "
+                             "tick health is: "
+                             f"{str(self.engine.tick_health)}"))
 
         emergency_stop = False
         for i in range(amount):

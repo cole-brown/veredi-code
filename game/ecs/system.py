@@ -28,7 +28,7 @@ from .base.identity            import SystemId
 from .base.system              import (System,
                                        SystemLifeCycle)
 
-from veredi.base.exceptions    import VerediError
+from veredi.base.exceptions    import VerediError, HealthError
 from .base.exceptions          import SystemErrorV
 
 from .const                    import SystemTick
@@ -59,6 +59,8 @@ class SystemManager(EcsManagerWithEvents):
     '''
     Manages the life cycles of entities/components.
     '''
+
+    DOTTED = 'veredi.game.ecs.system'
 
     # -------------------------------------------------------------------------
     # Init / Set Up
@@ -114,6 +116,12 @@ class SystemManager(EcsManagerWithEvents):
         that cycle.
         '''
 
+        self._logger: log.PyLogType = log.get_logger(self.dotted)
+        '''
+        Named logger for engine logging. Metered logger will end up getting the
+        same one because we use the same name.
+        '''
+
     def __init__(self,
                  config:            NullNoneOr[Configuration],
                  time_manager:      NullNoneOr[TimeManager],
@@ -126,6 +134,10 @@ class SystemManager(EcsManagerWithEvents):
 
         self._debug = debug_flags or Null()
         self._event_manager = event_manager or Null()
+
+    @property
+    def dotted(self) -> str:
+        return self.DOTTED
 
     # -------------------------------------------------------------------------
     # Debugging
@@ -163,7 +175,8 @@ class SystemManager(EcsManagerWithEvents):
 
         # Bump up stack by one so it points to our caller.
         log.incr_stack_level(kwargs)
-        log.debug(msg, *args, **kwargs)
+        log.debug(msg, *args, **kwargs,
+                  veredi_logger=self._logger)
 
     def _error_maybe_raise(self,
                            error:      Exception,
@@ -185,6 +198,7 @@ class SystemManager(EcsManagerWithEvents):
                 msg,
                 *args,
                 context=context,
+                veredi_logger=self._logger,
                 **kwargs
             ) from error
         else:
@@ -194,7 +208,52 @@ class SystemManager(EcsManagerWithEvents):
                 msg,
                 *args,
                 context=context,
+                veredi_logger=self._logger,
                 **kwargs)
+
+    def _dbg_health(self,
+                    system:      System,
+                    curr_health: VerediHealth,
+                    prev_health: Optional[VerediHealth],
+                    info:        str,
+                    *args:       Any,
+                    tick:        Optional[SystemTick] = None,
+                    life:        Optional[SystemLifeCycle] = None,
+                    **kwargs:    Any) -> None:
+        '''
+        Raises an error if health is less than the minimum for runnable engine.
+
+        Adds:
+          "{system.dotted}'s health became unrunnable: {prev} -> {curr}."
+          to info/args/kwargs for log message.
+        '''
+        if (not self.debug_flagged(DebugFlag.RAISE_HEALTH)
+                or curr_health.in_runnable_health):
+            return
+
+        during = '<unknown>'
+        if tick and life:
+            during = f"tick {str(tick)} and life-cycle {life}"
+        elif tick:
+            during = str(tick)
+        elif life:
+            during = str(life)
+
+        health_transition = None
+        if prev_health is None:
+            health_transition = str(curr_health)
+        else:
+            health_transition = f"{str(prev_health)} -> {str(curr_health)}"
+
+        msg = (f"{system.dotted}'s health became unrunnable during {during}: "
+               f"{health_transition}. ")
+        error = HealthError(curr_health, prev_health, msg, None)
+        raise log.exception(error,
+                            None,
+                            msg + info,
+                            *args,
+                            **kwargs,
+                            veredi_logger=self._logger)
 
     # -------------------------------------------------------------------------
     # Life-Cycle Transitions
@@ -393,6 +452,14 @@ class SystemManager(EcsManagerWithEvents):
                                                      time,
                                                      component,
                                                      entity)
+                self._dbg_health(system,
+                                 sys_tick_health,
+                                 worst_health,
+                                 (f"SystemManager.update for {tick} of "
+                                  f"{system.dotted} resulted in poor health: "
+                                  f"{sys_tick_health}."),
+                                 tick=tick)
+
                 # Update worst_health var with this system's tick return value.
                 worst_health = VerediHealth.set(
                     worst_health,
@@ -445,6 +512,15 @@ class SystemManager(EcsManagerWithEvents):
         Creats a life-cycle record in background.system if `log_to_background`.
         '''
         health = system._life_cycled(cycle)
+        self._dbg_health(system,
+                         health,
+                         None,
+                         (f"SystemManager._life_cycle_set for {cycle} of "
+                          f"{system.dotted} resulted in poor health: "
+                          f"{health}."),
+                         tick=None,
+                         life=cycle)
+
         if log_to_background:
             background.system.life_cycle(system, cycle, health)
         return health
@@ -485,7 +561,8 @@ class SystemManager(EcsManagerWithEvents):
                     SystemErrorV,
                     "Cannot create another system of type: {}. "
                     "There is already one running: {}",
-                    str(sys_class), str(system))
+                    str(sys_class), str(system),
+                    veredi_logger=self._logger)
 
         sid = self._system_id.next()
 
@@ -593,7 +670,8 @@ class SystemManager(EcsManagerWithEvents):
                     or system._life_cycle != SystemLifeCycle.CREATING):
                 log.error("Cannot transition {} to created; needs to be "
                           "in CREATING. Removing from creation pool.",
-                          system, system._life_cycle)
+                          system, system._life_cycle,
+                          veredi_logger=self._logger)
                 finished.add(system_id)
                 continue
 
@@ -606,7 +684,8 @@ class SystemManager(EcsManagerWithEvents):
                 log.exception(
                     error,
                     "SystemErrorV in creation() for system_id {}.",
-                    system_id)
+                    system_id,
+                    veredi_logger=self._logger)
                 # TODO: put this system in... jail or something? Delete?
 
             finished.add(system_id)
@@ -649,7 +728,8 @@ class SystemManager(EcsManagerWithEvents):
                 log.exception(
                     error,
                     "SystemErrorV in creation() for system_id {}.",
-                    system_id)
+                    system_id,
+                    veredi_logger=self._logger)
                 # TODO: put this system in... jail or something? Delete?
 
             self._event_create(SystemLifeEvent,
