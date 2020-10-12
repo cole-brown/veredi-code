@@ -401,6 +401,17 @@ class ZestEcs(ZestBase):
         self.assertEqual(len(self.events), expected_events,
                          event_msg)
 
+    def _eventsub_generic_append(self, event: Event) -> None:
+        '''
+        Receiver for any event where you just want to append event to
+        self.events list.
+
+        Just use as the callback for an event:
+          self.manager.event.subscribe(SomeEvent,
+                                       self._eventsub_generic_append)
+        '''
+        self.events.append(event)
+
     def _eventsub_loaded(self, event: Event) -> None:
         '''
         Receiver for DataLoadedEvent.

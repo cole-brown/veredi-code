@@ -33,6 +33,9 @@ if TYPE_CHECKING:
     from veredi.game.ecs.entity    import EntityManager
     from veredi.game.ecs.manager   import EcsManager
 
+    from veredi.game.ecs.base.entity    import Entity
+    from veredi.game.ecs.event    import Event
+
 
 # ---
 # Code
@@ -64,6 +67,8 @@ from .history.history                    import Historian
 from .event                              import CommandInputEvent
 # from .component                        import InputComponent
 
+from ..mediator.event                    import MediatorToGameEvent
+from ..mediator.message                  import Message, MsgType
 
 # TODO [2020-06-27]: Better place to do these registrations.
 import veredi.zest.debug.registration
@@ -169,6 +174,13 @@ class InputSystem(System):
         # self._DOTTED magically provided by @register
         return self._DOTTED
 
+    @property
+    def historian(self) -> Historian:
+        '''
+        Getter for InputSystem's historian sub-system.
+        '''
+        return self._historian
+
     # -------------------------------------------------------------------------
     # System Registration / Definition
     # -------------------------------------------------------------------------
@@ -191,44 +203,45 @@ class InputSystem(System):
         event_manager if need to sub/unsub more dynamically.
         '''
         # InputSystem subs to:
-        # - InputRequests
-        # TODO [2020-06-04]: Is that a base class we can cover everything
-        # easily under, or do we need more?
+        # - CommandInputEvent
+        # - MediatorToGameEvent
         self._manager.event.subscribe(CommandInputEvent,
                                       self.event_input_cmd)
+        self._manager.event.subscribe(MediatorToGameEvent,
+                                      self.event_mediator_input)
+        # TODO: Set MediatorToGameEvent wrongly to self.event_input_cmd.
+        # zest_websocket_and_cmds will fail something (like test_ability_cmd).
+        # Use this failure to fix
+        # engine/MediatorSystem/zest_websocket_and_cmds's leaving the
+        # MediatorServer sub-process running.
 
         # Commander needs to sub too:
         self._commander.subscribe(self._manager.event)
 
         return VerediHealth.HEALTHY
 
-    def event_input_cmd(self, event: CommandInputEvent) -> None:
+    def _event_to_cmd(self,
+                      string_unsafe: str,
+                      entity:        'Entity',
+                      event:         'Event',
+                      context:       'VerediContext') -> None:
         '''
-        Command Input thingy requested to happen; please resolve.
+        Take args, verify, and send on to commander for further processing.
         '''
-        # Doctor checkup.
-        if not self._healthy(self._manager.time.engine_tick_current):
-            self._health_meter_event = self._health_log(
-                self._health_meter_event,
-                log.Level.WARNING,
-                "HEALTH({}): Dropping event {} - our system health "
-                "isn't good enough to process.",
-                self.health, event,
-                context=event.context)
-            return
-
-        entity = self._log_get_entity(event.id,
-                                      event=event)
-        if not entity:
-            # Entity disappeared, and that's ok.
-            return
         ident = entity.get(IdentityComponent)
+        if not ident:
+            log.debug("No IdentityComponent for entity - cannot process "
+                      "input event. Entity '{}'. input-string: '{}', "
+                      "event: {}",
+                      entity, string_unsafe, event)
+            return
 
-        # Check user input.
+        string_unsafe = event.payload
         log.debug("Input from '{}' (by '{}'). input-string: '{}', event: {}",
                   ident.log_name, ident.log_extra,
-                  event.string_unsafe, event)
-        string_safe, string_valid = sanitize.validate(event.string_unsafe,
+                  string_unsafe, event)
+
+        string_safe, string_valid = sanitize.validate(string_unsafe,
                                                       ident.log_name,
                                                       ident.log_extra,
                                                       event.context)
@@ -276,6 +289,44 @@ class InputSystem(System):
             return
 
         # Else, success. And nothing more to do now at this point.
+
+    def event_mediator_input(self, event: MediatorToGameEvent) -> None:
+        '''
+        Input event from a client via the MediatorSystem.
+        '''
+        # We only care about the text-based messages.
+        if event.type != MsgType.TEXT:
+            return
+
+        # Doctor checkup.
+        if not self._health_ok_event(event):
+            return
+
+        entity = self._log_get_entity(event.id,
+                                      event=event)
+        if not entity:
+            # Entity disappeared, and that's ok.
+            return
+
+        # Check user input, send to commander, etc.
+        self._event_to_cmd(event.payload, entity, event, event.context)
+
+    def event_input_cmd(self, event: CommandInputEvent) -> None:
+        '''
+        Command Input thingy requested to happen; please resolve.
+        '''
+        # Doctor checkup.
+        if not self._health_ok_event(event):
+            return
+
+        entity = self._log_get_entity(event.id,
+                                      event=event)
+        if not entity:
+            # Entity disappeared, and that's ok.
+            return
+
+        # Check user input, send to commander, etc.
+        self._event_to_cmd(event.string_unsafe, entity, event, event.context)
 
     # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions
