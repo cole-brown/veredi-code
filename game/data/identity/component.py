@@ -307,7 +307,7 @@ class IdentityComponent(DataComponent):
         '''
         Set this entity's UserId. Set to 'None' to unset.
         '''
-        return self._user_id
+        self._user_id = value
 
     @property
     def user_key(self) -> Optional[UserKey]:
@@ -321,4 +321,4 @@ class IdentityComponent(DataComponent):
         '''
         Set this entity's UserKey. Set to 'None' to unset.
         '''
-        return self._user_key
+        self._user_key = value

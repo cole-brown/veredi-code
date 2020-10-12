@@ -121,8 +121,7 @@ def _start_server(comms: multiproc.SubToProcComm,
             context,
             None,
             "Cannot configure a MediatorServer without a Configuration in the "
-            "background context.",
-            self.__class__.__name__)
+            "background context.")
 
     # ---
     # Logging

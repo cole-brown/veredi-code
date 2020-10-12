@@ -74,6 +74,8 @@ from veredi.interface.mediator.payload.logging  import (LogPayload,
                                                         _NC_LEVEL)
 from veredi.interface.mediator.system import MediatorSystem
 
+from veredi.interface.output.event          import OutputEvent
+
 
 # ---
 # Game
@@ -387,6 +389,10 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
     # Test Helpers
     # -------------------------------------------------------------------------
 
+    def sub_events(self) -> None:
+        self.manager.event.subscribe(OutputEvent,
+                                     self._eventsub_generic_append)
+
     def msg_context(self,
                     msg_ctx_id: Optional[MonotonicId] = None
                     ) -> MessageContext:
@@ -429,6 +435,15 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
 
         self.assert_empty_pipes()
 
+        # Hook the client up to an entity.
+        log.ultra_mega_debug("uid: {}, ukey: {}", client.user_id, client.user_key)
+        self.entity_ident.user_id  = client.user_id
+        self.entity_ident.user_key = client.user_key
+        self.assertTrue(self.entity_ident.user_id)
+        self.assertEqual(self.entity_ident.user_id, client.user_id)
+        # self.assertTrue(self.entity_ident.user_key)
+        self.assertEqual(self.entity_ident.user_key, client.user_key)
+
     def create_entity(self, clear_events=True) -> Entity:
         '''
         Creates entity by:
@@ -443,8 +458,9 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.assertTrue(entity)
 
         # Create and attach components.
-        self._load_entity_data(entity,
-                               clear_events=clear_events)
+        self.entity_ident = self._load_entity_data(entity,
+                                                   clear_events=clear_events)
+        self.assertTrue(self.entity_ident)
 
         # Throw away loading events.
         if clear_events:
@@ -452,7 +468,9 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
 
         return entity
 
-    def _load_entity_data(self, entity, clear_events=True):
+    def _load_entity_data(self,
+                          entity,
+                          clear_events=True) -> IdentityComponent:
         # Make the load request event for our entity.
         request = self._load_request(entity.id,
                                      DataGameContext.DataType.MONSTER)
@@ -463,6 +481,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self._event_now(request)
 
         expected_comps = {IdentityComponent, AbilityComponent, HealthComponent}
+        entity_ident = None
         for event in self.events:
             # Attach the loaded component to our entity.
             self.assertIsInstance(event, DataLoadedEvent)
@@ -471,6 +490,9 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
             component = self.manager.component.get(cid)
             self.assertIsNotNone(component)
             self.assertIn(type(component), expected_comps)
+            if isinstance(component, IdentityComponent):
+                entity_ident = component
+
             self.manager.entity.attach(entity.id, component)
             component._life_cycle = ComponentLifeCycle.ALIVE
             # Make sure component got attached to entity.
@@ -478,7 +500,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
 
         if clear_events:
             self.clear_events()
-        return component
+        return entity_ident
 
     def _load_request(self, entity_id, type):
         ctx = DataLoadContext('unit-testing',
@@ -567,6 +589,11 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.assert_empty_pipes()
 
     def test_nothing(self):
+        self.assertIsNotNone(self.entity)
+        self.assertIsNotNone(self.entity_ident)
+        self.assertIsNotNone(self.input_system)
+        self.assertIsNotNone(self.output_system)
+        self.assertIsNotNone(self.manager.system.get(AbilitySystem))
         # No checks for this, really. Just "does it properly not explode"?
         self.assert_test_ran(
             self.runner_of_test(self.do_test_nothing))
@@ -591,16 +618,26 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.client_send_with_ack(client, mid, msg)
 
         # Game should process events set off by the message...
-        max_ticks = 10
+        max_ticks = 20
         ticked = 0
+        output_event = None
         for i in range(max_ticks):
             self.engine_tick()
             ticked += 1
-            if not self.manager.event.has_queued():
-                # Cut out early if we have no more events to process?
-                break
+            for event in self.events:
+                if type(event) is OutputEvent:
+                    # Cut out early if we got the output event. Give extra
+                    # ticks to process the output event in next step, not here,
+                    # if needed.
+                    output_event = event
+                    break
+
+        input_history = self.input_system.historian.most_recent(self.entity.id)
 
         # Client should have received a follow-up from server with results.
+        self.assertIsNotNone(input_history)
+        self.assertIsNotNone(input_history.status)
+        self.assertIsNotNone(output_event)
         self.assertTrue(client.has_data())
 
         # Make sure we don't have anything in the queues.

@@ -280,7 +280,7 @@ class IdentitySystem(System):
                 del self._ukeys[entity_id]
             return
 
-        elif user_id is None or user_key is None:
+        elif user_id is None:  # TODO: user key check too: or user_key is None:
             # Not sure if this is a bad or ok thing. Maybe the unassigned
             # entities are AI or the DM or whatever.
             # Degrade to debug or "delete this block" if it's fine.
