@@ -222,6 +222,8 @@ class Engine:
     one time-step loop (currently).
     '''
 
+    SYSTEMS_REQUIRED = frozenset((RepositorySystem, CodecSystem, DataSystem))
+
     DOTTED = 'veredi.game.engine'
 
     _METER_LOG_AMT = 10  # seconds
@@ -393,14 +395,74 @@ class Engine:
         # Systems
         # ---
         self._create_required_systems(configuration)
+        self._create_systems(configuration)
 
     def _create_required_systems(self, config: Configuration) -> None:
         '''
         Creates systems that cannot be setup via config and are just required.
         '''
-        required = frozenset((RepositorySystem, CodecSystem, DataSystem))
         context = config.make_config_context()
-        for sys_type in required:
+        for sys_type in self.SYSTEMS_REQUIRED:
+            self.meeting.system.create(sys_type, context)
+
+    def _create_systems(self, config: Configuration) -> None:
+        '''
+        Creates systems that are set up via config (and systems they depend
+        on if possible).
+        '''
+        # ---
+        # Add Config's 'engine.systems'.
+        # ---
+        from_config = set()
+        context = config.make_config_context()
+        requested_systems = config.get('engine', 'systems')
+        if not null_or_none(requested_systems):
+            for name in requested_systems:
+                sys_dotted = requested_systems[name]
+                sys_type = config.get_registered(sys_dotted, context)
+                log.debug("Engine config system: {} -> {} -> {}",
+                          name, sys_dotted, sys_type)
+
+                # Already exists? Uh... ok?
+                if self.meeting.system.get(sys_type):
+                    continue
+
+                # Add to our set of systems to create.
+                from_config.add(sys_type)
+
+        # ---
+        # Add dependencies to the required set.
+        # ---
+        all_required = self.SYSTEMS_REQUIRED.union(from_config)
+        from_systems = set()
+        for required_type in all_required:
+            dependencies = required_type.dependencies()
+            # No requirements - ok.
+            if not dependencies:
+                continue
+
+            for name in dependencies:
+                sys_dotted = requested_systems[name]
+                sys_type = config.get_registered(sys_dotted, context)
+                log.debug("{} depends on: {} -> {} -> {}",
+                          required_type, name, sys_dotted, sys_type)
+
+                # Already exists? Ok.
+                if self.meeting.system.get(sys_type):
+                    continue
+
+                # Else, add to our set of systems to create.
+                from_systems.add(sys_type)
+
+        # ---
+        # Create the systems we gathered.
+        # ---
+        for sys_type in from_systems:
+            log.debug("Creating system from dependency: {}", sys_type)
+            self.meeting.system.create(sys_type, context)
+
+        for sys_type in from_config:
+            log.debug("Creating system from config: {}", sys_type)
             self.meeting.system.create(sys_type, context)
 
     @property

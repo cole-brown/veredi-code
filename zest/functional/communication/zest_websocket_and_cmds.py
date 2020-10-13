@@ -88,6 +88,10 @@ from veredi.rules.d20.pf2.ability.system                             import Abil
 from veredi.rules.d20.pf2.ability.event                              import AbilityRequest, AbilityResult
 from veredi.rules.d20.pf2.ability.component                          import AbilityComponent
 from veredi.rules.d20.pf2.health.component import HealthComponent
+from veredi.math.system                 import MathSystem
+# from veredi.interface.output.event      import OutputType
+# from veredi.math.event                  import MathOutputEvent
+
 
 from veredi.game.data.event              import (DataLoadedEvent,
                                                  DataLoadRequest)
@@ -436,7 +440,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.assert_empty_pipes()
 
         # Hook the client up to an entity.
-        log.ultra_mega_debug("uid: {}, ukey: {}", client.user_id, client.user_key)
+        # log.ultra_mega_debug("uid: {}, ukey: {}", client.user_id, client.user_key)
         self.entity_ident.user_id  = client.user_id
         self.entity_ident.user_key = client.user_key
         self.assertTrue(self.entity_ident.user_id)
@@ -594,6 +598,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.assertIsNotNone(self.input_system)
         self.assertIsNotNone(self.output_system)
         self.assertIsNotNone(self.manager.system.get(AbilitySystem))
+        self.assertIsNotNone(self.manager.system.get(MathSystem))
         # No checks for this, really. Just "does it properly not explode"?
         self.assert_test_ran(
             self.runner_of_test(self.do_test_nothing))

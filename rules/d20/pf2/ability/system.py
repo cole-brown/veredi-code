@@ -15,10 +15,11 @@ Open doors the aggressive way.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Set, Type, Union)
+                    Optional, Set, Type, Union, Dict)
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
-    from ..ecs.manager       import EcsManager
+    from veredi.game.ecs.manager       import EcsManager
+    from veredi.game.ecs.base.system       import System
 
 
 from veredi.logger                      import log
@@ -73,6 +74,21 @@ from .event import (
 @register('veredi', 'rules', 'd20', 'pf2', 'ability', 'system')
 class AbilitySystem(D20RulesSystem):
 
+    @classmethod
+    def dependencies(
+            klass: 'AbilitySystem') -> Optional[Dict[Type['System'], str]]:
+        '''
+        AbilitySystem's dependencies in a System class/type to dotted string
+        dictionary.
+
+        Required dependencies will be checked for by type.
+          - If a system of that type already exists, good.
+          - If not, the dotted string will be used to try to create one.
+        '''
+        return {
+            MathSystem: 'veredi.math.system',
+        }
+
     def _configure(self, context: 'VerediContext') -> None:
         '''
         Make our stuff from context/config data.
@@ -85,7 +101,7 @@ class AbilitySystem(D20RulesSystem):
                                'ability')
 
         # ---
-        # Health Stuff
+        # Required Stuff
         # ---
         self._required_managers:    Optional[Set[Type['EcsManager']]] = {
             TimeManager,
