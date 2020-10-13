@@ -64,6 +64,8 @@ class DataComponent(Component):
                  data: MutableMapping[str, Any] = None) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
 
+        if data is False:
+            raise ValueError("data is False.", context, cid, data)
         # This calls _configure with the context.
         super().__init__(context, cid)
 

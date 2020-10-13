@@ -92,6 +92,9 @@ class Test_AbilitySystem(ZestSystem):
           - Clearing events (if flagged to do so).
 
           - Returning entity.
+
+        If `clear_event_queue`, drops all events from EventManager's queue
+        before returing.
         '''
         entity = super().create_entity()
         self.assertTrue(entity)
@@ -101,7 +104,10 @@ class Test_AbilitySystem(ZestSystem):
                              clear_event_queue=clear_event_queue)
         self.create_ability(entity)
 
-        # Throw away loading events.
+        # Make the entity alive!
+        self.manager.entity.creation(self.manager.time)
+
+        # Throw away loading events?
         if clear_event_queue:
             self.clear_events()
 
@@ -110,8 +116,6 @@ class Test_AbilitySystem(ZestSystem):
     def create_identity(self, entity,
                         id_data=ID_DATA,
                         clear_event_queue=True):
-        self.manager.entity.creation(self.manager.time)
-
         context = UnitTestContext(
             self.__class__.__name__,
             'identity_request',

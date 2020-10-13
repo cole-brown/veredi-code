@@ -259,7 +259,7 @@ class ZestBase(unittest.TestCase):
         Mainly used with log.LoggingManager.on_or_off() context manager.
         '''
 
-        self.debug_flags:    DebugFlag     = None
+        self.debug_flags:    DebugFlag     = DebugFlag.GAME_ALL
         '''
         Debug flags to pass on to things that use them, like:
         Engine, Systems, Mediators, etc.

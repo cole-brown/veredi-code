@@ -236,7 +236,19 @@ class InputSystem(System):
                       entity, string_unsafe, event)
             return
 
-        string_unsafe = event.payload
+        string_unsafe = None
+        try:
+            string_unsafe = event.payload
+        except AttributeError:
+            try:
+                string_unsafe = event.string_unsafe
+            except AttributeError as error:
+                log.exception("Event {} does not have 'payload' or "
+                              "'string_unsafe' property - input system "
+                              "cannot process it as a command.",
+                              event,
+                              context=context)
+
         log.debug("Input from '{}' (by '{}'). input-string: '{}', event: {}",
                   ident.log_name, ident.log_extra,
                   string_unsafe, event)
