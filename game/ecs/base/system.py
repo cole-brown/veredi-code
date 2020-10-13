@@ -133,6 +133,26 @@ class SystemLifeCycle(enum.Enum):
 
 class System(ABC):
 
+    # -------------------------------------------------------------------------
+    # Class Methods
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dependencies(klass: 'System') -> Optional[Dict[Type['System'], str]]:
+        '''
+        System's dependencies in a System class/type to dotted string
+        dictionary.
+
+        Required dependencies will be checked for by type.
+          - If a system of that type already exists, good.
+          - If not, the dotted string will be used to try to create one.
+        '''
+        return None
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def _define_vars(self):
         '''
         Instance variable definitions, type hinting, doc strings, etc.
@@ -244,6 +264,10 @@ class System(ABC):
         # ---
         self._configure(context)
 
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
     @property
     def id(self) -> SystemId:
         return SystemId.INVALID if self._system_id is None else self._system_id
@@ -274,6 +298,10 @@ class System(ABC):
     @property
     def enabled(self) -> bool:
         return self._life_cycle == SystemLifeCycle.ALIVE
+
+    # -------------------------------------------------------------------------
+    # Life Cycle
+    # -------------------------------------------------------------------------
 
     @property
     def life_cycle(self) -> SystemLifeCycle:
@@ -618,7 +646,16 @@ class System(ABC):
         '''
         Tracks our system health. Returns either `current_health` or something
         worse from what all we track.
+
+        Checks for all required managers via Meeting.healthy().
+
+        Checks for existance of all systems we depend on (according to
+        self.dependencies()). If something doesn't exist, degrade health to
+        UNHEALTHY. Only checks for existance of the dependency - not health.
         '''
+        # ---
+        # Health Summary: Managers
+        # ---
         manager_health = self._manager.healthy(self._required_managers)
         if not manager_health.in_best_health:
             self._health = self._health.update(manager_health)
@@ -626,10 +663,30 @@ class System(ABC):
             # they don't exist.
             return self.health
 
+        # ---
+        # Health Summary: Systems
+        # ---
+        dependency_health = VerediHealth.HEALTHY
+        dependencies = self.dependencies() or {}
+        for sys_type in dependencies:
+            system = self._manager.system.get(sys_type)
+            if not system:
+                # Log and degrade our system dependency health.
+                log.warning("{} cannot find its requried system: {}",
+                            self.__class__.__name__,
+                            sys_type)
+                dependency_health = dependency_health.update(
+                    VerediHealth.UNHEALTHY)
+
+        # ---
+        # Health Summary: Summary
+        # ---
         # Set our state to whatever's worse and return that.
         # TODO [2020-06-04]: Eventually maybe a gradient of health so one
         # bad thing doesn't knock us offline?
-        self._health = self._health.update(current_health)
+        self._health = self._health.update(current_health,
+                                           manager_health,
+                                           dependency_health)
         return self.health
 
     def _health_log(self,
