@@ -490,6 +490,7 @@ class ZestEcs(ZestBase):
         self.assertNotEqual(eid, EntityId.INVALID)
         entity = self.manager.entity.get(eid)
         self.assertTrue(entity)
+        self.assertNotEqual(entity.life_cycle, EntityLifeCycle.ALIVE)
 
         return entity
 

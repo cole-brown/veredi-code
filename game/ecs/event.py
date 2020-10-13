@@ -337,6 +337,7 @@ class EventManager(EcsManager):
         except EventError as error:
             self.health = VerediHealth.UNHEALTHY
             # Plow on ahead anyways or raise due to debug flags.
+            # TODO: add notice, event to error
             self._error_maybe_raise(
                 error,
                 None,
@@ -347,6 +348,7 @@ class EventManager(EcsManager):
         # Most generic of our exceptions.
         except VerediError as error:
             self.health = VerediHealth.UNHEALTHY
+            # TODO: add notice, event to error
             # Plow on ahead anyways or raise due to debug flags.
             self._error_maybe_raise(
                 error,
@@ -360,6 +362,7 @@ class EventManager(EcsManager):
         # ------------------------------
         except AttributeError as error:
             self.health = VerediHealth.UNHEALTHY
+            # TODO: add notice, event to error
             # Plow on ahead anyways or raise due to debug flags.
             self._error_maybe_raise(
                 error,
@@ -371,6 +374,7 @@ class EventManager(EcsManager):
         # Most generic python exception.
         except Exception as error:
             self.health = VerediHealth.UNHEALTHY
+            # TODO: add notice, event to error
             # Plow on ahead anyways or raise due to debug flags.
             self._error_maybe_raise(
                 error,
@@ -383,6 +387,7 @@ class EventManager(EcsManager):
         except:  # noqa E722
             self.health = VerediHealth.FATAL
 
+            # TODO: add notice, event to error
             # Always log in catch-all?
             # For now anyways.
             log.exception(
