@@ -25,23 +25,24 @@ from abc import ABC, abstractmethod
 import enum
 
 
-from veredi.data.config      import registry
-from veredi.logger           import log
-from veredi.base.const       import VerediHealth
-from veredi.debug.const      import DebugFlag
-from veredi.base.assortments import DeltaNext
+from veredi.data.config       import registry
+from veredi.logger            import log
+from veredi.logger.lumberjack import Lumberjack
+from veredi.base.const        import VerediHealth
+from veredi.debug.const       import DebugFlag
+from veredi.base.assortments  import DeltaNext
 
-from .identity               import EntityId, SystemId
-from .exceptions             import SystemErrorV
+from .identity                import EntityId, SystemId
+from .exceptions              import SystemErrorV
 
-from ..const                 import SystemTick, SystemPriority
-from ..exceptions            import TickError
+from ..const                  import SystemTick, SystemPriority
+from ..exceptions             import TickError
 
-from ..manager               import EcsManager
-from ..time                  import TimeManager, MonotonicTimer
-from ..event                 import EventManager, Event
-from ..component             import ComponentManager
-from ..entity                import EntityManager
+from ..manager                import EcsManager
+from ..time                   import TimeManager, MonotonicTimer
+from ..event                  import EventManager, Event
+from ..component              import ComponentManager
+from ..entity                 import EntityManager
 
 
 # -----------------------------------------------------------------------------
@@ -162,17 +163,17 @@ class System(ABC):
         Our current life cycle.
         '''
 
-        self._system_id:          SystemId                         = None
+        self._system_id: SystemId = None
         '''
         Our ID. Set by SystemManager. Do not touch!
         '''
 
-        self._components_req:     Optional[Set[Type['Component']]] = None
+        self._components_req: Optional[Set[Type['Component']]] = None
         '''
         The components we /absolutely require/ to function.
         '''
 
-        self._components_req_all: bool                             = True
+        self._components_req_all: bool = True
         '''
         True: self._components_req is a Union of all components required.
 
@@ -180,7 +181,7 @@ class System(ABC):
         us to do something with the entity for our tick.
         '''
 
-        self._ticks:              Optional[SystemTick]             = None
+        self._ticks: Optional[SystemTick] = None
         '''
         The ticks we desire to run in.
 
@@ -189,15 +190,23 @@ class System(ABC):
         acceptable if the system doesn't care.
         '''
 
-        self._manager:            'Meeting'                        = None
+        self._manager: 'Meeting' = None
         '''
         A link to the engine's Meeting of ECS Managers.
         '''
 
-        self._component_type:     Type['Component']                = None
+        self._component_type: Type['Component'] = None
         '''
         This system's component type. Used in get().
         For systems that aren't tied to a specifc component, leave as 'None'.
+        '''
+
+        # ---
+        # Logging
+        # ---
+        self._log: Lumberjack = None
+        '''
+        A logger specifically for this system. Logger name is `self.dotted`.
         '''
 
         # ---
@@ -264,6 +273,13 @@ class System(ABC):
         # ---
         self._configure(context)
 
+        # ---
+        # Logger!
+        # ---
+        # TODO: go through all systems and make sure they use this instead of
+        # log.py directly.
+        self._log = Lumberjack(self.dotted)
+
     # -------------------------------------------------------------------------
     # Properties
     # -------------------------------------------------------------------------
@@ -320,7 +336,7 @@ class System(ABC):
         '''
         # Sanity.
         if new_state == self._life_cycle:
-            log.warning("Already in {}.", new_state)
+            self._log.warning("Already in {}.", new_state)
             return self.health
 
         # ------------------------------
@@ -330,11 +346,10 @@ class System(ABC):
         if new_state == SystemLifeCycle.INVALID:
             msg = (f"{str(self)}: {self._life_cycle}->{new_state} "
                    "is an invalid life-cycle to transition to.")
-            raise log.exception(ValueError(msg,
-                                           self._life_cycle,
-                                           new_state),
-                                None,
-                                msg)
+            error = ValueError(msg,
+                               self._life_cycle,
+                               new_state)
+            raise self._log.exception(error, msg)
 
         # Valid life-cycles; call specific cycle function.
         elif new_state == SystemLifeCycle.CREATING:
@@ -369,11 +384,10 @@ class System(ABC):
         else:
             msg = (f"{str(self)}: {self._life_cycle}->{new_state} "
                    "is an unknown life-cycle to transition to.")
-            raise log.exception(ValueError(msg,
-                                           self._life_cycle,
-                                           new_state),
-                                None,
-                                msg)
+            error = ValueError(msg,
+                               self._life_cycle,
+                               new_state)
+            raise self._log.exception(error, msg)
 
         return self._health
 
@@ -522,9 +536,9 @@ class System(ABC):
                 if not context:
                     context = event.context
             # Entity disappeared, and that's ok.
-            log.info("{}No entity for its id: {}",
-                     preface, entity_id,
-                     context=context)
+            self._log.info("{}No entity for its id: {}",
+                           preface, entity_id,
+                           context=context)
             # TODO [2020-06-04]: a health thing? e.g.
             # self._health_update(EntityDNE)
             return Null()
@@ -559,11 +573,11 @@ class System(ABC):
                 if not context:
                     context = event.context
             # Component disappeared, and that's ok.
-            log.info("{}No '{}' on entity: {}",
-                     preface,
-                     component.__class__.__name__,
-                     entity,
-                     context=context)
+            self._log.info("{}No '{}' on entity: {}",
+                           preface,
+                           component.__class__.__name__,
+                           entity,
+                           context=context)
             # TODO [2020-06-04]: a health thing? e.g.
             # self._health_update(ComponentDNE)
             return Null()
@@ -672,9 +686,9 @@ class System(ABC):
             system = self._manager.system.get(sys_type)
             if not system:
                 # Log and degrade our system dependency health.
-                log.warning("{} cannot find its requried system: {}",
-                            self.__class__.__name__,
-                            sys_type)
+                self._log.warning("{} cannot find its requried system: {}",
+                                  self.__class__.__name__,
+                                  sys_type)
                 dependency_health = dependency_health.update(
                     VerediHealth.UNHEALTHY)
 
@@ -704,10 +718,11 @@ class System(ABC):
         output_log, maybe_updated_meter = self._manager.time.metered(log_meter)
         if output_log:
             log.incr_stack_level(kwargs)
-            log.at_level(log_level,
-                         "HEALTH({}): Skipping ticks - our system health "
-                         "isn't good enough to process. args: {}, kwargs: {}",
-                         self.health, args, kwargs)
+            self._log.at_level(
+                log_level,
+                "HEALTH({}): Skipping ticks - our system health "
+                "isn't good enough to process. args: {}, kwargs: {}",
+                self.health, args, kwargs)
         return maybe_updated_meter
 
     def _health_ok_msg(self,
@@ -793,20 +808,25 @@ class System(ABC):
         if (event_manager
                 and self._manager and self._manager.event
                 and self._manager.event is not event_manager):
-            raise log.exception(None,
-                                SystemErrorV,
-                                "subscribe() received an EventManager which "
-                                "is different from its saved EventManager "
-                                "from initialization. ours: {}, supplied: {}",
-                                self._manager.event, event_manager)
+            msg = ("subscribe() received an EventManager which "
+                   "is different from its saved EventManager "
+                   "from initialization. ours: {}, supplied: {}")
+            msg = msg.format(self._manager.event, event_manager)
+            error = SystemErrorV(msg,
+                                 None,
+                                 context=None,
+                                 associated=None)
+            raise self._log.exception(error, msg)
 
         if (self._required_managers and EventManager in self._required_managers
                 and not self._manager.event):
-            raise log.exception(None,
-                                SystemErrorV,
-                                "System has no event manager to subscribe to "
-                                "but requires one.",
-                                self._manager.event, event_manager)
+            msg = ("System has no event manager to subscribe to "
+                   "but requires one.")
+            error = SystemErrorV(msg,
+                                 None,
+                                 context=None,
+                                 associated=None)
+            raise self._log.exception(error, msg)
 
         # Have our sub-class do whatever it wants this one time.
         # Or, you know, more than once... depending on the health returned.
@@ -1128,21 +1148,6 @@ class System(ABC):
     # -------------------------------------------------------------------------
     # Logging and String
     # -------------------------------------------------------------------------
-
-    def _log(self,
-             level:    'log.Level',
-             msg:      str,
-             *args:    Any,
-             **kwargs: Any) -> None:
-        '''
-        Stupid way of having to stuff our class name into logger output.
-        '''
-        sys_logger = log.get_logger(self.dotted)
-        log.at_level(level,
-                     msg,
-                     *args,
-                     veredi_logger=sys_logger,
-                     **kwargs)
 
     def _should_debug(self):
         '''

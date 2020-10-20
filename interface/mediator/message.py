@@ -11,7 +11,7 @@ For a server mediator (e.g. WebSockets) talking to a game.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Mapping
+from typing import Optional, Union, Any, NewType, Mapping
 
 from abc import ABC, abstractmethod
 import multiprocessing
@@ -25,8 +25,10 @@ from veredi.data.codec.base                    import Encodable
 from veredi.data.exceptions                    import EncodableError
 from veredi.base.identity                      import MonotonicId
 from veredi.data.identity                      import UserId, UserKey
+from veredi.interface.mediator.payload.base    import BasePayload
 from veredi.interface.mediator.payload.logging import LogPayload
 from veredi.game.ecs.base.identity             import EntityId
+from veredi.base.enum               import FlagCheckMixin, FlagSetMixin
 
 
 # -----------------------------------------------------------------------------
@@ -34,7 +36,7 @@ from veredi.game.ecs.base.identity             import EntityId
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class MsgType(Encodable, enum.Enum):
+class MsgType(FlagCheckMixin, FlagSetMixin, Encodable, enum.Flag):
     '''
     A message between game and Mediator will be assigned one of these types.
     '''
@@ -103,6 +105,17 @@ class MsgType(Encodable, enum.Enum):
     before sending(/after receiving).
     '''
 
+    GAME_AUTO = enum.auto()
+    '''
+    The mediator should figure this one out and it should be one of the
+    GAME_MSGS types.
+    '''
+
+    GAME_MSGS = TEXT | ENCODED | CODEC
+    '''
+    Expected message types from the game.
+    '''
+
     # ------------------------------
     # Encodable API (Codec Support)
     # ------------------------------
@@ -125,6 +138,13 @@ class MsgType(Encodable, enum.Enum):
         return decoded
 
 
+# ------------------------------
+# Types
+# ------------------------------
+MsgIdTypes = NewType('MsgIdTypes',
+                     Union[None, MonotonicId, 'Message.SpecialId', int])
+
+
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
@@ -135,6 +155,10 @@ class Message(Encodable):
 
     Saves id as an int. Casts back to ID type in property return.
     '''
+
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
 
     @enum.unique
     class SpecialId(Encodable, enum.IntEnum):
@@ -173,24 +197,75 @@ class Message(Encodable):
             decoded_value = mapping['spid']
             return klass(decoded_value)
 
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        self._msg_id:     MsgIdTypes = None
+        '''
+        ID for message itself. Can be initialized as None, but messages must be
+        sent with a non-None message id.
+        '''
+
+        self._type:       'MsgType'          = MsgType.INVALID
+        '''
+        Message's Type. Determines how Mediators handle the message itself and
+        its payload.
+        '''
+
+        self._entity_id:  Optional[EntityId] = None
+        '''
+        The specific entity related to the message, if there is one.
+
+        E.g. if a skill roll happens, it will be assigned the EntityId of the
+        entity used to roll the skill.
+
+        Or if some sort of not-tied-to-an-entity message, it will be None.
+        '''
+
+        self._user_id:    Optional[UserId]   = None
+        '''
+        The UserId this message will be sent to. Can be None if not set yet, or
+        if broadcast maybe?
+        # TODO: is this None, or something else, for broadcast?
+        '''
+
+        self._user_key:   Optional[UserId]   = None
+        '''
+        The UserKey this message will be sent to. Should only be set if
+        _user_id is also set. Can be None if not set yet, or if broadcast
+        maybe?
+        # TODO: is this None, or something else, for broadcast?
+        '''
+
+        self._payload:    Optional[Any]      = None
+        '''
+        The actual important part of the message: what's in it.
+        '''
+
     def __init__(self,
-                 msg_id:    Union[MonotonicId, SpecialId, int],
+                 msg_id:    Union[MonotonicId, SpecialId, int, None],
                  type:      'MsgType',
                  payload:   Optional[Any]      = None,
                  entity_id: Optional[EntityId] = None,
                  user_id:   Optional[UserId]   = None,
                  user_key:  Optional[UserKey]  = None) -> None:
-        # init fields.
-        self._msg_id:     MonotonicId        = msg_id
-        self._type:       'MsgType'          = type
-        self._entity_id:  Optional[EntityId] = entity_id
-        self._user_id:    Optional[UserId]   = user_id
-        self._user_key:   Optional[UserId]   = user_key
-        self._payload:    Optional[Any]      = payload
+        self._define_vars()
 
-    # ------------------------------
-    # Helpers
-    # ------------------------------
+        self._msg_id    = msg_id
+        self._type      = type
+        self._entity_id = entity_id
+        self._user_id   = user_id
+        self._user_key  = user_key
+        self._payload   = payload
+
+    # -------------------------------------------------------------------------
+    # General MsgType Init Helpers
+    # -------------------------------------------------------------------------
 
     @classmethod
     def connected(klass:   'Message',
@@ -248,9 +323,28 @@ class Message(Encodable):
                      user_id=msg.user_id,
                      user_key=msg.user_key)
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
+    # Logging MsgType Init Helpers
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def log(klass:       'Message',
+            msg_id:      Union[MonotonicId, int],
+            user_id:     Optional[UserId],
+            user_key:    Optional[UserKey],
+            log_payload: LogPayload) -> 'Message':
+        '''
+        Creates a LOGGING message with the supplied data.
+        '''
+        msg = Message(msg_id, MsgType.LOGGING,
+                      user_id=user_id,
+                      user_key=user_key,
+                      payload=log_payload)
+        return msg
+
+    # -------------------------------------------------------------------------
     # Properties
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def msg_id(self) -> Union[MonotonicId, SpecialId]:
@@ -351,9 +445,9 @@ class Message(Encodable):
 
         return None
 
-    # ------------------------------
-    # Codec Support
-    # ------------------------------
+    # -------------------------------------------------------------------------
+    # Encodable API
+    # -------------------------------------------------------------------------
 
     def encode(self) -> Mapping[str, str]:
         '''
@@ -430,28 +524,9 @@ class Message(Encodable):
 
         return decoded
 
-    # ------------------------------
-    # Logging
-    # ------------------------------
-
-    @classmethod
-    def log(klass:       'Message',
-            msg_id:      Union[MonotonicId, int],
-            user_id:     Optional[UserId],
-            user_key:    Optional[UserKey],
-            log_payload: LogPayload) -> 'Message':
-        '''
-        Creates a LOGGING message with the supplied data.
-        '''
-        msg = Message(msg_id, MsgType.LOGGING,
-                      user_id=user_id,
-                      user_key=user_key,
-                      payload=log_payload)
-        return msg
-
-    # ------------------------------
-    # To String
-    # ------------------------------
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
 
     def __str__(self):
         return (

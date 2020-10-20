@@ -32,10 +32,23 @@ Try to call your attribute/property 'dotted', for consistency.
 If you use 'register', your class will get a 'dotted' property for free.
 '''
 
+_VEREDI_PREFIX = 'veredi.'
+'''
+The expected start for all dotted strings under the official veredi banner.
+'''
+
 
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
+
+def is_veredi(dotted: str) -> bool:
+    '''
+    Returns true if the `dotted` string is formatted correctly to be considered
+    an 'official' veredi dotted string.
+    '''
+    return dotted.startswith(_VEREDI_PREFIX)
+
 
 def join(*names: str) -> str:
     '''

@@ -49,7 +49,7 @@ from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
 from veredi.interface.input.context     import InputContext
 from veredi.math.parser                 import MathTree
 from veredi.math.system                 import MathSystem
-from veredi.interface.output.event      import OutputType
+from veredi.interface.output.event      import OutputTarget
 from veredi.math.event                  import MathOutputEvent
 
 # Ability-Related Events & Components
@@ -229,11 +229,10 @@ class AbilitySystem(D20RulesSystem):
             self._rule_defs.canonical,
             self._query,
             MathOutputEvent(entity.id, entity.type_id,
-                            context,
+                            math, context,
                             InputContext.input_id(context),
                             # TODO [2020-07-11]: a proper output type...
-                            OutputType.BROADCAST,
-                            math),
+                            OutputTarget.BROADCAST),
             context)
 
         return CommandStatus.successful(context)

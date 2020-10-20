@@ -15,9 +15,9 @@ from decimal import Decimal
 
 from veredi.base.context           import VerediContext
 from veredi.base.identity          import SerializableId
-from veredi.game.ecs.base.identity import MonotonicId
+from veredi.game.ecs.base.identity import EntityId
 from veredi.game.ecs.event         import Event
-from veredi.interface.output.event import OutputEvent, OutputType
+from veredi.interface.output.event import OutputEvent, OutputTarget
 
 from .parser import MathTree
 
@@ -41,14 +41,14 @@ class MathEvent(Event):
     '''
 
     def __init__(self,
-                 id:           Union[int, MonotonicId],
+                 id:           Union[int, EntityId],
                  type:         Union[int, enum.Enum],
                  context:      VerediContext,
                  root:         MathTree) -> None:
         self.set(id, type, context, root)
 
     def set(self,
-            id:           Union[int, MonotonicId],
+            id:           Union[int, EntityId],
             type:         Union[int, enum.Enum],
             context:      VerediContext,
             root:         MathTree) -> None:
@@ -81,6 +81,17 @@ class MathEvent(Event):
 
     def __repr_name__(self):
         return "MathEvent"
+
+    def __str__(self):
+        return (f"{self._str_name()}: "
+                f"math: {self.root}, "
+                f"context: {str(self._context)}")
+
+    def __repr__(self):
+        return (f"<{self._str_name(self.__repr_name__())}: "
+                f"math: {repr(self.root)}, "
+                f"context: {repr(self._context)}"
+                ">")
 
 
 # -----------------------------------------------------------------------------
@@ -115,36 +126,46 @@ class MathOutputEvent(OutputEvent):
     Note: Subclassed off of OutputEvent instead of MathEvent.
     '''
 
-    def __init__(self,
-                 source_id:   Union[int, MonotonicId],
-                 source_type: Union[int, enum.Enum],
-                 context:     VerediContext,
-                 serial_id:   SerializableId,
-                 output_type: OutputType,
-                 root:        Optional[MathTree] = None) -> None:
-        self.set(source_id, source_type, context,
-                 serial_id, output_type,
-                 root)
+    # Same as OutputEvent's right now:
+    # def __init__(self,
+    #              source_id:     Union[int, EntityId],
+    #              source_type:   Union[int, enum.Enum],
+    #              output:        Optional[MathTree],
+    #              context:       VerediContext,
+    #              serial_id:     SerializableId,
+    #              output_target: OutputTarget) -> None:
+    #     self.set(source_id, source_type, output, context,
+    #              serial_id, output_target)
 
     def set(self,
-            source_id:   Union[int, MonotonicId],
-            source_type: Union[int, enum.Enum],
-            context:     VerediContext,
-            serial_id:   SerializableId,
-            output_type: OutputType,
-            root:        MathTree) -> None:
-        super().set(source_id, source_type, context, serial_id, output_type)
-        self.root = None
-        self.total = None
+            source_id:     Union[int, EntityId],
+            source_type:   Union[int, enum.Enum],
+            output:        Optional[MathTree],
+            context:       VerediContext,
+            serial_id:     SerializableId,
+            output_target: OutputTarget) -> None:
+        super().set(source_id, source_type,
+                    output, context,
+                    serial_id, output_target)
+        # ---
+        # Set/Init our vars.
+        # ---
+        self._total: Optional[MathValueType] = None
 
     def reset(self) -> None:
         super().reset()
-        self.root = None
-        self.total = None
+        self._total = None
 
     # -------------------------------------------------------------------------
     # Output Things
     # -------------------------------------------------------------------------
+
+    @property
+    def total(self) -> Optional[MathValueType]:
+        '''
+        Returns the math event's total.
+        '''
+        return self._output
 
     @property
     def dotted(self):
@@ -161,10 +182,11 @@ class MathOutputEvent(OutputEvent):
                  root:  MathTree,
                  total: MathValueType) -> None:
         '''
-        Get this event ready for publishing.
+        Get this event ready for publishing. Replaces _output and _total with
+        these values.
         '''
-        self.root = root
-        self.total = total
+        self._output = root
+        self._total = total
 
     # -------------------------------------------------------------------------
     # To String
@@ -172,3 +194,16 @@ class MathOutputEvent(OutputEvent):
 
     def __repr_name__(self):
         return "MathOutEvent"
+
+    def __str__(self):
+        return (f"{self._str_name()}: "
+                f"total: {self.total}, "
+                f"math: {self.output}, "
+                f"context: {str(self._context)}")
+
+    def __repr__(self):
+        return (f"<{self._str_name(self.__repr_name__())}: "
+                f"total: {self.total}, "
+                f"math: {repr(self.output)}, "
+                f"context: {repr(self._context)}"
+                ">")

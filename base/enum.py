@@ -8,6 +8,10 @@ Mixins and/or Base/Basic Enum Things
 # Imports
 # -----------------------------------------------------------------------------
 
+import enum
+
+from veredi.logger import log
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -26,7 +30,7 @@ class FlagCheckMixin:
 
     def has(self, flag: 'FlagCheckMixin'):
         '''
-        Returns true if this OutputType has all the flags specified.
+        Returns true if this enum has all the flags specified.
         '''
         return ((self & flag) == flag)
 
@@ -43,6 +47,44 @@ class FlagCheckMixin:
             if self.has(each):
                 return True
         return False
+
+    @property
+    def is_solo(flag: 'FlagCheckMixin') -> bool:
+        '''
+        Returns True if this instance is exactly one flag bit.
+        Returns False if this instance has:
+          - More than one bit set.
+          - Zero bits set.
+          - Invalid `flag` value (e.g. None).
+        '''
+        # ---
+        # Simple Cases
+        # ---
+
+        if not isinstance(flag, enum.Flag):
+            msg = (f"FlagCheckMixin.is_solo: '{flag}' is not an "
+                   "enum.Flag derived type.")
+            error = ValueError(msg, flag)
+            raise log.exception(error,
+                                None,
+                                msg)
+
+        # A nice clean-looking way of doing, but could miss some cases. For
+        # example, if a flag mask exists as a value in the enum and the flag
+        # value passed in happens to be equal to that mask.
+        if flag not in flag.__class__:
+            return False
+
+        # ---
+        # Not As Simple Case
+        # ---
+
+        # Count the bits set to get a sure answer. Apparently this ridiculous
+        # "decimal number -> binary string -> count characters" is fast for
+        # small, non-parallel/vectorizable things.
+        #   https://stackoverflow.com/a/9831671/425816
+        bits_set = bin(flag.value).count("1")
+        return bits_set == 1
 
 
 class FlagSetMixin:

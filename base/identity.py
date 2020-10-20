@@ -374,9 +374,13 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         return encoded
 
     @classmethod
-    def decode(klass: 'SerializableId',
-               value: Mapping[str, str]) -> 'SerializableId':
+    def _decode(klass: 'SerializableId',
+                value: Mapping[str, str]) -> 'SerializableId':
         '''
+        Private implementation of decoding. In case anyone wants to disallow
+        the long-form encode/decode but allow decode_str() to still use
+        _decode().
+
         Turns our encoded dict into a SerializableId instance.
         '''
         klass.error_for_key(klass._ENCODE_FIELD_NAME, value)
@@ -384,6 +388,14 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
                         decoding=True,
                         decoded_value=value[klass._ENCODE_FIELD_NAME])
         return decoded
+
+    @classmethod
+    def decode(klass: 'SerializableId',
+               value: Mapping[str, str]) -> 'SerializableId':
+        '''
+        Turns our encoded dict into a SerializableId instance.
+        '''
+        return klass._decoded(value)
 
     def encode_str(self) -> str:
         '''
@@ -416,7 +428,7 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         encoded.update({
             klass._ENCODE_FIELD_NAME: hex_value,
         })
-        return klass.decode(encoded)
+        return klass._decode(encoded)
 
     @classmethod
     def get_decode_rx(klass: 'Encodable') -> Optional[str]:

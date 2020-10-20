@@ -9,14 +9,14 @@ packaged up into an event or perhaps fed directly/firstly into InputSystem.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Mapping
+from typing import Union, Any, Mapping
 import enum
 
 from veredi.game.ecs.event          import Event
 
 from veredi.base.enum               import FlagCheckMixin, FlagSetMixin
 from veredi.base.context            import VerediContext
-from veredi.game.ecs.base.identity  import MonotonicId
+from veredi.game.ecs.base.identity  import EntityId
 from veredi.base.identity           import SerializableId
 from veredi.interface.input.context import InputContext
 
@@ -26,7 +26,7 @@ from veredi.interface.input.context import InputContext
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class OutputType(FlagCheckMixin, FlagSetMixin, enum.Flag):
+class OutputTarget(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
     has() and any() provided by FlagCheckMixin.
     '''
@@ -67,38 +67,47 @@ class OutputEvent(Event):
     '''
 
     def __init__(self,
-                 source_id:   Union[int, MonotonicId],
+                 source_id:   Union[int, EntityId],
                  source_type: Union[int, enum.Enum],
+                 output:      Any,
                  context:     VerediContext,
                  serial_id:   SerializableId,
-                 output_type: 'OutputType') -> None:
-        self.set(source_id, source_type, context,
-                 serial_id, output_type)
+                 output_target: 'OutputTarget') -> None:
+        self.set(source_id, source_type, output, context,
+                 serial_id, output_target)
 
     def set(self,
-            source_id:   Union[int, MonotonicId],
+            source_id:   Union[int, EntityId],
             source_type: Union[int, enum.Enum],
+            output:      Any,
             context:     VerediContext,
             serial_id:   SerializableId,
-            output_type: 'OutputType') -> None:
+            output_target: 'OutputTarget') -> None:
         super().set(source_id, source_type, context)
+        self._output = output
         self._serial_id = serial_id
-        self._output_type = output_type
+        self._output_target = output_target
         self._designations = {
             str(source_id): InputContext.source_designation(context),
         }
-        self._title_main = "Fake Title"
-        self._title_sub = "Fake Subtitle"
 
     def reset(self) -> None:
         super().reset()
+        self._output = None
         self._serial_id = None
-        self._output_type = None
+        self._output_target = None
         self._designations = None
 
     # -------------------------------------------------------------------------
     # Output Things
     # -------------------------------------------------------------------------
+
+    @property
+    def output(self) -> Any:
+        '''
+        Returns the event's raw output (string, MathTree, whatever).
+        '''
+        return self._output
 
     @property
     def designations(self) -> Mapping[str, str]:
@@ -141,18 +150,18 @@ class OutputEvent(Event):
         return self.type
 
     @property
-    def source_id(self) -> Union[int, MonotonicId]:
+    def source_id(self) -> Union[int, EntityId]:
         '''
         EntityId of the entity responsible for this OutputEvent.
         '''
         return self.id
 
     @property
-    def output_type(self) -> 'OutputType':
+    def output_target(self) -> 'OutputTarget':
         '''
-        OutputType of this OutputEvent.
+        OutputTarget of this OutputEvent.
         '''
-        return self._output_type
+        return self._output_target
 
     @property
     def dotted(self) -> str:
