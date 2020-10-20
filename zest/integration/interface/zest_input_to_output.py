@@ -42,7 +42,7 @@ from veredi.game.data.event                 import (DataLoadRequest,
 from veredi.interface.input.event           import CommandInputEvent
 from veredi.interface.input.context         import InputContext
 from veredi.interface.output.system         import OutputSystem
-from veredi.interface.output.event          import OutputType
+from veredi.interface.output.event          import OutputTarget
 
 from veredi.rules.d20.pf2.ability.system    import AbilitySystem
 from veredi.rules.d20.pf2.ability.event     import AbilityResult
@@ -269,9 +269,9 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
 
         self.assertTrue(self.output_recvd)
         self.assertEqual(self.output_recvd.target_type,
-                         OutputType.BROADCAST)
+                         OutputTarget.BROADCAST)
         self.assertEqual(self.output_recvd.payload_type,
-                         OutputType.BROADCAST)
+                         OutputTarget.BROADCAST)
 
         # Replace payload's input id with placeholder via regex. Then compare
         # line by line with a nice error message so it's not just all...:

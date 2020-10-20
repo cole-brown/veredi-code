@@ -285,7 +285,7 @@ def init_logger(logger_name: str,
 
 def remove_handler(handler:     logging.Handler,
                    logger:      Optional[logging.Logger] = None,
-                   logger_name: Optional[str]            = None):
+                   logger_name: Optional[str]            = None) -> None:
     '''
     Look in log.__handlers for `handler`. If it finds a match, removes it from
     log.__handlers.

@@ -544,7 +544,6 @@ class MediatorSystem(System):
 
         # Build event.
         event = MediatorToGameEvent(entity_id,
-                                    # TODO: MsgType? Something else?
                                     message.type,
                                     context,
                                     event_payload)

@@ -315,12 +315,10 @@ class MathSystem(System):
         value, milieu = entry.fill(entry.entity_id, canon, entry.context)
 
         if self._should_debug():
-            self._log(log.Level.DEBUG,
-                      f"replace '{canon}' with "
-                      "'{str(type(value))}({value})' and '{milieu}'")
-            self._log(log.Level.DEBUG,
-                      f"'{value}' is {math_event.MathValue}? "
-                      "{isinstance(value, math_event.MathValue)}")
+            self._log.debug(f"replace '{canon}' with "
+                            "'{str(type(value))}({value})' and '{milieu}'")
+            self._log.debug(f"'{value}' is {math_event.MathValue}? "
+                            "{isinstance(value, math_event.MathValue)}")
 
         # Is that it, or do we need to keep going?
         if isinstance(value, math_event.MathValue):
@@ -339,15 +337,13 @@ class MathSystem(System):
                                     context=entry.context)
 
             if self._should_debug():
-                self._log(log.Level.DEBUG,
-                          f"mather.parse(value='{value}', "
-                          f"milieu='{milieu}'")
+                self._log.debug(f"mather.parse(value='{value}', "
+                                f"milieu='{milieu}'")
 
             replacement = mather.parse(value, milieu)
 
             if self._should_debug():
-                self._log(log.Level.DEBUG,
-                          "replacement:", replacement)
+                self._log.debug("replacement: {}", replacement)
 
             if not replacement:
                 # Return what we failed on.
@@ -365,11 +361,9 @@ class MathSystem(System):
         replace = []
         for var in entry.root.each_var():
             if self._should_debug():
-                self._log(log.Level.DEBUG,
-                          f"      ----- working on var: {var} -----")
-                self._log(log.Level.DEBUG,
-                          f"canonicalize_fn: var.name: {var.name}, "
-                          f"var.milieu: {var.milieu}")
+                self._log.debug(f"      ----- working on var: {var} -----")
+                self._log.debug(f"canonicalize_fn: var.name: {var.name}, "
+                                f"var.milieu: {var.milieu}")
             # If the function can canonicalize this variable's name, we'll
             # assume it's the owner and have it fill it in.
             canon = entry.canonicalize(var.name, var.milieu)
@@ -399,20 +393,20 @@ class MathSystem(System):
             replaced += 1
 
         if self._should_debug():
-            self._log(log.Level.DEBUG, "Resolved: {}", resolved)
-            self._log(log.Level.DEBUG, "Replaced: {}", replaced)
+            self._log.debug("Resolved: {}", resolved)
+            self._log.debug("Replaced: {}", replaced)
         if not resolved and not replaced:
             # Math has come to steady state... stick in final queue.
             self._finalize.push(entry)
             if self._should_debug():
-                self._log(log.Level.DEBUG,
-                          'Pushed to finalize. len: {}', len(self._finalize))
+                self._log.debug('Pushed to finalize. len: {}',
+                                len(self._finalize))
         else:
             # Math is still wibbly-wobbly.
             self._recurse.push(entry)
             if self._should_debug():
-                self._log(log.Level.DEBUG,
-                          'Pushed to recurse. len: {}', len(self._recurse))
+                self._log.debug('Pushed to recurse. len: {}',
+                                len(self._recurse))
 
         return None
 
@@ -467,13 +461,12 @@ class MathSystem(System):
             failure = self.resolve(entry)
             if failure:
                 if self._should_debug():
-                    self._log(log.Level.DEBUG,
-                              'recurse failure:', failure)
+                    self._log.debug('recurse failure:', failure)
                 # TODO [2020-07-05]: let someone known or something?
                 # Send out result event as error somehow.
-                self._log(log.Level.ERROR,
-                          "TODO: let someone known or something? failure: {}",
-                          failure)
+                self._log.error("TODO: let someone known or something? "
+                                "failure: {}",
+                                failure)
                 continue
 
         # Do however many we have queued up.
@@ -483,15 +476,17 @@ class MathSystem(System):
             try:
                 total = Evaluator.eval(entry.root)
                 if self._should_debug():
-                    self._log(log.Level.DEBUG,
-                              "Evaluated math tree to: {}. tree: \n{}",
-                              total, entry.root)
+                    self._log.debug("Evaluated math tree to: {}. tree: \n{}",
+                                    total, entry.root)
             except ValueError as error:
-                raise log.exception(error,
-                                    MathError,
-                                    "Failed to evaluate math tree.",
+                msg = "Failed to evaluate math tree."
+                wrapped = MathError(msg, error,
                                     context=entry.context,
-                                    associate=entry.root) from error
+                                    associated=entry.root)
+                raise self._log.exception(wrapped,
+                                          msg,
+                                          context=entry.context,
+                                          associate=entry.root) from error
 
             # Send out result as event. Finalize if a math type of event.
             if isinstance(entry.event, (math_event.MathEvent,
@@ -500,14 +495,11 @@ class MathSystem(System):
             self._event_notify(entry.event)
 
         if self._should_debug():
-            self._log(log.Level.DEBUG,
-                      'Updated.')
-            self._log(log.Level.DEBUG,
-                      '    self._recurse:  {}',
-                      self._recurse)
-            self._log(log.Level.DEBUG,
-                      '    self._finalize: {}',
-                      self._finalize)
+            self._log.debug('Updated.')
+            self._log.debug('    self._recurse:  {}',
+                            self._recurse)
+            self._log.debug('    self._finalize: {}',
+                            self._finalize)
 
         # Done for this tick.
         # TODO: Should time manager have current engine tick/life-cycle?

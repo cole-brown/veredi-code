@@ -89,8 +89,8 @@ from veredi.rules.d20.pf2.ability.event                              import Abil
 from veredi.rules.d20.pf2.ability.component                          import AbilityComponent
 from veredi.rules.d20.pf2.health.component import HealthComponent
 from veredi.math.system                 import MathSystem
-# from veredi.interface.output.event      import OutputType
-# from veredi.math.event                  import MathOutputEvent
+# from veredi.interface.output.event      import OutputTarget
+from veredi.math.event                  import MathOutputEvent
 
 
 from veredi.game.data.event              import (DataLoadedEvent,
@@ -440,7 +440,6 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.assert_empty_pipes()
 
         # Hook the client up to an entity.
-        # log.ultra_mega_debug("uid: {}, ukey: {}", client.user_id, client.user_key)
         self.entity_ident.user_id  = client.user_id
         self.entity_ident.user_key = client.user_key
         self.assertTrue(self.entity_ident.user_id)
@@ -629,13 +628,16 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         for i in range(max_ticks):
             self.engine_tick()
             ticked += 1
+
+            # Check for the MathOutputEvent. Once we get it we can stop
+            # ticking the engine.
             for event in self.events:
-                if type(event) is OutputEvent:
-                    # Cut out early if we got the output event. Give extra
-                    # ticks to process the output event in next step, not here,
-                    # if needed.
-                    output_event = event
-                    break
+                if not isinstance(event, MathOutputEvent):
+                    continue
+                output_event = event
+                break
+            if output_event:
+                break
 
         input_history = self.input_system.historian.most_recent(self.entity.id)
 

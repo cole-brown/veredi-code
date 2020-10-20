@@ -251,6 +251,8 @@ class YamlCodec(BaseCodec):
     # Encode Methods
     # -------------------------------------------------------------------------
 
+    # TODO: _encode_prep from JSON
+
     def encode(self,
                data: Any,
                context: 'VerediContext') -> StringIO:

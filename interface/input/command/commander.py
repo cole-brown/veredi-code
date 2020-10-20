@@ -175,16 +175,17 @@ class Commander:
             return
 
         kwargs = log.incr_stack_level(None)
-        raise log.exception(
-            None,
-            CommandRegisterError,
-            "A command named '{}' already registered '{}'; cannot "
-            "register another. command: {}",
-            existing.name,
-            cmd_or_alias,
-            existing,
-            context=context,
-            **kwargs)
+        msg = ("A command named '{}' already registered '{}'; cannot "
+               "register another. command: {}").format(existing.name,
+                                                       cmd_or_alias,
+                                                       existing)
+        error = CommandRegisterError(msg, None,
+                                     context=context,
+                                     associated=existing)
+        raise self._log.exception(error,
+                                  msg,
+                                  context=context,
+                                  **kwargs)
 
     def event_register(self, event: CommandRegisterReply) -> None:
         '''
@@ -193,25 +194,27 @@ class Commander:
         '''
         # Name sanity checks.
         if not event.name:
-            raise log.exception(
-                None,
-                CommandRegisterError,
-                "CommandRegisterReply has no name; cannot register it. {}",
-                event,
-                context=event.context)
+            msg = "CommandRegisterReply has no name; cannot register it. {}"
+            msg = msg.format(event)
+            error = CommandRegisterError(msg, None,
+                                         context=event.context)
+            raise self._log.exception(error,
+                                      msg,
+                                      context=event.context)
         self.assert_not_registered(event.name, event.context)
 
         # Permission sanity checks.
         if event.permissions == CommandPermission.INVALID:
-            raise log.exception(
-                None,
-                CommandRegisterError,
-                "CommandRegisterReply has invalid permissions ({}) for "
-                "command named '{}'; cannot register it. {}",
-                event.permissions,
-                event.name,
-                event,
-                context=event.context)
+            msg = ("CommandRegisterReply has invalid permissions ({}) for "
+                   "command named '{}'; cannot register it. {}")
+            msg = msg.format(event.permissions,
+                             event.name,
+                             event)
+            error = CommandRegisterError(msg, None,
+                                         context=event.context)
+            raise self._log.exception(error,
+                                      msg,
+                                      context=event.context)
 
         # Event is probably sane.
         # Now turn it into a Command object for our registration map.
@@ -265,7 +268,7 @@ class Commander:
         log_fmt = msg_pre + message + '{msg_post}'
         kwargs['msg_post'] = msg_post
         log.incr_stack_level(kwargs)
-        log.at_level(level, log_fmt, *args, **kwargs)
+        self._log.at_level(level, log_fmt, *args, **kwargs)
 
     # -------------------------------------------------------------------------
     # Sub-Command Functions
@@ -363,6 +366,7 @@ class Commander:
         # Fourth, execute?
         try:
             status = cmd.execute(*args, **kwargs, context=context)
+
         except CommandExecutionError as error:
             self._log(context,
                       log.Level.ERROR,
@@ -377,11 +381,10 @@ class Commander:
             raise
 
         if status is None:
-            raise log.exception(None,
-                                CommandExecutionError,
-                                "Invoked command '{}' did not return status. "
-                                "input: '{}'",
-                                name, command_safe)
+            msg = "Invoked command '{}' did not return status. input: '{}'"
+            msg = msg.format(name, command_safe)
+            error = CommandExecutionError(msg, None, context=context)
+            raise log.exception(error, msg, context=context)
 
         # Did a thing; return whether it was a successful doing of a thing.
         return status
