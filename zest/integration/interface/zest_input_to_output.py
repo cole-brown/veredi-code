@@ -26,10 +26,12 @@ from veredi.zest.base.integrate import ZestIntegrateEngine
 
 from veredi.logger                          import log
 from veredi.base.null                       import Null
+from veredi.data                            import background
 from veredi.base.context                    import UnitTestContext
 from veredi.data.context                    import (DataGameContext,
                                                     DataLoadContext)
 from veredi.data.exceptions                 import LoadError
+from veredi.data.identity                   import UserId, UserKey
 
 from veredi.debug.const                     import DebugFlag
 from veredi.game.ecs.base.identity          import ComponentId
@@ -39,16 +41,19 @@ from veredi.game.ecs.base.entity            import Entity
 from veredi.game.data.event                 import (DataLoadRequest,
                                                     DataLoadedEvent)
 
+from veredi.interface.user                  import User
 from veredi.interface.input.event           import CommandInputEvent
 from veredi.interface.input.context         import InputContext
 from veredi.interface.output.system         import OutputSystem
-from veredi.interface.output.event          import OutputTarget
+from veredi.interface.output.envelope       import Envelope
+from veredi.interface.output.event          import Recipient
 
 from veredi.rules.d20.pf2.ability.system    import AbilitySystem
 from veredi.rules.d20.pf2.ability.event     import AbilityResult
 from veredi.rules.d20.pf2.ability.component import AbilityComponent
 
 from veredi.math.system                     import MathSystem
+from veredi.math.parser                     import MathTree
 from veredi.game.data.identity.system       import IdentitySystem
 from veredi.game.data.identity.component    import IdentityComponent
 from veredi.rules.d20.pf2.health.component  import HealthComponent
@@ -57,43 +62,6 @@ from veredi.rules.d20.pf2.health.component  import HealthComponent
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# # regex is:
-# #   "iid:"
-# #   hexadecimal string with dash separators:
-# #   word boundry
-# # This works for InputIds like:
-# #   iid:53a296bb-4240-5e84-a5ce-b7293b648138
-# IID_RE_STR = r'iid:[0-9A-Fa-f-]*\b'
-# Currently encode IIDs to dict via Encodable.encode(), so currently id value
-# is an int:
-IID_RE_STR = r'iid:\s?[0-9]*\b'
-IID_REPLACEMENT = '<input-id>'
-
-EXPECTED_OUTPUT = '''!effect.math
-title: {caption: Fake Subtitle, name: Fake Title}
-input: ability $dex.mod + 4
-id: {_encodable: InputId, <input-id>}
-type: veredi.math.event.output
-output:
-  children:
-  - children:
-    - children:
-      - {name: dexterity.score, type: variable, value: 10}
-      - {name: '10', type: constant, value: 10}
-      name: "\\u2212"
-      type: operator
-      value: 0
-    - {name: '2', type: constant, value: 2}
-    name: "\\xF7\\xF7"
-    type: operator
-    value: 0
-  - {name: '4', type: constant, value: 4}
-  name: +
-  type: operator
-  value: 4
-names: {'EntityId:001': aluminum dragon}
-'''
 
 
 # -----------------------------------------------------------------------------
@@ -107,16 +75,22 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
         super().set_up()
 
         self.output_recvd = None
+        self.recipients = Recipient.INVALID
         self.expected_components = {IdentityComponent,
                                     AbilityComponent,
                                     HealthComponent}
 
         self.init_many_systems(IdentitySystem, MathSystem, AbilitySystem)
 
+        self._uid_gen = UserId.generator()
+        self._ukey_gen = UserKey.generator()
+        self.make_users()
+
     def tear_down(self):
         super().tear_down()
         self.expected_components = None
         self.output_recvd = None
+        self.recipients = Recipient.INVALID
 
     def sub_events(self) -> None:
         self.manager.event.subscribe(AbilityResult, self.event_ability_res)
@@ -144,11 +118,20 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
 
         return event
 
-    def recv_output(self, send_entry):
+    def recv_output(self, envelope, recipients):
         '''
         Unit testing callback for OutputSystem.
         '''
-        self.output_recvd = send_entry
+        self.output_recvd = envelope
+        self.output_recipients = recipients
+
+    def make_users(self):
+        '''
+        Stuff some fake users into background.
+        '''
+        uid  = self._uid_gen.next("jeff")
+        ukey = self._ukey_gen.next("jeff")
+        background.users.add_connected(User(uid, ukey))
 
     # -------------------------------------------------------------------------
     # Entity/Component Test Set-Up
@@ -268,32 +251,22 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
             self.engine_tick(1)
 
         self.assertTrue(self.output_recvd)
-        self.assertEqual(self.output_recvd.target_type,
-                         OutputTarget.BROADCAST)
-        self.assertEqual(self.output_recvd.payload_type,
-                         OutputTarget.BROADCAST)
+        self.assertIsInstance(self.output_recvd, Envelope)
+        self.assertEqual(self.output_recvd.desired_recipients,
+                         Recipient.BROADCAST)
+        self.assertEqual(self.output_recvd.valid_recipients,
+                         Recipient.BROADCAST)
+        # Should be EntityId:001
+        self.assertEqual(self.output_recvd.source_id.value, 1)
 
-        # Replace payload's input id with placeholder via regex. Then compare
-        # line by line with a nice error message so it's not just all...:
-        #
-        #   AssertionError: '!eff[532 chars]ator\n value: 4\nnames:
-        #   {\'EntityId:001\': aluminum dragon}\n' != '!eff[532 chars]ator\n
-        #   value: 4\nnames: {\'EntityId:001\': aluminum dragon}'
-        #   Diff is 697 characters long. Set self.maxDiff to None to see it.
-
-        regex = re.compile(IID_RE_STR, re.IGNORECASE)
-        payload = regex.sub(IID_REPLACEMENT, self.output_recvd.payload)
-        i = 0
-        for line, check in zip_longest(payload.split('\n'),
-                                       EXPECTED_OUTPUT.split('\n')):
-            # 'this' shouldn't be in the output anywhere.
-            self.assertEqual(line.find('this'), -1,
-                             f"line #{i} failed 'this'-lessness check: "
-                             f"\noutput: '{line}'")
-            self.assertEqual(line, check,
-                             "line #{i} failed equality check: \noutput: "
-                             f"'{line}'\n check: '{check}'")
-            i += 1
+        # Envelope's data is the math tree results. Make sure they're what we
+        # expect.
+        self.assertIsInstance(self.output_recvd.data, MathTree)
+        # Aluminum Dragon's data is:
+        #   veredi/zest/zata/integration/repository/file-tree/game/test-campaign/monsters/dragon/aluminum_dragon.yaml
+        # Aluminum Dragon's Dex is: 10 (mod == 0)
+        #   dex.mod + 4 = 4
+        self.assertEqual(self.output_recvd.data.value, 4)
 
         self.manager.system.get(OutputSystem)._unit_test()
 

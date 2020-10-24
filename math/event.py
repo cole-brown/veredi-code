@@ -17,7 +17,7 @@ from veredi.base.context           import VerediContext
 from veredi.base.identity          import SerializableId
 from veredi.game.ecs.base.identity import EntityId
 from veredi.game.ecs.event         import Event
-from veredi.interface.output.event import OutputEvent, OutputTarget
+from veredi.interface.output.event import OutputEvent, Recipient
 
 from .parser import MathTree
 
@@ -133,9 +133,9 @@ class MathOutputEvent(OutputEvent):
     #              output:        Optional[MathTree],
     #              context:       VerediContext,
     #              serial_id:     SerializableId,
-    #              output_target: OutputTarget) -> None:
+    #              recipients: Recipient) -> None:
     #     self.set(source_id, source_type, output, context,
-    #              serial_id, output_target)
+    #              serial_id, recipients)
 
     def set(self,
             source_id:     Union[int, EntityId],
@@ -143,10 +143,10 @@ class MathOutputEvent(OutputEvent):
             output:        Optional[MathTree],
             context:       VerediContext,
             serial_id:     SerializableId,
-            output_target: OutputTarget) -> None:
+            recipients:    Recipient) -> None:
         super().set(source_id, source_type,
                     output, context,
-                    serial_id, output_target)
+                    serial_id, recipients)
         # ---
         # Set/Init our vars.
         # ---

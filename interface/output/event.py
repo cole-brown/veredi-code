@@ -26,7 +26,7 @@ from veredi.interface.input.context import InputContext
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class OutputTarget(FlagCheckMixin, FlagSetMixin, enum.Flag):
+class Recipient(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
     has() and any() provided by FlagCheckMixin.
     '''
@@ -72,9 +72,9 @@ class OutputEvent(Event):
                  output:      Any,
                  context:     VerediContext,
                  serial_id:   SerializableId,
-                 output_target: 'OutputTarget') -> None:
+                 recipients: 'Recipient') -> None:
         self.set(source_id, source_type, output, context,
-                 serial_id, output_target)
+                 serial_id, recipients)
 
     def set(self,
             source_id:   Union[int, EntityId],
@@ -82,21 +82,21 @@ class OutputEvent(Event):
             output:      Any,
             context:     VerediContext,
             serial_id:   SerializableId,
-            output_target: 'OutputTarget') -> None:
+            recipients: 'Recipient') -> None:
         super().set(source_id, source_type, context)
         self._output = output
         self._serial_id = serial_id
-        self._output_target = output_target
-        self._designations = {
-            str(source_id): InputContext.source_designation(context),
-        }
+        self._recipients = recipients
+        # self._designations = {
+        #     str(source_id): InputContext.source_designation(context),
+        # }
 
     def reset(self) -> None:
         super().reset()
         self._output = None
         self._serial_id = None
-        self._output_target = None
-        self._designations = None
+        self._recipients = None
+        # self._designations = None
 
     # -------------------------------------------------------------------------
     # Output Things
@@ -109,31 +109,31 @@ class OutputEvent(Event):
         '''
         return self._output
 
-    @property
-    def designations(self) -> Mapping[str, str]:
-        '''
-        Returns a dictionary of identifiers (dotted strs, IDs, etc.) to
-        designations (entity display names, feat display names, etc).
-        '''
-        return self._designations
-
-    @property
-    def title(self) -> str:
-        '''
-        Display Name / Title of this event.
-
-        e.g. "Skill Check"
-        '''
-        return self._title_main
-
-    @property
-    def subtitle(self) -> str:
-        '''
-        Second Display Name / Sub-Title of this event.
-
-        e.g. "Sneakery"
-        '''
-        return self._title_sub
+    # @property
+    # def designations(self) -> Mapping[str, str]:
+    #     '''
+    #     Returns a dictionary of identifiers (dotted strs, IDs, etc.) to
+    #     designations (entity display names, feat display names, etc).
+    #     '''
+    #     return self._designations
+    #
+    # @property
+    # def title(self) -> str:
+    #     '''
+    #     Display Name / Title of this event.
+    #
+    #     e.g. "Skill Check"
+    #     '''
+    #     return self._title_main
+    #
+    # @property
+    # def subtitle(self) -> str:
+    #     '''
+    #     Second Display Name / Sub-Title of this event.
+    #
+    #     e.g. "Sneakery"
+    #     '''
+    #     return self._title_sub
 
     @property
     def serial_id(self) -> SerializableId:
@@ -157,11 +157,11 @@ class OutputEvent(Event):
         return self.id
 
     @property
-    def output_target(self) -> 'OutputTarget':
+    def desired_recipients(self) -> 'Recipient':
         '''
-        OutputTarget of this OutputEvent.
+        Desired recipients of this OutputEvent.
         '''
-        return self._output_target
+        return self._recipients
 
     @property
     def dotted(self) -> str:
