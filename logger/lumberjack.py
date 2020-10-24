@@ -75,9 +75,11 @@ class Lumberjack:
         (aka 'with this_lumberjack:').
         '''
 
+        self._levels: Dict[log.Group, log.Level]
+
     def __init__(self,
                  name:                str,
-                 initial_level:       logging.Logger,
+                 initial_level:       log.Level             = log.Level.NOTSET,
                  require_veredi_name: bool                        = True,
                  handler:             Optional[logging.Handler]   = None,
                  formatter:           Optional[logging.Formatter] = None
@@ -98,7 +100,7 @@ class Lumberjack:
         # ------------------------------
         # Set-Up
         # ------------------------------
-        self._logger = log.init_logger(self._dotted,
+        self._logger = log.init_logger(self._name,
                                        initial_level,
                                        handler=handler,
                                        formatter=formatter)
@@ -142,7 +144,47 @@ class Lumberjack:
         return log.will_output(level, self._logger)
 
     # -------------------------------------------------------------------------
-    # Logging Functions
+    # Logging-by-Functionality Functions
+    # -------------------------------------------------------------------------
+
+
+    def group(self,
+              group:         'Group',
+              msg:           str,
+              *args:         Any,
+              **kwargs:      Any) -> None:
+        '''
+        Log at `group` log.Level, whatever it's set to right now.
+        '''
+        kwargs = log.incr_stack_level(kwargs)
+        log.group(level, msg,
+                  *args,
+                  veredi_logger=self._logger,
+                  **kwargs)
+
+    def security(self,
+                 msg:      str,
+                 *args:    Any,
+                 context:  Optional['VerediContext'] = None,
+                 **kwargs: Any) -> None:
+        '''
+        Log a security-related message via our logger.
+
+        NOTE: this is not a "log at this level" function. Rather, it is a "log
+        this security-related log" function. The logging level this uses can
+        change at any time. This just allows all security logs to stay grouped
+        at the same level easily (and keep them there if/when the level
+        changes).
+        '''
+        kwargs = self._stack(1, **kwargs)
+        log.security(msg,
+                     *args,
+                     veredi_logger=self._logger,
+                     context=context,
+                     **kwargs)
+
+    # -------------------------------------------------------------------------
+    # Logging-by-Level Functions
     # -------------------------------------------------------------------------
 
     def _stack(self,
@@ -203,7 +245,7 @@ class Lumberjack:
         # ------------------------------
         # Adjust Stack Level.
         # ------------------------------
-        kwargs = self._stack(1, kwargs)
+        kwargs = self._stack(1, **kwargs)
 
         # ------------------------------
         # Make the call.
@@ -222,7 +264,7 @@ class Lumberjack:
         '''
         Log a debug level message via our logger.
         '''
-        kwargs = self._stack(1, kwargs)
+        kwargs = self._stack(1, **kwargs)
         log.debug(msg,
                   *args,
                   veredi_logger=self._logger,
@@ -237,7 +279,7 @@ class Lumberjack:
         '''
         Log a info level message via our logger.
         '''
-        kwargs = self._stack(1, kwargs)
+        kwargs = self._stack(1, **kwargs)
         log.info(msg,
                  *args,
                  veredi_logger=self._logger,
@@ -252,7 +294,7 @@ class Lumberjack:
         '''
         Log a warning level message via our logger.
         '''
-        kwargs = self._stack(1, kwargs)
+        kwargs = self._stack(1, **kwargs)
         log.warning(msg,
                     *args,
                     veredi_logger=self._logger,
@@ -267,7 +309,7 @@ class Lumberjack:
         '''
         Log a error level message via our logger.
         '''
-        kwargs = self._stack(1, kwargs)
+        kwargs = self._stack(1, **kwargs)
         log.error(msg,
                   *args,
                   veredi_logger=self._logger,
@@ -282,7 +324,7 @@ class Lumberjack:
         '''
         Log a critical level message via our logger.
         '''
-        kwargs = self._stack(1, kwargs)
+        kwargs = self._stack(1, **kwargs)
         log.critical(msg,
                      *args,
                      veredi_logger=self._logger,
@@ -311,7 +353,7 @@ class Lumberjack:
             # Reraise error if desired like this.
             raise
         '''
-        kwargs = self._stack(1, kwargs)
+        kwargs = self._stack(1, **kwargs)
         log.exception(error,
                       None,
                       msg,
@@ -331,7 +373,7 @@ class Lumberjack:
         Log at a programatically-decided logging level. Calls the class
         function for the level.
         '''
-        kwargs = self._stack(1, kwargs)
+        kwargs = self._stack(1, **kwargs)
         log_fn = None
         if level == log.Level.NOTSET:
             self.exception(ValueError("Cannot log at NOTSET level.",

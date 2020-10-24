@@ -62,7 +62,7 @@ from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
                                                 CommandStatus)
 from veredi.math.parser                 import MathTree
 from veredi.math.system                 import MathSystem
-from veredi.interface.output.event      import OutputTarget
+from veredi.interface.output.event      import Recipient
 from veredi.math.event                  import MathOutputEvent
 from veredi.interface.input.context     import InputContext
 
@@ -225,7 +225,7 @@ class SkillSystem(D20RulesSystem):
                             math, context,
                             InputContext.input_id(context),
                             # TODO [2020-07-11]: a proper output type...
-                            OutputTarget.BROADCAST),
+                            Recipient.BROADCAST),
             context)
 
         return CommandStatus.successful(context)

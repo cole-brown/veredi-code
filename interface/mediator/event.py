@@ -14,9 +14,11 @@ FromClient for received user messages.
 from typing import Optional, Union, Any
 import enum
 
-from veredi.base.context import VerediContext
+from veredi.base.context           import VerediContext
 from veredi.game.ecs.base.identity import EntityId
-from veredi.game.ecs.event import Event
+from veredi.game.ecs.event         import Event
+
+from ..output.envelope             import Envelope
 
 
 # -----------------------------------------------------------------------------
@@ -74,6 +76,16 @@ class GameToMediatorEvent(MediatorEvent):
     sending something to a client will receive this event from the
     EventManager and prep it for sending to the client via the MediatorServer.
     '''
+
+    def __init__(self,
+                 envelope: Envelope) -> None:
+        # Get values for initializing this instance.
+        entity_id = envelope._event.id
+        type = envelope._event.type
+        context = envelope._event.context
+
+        # Envelope itself goes into 'payload', I guess.
+        super().__init__(entity_id, type, context, envelope)
 
     def __repr_name__(self):
         return "Game2MedEvent"

@@ -65,6 +65,9 @@ class Subject(FlagCheckMixin, FlagSetMixin, enum.Flag):
     OWNER = enum.auto()
     '''Only allowed by the owner entity of the game.'''
 
+    BROADCAST = enum.auto()
+    '''All connected users.'''
+
     # ------------------------------
     # !!! Non-Standard Attributes !!!
     # ------------------------------

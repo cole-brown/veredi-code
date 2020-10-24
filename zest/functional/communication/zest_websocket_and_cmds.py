@@ -89,7 +89,7 @@ from veredi.rules.d20.pf2.ability.event                              import Abil
 from veredi.rules.d20.pf2.ability.component                          import AbilityComponent
 from veredi.rules.d20.pf2.health.component import HealthComponent
 from veredi.math.system                 import MathSystem
-# from veredi.interface.output.event      import OutputTarget
+# from veredi.interface.output.event      import Recipient
 from veredi.math.event                  import MathOutputEvent
 
 

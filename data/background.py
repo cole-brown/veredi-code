@@ -21,17 +21,20 @@ systems created, etc.
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any,
                     Type, NewType,
-                    Mapping, MutableMapping)
+                    Mapping, MutableMapping, List)
 if TYPE_CHECKING:
-    from veredi.base.const            import VerediHealth
-    from veredi.base.context          import VerediContext
-    from veredi.data.repository.base  import BaseRepository
-    from veredi.data.codec.base       import BaseCodec
-    from veredi.game.ecs.meeting      import Meeting
-    from veredi.game.ecs.base.system  import System, SystemLifeCycle
-    from veredi.interface.input.parse import Parcel
-    from .config                      import Configuration
-
+    from veredi.base.const             import VerediHealth
+    from veredi.base.context           import VerediContext
+    from veredi.data.repository.base   import BaseRepository
+    from veredi.data.codec.base        import BaseCodec
+    from veredi.game.ecs.meeting       import Meeting
+    from veredi.game.ecs.base.system   import System, SystemLifeCycle
+    from veredi.interface.input.parse  import Parcel
+    from .config                       import Configuration
+    from veredi.base.identity          import MonotonicId, SerializableId
+    from veredi.game.ecs.base.identity import EntityId
+    from veredi.data.identity          import UserId, UserKey
+    from veredi.interface.user         import User
 
 import enum
 import pathlib
@@ -112,6 +115,23 @@ etc.'''
 _INTERFACE = 'interface'
 '''Input, output, mediator, etc. root key.'''
 
+_USERS = 'users'
+'''All users for the game.'''
+
+_USERS_CONNECTED = 'connected'
+'''All currently connected users for the game.'''
+
+_USERS_KNOWN = 'known'
+'''
+All known users for the game. Previously connected, currently connected,
+whatever.
+'''
+
+_USERS_SUPER = 'super'
+'''
+Game superusers. Game owner, GMs, etc.
+'''
+
 _OUTPUT = 'output'
 '''OutputSystem and other output stuff should be placed under this key.'''
 
@@ -155,6 +175,11 @@ _CONTEXT_LAYOUT = {
             _DATA: {},
         },
         _INTERFACE: {
+            _USERS: {
+                _USERS_CONNECTED: set(),
+                _USERS_KNOWN: set(),
+                _USERS_SUPER: set(),
+            },
             _INPUT: {
                 _COMMAND: {
                     _CMDS_EXISTING: [],
@@ -679,6 +704,191 @@ class interface:
         '''
         global _INTERFACE
         return veredi.get().get(_INTERFACE, Null())
+
+
+# -------------------------------------------------------------------------
+# Users Namespace
+# -------------------------------------------------------------------------
+
+class users:
+
+    # -------------------------------------------------------------------------
+    # Getters / Setters
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _get(klass: Type['users']) -> Nullable[ContextMutableMap]:
+        '''
+        Get users's sub-context from background context.
+        '''
+        global _USERS
+        return interface.get().get(_USERS, Null())
+
+    @classmethod
+    def _connected(klass: Type['users']) -> Nullable[ContextMutableMap]:
+        '''
+        Get 'user.connected' sub-context from background context.
+        '''
+        return klass._get().get(_USERS_CONNECTED, Null())
+
+    @classmethod
+    def _known(klass: Type['users']) -> Nullable[ContextMutableMap]:
+        '''
+        Get 'user.known' sub-context from background context.
+        '''
+        return klass._get().get(_USERS_KNOWN, Null())
+
+    @classmethod
+    def _super(klass: Type['users']) -> Nullable[ContextMutableMap]:
+        '''
+        Get 'user.super' sub-context from background context.
+        '''
+        return klass._get().get(_USERS_SUPER, Null())
+
+    # -------------------------------------------------------------------------
+    # More Specific Getters
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def connected(klass: Type['users'],
+                  id:    Union['EntityId', 'UserId', 'UserKey']
+                  ) -> Nullable[List['User']]:
+        '''
+        Returns a User, if they exist in the connected users collection.
+        If `id` is Falsy, returns all connected users.
+        '''
+        connected = klass._connected()
+        matches = []
+        if not id:
+            # Push ALL known users into matches set and return.
+            matches.extend(connected)
+            return matches
+
+        for user in connected:
+            if not user:
+                continue
+            # Check all the id types we allow in.
+            if (user.id == id or user.key == id or user.entity_prime == id):
+                matches.append(user)
+
+        return matches
+
+    @classmethod
+    def known(klass: Type['users'],
+              id:    Union['EntityId', 'UserId', 'UserKey']
+              ) -> Nullable[List['User']]:
+        '''
+        Returns a User, if they exist in the known users collection.
+        If `id` is Falsy, returns all known users.
+        '''
+        known = klass._known()
+        matches = []
+        if not id:
+            # Push ALL known users into matches set and return.
+            matches.extend(known)
+            return matches
+
+        for user in known:
+            if not user:
+                continue
+            # Check all the id types we allow in.
+            if (user.id == id or user.key == id or user.entity_prime == id):
+                matches.append(user)
+
+        return matches
+
+    @classmethod
+    def super(klass: Type['users'],
+              id:    Union['EntityId', 'UserId', 'UserKey']
+              ) -> Nullable[List['User']]:
+        '''
+        Returns all matched superuser ids found in the super users collection.
+        If `id` is Falsy, returns all GMs.
+        '''
+        super = klass._super()
+        matches = []
+        if not id:
+            # Push ALL super users into matches set and return.
+            matches.extend(super)
+            return matches
+
+        for user in super:
+            if not user:
+                continue
+            # Check all the id types we allow in.
+            if (user.id == id or user.key == id or user.entity_prime == id):
+                matches.append(user)
+
+        return matches
+
+    @classmethod
+    def gm(klass: Type['users'],
+           id:    Union['EntityId', 'UserId', 'UserKey']
+           ) -> Nullable[List['User']]:
+        '''
+        Returns all matched GM ids found in the super users collection.
+        If `id` is Falsy, returns all GMs.
+
+        TODO: Distinguish GMs from other superusers.
+        TODO: Have other superuser types. Debugger, Assistant (to the) GM...
+        '''
+        super = klass._super()
+        matches = []
+        if not id:
+            # Push ALL GM users into matches set and return.
+            # TODO: Distinguish GMs from other superusers.
+            matches.extend(super)
+            return matches
+
+        for user in super:
+            if not user:
+                continue
+            # Check all the id types we allow in.
+            # TODO: Distinguish GMs from other superusers.
+            if (user.id == id or user.key == id or user.entity_prime == id):
+                matches.append(user)
+
+        return matches
+
+    # -------------------------------------------------------------------------
+    # Setters
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def add_connected(klass: Type['users'],
+                      user:  'User') -> None:
+        '''
+        Adds user to 'connected' (user) collection.
+
+        If `user` already exists in the collection (as defined by Python's
+        set() functionality and User.__hash__()), this will overwrite it.
+        '''
+        connected = klass._connected()
+        connected.add(user)
+
+    @classmethod
+    def add_known(klass: Type['users'],
+                  user:  'User') -> None:
+        '''
+        Adds user to 'known' (user) collection.
+
+        If `user` already exists in the collection (as defined by Python's
+        set() functionality and User.__hash__()), this will overwrite it.
+        '''
+        known = klass._known()
+        known.add(user)
+
+    @classmethod
+    def add_super(klass: Type['users'],
+                  user:  'User') -> None:
+        '''
+        Adds user to 'super' (user) collection.
+
+        If `user` already exists in the collection (as defined by Python's
+        set() functionality and User.__hash__()), this will overwrite it.
+        '''
+        super = klass._super()
+        super.add(user)
 
 
 # -------------------------------------------------------------------------

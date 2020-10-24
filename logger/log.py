@@ -10,7 +10,7 @@ Logging utilities for Veredi.
 
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any, NewType, Type, Callable,
-                    Mapping, MutableMapping, Iterable)
+                    Mapping, MutableMapping, Iterable, Dict)
 if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
     from veredi.base.exceptions import VerediError
@@ -155,6 +155,31 @@ class Level(enum.IntEnum):
 
 
 DEFAULT_LEVEL = Level.INFO
+
+
+# ------------------------------
+# Logging "Groups"
+# ------------------------------
+
+@enum.unique
+class Group(enum.IntEnum):
+    '''
+    A logging group is for relating certain logs to a log.Level indirectly.
+
+    E.g. log.Group.SECURITY can be set to Level.WARNING, or turned down to
+    Level.DEBUG, and all log.Group.SECURITY logs will dynamically log out at
+    the current level for the group.
+    '''
+
+    SECURITY = enum.auto()
+    '''veredi.security.* logs, and related logs.'''
+
+    # TODO: more groups?
+
+
+_GROUP_LEVELS: Dict[Group, Level] = {
+    Group.SECURITY: Level.WARNING,
+}
 
 
 # ------------------------------
@@ -665,6 +690,50 @@ def at_level(level: 'Level',
         log_fn = critical
 
     log_fn(msg, *args, veredi_logger=veredi_logger, **kwargs)
+
+
+# -----------------------------------------------------------------------------
+# Logging Groups
+# -----------------------------------------------------------------------------
+
+def group(group: 'Group',
+          msg: str,
+          *args: Any,
+          veredi_logger: NullNoneOr[logging.Logger] = None,
+          **kwargs: Any) -> None:
+    '''
+    Log at `group` log.Level, whatever it's set to right now.
+    '''
+    level = _GROUP_LEVELS[group]
+    kwargs = incr_stack_level(kwargs)
+    at_level(level, msg,
+             *args,
+             veredi_logger=veredi_logger,
+             **kwargs)
+
+
+def set_group_level(group: 'Group',
+                    level: 'Level') -> None:
+    '''
+    Updated `group` to logging `level`.
+    '''
+    global _GROUP_LEVELS
+    _GROUP_LEVELS[group] = level
+
+
+def security(msg: str,
+             *args: Any,
+             veredi_logger: NullNoneOr[logging.Logger] = None,
+             **kwargs: Any) -> None:
+    '''
+    Log at Group.SECURITY log.Level, whatever it's set to right now.
+    '''
+    level = _GROUP_LEVELS[Group.SECURITY]
+    kwargs = incr_stack_level(kwargs)
+    at_level(level, msg,
+             *args,
+             veredi_logger=veredi_logger,
+             **kwargs)
 
 
 # -----------------------------------------------------------------------------

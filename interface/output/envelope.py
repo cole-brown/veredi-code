@@ -19,7 +19,7 @@ Envelope (when ready) will be passed from OutputSystem to MediatorSystem
 # ---
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any, Type, Callable,
-                    Set, List, Dict, NamedTuple)
+                    Set, List, Dict, NamedTuple, Iterable)
 if TYPE_CHECKING:
     from decimal                   import Decimal
 
@@ -33,41 +33,19 @@ if TYPE_CHECKING:
 # ---
 # Code
 # ---
-from veredi.data                         import background
+from veredi.data                   import background
 
-from veredi.logger                       import log
-from veredi.base.const                   import VerediHealth
-from veredi.data.config.registry         import register
-from veredi.data.serdes.string           import StringSerdes
+from veredi.logger                 import log
+from veredi.base.identity          import SerializableId
 
-# Game / ECS Stuff
-from veredi.game.ecs.event               import EventManager
-from veredi.game.ecs.time                import TimeManager
+from veredi.game.ecs.base.identity import EntityId
+from veredi.data.identity          import UserId, UserKey
 
-from veredi.game.ecs.const               import (SystemTick,
-                                                 SystemPriority)
+from .event                        import OutputEvent, Recipient
+from ..user                        import User
 
-from veredi.game.ecs.base.system         import System
-from veredi.game.ecs.base.component      import Component
-from veredi.game.ecs.base.identity       import EntityId
-from veredi.game.data.identity.component import IdentityComponent
-from veredi.data.identity                      import UserId, UserKey
-
-# Input-Related Stuff?
-# from ..input.context                     import InputContext
-# from ..input                             import sanitize
-# from ..input.parse                       import Parcel
-# from ..input.command.commander           import Commander
-# from ..input.history.history             import Historian
-# from ..input.event                       import CommandInputEvent
-# from ..input.component                   import InputComponent
-
-# Output-Related Stuff
-from .event                              import OutputEvent, OutputTarget
-
-# Message Things
-from ..mediator.message import Message, MsgType
-from ..mediator.payload.base import BasePayload
+from ..mediator.message            import Message, MsgType
+from ..mediator.payload.base       import BasePayload
 
 
 # -----------------------------------------------------------------------------
@@ -76,12 +54,12 @@ from ..mediator.payload.base import BasePayload
 
 class Address(NamedTuple):
     '''
-    Info for translating from OutputType to specific User.
+    Info for translating from OutputType to Users of a specific output format
+    (which is dictated by `access_level`).
     '''
-    entity_id:    Optional[EntityId]
-    user_id:      UserId
-    user_key:     UserKey
+    recipient:   Recipient
     access_level: 'abac.Subject'
+    user:         List[User]
 
 
 # -----------------------------------------------------------------------------
@@ -109,45 +87,50 @@ class Envelope:
         # ------------------------------
         # Final Info
         # ------------------------------
-        self._recipients: OutputTarget = OutputTarget.INVALID
-        '''All (validated) OutputTargets that we will be trying to send to.'''
+        self._recipients: Recipient = Recipient.INVALID
+        '''All (validated) Recipients that we will be trying to send to.'''
 
-        self._addresses: Dict[OutputTarget, Address] = {}
-        '''Storage for OutputTarget -> user info.'''
+        self._addresses: Dict[Recipient, Address] = {}
+        '''Storage for Recipient -> user info.'''
 
         # # TODO: Hold multiple messages or just create on demand?
-        # self._payloads: Dict[OutputTarget, Message] = {}
-        # '''Message Payloads by each OutputTarget.'''
+        # self._payloads: Dict[Recipient, Message] = {}
+        # '''Message Payloads by each Recipient.'''
         #
-        # self._message: Dict[OutputTarget, Message] = {}
-        # '''Messages by each OutputTarget.'''
+        # self._message: Dict[Recipient, Message] = {}
+        # '''Messages by each Recipient.'''
 
     def __init__(self,
-                 data_recipients_allowed: OutputTarget,
-                 data_entity_id:          EntityId,
-                 data:                    Optional[Any]
+                 event: OutputEvent
                  # TODO: SecurityContext?
                  ) -> None:
 
-        self._define_vars(self)
+        self._define_vars()
 
-        self._data_recipients = data_recipients_allowed
-        self._data_for_payload = data
+        self._event = event
 
     # -------------------------------------------------------------------------
     # Properties
     # -------------------------------------------------------------------------
 
     @property
-    def event_recipients(self) -> Optional[OutputTarget]:
+    def context(self) -> Optional['VerediContext']:
         '''
         Returns the envelope's intended recipient flags. These are what the
         data source told us were acceptable recipients for the data.
         '''
-        return self._event._recipients
+        return self._event.context
 
     @property
-    def valid_recipients(self) -> Optional[OutputTarget]:
+    def desired_recipients(self) -> Optional[Recipient]:
+        '''
+        Returns the envelope's intended recipient flags. These are what the
+        data source told us were acceptable recipients for the data.
+        '''
+        return self._event.desired_recipients
+
+    @property
+    def valid_recipients(self) -> Optional[Recipient]:
         '''
         Returns the envelope's validated recipient flags. These are what we
         have had verified/authorized by an external source and been reported
@@ -155,27 +138,44 @@ class Envelope:
         '''
         return self._recipients
 
+    @valid_recipients.setter
+    def valid_recipients(self, value: Recipient) -> None:
+        '''
+        Sets the envelope's validated recipient flags. These are expected to be
+        verified/authorized by an external source before this is set.
+        '''
+        self._recipients = value
+
     @property
     def data(self) -> Optional[Any]:
         '''
         Returns the envelope's raw data (not Message or Payload - just the data
         that will be used to build payloads and then messages).
         '''
-        return self._data_for_payload
+        return self._event.output
 
-    @data.setter
-    def data(self, value: Optional[Any]) -> None:
+    @property
+    def source_id(self) -> EntityId:
         '''
-        Sets the envelope's raw data (not Message or Payload - just the data
-        that will be used to build payloads and then messages).
+        Returns the EntityId of the envelope's raw data's "owner" - the primary
+        entity who should know all the Top Secret things about the data if
+        there are any.
         '''
-        return self._data_for_payload
+        return self._event.source_id
+
+    @property
+    def id(self) -> SerializableId:
+        '''
+        Returns the OutputEvent's `serial_id`. Probably an id pass all the way
+        from input.
+        '''
+        return self._event.serial_id
 
     # -------------------------------------------------------------------------
     # Addresses
     # -------------------------------------------------------------------------
 
-    def address(self, recipient: OutputTarget) -> Optional[Address]:
+    def address(self, recipient: Recipient) -> Optional[Address]:
         '''
         Returns Address entry for recipient, or None if not found.
         '''
@@ -183,7 +183,7 @@ class Envelope:
         # Sanity Checks
         # ---
         if not recipient.is_solo:
-            err_msg = ("OutputTarget must be a single receipient value."
+            err_msg = ("Recipient must be a single receipient value."
                        f"Got: '{recipient}'")
             error = ValueError(err_msg, recipient)
             raise log.exception(error,
@@ -193,11 +193,9 @@ class Envelope:
         return self._addresses.get(recipient, None)
 
     def set_address(self,
-                    recipient: OutputTarget,
+                    recipient:    Recipient,
                     access_level: 'abac.Subject',
-                    entity_id: Optional[EntityId],
-                    user_id:   UserId,
-                    user_key:  Optional[UserKey]) -> None:
+                    users:        Iterable[User]) -> None:
         '''
         Set/overwrite an address for the recipient.
         '''
@@ -205,47 +203,22 @@ class Envelope:
         # Sanity Checks
         # ---
         if not recipient.is_solo:
-            err_msg = ("OutputTarget must be a single receipient value."
+            err_msg = ("Recipient must be a single receipient value."
                        f"Got: '{recipient}'")
             error = ValueError(err_msg, recipient)
             raise log.exception(error,
                                 None,
                                 err_msg)
 
-        address = Address(entity_id, user_id, user_key, access_level)
+        address = Address(recipient, access_level, users)
         self._addresses[recipient] = address
-
-    # -------------------------------------------------------------------------
-    # Payloads
-    # -------------------------------------------------------------------------
-
-    def set_payload(self,
-                    recipient: OutputTarget,
-                    payload: Union[BasePayload, Any]) -> None:
-        '''
-        Set a `payload` for one or more `recipients`.
-        Will just get ignored if
-        '''
-        raise NotImplementedError
-
-    def payload(self,
-                recipient: OutputTarget) -> Union[None, BasePayload, Any]:
-        '''
-        Get a `payload` for one or more `recipients`.
-
-        Returns None if it has no payload for (all of) the `recipients` - that
-        is, the individual recipient flags are considered to be AND'd together
-        so if /all/ of them are not already in the envelope's
-        `self.recipients`, None will be returned.
-        '''
-        raise NotImplementedError
 
     # -------------------------------------------------------------------------
     # Messages
     # -------------------------------------------------------------------------
 
     def message(self,
-                recipient: OutputTarget,
+                recipient: Recipient,
                 entity_id: Optional[EntityId],
                 user_id:   UserId,
                 user_key:  Optional[UserKey],
@@ -258,7 +231,7 @@ class Envelope:
         # Sanity Checks
         # ---
         if not recipient.is_solo:
-            err_msg = ("OutputTarget must be a single receipient value."
+            err_msg = ("Recipient must be a single receipient value."
                        f"Got: '{recipient}'")
             error = ValueError(err_msg, recipient)
             raise log.exception(error,
@@ -306,35 +279,3 @@ class Envelope:
                           user_id,
                           user_key)
         return message
-
-
-    # def block about ordering
-    #     # ------------------------------
-    #     # Send to Targets /in order/.
-    #     # ------------------------------
-    #     # Order is: whoever can get the most info about the output should get
-    #     # it first. Presumable that will be the GM(s), then the owner, then
-    #     # everyone else.
-    #
-    #     # Highest Priority/Most(ish) Data: GM (The game master for the game
-    #     # session, who is probably also the game owner.)
-    #     if (envelope.target_type.has(OutputTarget.GM)
-    #             and envelope.payload_type.has(OutputTarget.GM)
-    #             and not sent_to.has(OutputTarget.GM)):
-    #         self._send_gm(envelope)
-    #         sent_to = sent_to.set(OutputTarget.GM)
-    #
-    #     # Second Priority/Much Data: User (entity's owner/controller player for
-    #     # the game session).
-    #     if (envelope.target_type.any(OutputTarget.USER)
-    #             and envelope.payload_type.has(OutputTarget.USER)
-    #             and not sent_to.has(OutputTarget.USER)):
-    #         self._send_user(envelope)
-    #         sent_to = sent_to.set(OutputTarget.USER)
-    #
-    #     # Last Priority: GM, Users, and anyone else connected to the game...
-    #     if (envelope.target_type.any(OutputTarget.BROADCAST)
-    #             and envelope.payload_type.has(OutputTarget.BROADCAST)
-    #             and not sent_to.has(OutputTarget.BROADCAST)):
-    #         self._send_broadcast(envelope)
-    #         sent_to = sent_to.set(OutputTarget.BROADCAST)

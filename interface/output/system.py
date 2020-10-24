@@ -67,18 +67,19 @@ from veredi.game.data.identity.component import IdentityComponent
 # from ..input.component                   import InputComponent
 
 # Output-Related Stuff
-from .event                              import OutputEvent, OutputTarget
+from .event                              import OutputEvent, Recipient
 from .envelope                           import Envelope, Message, BasePayload
+from ..mediator.event                    import GameToMediatorEvent
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-UT_OutRxCallback = Callable[['Envelope', Optional[OutputTarget]], None]
+UT_OutRxCallback = Callable[['Envelope', Optional[Recipient]], None]
 '''
 Callback for unit tests that want to side-channel receive outputs.
-Parameters will be the Envelope used for sending and all OutputTargets sent to.
+Parameters will be the Envelope used for sending and all Recipients sent to.
 '''
 
 
@@ -304,10 +305,10 @@ class OutputSystem(System):
         self._event_queue.extend(retry)
 
         # ---
-        # Send our Events
+        # Send our Envelopes out.
         # ---
-        for event in self._send_queue:
-            self._send_event(event)
+        for envelope in self._send_queue:
+            self._send_envelope(envelope)
 
         # Done with our sending. Clear out the send in preparation of the next
         # tick.
@@ -326,67 +327,16 @@ class OutputSystem(System):
 
         Returns bool for success in processing/sending output.
         '''
+        # Queue up output to be sent... wherever it should go.
+        entry = Envelope(event)
+        self._send_queue.append(entry)
 
         # TODO [2020-07-06]: Do we save the event to the historian?
         # I think so. We need the result so we can undo the thing.
         # TODO: Send to historian.
-        self._log.warning("TODO: send to historian: event?")
-
-        # ---
-        # Optional: Codec
-        # ---
-        # Use codec to encode event for transmit, if we have one.
-        encoded = None
-        if self._codec:
-            # TODO: Do we need...
-            #   - Title
-            #   - Names Dict
-            # Or do we keep clients up to date with display strings in some
-            # other way? title/names every message seems redundant/wasteful.
-
-            # TODO: Check event flags.
-            #   - Encode differently for GM, players?
-            #   - Encode differently for owner player, other players?
-            #
-            # For now, just encode the same way for everyone.
-            encoded = self._codec.encode(event, event.context)
-            if self._should_debug():
-                self._log.debug("encoded output: {}",
-                                encoded)
-
-        else:
-            encoded = event.output
-            if self._should_debug():
-                # No encoder - just use the raw output.
-                self._log.debug("No codec. Leaving output as-is: {}",
-                                encoded)
-
-        # TODO: optional or not?
-        # ---
-        # Optional?: Serialize output
-        # ---
-        # Use serializer on our output, if we have one.
-        serialized = None
-        if self._serdes:
-            serialized = self._serdes.serialize(encoded, event.context)
-            if self._should_debug():
-                self._log.debug("serialized output: {}",
-                                serialized)
-
-        else:
-            # Stick with output, assume it's serialized enough for whoever is
-            # receiving this.
-            serialized = encoded
-            if self._should_debug():
-                # No encoder - just use the raw output.
-                self._log.debug("No serdes. Leaving output as-is: {}",
-                                encoded)
-
-        # Queue up output to be sent... wherever it should go.
-        send_to = event.output_target
-        eid = event.id
-        entry = Envelope(send_to, eid, serialized)
-        self._send_queue.append(entry)
+        self._log.warning("TODO: send {} to historian: OutputEvent? Envelope? "
+                          "Wait for GameToMediatorEvent?",
+                          event.serial_id)
 
         # And... Done? Nothing more to do now at this point?
         return True
@@ -396,23 +346,13 @@ class OutputSystem(System):
     # -------------------------------------------------------------------------
 
     def _send_envelope(self,
-                       envelope: 'Envelope') -> OutputTarget:
+                       envelope: 'Envelope') -> Recipient:
         '''
-        Take the `envelope`, build a payload and then message based on
-        the desired recipients, and then push an event for that message.
+        Take the `envelope`, build a GameToMediatorEvent, and send it to the
+        EventManager.
 
-        Should only send to each intended recipient once. For example, a
-        message intended for GM and broadcasting would be:
-          1) Send output for GM; this notes that 'GM' recipient was sent to.
-
-          2) User wasn't a target in this example, so it is ignored.
-
-          3) Send output for broadcast; broadcast will knows it can skip over
-             the GM (but not the User) while broadcasting since we gave the GM
-             at least as much information as the broadcast receivers will get.
-
-        Returns what recipients were sent to. Will probably be (should be)
-        equal to self.recipients?
+        Returns what recipients from the desired were validated. Will probably
+        be (should be) equal to the desired recipients?
         '''
         # ---
         # Create address info.
@@ -421,105 +361,137 @@ class OutputSystem(System):
         # It returns the new, validated recipients.
         allowed_recipients = self._address_envelope(envelope)
 
-        todo make GameToMediatorEvent
-        todo notify event
+        # Create the event and notify our EventManager.
+        event = GameToMediatorEvent(envelope)
+        self._event_notify(event)
 
         # ---
         # Send to Unit Test if callback exists.
         # ---
         if self._ut_recv_fn:
-            self._ut_recv_fn(envelope, sent_to)
+            self._ut_recv_fn(envelope, allowed_recipients)
 
-        return sent_to
+        return allowed_recipients
 
     def _address_envelope(self,
-                          envelope: 'Envelope',
-                          context:  'SecurityContext') -> None:
+                          envelope: 'Envelope'
+                          # TODO: SecurityContext?
+                          ) -> Recipient:
         '''
         Set address info for all intended recipients of this envelope.
+
+        Returns allowed recipients.
         '''
-        addressed_to = OutputTarget.INVALID
+        addressed_to = Recipient.INVALID
 
         # ---
         # Address to GM?
         # ---
-        if envelope.intended_recipients.has(OutputTarget.GM):
+        if envelope.desired_recipients.has(Recipient.GM):
             # We want to send to GM. Can we?
-            if envelope.payload_type.has(OutputTarget.GM):
-                self._address_to(envelope,
-                                 OutputTarget.GM,
-                                 abac.Subject.GM)
-                addressed_to = addressed_to.set(OutputTarget.GM)
-            else:
+            recipient = self._address_to(envelope,
+                                         Recipient.GM,
+                                         abac.Subject.GM)
+            if recipient is Recipient.INVALID:
                 self._log.error("Envelope recipient mismatch! The envelope "
-                                "has 'GM' in intended_recipients "
-                                f"({envelope.intended_recipients}), but not "
-                                f"in payload_type ({envelope.payload_type}). "
+                                "has 'GM' in desired_recipients "
+                                f"({envelope.desired_recipients}), but "
+                                "failed to address itself to them. "
                                 "Ignoring this recipient level.")
+            else:
+                addressed_to = addressed_to.set(recipient)
 
         # ---
         # Address to owning/controlling User?
         # ---
-        if envelope.intended_recipients.has(OutputTarget.USER):
+        if envelope.desired_recipients.has(Recipient.USER):
             # We want to send to USER. Can we?
-            if envelope.payload_type.has(OutputTarget.USER):
-                self._address_to(envelope,
-                                 OutputTarget.USER,
-                                 abac.Subject.USER)
-                addressed_to = addressed_to.set(OutputTarget.USER)
-            else:
+            recipient = self._address_to(envelope,
+                                         Recipient.USER,
+                                         abac.Subject.USER)
+            if recipient is Recipient.INVALID:
                 self._log.error("Envelope recipient mismatch! The envelope "
-                                "has 'USER' in intended_recipients "
-                                f"({envelope.intended_recipients}), but not "
-                                f"in payload_type ({envelope.payload_type}). "
+                                "has 'USER' in desired_recipients "
+                                f"({envelope.desired_recipients}), but "
+                                "failed to address itself to them. "
                                 "Ignoring this recipient level.")
+            else:
+                addressed_to = addressed_to.set(recipient)
 
         # ---
         # Broadcast to everyone connected?
         # ---
-        if envelope.intended_recipients.has(OutputTarget.BROADCAST):
+        if envelope.desired_recipients.has(Recipient.BROADCAST):
             # We want to send to BROADCAST. Can we?
-            if envelope.payload_type.has(OutputTarget.BROADCAST):
-                self._address_to(envelope,
-                                 OutputTarget.BROADCAST,
-                                 abac.Subject.BROADCAST)
-                addressed_to = addressed_to.set(OutputTarget.BROADCAST)
-            else:
+            recipient = self._address_to(envelope,
+                                         Recipient.BROADCAST,
+                                         abac.Subject.BROADCAST)
+            if recipient is Recipient.INVALID:
                 self._log.error("Envelope recipient mismatch! The envelope "
-                                "has 'BROADCAST' in intended_recipients "
-                                f"({envelope.intended_recipients}), but not "
-                                f"in payload_type ({envelope.payload_type}). "
+                                "has 'BROADCAST' in desired_recipients "
+                                f"({envelope.desired_recipients}), but "
+                                "failed to address itself to them. "
                                 "Ignoring this recipient level.")
+            else:
+                addressed_to = addressed_to.set(recipient)
 
+        envelope.valid_recipients = addressed_to
         return addressed_to
 
     def _address_to(self,
                     envelope:     'Envelope',
-                    recipient:    OutputTarget,
-                    access_level: abac.Subject) -> None:
+                    recipient:    Recipient,
+                    access_level: abac.Subject) -> Recipient:
         '''
         Add `recipient` to envelope's addressees as an
         `attribute-subject`-level receiver.
+
+        Returns "allowed recipient", which is:
+          - `recipient` on success.
+          - Recipient.INVALID on failure.
         '''
         if not self._pdp.allowed(envelope.context):
-            abac.log.debug(f"Cannot address envelope to '{recipient}' "
-                           f"at '{access_level}': "
-                           "Security has denied the action.")
-            return
+            self._log.security(f"Cannot address envelope to '{recipient}' "
+                               f"at '{access_level}': "
+                               "Security has denied the action.")
+            # Recipient was not allowed by security - failure return.
+            return Recipient.INVALID
 
         # ---
         # Get the actual "addresses" - user id/key.
         # ---
-        todo -
+        users = None
+        if recipient is Recipient.USER:
+            # User/'owner' has their id in the event.
+            users = background.users.connected(envelope.source_id)
+
+        elif recipient is Recipient.GM:
+            # Get all GMs for sending.
+            users = background.users.gm(None)
+            # TODO: presumably, in multi-gm games, only one GM should get
+            # some/most/all 'GM' output... But I'm not sure how/where/why/etc
+            # to demark it as such yet.
+
+        elif recipient is Recipient.BROADCAST:
+            # Get all connected users for sending.
+            users = background.users.connected(None)
+
+        if not users:
+            self._log.debug(
+                "No user(s) found for recipient {}, access {}. Ignoring.",
+                recipient, access_level)
+            # Recipient was not found, which we'll treat as effectively a
+            # failure/disallowed.
+            return Recipient.INVALID
 
         # ---
         # Address envelope to the recipient.
         # ---
         envelope.set_address(recipient,
                              access_level,
-                             entity_id,
-                             user_id,
-                             user_key)
+                             users)
+        # Recipient was allowed, so return it.
+        return recipient
 
     # -------------------------------------------------------------------------
     # Unit Testing
