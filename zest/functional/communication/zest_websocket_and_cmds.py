@@ -51,8 +51,8 @@ from veredi.data.identity                       import (UserId,
                                                         UserKey,
                                                         UserKeyGenerator)
 from veredi.parallel                            import multiproc
-from veredi.base.context         import VerediContext
-from veredi.data.config.context         import ConfigContext
+from veredi.base.context                        import VerediContext
+from veredi.data.config.context                 import ConfigContext
 
 
 # ---
@@ -64,7 +64,8 @@ from veredi.data.codec.json                     import codec
 # ---
 # Mediation
 # ---
-from veredi.interface.mediator.message          import Message, MsgType
+from veredi.interface.mediator.const            import MsgType
+from veredi.interface.mediator.message          import Message
 from veredi.interface.mediator.websocket.server import WebSocketServer
 from veredi.interface.mediator.websocket.client import WebSocketClient
 from veredi.interface.mediator.context          import MessageContext
@@ -72,41 +73,42 @@ from veredi.interface.mediator.payload.logging  import (LogPayload,
                                                         LogReply,
                                                         LogField,
                                                         _NC_LEVEL)
-from veredi.interface.mediator.system import MediatorSystem
+from veredi.interface.mediator.system           import MediatorSystem
+from veredi.interface.mediator.event            import GameToMediatorEvent
 
-from veredi.interface.output.event          import OutputEvent
-
+from veredi.interface.output.event              import OutputEvent
 
 # ---
 # Game
 # ---
-from veredi.data.exceptions              import LoadError
-from veredi.game.ecs.base.identity       import ComponentId
-from veredi.game.ecs.base.entity    import Entity
-from veredi.game.ecs.base.system    import System
-from veredi.rules.d20.pf2.ability.system                             import AbilitySystem
-from veredi.rules.d20.pf2.ability.event                              import AbilityRequest, AbilityResult
-from veredi.rules.d20.pf2.ability.component                          import AbilityComponent
-from veredi.rules.d20.pf2.health.component import HealthComponent
-from veredi.math.system                 import MathSystem
-# from veredi.interface.output.event      import Recipient
-from veredi.math.event                  import MathOutputEvent
+from veredi.data.exceptions                     import LoadError
+from veredi.game.ecs.base.identity              import ComponentId
+from veredi.game.ecs.base.entity                import Entity
+from veredi.game.ecs.base.system                import System
+from veredi.rules.d20.pf2.ability.system        import AbilitySystem
+from veredi.rules.d20.pf2.ability.event         import (AbilityRequest,
+                                                        AbilityResult)
+from veredi.rules.d20.pf2.ability.component     import AbilityComponent
+from veredi.rules.d20.pf2.health.component      import HealthComponent
+from veredi.math.system                         import MathSystem
+# from veredi.interface.output.event            import Recipient
+from veredi.math.event                          import MathOutputEvent
 
 
-from veredi.game.data.event              import (DataLoadedEvent,
-                                                 DataLoadRequest)
-from veredi.game.data.identity.system    import IdentitySystem
-from veredi.game.data.identity.component import IdentityComponent
-from veredi.game.data.identity.event     import CodeIdentityRequest
-from veredi.base.context                 import UnitTestContext
-from veredi.data.context                 import (DataGameContext,
-                                                 DataLoadContext)
-from veredi.game.ecs.base.component      import ComponentLifeCycle
+from veredi.game.data.event                     import (DataLoadedEvent,
+                                                        DataLoadRequest)
+from veredi.game.data.identity.system           import IdentitySystem
+from veredi.game.data.identity.component        import IdentityComponent
+from veredi.game.data.identity.event            import CodeIdentityRequest
+from veredi.base.context                        import UnitTestContext
+from veredi.data.context                        import (DataGameContext,
+                                                        DataLoadContext)
+from veredi.game.ecs.base.component             import ComponentLifeCycle
 
 # ---
 # Registry
 # ---
-from veredi.rules.d20.pf2.health.component  import HealthComponent
+from veredi.rules.d20.pf2.health.component      import HealthComponent
 
 
 # -----------------------------------------------------------------------------
@@ -396,6 +398,8 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
     def sub_events(self) -> None:
         self.manager.event.subscribe(OutputEvent,
                                      self._eventsub_generic_append)
+        self.manager.event.subscribe(GameToMediatorEvent,
+                                     self._eventsub_generic_append)
 
     def msg_context(self,
                     msg_ctx_id: Optional[MonotonicId] = None
@@ -624,19 +628,21 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # Game should process events set off by the message...
         max_ticks = 20
         ticked = 0
-        output_event = None
+        event_math = None
+        event_mediator = None
         for i in range(max_ticks):
             self.engine_tick()
             ticked += 1
 
-            # Check for the MathOutputEvent. Once we get it we can stop
-            # ticking the engine.
+            # Check for the MathOutputEvent and GameToMediatorEvent. Once we
+            # get the GameToMediatorEvent we can stop ticking the engine.
             for event in self.events:
-                if not isinstance(event, MathOutputEvent):
-                    continue
-                output_event = event
-                break
-            if output_event:
+                if isinstance(event, MathOutputEvent):
+                    event_math = event
+                elif isinstance(event, GameToMediatorEvent):
+                    event_mediator = event
+                    break
+            if event_mediator:
                 break
 
         input_history = self.input_system.historian.most_recent(self.entity.id)
@@ -644,7 +650,12 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # Client should have received a follow-up from server with results.
         self.assertIsNotNone(input_history)
         self.assertIsNotNone(input_history.status)
-        self.assertIsNotNone(output_event)
+        # We should have the MathOutputEvent.
+        self.assertIsNotNone(event_math)
+        self.assertIsInstance(event_math, MathOutputEvent)
+        # We should also have the GameToMediatorEvent.
+        self.assertIsNotNone(event_mediator)
+        self.assertIsInstance(event_mediator, GameToMediatorEvent)
         self.assertTrue(client.has_data())
 
         # Make sure we don't have anything in the queues.

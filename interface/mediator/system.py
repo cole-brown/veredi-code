@@ -70,12 +70,15 @@ from ..input.parse                              import Parcel
 from ..input.command.commander                  import Commander
 from ..input.history.history                    import Historian
 
+from ..user         import User
+
 
 # Mediator Stuff
 from .event                              import (GameToMediatorEvent,
                                                  MediatorToGameEvent)
 from .context                  import MediatorContext, MessageContext
-from .message                  import Message, MsgType
+from .const                    import MsgType
+from .message                  import Message, ConnectionMessage
 from .payload.logging          import LogPayload, LogField
 
 # Multi-Processing Stuff
@@ -161,11 +164,23 @@ class MediatorSystem(System):
     max per full tick cycle.
     '''
 
-    MSG_TYPE_SUPPORTED = frozenset({
+    MSG_TYPE_SELF = frozenset({
+        MsgType.CONNECT,
+        MsgType.DISCONNECT,
+    })
+    '''
+    Messages between MediatorServer & MediatorSystem will use these types.
+    '''
+
+    MSG_TYPE_GAME = frozenset({
         MsgType.TEXT,
         MsgType.ENCODED,
         MsgType.CODEC,
     })
+    '''
+    Messages between Mediator (Server or Client-via-Server) & Game will use
+    these types.
+    '''
 
     TIME_TICKS_END_SEC = 10.0
     '''
@@ -420,17 +435,17 @@ class MediatorSystem(System):
         # need UserId/UserKey from somewhere.
         ident = entity.get(IdentityComponent)
         if not ident:
-            log.warning("Cannot send event; entity has no "
-                        "IdentityComponent to demark receipient: {}",
-                        event)
+            self._log.warning("Cannot send event; entity has no "
+                              "IdentityComponent to demark receipient: {}",
+                              event)
             return
         user_id = ident.user_id
         user_key = ident.user_key
         if not user_id:
-            log.warning("Cannot send event; entity's IdentityComponent has no "
-                        "UserId/UserKey to demark receipient: "
-                        "{}, {}. event: {}",
-                        user_id, user_key, event)
+            self._log.warning("Cannot send event; entity's IdentityComponent "
+                              "has no UserId/UserKey to demark receipient: "
+                              "{}, {}. event: {}",
+                              user_id, user_key, event)
             # Normal for entities or components to go away, but
             # IdentityComponent should be for the entity's lifetime, and we
             # need UserId/UserKey from somewhere.
@@ -458,6 +473,7 @@ class MediatorSystem(System):
         # ------------------------------
         # Send message to MediatorServer
         # ------------------------------
+        # self._log.ultra_mega_debug("Sending: {}", send_msg)
         self.server.send(send_msg, send_ctx)
 
     # -------------------------------------------------------------------------
@@ -473,16 +489,26 @@ class MediatorSystem(System):
         TODO [2020-09-22]: Should MediatorServer be responsible for converting
         and we just pass it on?
         '''
+
+        if message.type in self.MSG_TYPE_GAME:
+            return True
+
+        elif message.type in self.MSG_TYPE_SELF:
+            return True
+
         # Other MsgTypes are invalid for the Game so we error on them.
-        if message.type not in self.MSG_TYPE_SUPPORTED:
-            msg = ("Invalid MsgType. Can only support: "
-                   f"{self.MSG_TYPE_SUPPORTED}. "
-                   f"Got: {message.type}.")
-            raise log.exception(ValueError(msg, message.type),
-                                None,
-                                msg,
-                                context=context)
-        return True
+
+        # Frozen set gets printed as: "frozenset({...", which messes up
+        # log's bracket formatter at the moment [2020-10-24], so I guess
+        # format the message twice.
+        msg = "Invalid MsgType. Can only support: {} Got: {}."
+        raise self._log.exception(
+            ValueError(msg.format(self.MSG_TYPE_SUPPORTED,
+                                  message.type)),
+            msg,
+            self.MSG_TYPE_SUPPORTED,
+            message.type,
+            context=context)
 
     def _get_payload(self,
                      message: Message,
@@ -495,23 +521,84 @@ class MediatorSystem(System):
         '''
         return message.payload
 
-    def validate_message(self,
-                         message: Message,
-                         context: MessageContext) -> Optional[Any]:
-        '''
-        Error check message and return payload object if valid.
-
-        Raises error if not valid:
-          - ValueError: unhandled message.type
-        '''
-        if not self._error_check_msg(message, context):
-            return None
-
-        return self._get_payload(message, context)
-
-    def message_to_event(self,
+    def _deliver_message(self,
                          message: Message,
                          context: MessageContext) -> None:
+        '''
+        Take `message` and `context` from MediatorServer, decides if it is for
+        us or the game, then forwards to the proper message processing
+        function.
+        '''
+        if not self._error_check_msg(message, context):
+            return
+
+        if message.type in self.MSG_TYPE_SELF:
+            self._message_internal(message, context)
+            return
+
+        elif message.type in self.MSG_TYPE_GAME:
+            self._message_to_event(message, context)
+            return
+
+        # Else it's somehow valid but we don't know how...
+        msg = ("Valid MsgType but no message processor for it. "
+               f"MsgType: {message.type}.")
+        raise self._log.exception(
+            ValueError(msg),
+            msg,
+            context=context)
+
+    def _message_internal(self,
+                          message: Message,
+                          context: MessageContext) -> None:
+        '''
+        Take `message` and `context` from MediatorServer and deal with their
+        contents ourselves.
+        '''
+        if message.msg_id == Message.SpecialId.CONNECT:
+            self._message_connect(message, context)
+            return
+
+        # Else it's somehow valid but we don't know how...
+        msg = f"Don't know how to process message: {message}"
+        raise self._log.exception(
+            ValueError(msg),
+            msg,
+            context=context)
+
+    def _message_connect(self,
+                         message: ConnectionMessage,
+                         context: MessageContext) -> None:
+        '''
+        User is changing connection state (CONNECT, DISCONNECT). Add or remove
+        them from connected as indicated.
+        '''
+        if message.type == MsgType.CONNECT:
+            # Create connected User(), add to background so other systems can
+            # translate user_id to useful info (e.g. entity)?
+            user = User(message.user_id,
+                        message.user_key,
+                        message.connection)
+            background.users.add_connected(user)
+            return
+
+        elif message.type == MsgType.DISCONNECT:
+            # Remove user from background data.
+            user = User.for_comparison(message.user_id)
+            background.users.remove_connected(user)
+            return
+
+        # Else it's somehow valid but we don't know how...
+        msg = ("Don't know how to process ConnectionMessage of type "
+               f"'{message.type}': {message}")
+        raise self._log.exception(
+            ValueError(msg),
+            msg,
+            context=context)
+
+    def _message_to_event(self,
+                          message: Message,
+                          context: MessageContext) -> None:
         '''
         Take `message` and `context` from MediatorServer, process into an
         event, and publish.
@@ -540,7 +627,7 @@ class MediatorSystem(System):
         # Payload
         # ------------------------------
         # Check message and get payload.
-        event_payload = self.validate_message(message, context)
+        event_payload = self._get_payload(message, context)
 
         # Build event.
         event = MediatorToGameEvent(entity_id,
@@ -616,7 +703,7 @@ class MediatorSystem(System):
 
             # Get message, context and process it.
             message, context = self.server.recv()
-            self.message_to_event(message, context)
+            self._deliver_message(message, context)
 
     def _update_pre(self,
                     time_mgr:      TimeManager,

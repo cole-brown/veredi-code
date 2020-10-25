@@ -44,7 +44,8 @@ from veredi.data.identity          import UserId, UserKey
 from .event                        import OutputEvent, Recipient
 from ..user                        import User
 
-from ..mediator.message            import Message, MsgType
+from ..mediator.const              import MsgType
+from ..mediator.message            import Message
 from ..mediator.payload.base       import BasePayload
 
 

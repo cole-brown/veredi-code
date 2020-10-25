@@ -32,7 +32,8 @@ from veredi.data.codec.base import BaseCodec
 from veredi.time.timer      import MonotonicTimer
 from veredi.base.identity   import MonotonicId
 
-from ..message               import Message, MsgType
+from ..const                 import MsgType
+from ..message               import Message
 from ..context               import (MediatorContext,
                                      MessageContext,
                                      UserConnToken)

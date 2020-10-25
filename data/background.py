@@ -21,20 +21,21 @@ systems created, etc.
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any,
                     Type, NewType,
-                    Mapping, MutableMapping, List)
+                    Mapping, MutableMapping, List, Set)
 if TYPE_CHECKING:
-    from veredi.base.const             import VerediHealth
-    from veredi.base.context           import VerediContext
-    from veredi.data.repository.base   import BaseRepository
-    from veredi.data.codec.base        import BaseCodec
-    from veredi.game.ecs.meeting       import Meeting
-    from veredi.game.ecs.base.system   import System, SystemLifeCycle
-    from veredi.interface.input.parse  import Parcel
-    from .config                       import Configuration
-    from veredi.base.identity          import MonotonicId, SerializableId
-    from veredi.game.ecs.base.identity import EntityId
-    from veredi.data.identity          import UserId, UserKey
-    from veredi.interface.user         import User
+    from veredi.base.const                 import VerediHealth
+    from veredi.base.context               import VerediContext
+    from veredi.data.repository.base       import BaseRepository
+    from veredi.data.codec.base            import BaseCodec
+    from veredi.game.ecs.meeting           import Meeting
+    from veredi.game.ecs.base.system       import System, SystemLifeCycle
+    from veredi.interface.input.parse      import Parcel
+    from .config                           import Configuration
+    from veredi.base.identity              import MonotonicId, SerializableId
+    from veredi.game.ecs.base.identity     import EntityId
+    from veredi.data.identity              import UserId, UserKey
+    from veredi.interface.mediator.context import UserConnToken
+    from veredi.interface.user             import User
 
 import enum
 import pathlib
@@ -45,6 +46,7 @@ from veredi.logger          import log
 from veredi.base.null       import Null, Nullable, NullNoneOr
 from .exceptions            import ConfigError
 from veredi.base.exceptions import ContextError
+from veredi.base.dicts      import DoubleIndexDict
 
 
 # TODO [2020-06-23]: methods for: contains, [], others...?
@@ -176,9 +178,9 @@ _CONTEXT_LAYOUT = {
         },
         _INTERFACE: {
             _USERS: {
-                _USERS_CONNECTED: set(),
-                _USERS_KNOWN: set(),
-                _USERS_SUPER: set(),
+                # _USERS_CONNECTED: None,  # Initialized by users._init_dict().
+                # _USERS_KNOWN: None,      # Initialized by users._init_dict().
+                # _USERS_SUPER: None,      # Initialized by users._init_dict().
             },
             _INPUT: {
                 _COMMAND: {
@@ -712,12 +714,40 @@ class interface:
 
 class users:
 
+    UserIdTypes = NewType('UserIdTypes',
+                          Union['EntityId',
+                                'UserId', 'UserKey',
+                                'UserConnToken'])
+    '''
+    Can check for, get Users via `UserId`, `UserKey`, `EntityId`,
+    `UserConnToken`, or a Falsy value (None). This is the definition of all
+    acceptable types but the Falsy thing.
+    '''
+
+    UserRmTypes = NewType('UserRmTypes',
+                          Union['UserId', 'UserConnToken'])
+    '''Users can be removed via `User` object, `UserId`, or `UserConnToken`.'''
+
+    # -------------------------------------------------------------------------
+    # users dictionaries
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _init_dict(klass: Type['users']) -> DoubleIndexDict:
+        '''
+        Create a DoubleIndexDict for the collections of users.
+        '''
+        # Our DoubleIndexDicts will be accessable under:
+        #  - dict.user_id[id]
+        #  - dict.connection[conn]
+        return DoubleIndexDict('user_id', 'connection')
+
     # -------------------------------------------------------------------------
     # Getters / Setters
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _get(klass: Type['users']) -> Nullable[ContextMutableMap]:
+    def _get(klass: Type['users']) -> MutableMapping[str, DoubleIndexDict]:
         '''
         Get users's sub-context from background context.
         '''
@@ -725,106 +755,86 @@ class users:
         return interface.get().get(_USERS, Null())
 
     @classmethod
-    def _connected(klass: Type['users']) -> Nullable[ContextMutableMap]:
+    def _connected(klass: Type['users']) -> DoubleIndexDict:
         '''
-        Get 'user.connected' sub-context from background context.
+        Get/init 'user.connected' sub-context from background context.
         '''
-        return klass._get().get(_USERS_CONNECTED, Null())
+        return klass._get().setdefault(_USERS_CONNECTED, users._init_dict())
 
     @classmethod
-    def _known(klass: Type['users']) -> Nullable[ContextMutableMap]:
+    def _known(klass: Type['users']) -> DoubleIndexDict:
         '''
-        Get 'user.known' sub-context from background context.
+        Get/init 'user.known' sub-context from background context.
         '''
-        return klass._get().get(_USERS_KNOWN, Null())
+        return klass._get().setdefault(_USERS_KNOWN, users._init_dict())
 
     @classmethod
-    def _super(klass: Type['users']) -> Nullable[ContextMutableMap]:
+    def _super(klass: Type['users']) -> DoubleIndexDict:
         '''
-        Get 'user.super' sub-context from background context.
+        Get/init 'user.super' sub-context from background context.
         '''
-        return klass._get().get(_USERS_SUPER, Null())
+        return klass._get().setdefault(_USERS_SUPER, users._init_dict())
 
     # -------------------------------------------------------------------------
     # More Specific Getters
     # -------------------------------------------------------------------------
 
     @classmethod
+    def _filter_users(klass:     Type['users'],
+                      users:     DoubleIndexDict,
+                      filter_id: Optional[UserIdTypes]) -> List['User']:
+        '''
+        Takes the `users` dict and filters it based on the `id`.
+        '''
+        matches = []
+        if not filter_id:
+            # Push ALL known users into matches set and return.
+            matches.extend(users.values())
+            return matches
+
+        for uid in users:
+            user = users[uid]
+            if not user:
+                continue
+            # Check all the id types we allow in.
+            if (user.id == filter_id
+                    or user.key == filter_id
+                    or user.entity_prime == filter_id
+                    or user.connection == filter_id):
+                matches.append(user)
+
+        return matches
+
+    @classmethod
     def connected(klass: Type['users'],
-                  id:    Union['EntityId', 'UserId', 'UserKey']
-                  ) -> Nullable[List['User']]:
+                  id:    Optional[UserIdTypes]) -> List['User']:
         '''
         Returns a User, if they exist in the connected users collection.
         If `id` is Falsy, returns all connected users.
         '''
-        connected = klass._connected()
-        matches = []
-        if not id:
-            # Push ALL known users into matches set and return.
-            matches.extend(connected)
-            return matches
-
-        for user in connected:
-            if not user:
-                continue
-            # Check all the id types we allow in.
-            if (user.id == id or user.key == id or user.entity_prime == id):
-                matches.append(user)
-
-        return matches
+        return klass._filter_users(klass._connected(), id)
 
     @classmethod
     def known(klass: Type['users'],
-              id:    Union['EntityId', 'UserId', 'UserKey']
-              ) -> Nullable[List['User']]:
+              id:    Optional[UserIdTypes]) -> List['User']:
         '''
         Returns a User, if they exist in the known users collection.
         If `id` is Falsy, returns all known users.
         '''
-        known = klass._known()
-        matches = []
-        if not id:
-            # Push ALL known users into matches set and return.
-            matches.extend(known)
-            return matches
-
-        for user in known:
-            if not user:
-                continue
-            # Check all the id types we allow in.
-            if (user.id == id or user.key == id or user.entity_prime == id):
-                matches.append(user)
-
-        return matches
+        return klass._filter_users(klass._known(), id)
 
     @classmethod
     def super(klass: Type['users'],
-              id:    Union['EntityId', 'UserId', 'UserKey']
-              ) -> Nullable[List['User']]:
+              id:    Optional[UserIdTypes]) -> List['User']:
         '''
         Returns all matched superuser ids found in the super users collection.
         If `id` is Falsy, returns all GMs.
         '''
-        super = klass._super()
-        matches = []
-        if not id:
-            # Push ALL super users into matches set and return.
-            matches.extend(super)
-            return matches
-
-        for user in super:
-            if not user:
-                continue
-            # Check all the id types we allow in.
-            if (user.id == id or user.key == id or user.entity_prime == id):
-                matches.append(user)
-
-        return matches
+        return klass._filter_users(klass._super(), id)
 
     @classmethod
     def gm(klass: Type['users'],
-           id:    Union['EntityId', 'UserId', 'UserKey']
-           ) -> Nullable[List['User']]:
+           id:    Optional[UserIdTypes]) -> List['User']:
         '''
         Returns all matched GM ids found in the super users collection.
         If `id` is Falsy, returns all GMs.
@@ -832,26 +842,10 @@ class users:
         TODO: Distinguish GMs from other superusers.
         TODO: Have other superuser types. Debugger, Assistant (to the) GM...
         '''
-        super = klass._super()
-        matches = []
-        if not id:
-            # Push ALL GM users into matches set and return.
-            # TODO: Distinguish GMs from other superusers.
-            matches.extend(super)
-            return matches
-
-        for user in super:
-            if not user:
-                continue
-            # Check all the id types we allow in.
-            # TODO: Distinguish GMs from other superusers.
-            if (user.id == id or user.key == id or user.entity_prime == id):
-                matches.append(user)
-
-        return matches
+        return klass._filter_users(klass._super(), id)
 
     # -------------------------------------------------------------------------
-    # Setters
+    # Adding Users
     # -------------------------------------------------------------------------
 
     @classmethod
@@ -864,7 +858,8 @@ class users:
         set() functionality and User.__hash__()), this will overwrite it.
         '''
         connected = klass._connected()
-        connected.add(user)
+        connected.set(user.id, user.connection, user)
+        # TODO: call add_super() as well if user is superuser?
 
     @classmethod
     def add_known(klass: Type['users'],
@@ -876,7 +871,7 @@ class users:
         set() functionality and User.__hash__()), this will overwrite it.
         '''
         known = klass._known()
-        known.add(user)
+        known.set(user.id, user.connection, user)
 
     @classmethod
     def add_super(klass: Type['users'],
@@ -888,7 +883,50 @@ class users:
         set() functionality and User.__hash__()), this will overwrite it.
         '''
         super = klass._super()
-        super.add(user)
+        super.set(user.id, user.connection, user)
+
+    # -------------------------------------------------------------------------
+    # Removing Users
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def remove_connected(klass:    Type['users'],
+                         rm_user:  UserRmTypes) -> None:
+        '''
+        Removes `rm_user` (which can be a id or a User object) from
+        'connected' (user) collection.
+
+        If `user` doesn't exists in the collection (as defined by Python's
+        set() functionality and User.__hash__()), this does nothing.
+        '''
+        connected = klass._connected()
+        del connected[rm_user]
+
+        # TODO: call remove_super() as well if user is superuser?
+
+    @classmethod
+    def remove_known(klass: Type['users'],
+                     user:  UserRmTypes) -> None:
+        '''
+        Removes user from 'known' (user) collection.
+
+        If `user` doesn't exists in the collection (as defined by Python's
+        set() functionality and User.__hash__()), this does nothing.
+        '''
+        known = klass._known()
+        known.discard(user)
+
+    @classmethod
+    def remove_super(klass: Type['users'],
+                     user:  UserRmTypes) -> None:
+        '''
+        Removes user from 'super' (user) collection.
+
+        If `user` doesn't exists in the collection (as defined by Python's
+        set() functionality and User.__hash__()), this does nothing.
+        '''
+        super = klass._super()
+        super.discard(user)
 
 
 # -------------------------------------------------------------------------

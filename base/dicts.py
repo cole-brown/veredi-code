@@ -28,7 +28,7 @@ from veredi.logger import log
 # Double-Index Dictionaries
 # -----------------------------------------------------------------------------
 
-# TODO [2020-10-03]: Iterators for items(), keys(), values().
+# TODO: generics for type hinting
 class DoubleIndexDict:
     '''
     Dictionary that indexes values via two different keys (in two different
@@ -50,6 +50,9 @@ class DoubleIndexDict:
         self._data0: Dict[Any, Any] = {}
         self._data1: Dict[Any, Any] = {}
 
+        self._name0 = dict_name_0
+        self._name1 = dict_name_1
+
         # Push name/dict into our __dict__ so they can be dot accessed.
         self.__dict__[dict_name_0] = self._data0
         self.__dict__[dict_name_1] = self._data1
@@ -69,6 +72,24 @@ class DoubleIndexDict:
         Getter for 'dict_name_1' property.
         '''
         return self._data1
+
+    def items(self) -> Iterable[Any]:
+        '''
+        Returns items dictionary view of one of the internal dict.
+        '''
+        return self._data0.items()
+
+    def keys(self) -> Iterable[Any]:
+        '''
+        Returns keys dictionary view of one of the internal dict.
+        '''
+        return self._data0.keys()
+
+    def values(self) -> Iterable[Any]:
+        '''
+        Returns values dictionary view of one of the internal dict.
+        '''
+        return self._data0.values()
 
     # -------------------------------------------------------------------------
     # Getters / Setters for Keeping in Sync
@@ -148,8 +169,44 @@ class DoubleIndexDict:
     # Pythonic Functions
     # -------------------------------------------------------------------------
 
+    def __delitem__(self, key) -> None:
+        '''
+        Delete item from dictionaries while only knowing one key.
+        '''
+        item = self.get(key)
+        if not item:
+            msg = f"Key '{key}' not found in either dictionary."
+            raise log.exception(KeyError(msg, key),
+                                None,
+                                msg)
+
+        # ---
+        # Delete based on item.
+        # ---
+        self.del_by_value(item)
+
     def __len__(self) -> int:
         return len(self._data0)
+
+    def __str__(self) -> str:
+        '''To String.'''
+        return repr(self)
+
+    def __repr__(self) -> str:
+        '''To Representation String.'''
+        from pprint import pformat
+        import textwrap
+        indent = '  '
+        start = f"<class DoubleIndexDict('{self._name0}', '{self._name0}'): "
+        data0_str = textwrap.indent(pformat(self._data0), indent * 2)
+        data1_str = textwrap.indent(pformat(self._data1), indent * 2)
+        end = ">"
+        return (start + '\n'
+                + indent + self._name0 + ':\n'
+                + data0_str + '\n'
+                + indent + self._name1 + ':\n'
+                + data1_str + '\n'
+                + end)
 
 
 # -----------------------------------------------------------------------------

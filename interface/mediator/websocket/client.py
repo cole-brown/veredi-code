@@ -38,7 +38,8 @@ from veredi.data.config.config   import Configuration
 from veredi.data.codec.base      import BaseCodec
 from veredi.data.config.registry import register
 
-from ..message                   import Message, MsgType
+from ..const                     import MsgType
+from ..message                   import Message
 from .mediator                   import WebSocketMediator
 from .base                       import VebSocket, TxProcessor, RxProcessor
 from ..context                   import (MediatorClientContext,

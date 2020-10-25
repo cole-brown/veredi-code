@@ -40,7 +40,8 @@ from veredi.parallel.multiproc  import SubToProcComm
 
 # from .                        import exceptions
 from .context                   import MediatorContext, MessageContext
-from .message                   import Message, MsgType
+from .const                     import MsgType
+from .message                   import Message
 from .payload.logging           import LogPayload, LogField
 
 

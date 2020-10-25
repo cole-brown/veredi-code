@@ -11,6 +11,9 @@ Generic collection-type or pair-ish or (named) tuple-ish things.
 from typing import (Optional, Union, Type, Any,
                     TypeVar, Generic)
 
+import collections.abc
+
+
 # -----------------------------------------------------------------------------
 # Current / Next
 # -----------------------------------------------------------------------------
