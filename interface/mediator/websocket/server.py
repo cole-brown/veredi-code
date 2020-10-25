@@ -42,10 +42,12 @@ from veredi.data.config.registry import register
 from .mediator                   import WebSocketMediator
 from .exceptions                 import WebSocketError
 from .base                       import VebSocket, TxProcessor, RxProcessor
-from ..message                   import Message, MsgType
+from ..const                     import MsgType
+from ..message                   import Message, ConnectionMessage
 from ..context                   import (MediatorServerContext,
                                          MessageContext,
                                          UserConnToken)
+from ...user                     import User
 
 
 # -----------------------------------------------------------------------------
@@ -179,10 +181,10 @@ class VebSocketServer(VebSocket):
         '''
         self._sockets_open.add(websocket)
 
-    def unregister(self,
-                   websocket: websockets.WebSocketServerProtocol,
-                   close: bool = False
-                   ) -> None:
+    async def unregister(self,
+                         websocket: websockets.WebSocketServerProtocol,
+                         close: bool = False
+                         ) -> None:
         '''
         Remove this websocket from our collection of clients.
 
@@ -190,7 +192,7 @@ class VebSocketServer(VebSocket):
         '''
         self._sockets_open.remove(websocket)
         if self._unregistered:
-            self._unregistered(self.token(websocket))
+            await self._unregistered(self.token(websocket))
 
         # Both 'ws.open' and 'ws.closed' are False during opening/closing
         # sequences so I guess check both?
@@ -284,109 +286,12 @@ class VebSocketServer(VebSocket):
             task.cancel()
 
         # And we need to forget this client.
-        self.unregister(websocket)
+        await self.unregister(websocket)
 
 
 # -----------------------------------------------------------------------------
 # The "Registered Client(s) of the WebSocketServer" Bit
 # -----------------------------------------------------------------------------
-
-class RegisteredClient:
-    '''
-    Contains all the bits we need for keeping track of a registered client and
-    their data.
-    '''
-
-    def __init__(self,
-                 id:    UserId,
-                 key:   Optional[UserKey],
-                 conn:  UserConnToken,
-                 debug: Callable) -> None:
-        self._id:       UserId            = id
-        self._key:      Optional[UserKey] = key
-        self._conn:     UserConnToken     = conn
-        self._tx_queue: asyncio.Queue     = asyncio.Queue()
-        self.debug:     Callable          = debug
-
-    # ------------------------------
-    # Properties
-    # ------------------------------
-
-    @property
-    def id(self) -> UserId:
-        '''
-        User's (session) ID
-        '''
-        return self._id
-
-    @property
-    def key(self) -> UserKey:
-        '''
-        User's (session) Key
-        '''
-        return self._key
-
-    @property
-    def connection(self) -> UserConnToken:
-        '''
-        User's (socket) connection token.
-        '''
-        return self._conn
-
-    @property
-    def queue(self) -> asyncio.Queue:
-        '''
-        Queue for "received-from-game;waiting-to-send-to-user" messages.
-        '''
-        return self._tx_queue
-
-    # ------------------------------
-    # Queue Helpers
-    # ------------------------------
-
-    def has_data(self) -> bool:
-        '''Returns True if client's queue has data to send them.'''
-        return not self._tx_queue.empty()
-
-    def get_data(self) -> Tuple[Message, MessageContext]:
-        '''Gets (no wait) data from client's queue for processing/sending.'''
-        msg, ctx = self._tx_queue.get_nowait()
-        self.debug("Got from client's queue for sending to client: "
-                   f"msg: {msg}, ctx: {ctx}, client: {self}")
-        return msg, ctx
-
-    async def put_data(self,
-                       msg: Message,
-                       ctx: MessageContext) -> None:
-        '''
-        Puts data into client's queue for us to send to this client later.
-        '''
-        self.debug("Putting data into client's queue for sending to client: "
-                   f"msg: {msg}, ctx: {ctx}, client: {self}")
-        await self._tx_queue.put((msg, ctx))
-
-    # ------------------------------
-    # To String
-    # ------------------------------
-
-    def __str__(self):
-        return (
-            f"{self.__class__.__name__}: "
-            f"id: {self.id}, "
-            f"key: {self.key}, "
-            f"conn: {self.connection}, "
-            f"queue: {self.queue} "
-            f"queue-has-data?: {self.has_data()}"
-        )
-
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"{self.id}, "
-            f"{self.key}, "
-            f"{self.connection})"
-        )
-
 
 class ClientRegistry:
     '''
@@ -394,11 +299,11 @@ class ClientRegistry:
     '''
 
     def __init__(self, debug_fn: Callable) -> None:
-        self._id:   Dict[UserId,        'RegisteredClient'] = {}
-        self._key:  Dict[UserKey,       'RegisteredClient'] = {}
-        self._conn: Dict[UserConnToken, 'RegisteredClient'] = {}
+        self._id:   Dict[UserId,        User] = {}
+        self._key:  Dict[UserKey,       User] = {}
+        self._conn: Dict[UserConnToken, User] = {}
 
-        self.debug: Callable                                = debug_fn
+        self.debug: Callable                  = debug_fn
         '''
         Should be WebSocketServer.debug().
         '''
@@ -410,9 +315,9 @@ class ClientRegistry:
     def register(self,
                  user_id:  UserId,
                  user_key: Optional[UserKey],
-                 conn:     UserConnToken) -> None:
+                 conn:     UserConnToken) -> User:
         '''
-        Creates a RegisteredClient instance and indexes it by all the things we
+        Creates a User instance and indexes it by all the things we
         can get it by.
         '''
         if not user_id or not conn:
@@ -422,12 +327,17 @@ class ClientRegistry:
                                 None,
                                 msg)
 
-        user = RegisteredClient(user_id, user_key, conn, self.debug)
-        self._id[user_id]   = user
+        user = User(user_id, user_key, conn, self.debug,
+                    # Create a queue for the user.
+                    asyncio.Queue())
+
+        self._id[user_id] = user
         # TODO: make user_key required?
         if user_key:
             self._key[user_key] = user
-        self._conn[conn]    = user
+        self._conn[conn] = user
+
+        return user
 
     def unregister(self,
                    user_id:  NullNoneOr[UserId],
@@ -458,21 +368,21 @@ class ClientRegistry:
     # Getters / Setters
     # ------------------------------
 
-    def id(self, user: UserId) -> Nullable['RegisteredClient']:
+    def id(self, user: UserId) -> Nullable[User]:
         '''
         Get by user's id.
         Returns Null() if it can't find client.
         '''
         return self._id.get(user, Null())
 
-    def key(self, user: UserKey) -> Nullable['RegisteredClient']:
+    def key(self, user: UserKey) -> Nullable[User]:
         '''
         Get by user's key.
         Returns Null() if it can't find client.
         '''
         return self._key.get(user, Null())
 
-    def connection(self, user: UserConnToken) -> Nullable['RegisteredClient']:
+    def connection(self, user: UserConnToken) -> Nullable[User]:
         '''
         Get by user's connection token.
         Returns Null() if it can't find client.
@@ -482,7 +392,7 @@ class ClientRegistry:
     def get(self,
             user_id:  UserId,
             user_key: Optional[UserKey],
-            conn:     UserConnToken) -> Nullable['RegisteredClient']:
+            conn:     UserConnToken) -> Nullable[User]:
         '''
         Get when you don't know what to use to get.
         Will return Null if nothing found.
@@ -559,11 +469,11 @@ class WebSocketServer(WebSocketMediator):
     # User Connection Tracking
     # -------------------------------------------------------------------------
 
-    def _validate_connect(self,
-                          uid:  UserId,
-                          ukey: Optional[UserKey],
-                          conn: UserConnToken,
-                          msg:  Message) -> bool:
+    async def _validate_connect(self,
+                                uid:  UserId,
+                                ukey: Optional[UserKey],
+                                conn: UserConnToken,
+                                msg:  Message) -> bool:
         '''
         Validates user, registers if valid, returns valid/invalid user bool.
         '''
@@ -579,7 +489,7 @@ class WebSocketServer(WebSocketMediator):
                             f"NEW: uid: {uid}, ukey: {ukey}, token: {conn}")
                 # TODO [2020-08-13]: Should we tell socket to disconnect that
                 # one?
-                self.unregister(uid, ukey, conn)
+                await self.unregister(uid, ukey, conn)
 
             return True
 
@@ -589,18 +499,18 @@ class WebSocketServer(WebSocketMediator):
                      f" ukey: {type(ukey)} {ukey}")
         return False
 
-    def register(self,
-                 user_id:  UserId,
-                 user_key: Optional[UserKey],
-                 conn:     UserConnToken,
-                 msg:      Message) -> Optional[Message]:
+    async def register(self,
+                       user_id:  UserId,
+                       user_key: Optional[UserKey],
+                       conn:     UserConnToken,
+                       msg:      Message) -> Optional[Message]:
         '''
         Validate client, register as connected if passes validation.
 
         Return ACK_CONNECT message if needed.
         '''
         success = False
-        if not self._validate_connect(user_id, user_key, conn, msg):
+        if not await self._validate_connect(user_id, user_key, conn, msg):
             # Failed. Return ACK_CONNECT for failure.
             # TODO: Don't always return message? Always return None? IDK?
             success = False
@@ -608,7 +518,12 @@ class WebSocketServer(WebSocketMediator):
                        f"({user_id}, {user_key}, {conn})")
 
         else:
+            # Register the client ourselves.
             self._clients.register(user_id, user_key, conn)
+            # Also tell the game about them connecting.
+            conn_msg = ConnectionMessage.connected(user_id, user_key, conn)
+            await self._med_to_game_put(conn_msg,
+                                        self.make_msg_context(conn_msg.msg_id))
             success = True
             self.debug("Registered user: "
                        f"({user_id}, {user_key}, {conn})")
@@ -617,24 +532,29 @@ class WebSocketServer(WebSocketMediator):
         ack = Message.connected(msg, user_id, user_key, success)
         return ack
 
-    def disconnected(self,
-                     conn:     Optional[UserConnToken]
-                     ) -> Optional[Message]:
+    async def disconnected(self,
+                           conn:     Optional[UserConnToken]
+                           ) -> Optional[Message]:
         '''
         Callback for VebSocketServer to inform of a disconnected client
         connection.
         '''
-        self.unregister(None, None, conn)
+        await self.unregister(None, None, conn)
 
-    def unregister(self,
-                   user_id:  Optional[UserId],
-                   user_key: Optional[UserKey],
-                   conn:     Optional[UserConnToken]
-                   ) -> Optional[Message]:
+    async def unregister(self,
+                         user_id:  Optional[UserId],
+                         user_key: Optional[UserKey],
+                         conn:     Optional[UserConnToken]
+                         ) -> Optional[Message]:
         '''
         Client has disconnected, remove from registered.
         '''
+        # Unregister the client ourselves.
         success = self._clients.unregister(user_id, user_key, conn)
+        # Also tell the game about them unregistering.
+        conn_msg = ConnectionMessage.disconnected(user_id, user_key, conn)
+        await self._med_to_game_put(conn_msg,
+                                    self.make_msg_context(conn_msg.msg_id))
 
         if success:
             self.debug("Unregistered user: "
@@ -1063,5 +983,5 @@ class WebSocketServer(WebSocketMediator):
         conn = context.connection
 
         # Validate and register user.
-        reply = self.register(user_id, user_key, conn, msg)
+        reply = await self.register(user_id, user_key, conn, msg)
         return reply

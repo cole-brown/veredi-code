@@ -44,7 +44,8 @@ from veredi.data.codec.json                     import codec
 # ---
 # Mediation
 # ---
-from veredi.interface.mediator.message          import Message, MsgType
+from veredi.interface.mediator.const            import MsgType
+from veredi.interface.mediator.message          import Message
 from veredi.interface.mediator.websocket.server import WebSocketServer
 from veredi.interface.mediator.websocket.client import WebSocketClient
 from veredi.interface.mediator.context          import MessageContext

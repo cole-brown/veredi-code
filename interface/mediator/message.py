@@ -11,7 +11,11 @@ For a server mediator (e.g. WebSockets) talking to a game.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, NewType, Mapping
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Any, NewType, Mapping)
+if TYPE_CHECKING:
+    from veredi.interface.mediator.context import UserConnToken
+
 
 from abc import ABC, abstractmethod
 import multiprocessing
@@ -20,123 +24,23 @@ import asyncio
 import enum
 import contextlib
 
+
 import veredi.logger.log
-from veredi.data.codec.base                    import Encodable
-from veredi.data.exceptions                    import EncodableError
-from veredi.base.identity                      import MonotonicId
-from veredi.data.identity                      import UserId, UserKey
-from veredi.interface.mediator.payload.base    import BasePayload
-from veredi.interface.mediator.payload.logging import LogPayload
-from veredi.game.ecs.base.identity             import EntityId
-from veredi.base.enum               import FlagCheckMixin, FlagSetMixin
+from veredi.data.codec.base        import Encodable
+from veredi.data.exceptions        import EncodableError
+from veredi.base.identity          import MonotonicId
+from veredi.data.identity          import UserId, UserKey
+from veredi.game.ecs.base.identity import EntityId
+
+from ..user                        import User
+from .const                        import MsgType
+from .payload.base                 import BasePayload
+from .payload.logging              import LogPayload
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-@enum.unique
-class MsgType(FlagCheckMixin, FlagSetMixin, Encodable, enum.Flag):
-    '''
-    A message between game and Mediator will be assigned one of these types.
-    '''
-
-    # ------------------------------
-    # Testing / Non-Standard
-    # ------------------------------
-
-    IGNORE = 0
-    '''Ignore me.'''
-
-    PING = enum.auto()
-    '''Requests a ping to the other end of the mediation (client/server).'''
-
-    ECHO = enum.auto()
-    '''
-    Asks other end of mediation to just bounce back whatever it was given.
-    '''
-    ECHO_ECHO = enum.auto()
-    '''
-    Echo bounce-back.
-    '''
-
-    # TODO [2020-08-05]: IMPLEMENT THIS ONE!!!
-    LOGGING = enum.auto()
-    '''
-    Instructions about logging:
-      - Game can message Mediator on its side asking it to adjust logging.
-      - Server game/mediator can ask client to:
-          - Report current logging meta-data.
-          - Adjust logging level.
-          - Connect to logging server.
-      - Client can obey or ignore as it sees fit.
-    '''
-
-    # ------------------------------
-    # Normal Runtime Messages
-    # ------------------------------
-
-    CONNECT = enum.auto()
-    '''
-    Client connection request to the server. Should include user id, whatever
-    else is needed to auth/register user.
-    '''
-
-    ACK_CONNECT = enum.auto()
-    '''
-    Special ack for connect - payload will indicate success or failure?
-    '''
-
-    ACK_ID = enum.auto()
-    '''
-    Acknowledge successful reception of a message with a context ID in case it
-    gets a result response later.
-    '''
-
-    TEXT = enum.auto()
-    '''The payload is text.'''
-
-    ENCODED = enum.auto()
-    '''The payload is already encoded somehow?'''
-
-    CODEC = enum.auto()
-    '''
-    Please encode(/decode) this using your codec
-    before sending(/after receiving).
-    '''
-
-    GAME_AUTO = enum.auto()
-    '''
-    The mediator should figure this one out and it should be one of the
-    GAME_MSGS types.
-    '''
-
-    GAME_MSGS = TEXT | ENCODED | CODEC
-    '''
-    Expected message types from the game.
-    '''
-
-    # ------------------------------
-    # Encodable API (Codec Support)
-    # ------------------------------
-
-    def encode(self) -> Mapping[str, str]:
-        '''
-        Returns a representation of ourself as a dictionary.
-        '''
-        encoded = super().encode()
-        encoded['msg_type'] = self.value
-        return encoded
-
-    @classmethod
-    def decode(klass: 'MsgType', mapping: Mapping[str, str]) -> 'MsgType':
-        '''
-        Turns our encoded dict into a MsgType instance.
-        '''
-        klass.error_for(mapping, keys=['msg_type'])
-        decoded = klass(mapping['msg_type'])
-        return decoded
-
 
 # ------------------------------
 # Types
@@ -173,6 +77,8 @@ class Message(Encodable):
         '''
         Client -> Server: Hello / Auth / Register-Me-Please.
         Server -> Client: Result.
+
+        OR Server -> Game: This client has connected.
         '''
 
         # ------------------------------
@@ -211,7 +117,7 @@ class Message(Encodable):
         sent with a non-None message id.
         '''
 
-        self._type:       'MsgType'          = MsgType.INVALID
+        self._type:       'MsgType'          = MsgType.IGNORE
         '''
         Message's Type. Determines how Mediators handle the message itself and
         its payload.
@@ -548,3 +454,77 @@ class Message(Encodable):
             f"{self.user_key}]"
             f"({repr(self.payload)})>"
         )
+
+
+# -----------------------------------------------------------------------------
+# Message for Connecting/Disconnecting Users
+# -----------------------------------------------------------------------------
+
+class ConnectionMessage(Message):
+    '''
+    Mediator -> Game message for a connecting or disconnecting client.
+    '''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def __init__(self,
+                 connected:  bool,
+                 user_id:    Optional[UserId],
+                 user_key:   Optional[UserKey],
+                 connection: 'UserConnToken') -> None:
+        # Type will be CONNECT or DISCONNECT, depending.
+        msg_type = (MsgType.CONNECT
+                    if connected else
+                    MsgType.DISCONNECT)
+
+        # Init base class with our data. `connection` token will be the
+        # payload.
+        super().__init__(ConnectionMessage.SpecialId.CONNECT,
+                         msg_type,
+                         connection, None,
+                         user_id, user_key)
+
+    @classmethod
+    def connected(klass:      'ConnectionMessage',
+                  user_id:    UserId,
+                  user_key:   Optional[UserKey],
+                  connection: 'UserConnToken'
+                  ) -> 'ConnectionMessage':
+        '''
+        Create a "connected" version of a ConnectionMessage.
+        '''
+        return ConnectionMessage(True, user_id, user_key, connection)
+
+    @classmethod
+    def disconnected(klass:      'ConnectionMessage',
+                     user_id:    Optional[UserId],
+                     user_key:   Optional[UserKey],
+                     connection: 'UserConnToken'
+                     ) -> 'ConnectionMessage':
+        '''
+        Create a "disconnected" version of a ConnectionMessage.
+        '''
+        return ConnectionMessage(False, user_id, user_key, connection)
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @property
+    def connection(self) -> 'UserConnToken':
+        '''
+        Get connection token from message.
+        '''
+        return self.payload
+
+    # -------------------------------------------------------------------------
+    # Helpers
+    # -------------------------------------------------------------------------
+
+    def user(self) -> User:
+        '''
+        Create a User instance with our Connection information.
+        '''
+        return User(self.user_id, self.user_key, self.connection)

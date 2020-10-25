@@ -68,7 +68,8 @@ from .event                              import CommandInputEvent
 # from .component                        import InputComponent
 
 from ..mediator.event                    import MediatorToGameEvent
-from ..mediator.message                  import Message, MsgType
+from ..mediator.const                    import MsgType
+# from ..mediator.message                import Message
 
 # TODO [2020-06-27]: Better place to do these registrations.
 import veredi.zest.debug.registration

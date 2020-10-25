@@ -48,6 +48,8 @@ from veredi.interface.output.system         import OutputSystem
 from veredi.interface.output.envelope       import Envelope
 from veredi.interface.output.event          import Recipient
 
+from veredi.interface.mediator.context      import USER_CONN_INVALID
+
 from veredi.rules.d20.pf2.ability.system    import AbilitySystem
 from veredi.rules.d20.pf2.ability.event     import AbilityResult
 from veredi.rules.d20.pf2.ability.component import AbilityComponent
@@ -131,7 +133,8 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
         '''
         uid  = self._uid_gen.next("jeff")
         ukey = self._ukey_gen.next("jeff")
-        background.users.add_connected(User(uid, ukey))
+        conn = USER_CONN_INVALID
+        background.users.add_connected(User(uid, ukey, conn))
 
     # -------------------------------------------------------------------------
     # Entity/Component Test Set-Up

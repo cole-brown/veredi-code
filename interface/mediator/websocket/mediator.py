@@ -31,7 +31,8 @@ from ..mediator                import Mediator
 from ..context                 import (MessageContext,
                                        MediatorContext,
                                        UserConnToken)
-from ..message                 import Message, MsgType
+from ..const                   import MsgType
+from ..message                 import Message
 from .base                     import VebSocket
 from ..payload.logging         import LogPayload
 

@@ -69,14 +69,6 @@ class Lumberjack:
         the ultra-mega-debug ones.
         '''
 
-        self._managed: log.PyLogType = None
-        '''
-        The logger we use while in a managed context
-        (aka 'with this_lumberjack:').
-        '''
-
-        self._levels: Dict[log.Group, log.Level]
-
     def __init__(self,
                  name:                str,
                  initial_level:       log.Level             = log.Level.NOTSET,
@@ -84,6 +76,9 @@ class Lumberjack:
                  handler:             Optional[logging.Handler]   = None,
                  formatter:           Optional[logging.Formatter] = None
                  ) -> None:
+
+        self._define_vars()
+
         # ------------------------------
         # Set/Verify Name
         # ------------------------------
