@@ -8,16 +8,18 @@ Dictionary helpers and special classes.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Dict, Iterable
+from typing import Optional, Any, Dict, Iterable, Iterator
 
-from collections.abc import MutableMapping
+
 import enum
 
 from veredi.logger import log
 
+# TODO [2020-10-28]: Some stuff is missing type hinting.
 
 # TODO [2020-09-22]: Use typing something or other to allow these to take
 # in & use type hinting. E.g. self.foo: DoubleIndexDict[[str, int], Jeff]
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -90,6 +92,12 @@ class DoubleIndexDict:
         Returns values dictionary view of one of the internal dict.
         '''
         return self._data0.values()
+
+    def __iter__(self) -> Iterator:
+        '''
+        Returns an iterator over self._data0.
+        '''
+        return iter(self._data0)
 
     # -------------------------------------------------------------------------
     # Getters / Setters for Keeping in Sync
@@ -168,6 +176,21 @@ class DoubleIndexDict:
     # -------------------------------------------------------------------------
     # Pythonic Functions
     # -------------------------------------------------------------------------
+
+    def __getitem__(self, key):
+        '''
+        collections.abc.MutableMapping 'subscriptable' support.
+        '''
+        return self.get(key)
+
+    def __setitem__(self, key, newvalue):
+        '''
+        collections.abc.MutableMapping 'subscriptable' support.
+        '''
+        # Not sure if there's a way to do this... Don't have any smart ideas
+        # currently, so disallow.
+        raise NotImplementedError("Cannot have subscriptable setter for "
+                                  f"{self.__class__.__name__}. Need two keys.")
 
     def __delitem__(self, key) -> None:
         '''

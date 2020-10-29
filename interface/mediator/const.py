@@ -13,9 +13,9 @@ from typing import Mapping
 import enum
 
 
-from veredi.base.enum       import (FlagCheckMixin,
-                                    FlagSetMixin)
-from veredi.data.codec.base import Encodable
+from veredi.base.enum            import (FlagCheckMixin,
+                                         FlagSetMixin)
+from veredi.data.codec.encodable import Encodable
 
 
 # -----------------------------------------------------------------------------

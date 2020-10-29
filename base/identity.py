@@ -18,7 +18,7 @@ from abc import abstractmethod
 # from veredi.base.decorators import abstract_class_attribute
 from veredi.base.metaclasses import InvalidProvider, ABC_InvalidProvider
 
-from veredi.data.codec.base import Encodable
+from veredi.data.codec.encodable import Encodable
 
 
 # -----------------------------------------------------------------------------

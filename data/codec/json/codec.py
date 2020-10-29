@@ -21,12 +21,13 @@ import json
 from io import StringIO
 import contextlib
 
-from veredi.logger import log
-from veredi.data import background
+from veredi.logger               import log
+from veredi.data                 import background
 from veredi.data.config.registry import register
-from veredi.data import exceptions
+from veredi.data                 import exceptions
 
-from ..base import BaseCodec, CodecOutput, CodecInput, Encodable
+from ..encodable                 import Encodable
+from ..base                      import BaseCodec, CodecOutput, CodecInput
 
 
 # -----------------------------------------------------------------------------
