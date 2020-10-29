@@ -26,11 +26,13 @@ import contextlib
 
 
 import veredi.logger.log
-from veredi.data.codec.base        import Encodable
+from veredi.security               import abac
+from veredi.data.codec.encodable   import Encodable
 from veredi.data.exceptions        import EncodableError
 from veredi.base.identity          import MonotonicId
 from veredi.data.identity          import UserId, UserKey
 from veredi.game.ecs.base.identity import EntityId
+
 
 from ..user                        import User
 from .const                        import MsgType

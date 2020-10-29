@@ -19,11 +19,11 @@ import asyncio
 import enum
 import contextlib
 
-from veredi.logger          import log
-from veredi.data.codec.base import Encodable
-from veredi.data.exceptions import EncodableError
-from veredi.base.identity   import MonotonicId
-from veredi.data.identity   import UserId, UserKey
+from veredi.logger               import log
+from veredi.data.codec.encodable import Encodable
+from veredi.data.exceptions      import EncodableError
+from veredi.base.identity        import MonotonicId
+from veredi.data.identity        import UserId, UserKey
 
 
 # -----------------------------------------------------------------------------

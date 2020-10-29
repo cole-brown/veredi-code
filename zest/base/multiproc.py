@@ -359,7 +359,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        log.at_level(level, msg, args, kwargs,
+        log.at_level(level, msg, *args, **kwargs,
                      veredi_logger=self.lumberjack)
 
     def log_ultra_mega_debug(self,
@@ -369,32 +369,32 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        log.ultra_mega_debug(msg, args, kwargs,
+        log.ultra_mega_debug(msg, *args, **kwargs,
                              veredi_logger=self.lumberjack)
 
     def log_debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        self.log(log.Level.DEBUG, msg, args, kwargs)
+        self.log(log.Level.DEBUG, msg, *args, **kwargs)
 
     def log_info(self, msg: str, *args: Any, **kwargs: Any) -> None:
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        self.log(log.Level.INFO, msg, args, kwargs)
+        self.log(log.Level.INFO, msg, *args, **kwargs)
 
     def log_warning(self, msg: str, *args: Any, **kwargs: Any) -> None:
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        self.log(log.Level.WARNING, msg, args, kwargs)
+        self.log(log.Level.WARNING, msg, *args, **kwargs)
 
     def log_critical(self, msg: str, *args: Any, **kwargs: Any) -> None:
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        self.log(log.Level.CRITICAL, msg, args, kwargs)
+        self.log(log.Level.CRITICAL, msg, *args, **kwargs)
 
     # -------------------------------------------------------------------------
     # Test Helpers
