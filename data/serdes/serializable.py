@@ -30,12 +30,15 @@ class Serializable:
     ask it to during the serialize/deserialize.
     '''
 
+    # TODO [2020-11-03]: Updated Serializable to work like Encodable does now.
+
     @classmethod
     def _type_field(klass: 'Serializable') -> str:
         '''
         A short, unique name for serializing an instance.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{klass.__name__}._type_field() "
+                                  "is not implemented.")
 
     @classmethod
     def claim(klass: 'Serializable',
@@ -44,8 +47,20 @@ class Serializable:
         Returns true if this Serializable class thinks it can/should
         deserialize this stream.
         '''
-        return (klass._type_field in stream
-                and stream[klass._type_field] == klass.__name__)
+        # TODO [2020-11-03]: Updated Serializable to work like Encodable does now.
+        # # Is it EncodedSimple?
+        # if klass._encoded_simply(stream):
+        #     # If it's a simple encode and we don't have a decode regex for
+        #     # that, then... No; It can't be ours.
+        #     decode_rx = klass._get_decode_rx()
+        #     if not decode_rx:
+        #         return False
+        #     # Check if decode_rx likes the data.
+        #     return bool(decode_rx.match(stream))
+
+        # Else it's EncodedComplex. See if it has our type field.
+        return (klass._type_field() in stream
+                and stream[klass._type_field()] == klass.__name__)
 
     def serialize(self) -> Union[str, bytes, TextIO]:
         '''

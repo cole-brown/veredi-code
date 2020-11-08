@@ -163,7 +163,8 @@ class RepositorySystem(System):
         context = self._repository.context.push(event.context)
 
         # TODO [2020-05-22]: Encode it.
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.event_encoded() "
+                                  "is not yet implemented.")
         serialized = None
 
         # Done; fire off event for whoever wants the next step.

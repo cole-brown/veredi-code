@@ -830,7 +830,8 @@ class Engine:
         Infinite loop of 'self.run_tick()' until stopped.
         '''
         # TODO [2020-09-28]: Implement this.
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.run() is "
+                                  "not implemented.")
 
     def run_tick(self) -> Optional[VerediHealth]:
         '''

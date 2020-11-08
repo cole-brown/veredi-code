@@ -202,7 +202,7 @@ def _make_owner(owner_id: Union[str, Encodable]) -> str:
         owner_str = owner_id.lower()
 
     elif isinstance(owner_id, Encodable):
-        owner_str = owner_id.encode_str()
+        owner_str = owner_id.encode(None)
 
     else:
         msg = ("Cannot make a VRN owner string from an owner_id "

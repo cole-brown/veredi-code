@@ -267,7 +267,9 @@ class DataSystem(System):
                 context=event.context)
             return
 
-        pass
+        self._log.warning(f"{self.__class__.__name__}.event_serialized() "
+                          "is not really implemented... ignoring event: {}",
+                          event)
 
         # TODO: Clear out any dirty or save flag?
 
@@ -276,8 +278,10 @@ class DataSystem(System):
 
         # context = self._repository.context.push(event.context)
         #
-        # # §-TODO-§ [2020-05-22]: Encode it.
-        # raise NotImplementedError
+        # # TODO [2020-05-22]: Encode it.
+        # raise NotImplementedError(
+        #     f"{self.__class__.__name__}.event_serialized() "
+        #     "is not implemented.")
         # serialized = None
         #
         # # Done; fire off event for whoever wants the next step.

@@ -11,23 +11,25 @@ Events for Math, Maths, Mathing, Mathers, and Jeff.
 
 from typing import Optional, Union, NewType
 import enum
-from decimal import Decimal
 
+from veredi.base                   import numbers
+from veredi.base.numbers           import NumberTypes, NumberTypesTuple
 from veredi.base.context           import VerediContext
 from veredi.base.identity          import SerializableId
 from veredi.game.ecs.base.identity import EntityId
 from veredi.game.ecs.event         import Event
 from veredi.interface.output.event import OutputEvent, Recipient
+from veredi.data.codec.encodable   import (Encodable,
+                                           EncodableRegistry,
+                                           EncodedSimple,
+                                           EncodedComplex,
+                                           EncodedComplex)
 
 from .parser import MathTree
-
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-MathValueType = NewType('MathValueType', Union[int, float, Decimal])
-MathValue = (int, float, Decimal)
 
 
 # -----------------------------------------------------------------------------
@@ -67,7 +69,7 @@ class MathEvent(Event):
 
     def finalize(self,
                  root: MathTree,
-                 total: MathValueType) -> None:
+                 total: NumberTypes) -> None:
         '''
         Get this event ready for publishing.
         '''
@@ -116,7 +118,7 @@ class MathResult(MathEvent):
 # Output to Users
 # -----------------------------------------------------------------------------
 
-class MathOutputEvent(OutputEvent):
+class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
     '''
     This math event is for directing a finalized math result towards the
     command/event output flow.
@@ -125,6 +127,21 @@ class MathOutputEvent(OutputEvent):
 
     Note: Subclassed off of OutputEvent instead of MathEvent.
     '''
+
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
+
+    # ------------------------------
+    # Constants: Encodable
+    # ------------------------------
+
+    _ENCODE_NAME: str = 'math.output'
+    '''Name for this class when encoding/decoding.'''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     # Same as OutputEvent's right now:
     # def __init__(self,
@@ -150,7 +167,7 @@ class MathOutputEvent(OutputEvent):
         # ---
         # Set/Init our vars.
         # ---
-        self._total: Optional[MathValueType] = None
+        self._total: Optional[NumberTypes] = None
 
     def reset(self) -> None:
         super().reset()
@@ -161,7 +178,7 @@ class MathOutputEvent(OutputEvent):
     # -------------------------------------------------------------------------
 
     @property
-    def total(self) -> Optional[MathValueType]:
+    def total(self) -> Optional[NumberTypes]:
         '''
         Returns the math event's total.
         '''
@@ -180,13 +197,64 @@ class MathOutputEvent(OutputEvent):
 
     def finalize(self,
                  root:  MathTree,
-                 total: MathValueType) -> None:
+                 total: NumberTypes) -> None:
         '''
         Get this event ready for publishing. Replaces _output and _total with
         these values.
         '''
         self._output = root
         self._total = total
+
+    # -------------------------------------------------------------------------
+    # Encodable API
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _type_field(klass: 'MathOutputEvent') -> str:
+        return klass._ENCODE_NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+
+        # Parent can do most of it.
+        encoded = super()._encode_complex()
+
+        # Now we just need to do total...
+        encoded['total'] = numbers.to_str(self._total)
+
+        print(f"MathOutputEvent.encode_complex: {encoded}")
+        return encoded
+
+    @classmethod
+    def _decode_complex(klass: 'MathOutputEvent',
+                        data: EncodedComplex) -> 'MathOutputEvent':
+        '''
+        Decode ourself from an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Check claims.
+        klass.error_for(data,
+                        keys=['total'])
+
+        # ---
+        # Parent can do most of our work.
+        # ---
+        instance = klass(None,
+                         None,
+                         None,
+                         None,
+                         None,
+                         None)
+        klass._decode_super(instance, data)
+
+        # ---
+        # And we just have to do our special fields.
+        # ---
+        instance._total = numbers.from_str(data['total'])
+
+        return instance
 
     # -------------------------------------------------------------------------
     # To String

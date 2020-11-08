@@ -65,7 +65,8 @@ class BaseRepository(ABC):
         '''
         Data for the Veredi Background context.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.background() "
+                                  "is not implemented.")
 
     def _make_background(self, dotted_name):
         '''
@@ -102,7 +103,8 @@ class BaseRepository(ABC):
         '''
         Load a definition data from repository based on `dotted_name`.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.definition() "
+                                  "is not implemented.")
 
     @abstractmethod
     def load(self,
@@ -112,4 +114,5 @@ class BaseRepository(ABC):
 
         Returns io stream.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.load() "
+                                  "is not implemented.")

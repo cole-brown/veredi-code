@@ -10,20 +10,15 @@ just a string, dict, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, NewType, Mapping, Tuple
+from typing import Optional, Union, Any, Mapping
 
-from abc import ABC, abstractmethod
-import multiprocessing
-import multiprocessing.connection
-import asyncio
 import enum
-import contextlib
 
 from veredi.logger               import log
-from veredi.data.codec.encodable import Encodable
+from veredi.data.codec.encodable import (Encodable,
+                                         EncodedSimple,
+                                         EncodedComplex)
 from veredi.data.exceptions      import EncodableError
-from veredi.base.identity        import MonotonicId
-from veredi.data.identity        import UserId, UserKey
 
 
 # -----------------------------------------------------------------------------
@@ -59,12 +54,15 @@ class Validity(enum.Enum):
 # Payload Basics
 # -----------------------------------------------------------------------------
 
-class BasePayload(Encodable):
+class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
     '''
     Base class for message payloads. Simple payloads (like a string, list,
     dict...) do not need to be encapsulated. They can just be encoded/decoded
     with the mediator's codec.
     '''
+
+    _ENCODE_NAME: str = 'payload'
+    '''Name for this class when encoding/decoding.'''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -88,8 +86,9 @@ class BasePayload(Encodable):
         '''
 
     def __init__(self,
-                 data: Any,
-                 valid: 'Validity') -> None:
+                 data:            Any,
+                 valid:           'Validity',
+                 skip_validation: bool = False) -> None:
         self._define_vars()
 
         # ---
@@ -99,9 +98,10 @@ class BasePayload(Encodable):
         self.valid = valid
 
         # ---
-        # Check Value's Validity
+        # Check Value's Validity?
         # ---
-        self._validate()
+        if not skip_validation:
+            self._validate()
 
     def _validate(self) -> None:
         '''
@@ -156,54 +156,61 @@ class BasePayload(Encodable):
     # Encodable API (Codec Support)
     # -------------------------------------------------------------------------
 
-    def encode(self) -> Mapping[str, Union[str, int]]:
+    @classmethod
+    def _type_field(klass: 'BasePayload') -> str:
+        return klass._ENCODE_NAME
+
+    def _encode_simple(self) -> EncodedSimple:
         '''
-        Returns a representation of our data as a dictionary.
+        Don't support simple for Payloads.
         '''
-        log.debug(f"\n\n{self.__class__.__name__}.encode: {self.data}\n\n")
-
-        # Get started with parent class's encoding.
-        encoded = super().encode()
-        # Updated with our own.
-        encoded = self._encode(encoded)
-
-        # log.debug(f"\n\n   done.encode: {encoded}\n\n")
-        return encoded
-
-    def _encode(self,
-                encoding: Mapping[str, Union[str, int]]
-                ) -> Mapping[str, Union[str, int]]:
-        '''
-        Sub-classes should override this if any extra encoding needs to happen.
-
-        We will just guess at how to encode if we can.
-        '''
-
-        if isinstance(self.data, dict):
-            return self._encode_map(self.data, encoding)
-
-        else:
-            raise NotImplementedError(
-                "BasePayload._encode doesn't know how to handle "
-                f"'{type(self.data)}'.",
-                type(self.data), self.data, self.valid)
+        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+               "simple string.")
+        raise NotImplementedError(msg)
 
     @classmethod
-    def decode(klass: 'BasePayload',
-               mapping: Mapping[str, Union[str, int]]) -> 'BasePayload':
+    def _decode_simple(klass: 'BasePayload',
+                       data: EncodedSimple) -> 'BasePayload':
         '''
-        Turns the `mapping` into a payload instance.
+        Don't support simple by default.
         '''
-        # log.debug(f"\n\nlogging.decode {type(mapping)}: {mapping}\n\n")
+        msg = (f"{klass.__name__} doesn't support decoding from a "
+               "simple string.")
+        raise NotImplementedError(msg)
 
-        # Currently don't have any actual required keys/vaules, so just error
-        # on claim fail.
-        klass.error_for_claim(mapping)
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # self.data is "Any", so... Try to decode it. It may already be
+        # decoded - this function should handle those cases.
+        data = self.encode_any(self.value)
 
-        decoded = klass._decode_map(mapping)
-        ret_val = klass(data=decoded)
-        # log.debug(f"\n\n   done.decode: {ret_val}\n\n")
-        return ret_val
+        # Build our representation to return.
+        return {
+            'valid': self.valid.value,
+            'data': data,
+        }
+
+    @classmethod
+    def _decode_complex(klass: 'BasePayload',
+                        data:  EncodedComplex) -> 'BasePayload':
+        '''
+        Decode ourself from an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        klass.error_for(data, keys=['valid', 'data'])
+
+        # build valid from value saved in _encode_complex
+        valid = klass.Valid(data['valid'])
+
+        # Our data is of type 'Any', so... try to decode that?
+        data = klass.decode_any(data['data'])
+
+        # Make class with decoded data, skip_validation because this exists and
+        # we're just decoding it, not creating a new one.
+        return klass(data, valid,
+                     skip_validation=True)
 
     # ------------------------------
     # To String

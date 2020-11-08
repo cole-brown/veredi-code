@@ -126,26 +126,27 @@ def serializable_id_representer(dumper: yaml.SafeDumper,
 
     log.debug(f'Dump this SerializableId: {ident}')
     return dumper.represent_mapping(yaml_tag,
-                                    ident.encode())
+                                    ident.encode(None))
 
 
 # ------------------------------
 # Register SerializableIDs!
 # ------------------------------
 
+# TODO: is this different kind of reg or should it use new registrar base class too?
 registry.register(UserId._ENCODE_FIELD_NAME, UserId,
                   serializable_id_constructor,
                   serializable_id_representer,
-                  UserId.get_decode_rx())
+                  UserId._get_decode_rx())
 
 
 registry.register(UserKey._ENCODE_FIELD_NAME, UserKey,
                   serializable_id_constructor,
                   serializable_id_representer,
-                  UserKey.get_decode_rx())
+                  UserKey._get_decode_rx())
 
 
 registry.register(InputId._ENCODE_FIELD_NAME, InputId,
                   serializable_id_constructor,
                   serializable_id_representer,
-                  InputId.get_decode_rx())
+                  InputId._get_decode_rx())

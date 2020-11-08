@@ -24,6 +24,7 @@ from veredi.base.context import VerediContext
 
 # Registry is here, but also toss the reg strs into the background context.
 _REGISTRY = {}
+_REG_DOTTED = 'veredi.data.config.registry'
 
 _DOTTED_PROPERTY_IGNORE = set()
 
@@ -96,10 +97,11 @@ def add_dotted_property(
     if dotted_attr:
         # Pre-existing dotted attribute; is it abstract?
         if getattr(dotted_attr, '__isabstractmethod__', False):
-            msg = (f"Failed '{dotted_name}' registry: {cls_or_func.__name__} "
-                   f"has an abstract '{dotted.PROPERTY}' attribute, which "
-                   "we cannot auto-generate a replacement for. Please "
-                   "implement one manually:\n"
+            msg = (f"{_REG_DOTTED}: Failed '{dotted_name}' registry of "
+                   f"{cls_or_func.__name__} has an abstract "
+                   "'{dotted.PROPERTY}' attribute, which we cannot "
+                   "auto-generate a replacement for. Please implement "
+                   "one manually:\n"
                    "    @property\n"
                    "    def dotted(self) -> str:\n"
                    "        # self._DOTTED magically provided by @register\n"
@@ -110,7 +112,7 @@ def add_dotted_property(
         elif isinstance(cls_or_func, tuple(_DOTTED_PROPERTY_IGNORE)):
             # This is fine, but let 'em know. They could've let it be
             # auto-magically created.
-            msg = (f"'{dotted}' registry: {cls_or_func.__name__} "
+            msg = (f"{_REG_DOTTED}: {cls_or_func.__name__} "
                    f"has a '{dotted.PROPERTY}' attribute already. "
                    "@register(...) can implement one automatically though; "
                    f"your '{dotted.PROPERTY}' attribute would be: "
@@ -121,7 +123,6 @@ def add_dotted_property(
     # ---
     # Make Getter.
     # ---
-    # Is this a class or instance thing?
     def get_dotted(klass: Type[Any]) -> Optional[str]:
         return getattr(klass, dotted.ATTRIBUTE_PRIVATE, None)
 
@@ -172,14 +173,14 @@ def register(*args: str) -> Callable[..., Type[Any]]:
         except IndexError as error:
             raise log.exception(
                 error,
-                exceptions.RegistyError,
+                exceptions.RegistryError,
                 "Need to know what to register this ({}) as. "
-                "E.g. @register('foo', 'bar'). Got no args: {}",
+                "E.g. @register('veredi', 'jeff', 'system'). Got no args: {}",
                 name, args,
                 stacklevel=3)
 
         registration = _REGISTRY
-        reggie_jr = background.registry.get()
+        reggie_jr = background.registry.get(_REG_DOTTED)
         length = len(args)
         # -1 as we've got our config name already from that final args entry
         for i in range(length - 1):

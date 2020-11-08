@@ -167,14 +167,19 @@ class Transformer(lark.Transformer):
     # Variables
     # ---
     @lark.v_args(inline=True)
-    def assign_var(self, name: str, value: tree.Node) -> tree.Node:
+    def assign_var(self, name: lark.Token, value: tree.Node) -> tree.Node:
+        # 'name' is Token class is str class.
+        # Get just the str.
+        name = str(name)
         self.vars[name] = value
 
         return value
 
     @lark.v_args(inline=True)
-    def var(self, name: str) -> tree.Variable:
-        # name is Token class
+    def var(self, name: lark.Token) -> tree.Variable:
+        # 'name' is Token class is str class.
+        # Get just the str.
+        name = str(name)
         if name in self.vars:
             return self.vars[name]
 

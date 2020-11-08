@@ -75,7 +75,8 @@ class BaseSerdes(ABC):
         '''
         Data for the Veredi Background context.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.background() "
+                                  "is not implemented.")
 
     def _make_background(self, dotted_name):
         '''
@@ -115,7 +116,8 @@ class BaseSerdes(ABC):
         Allows serdes to grab anything from the config data that they need to
         set up themselves.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._configure() "
+                                  "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Abstract: Deserialize Methods
@@ -132,7 +134,8 @@ class BaseSerdes(ABC):
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.deserialize() "
+                                  "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Abstract: Serialize Methods
@@ -149,4 +152,5 @@ class BaseSerdes(ABC):
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.serialize() "
+                                  "is not implemented.")

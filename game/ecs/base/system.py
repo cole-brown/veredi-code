@@ -288,7 +288,6 @@ class System(ABC):
     def id(self) -> SystemId:
         return SystemId.INVALID if self._system_id is None else self._system_id
 
-    # TODO: rename this dotted!
     @property
     @abstractmethod
     def dotted(self) -> str:
@@ -309,7 +308,10 @@ class System(ABC):
                 # self._DOTTED magically provided by @register
                 return self._DOTTED
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.dotted() "
+                                  "is not implemented in base class. "
+                                  "Subclasses should get it defined via "
+                                  "@register, or else define it themselves.")
 
     @property
     def enabled(self) -> bool:

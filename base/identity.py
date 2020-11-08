@@ -13,12 +13,13 @@ from typing import Optional, Any, Type, Mapping, Tuple, List, Dict
 import re
 import uuid
 
-# General Stuff in General
 from abc import abstractmethod
+
+from veredi.logger import log
 # from veredi.base.decorators import abstract_class_attribute
 from veredi.base.metaclasses import InvalidProvider, ABC_InvalidProvider
 
-from veredi.data.codec.encodable import Encodable
+from veredi.data.codec.encodable import Encodable, EncodedComplex
 
 
 # -----------------------------------------------------------------------------
@@ -52,7 +53,9 @@ class MonotonicIdGenerator:
         return self._last_id
 
 
-class MonotonicId(Encodable, metaclass=InvalidProvider):
+class MonotonicId(Encodable,
+                  dotted="veredi.base.identity.monotonic",
+                  metaclass=ABC_InvalidProvider):
     '''
     Integer-based, montonically increasing ID suitable for in-game,
     non-serialized identity.
@@ -62,14 +65,44 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
     different, serializable ID.
     '''
 
-    # The value our INVALID instance should have.
-    _INVALID_VALUE = 0
+    # ------------------------------
+    # Constants: Invalid
+    # ------------------------------
 
-    # This is what InvalidProvider looks for to return in its class property.
-    _INVALID = None
+    _INVALID_VALUE: int = 0
+    '''The value our INVALID instance should have.'''
 
-    _ENCODE_FIELD_NAME = 'id'
+    _INVALID: 'MonotonicId' = None
+    '''Our INVALID instance singleton is stored here.'''
+
+    # ------------------------------
+    # Constants: Encodable
+    # ------------------------------
+
+    _ENCODE_FIELD_NAME: str = 'v.mid'
     '''Can override in sub-classes if needed. E.g. 'eid' for entity id.'''
+
+    _ENCODABLE_RX_FLAGS: re.RegexFlag = re.IGNORECASE
+    '''Flags used when creating _ENCODABLE_RX.'''
+
+    _ENCODABLE_RX_STR_FMT: str = r'^{type_field}:(?P<value>\d+)$'
+    '''Format string for making MonotonicId a bit more subclassable.'''
+
+    _ENCODABLE_RX_STR: str = None
+    '''
+    Actual string used to compile regex - created from _ENCODABLE_RX_STR_FMT
+    in MonotonicId.
+    '''
+
+    _ENCODABLE_RX: re.Pattern = None
+    '''
+    Compiled regex pattern for decoding MonotonicIds.
+    '''
+
+    _ENCODE_SIMPLE_FMT: str = '{type_field}:{value}'
+    '''
+    String format for encoding MonotonicIds.
+    '''
 
     # ------------------------------
     # Initialization
@@ -105,7 +138,7 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
         '''
         Initialize our ID value.
         '''
-        self._value = value
+        self._value: int = value
 
     # ------------------------------
     # Generator
@@ -130,10 +163,9 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
     #     return klass._INVALID
 
     @property
-    def value(self) -> Any:
+    def value(self) -> int:
         '''
-        Returns the underlying value of this ID... whatever it is.
-        String? Int? A potato?
+        Returns the underlying value of this ID.
         '''
         return self._value
 
@@ -141,25 +173,110 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
     # Encodable API (Codec Support)
     # ------------------------------
 
-    def encode(self) -> Mapping[str, str]:
-        '''
-        Returns a representation of ourself as a dictionary.
-        '''
-        encoded = super().encode()
-        encoded.update({
-            self._ENCODE_FIELD_NAME: self.value,
-        })
-        return encoded
+    @classmethod
+    def _encode_simple_only(klass: 'MonotonicId') -> bool:
+        '''We are too simple to bother with being a complex type.'''
+        return True
 
     @classmethod
-    def decode(klass: 'MonotonicId',
-               value: Mapping[str, str]) -> 'MonotonicId':
+    def _get_decode_str_rx(klass: 'MonotonicId') -> Optional[str]:
         '''
-        Turns our encoded dict into a MonotonicId instance.
+        Returns regex /string/ (not compiled regex) of what to look for to
+        claim just a string as this class.
         '''
-        klass.error_for_key(klass._ENCODE_FIELD_NAME, value)
-        decoded = klass(value[klass._ENCODE_FIELD_NAME])
+        if not klass._ENCODABLE_RX_STR:
+            # Build it from the format str.
+            klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
+                type_field=klass._type_field())
+
+        return klass._ENCODABLE_RX_STR
+
+    @classmethod
+    def _get_decode_rx(klass: 'MonotonicId') -> re.Pattern:
+        '''
+        Returns /compiled/ regex (not regex string) of what to look for to
+        claim just a string as this class.
+        '''
+        if not klass._ENCODABLE_RX:
+            # Build it from the regex str.
+            rx_str = klass._get_decode_str_rx()
+            if not rx_str:
+                msg = (f"{klass.__name__}: Cannot get decode regex "
+                       "- there is no decode regex string to compile it from.")
+                error = ValueError(msg, rx_str)
+                raise log.exception(error, None,
+                                    msg)
+
+            klass._ENCODABLE_RX = re.compile(rx_str, klass._ENCODABLE_RX_FLAGS)
+
+        return klass._ENCODABLE_RX
+
+    @classmethod
+    def _type_field(klass: 'MonotonicId') -> str:
+        '''
+        A short, unique name for encoding an instance into a field in a dict.
+        '''
+        return klass._ENCODE_FIELD_NAME
+
+    def _encode_simple(self) -> str:
+        '''
+        Encode ourself as a string, return that value.
+        '''
+        return self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
+                                              value=self.value)
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        NotImplementedError: We don't do complex.
+        '''
+        raise NotImplementedError(
+            f"{self.__class__.__name__}._encode_complex() is not implemented.")
+
+    @classmethod
+    def _decode_simple(klass: 'MonotonicId', data: str) -> 'MonotonicId':
+        '''
+        Decode ourself from a string, return a new instance of `klass` as
+        the result of the decoding.
+        '''
+        rx = klass._get_decode_rx()
+        if not rx:
+            msg = (f"{klass.__name__}: No decode regex - "
+                   f"- cannot decode: {data}")
+            error = ValueError(msg, data)
+            raise log.exception(error, None,
+                                msg)
+
+        # Have regex, but does it work on data?
+        match = rx.match(data)
+        if not match or not match.group('value'):
+            msg = (f"{klass.__name__}: Decode regex failed to match "
+                   f"data - cannot decode: {data}")
+            error = ValueError(msg, data)
+            raise log.exception(error, None,
+                                msg)
+
+        value = int(match.group('value'))
+        # And now we should be able to decode.
+        return klass._decode_simple_init(value)
+
+    @classmethod
+    def _decode_simple_init(klass: 'SerializableId',
+                            value: int) -> 'SerializableId':
+        '''
+        Subclasses can override this if they have a different constructor.
+        '''
+        decoded = klass(value,
+                        allow=True)
         return decoded
+
+    @classmethod
+    def _decode_complex(klass: 'MonotonicId',
+                        value: EncodedComplex) -> 'MonotonicId':
+        '''
+        NotImplementedError: We don't do complex.
+        '''
+        raise NotImplementedError(f"{klass.__name__}._decode_complex() is "
+                                  "not implemented.")
 
     # ------------------------------
     # Pickleable API
@@ -247,8 +364,9 @@ class MonotonicId(Encodable, metaclass=InvalidProvider):
 #     def peek(self) -> 'MonotonicId':
 #         return self._last_id
 
-
-class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
+class SerializableId(Encodable,
+                     dotted="veredi.base.identity.serializable",
+                     metaclass=ABC_InvalidProvider):
     '''
     Base class for a serializable ID (e.g. to a file, or primary key value from
     a databse).
@@ -264,17 +382,42 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
                        - str(jeff) -> "JID::42"
     '''
 
-    _ENCODE_FIELD_NAME = 'serid'
-    '''Can override in sub-classes if needed. E.g. 'iid' for input id.'''
+    # ------------------------------
+    # Static UUIDs
+    # ------------------------------
 
-    _DECODE_UUID_PREFIX = '{short_name}'
+    _UUID_NAMESPACE: uuid.UUID = uuid.UUID(
+        '77a1d3cb-a755-50d5-902f-21d18dfc08fd'
+    )
     '''
-    Static ident string at front of regex for the class. e.g. 'uid:' for UserId.
+    NOTE: Subclasses SHOULD OVERRIDE THIS with their own!!!
+
+    The 'namespace' for our UUIDs will be static so we can
+    reproducably/reliably generate a UUID. Generated by:
+      uuid.uuid5(uuid.UUID(int=0), 'veredi.base.identity.serializable')
     '''
 
-    _DECODE_UUID_PREFIX_SEP = r':'
+    # ------------------------------
+    # Constants: Invalid
+    # ------------------------------
 
-    _DECODE_UUID_FORM = (
+    _INVALID_VALUE: int = 0
+    '''The value our INVALID instance should have.'''
+
+    _INVALID: 'MonotonicId' = None
+    '''Our INVALID instance singleton is stored here.'''
+
+    # ------------------------------
+    # Constants: Encodable
+    # ------------------------------
+
+    _ENCODE_FIELD_NAME: str = 'v.sid'
+    '''Can override in sub-classes if needed. E.g. 'eid' for entity id.'''
+
+    _ENCODABLE_RX_FLAGS: re.RegexFlag = re.IGNORECASE
+    '''Flags used when creating _ENCODABLE_RX.'''
+
+    _ENCODE_RX_UUID_FORM = (
         r'[0-9A-Fa-f]{8}-'
         r'[0-9A-Fa-f]{4}-'
         r'[0-9A-Fa-f]{4}-'
@@ -285,27 +428,70 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
     UUID has hexadecimals separated by dashes in the form 8-4-4-4-12.
     '''
 
-    _DECODE_UUID_RX = re.compile(
-        # Start at beginning of string, only allow whitespace until us.
-        r'^\s*'
+    _ENCODABLE_RX_STR_FMT: str = (
+        # Start at beginning of string.
+        r'^'
         # Start 'name' capture group.
         + r'(?P<name>'
-          # Name capture is our _ENCODE_FIELD_NAME.
-        + _DECODE_UUID_PREFIX.format(short_name=_ENCODE_FIELD_NAME)
+        # Name capture is our _ENCODE_FIELD_NAME.
+        + '{encode_field_name}'
         + r')'
-        + _DECODE_UUID_PREFIX_SEP
-          # Start 'value' capture group.
+        # Separate name and value with colon.
+        + r':'
+        # Start 'value' capture group.
         + r'(?P<value>'
-          # Value capture is our UUID hexadecimal form.
-        + _DECODE_UUID_FORM
+        # Value capture is our UUID hexadecimal form.
+        + '{encode_uuid_rx}'
         + r')'
-          # More whitespace is ok; anything else isn't. End at end of strig.
-        + r'\s*$'
+        # End at end of string.
+        + r'$'
     )
+    '''
+    Actual string used to compile regex.
+    '''
+
+    _ENCODABLE_RX_STR: str = None
+    '''
+    Actual string used to compile regex. Leave as None for __init_subclass__ to
+    set to _encodable_rx_str_base with subclass's _ENCODE_FIELD_NAME.
+    '''
+
+    _ENCODABLE_RX: re.Pattern = None
+    '''
+    Compiled regex pattern for decoding SerializableIds.
+    '''
+
+    _ENCODE_SIMPLE_FMT: str = '{type_field}:{value}'
+    '''
+    String format for encoding SerializableIds.
+    '''
 
     # ------------------------------
     # Initialization
     # ------------------------------
+
+    def __init_subclass__(klass:    'Encodable',
+                          dotted:   Optional[str] = None,
+                          **kwargs: Any) -> None:
+        '''
+        Initialize sub-classes.
+        '''
+        # ---
+        # Encodable RX
+        # ---
+        if not klass._encode_simple_only():
+            return
+
+        # Do we need to init _ENCODABLE_RX_STR?
+        if klass._ENCODABLE_RX_STR is None:
+            # Format string with field name.
+            klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
+                encode_field_name=klass._ENCODE_FIELD_NAME,
+                encode_uuid_rx=klass._ENCODE_RX_UUID_FORM)
+
+            # ...and then use it to compile the regex.
+            klass._ENCODABLE_RX =  re.compile(klass._ENCODABLE_RX_STR,
+                                              klass._ENCODABLE_RX_FLAGS)
 
     @classmethod
     def _init_invalid_(klass: Type['SerializableId']) -> None:
@@ -315,16 +501,40 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         '''
         if not klass._INVALID:
             # Make our invalid singleton instance.
-            klass._INVALID = klass(klass._INVALID_VALUE)
+            klass._INVALID = klass(klass._INVALID_VALUE, klass._INVALID_VALUE)
 
-    def __init__(self,
+    def __init__(self, seed: str, name: str,
                  decoding:      bool          = False,
                  decoded_value: Optional[int] = None) -> None:
         '''
-        Subclasses should implement their __init__().
-        We currently have nothing to do.
+        Initialize our ID value. ID is based on:
+          current time string, name string, and _UUID_NAMESPACE.
+
+        If `decoding`, just use `decode_value'.
         '''
-        ...
+        # log.debug("SerializableId.__!!INIT!!__: "
+        #           f"seed: {seed}, name: {name}, "
+        #           f"decoding: {decoding}, "
+        #           f"dec_val: {decoded_value}")
+
+        # Decoding into a valid SerializableId?
+        if (decoding                                  # Decode mode is a go.
+                and not seed and not name             # Normal mode is a no.
+                and isinstance(decoded_value, int)):  # Something decode.
+            self._value = uuid.UUID(int=decoded_value)
+            # log.debug("SerializableId.__init__: decoded to: "
+            #           f"{self._value}, {str(self)}")
+
+            # Don't forget to return now. >.<
+            return
+
+        # If we don't have a required input, make ourself INVALID.
+        if not seed or not name:
+            self._value = self._INVALID_VALUE
+            return
+
+        # Generate a valid SerializableId.
+        self._value = uuid.uuid5(self._UUID_NAMESPACE, seed + name)
 
     # ------------------------------
     # Concrete Properties
@@ -358,63 +568,74 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
     # Encodable API (Codec Support)
     # ------------------------------
 
-    def encode(self) -> Mapping[str, str]:
-        '''
-        Returns a representation of ourself as a dictionary.
-        '''
-        encoded = super().encode()
-        # So far all of our subclasses are UUID-based, so a check for that
-        # makes sense...
-        enc_value = self.value
-        if isinstance(enc_value, uuid.UUID):
-            enc_value = self.value.int
-        encoded.update({
-            self._ENCODE_FIELD_NAME: enc_value,
-        })
-        return encoded
+    @classmethod
+    def _encode_simple_only(klass: 'SerializableId') -> bool:
+        '''We are too simple to bother with being a complex type.'''
+        return True
 
     @classmethod
-    def _decode(klass: 'SerializableId',
-                value: Mapping[str, str]) -> 'SerializableId':
+    def _get_decode_str_rx(klass: 'SerializableId') -> Optional[str]:
         '''
-        Private implementation of decoding. In case anyone wants to disallow
-        the long-form encode/decode but allow decode_str() to still use
-        _decode().
-
-        Turns our encoded dict into a SerializableId instance.
+        Returns regex /string/ (not compiled regex) of what to look for to
+        claim just a string as this class.
         '''
-        klass.error_for_key(klass._ENCODE_FIELD_NAME, value)
-        decoded = klass(None,
-                        decoding=True,
-                        decoded_value=value[klass._ENCODE_FIELD_NAME])
-        return decoded
+        return klass._ENCODABLE_RX_STR
 
     @classmethod
-    def decode(klass: 'SerializableId',
-               value: Mapping[str, str]) -> 'SerializableId':
+    def _get_decode_rx(klass: 'SerializableId') -> re.Pattern:
         '''
-        Turns our encoded dict into a SerializableId instance.
+        Returns /compiled/ regex (not regex string) of what to look for to
+        claim just a string as this class.
         '''
-        return klass._decoded(value)
-
-    def encode_str(self) -> str:
-        '''
-        Encode this instance into a string.
-
-        Return the string.
-        '''
-        return str(self)
+        return klass._ENCODABLE_RX
 
     @classmethod
-    def decode_str(klass: 'SerializableId', string: str) -> 'SerializableId':
+    def _type_field(klass: 'SerializableId') -> str:
         '''
-        Decode the `string` to a SerializableId instance.
+        A short, unique name for encoding an instance into a field in a dict.
+        '''
+        return klass._ENCODE_FIELD_NAME
 
-        Return the instance.
+    def _encode_simple(self) -> str:
         '''
-        match = re.match(klass._DECODE_UUID_RX, string)
-        if not match:
-            return None
+        Encode ourself as a string, return that value.
+        '''
+        return self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
+                                              value=self.value)
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        NotImplementedError: We don't do complex.
+        '''
+        raise NotImplementedError(
+            f"{self.__class__.__name__}._encode_complex() is not implemented.")
+
+    @classmethod
+    def _decode_simple(klass: 'SerializableId', data: str) -> 'SerializableId':
+        '''
+        Decode ourself from a string, return a new instance of `klass` as
+        the result of the decoding.
+
+        Raises:
+          - ValueError if value isn't a hyphen-separated, base 16 int string.
+        '''
+        rx = klass._get_decode_rx()
+        if not rx:
+            msg = (f"{klass.__name__}: No decode regex - "
+                   f"- cannot decode: {data}")
+            error = ValueError(msg, data)
+            raise log.exception(error, None,
+                                msg)
+
+        # Have regex, but does it work on data?
+        match = rx.match(data)
+        if not match or not match.group('value'):
+            msg = (f"{klass.__name__}: Decode regex failed to match "
+                   f"data - cannot decode: {data}")
+            error = ValueError(msg, data)
+            raise log.exception(error, None,
+                                msg)
+
         # Get actual value from match, remove nice separators so we have just a
         # hex number...
         hex_str = match.group('value')
@@ -423,29 +644,28 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         # Could throw a value error if something's wrong...
         hex_value = int(hex_str, 16)
 
-        # And now we should be able to decode?
-        encoded = super().encode()
-        encoded.update({
-            klass._ENCODE_FIELD_NAME: hex_value,
-        })
-        return klass._decode(encoded)
+        # And now we should be able to decode.
+        return klass._decode_simple_init(hex_value)
 
     @classmethod
-    def get_decode_rx(klass: 'Encodable') -> Optional[str]:
+    def _decode_simple_init(klass: 'SerializableId',
+                            value: int) -> 'SerializableId':
         '''
-        Returns compiled regex of what to look for to claim just a string as
-        this class.
-
-        For example, perhaps a UserId for 'jeff' has a normal decode of:
-          {
-            '_encodable': 'UserId',
-            'uid': 'deadbeef-cafe-1337-1234-e1ec771cd00d',
-          }
-        And perhaps it has str() of 'uid:deadbeef-cafe-1337-1234-e1ec771cd00d'
-
-        This would expect an rx string for the str.
+        Subclasses can override this if they have a different constructor.
         '''
-        return klass._DECODE_UUID_RX
+        decoded = klass(None,
+                        decoding=True,
+                        decoded_value=value)
+        return decoded
+
+    @classmethod
+    def _decode_complex(klass: 'SerializableId',
+                        value: EncodedComplex) -> 'SerializableId':
+        '''
+        NotImplementedError: We don't do complex.
+        '''
+        raise NotImplementedError(f"{klass.__name__}._encode_complex() is "
+                                  "not implemented.")
 
     # ------------------------------
     # Abstract Methods
@@ -477,7 +697,8 @@ class SerializableId(Encodable, metaclass=ABC_InvalidProvider):
         '''
         Format our value as a string and return only that.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._format() is "
+                                  "not implemented.")
 
     @property
     def _short_name_(self) -> str:

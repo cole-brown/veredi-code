@@ -8,14 +8,21 @@ Constants for Mediator, Messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Mapping
+from typing import Optional, Mapping
+
 
 import enum
+import re
 
 
+from veredi.logger               import log
 from veredi.base.enum            import (FlagCheckMixin,
-                                         FlagSetMixin)
-from veredi.data.codec.encodable import Encodable
+                                         FlagSetMixin,
+                                         FlagEncodeValueMixin)
+
+
+_MT_ENCODE_FIELD_NAME: str = 'v.mt'
+'''Can override in sub-classes if needed. E.g. 'eid' for entity id.'''
 
 
 # -----------------------------------------------------------------------------
@@ -23,7 +30,7 @@ from veredi.data.codec.encodable import Encodable
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class MsgType(FlagCheckMixin, FlagSetMixin, Encodable, enum.Flag):
+class MsgType(FlagCheckMixin, FlagSetMixin, FlagEncodeValueMixin, enum.Flag):
     '''
     A message between game and Mediator will be assigned one of these types.
     '''
@@ -98,6 +105,12 @@ class MsgType(FlagCheckMixin, FlagSetMixin, Encodable, enum.Flag):
     before sending(/after receiving).
     '''
 
+    ENVELOPE = enum.auto()
+    '''
+    This is an Envelope object. Use its addresses and encode its data as you
+    see fit.
+    '''
+
     GAME_AUTO = enum.auto()
     '''
     The mediator should figure this one out and it should be one of the
@@ -113,19 +126,25 @@ class MsgType(FlagCheckMixin, FlagSetMixin, Encodable, enum.Flag):
     # Encodable API (Codec Support)
     # ------------------------------
 
-    def encode(self) -> Mapping[str, str]:
+    @classmethod
+    def dotted(klass: 'MsgType') -> str:
         '''
-        Returns a representation of ourself as a dictionary.
+        Unique dotted name for this class.
         '''
-        encoded = super().encode()
-        encoded['msg_type'] = self.value
-        return encoded
+        return 'veredi.interface.mediator.msgtype'
 
     @classmethod
-    def decode(klass: 'MsgType', mapping: Mapping[str, str]) -> 'MsgType':
+    def _type_field(klass: 'MsgType') -> str:
         '''
-        Turns our encoded dict into a MsgType instance.
+        A short, unique name for encoding an instance into a field in a dict.
         '''
-        klass.error_for(mapping, keys=['msg_type'])
-        decoded = klass(mapping['msg_type'])
-        return decoded
+        return 'v.mt'
+
+    # Rest of Encodable is provided by FlagEncodeValueMixin.
+
+
+# Hit a brick wall trying to get an Encodable enum's dotted through to
+# Encodable. :| Register manually?
+#
+# Register ourself manually with the Encodable registry.
+MsgType.register_manually()

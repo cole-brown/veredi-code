@@ -467,12 +467,28 @@ class config(metaclass=ConfigMeta):
 class registry:
 
     @classmethod
-    def get(klass: Type['registry']) -> Nullable[ContextMutableMap]:
+    def _get(klass: Type['registry']) -> Nullable[ContextMutableMap]:
         '''
-        Get registry's sub-context from background context.
+        Get registry's full sub-context from background context.
         '''
         global _REGISTRY
         return veredi.get().get(_REGISTRY, Null())
+
+    @classmethod
+    def get(klass: Type['registry'],
+            registrar_name: str) -> Nullable[ContextMutableMap]:
+        '''
+        Get registry's sub-context for a specific registrar from background
+        context. Creates an empty one if none exists. foo
+        '''
+        all_reg = klass._get()
+        return all_reg.setdefault(registrar_name, {})
+
+    # ------------------------------
+    # Note:
+    # ------------------------------
+    # Registrars handle their own dictionary after obtianing with `get()`.
+    # They keep the background in sync with their full reg info dict.
 
 
 # -------------------------------------------------------------------------
@@ -792,7 +808,7 @@ class users:
             matches.extend(users.values())
             return matches
 
-        for uid in users:
+        for uid in users.keys():
             user = users[uid]
             if not user:
                 continue
@@ -860,6 +876,10 @@ class users:
         connected = klass._connected()
         connected.set(user.id, user.connection, user)
         # TODO: call add_super() as well if user is superuser?
+
+        # For now, add to known users. Though eventually those should come from
+        # the repository when the game loads.
+        klass.add_known(user)
 
     @classmethod
     def add_known(klass: Type['users'],
