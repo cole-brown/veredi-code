@@ -41,7 +41,7 @@ class InputIdGenerator:
         return self._id_class(self._time)
 
 
-class InputId(SerializableId):
+class InputId(SerializableId, dotted='veredi.interface.input.identity.input'):
     '''
     ID for Input (events, commands, etc).
 

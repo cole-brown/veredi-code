@@ -89,7 +89,8 @@ class BaseCodec(ABC):
         '''
         Data for the Veredi Background context.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.background() "
+                                  "is not implemented.")
 
     def _make_background(self, dotted_name):
         '''
@@ -126,7 +127,8 @@ class BaseCodec(ABC):
         Allows codecs to grab anything from the config data that they need to
         set up themselves.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._configure() "
+                                  "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Abstract: Decode Methods
@@ -142,7 +144,8 @@ class BaseCodec(ABC):
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.decode() "
+                                  "is not implemented.")
 
     @abstractmethod
     def decode_all(self,
@@ -154,7 +157,8 @@ class BaseCodec(ABC):
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.decode_all() "
+                                  "is not implemented.")
 
     @abstractmethod
     def _read(self,
@@ -169,7 +173,8 @@ class BaseCodec(ABC):
           - exceptions.ReadError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._read() "
+                                  "is not implemented.")
 
     @abstractmethod
     def _read_all(self,
@@ -184,7 +189,8 @@ class BaseCodec(ABC):
           - exceptions.ReadError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._read_all() "
+                                  "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Abstract: Encode Methods
@@ -200,7 +206,8 @@ class BaseCodec(ABC):
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.encode() "
+                                  "is not implemented.")
 
     @abstractmethod
     def encode_all(self,
@@ -212,7 +219,8 @@ class BaseCodec(ABC):
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.encode_all() "
+                                  "is not implemented.")
 
     @abstractmethod
     def _write(self,
@@ -227,7 +235,8 @@ class BaseCodec(ABC):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._write() "
+                                  "is not implemented.")
 
     @abstractmethod
     def _write_all(self,
@@ -242,4 +251,5 @@ class BaseCodec(ABC):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._write_all() "
+                                  "is not implemented.")

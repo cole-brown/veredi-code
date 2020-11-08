@@ -42,7 +42,7 @@ class UserIdGenerator:
         return next_id
 
 
-class UserId(SerializableId):
+class UserId(SerializableId, dotted='veredi.data.identity.user.id'):
     '''
     Serializable UserId class.
     '''
@@ -169,41 +169,19 @@ class UserId(SerializableId):
         return klass._BROADCAST
 
     # -------------------------------------------------------------------------
-    # Encodable API (Codec Support)
+    # Encodable API
     # -------------------------------------------------------------------------
 
     @classmethod
-    def decode(klass: 'UserId',
-               mapping: Mapping[str, int]) -> 'UserId':
+    def _decode_simple_init(klass: 'SerializableId',
+                            value: int) -> 'SerializableId':
         '''
-        Turns our encoded dict into a UserId instance.
+        Subclasses can override this if they have a different constructor.
         '''
-        klass.error_for(mapping, keys=[klass._ENCODE_FIELD_NAME])
         decoded = klass(None, None,
                         decoding=True,
-                        decoded_value=mapping[klass._ENCODE_FIELD_NAME])
+                        decoded_value=value)
         return decoded
-
-    # TODO: Delete this.
-    # # -----------------------------------------------------------------------
-    # # Pickleable API
-    # # -----------------------------------------------------------------------
-    #
-    # def __getnewargs_ex__(self) -> Tuple[Tuple, Dict]:
-    #     '''
-    #     Returns a 2-tuple of:
-    #       - a tuple for *args
-    #       - a dict for **kwargs
-    #     These values will be used in __new__ for unpickling ourself.
-    #     '''
-    #     # Set it up for the 'decoding & pickle' path through __new__ for the
-    #     # unpickle.
-    #     args = (None, None)  # seed, name
-    #     kwargs = {
-    #         'decoding': True,
-    #         'decoded_value': self.value.int,
-    #     }
-    #     return (args, kwargs)
 
     # -------------------------------------------------------------------------
     # Generator
@@ -249,7 +227,7 @@ class UserKeyGenerator:
         return next_key
 
 
-class UserKey(SerializableId):
+class UserKey(SerializableId, dotted='veredi.data.identity.user.key'):
     '''
     Serializable UserKey class.
     '''
@@ -377,41 +355,19 @@ class UserKey(SerializableId):
         return klass._BROADCAST
 
     # -------------------------------------------------------------------------
-    # Encodable API (Codec Support)
+    # Encodable API
     # -------------------------------------------------------------------------
 
     @classmethod
-    def decode(klass: 'UserKey',
-               mapping: Mapping[str, int]) -> 'UserKey':
+    def _decode_simple_init(klass: 'SerializableId',
+                            value: int) -> 'SerializableId':
         '''
-        Turns our encoded dict into a UserKey instance.
+        Subclasses can override this if they have a different constructor.
         '''
-        klass.error_for(mapping, keys=[klass._ENCODE_FIELD_NAME])
         decoded = klass(None, None,
                         decoding=True,
-                        decoded_value=mapping[klass._ENCODE_FIELD_NAME])
+                        decoded_value=value)
         return decoded
-
-    # TODO: Delete this.
-    # # -----------------------------------------------------------------------
-    # # Pickleable API
-    # # -----------------------------------------------------------------------
-    #
-    # def __getnewargs_ex__(self) -> Tuple[Tuple, Dict]:
-    #     '''
-    #     Returns a 2-tuple of:
-    #       - a tuple for *args
-    #       - a dict for **kwargs
-    #     These values will be used in __new__ for unpickling ourself.
-    #     '''
-    #     # Set it up for the 'decoding & pickle' path through __new__ for the
-    #     # unpickle.
-    #     args = (None, None)  # time_seed, seed
-    #     kwargs = {
-    #         'decoding': True,
-    #         'decoded_value': self.value.int,
-    #     }
-    #     return (args, kwargs)
 
     # -------------------------------------------------------------------------
     # Generator

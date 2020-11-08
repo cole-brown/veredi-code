@@ -17,17 +17,17 @@ if TYPE_CHECKING:
     from veredi.interface.mediator.context import UserConnToken
 
 
-from abc import ABC, abstractmethod
-import multiprocessing
-import multiprocessing.connection
-import asyncio
 import enum
-import contextlib
+import re
 
 
 import veredi.logger.log
 from veredi.security               import abac
-from veredi.data.codec.encodable   import Encodable
+from veredi.base.enum              import FlagEncodeValueMixin
+from veredi.data.codec.encodable   import (Encodable,
+                                           EncodableRegistry,
+                                           EncodedComplex,
+                                           EncodedSimple)
 from veredi.data.exceptions        import EncodableError
 from veredi.base.identity          import MonotonicId
 from veredi.data.identity          import UserId, UserKey
@@ -55,7 +55,7 @@ MsgIdTypes = NewType('MsgIdTypes',
 # Code
 # -----------------------------------------------------------------------------
 
-class Message(Encodable):
+class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
     '''
     Message object between game and mediator.
 
@@ -66,8 +66,15 @@ class Message(Encodable):
     # Constants
     # -------------------------------------------------------------------------
 
+    # ------------------------------
+    # Constants: Encodable
+    # ------------------------------
+
+    _ENCODE_NAME: str = 'message'
+    '''Name for this class when encoding/decoding.'''
+
     @enum.unique
-    class SpecialId(Encodable, enum.IntEnum):
+    class SpecialId(FlagEncodeValueMixin, enum.IntEnum):
         '''
         Super Special Message IDs for Super Special Messages!
         '''
@@ -87,23 +94,22 @@ class Message(Encodable):
         # Encodable API (Codec Support)
         # ------------------------------
 
-        def encode(self) -> Mapping[str, int]:
+        @classmethod
+        def dotted(klass: 'MsgType') -> str:
             '''
-            Returns a representation of ourself as a dictionary.
+            Unique dotted name for this class.
             '''
-            encoded = super().encode()
-            encoded['spid'] =  self.value
-            return encoded
+            return 'veredi.interface.mediator.message.specialid'
 
         @classmethod
-        def decode(klass: 'Message.SpecialId',
-                   mapping: Mapping[str, int]) -> 'Message.SpecialId':
+        def _type_field(klass: 'MsgType') -> str:
             '''
-            Turns our encoded dict into an enum value..
+            A short, unique name for encoding an instance into a field in
+            a dict.
             '''
-            klass.error_for(mapping, keys=['spid'])
-            decoded_value = mapping['spid']
-            return klass(decoded_value)
+            return 'spid'
+
+        # Rest of Encodabe funcs come from FlagEncodeValueMixin.
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -113,19 +119,19 @@ class Message(Encodable):
         '''
         Instance variable definitions, type hinting, doc strings, etc.
         '''
-        self._msg_id:     MsgIdTypes = None
+        self._msg_id: MsgIdTypes = None
         '''
         ID for message itself. Can be initialized as None, but messages must be
         sent with a non-None message id.
         '''
 
-        self._type:       'MsgType'          = MsgType.IGNORE
+        self._type: 'MsgType' = MsgType.IGNORE
         '''
         Message's Type. Determines how Mediators handle the message itself and
         its payload.
         '''
 
-        self._entity_id:  Optional[EntityId] = None
+        self._entity_id: Optional[EntityId] = None
         '''
         The specific entity related to the message, if there is one.
 
@@ -135,14 +141,14 @@ class Message(Encodable):
         Or if some sort of not-tied-to-an-entity message, it will be None.
         '''
 
-        self._user_id:    Optional[UserId]   = None
+        self._user_id: Optional[UserId] = None
         '''
         The UserId this message will be sent to. Can be None if not set yet, or
         if broadcast maybe?
-        # TODO: is this None, or something else, for broadcast?
+        # TODO: isthis None, or something else, for broadcast?
         '''
 
-        self._user_key:   Optional[UserId]   = None
+        self._user_key: Optional[UserId] = None
         '''
         The UserKey this message will be sent to. Should only be set if
         _user_id is also set. Can be None if not set yet, or if broadcast
@@ -150,7 +156,12 @@ class Message(Encodable):
         # TODO: is this None, or something else, for broadcast?
         '''
 
-        self._payload:    Optional[Any]      = None
+        self._payload: Optional[Any] = None
+        '''
+        The actual important part of the message: what'sin it.
+        '''
+
+        self._security_subject: Optional[abac.Subject] = None
         '''
         The actual important part of the message: what's in it.
         '''
@@ -158,18 +169,20 @@ class Message(Encodable):
     def __init__(self,
                  msg_id:    Union[MonotonicId, SpecialId, int, None],
                  type:      'MsgType',
-                 payload:   Optional[Any]      = None,
-                 entity_id: Optional[EntityId] = None,
-                 user_id:   Optional[UserId]   = None,
-                 user_key:  Optional[UserKey]  = None) -> None:
+                 payload:   Optional[Any]          = None,
+                 entity_id: Optional[EntityId]     = None,
+                 user_id:   Optional[UserId]       = None,
+                 user_key:  Optional[UserKey]      = None,
+                 subject:   Optional[abac.Subject] = None) -> None:
         self._define_vars()
 
-        self._msg_id    = msg_id
-        self._type      = type
-        self._entity_id = entity_id
-        self._user_id   = user_id
-        self._user_key  = user_key
-        self._payload   = payload
+        self._msg_id           = msg_id
+        self._type             = type
+        self._entity_id        = entity_id
+        self._user_id          = user_id
+        self._user_key         = user_key
+        self._payload          = payload
+        self._security_subject = subject
 
     # -------------------------------------------------------------------------
     # General MsgType Init Helpers
@@ -260,11 +273,6 @@ class Message(Encodable):
         Return our msg_id as a MonotonicId or SpecialId.
         '''
         return self._msg_id
-        # # If a SpecialId type of message, return it as SpecialId.
-        # if self.type == MsgType.CONNECT or self.type == MsgType.ACK_CONNECT:
-        #     return Message.SpecialId(self._id)
-
-        # return MonotonicId(self._id, allow=True)
 
     @property
     def type(self) -> 'MsgType':
@@ -332,10 +340,22 @@ class Message(Encodable):
         self._payload = value
 
     @property
+    def security_subject(self) -> Optional[abac.Subject]:
+        '''
+        Return our security.abac.Subject value.
+        '''
+        # TODO [2020-10-27]: What should 'None' do? Fail message
+        # eventually, probably. Shouldn't send without security involved.
+        # Security should be set to 'debug' or something if undesired for
+        # whatever reason.
+        return self._security_subject
+
+    @property
     def path(self) -> Optional[str]:
         '''
         Returns a path str or None, based on MsgType.
 
+        # TODO [2020-10-27]: delete this.
         # TODO [2020-07-29]: Also based on other things? Payload...
         '''
         if self._type == MsgType.PING:
@@ -357,80 +377,95 @@ class Message(Encodable):
     # Encodable API
     # -------------------------------------------------------------------------
 
-    def encode(self) -> Mapping[str, str]:
-        '''
-        Returns a representation of ourself as a dictionary.
-        '''
-        # Get the base dict from Encodable.
-        encoded = super().encode()
+    @classmethod
+    def _type_field(klass: 'Message') -> str:
+        return klass._ENCODE_NAME
 
+    def _encode_simple(self) -> EncodedSimple:
+        '''
+        Don't support simple for Messages.
+        '''
+        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+               "simple string.")
+        raise NotImplementedError(msg)
+
+    @classmethod
+    def _decode_simple(klass: 'Message',
+                       data: EncodedSimple) -> 'Message':
+        '''
+        Don't support simple by default.
+        '''
+        msg = (f"{klass.__name__} doesn't support decoding from a "
+               "simple string.")
+        raise NotImplementedError(msg)
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        from ..output.envelope import Envelope
+        if isinstance(self.payload, Envelope):
+            raise ValueError("Payload is an envelope?", self.payload, self)
+
+        # Tell our payload to encode... or use as-is if not an Encodable.
         payload = self.payload
         if isinstance(payload, Encodable):
-            payload = payload.encode()
+            payload = payload.encode(None)
 
-        # Add all our actual fields.
-        encoded.update({
-            'msg_id':   self._msg_id.encode(),
-            'type':     self._type.encode(),
-            'payload':  payload,
-            'user_id':  (self._user_id.encode()
-                         if self._user_id
-                         else None),
-            'user_key': (self._user_key.encode()
-                         if self._user_key
-                         else None),
-        })
+        # Put our data into a dict for encoding.
+        encoded = {
+            'msg_id':    Encodable.encode_or_none(self._msg_id),
+            'type':      MsgType.encode_or_none(self._type),
+            'entity_id': EntityId.encode_or_none(self._entity_id),
+            'user_id':   UserId.encode_or_none(self._user_id),
+            'user_key':  UserKey.encode_or_none(self._user_key),
+            'payload':   payload,
+            'security':  abac.Subject.encode_or_none(self._security_subject),
+        }
 
+        # print(f"message.encode_complex: {encoded}")
         return encoded
 
     @classmethod
-    def decode(klass: 'Message', mapping: Mapping[str, str]) -> 'Message':
+    def _decode_complex(klass: 'Message',
+                        data: EncodedComplex) -> 'Message':
         '''
-        Returns a representation of ourself as a dictionary.
+        Decode ourself from an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
         '''
-        klass.error_for(mapping, keys=[
-            'msg_id',
-            'type',
-            'payload',
-            'user_id',
-            'user_key',
-        ])
+        klass.error_for(data,
+                        keys=[
+                            'msg_id', 'type',
+                            'entity_id', 'user_id', 'user_key',
+                            'security',
+                            'payload',
+                        ])
 
-        msg_id = mapping['msg_id']
-        msg_id_dec = None
-        try:
-            msg_id_dec = MonotonicId.decode(msg_id)
-        except EncodableError:
-            try:
-                msg_id_dec = klass.SpecialId.decode(msg_id)
-            except EncodableError:
-                msg_id_dec = msg_id
-                veredi.logger.log.warning("Unknown Message Id type? Not sure "
-                                          f"about decoding... {msg_id}")
+        # msg_id could be a few different types.
+        msg_id = EncodableRegistry.decode(data['msg_id'])
+        # print(f"Message.decode_complex: msg_id: {type(msg_id)} {msg_id}")
 
-        # Let these be None if they were encoded as None?..
-        user_id = None
-        user_key = None
-        entity_id = None
-        if 'user_id' in mapping and mapping['user_id'] is not None:
-            user_id = UserId.decode(mapping['user_id'])
-        if 'user_key' in mapping and mapping['user_key'] is not None:
-            user_key = UserKey.decode(mapping['user_key'])
-        if 'entity_id' in mapping and mapping['entity_id'] is not None:
-            entity_id = EntityId.decode(mapping['entity_id'])
+        # These are always their one type.
+        _type = MsgType.decode(data['type'])
+        # print(f"Message.decode_complex: type: {type(_type)} {_type}")
+        entity_id = EntityId.decode(data['entity_id'])
+        user_id = UserId.decode(data['user_id'])
+        # print(f"Message.decode_complex: user_id: {type(user_id)} {user_id}")
+        user_key = UserKey.decode(data['user_key'])
+        security = abac.Subject.decode(data['security'])
+        # print(f"Message.decode_complex: security: {type(security)} {security}")
 
-        decoded = klass(
-            msg_id_dec,
-            MsgType.decode(mapping['type']),
-            # Let someone else figure out if payload needs decoding or not, and
-            # by what.
-            payload=mapping['payload'],
-            entity_id=entity_id,
-            user_id=user_id,
-            user_key=user_key,
-        )
+        # Payload can be encoded or just itself.
+        payload_data = data['payload']
+        payload = EncodableRegistry.decode(payload_data,
+                                           fallback=payload_data)
 
-        return decoded
+        return klass(msg_id, _type,
+                     payload=payload,
+                     entity_id=entity_id,
+                     user_id=user_id,
+                     user_key=user_key,
+                     subject=security)
 
     # -------------------------------------------------------------------------
     # Python Functions
@@ -462,7 +497,8 @@ class Message(Encodable):
 # Message for Connecting/Disconnecting Users
 # -----------------------------------------------------------------------------
 
-class ConnectionMessage(Message):
+class ConnectionMessage(Message,
+                        dotted='veredi.interface.mediator.message.connection'):
     '''
     Mediator -> Game message for a connecting or disconnecting client.
     '''
@@ -530,3 +566,8 @@ class ConnectionMessage(Message):
         Create a User instance with our Connection information.
         '''
         return User(self.user_id, self.user_key, self.connection)
+
+
+# Hit a brick wall trying to get an Encodable enum's dotted through to
+# Encodable. :| Register manually with the Encodable registry.
+Message.SpecialId.register_manually()

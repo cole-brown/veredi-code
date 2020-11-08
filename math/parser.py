@@ -8,7 +8,8 @@ Parser interface for turning input strings into Veredi Math Trees.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, NewType, Protocol, Iterable
+from typing import (Optional, Union, Any, Type, NewType, Protocol,
+                    Callable, Iterable, Dict)
 from abc import ABC, abstractmethod
 
 from collections import deque
@@ -18,8 +19,11 @@ import enum
 from decimal import Decimal
 
 from veredi.logger import log
+import veredi.base.dotted
 from veredi.base.context import VerediContext
-from veredi.base.enum import FlagCheckMixin
+from veredi.base.enum import FlagEncodeNameMixin, FlagCheckMixin
+from veredi.data.codec.encodable import (Encodable, EncodedComplex,
+                                         EncodableRegistry, RegisterType)
 
 
 # -----------------------------------------------------------------------------
@@ -65,7 +69,7 @@ class TreeWalkerPredicate(Protocol):
 
 
 @enum.unique
-class NodeType(FlagCheckMixin, enum.Flag):
+class NodeType(FlagEncodeNameMixin, FlagCheckMixin, enum.Flag):
     '''
     Simpler and more flexable than checking instance types maybe?
 
@@ -101,6 +105,31 @@ class NodeType(FlagCheckMixin, enum.Flag):
 
     FUNCTION = enum.auto()
     '''Math function like 'max()', 'min()', etc.'''
+
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'NodeType') -> str:
+        '''
+        Unique dotted name for this class.
+        '''
+        return 'veredi.math.parser.tree'
+
+    @classmethod
+    def _type_field(klass: 'NodeType') -> str:
+        '''
+        A short, unique name for encoding an instance into a field in a dict.
+        '''
+        return 'v.m.tree'
+
+
+# Hit a brick wall trying to get an Encodable enum's dotted through to
+# Encodable. :| Register manually?
+#
+# Register ourself manually with the Encodable registry.
+NodeType.register_manually()
 
 
 # -----------------------------------------------------------------------------
@@ -140,21 +169,27 @@ class MathParser(ABC):
         Optional `milieu` string is a context in the event of any 'this'
         variables.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.parse() is "
+                                  "not implemented.")
 
 
 # -----------------------------------------------------------------------------
 # Veredi Math Operations in Tree Form
 # -----------------------------------------------------------------------------
 
-class MathTree(ABC):
+class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
     '''
-    Base MathTree interface.
+    Base MathTree interface. Subclasses that are concrete should include a real
+    dotted string kwarg instead of `Encodable._DO_NOT_REGISTER` in class args.
 
     This is a tree of maths. Rest of Veredi will use it to, for example, fill
     in parts of a roll command until MathTree can be evaluated and result
     returned.
     '''
+
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
 
     # NULL_SIGN = '\u2205'
     # NULL_SIGN = '\N{EMPTY SET}'
@@ -162,6 +197,10 @@ class MathTree(ABC):
 
     _SET_VALUE_ALLOWED = (NodeType.VARIABLE, NodeType.RANDOM)
     _SET_NAME_ALLOWED = (NodeType.VARIABLE, )
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def __init__(self,
                  type:     'NodeType',
@@ -304,7 +343,8 @@ class MathTree(ABC):
         '''
         Evaluate this tree node (roll dice, add children together, whatever).
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.eval() is "
+                                  "not implemented.")
 
     # -------------------------------------------------------------------------
     # Tree Walker for variables.
@@ -444,31 +484,38 @@ class MathTree(ABC):
 
     @abstractmethod
     def __add__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__add__() is "
+                                  "not implemented.")
 
     @abstractmethod
     def __sub__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__sub__() is "
+                                  "not implemented.")
 
     @abstractmethod
     def __mul__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__mul__() is "
+                                  "not implemented.")
 
     @abstractmethod
     def __truediv__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__truediv__() "
+                                  "is not implemented.")
 
     @abstractmethod
     def __floordiv__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__floordiv__() "
+                                  "is not implemented.")
 
     @abstractmethod
     def __mod__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__mod__() is "
+                                  "not implemented.")
 
     @abstractmethod
     def __pow__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__pow__() is "
+                                  "not implemented.")
 
     # -------------------------------------------------------------------------
     # Comparisons
@@ -476,30 +523,120 @@ class MathTree(ABC):
 
     @abstractmethod
     def __lt__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__lt__() is "
+                                  "not implemented.")
 
     @abstractmethod
     def __gt__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__gt__() is "
+                                  "not implemented.")
 
     @abstractmethod
     def __le__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__le__() is "
+                                  "not implemented.")
 
     @abstractmethod
     def __ge__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__ge__() is "
+                                  "not implemented.")
 
     @abstractmethod
     def __eq__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__eq__() is "
+                                  "not implemented.")
 
     @abstractmethod
     def __ne__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.__ne__() is "
+                                  "not implemented.")
 
     # -------------------------------------------------------------------------
-    # To String
+    # Encodable
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _type_field(klass: 'MathTree') -> str:
+        '''Children should override this for appropriate name.'''
+        raise NotImplementedError(f"{klass.__name__}._type_field() "
+                                  "is not implemented.")
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode self as a Mapping of strings to (basic) values (str, int, etc).
+        '''
+        # Encode our children...
+        encoded_children = None
+        if self._children:
+            encoded_children = []
+            for child in self._children:
+                encoded_children.append(child.encode(None))
+
+        # print("\nMathTree._encode_complex(): {self.__class__.__name__}.dott:
+        # And return all our vars as a dictionary structure.
+        encoded = {
+            'dotted': self.dotted(),
+            'value': self.value,  # should be a number or None...
+            'name': self.name,
+            'milieu': self.milieu,
+            'children': encoded_children,
+            'tags': self.tags,  # list of strings
+        }
+
+        # Have type insert itself.
+        self.type.encode(encoded)
+
+        # Done.
+        return encoded
+
+    @classmethod
+    def _decode_super(klass: 'MathTree',
+                      instance: 'MathTree',
+                      data: EncodedComplex) -> 'MathTree':
+        '''
+        Decode MathTree's instance variables into the `instance` from the
+        `data`.
+        '''
+
+        # Get/decode our fields.
+        instance.type = NodeType.decode(data)  # Have type decode itself.
+        instance.value = data['value']
+        instance.name = data['name']
+        instance.milieu = data.get('milieu', None)
+        instance.tags = data.get('tags', None)
+
+        encoded_children = data.get('children', None)
+
+        # Decode the children, if we have any...
+        children = None
+        if encoded_children:
+            children = []
+            # Get each child from EncodableRegistry, decode it, and stuff it
+            # into our array of children.
+            for child_data in encoded_children:
+                child_class = EncodableRegistry.get_from_data(data)
+                child_instance = child_class._decode_complex(child_data)
+                children.append(child_instance)
+        instance.children = children
+
+        # And return the instance.
+        return instance
+
+    @classmethod
+    def _decode_complex(klass: 'MathTree',
+                        data: EncodedComplex) -> 'MathTree':
+        '''
+        Use data and EncodableRegistry to figure out what MathTree subclass
+        the data is, then decode the data using the subclass.
+
+        Return a new instance of `klass` as the result of the decoding.
+        '''
+        actual_class = EncodableRegistry.get_from_data(data)
+        instance = actual_class._decode_complex(data)
+        return instance
+
+    # -------------------------------------------------------------------------
+    # Python Functions
     # -------------------------------------------------------------------------
 
     # def __str__(self):

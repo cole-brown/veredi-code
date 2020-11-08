@@ -21,7 +21,7 @@ import json
 from io import StringIO
 import contextlib
 
-from veredi.logger               import log
+from veredi.logger               import log, pretty
 from veredi.data                 import background
 from veredi.data.config.registry import register
 from veredi.data                 import exceptions
@@ -208,7 +208,7 @@ class JsonCodec(BaseCodec):
 
         # Is it just an Encodable object?
         if isinstance(data, Encodable):
-            encoded = data.encode()
+            encoded = data.encode(None)
             return encoded
 
         # Mapping?
@@ -252,11 +252,13 @@ class JsonCodec(BaseCodec):
             json.dump(data, encoded)
         except (TypeError, OverflowError, ValueError) as error:
             encoded = None
+            data_pretty = pretty.indented(data)
             raise log.exception(
                 error,
                 exceptions.WriteError,
-                "Error writing data to stream: "
-                f"data: {data}, stream: {encoded}",
+                "Error writing data to stream: \n"
+                "  data: \n{}",
+                data_pretty,
                 context=context) from error
 
         return encoded

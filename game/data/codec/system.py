@@ -173,7 +173,10 @@ class CodecSystem(System):
         context = self._codec.context.push(event.context)
 
         # TODO [2020-05-22]: Encode it.
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.event_data_save_request() "
+            "is not yet implemented...")
+
         encoded = None
 
         # Done; fire off event for whoever wants the next step.

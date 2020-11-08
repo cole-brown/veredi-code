@@ -9,7 +9,7 @@ Access-Based Access Control - Attributes for Actions.
 # -----------------------------------------------------------------------------
 
 import enum
-from veredi.base.enum import FlagCheckMixin, FlagSetMixin
+from veredi.base.enum import FlagCheckMixin, FlagSetMixin, FlagEncodeNameMixin
 
 
 # -----------------------------------------------------------------------------
@@ -25,7 +25,7 @@ from veredi.base.enum import FlagCheckMixin, FlagSetMixin
 # https://en.wikipedia.org/wiki/Attribute-based_access_control
 
 @enum.unique
-class Action(FlagCheckMixin, FlagSetMixin, enum.Flag):
+class Action(FlagEncodeNameMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
     Attribute-based Access Control via these Action Permission Flags.
     '''
@@ -78,3 +78,25 @@ class Action(FlagCheckMixin, FlagSetMixin, enum.Flag):
     This probably means you're either a hacker or the other kind of hacker.
     Good luck and god speed; sorry about the mess- I mean source code.
     '''
+
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'Action') -> str:
+        '''
+        Unique dotted name for this class.
+        '''
+        return 'veredi.security.abac.attributes.action'
+
+    @classmethod
+    def _type_field(klass: 'Action') -> str:
+        '''
+        A short, unique name for encoding an instance into a field in a dict.
+        '''
+        return 'v.sec.abac.action'
+
+
+# Register ourself manually with the Encodable registry.
+Action.register_manually()
