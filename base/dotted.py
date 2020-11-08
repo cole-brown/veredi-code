@@ -8,7 +8,7 @@ Helpers for names.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, Any, Mapping, List, Tuple
 from .null import Nullable, Null
 
 import pathlib
@@ -23,6 +23,12 @@ PROPERTY = 'dotted'
 Try to call your attribute/property 'dotted', for consistency.
 
 If you use 'register', your class will get a 'dotted' property for free.
+'''
+
+KLASS_FUNC = 'dotted'
+'''
+If at class level, and a function instead of a property... still call it
+'dotted', for consistency.
 '''
 
 ATTRIBUTE_PRIVATE = '_DOTTED'
@@ -182,3 +188,91 @@ def this(find: str,
         # result.extend(these)
 
     return result, found_this
+
+
+def auto(obj: Any) -> str:
+    '''
+    Tries its best to automatically create a dotted string from the object
+    given. Returns a lowercased dotted string.
+
+    This will likely be the fully qualified module name. e.g.
+      from xml.etree.ElementTree import ElementTree
+      et = ElementTree()
+      print(dotted.auto(et))
+        -> 'xml.etree.elementtree'
+
+    If `short` is True, this will try to create a short identifying string.
+    '''
+    # Try to add object's class name to end if we can.
+    name = ''
+    try:
+        name = '.' + obj.__class__.__name__
+    except ValueError:
+        try:
+            name = '.' + obj.__name__
+        except ValueError:
+            pass
+
+    # Lowercase and return.
+    return (obj.__module__ + name).lower()
+
+
+def munge_to_short(dotted: str) -> str:
+    '''
+    Munges `dotted` string down into something short by taking the first letter
+    of everything in the dotted path.
+
+    Uses 'v.' instead of just 'v' for shortening 'veredi' in the first
+    position.
+
+    Returns lowercased munged string.
+    '''
+    # ---
+    # Sanity
+    # ---
+    names = split(dotted)
+    if not names:
+        msg = (f"Cannot munge nothing. Got empty dotted list {names} "
+               f"from input '{dotted}'.")
+        error = ValueError(msg, dotted, names)
+        raise log.exception(error, None, msg)
+
+    # ---
+    # Munging
+    # ---
+
+    # 1) "veredi" -> "v."
+    #    Check first element. If it's veredi, do our special case and delete it
+    #    before proceeding to normal case stuff.
+    munged = ''
+    if names[0] == 'veredi':
+        munged = 'v.'
+        names.pop(0)
+
+    # 2) "Xyzzy" -> "X"
+    for name in names:
+        munged += name[0]
+
+    # 3) Lowercase it.
+    return munged.lower()
+
+
+def from_map(mapping: Union[str, Mapping[str, Any]]) -> Optional[str]:
+    '''
+    If `mapping` is just a string, returns None.
+
+    If `mapping` has a key matching PROPERTY ('dotted'), return that field's
+    value.
+
+    Else, return None.
+    '''
+    if isinstance(mapping, str):
+        return None
+
+    # Don't raise an exception; just return None if we can't find it.
+    try:
+        return mapping.get(PROPERTY, None)
+    except (ValueError, AttributeError, KeyError):
+        pass
+
+    return None
