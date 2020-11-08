@@ -34,6 +34,8 @@ import enum
 from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
 from veredi.base      import dotted
 
+from . import pretty
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -74,13 +76,28 @@ _ULTRA_MEGA_DEBUG_DBG = (
     + _ULTRA_MEGA_DEBUG_TB
 )
 _ULTRA_MEGA_DEBUG_FMT = (
-    '\n\n'
+    '\n'
     + _ULTRA_MEGA_DEBUG_DBG + (_ULTRA_MEGA_DEBUG_TB * 30) + '\n'
     + ('v' * 69) + '\n\n'
     + '{output}' + '\n\n'
     + ('^' * 69) + '\n'
     + _ULTRA_MEGA_DEBUG_DBG + (_ULTRA_MEGA_DEBUG_TB * 30) + '\n'
     + '\n\n'
+)
+
+
+_ULTRA_HYPER_DEBUG = 'U-L-T-R-A = H-Y-P-E-R = D-E-B-U-G = L-O-G'
+_ULTRA_HYPER_SYMBOL = '☢'
+_ULTRA_HYPER_INDENT_AMT = 4
+_ULTRA_HYPER_DEBUG_FMT = (
+    '\n'
+    + '---\n'
+    + '-----\n'
+    + '-= ' + _ULTRA_HYPER_DEBUG + ' =-\n'
+    + '{output}\n'
+    + '-= ' + _ULTRA_HYPER_DEBUG + ' =-\n'
+    + '-----\n'
+    + '---\n\n'
 )
 
 
@@ -256,25 +273,23 @@ def init(level:        LogLvlConversion            = DEFAULT_LEVEL,
     `debug` purely here for debugging log_server, log_client setting up their
     loggers.
     '''
+    # ------------------------------
+    # No Re-Init.
+    # ------------------------------
     global __initialized
     if __initialized:  # and not reinitialize:
         return
+    __initialized = True
 
+    # ------------------------------
+    # Logger
+    # ------------------------------
     global logger
-    logger = init_logger(str(LogName.ROOT), level, handler, formatter)
+    logger = init_logger(str(LogName.ROOT), level, formatter)
 
-
-def init_logger(logger_name: str,
-                level:       LogLvlConversion            = DEFAULT_LEVEL,
-                handler:     Optional[logging.Handler]   = None,
-                formatter:   Optional[logging.Formatter] = None
-                ) -> logging.Logger:
-    '''
-    Initializes and returns a logger with the supplied name.
-    '''
-    # Create our logger at our default output level.
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(Level.to_logging(level))
+    # ------------------------------
+    # Root Logger's Handler(s)
+    # ------------------------------
 
     # Either got supplied a handler or we'll be making one. Either way, we want
     # to get rid of any of ours it has.
@@ -304,6 +319,19 @@ def init_logger(logger_name: str,
 
     __handlers.append(handler)
     logger.addHandler(handler)
+
+
+def init_logger(logger_name: str,
+                level:       LogLvlConversion            = DEFAULT_LEVEL,
+                # handler:     Optional[logging.Handler]   = None,
+                formatter:   Optional[logging.Formatter] = None
+                ) -> logging.Logger:
+    '''
+    Initializes and returns a logger with the supplied name.
+    '''
+    # Create our logger at our default output level.
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(Level.to_logging(level))
 
     return logger
 
@@ -487,7 +515,7 @@ def ultra_mega_debug(msg: str,
     Logs at Level.CRITICAL using either passed in logger or logger named:
       'veredi.debug.DEBUG.!!!DEBUG!!!'
 
-    All logs start with two newlines characters.
+    All logs start with a newline character.
 
     All logs are prepended with a row starting with '!~DEBUG~!' and
     then repeating '~!'.
@@ -502,7 +530,6 @@ def ultra_mega_debug(msg: str,
     In other words, a log.ultra_mega_debug('test') is this:
 
       <log line prefix output>
-
       !~DEBUG~!~!~!~!~!~!~!~!~!....
       vvvvvvvvvvvvvvvvvvvvvvvvv....
 
@@ -520,6 +547,44 @@ def ultra_mega_debug(msg: str,
         this = (veredi_logger
                 or get_logger('veredi.debug.DEBUG.!!!DEBUG!!!'))
         log_out = _ULTRA_MEGA_DEBUG_FMT.format(output=output)
+        this.critical(log_out,
+                      stacklevel=stacklevel)
+
+
+def ultra_hyper_debug(msg: str,
+                      *args: Any,
+                      veredi_logger: NullNoneOr[logging.Logger] = None,
+                      **kwargs: Any) -> None:
+    '''
+    Logs at Level.CRITICAL using either passed in logger or logger named:
+      'veredi.debug.DEBUG.☢☢DEBUG☢☢'
+
+    All logs start with a newline character.
+
+    All logs end with two newlines characters.
+
+    Basically, a log.ultra_hyper_debug('test') is this:
+
+      <log line prefix output>
+      ---
+      -----
+      --U-L-T-R-A-=-H-Y-P-E-R-=-D-E-B-U-G-=-L-O-G--
+          test
+      --U-L-T-R-A-=-H-Y-P-E-R-=-D-E-B-U-G-=-L-O-G--
+      ---
+      -----
+
+    '''
+    stacklevel = pop_stack_level(kwargs)
+    output = brace_message(msg,
+                           *args, **kwargs)
+    # Indent output message before printing.
+    output = pretty.indented(output,
+                             indent_amount=_ULTRA_HYPER_INDENT_AMT)
+    if not ut_call(Level.CRITICAL, output):
+        this = (veredi_logger
+                or get_logger('veredi.debug.DEBUG.☢☢DEBUG☢☢'))
+        log_out = _ULTRA_HYPER_DEBUG_FMT.format(output=output)
         this.critical(log_out,
                       stacklevel=stacklevel)
 

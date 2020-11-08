@@ -47,7 +47,8 @@ class Lumberjack:
     # Constants
     # -------------------------------------------------------------------------
 
-    _DEBUGGER_NAME_FMT = '{name}.!!!DEBUG!!!'
+    _MEGA_NAME_FMT = '{name}.!!!DEBUG!!!'
+    _HYPER_NAME_FMT = '{name}.☢☢DEBUG☢☢'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -63,17 +64,23 @@ class Lumberjack:
         self._logger: log.PyLogType = None
         '''The logger we use for sending out log messages.'''
 
-        self._debugger: log.PyLogType = None
+        self._mega: log.PyLogType = None
         '''
         The logger we use for sending out extra debug messages. Currently only
         the ultra-mega-debug ones.
+        '''
+
+        self._hyper: log.PyLogType = None
+        '''
+        The logger we use for sending out extra debug messages. Currently only
+        the ultra-hyper-debug ones.
         '''
 
     def __init__(self,
                  name:                str,
                  initial_level:       log.Level             = log.Level.NOTSET,
                  require_veredi_name: bool                        = True,
-                 handler:             Optional[logging.Handler]   = None,
+                 # handler:             Optional[logging.Handler]   = None,
                  formatter:           Optional[logging.Formatter] = None
                  ) -> None:
 
@@ -89,7 +96,8 @@ class Lumberjack:
                        "desired functionality, set `require_veredi_name` "
                        "to False.")
             err = ValueError(err_msg, name, initial_level,
-                             require_veredi_name, handler, formatter)
+                             # require_veredi_name, handler, formatter)
+                             require_veredi_name, formatter)
             raise log.exception(err, None, err_msg)
 
         # ------------------------------
@@ -97,7 +105,7 @@ class Lumberjack:
         # ------------------------------
         self._logger = log.init_logger(self._name,
                                        initial_level,
-                                       handler=handler,
+                                       # handler=handler,
                                        formatter=formatter)
 
     # -------------------------------------------------------------------------
@@ -142,9 +150,8 @@ class Lumberjack:
     # Logging-by-Functionality Functions
     # -------------------------------------------------------------------------
 
-
     def group(self,
-              group:         'Group',
+              group:         'log.Group',
               msg:           str,
               *args:         Any,
               **kwargs:      Any) -> None:
@@ -152,7 +159,7 @@ class Lumberjack:
         Log at `group` log.Level, whatever it's set to right now.
         '''
         kwargs = log.incr_stack_level(kwargs)
-        log.group(level, msg,
+        log.group(group, msg,
                   *args,
                   veredi_logger=self._logger,
                   **kwargs)
@@ -233,9 +240,9 @@ class Lumberjack:
         # ------------------------------
         # Create on demand.
         # ------------------------------
-        if not self._debugger:
-            debug_name = self._DEBUGGER_NAME_FMT.format(name=self._name)
-            self._debugger = log.init_logger(debug_name, self.level)
+        if not self._mega:
+            debug_name = self._MEGA_NAME_FMT.format(name=self._name)
+            self._mega = log.init_logger(debug_name, self.level)
 
         # ------------------------------
         # Adjust Stack Level.
@@ -247,9 +254,56 @@ class Lumberjack:
         # ------------------------------
         log.ultra_mega_debug(msg,
                              *args,
-                             veredi_logger=self._debugger,
+                             veredi_logger=self._mega,
                              context=context,
                              **kwargs)
+
+    def ultra_hyper_debug(self,
+                          msg:      str,
+                          *args:    Any,
+                          context:  Optional['VerediContext'] = None,
+                          **kwargs: Any) -> None:
+        '''
+        Logs at Level.CRITICAL using logger named:
+          self._name + '.☢☢DEBUG☢☢'
+
+        All logs start with two newlines characters.
+
+        All logs end with two newlines characters.
+
+        Basically, a lumberjack.ultra_hyper_debug('test') is this:
+
+          <log line prefix output>
+
+        ---
+        -----
+        --ultra-hyper-super-mega-debug-print
+            test
+        --ultra-hyper-super-mega-debug-print
+        ---
+        -----
+
+        '''
+        # ------------------------------
+        # Create on demand.
+        # ------------------------------
+        if not self._hyper:
+            debug_name = self._HYPER_NAME_FMT.format(name=self._name)
+            self._hyper = log.init_logger(debug_name, self.level)
+
+        # ------------------------------
+        # Adjust Stack Level.
+        # ------------------------------
+        kwargs = self._stack(1, **kwargs)
+
+        # ------------------------------
+        # Make the call.
+        # ------------------------------
+        log.ultra_hyper_debug(msg,
+                              *args,
+                              veredi_logger=self._hyper,
+                              context=context,
+                              **kwargs)
 
     def debug(self,
               msg:      str,
