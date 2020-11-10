@@ -115,11 +115,11 @@ class DataSystem(System):
         Basic background.data info for this service.
         '''
         return {
-            'dotted': self.dotted,
+            'dotted': self.dotted(),
         }
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'DataSystem') -> str:
         return 'veredi.game.data.system'
 
     # -------------------------------------------------------------------------

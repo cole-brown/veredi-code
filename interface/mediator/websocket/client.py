@@ -240,7 +240,7 @@ class WebSocketClient(WebSocketMediator):
         '''
         Make a context with our context data, our codec's, etc.
         '''
-        ctx = MediatorClientContext(self.dotted)
+        ctx = MediatorClientContext(self.dotted())
         ctx.sub['type'] = 'websocket.client'
         ctx.sub['codec'] = self._codec.make_context_data()
         return ctx
@@ -249,7 +249,7 @@ class WebSocketClient(WebSocketMediator):
         '''
         Make a context for a message.
         '''
-        ctx = MessageContext(self.dotted, id)
+        ctx = MessageContext(self.dotted(), id)
         return ctx
 
     def start(self) -> None:

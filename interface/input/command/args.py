@@ -267,7 +267,7 @@ class CommandStatus:
         if not entity_name:
             reason = "Couldn't find the entity for the command."
         else:
-            entity_data = component.dotted
+            entity_data = component.dotted()
             if entity_data:
                 entity_data += ' '
             reason = "Couldn't find either '{}' or their {}data.".format(

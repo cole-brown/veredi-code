@@ -166,9 +166,9 @@ class WebSocketMediator(Mediator):
         Get background data for init_background()/background.mediator.set().
         '''
         self._bg = {
-            'dotted': self.dotted,
+            'dotted': self.dotted(),
             'type': dotted.join('websocket', self._name),
-            'codec': self._codec.dotted,
+            'codec': self._codec.dotted(),
         }
         return self._bg, background.Ownership.SHARE
 
@@ -772,7 +772,7 @@ class WebSocketMediator(Mediator):
         #
         # Game will get it eventually and deal with it. We may get a reply to
         # send at some point but that's irrelevant here.
-        ctx = MessageContext(self.dotted, msg.payload)
+        ctx = MessageContext(self.dotted(), msg.payload)
         self.debug("received text msg; queuing: "
                    f"msg: {msg}, ctx: {ctx}")
         await self._med_to_game_put(msg, ctx)

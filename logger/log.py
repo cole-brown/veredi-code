@@ -370,8 +370,8 @@ def get_logger(*names: str,
     E.g.:
       get_logger(__name__, self.__class__.__name__)
       get_logger(__name__)
-      get_logger(self.dotted, min_log_level=log.Level.DEBUG)
-      get_logger(self.dotted, 'client', '{:02d}'.format(client_num))
+      get_logger(self.dotted(), min_log_level=log.Level.DEBUG)
+      get_logger(self.dotted(), 'client', '{:02d}'.format(client_num))
     '''
     # Ignore any Falsy values in names
     logger_name = '.'.join([each for each in names if each])
@@ -576,8 +576,11 @@ def ultra_hyper_debug(msg: str,
 
     '''
     stacklevel = pop_stack_level(kwargs)
-    output = brace_message(msg,
-                           *args, **kwargs)
+    # Format using brace_message if msg is str.
+    output = msg
+    if isinstance(msg, str):
+        output = brace_message(msg,
+                               *args, **kwargs)
     # Indent output message before printing.
     output = pretty.indented(output,
                              indent_amount=_ULTRA_HYPER_INDENT_AMT)

@@ -134,8 +134,8 @@ class Historian:
         # TODO [2020-06-21]: Drop history from lists after y time?
 
     # Magically provided by @register
-    # @property
-    # def dotted(self) -> str:
+    # @classmethod
+    # def dotted(klass: 'Historian') -> str:
     #     ...
 
     # -------------------------------------------------------------------------

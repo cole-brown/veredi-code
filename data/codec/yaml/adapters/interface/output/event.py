@@ -59,7 +59,7 @@ def event_type(event: OutputEvent) -> Tuple[str, str]:
     '''
     Gives the dotted type of the event.
     '''
-    return ('type', null_to_none(event.dotted))
+    return ('type', null_to_none(event.dotted()))
 
 
 # def event_names(event: OutputEvent) -> Tuple[str, str]:

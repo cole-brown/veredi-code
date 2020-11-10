@@ -75,7 +75,7 @@ class StringSerdes(BaseSerdes):
         '''
         Our background data.
         '''
-        self._bg = super()._make_background(self.dotted)
+        self._bg = super()._make_background(self.dotted())
 
     # -------------------------------------------------------------------------
     # Deserialize Methods

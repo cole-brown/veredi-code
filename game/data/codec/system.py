@@ -92,8 +92,8 @@ class CodecSystem(System):
         background.data.link_set(background.data.Link.CODEC,
                                  self._codec)
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'CodecSystem') -> str:
         return 'veredi.game.data.codec.system'
 
     def priority(self) -> Union[SystemPriority, int]:

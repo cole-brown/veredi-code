@@ -36,8 +36,8 @@ class CompTwo(component.Component):
 class SysJeff(system.System):
     last_tick = system.SystemTick.DESTRUCTION
 
-    @property
-    def dotted(self):
+    @classmethod
+    def dotted(klass: 'SysJeff') -> str:
         return 'veredi.game.ecs.base.zest_system.SysJeff'
 
     def _configure(self,
@@ -86,8 +86,8 @@ class SysJeff(system.System):
 
 
 class SysJill(system.System):
-    @property
-    def dotted(self):
+    @classmethod
+    def dotted(klass: 'SysJill') -> str:
         return 'veredi.game.ecs.base.zest_system.SysJill'
 
     def priority(self):

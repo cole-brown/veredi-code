@@ -184,8 +184,8 @@ class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
         '''
         return self._output
 
-    @property
-    def dotted(self):
+    @classmethod
+    def dotted(klass: 'MathOutputEvent') -> str:
         '''
         Veredi dotted name for what type/kind of output this is.
         '''
