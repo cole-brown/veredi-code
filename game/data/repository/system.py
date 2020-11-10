@@ -85,8 +85,8 @@ class RepositorySystem(System):
         background.data.link_set(background.data.Link.REPO,
                                  self._repository)
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'RepositorySystem') -> str:
         return 'veredi.game.data.repository.system'
 
     def priority(self) -> Union[SystemPriority, int]:

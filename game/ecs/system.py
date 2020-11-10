@@ -116,7 +116,7 @@ class SystemManager(EcsManagerWithEvents):
         that cycle.
         '''
 
-        self._logger: log.PyLogType = log.get_logger(self.dotted)
+        self._logger: log.PyLogType = log.get_logger(self.dotted())
         '''
         Named logger for engine logging. Metered logger will end up getting the
         same one because we use the same name.
@@ -135,9 +135,9 @@ class SystemManager(EcsManagerWithEvents):
         self._debug = debug_flags or Null()
         self._event_manager = event_manager or Null()
 
-    @property
-    def dotted(self) -> str:
-        return self.DOTTED
+    @classmethod
+    def dotted(klass: 'SystemManager') -> str:
+        return klass.DOTTED
 
     # -------------------------------------------------------------------------
     # Debugging
@@ -224,7 +224,7 @@ class SystemManager(EcsManagerWithEvents):
         Raises an error if health is less than the minimum for runnable engine.
 
         Adds:
-          "{system.dotted}'s health became unrunnable: {prev} -> {curr}."
+          "{system.dotted()}'s health became unrunnable: {prev} -> {curr}."
           to info/args/kwargs for log message.
         '''
         if (not self.debug_flagged(DebugFlag.RAISE_HEALTH)
@@ -245,7 +245,7 @@ class SystemManager(EcsManagerWithEvents):
         else:
             health_transition = f"{str(prev_health)} -> {str(curr_health)}"
 
-        msg = (f"{system.dotted}'s health became unrunnable during {during}: "
+        msg = (f"{system.dotted()}'s health became unrunnable during {during}: "
                f"{health_transition}. ")
         error = HealthError(curr_health, prev_health, msg, None)
         raise log.exception(error,
@@ -456,7 +456,7 @@ class SystemManager(EcsManagerWithEvents):
                                  sys_tick_health,
                                  worst_health,
                                  (f"SystemManager.update for {tick} of "
-                                  f"{system.dotted} resulted in poor health: "
+                                  f"{system.dotted()} resulted in poor health: "
                                   f"{sys_tick_health}."),
                                  tick=tick)
 
@@ -516,7 +516,7 @@ class SystemManager(EcsManagerWithEvents):
                          health,
                          None,
                          (f"SystemManager._life_cycle_set for {cycle} of "
-                          f"{system.dotted} resulted in poor health: "
+                          f"{system.dotted()} resulted in poor health: "
                           f"{health}."),
                          tick=None,
                          life=cycle)

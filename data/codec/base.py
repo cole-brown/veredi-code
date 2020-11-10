@@ -112,7 +112,7 @@ class BaseCodec(ABC):
         Returns context data for inserting into someone else's context.
         '''
         return {
-            'dotted': self.dotted,
+            'dotted': self.dotted(),
             'type': self.name,
         }
 

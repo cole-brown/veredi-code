@@ -107,8 +107,8 @@ class Commander:
         '''
 
     # Magically provided by @register
-    # @property
-    # def dotted(self) -> str:
+    # @classmethod
+    # def dotted(klass: 'Commander') -> str:
     #     ...
 
     # -------------------------------------------------------------------------

@@ -134,8 +134,8 @@ class SysJeff(SysTest):
                        | SystemTick.STANDARD
                        | SystemTick.POST)
 
-    @property
-    def dotted(self):
+    @classmethod
+    def dotted(klass: 'SysJeff') -> str:
         return 'veredi.game.zest_engine.SysJeff'
 
     def priority(self):
@@ -158,8 +158,8 @@ class SysJill(SysTest):
             self.x = None
             self.y = None
 
-    @property
-    def dotted(self):
+    @classmethod
+    def dotted(klass: 'SysJill') -> str:
         return 'veredi.game.zest_engine.SysJill'
 
     def priority(self):
@@ -175,8 +175,8 @@ class SysNoTick(SysTest):
         super()._configure(context)
         self._ticks = None
 
-    @property
-    def dotted(self):
+    @classmethod
+    def dotted(klass: 'SysNoTick') -> str:
         return 'veredi.game.zest_engine.SysNoTick'
 
     def priority(self):
@@ -189,8 +189,8 @@ class SysNoReq(SysTest):
         super()._configure(context)
         self._ticks = None
 
-    @property
-    def dotted(self):
+    @classmethod
+    def dotted(klass: 'SysNoReq') -> str:
         return 'veredi.game.zest_engine.SysNoReq'
 
     def required(self):

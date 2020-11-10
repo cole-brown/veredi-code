@@ -192,7 +192,7 @@ class OutputSystem(System):
         # ---
         # Create our background context now that we have enough info.
         bg_data, bg_owner = self._background
-        background.output.set(self.dotted,
+        background.output.set(self.dotted(),
                               bg_data,
                               bg_owner)
 
@@ -210,14 +210,14 @@ class OutputSystem(System):
         codec_data, _ = self._codec.background
         serdes_data, _ = self._serdes.background
         self._bg = {
-            'dotted': self.dotted,
+            'dotted': self.dotted(),
             'codec': codec_data,
             'serdes': serdes_data,
         }
         return self._bg, background.Ownership.SHARE
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'OutputSystem') -> str:
         # self._DOTTED magically provided by @register
         return self._DOTTED
 

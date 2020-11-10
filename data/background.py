@@ -578,7 +578,7 @@ class system(metaclass=SystemMeta):
         subctx = klass._get()
         vital_records = subctx.setdefault(_SYS_VITALS, [])
         entry = {
-            'dotted': sys.dotted,
+            'dotted': sys.dotted(),
             'time': klass.manager.time.machine.stamp_to_str(),
             'cycle': cycle.name,
             'health': health.name,

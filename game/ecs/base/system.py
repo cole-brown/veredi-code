@@ -206,7 +206,7 @@ class System(ABC):
         # ---
         self._log: Lumberjack = None
         '''
-        A logger specifically for this system. Logger name is `self.dotted`.
+        A logger specifically for this system. Logger name is `self.dotted()`.
         '''
 
         # ---
@@ -278,7 +278,7 @@ class System(ABC):
         # ---
         # TODO: go through all systems and make sure they use this instead of
         # log.py directly.
-        self._log = Lumberjack(self.dotted)
+        self._log = Lumberjack(self.dotted())
 
     # -------------------------------------------------------------------------
     # Properties
@@ -288,9 +288,9 @@ class System(ABC):
     def id(self) -> SystemId:
         return SystemId.INVALID if self._system_id is None else self._system_id
 
-    @property
+    @classmethod
     @abstractmethod
-    def dotted(self) -> str:
+    def dotted(klass: 'System') -> str:
         '''
         The dotted name this system has. If the system uses '@register', you
         still have to implement dotted, but you get self._DOTTED for free
@@ -303,8 +303,8 @@ class System(ABC):
 
         So just implement like this:
 
-            @property
-            def dotted(self) -> str:
+            @classmethod
+            def dotted(klass: 'JeffSystem') -> str:
                 # self._DOTTED magically provided by @register
                 return self._DOTTED
         '''

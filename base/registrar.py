@@ -260,6 +260,7 @@ class BaseRegistrar(ABC):
     # Registry Access
     # -------------------------------------------------------------------------
 
+    @classmethod
     def get_dotted(klass: 'BaseRegistrar',
                    dotted_keys_str: str,
                    context: Optional[VerediContext]) -> 'RegisterType':
@@ -275,7 +276,7 @@ class BaseRegistrar(ABC):
           KeyError - dotted string not found in our registry.
         '''
         registration = klass._get()
-        split_keys = dotted_keys_str.split('.')
+        split_keys = veredi.base.dotted.split(dotted_keys_str)
 
         # ---
         # Walk into our registry using the keys for our path.

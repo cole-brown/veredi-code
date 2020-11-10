@@ -13,25 +13,28 @@ from .null import Nullable, Null
 
 import pathlib
 
+# CANNOT IMPORT LOG. Circular import.
+# from veredi.logger import log
+
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-PROPERTY = 'dotted'
+_DOTTED_NAME = 'dotted'
 '''
 Try to call your attribute/property 'dotted', for consistency.
 
 If you use 'register', your class will get a 'dotted' property for free.
 '''
 
-KLASS_FUNC = 'dotted'
+_KLASS_FUNC_NAME = _DOTTED_NAME
 '''
 If at class level, and a function instead of a property... still call it
 'dotted', for consistency.
 '''
 
-ATTRIBUTE_PRIVATE = '_DOTTED'
+_ATTRIBUTE_PRIVATE_NAME = '_DOTTED'
 '''
 Try to call your attribute/property 'dotted', for consistency.
 
@@ -235,7 +238,7 @@ def munge_to_short(dotted: str) -> str:
         msg = (f"Cannot munge nothing. Got empty dotted list {names} "
                f"from input '{dotted}'.")
         error = ValueError(msg, dotted, names)
-        raise log.exception(error, None, msg)
+        raise error
 
     # ---
     # Munging
@@ -257,9 +260,12 @@ def munge_to_short(dotted: str) -> str:
     return munged.lower()
 
 
-def from_map(mapping: Union[str, Mapping[str, Any]]) -> Optional[str]:
+def from_map(mapping:      Union[str, Mapping[str, Any]],
+             squelch_error: bool = False) -> Optional[str]:
     '''
-    If `mapping` is just a string, returns None.
+    If `mapping` is just a string, depends on what `squelch_error` is set to:
+      - True:  Returns None.
+      - False: Raises ValueError.
 
     If `mapping` has a key matching PROPERTY ('dotted'), return that field's
     value.
@@ -267,11 +273,16 @@ def from_map(mapping: Union[str, Mapping[str, Any]]) -> Optional[str]:
     Else, return None.
     '''
     if isinstance(mapping, str):
-        return None
+        if squelch_error:
+            return None
+        msg = ("dotted.from_map() does not support strings - needs a Mapping "
+               f"type like dict. Got: {type(mapping)}.")
+        error = ValueError(msg, mapping)
+        raise error
 
     # Don't raise an exception; just return None if we can't find it.
     try:
-        return mapping.get(PROPERTY, None)
+        return mapping.get(_DOTTED_NAME, None)
     except (ValueError, AttributeError, KeyError):
         pass
 

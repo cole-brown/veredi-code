@@ -32,6 +32,7 @@ from decimal import Decimal
 # ---
 from veredi.logger                      import log
 from veredi.base.const                  import VerediHealth
+from veredi.base                        import numbers
 from veredi.data.config.registry        import register
 
 # Game / ECS Stuff
@@ -57,7 +58,6 @@ from veredi.math.parser                 import MathTree
 from .evaluator                         import Evaluator
 from .exceptions                        import MathError
 from .                                  import event as math_event
-
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -159,8 +159,8 @@ class MathSystem(System):
                                    | SystemTick.STANDARD
                                    | SystemTick.POST)
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'MathSystem') -> str:
         # self._DOTTED magically provided by @register
         return self._DOTTED
 
@@ -206,7 +206,7 @@ class MathSystem(System):
     #         return
 
     #     skill_check = CommandRegisterReply(event,
-    #                                        self.dotted,
+    #                                        self.dotted(),
     #                                        'skill',
     #                                        CommandPermission.COMPONENT,
     #                                        self.command_skill,
@@ -317,11 +317,11 @@ class MathSystem(System):
         if self._should_debug():
             self._log.debug(f"replace '{canon}' with "
                             "'{str(type(value))}({value})' and '{milieu}'")
-            self._log.debug(f"'{value}' is {math_event.MathValue}? "
-                            "{isinstance(value, math_event.MathValue)}")
+            self._log.debug(f"'{value}' is {numbers.NumberTypesTuple}? "
+                            "{isinstance(value, numbers.NumberTypesTuple)}")
 
         # Is that it, or do we need to keep going?
-        if isinstance(value, math_event.MathValue):
+        if isinstance(value, numbers.NumberTypesTuple):
             var.set(value, milieu)
             return True, None
 

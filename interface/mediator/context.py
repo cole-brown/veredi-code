@@ -121,7 +121,7 @@ class MessageContext(EphemerealContext):
         '''
         Initializes and returns a MessageContext from a MediatorContext.
         '''
-        return MessageContext(ctx.dotted,
+        return MessageContext(ctx.dotted(),
                               id=id,
                               path=ctx.path)
 

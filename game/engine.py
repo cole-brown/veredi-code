@@ -288,7 +288,7 @@ class Engine:
         self._metered_log: MeteredLog = None
         '''Metered logging for things that could be spammy, like tick logs.'''
 
-        self._logger: log.PyLogType = log.get_logger(self.dotted)
+        self._logger: log.PyLogType = log.get_logger(self.dotted())
         '''
         Named logger for engine logging. Metered logger will end up getting the
         same one because we use the same name.
@@ -357,7 +357,7 @@ class Engine:
         # ---
         # Logging
         # ---
-        self._metered_log = MeteredLog(self.dotted,
+        self._metered_log = MeteredLog(self.dotted(),
                                        log.Level.NOTSET,
                                        time.machine,
                                        fingerprint=True)
@@ -465,9 +465,9 @@ class Engine:
             log.debug("Creating system from config: {}", sys_type)
             self.meeting.system.create(sys_type, context)
 
-    @property
-    def dotted(self) -> str:
-        return self.DOTTED
+    @classmethod
+    def dotted(klass: 'Engine') -> str:
+        return klass.DOTTED
 
     # -------------------------------------------------------------------------
     # Debug Stuff
@@ -548,8 +548,8 @@ class Engine:
                  **kwargs: Any) -> bool:
         '''
         Use our MeteredLog to log this tick-related log message. Will be logged
-        under our dotted name (that is, the logger is named by the self.dotted
-        property).
+        under our dotted name (that is, the logger is named by the
+        self.dotted() func).
 
         WARNING: Log may be squelched if its too similar to other recent log
         messages in the `tick`.

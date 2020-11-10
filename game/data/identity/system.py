@@ -115,8 +115,8 @@ class IdentitySystem(System):
         self._set_reduced_tick_rate(SystemTick.PRE,
                                     self._SYNC_ENTITIES_REDUCED_TICK)
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'IdentitySystem') -> str:
         # self._DOTTED magically provided by @register
         return self._DOTTED
 

@@ -89,7 +89,7 @@ class D20RulesSystem(System):
         # right now.
         self._rule_defs = definition.Definition(
             definition.DocType.DEF_SYSTEM,
-            config.definition(self.dotted, context))
+            config.definition(self.dotted(), context))
         self._rule_defs.configure(primary_key)
         if not self._rule_defs:
             raise background.config.exception(

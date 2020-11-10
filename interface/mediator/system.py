@@ -312,13 +312,13 @@ class MediatorSystem(System):
         Get background data for background.mediator.set().
         '''
         self._bg = {
-            'dotted': self.dotted,
+            'dotted': self.dotted(),
             'server': self.dotted_server,
         }
         return self._bg, background.Ownership.SHARE
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'MediatorSystem') -> str:
         # self._DOTTED magically provided by @register
         return self._DOTTED
 

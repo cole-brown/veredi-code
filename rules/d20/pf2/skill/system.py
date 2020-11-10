@@ -124,8 +124,8 @@ class SkillSystem(D20RulesSystem):
         # Just the normal one, for now.
         self._ticks: SystemTick = SystemTick.STANDARD
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'SkillSystem') -> str:
         # self._DOTTED magically provided by @register
         return self._DOTTED
 
@@ -165,7 +165,7 @@ class SkillSystem(D20RulesSystem):
             return
 
         skill_check = CommandRegisterReply(event,
-                                           self.dotted,
+                                           self.dotted(),
                                            'skill',
                                            CommandPermission.COMPONENT,
                                            self.command_skill,

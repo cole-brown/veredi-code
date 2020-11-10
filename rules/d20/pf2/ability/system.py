@@ -124,8 +124,8 @@ class AbilitySystem(D20RulesSystem):
                                    | SystemTick.STANDARD
                                    | SystemTick.POST)
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'AbilitySystem') -> str:
         # self._DOTTED magically provided by @register
         return self._DOTTED
 
@@ -168,7 +168,7 @@ class AbilitySystem(D20RulesSystem):
         # General Command
         # ---
         cmd = CommandRegisterReply(event,
-                                   self.dotted,
+                                   self.dotted(),
                                    'ability',
                                    CommandPermission.COMPONENT,
                                    self.command_ability,

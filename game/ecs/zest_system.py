@@ -53,8 +53,8 @@ class CompThree(Component):
 
 class SysTest(System):
 
-    @property
-    def dotted(self):
+    @classmethod
+    def dotted(klass: 'SysTest') -> str:
         return 'system.test'
 
     def _conifgure(self, context):

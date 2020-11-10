@@ -118,8 +118,8 @@ class CombatSystem(D20RulesSystem):
                                    | SystemTick.STANDARD
                                    | SystemTick.POST)
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'CombatSystem') -> str:
         # self._DOTTED magically provided by @register
         return self._DOTTED
 
@@ -168,7 +168,7 @@ class CombatSystem(D20RulesSystem):
             return
 
         cmd = CommandRegisterReply(event,
-                                   self.dotted,
+                                   self.dotted(),
                                    'attack',
                                    CommandPermission.COMPONENT,
                                    self.command_attack,

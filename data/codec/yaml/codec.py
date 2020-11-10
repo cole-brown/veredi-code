@@ -64,7 +64,7 @@ class YamlCodec(BaseCodec):
     # -------------------------------------------------------------------------
 
     def _make_background(self) -> None:
-        self._bg = super()._make_background(self.dotted)
+        self._bg = super()._make_background(self.dotted())
 
     @property
     def background(self):
