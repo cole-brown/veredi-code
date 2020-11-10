@@ -372,6 +372,16 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         log.ultra_mega_debug(msg, *args, **kwargs,
                              veredi_logger=self.lumberjack)
 
+    def log_ultra_hyper_debug(self,
+                              msg: str,
+                              *args: Any,
+                              **kwargs: Any) -> None:
+        '''
+        Log with self.lumberjack (has self.NAME_MAIN as its name).
+        '''
+        log.ultra_hyper_debug(msg, *args, **kwargs,
+                              veredi_logger=self.lumberjack)
+
     def log_debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
@@ -526,10 +536,6 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
 
         except Exception as err:
             error = err
-
-            # # Debugggggggggg >_<
-            # self.log_ultra_mega_debug("runner_of_tests: except generic "
-            #                           f"Exception; reraising: {err}")
 
             # [2020-09-03] Wasn't reraising - but the error loses its stack
             # trace and then you just have no idea where the thing that hates

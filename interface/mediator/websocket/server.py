@@ -48,6 +48,8 @@ from ..context                   import (MediatorServerContext,
                                          MessageContext,
                                          UserConnToken)
 from ...user                     import User
+from ...output.envelope          import Envelope, Address
+from ...output.event             import Recipient
 
 
 # -----------------------------------------------------------------------------
@@ -495,8 +497,9 @@ class WebSocketServer(WebSocketMediator):
 
         log.critical("User failed registration validation... "
                      "No UserId/UserKey or need to decode?"
-                     f" uid: {type(uid)} {uid};",
-                     f" ukey: {type(ukey)} {ukey}")
+                     " uid: {} {}; ukey: {} {}",
+                     type(uid), uid,
+                     type(ukey), ukey)
         return False
 
     async def register(self,
@@ -702,6 +705,7 @@ class WebSocketServer(WebSocketMediator):
             # Skip this - we used get_nowait(), not get().
             # self._rx_queue.task_done()
             await self._continuing()
+            continue
 
     async def _from_game_watcher(self) -> None:
         '''
@@ -744,21 +748,118 @@ class WebSocketServer(WebSocketMediator):
                     await self._continuing()
                     continue
 
-            # Do we know this guy?
-            client = self._clients.id(msg.user_id)
-            if not client:
-                self.debug("No client to send this to. Not connected yet "
-                           "or already disconnected? Dropping message: "
-                           f"{msg}, context: {ctx}")
+            # ---
+            # Multiple Recipients
+            # ---
+            # Is it an Envelope? They can be addressed to many clients.
+            if msg.type == MsgType.ENVELOPE:
+                # Process the envelope message into client messages.
+                await self._envelope_to_messages(msg, ctx)
+                # Skip the rest of the steps - they're for non-envelopes.
                 await self._continuing()
                 continue
 
-            # Transfer from 'received from game pipe' to
-            # 'this user's send queue'.
-            self.debug(f"Send to client-specific tx queue: {(msg, ctx)}; "
-                       f"client: {client}")
-            await client.put_data(msg, ctx)
+            # ---
+            # Single Recipient
+            # ---
+            await self._message_to_client(msg, ctx)
             await self._continuing()
+            continue
+
+    # -------------------------------------------------------------------------
+    # Game Message Processors
+    # -------------------------------------------------------------------------
+
+    async def _message_to_client(self,
+                                 message:     Message,
+                                 context: VerediContext) -> None:
+        # Do we know this guy?
+        client = self._clients.id(message.user_id)
+        if not client:
+            self.debug("No client to send this to. Not connected yet "
+                       "or already disconnected? Dropping message: "
+                       f"{message}, context: {context}")
+            return
+
+        # Transfer from 'received from game pipe' to
+        # 'this user's send queue'.
+        self.debug(f"Send to client-specific tx queue: {(message, context)}; "
+                   f"client: {client}")
+        await client.put_data(message, context)
+
+    async def _envelope_to_messages(self,
+                                    message: Message,
+                                    context: VerediContext) -> None:
+        '''
+        Takes an envelope and turns it into a message for each addressee user.
+        '''
+        # ---
+        # Error check.
+        # ---
+        envelope = message.payload
+        if not isinstance(envelope, Envelope):
+            err_msg = ("MediatorServer got incorrect payload in "
+                       f"'{MsgType.ENVELOPE}' message. Can only handle "
+                       "Envelope, got '{message.type}' from: {message}")
+            error = ValueError(err_msg, message, context)
+            raise log.exception(error, None, message, context=context)
+
+        # ---
+        # Process each addressee.
+        # ---
+        # Loop over each type of recipient first...
+        for recipient in Recipient:
+            if (recipient is Recipient.INVALID
+                    or recipient not in envelope.valid_recipients):
+                continue
+
+            # For this type of recipient, get addresses (if any).
+            address = envelope.address(recipient)
+            if not address:
+                continue
+
+            # Have actual users for this type of recipient. Make a message for
+            # each of them.
+            await self._address_to_messages(address, envelope, context)
+
+    async def _address_to_messages(self,
+                                   address:  Address,
+                                   envelope: Envelope,
+                                   context:  VerediContext) -> None:
+        '''
+        Creates a Message from `envelope` payload for each user in `address`.
+        Queues the messages and context up for sending to the user(s).
+        '''
+        for uid in address.user_ids:
+            # Don't bother with invalid user ids.
+            if not uid or uid == UserId.INVALID:
+                log.error("Cannot address Envelope to user. "
+                          "Invalid UserId: {}",
+                          uid)
+                continue
+
+            # Get user from user's id.
+            user = self._clients.id(uid)
+            # Don't bother sending to invalid users.
+            if not user or not user.id or user.id == UserId.INVALID:
+                # This isn't an error; could be a warning; info for now. User
+                # could have logged off/disappeared/whatever while this message
+                # was getting to us.
+                log.info("Cannot address Envelope to UserId '{}' - user is "
+                         "not connected: {}", uid, user)
+                continue
+
+            # Generate the message for this user at this address's
+            # security.abac.Subject value/level.
+            message = envelope.message(address.security_subject, user)
+            if not message:
+                log.error("Failed to create message for use from Envelope. "
+                          "User: {}, Access: {}, Envelope: {}",
+                          user, address.security_subject, envelope)
+                continue
+
+            # Queue up message and context.
+            await self._message_to_client(message, context)
 
     # -------------------------------------------------------------------------
     # WebSocket Server
@@ -908,6 +1009,7 @@ class WebSocketServer(WebSocketMediator):
             self.debug(f"Client-Conn: {conn}: "
                        f"Produced for sending to client "
                        f"msg: {msg}, ctx: {ctx}")
+            log.info("SENDING A MESSAGE {} TO A CLIENT {}", msg.msg_id, conn)
 
             sender, _ = self._hp_paths_type.get(msg.type, None)
             if not sender:
@@ -932,8 +1034,9 @@ class WebSocketServer(WebSocketMediator):
                 self.debug(f"Client-Conn: {conn}: "
                            "No result to send; done.")
 
-            await self._continuing()
             # reloop
+            await self._continuing()
+            continue
 
     async def _hook_produce(self,
                             msg:  Optional[Message],
@@ -963,7 +1066,7 @@ class WebSocketServer(WebSocketMediator):
         Send auth/registration result back down to the client?
         Or was that handled during _hrx_connect?
         '''
-        return await self._htx_generic(msg, ctx, conn, 'connect')
+        return await self._htx_generic(msg, ctx, conn, log_type='connect')
 
     async def _hrx_connect(self,
                            match:   re.Match,
@@ -974,10 +1077,10 @@ class WebSocketServer(WebSocketMediator):
         '''
         Handle auth/registration request from a client.
         '''
-        # Already a dict, I guess?
-        # payload = self._codec.decode(msg.payload, context)
-        # user_id = UserId.decode(payload)
-        user_id = UserId.decode(msg.payload)
+        # UserId already decoded by Message.
+        log.debug("_hrx_connect: msg.payload (UserId): {}",
+                  msg.payload)
+        user_id = msg.payload
         # TODO: A user key instead of 'None'.
         user_key = None
         conn = context.connection

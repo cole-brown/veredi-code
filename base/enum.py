@@ -420,16 +420,17 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         # Have regex, have match.
         # Chop up match by separator to build flags up.
         names = match.group('names').split('|')
-        value = None
+        total = None
         # Ignore the blank ones. Use the rest to OR together flag enums.
         for name in filter(None, names):
-            if value is None:
-                value = klass[name]
+            flag = klass[name]
+            if total is None:
+                total = flag
             else:
-                value = value | name
+                total = total | flag
 
-        # Return final OR'd value.
-        return value
+        # Return final OR'd total.
+        return total
 
     @classmethod
     def _decode_complex(klass: 'FlagEncodeValueMixin',

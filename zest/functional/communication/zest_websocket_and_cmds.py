@@ -30,11 +30,22 @@ Functional Test for a client talking to a server:
 # Imports
 # -----------------------------------------------------------------------------
 
+# ---
+# Type Hinting
+# ---
 from typing import Optional, Set
 
+
+# ---
+# Python
+# ---
 import multiprocessing
 import multiprocessing.connection
 
+
+# ---
+# Veredi
+# ---
 from veredi.zest                                import zontext
 from veredi.zest.zpath                          import TestType
 from veredi.zest.base.multiproc                 import (ZestIntegrateMultiproc,
@@ -46,6 +57,7 @@ from veredi.logger                              import (log,
 from veredi.debug.const                         import DebugFlag
 from veredi.base.identity                       import (MonotonicId,
                                                         MonotonicIdGenerator)
+from veredi.data                                import background
 from veredi.data.identity                       import (UserId,
                                                         UserIdGenerator,
                                                         UserKey,
@@ -56,27 +68,18 @@ from veredi.data.config.context                 import ConfigContext
 
 
 # ---
-# Need these to register...
-# ---
-from veredi.data.codec.json                     import codec
-
-
-# ---
 # Mediation
 # ---
 from veredi.interface.mediator.const            import MsgType
+from veredi.interface.user                      import User
 from veredi.interface.mediator.message          import Message
-from veredi.interface.mediator.websocket.server import WebSocketServer
 from veredi.interface.mediator.websocket.client import WebSocketClient
 from veredi.interface.mediator.context          import MessageContext
-from veredi.interface.mediator.payload.logging  import (LogPayload,
-                                                        LogReply,
-                                                        LogField,
-                                                        _NC_LEVEL)
 from veredi.interface.mediator.system           import MediatorSystem
 from veredi.interface.mediator.event            import GameToMediatorEvent
 
-from veredi.interface.output.event              import OutputEvent
+from veredi.interface.output.event              import OutputEvent, Recipient
+
 
 # ---
 # Game
@@ -86,8 +89,6 @@ from veredi.game.ecs.base.identity              import ComponentId
 from veredi.game.ecs.base.entity                import Entity
 from veredi.game.ecs.base.system                import System
 from veredi.rules.d20.pf2.ability.system        import AbilitySystem
-from veredi.rules.d20.pf2.ability.event         import (AbilityRequest,
-                                                        AbilityResult)
 from veredi.rules.d20.pf2.ability.component     import AbilityComponent
 from veredi.rules.d20.pf2.health.component      import HealthComponent
 from veredi.math.system                         import MathSystem
@@ -99,15 +100,17 @@ from veredi.game.data.event                     import (DataLoadedEvent,
                                                         DataLoadRequest)
 from veredi.game.data.identity.system           import IdentitySystem
 from veredi.game.data.identity.component        import IdentityComponent
-from veredi.game.data.identity.event            import CodeIdentityRequest
-from veredi.base.context                        import UnitTestContext
 from veredi.data.context                        import (DataGameContext,
                                                         DataLoadContext)
 from veredi.game.ecs.base.component             import ComponentLifeCycle
 
+from veredi.math.parser                         import MathTree
+from veredi.math.d20                            import tree
+
 # ---
 # Registry
 # ---
+from veredi.data.codec.json                     import codec
 from veredi.rules.d20.pf2.health.component      import HealthComponent
 
 
@@ -176,6 +179,13 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
         raise log.exception(
             "MediatorClient requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
+
+    # ------------------------------
+    # Import Encodables for Registry?
+    # ------------------------------
+    # TODO: better import?
+    import veredi.math.d20.tree
+
 
     # ------------------------------
     # Finish Set-Up and Start It.
@@ -656,7 +666,71 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # We should also have the GameToMediatorEvent.
         self.assertIsNotNone(event_mediator)
         self.assertIsInstance(event_mediator, GameToMediatorEvent)
+
+        # Check that envelope is addressed to our (only) user.
+        address = event_mediator.payload.address(Recipient.BROADCAST)
+        self.assertEqual(len(address.user_ids), 1)
+        for uid in address.user_ids:
+            user_list = background.users.connected(uid)
+            self.assertIsNotNone(user_list)
+            self.assertIsInstance(user_list, list)
+            # Should only have one user with this UserId.
+            self.assertEqual(len(user_list), 1)
+            user = user_list[0]
+            self.assertIsNotNone(user)
+            self.assertIsInstance(user, User)
+            self.assertEqual(user.id, client.user_id)
+            self.assertEqual(user.key, client.user_key)
+            self.assertEqual(event_mediator.id, self.entity.id)
+
+        # We have the GameToMediatorEvent, which means MediatorSystem has
+        # gotten it to (hopefully), and sent something to MediatorServer
+        # (hopefully). Wait a bit for MediatorServer to do stuff in its
+        # process.
+        self.wait(0.5)
         self.assertTrue(client.has_data())
+
+        # Get the message from the client.
+        recv, ctx = client.recv()
+
+        # Check message recived.
+        self.assertTrue(recv)
+        self.assertIsInstance(recv, Message)
+
+        # Does the context look ok?
+        self.assertTrue(ctx)
+        self.assertTrue(ctx, MessageContext)
+
+        # Do the Message IDs look right?
+        self.assertIsNotNone(mid)
+        self.assertIsInstance(mid, MonotonicId)
+        # TODO [2020-11-08]: FIX MONOTONIC ID INVALID. It is mid:001 right here.
+        # log.ultra_hyper_debug(f"mid: {mid}\ninv: {MonotonicId.INVALID}")
+        # self.assertNotEqual(mid, MonotonicId.INVALID)
+        self.assertIsNotNone(msg.msg_id)
+        self.assertIsInstance(msg.msg_id, MonotonicId)
+        # self.assertNotEqual(msg.msg_id, MonotonicId.INVALID)
+
+        # Currently context doesn't have message id. Think it's ok?
+        # self.assertEqual(msg.msg_id, ctx.id)
+
+        # Does the Message type look right?
+        self.assertEqual(recv.type, MsgType.ENCODED)
+
+        # We sent text, but we want back a message type for a math tree result.
+        # So they should not be equal.
+        self.assertNotEqual(msg.type, recv.type)
+
+        # Does the message payload look right?
+        # Should be a MathTree. Should be an Add at the root.
+        self.assertIsInstance(recv.payload, MathTree)
+        self.assertIsInstance(recv.payload, tree.OperatorAdd)
+        self.assertIsNotNone(recv.payload.children)
+        self.assertEqual(len(recv.payload.children), 2)
+        self.assertIsInstance(recv.payload.children[0], tree.Variable)
+        self.assertIsInstance(recv.payload.children[1], tree.Constant)
+
+        self.assertEqual(recv.payload.value, 34)
 
         # Make sure we don't have anything in the queues.
         self.assert_empty_pipes()
@@ -667,443 +741,6 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
 
         self.assert_test_ran(
             self.runner_of_test(self.do_test_ability_cmd, *self.proc.clients))
-
-    # # ------------------------------
-    # # Test cliets pinging server.
-    # # ------------------------------
-
-    # def do_test_ping(self, client):
-    #     # Get the connect out of the way.
-    #     self.client_connect(client)
-
-    #     mid = self._msg_id.next()
-    #     msg = Message(mid, MsgType.PING,
-    #                   payload=None,
-    #                   user_id=client.user_id,
-    #                   user_key=client.user_key)
-    #     client.pipe.send((msg, self.msg_context(mid)))
-    #     recv, ctx = client.pipe.recv()
-    #     # Make sure we got a message back and it has the ping time in it.
-    #     self.assertTrue(recv)
-    #     self.assertTrue(ctx)
-    #     self.assertIsInstance(recv, Message)
-    #     self.assertTrue(ctx, MessageContext)
-    #     self.assertEqual(msg.msg_id, ctx.id)
-    #     self.assertEqual(mid, recv.msg_id)
-    #     self.assertEqual(msg.msg_id, recv.msg_id)
-    #     self.assertEqual(msg.type, recv.type)
-
-    #     # I really hope the local ping is between negative nothingish and
-    #     # positive five seconds.
-    #     self.assertIsInstance(recv.payload, float)
-    #     self.assertGreater(recv.payload, -0.0000001)
-    #     self.assertLess(recv.payload, 5)
-
-    #     # Make sure we don't have anything in the queues...
-    #     self.assert_empty_pipes()
-
-    # def test_simple(self):
-    #     # No other checks for ping outside do_test_ping.
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_ping, *self.proc.clients))
-
-    # # ------------------------------
-    # # Test Clients sending an echo message.
-    # # ------------------------------
-
-    # def do_test_echo(self, client):
-    #     # Get the connect out of the way.
-    #     self.client_connect(client)
-
-    #     mid = self._msg_id.next()
-    #     send_msg = f"Hello from {client.name}"
-    #     expected = send_msg
-    #     msg = Message(mid, MsgType.ECHO,
-    #                   payload=send_msg,
-    #                   user_id=client.user_id,
-    #                   user_key=client.user_key)
-    #     ctx = self.msg_context(mid)
-    #     # self.debugging = True
-    #     with log.LoggingManager.on_or_off(self.debugging, True):
-    #         client.pipe.send((msg, ctx))
-    #         recv, ctx = client.pipe.recv()
-    #     # Make sure we got a message back and it has the same
-    #     # message as we sent.
-    #     self.assertTrue(recv)
-    #     self.assertTrue(ctx)
-    #     self.assertIsInstance(recv, Message)
-    #     self.assertTrue(ctx, MessageContext)
-    #     # IDs made it around intact.
-    #     self.assertEqual(msg.msg_id, ctx.id)
-    #     self.assertEqual(mid, recv.msg_id)
-    #     self.assertEqual(msg.msg_id, recv.msg_id)
-    #     # Sent echo, got echo-back.
-    #     self.assertEqual(msg.type, MsgType.ECHO)
-    #     self.assertEqual(recv.type, MsgType.ECHO_ECHO)
-    #     # Got what we sent.
-    #     self.assertIsInstance(recv.payload, str)
-    #     self.assertEqual(recv.payload, expected)
-
-    #     # Make sure we don't have anything in the queues...
-    #     self.assert_empty_pipes()
-
-    # def test_echo(self):
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_echo, *self.proc.clients))
-
-    # # ------------------------------
-    # # Test Clients sending text messages to server.
-    # # ------------------------------
-
-    # def do_test_text(self, client):
-    #     # Get the connect out of the way.
-    #     self.client_connect(client)
-
-    #     mid = self._msg_id.next()
-
-    #     # ---
-    #     # Client -> Server: TEXT
-    #     # ---
-    #     self.log_debug("client to server...")
-
-    #     send_txt = f"Hello from {client.name}?"
-    #     client_send = Message(mid, MsgType.TEXT,
-    #                           payload=send_txt,
-    #                           user_id=client.user_id,
-    #                           user_key=client.user_key)
-    #     client_send_ctx = self.msg_context(mid)
-
-    #     client_recv_msg = None
-    #     client_recv_ctx = None
-    #     with log.LoggingManager.on_or_off(self.debugging, True):
-    #         # Have client send, then receive from server.
-    #         client.pipe.send((client_send, client_send_ctx))
-
-    #         # Server automatically sent an ACK_ID, need to check client.
-    #         client_recv_msg, client_recv_ctx = client.pipe.recv()
-
-    #     self.log_debug("client send msg: {}", client_send)
-    #     # Why is this dying when trying to print its payload?!
-    #     # # self.log_ultra_mega_debug(
-    #     # #     "client_recv msg: {client_recv_msg._payload}")
-    #     # ...
-    #     # ...Huh... f-strings and veredi.logger and multiprocessor or
-    #     # log_server or something don't like each other somewhere along
-    #     # the way? This is a-ok:
-    #     self.log_debug("client_recv msg: {}", client_recv_msg._payload)
-
-    #     # Make sure that the client received the correct thing.
-    #     self.assertIsNotNone(client_recv_msg)
-    #     self.assertIsInstance(client_recv_msg, Message)
-    #     self.assertIsNotNone(client_recv_ctx)
-    #     self.assertIsInstance(client_recv_ctx, MessageContext)
-    #     self.assertEqual(mid, client_recv_msg.msg_id)
-    #     self.assertEqual(client_send.msg_id, client_recv_msg.msg_id)
-    #     self.assertEqual(client_recv_msg.type, MsgType.ACK_ID)
-    #     ack_id = mid.decode(client_recv_msg.payload)
-    #     self.assertIsInstance(ack_id, type(mid))
-
-    #     # ---
-    #     # Check: Client -> Server: TEXT
-    #     # ---
-    #     self.log_debug("test_text: server to game...")
-    #     server_recv_msg = None
-    #     server_recv_ctx = None
-    #     with log.LoggingManager.on_or_off(self.debugging, True):
-    #         # Our server should have put the client's packet in its pipe for
-    #         # us... I hope.
-    #         self.log_debug("test_text: game recv from server...")
-    #         server_recv_msg, server_recv_ctx = self.proc.server.pipe.recv()
-
-    #     self.log_debug("client_sent/server_recv: {}", server_recv_msg)
-    #     # Make sure that the server received the correct thing.
-    #     self.assertEqual(mid, server_recv_msg.msg_id)
-    #     self.assertEqual(client_send.msg_id, server_recv_msg.msg_id)
-    #     self.assertEqual(client_send.type, server_recv_msg.type)
-    #     self.assertIsInstance(server_recv_msg.payload, str)
-    #     self.assertEqual(server_recv_msg.payload, send_txt)
-    #     # Check the Context.
-    #     self.assertIsInstance(server_recv_ctx, MessageContext)
-    #     self.assertEqual(server_recv_ctx.id, ack_id)
-
-    #     # ---
-    #     # Server -> Client: TEXT
-    #     # ---
-
-    #     self.log_debug("test_text: server_send/client_recv...")
-    #     # Tell our server to send a reply to the client's text.
-    #     recv_txt = f"Hello from {self.proc.server.name}!"
-    #     server_send = Message(server_recv_ctx.id, MsgType.TEXT,
-    #                           payload=recv_txt,
-    #                           user_id=client.user_id,
-    #                           user_key=client.user_key)
-
-    #     client_recv_msg = None
-    #     client_recv_ctx = None
-    #     with log.LoggingManager.on_or_off(self.debugging, True):
-    #         # Make something for server to send and client to recvive.
-    #         self.log_debug("test_text: server_send...")
-    #         self.log_debug("test_text: pipe to game: {}", server_send)
-    #         self.proc.server.pipe.send((server_send, server_recv_ctx))
-    #         self.log_debug("test_text: client_recv...")
-    #         client_recv_msg, client_recv_ctx = client.pipe.recv()
-
-    #     self.log_debug("server_sent/client_recv: {}", client_recv_msg)
-    #     self.assertIsNotNone(client_recv_ctx)
-    #     self.assertIsInstance(client_recv_ctx, MessageContext)
-
-    #     self.assertIsInstance(client_recv_msg, Message)
-    #     self.assertEqual(ack_id, client_recv_msg.msg_id)
-    #     self.assertEqual(server_send.msg_id, client_recv_msg.msg_id)
-    #     self.assertEqual(server_send.type, client_recv_msg.type)
-    #     self.assertIsInstance(client_recv_msg.payload, str)
-    #     self.assertEqual(client_recv_msg.payload, recv_txt)
-
-    #     # ---
-    #     # Server -> Client: ACK
-    #     # ---
-
-    #     # Client automatically sent an ACK_ID, need to check server for it.
-    #     server_recv = self.proc.server.pipe.recv()
-
-    #     self.log_debug("server sent msg: {}", server_send)
-    #     self.log_debug("server recv ack: {}", server_recv)
-    #     # Make sure that the server received the correct thing.
-    #     self.assertIsNotNone(server_recv)
-    #     self.assertIsInstance(server_recv, tuple)
-    #     self.assertEqual(len(server_recv), 2)  # Make sure next line is sane...
-    #     server_recv_msg, server_recv_ctx = server_recv
-    #     # Make sure that the server received their ACK_ID.
-    #     self.assertIsNotNone(server_recv_msg)
-    #     self.assertIsInstance(server_recv_msg, Message)
-    #     self.assertIsNotNone(server_recv_ctx)
-    #     self.assertIsInstance(server_recv_ctx, MessageContext)
-    #     self.assertEqual(mid, server_recv_msg.msg_id)
-    #     self.assertEqual(server_send.msg_id, server_recv_msg.msg_id)
-    #     self.assertEqual(server_recv_msg.type, MsgType.ACK_ID)
-    #     ack_id = mid.decode(server_recv_msg.payload)
-    #     self.assertIsInstance(ack_id, type(mid))
-
-    #     # Make sure we don't have anything in the queues...
-    #     self.assert_empty_pipes()
-
-    # def test_text(self):
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_text, *self.proc.clients))
-
-    # # -------------------------------------------------------------------------
-    # # -------------------------------------------------------------------------
-    # # This is brittle - it can cause whatever runs next to get stuck in some
-    # # weird infinite loop of runner_of_test() calls.
-    # #
-    # # Since this is now eclipsed by test_logging(), which also checks ignoring
-    # # logs, I'm just commenting it out.
-    # #
-    # # Next person (me) to come along should put it out of its misery.
-    # #
-    # # # ------------------------------
-    # # # Test Ignoring Logs...
-    # # # ------------------------------
-    # #
-    # # def do_test_logs_ignore(self):
-    # #     self.assertIsNotNone(self.proc.log)
-    # #
-    # #     self.assertEqual(self.proc.log.ignored_counter.value, 0)
-    # #
-    # #     self.proc.log.ignore_logs.set()
-    # #
-    # #     # Does this not get printed and does this increment our counter?
-    # #     self.assertEqual(self.proc.log.ignored_counter.value, 0)
-    # #
-    # #     # Connect this process to the log server, do a long that should be
-    # #     # ignored, and then disconnect.
-    # #     log_client.init()
-    # #     self.log_critical("You should not see this.")
-    # #     log_client.close()
-    # #     # Gotta wait a bit for the counter to sync back to this process,
-    # #     # I guess.
-    # #     self.wait(1)  # 0.1)
-    # #     self.assertEqual(self.proc.log.ignored_counter.value, 1)
-    # #
-    # # def test_logs_ignore(self):
-    # #     self.assert_test_ran(
-    # #         self.runner_of_test(self.do_test_logs_ignore))
-    # # -------------------------------------------------------------------------
-    # # -------------------------------------------------------------------------
-
-    # # ------------------------------
-    # # Test Server sending LOGGING to client.
-    # # ------------------------------
-
-    # def _check_ignored_counter(self,
-    #                            assert_eq_value=None,
-    #                            assert_gt_value=None):
-    #     # Check counter if asked.
-    #     if assert_eq_value is not None:
-    #         self.assertEqual(self.proc.log.ignored_counter.value,
-    #                          assert_eq_value)
-
-    #     if assert_gt_value is not None:
-    #         self.assertGreater(self.proc.log.ignored_counter.value,
-    #                            assert_gt_value)
-
-    # def ignore_logging(self,
-    #                    enable,
-    #                    assert_eq_value=None,
-    #                    assert_gt_value=None):
-    #     '''
-    #     Instruct log_server to start or stop ignoring log messages. Will
-    #     assertEqual() or assertGreater() on the ignored_counter if those values
-    #     are not None.
-
-    #     `enable` should be:
-    #       - True or False to toggle. Asserts before and after values.
-    #       - None to leave alone.
-    #     '''
-    #     if enable is True:
-    #         # Sanity check.
-    #         self.assertFalse(self.proc.log.ignore_logs.is_set())
-    #         was = self.proc.log.ignore_logs.is_set()
-
-    #         # Check counter if asked.
-    #         self._check_ignored_counter(assert_eq_value, assert_gt_value)
-
-    #         # Start ignoring logs.
-    #         self.proc.log.ignore_logs.set()
-
-    #         # print('\n\n'
-    #         #       + ('-=' * 40) + '-\n'
-    #         #       + '<logging="IGNORE"'
-    #         #       + f'was="{was}" '
-    #         #       + f'set="{self.proc.log.ignore_logs.is_set()}" '
-    #         #       + f'count="{self.proc.log.ignored_counter.value}>'
-    #         #       + '\n'
-    #         #       + ('-=' * 40) + '-'
-    #         #       '\n\n')
-    #         self.log_debug('\n\n'
-    #                        + ('-=' * 40) + '-\n'
-    #                        + '<logging="IGNORE"'
-    #                        + f'was="{was}" '
-    #                        + f'set="{self.proc.log.ignore_logs.is_set()}" '
-    #                        + f'count="{self.proc.log.ignored_counter.value}>'
-    #                        + '\n'
-    #                        + ('-=' * 40) + '-'
-    #                        '\n\n')
-
-    #     elif enable is False:
-    #         # Sanity check.
-    #         self.assertTrue(self.proc.log.ignore_logs.is_set())
-
-    #         # Stop ignoring logs.
-    #         was = self.proc.log.ignore_logs.is_set()
-    #         self.proc.log.ignore_logs.clear()
-
-    #         # print('\n\n'
-    #         #       + ('-=' * 40) + '-\n'
-    #         #       + '</logging="IGNORE" '
-    #         #       + f'was="{was}" '
-    #         #       + f'set="{self.proc.log.ignore_logs.is_set()}" '
-    #         #       + f'count="{self.proc.log.ignored_counter.value}>'
-    #         #       + '\n'
-    #         #       + ('-=' * 40) + '-'
-    #         #       '\n\n')
-    #         self.log_debug('\n\n'
-    #                        + ('-=' * 40) + '-\n'
-    #                        + '</logging="IGNORE" '
-    #                        + f'was="{was}" '
-    #                        + f'set="{self.proc.log.ignore_logs.is_set()}" '
-    #                        + f'count="{self.proc.log.ignored_counter.value}>'
-    #                        + '\n'
-    #                        + ('-=' * 40) + '-'
-    #                        '\n\n')
-
-    #         # Check counter if asked.
-    #         self._check_ignored_counter(assert_eq_value, assert_gt_value)
-
-    #     elif enable is None:
-    #         # Check counter if asked.
-    #         self._check_ignored_counter(assert_eq_value, assert_gt_value)
-
-    #     # Um... what?
-    #     else:
-    #         self.fail(f'enabled must be True/False/None. Got: {enable}')
-
-    #     # Wait a bit so flag propogates to log_server? Maybe? Why isn't
-    #     # this working?
-    #     # It wasn't working because a LogRecordSocketReceiver's 'request' is a
-    #     # whole client, actually, whereas I thought it was a log record.
-    #     self.wait(0.1)
-
-    # def do_test_logging(self, client):
-    #     # Get the connect out of the way.
-    #     self.client_connect(client)
-
-    #     # Start ignoring logs.
-    #     self.ignore_logging(True, assert_eq_value=0)
-
-    #     # Have a client adjust its log level to debug. Should spit out a lot of
-    #     # logs then.
-    #     payload = LogPayload()
-    #     payload.request_level(log.Level.DEBUG)
-
-    #     mid = self._msg_id.next()
-    #     send_msg = Message.log(mid,
-    #                            client.user_id, client.user_key,
-    #                            payload)
-
-    #     send_ctx = self.msg_context(mid)
-    #     # server -> client
-    #     self.proc.server.pipe.send((send_msg, send_ctx))
-    #     # Server should have put client's reply into the unit test pipe so we
-    #     # can check it.
-    #     ut_msg = self.proc.server.ut_pipe.recv()
-
-    #     # Make sure we got a LOGGING message reply back.
-    #     self.assertTrue(ut_msg)
-    #     self.assertIsInstance(ut_msg, Message)
-    #     # Sent logging... right?
-    #     self.assertEqual(send_msg.type, MsgType.LOGGING)
-    #     # Got logging... right?
-    #     self.assertEqual(ut_msg.type, MsgType.LOGGING)
-
-    #     # Got logging response?
-    #     self.assertIsInstance(ut_msg.payload, LogPayload)
-    #     report = ut_msg.payload.report
-    #     self.assertIsNotNone(report)
-    #     level = report[LogField.LEVEL]
-
-    #     # Got reply for our level request?
-    #     self.assertIsInstance(level, LogReply)
-    #     self.assertEqual(level.valid, LogReply.Valid.VALID)
-
-    #     # Got /valid/ reply?
-    #     self.assertTrue(LogReply.validity(level.value, _NC_LEVEL),
-    #                     LogReply.Valid.VALID)
-
-    #     # Client reports they're now at the level we requested?
-    #     self.assertEqual(level.value, log.Level.DEBUG)
-
-    #     # Client should have push into the ut_pipe too.
-    #     # Don't really care, at the moment, but we do care to
-    #     # assert_empty_pipes() for other reasons so get this one out.
-    #     ut_msg_client = client.ut_pipe.recv()
-    #     self.assertTrue(ut_msg_client)
-    #     self.assertIsInstance(ut_msg_client, Message)
-    #     self.assertEqual(ut_msg_client.type, MsgType.LOGGING)
-
-    #     self.wait(0.1)
-    #     # Stop ignoring logs and make sure we ignored something, at least,
-    #     # right? Well... either have to tell client to go back to previous
-    #     # logging level or we have to keep ignoring. Clean-up / tear-down has
-    #     # logs too.
-    #     self.ignore_logging(None, assert_gt_value=2)
-
-    #     # Make sure we don't have anything in the queues...
-    #     self.assert_empty_pipes()
-
-    # def test_logging(self):
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_logging, *self.proc.clients))
 
 
 # --------------------------------Unit Testing---------------------------------

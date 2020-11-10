@@ -41,6 +41,8 @@ A session of a game/campaign.
 #   be ready to do shit?
 
 
+# TODO delete this class until we actually use or need it?
+
 class Session:
     def __init__(self, campaign, user_player_pairs, repository):
         self.campaign = campaign

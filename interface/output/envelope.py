@@ -427,7 +427,7 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
         # Build Message
         # -------------------------------
         message = Message(None,
-                          MsgType.CODEC,
+                          MsgType.ENCODED,
                           payload=payload,
                           entity_id=user.entity_prime,
                           user_id=user.id,

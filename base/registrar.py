@@ -312,6 +312,7 @@ class BaseRegistrar(ABC):
         # Good; return the leaf value (a RegisterType).
         return registration
 
+    @classmethod
     def get_from_data(klass:   'BaseRegistrar',
                       data:    Mapping[str, Any],
                       context: Optional[VerediContext]) -> 'RegisterType':
@@ -329,6 +330,7 @@ class BaseRegistrar(ABC):
         dotted = data['dotted']
         return klass.get_dotted(dotted, context)
 
+    @classmethod
     def invoke(klass: 'BaseRegistrar',
                dotted_keys_str: str,
                context: Optional[VerediContext],
@@ -390,10 +392,117 @@ class BaseRegistrar(ABC):
 
 
 # -----------------------------------------------------------------------------
+# Registration-By-Calling Class
+# -----------------------------------------------------------------------------
+
+class DottedRegistrar(BaseRegistrar):
+    '''
+    A class to hold registration data for whatever type of register you want.
+
+    The registry is class-level, so subclass this for each unique registry.
+
+    This registrar layers creating a `dotted()` classmethod for registering
+    classes on top of the BaseRegistrar funcionality.
+    '''
+
+    @classmethod
+    def _register(klass:       'BaseRegistrar',
+                  registeree:  'RegisterType',
+                  reg_args:     Iterable[str],
+                  leaf_key:     str,
+                  reg_ours:     Dict,
+                  reg_bg:       Dict) -> None:
+        '''
+        Let the parent class (BaseRegistrar) register this `registeree`, then
+        add these attribuets to the `registeree`.
+          - 'dotted._KLASS_FUNC_NAME'
+          - 'dotted._ATTRIBUTE_PRIVATE_NAME'
+        As of [2020-11-09], these are:
+          - dotted() class method
+          - _DOTTED class variable
+        '''
+        super()._register(registeree,
+                          reg_args,
+                          leaf_key,
+                          reg_ours,
+                          reg_bg)
+
+        # ---
+        # Set the attribute with the class's dotted name value.
+        # ---
+        dotted_name = veredi.base.dotted.join(reg_args)
+        setattr(registeree,
+                veredi.base.dotted._ATTRIBUTE_PRIVATE_NAME,
+                dotted_name)
+
+        # ---
+        # Check the dotted func now.
+        # ---
+
+        dotted_attr = getattr(registeree,
+                              veredi.base.dotted._KLASS_FUNC_NAME, None)
+        if dotted_attr:
+            # Pre-existing dotted attribute; is it abstract?
+            # Complain about abstract.
+            if getattr(dotted_attr, '__isabstractmethod__', False):
+                msg = (f"{klass.dotted()}: Failed '{dotted_name}' registry of "
+                       f"{registeree.__name__}. Registree has an abstract "
+                       "'{veredi.base.dotted._KLASS_FUNC_NAME}' attribute, "
+                       "which we cannot auto-generate a replacement for. "
+                       "Please implement one manually:\n"
+                       "    @classmethod\n"
+                       "    def dotted(klass: 'YOURKLASS') -> str:\n"
+                       "        # klass._DOTTED magically provided "
+                       "by {klass.__name__}\n"
+                       "        return klass."
+                       "{_veredi.base.dotted._KLASS_FUNC_NAME}")
+                raise log.exception(AttributeError(msg, registeree),
+                                    None,
+                                    msg)
+
+            # Complain loudly if the registeree has a `dotted` function and
+            # what it returns disagrees with what they gave us as their dotted
+            # name.
+            if registeree.dotted() != dotted_name:
+                msg = (f"{klass.dotted()}: Failed '{dotted_name}' registry of "
+                       f"{registeree.__name__}. Registree has a dotted() "
+                       "return value of "
+                       f"'{veredi.base.dotted._KLASS_FUNC_NAME}', which is "
+                       "not what it's trying to register as. Please fix the "
+                       "class to have the same registration dotted name as "
+                       "it has in its dotted() function.")
+                raise log.exception(AttributeError(msg, registeree),
+                                    None,
+                                    msg)
+
+        # ---
+        # Make Getter.
+        # ---
+        def get_dotted(klass: Type[Any]) -> Optional[str]:
+            return getattr(klass,
+                           veredi.base.dotted._ATTRIBUTE_PRIVATE_NAME,
+                           None)
+
+        # ---
+        # No Setter.
+        # ---
+        # def set_dotted(self, value):
+        #     return setattr(self, '_dotted', value)
+
+        # ---
+        # Set the getter @classmethod function.
+        # ---
+        method = classmethod(get_dotted)
+        setattr(registeree,
+                veredi.base.dotted._KLASS_FUNC_NAME,
+                method)
+
+
+# -----------------------------------------------------------------------------
 # Registration-By-Decorator Class
 # -----------------------------------------------------------------------------
 
-class DecoratorRegistrar(BaseRegistrar):
+class DecoratorRegistrar(DottedRegistrar):
     '''
     A class to hold registration data for whatever type of register you want.
 
@@ -447,7 +556,7 @@ class DecoratorRegistrar(BaseRegistrar):
 # Registration-By-Calling Class
 # -----------------------------------------------------------------------------
 
-class CallRegistrar(BaseRegistrar):
+class CallRegistrar(DottedRegistrar):
     '''
     A class to hold registration data for whatever type of register you want.
 

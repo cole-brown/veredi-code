@@ -219,7 +219,7 @@ class OutputSystem(System):
     @classmethod
     def dotted(klass: 'OutputSystem') -> str:
         # self._DOTTED magically provided by @register
-        return self._DOTTED
+        return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -439,9 +439,9 @@ class OutputSystem(System):
         return addressed_to
 
     def _address_to(self,
-                    envelope:     'Envelope',
-                    recipient:    Recipient,
-                    access_level: abac.Subject) -> Recipient:
+                    envelope:         'Envelope',
+                    recipient:        Recipient,
+                    security_subject: abac.Subject) -> Recipient:
         '''
         Add `recipient` to envelope's addressees as an
         `attribute-subject`-level receiver.
@@ -452,7 +452,7 @@ class OutputSystem(System):
         '''
         if not self._pdp.allowed(envelope.context):
             self._log.security(f"Cannot address envelope to '{recipient}' "
-                               f"at '{access_level}': "
+                               f"at '{security_subject}': "
                                "Security has denied the action.")
             # Recipient was not allowed by security - failure return.
             return Recipient.INVALID
@@ -479,7 +479,7 @@ class OutputSystem(System):
         if not users:
             self._log.debug(
                 "No user(s) found for recipient {}, access {}. Ignoring.",
-                recipient, access_level)
+                recipient, security_subject)
             # Recipient was not found, which we'll treat as effectively a
             # failure/disallowed.
             return Recipient.INVALID
@@ -488,7 +488,7 @@ class OutputSystem(System):
         # Address envelope to the recipient.
         # ---
         envelope.set_address(recipient,
-                             access_level,
+                             security_subject,
                              users)
         # Recipient was allowed, so return it.
         return recipient

@@ -101,12 +101,19 @@ class Encodable:
     Classes can just let __init_subclass__ fill this in.
     '''
 
+    _ENCODABLE_REG_FIELD: str = 'v.codec'
+    '''
+    Key for help claiming things encoded with
+    `Encodable.encode_with_registry()`. Munged down from:
+    'veredi.data.codec.encodable'
+    '''
+
     # -------------------------------------------------------------------------
     # Dotted Name
     # -------------------------------------------------------------------------
 
     @classmethod
-    def dotted(klass: 'Encodable'):
+    def dotted(klass: 'Encodable') -> str:
         '''
         Returns the dotted name used to register this Encodable.
         '''
@@ -190,9 +197,6 @@ class Encodable:
             log.debug(f"{klass.__name__}.__init_subclass__: "
                       f"Ignoring sub-class {klass}. "
                       "Marked as 'do not register'.")
-            # print(f"{klass.__name__}.__init_subclass__: "
-            #       f"Ignoring sub-class {klass}. "
-            #       "Marked as 'do not register'.")
             return
 
         # ---
@@ -207,9 +211,9 @@ class Encodable:
         # And also use it to register the sub-class (or error).
         klass._register(dotted)
         log.debug(f"{klass.__name__}.__init_subclass__: "
-                  f"Registered sub-class {klass} as: {dotted}")
-        # print(f"{klass.__name__}.__init_subclass__: "
-        #       f"Registered sub-class {klass} as: {dotted}")
+                  f"Registered sub-class {klass} as: {dotted}, "
+                  f"{klass._ENCODABLE_DOTTED}, ",
+                  f"{klass.dotted()}")
 
     @classmethod
     def _register(klass: 'Encodable',
@@ -475,10 +479,25 @@ class Encodable:
         # print(f"{klass.__name__}.encode_or_none: {encodable} -> {encoded}")
         return encoded
 
-    @classmethod
-    def decode(klass: 'Encodable', data: EncodedEither) -> Optional['Encodable']:
+    def encode_with_registry(self) -> EncodedComplex:
         '''
-        Decode simple or complex `data` input type(s), using it to build an
+        Creates an output dict with keys: _ENCODABLE_REG_FIELD
+        and 'value'.
+
+        Returns the output dict:
+          output[_ENCODABLE_REG_FIELD]: result of `self.dotted()`
+          output['value']: result of `self.encode()`
+        '''
+        return {
+            Encodable._ENCODABLE_REG_FIELD: self.dotted(),
+            'value': self.encode(None),
+        }
+
+    @classmethod
+    def decode(klass: 'Encodable',
+               data: EncodedEither) -> Optional['Encodable']:
+        '''
+        Decode simple or complex `data` input, using it to build an
         instance of this class.
 
         Return a new `klass` instance.
@@ -505,6 +524,94 @@ class Encodable:
         # self._decode_complex().
         _, claim, _ = klass.claim(data)
         return klass._decode_complex(claim)
+
+    @classmethod
+    def decode_with_registry(klass:    'Encodable',
+                             data:     EncodedComplex,
+                             **kwargs: Any) -> Optional['Encodable']:
+        '''
+        Input `data` must have keys:
+          - Encodable._ENCODABLE_REG_FIELD
+          - 'value'
+        Raises KeyError if not present.
+
+        Takes EncodedComplex `data` input, and uses
+        `Encodable._ENCODABLE_REG_FIELD` key to find registered Encodable to
+        decode `data['value']`.
+
+        Any kwargs supplied (except 'dotted' - will be ignored) are forwarded
+        to EncodableRegistry.decode() (e.g. 'fallback').
+
+        Return a new `klass` instance.
+        '''
+        # ------------------------------
+        # Fallback early.
+        # ------------------------------
+        if data is None:
+            # No data at all. Use either fallback or None.
+            if 'fallback' in kwargs:
+                log.debug("decode_with_registry: data is None; using "
+                          "fallback. data: {}, fallback: {}",
+                          data, kwargs['fallback'])
+                return kwargs['fallback']
+            # `None` is an acceptable enough value for us... Lots of things are
+            # optional. Errors for unexpectedly None things should happen in
+            # the caller.
+            return None
+
+        # When no _ENCODABLE_REG_FIELD, we can't do anything since we don't
+        # know how to decode. But only deal with fallback case here. If they
+        # don't have a fallback, let it error soon (but not here).
+        if ('fallback' in kwargs
+                and Encodable._ENCODABLE_REG_FIELD not in data):
+            # No hint as to what data is - use fallback.
+            log.debug("decode_with_registry: No {} in data; using fallback. "
+                      "data: {}, fallback: {}",
+                      Encodable._ENCODABLE_REG_FIELD,
+                      data, kwargs['fallback'])
+            return kwargs['fallback']
+
+        # ------------------------------
+        # Better KeyError exceptions.
+        # ------------------------------
+        try:
+            dotted = data[Encodable._ENCODABLE_REG_FIELD]
+
+        except KeyError:
+            # Now we error on the missing decoding hint.
+            pretty_data = pretty.indented(data)
+            msg = ("decode_with_registry: data has no "
+                   f"'{Encodable._ENCODABLE_REG_FIELD}' key.")
+            raise log.exception(KeyError(Encodable._ENCODABLE_REG_FIELD,
+                                         msg,
+                                         data),
+                                None,
+                                msg + " Cannot decode: {}",
+                                pretty_data)
+
+        try:
+            encoded_data = data['value']
+        except KeyError:
+            pretty_data = pretty.indented(data)
+            msg = ("decode_with_registry: data has no 'value' key. "
+                   f"Cannot decode: {pretty_data}")
+            raise log.exception(KeyError(Encodable._ENCODABLE_REG_FIELD,
+                                         msg,
+                                         data),
+                                None,
+                                msg)
+
+        # ------------------------------
+        # Now decode it.
+        # ------------------------------
+
+        # Don't let 'dotted' be passed in... We already have a 'dotted' kwarg
+        # to send to EncodableRegistry.decode().
+        kwargs.pop('dotted', None)
+
+        return EncodableRegistry.decode(encoded_data,
+                                        dotted=dotted,
+                                        **kwargs)
 
     # -------------------------------------------------------------------------
     # Encoding: Entry Functions
@@ -1012,6 +1119,7 @@ class EncodableRegistry(CallRegistrar):
     @classmethod
     def decode(klass:     'EncodableRegistry',
                data:      Optional[EncodedEither],
+               dotted:    Optional[str]         = None,
                data_type: Optional['Encodable'] = None,
                **kwargs:  Any) -> 'Encodable':
         '''
@@ -1020,11 +1128,14 @@ class EncodableRegistry(CallRegistrar):
 
         If `data` is None, returns None.
 
-        Return "registered_class.decode(data)" from the first registered class
-        to return True for claim().
+        Return "registered_class.decode(data)" from the class chosen to decode
+        the data.
+
+        If 'dotted' is supplied, try to get that Encodable from our registry.
+        Use it or raise RegistryError if not found.
 
         If 'data_type' is supplied, will restrict search for registered
-        Encodable to use to just that or subclasses.
+        Encodable to just that class or its subclasses.
 
         If nothing registered can/will decode the data:
           - If the `fallback` keyword arg is supplied, will return that.
@@ -1034,15 +1145,27 @@ class EncodableRegistry(CallRegistrar):
         if data is None:
             return None
 
+        log.debug(f"EncodableRegistry.decode: data: {type(data)}, "
+                  f"dotted: {dotted}, data_type: {data_type}")
+
+        registree = None
+
+        # ---
+        # Use dotted name?
+        # ---
+        if dotted:
+            registree = klass.get_dotted(dotted, None)
+
         # ---
         # Search for registered Encodable.
         # ---
-        registry = klass._get()
-        data_dotted = veredi.base.dotted.from_map(data)
-        registree = klass._search(registry,
-                                  data_dotted,
-                                  data,
-                                  data_type=data_type)
+        else:
+            registry = klass._get()
+            data_dotted = veredi.base.dotted.from_map(data, squelch_error=True)
+            registree = klass._search(registry,
+                                      data_dotted,
+                                      data,
+                                      data_type=data_type)
 
         # ---
         # Decode if found.
@@ -1063,9 +1186,15 @@ class EncodableRegistry(CallRegistrar):
         # No Fallback: Error out.
         # ---
         msg = (f"{klass.__name__}: No registered Encodable found for "
-               f"data: {data}")
+               f"data. data_dotted: {data_dotted}")
+        extra = (", registry:\n"
+                 "{}\n\n"
+                 "data:\n"
+                 "{}\n\n")
         error = ValueError(msg, data, registree)
-        raise log.exception(error, None, msg)
+        raise log.exception(error, None, msg + extra,
+                            pretty.indented(registry),
+                            pretty.indented(data))
 
     @classmethod
     def _search(klass:     'EncodableRegistry',

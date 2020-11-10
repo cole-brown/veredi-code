@@ -96,8 +96,10 @@ class JsonCodec(BaseCodec):
           Maybes:
             - Other json/stream errors?
         '''
+        log.debug("json.decode input: {}", type(stream))
         self._context_decode_data(context)
         data = self._read(stream, context)
+        log.debug("json.decode output: {}", type(data))
         return data
 
     def _read(self,

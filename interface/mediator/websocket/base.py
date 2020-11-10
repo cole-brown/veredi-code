@@ -366,6 +366,8 @@ class VebSocket:
         Called when a producer/consumer Future is done. Will get result and
         ignore unless it's an exception that makes it past the ignored filter.
         '''
+        # TODO: drop this future somehow on exception? Or is it different one each time it spams?
+        # TODO: fix "TypeError 'str' is not callable" here
         try:
             # I don't currently care about the actual return, just if it raises
             # an exception.
