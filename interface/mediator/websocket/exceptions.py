@@ -20,3 +20,10 @@ class WebSocketError(MediatorError):
     Some sort of WebSocket Mediation error.
     '''
     ...
+
+
+class ConnectionError(MediatorError):
+    '''
+    Mediator had problem connecting to other Mediator.
+    '''
+    ...

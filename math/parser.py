@@ -575,16 +575,14 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         # print("\nMathTree._encode_complex(): {self.__class__.__name__}.dott:
         # And return all our vars as a dictionary structure.
         encoded = {
-            'dotted': self.dotted(),
-            'value': self.value,  # should be a number or None...
-            'name': self.name,
-            'milieu': self.milieu,
+            'dotted':   self.dotted(),
+            'value':    self._value,  # should be a number or None...
+            'name':     self._name,
+            'milieu':   self._milieu,
             'children': encoded_children,
-            'tags': self.tags,  # list of strings
+            'tags':     self._tags,  # list of strings
+            'type':     self._node_type.encode(None),
         }
-
-        # Have type insert itself.
-        self.type.encode(encoded)
 
         # Done.
         return encoded
@@ -599,11 +597,11 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         '''
 
         # Get/decode our fields.
-        instance.type = NodeType.decode(data)  # Have type decode itself.
-        instance.value = data['value']
-        instance.name = data['name']
-        instance.milieu = data.get('milieu', None)
-        instance.tags = data.get('tags', None)
+        instance._node_type = NodeType.decode(data['type'])
+        instance._value = data['value']
+        instance._name = data['name']
+        instance._milieu = data.get('milieu', None)
+        instance._tags = data.get('tags', None)
 
         encoded_children = data.get('children', None)
 
@@ -614,10 +612,10 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
             # Get each child from EncodableRegistry, decode it, and stuff it
             # into our array of children.
             for child_data in encoded_children:
-                child_class = EncodableRegistry.get_from_data(data)
+                child_class = EncodableRegistry.get_from_data(child_data, None)
                 child_instance = child_class._decode_complex(child_data)
                 children.append(child_instance)
-        instance.children = children
+        instance._children = children
 
         # And return the instance.
         return instance

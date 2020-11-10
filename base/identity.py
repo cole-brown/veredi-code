@@ -260,8 +260,8 @@ class MonotonicId(Encodable,
         return klass._decode_simple_init(value)
 
     @classmethod
-    def _decode_simple_init(klass: 'SerializableId',
-                            value: int) -> 'SerializableId':
+    def _decode_simple_init(klass: 'MonotonicId',
+                            value: int) -> 'MonotonicId':
         '''
         Subclasses can override this if they have a different constructor.
         '''
@@ -404,7 +404,7 @@ class SerializableId(Encodable,
     _INVALID_VALUE: int = 0
     '''The value our INVALID instance should have.'''
 
-    _INVALID: 'MonotonicId' = None
+    _INVALID: 'SerializableId' = None
     '''Our INVALID instance singleton is stored here.'''
 
     # ------------------------------
@@ -476,6 +476,10 @@ class SerializableId(Encodable,
         '''
         Initialize sub-classes.
         '''
+        # Pass up to parent (Encodable).
+        super().__init_subclass__(dotted=dotted,
+                                  **kwargs)
+
         # ---
         # Encodable RX
         # ---

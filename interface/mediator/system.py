@@ -45,10 +45,10 @@ from veredi.logger                       import log, log_client
 
 from veredi.base.const                   import VerediHealth
 from veredi.data.config.registry         import register
-from veredi.data.config.context         import ConfigContext
+from veredi.data.config.context          import ConfigContext
 
-from veredi.data.config.config import Configuration
-from veredi.base.identity      import MonotonicId, MonotonicIdGenerator
+from veredi.base.identity                import (MonotonicId,
+                                                 MonotonicIdGenerator)
 
 
 # Game / ECS Stuff
@@ -63,26 +63,18 @@ from veredi.game.ecs.base.component      import Component
 from veredi.game.data.identity.component import IdentityComponent
 from veredi.game.data.identity.system    import IdentitySystem
 
-
-from ..input.context                            import InputContext
-from ..input                                   import sanitize
-from ..input.parse                              import Parcel
-from ..input.command.commander                  import Commander
-from ..input.history.history                    import Historian
-
-from ..user         import User
+from ..user                              import User
 
 
 # Mediator Stuff
 from .event                              import (GameToMediatorEvent,
                                                  MediatorToGameEvent)
-from .context                  import MediatorContext, MessageContext
-from .const                    import MsgType
-from .message                  import Message, ConnectionMessage
-from .payload.logging          import LogPayload, LogField
+from .context                            import MediatorContext, MessageContext
+from .const                              import MsgType
+from .message                            import Message, ConnectionMessage
 
 # Multi-Processing Stuff
-from veredi.parallel import multiproc
+from veredi.parallel                     import multiproc
 
 # TODO [2020-06-27]: Better place to do these registrations.
 import veredi.zest.debug.registration
@@ -408,6 +400,7 @@ class MediatorSystem(System):
         MediatorSystem needs to turn this event into a Message and Context,
         then push into the MediatorServer's IPC pipe.
         '''
+
         # ---
         # Doctor checkup.
         # ---
@@ -459,21 +452,28 @@ class MediatorSystem(System):
         # Figure out message type.
         # self._decide_msg_type(event.payload, entity, user_id)???
         msg_type = MsgType.CODEC
-        if isinstance(event.payload, str):
+        if isinstance(event.payload, Envelope):
+            msg_type = MsgType.ENVELOPE
+
+        elif isinstance(event.payload, str):
             msg_type = MsgType.TEXT
+
         elif isinstance(event.payload, dict):
             msg_type = MsgType.ENCODE
 
         send_msg = Message(send_id,
                            msg_type,
                            user_id=user_id,
-                           user_key=user_key)
+                           user_key=user_key,
+                           # Don't Forget the Payload...
+                           #            >.>
+                           payload=event.payload)
+
         send_ctx = event.context
 
         # ------------------------------
-        # Send message to MediatorServer
+        # Send Message to MediatorServer
         # ------------------------------
-        # self._log.ultra_mega_debug("Sending: {}", send_msg)
         self.server.send(send_msg, send_ctx)
 
     # -------------------------------------------------------------------------
@@ -874,14 +874,19 @@ class MediatorSystem(System):
             # exitcode_healthy().
             multiproc.nonblocking_tear_down_end(self.server)
             # Update with exitcode's health, and...
-            self._health = self._health.update(
-                self.server.exitcode_healthy(
-                    VerediHealth.APOCALYPSE_SUCCESSFUL,
-                    VerediHealth.APOCALYPSE_FAILURE))
+            exit_health = self.server.exitcode_healthy(
+                VerediHealth.APOCALYPSE_DONE,
+                VerediHealth.FATAL)
 
             # Update with our health (failed due to overtime), and return.
-            self._health = self._health.update(
-                VerediHealth.APOCALYPSE_FAILURE)
+            # overtime_health = VerediHealth.FATAL
+
+            # Technically, we're already overtime, so updating our health with
+            # both exit_health (of whatever it is) and overtime_health (of
+            # FATAL) makes sense. However, if we successfully exited just now,
+            # that minor bit of overtime can be ignored. So just use
+            # exit_health.
+            self._health = self._health.update(exit_health)
             return self.health
 
         # Else we still have time to wait.

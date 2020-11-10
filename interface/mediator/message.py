@@ -340,6 +340,17 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
         self._payload = value
 
     @property
+    def payload_decoded(self) -> Union['Encodable', Any, None]:
+        '''
+        Tries to decode the message payload. Returns decoded value if it could
+        decode, or just returns payload itself if it could not decode.
+        '''
+        # TODO: foo: Do we need this? I think not?
+
+        # self._payload = value
+        pass
+
+    @property
     def security_subject(self) -> Optional[abac.Subject]:
         '''
         Return our security.abac.Subject value.
@@ -403,14 +414,11 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
-        from ..output.envelope import Envelope
-        if isinstance(self.payload, Envelope):
-            raise ValueError("Payload is an envelope?", self.payload, self)
 
         # Tell our payload to encode... or use as-is if not an Encodable.
-        payload = self.payload
-        if isinstance(payload, Encodable):
-            payload = payload.encode(None)
+        encoded_payload = self.payload
+        if isinstance(self.payload, Encodable):
+            encoded_payload = self.payload.encode_with_registry()
 
         # Put our data into a dict for encoding.
         encoded = {
@@ -419,7 +427,7 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
             'entity_id': EntityId.encode_or_none(self._entity_id),
             'user_id':   UserId.encode_or_none(self._user_id),
             'user_key':  UserKey.encode_or_none(self._user_key),
-            'payload':   payload,
+            'payload':   encoded_payload,
             'security':  abac.Subject.encode_or_none(self._security_subject),
         }
 
@@ -455,10 +463,11 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
         security = abac.Subject.decode(data['security'])
         # print(f"Message.decode_complex: security: {type(security)} {security}")
 
-        # Payload can be encoded or just itself.
-        payload_data = data['payload']
-        payload = EncodableRegistry.decode(payload_data,
-                                           fallback=payload_data)
+        # Payload can be encoded or just itself. So try to decode, then
+        # fallback to use its value as is.
+        payload = Encodable.decode_with_registry(
+            data['payload'],
+            fallback=data['payload'])
 
         return klass(msg_id, _type,
                      payload=payload,

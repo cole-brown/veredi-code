@@ -506,7 +506,7 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
         # Get our stuff from the data. We have nothing.
 
         # And build our instance from the data.
-        constant = Constanct(None)
+        constant = Constant(None)
 
         # Finish building by having our parents do their things.
         klass._decode_super(constant, data)
@@ -623,6 +623,7 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
 
         return variable
 
+
 # -----------------------------------------------------------------------------
 # Tree Node
 # -----------------------------------------------------------------------------
@@ -664,6 +665,10 @@ class Branch(Node, ABC, dotted=Encodable._DO_NOT_REGISTER):
     # -------------------------------------------------------------------------
 
     def __str__(self):
+        if not self.children:
+            raise ValueError(f"Branch class {self.__class__.__name__} has no "
+                             f"children?! children: {self._children}", self)
+
         out = [f"{self.__class__.__name__}",
                "("]
         first = True

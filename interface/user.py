@@ -212,6 +212,11 @@ class User:
 
     def has_data(self) -> bool:
         '''Returns True if client's queue has data to send them.'''
+        # No queue? Then, uh... it has no data.
+        if not self._tx_queue:
+            return False
+
+        # Have a queue, ask it if it's empty or not.
         return not self._tx_queue.empty()
 
     def get_data(self) -> Tuple['Message', MessageContext]:
