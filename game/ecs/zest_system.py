@@ -55,7 +55,7 @@ class SysTest(System):
 
     @classmethod
     def dotted(klass: 'SysTest') -> str:
-        return 'system.test'
+        return 'veredi.system.test'
 
     def _conifgure(self, context):
         self.ents_seen = {
@@ -482,7 +482,7 @@ class Test_SystemManager_Events(Test_SystemManager):
         # Add EventManager so that tests in parent class will
         # generate/check events.
         self.config    = zmake.config()
-        self.event_mgr = EventManager(self.config)
+        self.event_mgr = EventManager(self.config, self.debug_flags)
         self.finish_set_up()
         self.register_events()
 

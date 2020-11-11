@@ -293,7 +293,7 @@ class Test_ComponentManager_Events(Test_ComponentManager):
         # Add EventManager so that tests in parent class will
         # generate/check events.
         self.config    = zmake.config()
-        self.event_mgr = EventManager(self.config)
+        self.event_mgr = EventManager(self.config, self.debug_flags)
         self.finish_set_up()
         self.register_events()
 

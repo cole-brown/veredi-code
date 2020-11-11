@@ -66,7 +66,7 @@ class Test_Commander(ZestEcs):
             },
         })
 
-        self.event_manager     = EventManager(self.config)
+        self.event_manager     = EventManager(self.config, self.debug_flags)
         self.parsers           = Parcel(None)
         self.commander         = Commander(None)
 
