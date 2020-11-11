@@ -227,10 +227,17 @@ class SystemManager(EcsManagerWithEvents):
           "{system.dotted()}'s health became unrunnable: {prev} -> {curr}."
           to info/args/kwargs for log message.
         '''
+        # Sometimes, it's ok if they're dying...
+        if (system.life_cycle == SystemLifeCycle.DESTROYING
+                or system.life_cycle == SystemLifeCycle.DEAD):
+            return
+
+        # Sometimes, we don't care...
         if (not self.debug_flagged(DebugFlag.RAISE_HEALTH)
                 or curr_health.in_runnable_health):
             return
 
+        # But right now we do care. Check the health and raise an error.
         during = '<unknown>'
         if tick and life:
             during = f"tick {str(tick)} and life-cycle {life}"

@@ -73,13 +73,13 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         Define instance vars with type hinting, docstrs, etc.
         '''
 
-        self.data: Optional[Any] = None
+        self._data: Optional[Any] = None
         '''
         The actual payload itself. Sub-classes will need to define what type it
         actually is...
         '''
 
-        self.valid: 'Validity' = Validity.INVALID
+        self._valid: 'Validity' = Validity.INVALID
         '''
         Validity of self.value. An enum so we can tell "don't want to say"
         apart from "error - could not say".
@@ -94,8 +94,8 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         # ---
         # Set Our Value
         # ---
-        self.data = data
-        self.valid = valid
+        self._data = data
+        self._valid = valid
 
         # ---
         # Check Value's Validity?
@@ -127,21 +127,21 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         '''
         Property for getting validity.
         '''
-        return self.valid
+        return self._valid
 
     @valid.setter
     def valid(self, value: 'Validity') -> None:
         '''
         Property for setting validity.
         '''
-        self.valid = value
+        self._valid = value
 
     @property
     def data(self) -> Any:
         '''
         Property for getting the raw data.
         '''
-        return self.data
+        return self._data
 
     @valid.setter
     def valid(self, value: Any) -> None:
@@ -149,7 +149,7 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         Property for setting the raw data.
         Calls self._validate() after setting.
         '''
-        self.data = value
+        self._data = value
         self._validate()
 
     # -------------------------------------------------------------------------
