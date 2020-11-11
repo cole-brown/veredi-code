@@ -243,7 +243,7 @@ class InputSystem(System):
         except AttributeError:
             try:
                 string_unsafe = event.string_unsafe
-            except AttributeError as error:
+            except AttributeError:
                 log.exception("Event {} does not have 'payload' or "
                               "'string_unsafe' property - input system "
                               "cannot process it as a command.",

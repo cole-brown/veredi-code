@@ -64,6 +64,7 @@ from veredi.game.data.identity.component import IdentityComponent
 from veredi.game.data.identity.system    import IdentitySystem
 
 from ..user                              import User
+from ..output.envelope                   import Envelope
 
 
 # Mediator Stuff
