@@ -55,7 +55,7 @@ class Test_RepoSystem(ZestSystem):
 
         self.manager = zmake.meeting(
             configuration=self.config,
-            event_manager=EventManager(self.config))
+            event_manager=EventManager(self.config, self.debug_flags))
 
     def tear_down(self):
         super().tear_down()

@@ -323,6 +323,15 @@ class IdentitySystem(System):
             id_comp = self.get(entity_id)
             if not id_comp:
                 # No identity; make an empty one for now.
+
+                # ------------------------------
+                # !!!! NOTE !!!!
+                # ------------------------------
+                # This has caused some stupid/annoying unit test errors! If you
+                # get here again because of them, this is probably a bad way of
+                # doing things and we should rethink.
+                log.ultra_mega_debug("No identity component for entity! "
+                                     f"eid: {entity_id}")
                 cid = self._create_component(entity_id,
                                              False,
                                              event.context)
