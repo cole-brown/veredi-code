@@ -15,6 +15,7 @@ from typing import Optional, Union, Any, Mapping
 import enum
 
 from veredi.logger               import log
+from veredi.base.enum            import FlagEncodeValueMixin
 from veredi.data.codec.encodable import (Encodable,
                                          EncodedSimple,
                                          EncodedComplex)
@@ -26,7 +27,7 @@ from veredi.data.exceptions      import EncodableError
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class Validity(enum.Enum):
+class Validity(FlagEncodeValueMixin, enum.Enum):
     '''
     Validity of field so we can tell "actually 'None'" from
     "'None' because I don't want to say", for example.
@@ -48,6 +49,32 @@ class Validity(enum.Enum):
     '''
     A good value.
     '''
+
+    # ------------------------------
+    # Encodable API (Codec Support)
+    # ------------------------------
+
+    @classmethod
+    def dotted(klass: 'Validity') -> str:
+        '''
+        Unique dotted name for this class.
+        '''
+        return 'veredi.interface.mediator.payload.validity'
+
+    @classmethod
+    def _type_field(klass: 'Validity') -> str:
+        '''
+        A short, unique name for encoding an instance into a field in
+        a dict.
+        '''
+        return 'valid'
+
+    # Rest of Encodabe funcs come from FlagEncodeValueMixin.
+
+
+# Hit a brick wall trying to get an Encodable enum's dotted through to
+# Encodable. :| Register manually with the Encodable registry.
+Validity.register_manually()
 
 
 # -----------------------------------------------------------------------------
@@ -188,7 +215,7 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
 
         # Build our representation to return.
         return {
-            'valid': self.valid.value,
+            'valid': self.valid.encode(None),
             'data': data,
         }
 
@@ -202,15 +229,16 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         klass.error_for(data, keys=['valid', 'data'])
 
         # build valid from value saved in _encode_complex
-        valid = klass.Valid(data['valid'])
+        valid = Validity.decode(data['valid'])
 
         # Our data is of type 'Any', so... try to decode that?
         data = klass.decode_any(data['data'])
 
         # Make class with decoded data, skip_validation because this exists and
         # we're just decoding it, not creating a new one.
-        return klass(data, valid,
-                     skip_validation=True)
+        payload = klass(data, valid,
+                        skip_validation=True)
+        return payload
 
     # ------------------------------
     # To String

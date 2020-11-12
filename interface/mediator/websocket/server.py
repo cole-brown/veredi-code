@@ -1009,7 +1009,6 @@ class WebSocketServer(WebSocketMediator):
             self.debug(f"Client-Conn: {conn}: "
                        f"Produced for sending to client "
                        f"msg: {msg}, ctx: {ctx}")
-            log.info("SENDING A MESSAGE {} TO A CLIENT {}", msg.msg_id, conn)
 
             sender, _ = self._hp_paths_type.get(msg.type, None)
             if not sender:
