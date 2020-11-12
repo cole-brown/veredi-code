@@ -112,6 +112,8 @@ from veredi.math.d20                            import tree
 # ---
 from veredi.data.codec.json                     import codec
 from veredi.rules.d20.pf2.health.component      import HealthComponent
+# Should be all our Encodables.
+import veredi.data.codec.provide
 
 
 # -----------------------------------------------------------------------------
@@ -295,6 +297,11 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # Client / Server
         # ---
         self._set_up_clients(self.config, default_flags)  # ProcTest.DNE)
+
+        # ---
+        # Registry
+        # ---
+        self.want_registered('encodables')
 
     def tear_down(self):
         # ---
