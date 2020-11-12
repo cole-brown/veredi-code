@@ -13,19 +13,16 @@ from typing import Optional, Union, NewType
 import enum
 
 from veredi.base                   import numbers
-from veredi.base.numbers           import NumberTypes, NumberTypesTuple
+from veredi.base.numbers           import NumberTypes
 from veredi.base.context           import VerediContext
 from veredi.base.identity          import SerializableId
 from veredi.game.ecs.base.identity import EntityId
 from veredi.game.ecs.event         import Event
 from veredi.interface.output.event import OutputEvent, Recipient
-from veredi.data.codec.encodable   import (Encodable,
-                                           EncodableRegistry,
-                                           EncodedSimple,
-                                           EncodedComplex,
-                                           EncodedComplex)
+from veredi.data.codec.encodable   import EncodedComplex
 
 from .parser import MathTree
+
 
 # -----------------------------------------------------------------------------
 # Constants

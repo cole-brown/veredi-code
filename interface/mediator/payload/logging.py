@@ -304,6 +304,9 @@ class LogPayload(BasePayload,
         '''
         Get the Server->Client request portion of the data mapping.
         '''
+        # No data at all means also no LogField.REQUEST data.
+        if self._data is None:
+            return None
         return self.data.setdefault(LogField.REQUEST, {})
 
     # TODO: probably delete? Will just set sub-fields on return from request
@@ -313,6 +316,9 @@ class LogPayload(BasePayload,
         '''
         Set the Server->Client request portion of the data mapping.
         '''
+        # Init to an empty dict if we don't have any data.
+        if self._data is None:
+            self._data = {}
         self.data[LogField.REQUEST] = value
 
     @property

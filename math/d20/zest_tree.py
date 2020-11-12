@@ -460,12 +460,21 @@ class Test_Variable(ZestBase):
 class Test_Branch(ZestBase):
 
     def test_eval(self):
-        with self.assertRaises(AttributeError, TypeError):
+        # Branch base class shouldn't be able to eval successfully... It
+        # shouldn't even be able to instantiate itself now, since it's
+        # abstract.
+
+        # So expect a TypeError now on init.
+        with self.assertRaises(TypeError):
             # Branch base class shouldn't be able to eval successfully... It
             # shouldn't even be able to instantiate itself now, since it's
             # abstract.
-            branch = tree.Branch(None, NodeType.INVALID, 'jeff')
-            branch.eval()
+            tree.Branch(None, NodeType.INVALID, 'jeff')
+
+        # And no more expecting an AttributeError on eval().
+        # with self.assertRaises(AttributeError):
+        #     branch = tree.Branch(None, NodeType.INVALID, 'jeff')
+        #     branch.eval()
 
 
 # -----------------------------------------------------------------------------

@@ -30,8 +30,8 @@ from veredi.data.codec.encodable import EncodableRegistry
 
 from ..mediator                  import Mediator
 from ..context                   import (MessageContext,
-                                       MediatorContext,
-                                       UserConnToken)
+                                         MediatorContext,
+                                         UserConnToken)
 from ..const                     import MsgType
 from ..message                   import Message
 from .base                       import VebSocket

@@ -12,7 +12,7 @@ from typing import (Optional, Union, Any, Type, NewType,
                     Iterable, Mapping, Dict, Tuple)
 from veredi.base.null import Null, null_to_none, null_or_none
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import enum
 import re
 
@@ -22,6 +22,37 @@ from veredi.base.registrar import CallRegistrar, RegisterType
 import veredi.base.dotted
 
 from ..exceptions import EncodableError
+
+
+# -----------------------------------------------------------------------------
+# Exports
+# -----------------------------------------------------------------------------
+
+__all__ = [
+    # ------------------------------
+    # Imported
+    # ------------------------------
+    # Users of Encodable/EncodableRegistry want to use this a lot.
+    # Export so they don't have to import from the base registrar.
+    'RegisterType',
+
+    # ------------------------------
+    # File-Local
+    # ------------------------------
+
+    # ---
+    # Types
+    # ---
+    'EncodedComplex',
+    'EncodedSimple',
+    'EncodedEither',
+
+    # ---
+    # Classes
+    # ---
+    'Encodable',
+    'EncodableRegistry',
+]
 
 
 # -----------------------------------------------------------------------------
@@ -1187,7 +1218,8 @@ class EncodableRegistry(CallRegistrar):
         # ---
         msg = (f"{klass.__name__}: No registered Encodable found for "
                f"data. data_dotted: {data_dotted}")
-        extra = (", registry:\n"
+        extra = (", \n"
+                 "registry:\n"
                  "{}\n\n"
                  "data:\n"
                  "{}\n\n")

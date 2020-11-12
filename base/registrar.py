@@ -71,6 +71,16 @@ class BaseRegistrar(ABC):
     '''
 
     # -------------------------------------------------------------------------
+    # Unit Testing Helpers
+    # -------------------------------------------------------------------------
+    @classmethod
+    def nuke(klass: 'BaseRegistrar') -> None:
+        '''
+        Resets _REGISTRY to None, effectively deleting all registrations.
+        '''
+        klass._REGISTRY = None
+
+    # -------------------------------------------------------------------------
     # Registry Internal Helpers
     # -------------------------------------------------------------------------
 
@@ -217,13 +227,23 @@ class BaseRegistrar(ABC):
         # Helpful messages - but registering either way.
         try:
             if leaf_key in registration:
-                log.warning("Something was already registered under this "
-                            "registration key... keys: {}, replacing "
-                            "'{}' with this '{}'",
-                            args,
-                            str(registration[leaf_key]),
-                            name,
-                            stacklevel=3)
+                if background.testing.get_unit_testing():
+                    log.ultra_hyper_debug(klass._get())
+                    msg = ("Something was already registered under this "
+                           f"registration key... keys: {args}, replacing "
+                           f"{str(registration[leaf_key])}' with this "
+                           f" '{name}'.")
+                    error = KeyError(leaf_key, msg, cls_or_func)
+                    log.exception(error, None, msg,
+                                  stacklevel=3)
+                else:
+                    log.warning("Something was already registered under this "
+                                "registration key... keys: {}, replacing "
+                                "'{}' with this '{}'",
+                                args,
+                                str(registration[leaf_key]),
+                                name,
+                                stacklevel=3)
             else:
                 log.debug("Registered: keys: {}, value '{}'",
                           args,

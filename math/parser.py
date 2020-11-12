@@ -18,12 +18,13 @@ from collections import deque
 import enum
 from decimal import Decimal
 
-from veredi.logger import log
-import veredi.base.dotted
-from veredi.base.context import VerediContext
-from veredi.base.enum import FlagEncodeNameMixin, FlagCheckMixin
-from veredi.data.codec.encodable import (Encodable, EncodedComplex,
-                                         EncodableRegistry, RegisterType)
+from veredi.logger               import log
+from veredi.base.context         import VerediContext
+from veredi.base.enum            import (FlagEncodeNameMixin,
+                                         FlagCheckMixin)
+from veredi.data.codec.encodable import (Encodable,
+                                         EncodedComplex,
+                                         EncodableRegistry)
 
 
 # -----------------------------------------------------------------------------

@@ -91,7 +91,7 @@ class MonotonicId(Encodable,
     _ENCODABLE_RX_STR: str = None
     '''
     Actual string used to compile regex - created from _ENCODABLE_RX_STR_FMT
-    in MonotonicId.
+    in MonotonicId.__init_subclass__().
     '''
 
     _ENCODABLE_RX: re.Pattern = None
@@ -107,6 +107,32 @@ class MonotonicId(Encodable,
     # ------------------------------
     # Initialization
     # ------------------------------
+
+    def __init_subclass__(klass:    'Encodable',
+                          dotted:   Optional[str] = None,
+                          **kwargs: Any) -> None:
+        '''
+        Initialize sub-classes.
+        '''
+        # Pass up to parent (Encodable).
+        super().__init_subclass__(dotted=dotted,
+                                  **kwargs)
+
+        # ---
+        # Encodable RX
+        # ---
+        if not klass._encode_simple_only():
+            return
+
+        # Do we need to init _ENCODABLE_RX_STR?
+        if klass._ENCODABLE_RX_STR is None:
+            # Format string with field name.
+            klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
+                type_field=klass._type_field())
+
+            # ...and then use it to compile the regex.
+            klass._ENCODABLE_RX =  re.compile(klass._ENCODABLE_RX_STR,
+                                              klass._ENCODABLE_RX_FLAGS)
 
     @classmethod
     def _init_invalid_(klass: Type['MonotonicId']) -> None:
@@ -250,7 +276,8 @@ class MonotonicId(Encodable,
         match = rx.match(data)
         if not match or not match.group('value'):
             msg = (f"{klass.__name__}: Decode regex failed to match "
-                   f"data - cannot decode: {data}")
+                   f"data - cannot decode: {data} "
+                   f"(regex: {klass._get_decode_str_rx()})")
             error = ValueError(msg, data)
             raise log.exception(error, None,
                                 msg)
@@ -433,8 +460,8 @@ class SerializableId(Encodable,
         r'^'
         # Start 'name' capture group.
         + r'(?P<name>'
-        # Name capture is our _ENCODE_FIELD_NAME.
-        + '{encode_field_name}'
+        # Name capture is our _type_field().
+        + '{type_field}'
         + r')'
         # Separate name and value with colon.
         + r':'
@@ -490,7 +517,7 @@ class SerializableId(Encodable,
         if klass._ENCODABLE_RX_STR is None:
             # Format string with field name.
             klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
-                encode_field_name=klass._ENCODE_FIELD_NAME,
+                type_field=klass._type_field(),
                 encode_uuid_rx=klass._ENCODE_RX_UUID_FORM)
 
             # ...and then use it to compile the regex.
