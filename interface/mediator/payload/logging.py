@@ -19,12 +19,10 @@ import enum
 
 
 from veredi.logger               import log
-from veredi.base.enum            import FlagEncodeNameMixin
+from veredi.base.enum            import EnumEncodeNameMixin
 from veredi.data.codec.encodable import (Encodable,
-                                         EncodableRegistry,
                                          EncodedComplex,
                                          EncodedSimple)
-from veredi.data.exceptions      import EncodableError
 
 from .base                       import BasePayload, Validity
 
@@ -60,7 +58,7 @@ _NC_STR   = "no-comment"
 # ------------------------------
 
 @enum.unique
-class LogField(FlagEncodeNameMixin, enum.Enum):
+class LogField(EnumEncodeNameMixin, enum.Enum):
     '''
     Trying this out for the logging field names?
     '''
@@ -139,30 +137,31 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
     lacking 'log' is fine.
     '''
 
-    # ------------------------------
-    # Constants: Validity
-    # ------------------------------
-
-    @enum.unique
-    class Valid(enum.Enum):
-        '''
-        Validity of field so we can tell "actually 'None'" from
-        "'None' because I don't want to say", for example.
-        '''
-        INVALID    = enum.auto()
-        NO_COMMENT = enum.auto()
-        VALID      = enum.auto()
-
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
 
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+
+        self.value: Any = None
+        '''
+        The actual reply. Type and such depend on what the reply actually
+        is for...
+        '''
+
+        self.valid: Validity = Validity.INVALID
+        '''Validity of `self.value`.'''
+
     def __init__(self,
                  value:            Any,
-                 valid:            'LogReply.Valid' = Valid.INVALID,
-                 no_comment_check: Any              = Valid.INVALID,
-                 skip_validation:  bool             = False,
+                 valid:            'Validity' = Validity.INVALID,
+                 no_comment_check: Any        = Validity.INVALID,
+                 skip_validation:  bool       = False,
                  ) -> None:
+        self._define_vars()
 
         # Just set value
         self.value = value
@@ -174,13 +173,13 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
 
         else:
             # Validate this LogReply.
-            if valid != LogReply.Valid.INVALID:
+            if valid != Validity.INVALID:
                 self.valid = valid
-            elif no_comment_check != LogReply.Valid.INVALID:
+            elif no_comment_check != Validity.INVALID:
                 self.valid = self.validity(value, no_comment_check)
 
             # Error out for invalid LogReplies.
-            if self.valid == LogReply.Valid.INVALID:
+            if self.valid == Validity.INVALID:
                 raise ValueError(
                     "LogReply cannot have a `valid` status of INVALID.",
                     value, valid, no_comment_check, self.valid)
@@ -188,21 +187,21 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
     @classmethod
     def validity(klass: 'LogReply',
                  value: Any,
-                 no_comment: Any) -> 'LogReply.Valid':
+                 no_comment: Any) -> 'Validity':
         '''
         Returns VALID if `value` is not equal to `no_comment`
         or NO_COMMENT otherwise.
         '''
-        return (LogReply.Valid.VALID
+        return (Validity.VALID
                 if value != no_comment else
-                LogReply.Valid.NO_COMMENT)
+                Validity.NO_COMMENT)
 
-    def get_or_validity(self) -> Union['LogReply.Valid', Optional[Any]]:
+    def get_or_validity(self) -> Union['Validity', Optional[Any]]:
         '''
         If `self.valid` is VALID, returns `self.value`.
         Otherwise return `self.valid`.
         '''
-        if self.valid == LogReply.Valid.VALID:
+        if self.valid == Validity.VALID:
             return self.value
 
         return self.valid
@@ -243,7 +242,7 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
 
         # Build our representation to return.
         return {
-            'valid': self.valid.value,
+            'valid': self.valid.encode(None),
             'value': value,
         }
 
@@ -256,13 +255,28 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
         '''
         klass.error_for(data, keys=['valid', 'value'])
 
-        valid = klass.Valid(data['valid'])
+        valid = Validity.decode(data['valid'])
         value = klass.decode_any(data['value'])
 
         # Make class with decoded data, skip_validation because this exists and
         # we're just decoding it, not creating a new one.
-        return klass(value, valid,
-                     skip_validation=True)
+        decoded = klass(value, valid,
+                        skip_validation=True)
+        return decoded
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}(self.valid): {self.value}"
+        )
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}({self.value}, valid={self.valid})"
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -304,22 +318,7 @@ class LogPayload(BasePayload,
         '''
         Get the Server->Client request portion of the data mapping.
         '''
-        # No data at all means also no LogField.REQUEST data.
-        if self._data is None:
-            return None
         return self.data.setdefault(LogField.REQUEST, {})
-
-    # TODO: probably delete? Will just set sub-fields on return from request
-    # getter property.
-    @request.setter
-    def request(self, value: Mapping[str, Any]) -> None:
-        '''
-        Set the Server->Client request portion of the data mapping.
-        '''
-        # Init to an empty dict if we don't have any data.
-        if self._data is None:
-            self._data = {}
-        self.data[LogField.REQUEST] = value
 
     @property
     def response(self):
@@ -327,15 +326,6 @@ class LogPayload(BasePayload,
         Get the Client->Server response portion of the data mapping.
         '''
         return self.data.setdefault(LogField.RESPONSE, {})
-
-    # TODO: probably delete? Will just set sub-fields on return from response
-    # getter property.
-    @response.setter
-    def response(self, value: Mapping[str, Any]) -> None:
-        '''
-        Set the Client->Server response portion of the data mapping.
-        '''
-        self.data[LogField.RESPONSE] = value
 
     def _set_or_pop(self,
                     submap:    Mapping,
@@ -427,7 +417,42 @@ class LogPayload(BasePayload,
         return klass._ENCODE_NAME
 
     # Simple:  BasePayload's are good.
-    # Complex: BasePayload's are good.
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Our data is a dict with LogField enum values as keys and LogReplies
+        # or log.Level or something as values.
+        encoded = self._encode_map(self.data)
+
+        # Build our representation to return.
+        return {
+            'valid': self.valid.encode(None),
+            'data': encoded,
+        }
+
+    @classmethod
+    def _decode_complex(klass: 'BasePayload',
+                        data:  EncodedComplex) -> 'BasePayload':
+        '''
+        Decode ourself from an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        klass.error_for(data, keys=['valid', 'data'])
+
+        # Decode the validity field.
+        valid = Validity.decode(data['valid'])
+
+        # Decode the data field with our expected key hint of LogField.
+        decoded = klass._decode_map(data['data'],
+                                    expected_keys=[LogField])
+
+        # And make our class... Set valid afterwards since LogPayload doesn't
+        # care about validity to start with.
+        log_payload = klass(decoded)
+        log_payload.valid = valid
+        return log_payload
 
     # -------------------------------------------------------------------------
     # Python Functions
@@ -435,10 +460,10 @@ class LogPayload(BasePayload,
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}: {self.data}"
+            f"{self.__class__.__name__}(self.valid): {self.data}"
         )
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}(data={self.data})"
+            f"{self.__class__.__name__}(data={self.data}, valid={self.valid})"
         )

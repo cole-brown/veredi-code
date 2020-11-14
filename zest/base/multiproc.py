@@ -572,12 +572,57 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
                              msg="Exception raised at some point during test.")
 
     def assert_empty_pipes(self) -> None:
+        # ------------------------------
+        # Check All Clients - Normal and Test Pipes.
+        # ------------------------------
         for client in self.proc.clients:
-            self.assertFalse(client.pipe.poll())
-            self.assertFalse(client.ut_pipe.poll())
+            # ---
+            # Normal Pipe
+            # ---
+            client_pipe_data = client.has_data()
+            if client_pipe_data:
+                # Print out what's in the pipe?
+                log.critical("Client IPC pipe is not empty!")
+                data = client.recv()
+                log.ultra_hyper_debug(data)
+            self.assertFalse(client_pipe_data)
+
+            # ---
+            # Test Pipe
+            # ---
+            client_test_pipe_data = client._ut_has_data()
+            if client_test_pipe_data:
+                # Print out what's in the pipe?
+                log.critical("Client IPC /test/ pipe is not empty!")
+                data = client._ut_recv()
+                log.ultra_hyper_debug(data)
+            self.assertFalse(client_test_pipe_data)
+
+        # ------------------------------
+        # Check Server Pipes
+        # ------------------------------
         if self.proc.server:
-            self.assertFalse(self.proc.server.pipe.poll())
-            self.assertFalse(self.proc.server.ut_pipe.poll())
+            # ---
+            # Normal Pipe
+            # ---
+            server_pipe_data = self.proc.server.has_data()
+            if server_pipe_data:
+                # Print out what's in the pipe?
+                log.critical("Server IPC pipe is not empty!")
+                data = self.proc.server.recv()
+                log.ultra_hyper_debug(data)
+            self.assertFalse(server_pipe_data)
+
+            # ---
+            # Test Pipe
+            # ---
+            server_test_pipe_data = self.proc.server.ut_pipe.poll()
+            if server_test_pipe_data:
+                # Print out what's in the pipe?
+                log.critical("Server IPC /test/ pipe is not empty!")
+                data = self.proc.server._ut_recv()
+                log.ultra_hyper_debug(data)
+            self.assertFalse(server_test_pipe_data)
 
     # -------------------------------------------------------------------------
     # Do-Something-During-A-Test Functions

@@ -30,7 +30,8 @@ them for the running client or server or whatever.
 # Subclasses
 # ------------------------------
 
-# FlagEncode.*Mixin - for encoded enums
+# FlagEncode.*Mixin
+# EnumEncode.*Mixin
 
 # class.*\(.*MonotonicId
 # class.*\(.*SerializableId
@@ -81,7 +82,6 @@ them for the running client or server or whatever.
 # class.*\(.*Subject
 
 
-
 # Subclasses of... anything else added in here.
 
 
@@ -95,7 +95,7 @@ them for the running client or server or whatever.
 # Base
 # ------------------------------
 
-# FlagEncodeNameMixin, FlagEncodeValueMixin
+# FlagEncodeNameMixin, FlagEncodeValueMixin, EnumEncodeNameMixin
 import veredi.base.enum
 
 # MonotonicId, SerializableId
@@ -120,8 +120,6 @@ import veredi.base.identity
 # UserId - subclass of SerializableId
 # UserKey - subclass of SerializableId
 import veredi.data.identity
-
-
 
 
 # ------------------------------

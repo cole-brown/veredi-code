@@ -551,39 +551,73 @@ def ultra_mega_debug(msg: str,
                       stacklevel=stacklevel)
 
 
-def ultra_hyper_debug(msg: str,
-                      *args: Any,
+def ultra_hyper_debug(msg:           str,
+                      *args:         Any,
+                      format_str:    bool                       = True,
+                      add_type:      bool                       = False,
+                      add_title:     Optional[str]              = None,
                       veredi_logger: NullNoneOr[logging.Logger] = None,
-                      **kwargs: Any) -> None:
+                      **kwargs:      Any) -> None:
     '''
     Logs at Level.CRITICAL using either passed in logger or logger named:
       'veredi.debug.DEBUG.☢☢DEBUG☢☢'
+
+    If `msg` is a str and `format_str` is True, this acts like other log
+    functions (calls `brace_message()` to get a formatted output message).
+
+    If `msg` is not a str, this will pass the `msg` object to
+    `pretty.indented()` so as to get a prettily formatted dict, list, or
+    whatever.
+
+    If `add_type` is True or if `msg` is not a str: this will prepend "type:
+    <type str>" to the output message.
+
+    If `add_title` is not None, it will be prepended as "title: {add_title}" on
+    its own line to front of output message.
 
     All logs start with a newline character.
 
     All logs end with two newlines characters.
 
-    Basically, a log.ultra_hyper_debug('test') is this:
+    Basically, a log.ultra_hyper_debug('test', add_title='jeff') is this:
 
       <log line prefix output>
       ---
       -----
       --U-L-T-R-A-=-H-Y-P-E-R-=-D-E-B-U-G-=-L-O-G--
+          title: jeff
+
           test
       --U-L-T-R-A-=-H-Y-P-E-R-=-D-E-B-U-G-=-L-O-G--
       ---
       -----
-
     '''
     stacklevel = pop_stack_level(kwargs)
-    # Format using brace_message if msg is str.
+    # Do normal {} string formatting if we have a message string... but let
+    # non-strings through so pretty.indented() can work better with dicts, etc.
     output = msg
-    if isinstance(msg, str):
+    if isinstance(msg, str) and format_str:
         output = brace_message(msg,
                                *args, **kwargs)
+
     # Indent output message before printing.
     output = pretty.indented(output,
                              indent_amount=_ULTRA_HYPER_INDENT_AMT)
+
+    # And one more thing: if msg wasn't a string (or they asked us to), let's
+    # say what it is:
+    if not isinstance(msg, str) or add_type:
+        output = (pretty.indented(f"type: {type(msg)}")
+                  + "\n\n"
+                  + output)
+
+    # And one more thing: if they want us to add a title, we will do that:
+    if add_title:
+        output = (pretty.indented(f"title: {add_title}")
+                  + "\n\n"
+                  + output)
+
+    # Now output the log message.
     if not ut_call(Level.CRITICAL, output):
         this = (veredi_logger
                 or get_logger('veredi.debug.DEBUG.☢☢DEBUG☢☢'))

@@ -265,7 +265,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     '''
     REQUIREMENT: Enums that use this must also register manually:
     Example:
-      class JeffFlag(FlagEncodeValueMixin, enum.Flag):
+      class JeffFlag(FlagEncodeNameMixin, enum.Flag):
           ...
           @classmethod
           def dotted(klass: 'JeffFlag') -> str:
@@ -394,8 +394,8 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
             f"{self.__class__.__name__}._encode_complex() is not implemented.")
 
     @classmethod
-    def _decode_simple(klass: 'FlagEncodeValueMixin',
-                       data: str) -> 'FlagEncodeValueMixin':
+    def _decode_simple(klass: 'FlagEncodeNameMixin',
+                       data: str) -> 'FlagEncodeNameMixin':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -433,8 +433,166 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return total
 
     @classmethod
-    def _decode_complex(klass: 'FlagEncodeValueMixin',
-                        value: EncodedComplex) -> 'FlagEncodeValueMixin':
+    def _decode_complex(klass: 'FlagEncodeNameMixin',
+                        value: EncodedComplex) -> 'FlagEncodeNameMixin':
+        '''
+        NotImplementedError: We don't do complex.
+        '''
+        raise NotImplementedError(f"{klass.__name__}._decode_complex() is "
+                                  "not implemented.")
+
+
+class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
+    '''
+    REQUIREMENT: Enums that use this must also register manually:
+    Example:
+      class JeffEnum(EnumEncodeNameMixin, enum.Enum):
+          ...
+          @classmethod
+          def dotted(klass: 'JeffEnum') -> str:
+                return 'veredi.jeff.system.enum'
+          ...
+
+      # Enums and that auto-register parameter "dotted='jeff.whatever'" don't
+      # get along - registering manually...
+      JeffEnum.register_manually()
+
+    Helpers for encoding a enum enum for codec support.
+
+    NOTE: This encodes the /name/ of the enum. If encoded and saved, this means
+    the enum names CANNOT be changed. Make sure you like them or be prepared to
+    write migration scripts maybe I guess.
+    '''
+
+    _ENCODABLE_RX_FLAGS: re.RegexFlag = re.IGNORECASE
+    '''Flags used when creating _ENCODABLE_RX.'''
+
+    _ENCODABLE_RX_STR_FMT: str = r'^{type_field}:(?P<name>[_\w]+)$'
+    '''
+    Format string for MsgType regex. Type field, followed by the name of the
+    enum.
+    '''
+
+    _ENCODABLE_RX_STR: str = None
+    '''
+    Actual string used to compile regex - created from _ENCODABLE_RX_STR_FMT.
+    '''
+
+    _ENCODABLE_RX: re.Pattern = None
+    '''
+    Compiled regex pattern for decoding MonotonicIds.
+    '''
+
+    _ENCODE_SIMPLE_FMT: str = '{type_field}:{name}'
+    '''
+    String format for encoding MonotonicIds.
+    '''
+
+    @classmethod
+    def _type_field(klass: 'EnumEncodeNameMixin') -> str:
+        '''
+        A short, unique name for encoding an instance into a field in a dict.
+        Override this if you don't like what veredi.base.dotted.auto() and
+        veredi.base.dotted.munge_to_short() do for your type field.
+        '''
+        return dotted.munge_to_short(dotted.auto(klass))
+
+    @classmethod
+    def _encode_simple_only(klass: 'EnumEncodeNameMixin') -> bool:
+        '''We are too simple to bother with being a complex type.'''
+        return True
+
+    @classmethod
+    def _get_decode_str_rx(klass: 'EnumEncodeNameMixin') -> Optional[str]:
+        '''
+        Returns regex /string/ (not compiled regex) of what to look for to
+        claim just a string as this class.
+        '''
+        if not klass._ENCODABLE_RX_STR:
+            # Build it from the format str.
+            klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
+                type_field=klass._type_field())
+
+        return klass._ENCODABLE_RX_STR
+
+    @classmethod
+    def _get_decode_rx(klass: 'EnumEncodeNameMixin') -> re.Pattern:
+        '''
+        Returns /compiled/ regex (not regex string) of what to look for to
+        claim just a string as this class.
+        '''
+        if not klass._ENCODABLE_RX:
+            # Build it from the regex str.
+            rx_str = klass._get_decode_str_rx()
+            if not rx_str:
+                msg = (f"{klass.__name__}: Cannot get decode regex "
+                       "- there is no decode regex string to compile it from.")
+                error = ValueError(msg, rx_str)
+                raise log.exception(error, None,
+                                    msg)
+
+            klass._ENCODABLE_RX = re.compile(rx_str, klass._ENCODABLE_RX_FLAGS)
+
+        return klass._ENCODABLE_RX
+
+    def _encode_simple(self) -> str:
+        '''
+        Encode ourself as a string, return that value.
+        '''
+        # This is our enum value/instance's name.
+        name = self.name
+
+        if not name:
+            msg = (f"{self.__class__.__name__}: No enum name?!"
+                   f"'{str(self)}' didn't resolve to any of its class's "
+                   "enums values.")
+            error = ValueError(msg, self, name)
+            raise log.exception(error, None,
+                                msg)
+
+        # Encode it.
+        return self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
+                                              name=name)
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        NotImplementedError: We don't do complex.
+        '''
+        raise NotImplementedError(
+            f"{self.__class__.__name__}._encode_complex() is not implemented.")
+
+    @classmethod
+    def _decode_simple(klass: 'EnumEncodeNameMixin',
+                       data: str) -> 'EnumEncodeNameMixin':
+        '''
+        Decode ourself from a string, return a new instance of `klass` as
+        the result of the decoding.
+        '''
+        rx = klass._get_decode_rx()
+        if not rx:
+            msg = (f"{klass.__name__}: No decode regex - "
+                   f"- cannot decode: {data}")
+            error = ValueError(msg, data)
+            raise log.exception(error, None,
+                                msg)
+
+        # Have regex, but does it work on data?
+        match = rx.match(data)
+        if not match or not match.group('name'):
+            msg = (f"{klass.__name__}: Decode regex failed to match "
+                   f"data - cannot decode: {data}")
+            error = ValueError(msg, data)
+            raise log.exception(error, None,
+                                msg)
+
+        # Have regex, have match.
+        # Turn into an enum value.
+        name = match.group('name')
+        return klass[name]
+
+    @classmethod
+    def _decode_complex(klass: 'EnumEncodeNameMixin',
+                        value: EncodedComplex) -> 'EnumEncodeNameMixin':
         '''
         NotImplementedError: We don't do complex.
         '''
