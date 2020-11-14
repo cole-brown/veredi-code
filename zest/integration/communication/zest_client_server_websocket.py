@@ -210,20 +210,20 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.DISABLED_TESTS = set({
             # Nothing, ideally.
 
-            # ---
-            # This is cheating.
-            # ---
+            # # ---
+            # # This is cheating.
+            # # ---
             # 'test_ignored_tests',
 
-            # ---
-            # Simplest test.
-            # ---
+            # # ---
+            # # Simplest test.
+            # # ---
             # 'test_nothing',
             # 'test_logs_ignore',
 
-            # ---
-            # More complex tests.
-            # ---
+            # # ---
+            # # More complex tests.
+            # # ---
             # 'test_connect',
             # 'test_ping',
             # 'test_echo',
