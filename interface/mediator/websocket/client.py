@@ -567,18 +567,18 @@ class WebSocketClient(WebSocketMediator):
         '''
         Receive connect ack/response from server.
         '''
-        payload = msg.payload
-        self.debug(f"Received connect response: {type(payload)}: {payload}")
+        self.debug(f"Received connect response: {type(msg.payload)}: "
+                   f"{msg.payload}")
 
-        # TODO: Whatever builds connect payload should also check it here...
-        if 'code' in payload and payload['code'] is True:
-            if self._debug and not self._debug.has(DebugFlag.LOG_SKIP):
-                log.info("{self._name}: Connected to server! "
-                         f"match: {match}, path: {path}, msg: {msg}")
+        # Have Message check that this msg is a ACK_CONNECT and tell us if it
+        # succeeded or not.
+        success, reason = msg.verify_connected()
+        if success:
             self._connection_attempt_success()
         else:
             log.error("{self._name}: Failed to connect to server! "
-                      f"match: {match}, path: {path}, msg: {msg}")
+                      f"match: {match}, path: {path}, msg: {msg},"
+                      f"Connection failure: {reason}")
             self._connection_attempt_failure()
 
         return await self._hrx_generic(match, path, msg, context,
