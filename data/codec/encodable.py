@@ -1049,15 +1049,19 @@ class Encodable:
         # log.debug(f"{klass.__name__}.decode_any: {data}")
 
         # First... is it a registered Encodable?
+        decoded = None
         try:
-            return EncodableRegistry.decode(data)
+            # Don't want this to log the exception if it happens. We're ok with
+            # it happening.
+            decoded = EncodableRegistry.decode(data,
+                                               squelch_error=True)
+            return decoded
 
         except ValueError:
             # Nope. But that's fine. Try other things.
             pass
 
         # Next... dict?
-        decoded = None
         if isinstance(data, dict):
             # Decode via our map helper.
             decoded = klass._decode_map(data, expected_keys)
@@ -1066,7 +1070,7 @@ class Encodable:
         else:
             # Warn if not a type we've thought about.
             if (not isinstance(data, numbers.NumberTypesTuple)
-                    or not isinstance(data, str)):
+                    and not isinstance(data, str)):
                 log.warning(f"{klass.__name__}.decode_any: unknown "
                             f"type of data {type(data)}. Assuming it's "
                             "decoded already or doesn't need to be. {}",
@@ -1259,11 +1263,12 @@ class EncodableRegistry(CallRegistrar):
         bg_list.append({leaf_key: name})
 
     @classmethod
-    def decode(klass:     'EncodableRegistry',
-               data:      Optional[EncodedEither],
-               dotted:    Optional[str]         = None,
-               data_type: Optional['Encodable'] = None,
-               **kwargs:  Any) -> 'Encodable':
+    def decode(klass:         'EncodableRegistry',
+               data:          Optional[EncodedEither],
+               dotted:        Optional[str]         = None,
+               data_type:     Optional['Encodable'] = None,
+               squelch_error: bool                  = False,
+               **kwargs:      Any) -> 'Encodable':
         '''
         Decode `data` into an Encodable subclass, if any of our registered
         classes match 'dotted' field in data, or claim() the `data`.
@@ -1273,11 +1278,14 @@ class EncodableRegistry(CallRegistrar):
         Return "registered_class.decode(data)" from the class chosen to decode
         the data.
 
-        If 'dotted' is supplied, try to get that Encodable from our registry.
+        If `dotted` is supplied, try to get that Encodable from our registry.
         Use it or raise RegistryError if not found.
 
-        If 'data_type' is supplied, will restrict search for registered
+        If `data_type` is supplied, will restrict search for registered
         Encodable to just that class or its subclasses.
+
+        `squelch_error` will only raise the exception, instead of raising it
+        through log.exception().
 
         If nothing registered can/will decode the data:
           - If the `fallback` keyword arg is supplied, will return that.
@@ -1342,9 +1350,12 @@ class EncodableRegistry(CallRegistrar):
                  "data:\n"
                  "{}\n\n")
         error = ValueError(msg, data, registree)
-        raise log.exception(error, None, msg + extra,
-                            pretty.indented(registry),
-                            pretty.indented(data))
+        if squelch_error:
+            raise error
+        else:
+            raise log.exception(error, None, msg + extra,
+                                pretty.indented(registry),
+                                pretty.indented(data))
 
     @classmethod
     def _search(klass:     'EncodableRegistry',

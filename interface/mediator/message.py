@@ -12,7 +12,7 @@ For a server mediator (e.g. WebSockets) talking to a game.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, NewType, Mapping)
+                    Optional, Union, Any, NewType, Mapping, Tuple)
 if TYPE_CHECKING:
     from veredi.interface.mediator.context import UserConnToken
 
@@ -37,6 +37,7 @@ from veredi.game.ecs.base.identity import EntityId
 from ..user                        import User
 from .const                        import MsgType
 from .payload.base                 import BasePayload
+from .payload.bare                 import BarePayload
 from .payload.logging              import LogPayload
 
 
@@ -95,14 +96,14 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
         # ------------------------------
 
         @classmethod
-        def dotted(klass: 'MsgType') -> str:
+        def dotted(klass: 'SpecialId') -> str:
             '''
             Unique dotted name for this class.
             '''
             return 'veredi.interface.mediator.message.specialid'
 
         @classmethod
-        def _type_field(klass: 'MsgType') -> str:
+        def _type_field(klass: 'SpecialId') -> str:
             '''
             A short, unique name for encoding an instance into a field in
             a dict.
@@ -189,35 +190,6 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def connected(klass:   'Message',
-                  msg:     'Message',
-                  id:      UserId,
-                  key:     UserKey,
-                  success: bool,
-                  payload: Union[Any, str, None] = None) -> 'Message':
-        '''
-        Creates a MsgType.ACK_CONNECT message reply for success/failure of
-        connection.
-        '''
-        if payload:
-            raise NotImplementedError("TODO: Need to take success/fail "
-                                      "payload generation out of here, "
-                                      "I think...")
-
-        if success:
-            return klass(msg.msg_id, MsgType.ACK_CONNECT,
-                         payload={'text': 'Connected.',
-                                  'code': True},
-                         user_id=id,
-                         user_key=key)
-
-        return klass(msg.msg_id, MsgType.ACK_CONNECT,
-                     payload={'text': 'Failed to connect.',
-                              'code': False},
-                     user_id=id,
-                     user_key=key)
-
-    @classmethod
     def codec(klass:   'Message',
               msg:     'Message',
               payload: Union[Any, str]) -> 'Message':
@@ -243,6 +215,87 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
                      payload=msg.payload,
                      user_id=msg.user_id,
                      user_key=msg.user_key)
+
+    # -------------------------------------------------------------------------
+    # ACK_CONNECT: Connected (response to client) Helpers
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def connected(klass:   'Message',
+                  msg:     'Message',
+                  id:      UserId,
+                  key:     UserKey,
+                  success: bool) -> 'Message':
+        '''
+        Creates a MsgType.ACK_CONNECT message reply for success/failure of
+        connection.
+        '''
+        if success:
+            return klass(msg.msg_id, MsgType.ACK_CONNECT,
+                         payload=BarePayload({'text': 'Connected.',
+                                              'code': True}),
+                         user_id=id,
+                         user_key=key)
+
+        return klass(msg.msg_id, MsgType.ACK_CONNECT,
+                     payload=BarePayload({'text': 'Failed to connect.',
+                                          'code': False}),
+                     user_id=id,
+                     user_key=key)
+
+    def verify_connected(self) -> Tuple[bool, Optional[str]]:
+        '''
+        Verifies this is an ACK_CONNECTED message and that it was a successful
+        connection.
+
+        Returns Tuple[bool, Optional[str]]:
+          - bool: success/failure
+          - str:
+            - if success: None
+            - if failure: Failure reason
+        '''
+        if self.type != MsgType.ACK_CONNECT:
+            return (False,
+                    f"Message is not MsgType.ACK_CONNECT. Is {self.type}")
+
+        # Correct type of message, now check the payload.
+        if not isinstance(self.payload, BarePayload):
+            return (False,
+                    "Message's payload is unexpected type. Expecting "
+                    f"BarePayload, got: {type(self.payload)}")
+
+        # Correct payload - check for success.
+        try:
+            # Do we have the 'code' field we need to determine success?
+            if not self.payload.data or 'code' not in self.payload.data:
+                return (False,
+                        "Cannot understand BarePayload's data: "
+                        f"{self.payload.data}")
+
+            # Was it a failure?
+            elif self.payload.data['code'] is not True:
+                return (False,
+                        "Connection failed with code "
+                        f"'{self.payload.data['code']}' and reason: "
+                        f"{self.payload.data['text']}")
+
+            # The One Good Return. 'code' was True/success, so return success.
+            else:
+                return (True, None)
+
+        # Unexpected things happened. Probably 'code' doesn't exist or data
+        # isn't a dict.
+        except (TypeError, KeyError):
+            return (False,
+                    "Connection success unknown - received exception when "
+                    "trying to check. Payload has unexpected data format "
+                    f"probably: {self.payload}")
+
+        # Not expecting to get here unless BarePayload or Message.connected()
+        # has changed and this hasn't...
+        return (False,
+                "You're not supposed to be able to get this far here. "
+                f"What's wrong? {self.payload}")
 
     # -------------------------------------------------------------------------
     # Logging MsgType Init Helpers

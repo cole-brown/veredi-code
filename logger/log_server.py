@@ -12,8 +12,7 @@ logs from one game/server are well-formatted and in one place.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union
-from veredi.base.null import Null, null_to_none
+from typing import Optional
 
 import multiprocessing
 from multiprocessing.connection import Connection as mp_conn
@@ -278,6 +277,7 @@ def _finalize_proc(proc: multiproc.ProcToSubComm,
     '''
     Finalize the ProcToSubComm and SubToProcComm objects before init finishes.
     '''
+
     # LogServer-specific multiprocessing stuff.
     ignore_logs = multiprocessing.Event()
     ignored_logs_counter = multiprocessing.Value(c_int, 0)

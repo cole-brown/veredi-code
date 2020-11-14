@@ -277,7 +277,7 @@ def init(level:        LogLvlConversion            = DEFAULT_LEVEL,
     # No Re-Init.
     # ------------------------------
     global __initialized
-    if __initialized:  # and not reinitialize:
+    if __initialized and not reinitialize:
         return
     __initialized = True
 
@@ -291,13 +291,20 @@ def init(level:        LogLvlConversion            = DEFAULT_LEVEL,
     # Root Logger's Handler(s)
     # ------------------------------
 
+    # Only let the root logger have special handlers.
+
     # Either got supplied a handler or we'll be making one. Either way, we want
     # to get rid of any of ours it has.
     global __handlers
     if __handlers:
-        for each in __handlers:
-            logger.removeHandler(each)
+        for handle in __handlers:
+            logger.removeHandler(handle)
         __handlers = []
+
+    # Get rid of any of its own handlers if we've got ones to give it.
+    if handler is not None:
+        for handle in list(logger.handlers):
+            logger.removeHandler(handler)
 
     if not handler:
         # Console Handler, same level.
@@ -317,13 +324,13 @@ def init(level:        LogLvlConversion            = DEFAULT_LEVEL,
                                 style=STYLE)
         handler.setFormatter(formatter)
 
+    # Now set it in our collection and on the logger.
     __handlers.append(handler)
     logger.addHandler(handler)
 
 
 def init_logger(logger_name: str,
                 level:       LogLvlConversion            = DEFAULT_LEVEL,
-                # handler:     Optional[logging.Handler]   = None,
                 formatter:   Optional[logging.Formatter] = None
                 ) -> logging.Logger:
     '''
