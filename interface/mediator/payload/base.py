@@ -166,12 +166,15 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
     @property
     def data(self) -> Any:
         '''
-        Property for getting the raw data.
+        Property for getting the raw data. Creates a dict if `self._data`
+        is None.
         '''
+        if self._data is None:
+            self._data = {}
         return self._data
 
-    @valid.setter
-    def valid(self, value: Any) -> None:
+    @data.setter
+    def data(self, value: Any) -> None:
         '''
         Property for setting the raw data.
         Calls self._validate() after setting.
@@ -211,7 +214,7 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         '''
         # self.data is "Any", so... Try to decode it. It may already be
         # decoded - this function should handle those cases.
-        data = self.encode_any(self.value)
+        data = self.encode_any(self._data)
 
         # Build our representation to return.
         return {

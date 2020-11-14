@@ -431,7 +431,6 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
             'security':  abac.Subject.encode_or_none(self._security_subject),
         }
 
-        # print(f"message.encode_complex: {encoded}")
         return encoded
 
     @classmethod
@@ -451,17 +450,13 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
 
         # msg_id could be a few different types.
         msg_id = EncodableRegistry.decode(data['msg_id'])
-        # print(f"Message.decode_complex: msg_id: {type(msg_id)} {msg_id}")
 
         # These are always their one type.
         _type = MsgType.decode(data['type'])
-        # print(f"Message.decode_complex: type: {type(_type)} {_type}")
         entity_id = EntityId.decode(data['entity_id'])
         user_id = UserId.decode(data['user_id'])
-        # print(f"Message.decode_complex: user_id: {type(user_id)} {user_id}")
         user_key = UserKey.decode(data['user_key'])
         security = abac.Subject.decode(data['security'])
-        # print(f"Message.decode_complex: security: {type(security)} {security}")
 
         # Payload can be encoded or just itself. So try to decode, then
         # fallback to use its value as is.

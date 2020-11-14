@@ -20,6 +20,7 @@ import re
 from veredi.logger import log, pretty
 from veredi.base.registrar import CallRegistrar, RegisterType
 import veredi.base.dotted
+from veredi.base import numbers
 
 from ..exceptions import EncodableError
 
@@ -137,6 +138,12 @@ class Encodable:
     Key for help claiming things encoded with
     `Encodable.encode_with_registry()`. Munged down from:
     'veredi.data.codec.encodable'
+    '''
+
+    _ENCODABLE_PAYLOAD_FIELD: str = 'v.payload'
+    '''
+    Key for help claiming things encoded with
+    `Encodable.encode_with_registry()`.
     '''
 
     # -------------------------------------------------------------------------
@@ -358,6 +365,76 @@ class Encodable:
                                   "_type_field()")
 
     @classmethod
+    def _get_type_field(klass: 'Encodable',
+                        data: Optional[EncodedEither]) -> Optional[str]:
+        '''
+        If data is not a mapping, returns None.
+
+        Looks for _TYPE_FIELD_NAME as key in top level of data dictionary,
+        returns it if found, else returns None.
+        '''
+        try:
+            if klass._TYPE_FIELD_NAME in data:
+                return data[klass._TYPE_FIELD_NAME]
+
+        # TypeError: "x in data" didn't work.
+        # KeyError: "data[x]" didn't work.
+        # Don't care - we tried and are returning None.
+        except (TypeError, KeyError):
+            pass
+        return None
+
+    @classmethod
+    def _is_type_field(klass: 'Encodable',
+                       data: Optional[EncodedEither]) -> bool:
+        '''
+        Returns False if `klass._get_type_field()` or `klass._type_field()`
+        return None.
+
+        Returns True if `data` has type field (via `klass._get_type_field()`)
+        and it matches the expected type field (via `klass._type_field()`).
+
+        Returns False otherwise.
+        '''
+        data_type_field = klass._get_type_field(data)
+        if data_type_field is None:
+            # This may be common for simply encoded stuff. Not sure. If so
+            # change to debug level.
+            log.warning("No type field in data. {}", data)
+            return False
+
+        class_type_field = klass._type_field()
+        if class_type_field is None:
+            msg = (f"Class {klass} returned 'None' from _type_field(). "
+                   "_type_field() is a required function. Cannot determine "
+                   f"type of data: {data}")
+            error = EncodableError(msg, None, None, data)
+            log.error(error, None, msg)
+            return False
+
+        return class_type_field == data_type_field
+
+    @classmethod
+    def _was_encoded_with_registry(klass: 'Encodable',
+                                   data:  EncodedEither) -> bool:
+        '''
+        Returns True if `data` is not `klass._encoded_simply()` type and has
+        klass._ENCODABLE_REG_FIELD key.
+        '''
+        if klass._encoded_simply(data):
+            return False
+
+        try:
+            return Encodable._ENCODABLE_REG_FIELD in data
+
+        # Think "x in data" is TypeError. Also catching KeyError just in case.
+        except (TypeError, KeyError):
+            return False
+
+        # How are you here, though?
+        return False
+
+    @classmethod
     def claim(klass: 'Encodable',
               data:  EncodedEither
               ) -> Tuple[bool, Optional[EncodedEither], Optional[str]]:
@@ -387,26 +464,28 @@ class Encodable:
         # ---
         # Simple?
         # ---
-        # Is it EncodedSimple?
+        # Is it EncodedSimple type and intended for this class?
         if klass._encoded_simply(data):
-            # print(f"{klass.__name__}.claim(): simple encoding..?: {type(data)} '{data}'''")
             # If it's a simple encode and we don't have a decode regex for
             # that, then... No; It can't be ours.
             decode_rx = klass._get_decode_rx()
-            # print(f"{klass.__name__}.claim(): decode_rx: {decode_rx}")
             if not decode_rx:
                 reason = (f"{klass.__name__} is (probably) encoded simply "
                           f"but has no {klass.__name__}._get_decode_rx(): "
                           f"rx: {decode_rx}, data: {data}")
-                # print(f"{klass.__name__}.claim(): no decode rx. {reason}")
                 return False, None, reason
 
             # Check if decode_rx likes the data.
             claimed = bool(decode_rx.match(data))
             data_claim = data if claimed else None
             reason = (None if claimed else "No regex match.")
-            # print(f"{klass.__name__}.claim(): Have decode_rx. claimed? {claimed}, data_claim: {data_claim}, reason: {reason}")
             return claimed, data_claim, None
+
+        # Does this class only do simple encode/decode?
+        if klass._encode_simple_only():
+            return (False,
+                    None,
+                    "Class only encodes simply and didn't match data.")
 
         # ---
         # Complex?
@@ -419,8 +498,7 @@ class Encodable:
             return True, data[klass._type_field()], None
 
         # Are we this whole thing?
-        if (klass._TYPE_FIELD_NAME in data
-                and klass._type_field() == data[klass._TYPE_FIELD_NAME]):
+        if klass._is_type_field(data):
             # Our type is in the 'type' field, so our claim is this whole
             # data thing.
             return True, data, None
@@ -507,21 +585,20 @@ class Encodable:
         encoded = None
         if not null_or_none(encodable):
             encoded = encodable.encode(encode_in_progress)
-        # print(f"{klass.__name__}.encode_or_none: {encodable} -> {encoded}")
         return encoded
 
     def encode_with_registry(self) -> EncodedComplex:
         '''
         Creates an output dict with keys: _ENCODABLE_REG_FIELD
-        and 'value'.
+        and _ENCODABLE_PAYLOAD_FIELD.
 
         Returns the output dict:
           output[_ENCODABLE_REG_FIELD]: result of `self.dotted()`
-          output['value']: result of `self.encode()`
+          output[_ENCODABLE_PAYLOAD_FIELD]: result of `self.encode()`
         '''
         return {
             Encodable._ENCODABLE_REG_FIELD: self.dotted(),
-            'value': self.encode(None),
+            Encodable._ENCODABLE_PAYLOAD_FIELD: self.encode(None),
         }
 
     @classmethod
@@ -534,19 +611,31 @@ class Encodable:
         Return a new `klass` instance.
         '''
         # ---
-        # Decode Simply?
-        # ---
-        if klass._encoded_simply(data):
-            # Yes. Do that thing.
-            return klass._decode_simple(data)
-
-        # ---
         # Decode at all?
         # ---
         if data is None:
             # Can't decode nothing; return nothing.
             return None
 
+        # ---
+        # Decode Simply?
+        # ---
+        if klass._encoded_simply(data):
+            # Yes. Do that thing.
+            return klass._decode_simple(data)
+
+        # Does this class only do simple encode/decode?
+        if klass._encode_simple_only():
+            msg = (f"Cannot decode data to '{klass.__name__}'. "
+                   "Class only encodes simply and didn't match data")
+            error = TypeError(data, msg)
+            raise log.exception(error, None,
+                                msg + ' data: {}',
+                                data)
+
+        # ---
+        # Decode Complexly?
+        # ---
         # Maybe; try claiming it to see if it has our type field in the right
         # place?
         klass.error_for_claim(data)
@@ -563,12 +652,12 @@ class Encodable:
         '''
         Input `data` must have keys:
           - Encodable._ENCODABLE_REG_FIELD
-          - 'value'
+          - Encodable._ENCODABLE_PAYLOAD_FIELD
         Raises KeyError if not present.
 
         Takes EncodedComplex `data` input, and uses
         `Encodable._ENCODABLE_REG_FIELD` key to find registered Encodable to
-        decode `data['value']`.
+        decode `data[Encodable._ENCODABLE_PAYLOAD_FIELD]`.
 
         Any kwargs supplied (except 'dotted' - will be ignored) are forwarded
         to EncodableRegistry.decode() (e.g. 'fallback').
@@ -596,10 +685,10 @@ class Encodable:
         if ('fallback' in kwargs
                 and Encodable._ENCODABLE_REG_FIELD not in data):
             # No hint as to what data is - use fallback.
-            log.debug("decode_with_registry: No {} in data; using fallback. "
-                      "data: {}, fallback: {}",
-                      Encodable._ENCODABLE_REG_FIELD,
-                      data, kwargs['fallback'])
+            log.warning("decode_with_registry: No {} in data; using fallback. "
+                        "data: {}, fallback: {}",
+                        Encodable._ENCODABLE_REG_FIELD,
+                        data, kwargs['fallback'])
             return kwargs['fallback']
 
         # ------------------------------
@@ -621,10 +710,11 @@ class Encodable:
                                 pretty_data)
 
         try:
-            encoded_data = data['value']
+            encoded_data = data[Encodable._ENCODABLE_PAYLOAD_FIELD]
         except KeyError:
             pretty_data = pretty.indented(data)
-            msg = ("decode_with_registry: data has no 'value' key. "
+            msg = ("decode_with_registry: data has no "
+                   f"'{Encodable._ENCODABLE_PAYLOAD_FIELD}' key. "
                    f"Cannot decode: {pretty_data}")
             raise log.exception(KeyError(Encodable._ENCODABLE_REG_FIELD,
                                          msg,
@@ -640,9 +730,10 @@ class Encodable:
         # to send to EncodableRegistry.decode().
         kwargs.pop('dotted', None)
 
-        return EncodableRegistry.decode(encoded_data,
-                                        dotted=dotted,
-                                        **kwargs)
+        decoded = EncodableRegistry.decode(encoded_data,
+                                           dotted=dotted,
+                                           **kwargs)
+        return decoded
 
     # -------------------------------------------------------------------------
     # Encoding: Entry Functions
@@ -922,8 +1013,9 @@ class Encodable:
             node = self._encode_map(value)
 
         elif isinstance(value, Encodable):
-            # Encode via its function.
-            node = value.encode(None)
+            # Encode via its function. Use `encode_with_registry` so we can
+            # know what it was encoded as during _decode_map().
+            node = value.encode_with_registry()
 
         elif isinstance(value, (enum.Enum, enum.IntEnum)):
             node = value.value
@@ -940,16 +1032,19 @@ class Encodable:
 
     @classmethod
     def decode_any(klass: 'Encodable',
-                   data:  EncodedComplex) -> Any:
+                   data:  EncodedComplex,
+                   expected_keys: Iterable[Type['Encodable']] = None) -> Any:
         '''
         Tries to decode `data`.
 
         If `data` is:
           - encodable: Must be registered to EncodableRegistry in order to
             decode properly.
-          - dict: Decode with _decode_map(). Returns another dict!
+          - dict: Decode with _decode_map() using `expected_keys`. Returns
+            another dict!
 
-        Else assume it is already decoded and return as-is.
+        Else assume it is already decoded or is basic data and returns it
+        as-is.
         '''
         # log.debug(f"{klass.__name__}.decode_any: {data}")
 
@@ -965,16 +1060,18 @@ class Encodable:
         decoded = None
         if isinstance(data, dict):
             # Decode via our map helper.
-            decoded = klass._decode_map(data)
+            decoded = klass._decode_map(data, expected_keys)
 
         # Finally... I dunno. Leave as-is?
         else:
-            # Assume that whatever it is, it is decoded.
-            if not isinstance(data, (str, int, float)):
+            # Warn if not a type we've thought about.
+            if (not isinstance(data, numbers.NumberTypesTuple)
+                    or not isinstance(data, str)):
                 log.warning(f"{klass.__name__}.decode_any: unknown "
                             f"type of data {type(data)}. Assuming it's "
                             "decoded already or doesn't need to be. {}",
                             data)
+            # Assume that whatever it is, it is decoded.
             decoded = data
 
         # log.debug(f"{klass.__name__}.decode_any: Done. {decoded}")
@@ -991,12 +1088,18 @@ class Encodable:
         # log.debug(f"\n\nlogging._decode_map {type(mapping)}: {mapping}\n\n")
 
         # ---
+        # Can we decode the whole dict as something?
+        # ---
+        if klass._was_encoded_with_registry(mapping):
+            return klass.decode_with_registry(mapping)
+
+        # ---
         # Decode the Base Level
         # ---
         decoded = {}
         for key, value in mapping.items():
             field = klass._decode_key(key, expected_keys)
-            node = klass._decode_value(value)
+            node = klass._decode_value(value, expected_keys)
             decoded[field] = node
 
         # ---
@@ -1048,9 +1151,14 @@ class Encodable:
         return field
 
     @classmethod
-    def _decode_value(klass: 'Encodable', value: Any) -> str:
+    def _decode_value(klass: 'Encodable',
+                      value: Any,
+                      expected_keys: Iterable[Type['Encodable']] = None
+                      ) -> str:
         '''
         Decode a mapping's value.
+
+        Passes `expected_keys` along to _decode_map() if value is a dict.
 
         Encodable is pretty stupid. dict and Encodable are further decoded -
         everything else is just assumed to be decoded alreday. Override or
@@ -1060,11 +1168,14 @@ class Encodable:
         # log.debug(f"\n\nlogging._decode_value {type(value)}: {value}\n\n")
         node = None
         if isinstance(value, dict):
-            node = klass._decode_map(value)
+            node = klass._decode_map(value, expected_keys)
 
-        elif isinstance(value, Encodable):
-            # Decode via its function.
-            node = value.decode()
+        # You... this... How can I be this stupid sometimes, really...
+        # *facepalm* We're decoding something. It /really/ shouldn't be an
+        # Encodable right now...
+        # elif isinstance(value, Encodable):
+        #     # Decode via its function.
+        #     node = value.decode_with_registry()
 
         else:
             # Simple value like int, str? Hopefully?
@@ -1180,6 +1291,13 @@ class EncodableRegistry(CallRegistrar):
                   f"dotted: {dotted}, data_type: {data_type}")
 
         registree = None
+
+        # ---
+        # Too simple?
+        # ---
+        if isinstance(data, numbers.NumberTypesTuple):
+            # A number just decodes to itself.
+            return data
 
         # ---
         # Use dotted name?
@@ -1303,10 +1421,6 @@ class EncodableRegistry(CallRegistrar):
             claiming, claim, reason = node.claim(data)
             if claiming:
                 # Yes; return decoded result.
-                # print(f"\nplace entry? {key}: {node}")
-                # print(f"   claiming? {claiming}")
-                # print(f"     reason: {reason}")
-                # print(f"      claim: {claim}\n")
                 return node
 
             # Else, not this; continue looking.

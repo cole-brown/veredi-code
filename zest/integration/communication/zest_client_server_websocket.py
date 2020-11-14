@@ -52,6 +52,7 @@ from veredi.interface.mediator.context          import MessageContext
 from veredi.interface.mediator.payload.logging  import (LogPayload,
                                                         LogReply,
                                                         LogField,
+                                                        Validity,
                                                         _NC_LEVEL)
 
 
@@ -59,7 +60,7 @@ from veredi.interface.mediator.payload.logging  import (LogPayload,
 # Constants
 # -----------------------------------------------------------------------------
 
-LOG_LEVEL = log.Level.INFO
+LOG_LEVEL = log.Level.INFO  # DEBUG
 '''Test should set this to desired during setUp()'''
 
 
@@ -403,6 +404,9 @@ class Test_WebSockets(ZestIntegrateMultiproc):
                       payload=None)
         client.pipe.send((msg, self.msg_context(mid)))
 
+        # Wait a bit for all the interprocess communicating to happen.
+        self.wait(0.5)
+
         # Received "you're connected now" back?
         recv, ctx = client.pipe.recv()
 
@@ -414,6 +418,17 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertEqual(recv.type, MsgType.ACK_CONNECT)
         self.assertIsNotNone(recv.user_id)
 
+        # Server->game. Server sends game user info when they connect.
+        self.assertTrue(self.proc.server.has_data())
+        recv, ctx = self.proc.server.recv()
+        self.assertIsNotNone(recv)
+        self.assertIsNotNone(ctx)
+        self.assertIsInstance(recv, Message)
+        self.assertIsInstance(recv.msg_id, Message.SpecialId)
+        self.assertEqual(recv.msg_id, Message.SpecialId.CONNECT)
+        self.assertEqual(recv.type, MsgType.CONNECT)
+
+        # Ok; now everyone should be empty.
         self.assert_empty_pipes()
 
     # =========================================================================
@@ -639,7 +654,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertEqual(mid, client_recv_msg.msg_id)
         self.assertEqual(client_send.msg_id, client_recv_msg.msg_id)
         self.assertEqual(client_recv_msg.type, MsgType.ACK_ID)
-        ack_id = mid.decode(client_recv_msg.payload)
+        ack_id = client_recv_msg.payload
         self.assertIsInstance(ack_id, type(mid))
 
         # ---
@@ -720,7 +735,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertEqual(mid, server_recv_msg.msg_id)
         self.assertEqual(server_send.msg_id, server_recv_msg.msg_id)
         self.assertEqual(server_recv_msg.type, MsgType.ACK_ID)
-        ack_id = mid.decode(server_recv_msg.payload)
+        ack_id = server_recv_msg.payload
         self.assertIsInstance(ack_id, type(mid))
 
         # Make sure we don't have anything in the queues...
@@ -918,11 +933,11 @@ class Test_WebSockets(ZestIntegrateMultiproc):
 
         # Got reply for our level request?
         self.assertIsInstance(level, LogReply)
-        self.assertEqual(level.valid, LogReply.Valid.VALID)
+        self.assertEqual(level.valid, Validity.VALID)
 
         # Got /valid/ reply?
         self.assertTrue(LogReply.validity(level.value, _NC_LEVEL),
-                        LogReply.Valid.VALID)
+                        Validity.VALID)
 
         # Client reports they're now at the level we requested?
         self.assertEqual(level.value, log.Level.DEBUG)

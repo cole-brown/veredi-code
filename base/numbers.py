@@ -8,7 +8,7 @@ Helper functions for dealing with numbers.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, NewType
+from typing import Union, Any, NewType
 
 import decimal
 from decimal import Decimal
@@ -78,6 +78,13 @@ def from_str(string: str) -> NumberTypes:
             return int_val
 
     return number
+
+
+def is_number(input: Any) -> bool:
+    '''
+    Checks type of input. Returns
+    '''
+    return isinstance(input, NumberTypesTuple)
 
 
 # -----------------------------------------------------------------------------
