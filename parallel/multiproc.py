@@ -596,7 +596,13 @@ def _subproc_entry(context: VerediContext) -> None:
 
     # Sub-proc will ignore sig-int; primarily pay attention to shutdown flag.
     _sigint_ignore()
-    log_client.init(initial_log_level)
+
+    # Start up the logging client
+    log_is_server = ConfigContext.log_is_server(context)
+    if not log_is_server:
+        proc_log.debug(f"log_client: '{proc.name}' "
+                       f"log_client.init({initial_log_level}).")
+        log_client.init(initial_log_level)
 
     # ------------------------------
     # More Sanity
@@ -643,7 +649,9 @@ def _subproc_entry(context: VerediContext) -> None:
     # ------------------------------
     # Won't reach here until sub-proc is shutdown or dies.
     # ------------------------------
-    log_client.close()
+    if not log_is_server:
+        proc_log.debug(f"log_client: '{proc.name}' log_client.close().")
+        log_client.close()
     proc_log.debug(f"Process '{proc.name}' done.")
 
 

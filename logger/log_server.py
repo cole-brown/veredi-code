@@ -187,7 +187,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
             handler:         logging.Handler = LogRecordStreamHandler
     ) -> None:
         socketserver.ThreadingTCPServer.__init__(self, (host, port), handler)
-        self.timeout = 1
+        self.timeout = 0.5
         self.logname = None
         self.shutdown_flag = shutdown_flag
         self.ignore_flag = ignore_flag
@@ -248,6 +248,9 @@ def init(process_name: str = 'veredi.log.server',
 
     # Grab ut flag from background?
     ut_flagged = background.testing.get_unit_testing()
+
+    # We are the log_server, so... tell the multiproc code that.
+    ConfigContext.set_log_is_server(context, True)
 
     # ---
     # Init
