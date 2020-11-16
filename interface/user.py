@@ -9,7 +9,7 @@ Class to hold User data. UserId, UserKey, username, EntityIds, etc...
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Callable, Set, Tuple)
+                    Optional, Callable, Set, Tuple, Iterable)
 if TYPE_CHECKING:
     from ..message import Message
 
@@ -30,12 +30,12 @@ from .mediator.context             import (MessageContext,
 
 
 # -----------------------------------------------------------------------------
-# Code
+# The basest of the users?
 # -----------------------------------------------------------------------------
 
-class User:
+class BaseUser:
     '''
-    Container of user data. UserId, UserKey, username, EntityIds, etc...
+    Base class of user data like: UserId, UserKey, username, EntityIds, etc...
     '''
 
     # -------------------------------------------------------------------------
@@ -54,27 +54,7 @@ class User:
         '''User's UserKey'''
 
         self._connection: UserConnToken = USER_CONN_INVALID
-        '''User's UserKey'''
-
-        self._entity_prime: EntityId = EntityId.INVALID
-        '''
-        User's primary EntityId. Most users are just players and this will be
-        their player character's EntityId.
-        '''
-
-        self._entity_ids: Set[EntityId] = set()
-        '''
-        The EntityIds for all of the user's current entities (primary
-        included).
-
-        For players: Main PC, side-kick, minions, whatever.
-        For DM: NPCs, monsters, etc.
-        '''
-
-        self._tx_queue: Optional[asyncio.Queue] = None
-        '''
-        User's queue of messages to send. Only exists if user is connected.
-        '''
+        '''Token representing a user's connection to the server.'''
 
         # I'd like this to be a Callable[[str, *Any, **Any], None], but that is
         # impossible. Typing doesn't support *args/**kwargs yet.
@@ -87,8 +67,7 @@ class User:
                  user_id:  UserId,
                  user_key: UserKey,
                  conn:     UserConnToken,
-                 debug:    Optional[Callable]      = None,
-                 tx_queue: Optional[asyncio.Queue] = None) -> None:
+                 debug:    Optional[Callable]      = None) -> None:
         self._define_vars()
 
         self._uid = user_id
@@ -96,7 +75,6 @@ class User:
         self._connection = conn
 
         self.debug = debug
-        self._tx_queue = tx_queue
 
     # -------------------------------------------------------------------------
     # Properties
@@ -124,59 +102,6 @@ class User:
         '''
         self._ukey = value
 
-    @property
-    def entity_prime(self) -> EntityId:
-        '''
-        Returns User's primary entity's EntityId. Could be EntityId.INVALID.
-        '''
-        return self._entity_prime
-
-    @entity_prime.setter
-    def entity_prime(self, value: EntityId) -> None:
-        '''
-        Sets User's primary entity's EntityId. Set to EntityId.INVALID if
-        'unset' is desired.
-        '''
-        self._entity_prime = value
-
-    @property
-    def entity_ids(self) -> Set[EntityId]:
-        '''
-        Returns all of User's EntityIds. Could be empty.
-        '''
-        return self._entity_ids
-
-    @entity_ids.setter
-    def entity_ids(self, value: Set[EntityId]) -> None:
-        '''
-        Sets User's full list of all their EntityIds. Set to an empty set if
-        'unset' is desired.
-        '''
-        self._entity_ids = value
-
-    def add_entity(self,
-                   entity_id: EntityId,
-                   is_prime:  bool = False) -> None:
-        '''
-        Add to the user's full set of EntityIds. If 'is_prime' is set,
-        overwrites `self._entity_prime` field. Does not remove old entity_prime
-        from current set.
-        '''
-        self._entity_ids.add(entity_id)
-        if is_prime:
-            self._entity_prime = entity_id
-
-    def remove_entity(self,
-                      entity_id: EntityId) -> None:
-        '''
-        Removes `entity_id` from the user's full set of EntityIds. If
-        `entity_id` is `self._entity_prime`, then this also sets
-        `self._entity_prime` to EntityId.INVALID.
-        '''
-        self._entity_ids.discard(entity_id)
-        if self._entity_prime == entity_id:
-            self._entity_prime = EntityId.INVALID
-
     # 'debug' is just a public variable - no getter/setter properties.
 
     @property
@@ -185,6 +110,79 @@ class User:
         User's (socket) connection token.
         '''
         return self._connection
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}: "
+            f"id: {self.id}, "
+            f"key: {self.key}, "
+            f"conn: {self.connection}"
+            f"debug: {self.debug}"
+        )
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"{self.id}, "
+            f"{self.key}, "
+            f"{self.connection}, "
+            f"debug={self.debug})"
+        )
+
+    def __hash__(self) -> int:
+        '''
+        Returns a hash of the User based on User.hash(), which should not rely
+        on memory location or anything - it will hash a user based on identity
+        of the user themself.
+
+        In other words: two separate instances of a user that refer to the same
+        specific client user must have the same hash.
+        '''
+        return hash(self._uid)
+
+
+# -----------------------------------------------------------------------------
+# User Connection
+# -----------------------------------------------------------------------------
+
+class UserConn(BaseUser):
+    '''
+    Container of user data for MediatorServer. Includes their tx_queue.
+    '''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        super()._define_vars()
+
+        self._tx_queue: Optional[asyncio.Queue] = None
+        '''
+        User's queue of messages to send. Only exists if user is connected.
+        '''
+
+    def __init__(self,
+                 user_id:  UserId,
+                 user_key: UserKey,
+                 conn:     UserConnToken,
+                 debug:    Optional[Callable]      = None,
+                 tx_queue: Optional[asyncio.Queue] = None) -> None:
+        super().__init__(user_id, user_key, conn, debug)
+        self._tx_queue = tx_queue
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    # 'debug' is just a public variable - no getter/setter properties.
 
     @property
     def queue(self) -> asyncio.Queue:
@@ -257,16 +255,139 @@ class User:
             f"{self.__class__.__name__}("
             f"{self.id}, "
             f"{self.key}, "
-            f"{self.connection})"
+            f"{self.connection}, "
+            f"tx_queue={self._tx_queue})"
         )
 
-    def __hash__(self) -> int:
-        '''
-        Returns a hash of the User based on User.hash(), which should not rely
-        on memory location or anything - it will hash a user based on identity
-        of the user themself.
 
-        In other words: two separate instances of a user that refer to the same
-        specific client user must have the same hash.
+# -----------------------------------------------------------------------------
+# User and Entity
+# -----------------------------------------------------------------------------
+
+class UserPassport(BaseUser):
+    '''
+    Container of user data. UserId, UserKey, username, EntityIds, etc...
+    '''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def _define_vars(self) -> None:
         '''
-        return hash(self._uid)
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        super()._define_vars()
+
+        self._entity_prime: EntityId = EntityId.INVALID
+        '''
+        User's primary EntityId. Most users are just players and this will be
+        their player character's EntityId.
+        '''
+
+        self._entity_ids: Set[EntityId] = set()
+        '''
+        The EntityIds for all of the user's current entities (primary
+        included).
+
+        For players: Main PC, side-kick, minions, whatever.
+        For DM: NPCs, monsters, etc.
+        '''
+
+    def __init__(self,
+                 user_id:      UserId,
+                 user_key:     UserKey,
+                 conn:         UserConnToken,
+                 entity_prime: Optional[EntityId]           = None,
+                 entity_ids:   Optional[Iterable[EntityId]] = None,
+                 debug:        Optional[Callable]           = None) -> None:
+        super().__init__(user_id, user_key, conn, debug)
+
+        self._entity_prime = entity_prime
+        self._entity_ids = entity_ids
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @property
+    def entity_prime(self) -> EntityId:
+        '''
+        Returns User's primary entity's EntityId. Could be EntityId.INVALID.
+        '''
+        print(f"user.entity_prime getter: {self._entity_prime}")
+        return self._entity_prime
+
+    @entity_prime.setter
+    def entity_prime(self, value: EntityId) -> None:
+        '''
+        Sets User's primary entity's EntityId. Set to EntityId.INVALID if
+        'unset' is desired.
+        '''
+        self._entity_prime = value
+        print(f"user.entity_prime setter: self._entity_prime <- {value}")
+
+    @property
+    def entity_ids(self) -> Set[EntityId]:
+        '''
+        Returns all of User's EntityIds. Could be empty.
+        '''
+        return self._entity_ids
+
+    @entity_ids.setter
+    def entity_ids(self, value: Set[EntityId]) -> None:
+        '''
+        Sets User's full list of all their EntityIds. Set to an empty set if
+        'unset' is desired.
+        '''
+        self._entity_ids = value
+
+    def add_entity(self,
+                   entity_id: EntityId,
+                   is_prime:  bool = False) -> None:
+        '''
+        Add to the user's full set of EntityIds. If 'is_prime' is set,
+        overwrites `self._entity_prime` field. Does not remove old entity_prime
+        from current set.
+        '''
+        self._entity_ids.add(entity_id)
+        if is_prime:
+            self._entity_prime = entity_id
+
+    def remove_entity(self,
+                      entity_id: EntityId) -> None:
+        '''
+        Removes `entity_id` from the user's full set of EntityIds. If
+        `entity_id` is `self._entity_prime`, then this also sets
+        `self._entity_prime` to EntityId.INVALID.
+        '''
+        self._entity_ids.discard(entity_id)
+        if self._entity_prime == entity_id:
+            self._entity_prime = EntityId.INVALID
+
+    # 'debug' is just a public variable - no getter/setter properties.
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}: "
+            f"id: {self.id}, "
+            f"key: {self.key}, "
+            f"entity_prime: {self.entity_prime}, "
+            f"entity_ids: {self.entity_ids}, "
+            f"debug: {self.debug}"
+        )
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"{self.id}, "
+            f"{self.key}, "
+            f"{self.connection}, "
+            f"entity_prime={self.entity_prime}, "
+            f"entity_ids={self.entity_ids}, "
+            f"debug={self.debug})"
+        )

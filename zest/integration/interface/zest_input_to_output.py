@@ -41,9 +41,8 @@ from veredi.game.ecs.base.entity            import Entity
 from veredi.game.data.event                 import (DataLoadRequest,
                                                     DataLoadedEvent)
 
-from veredi.interface.user                  import User
+from veredi.interface.user                  import UserPassport
 from veredi.interface.input.event           import CommandInputEvent
-from veredi.interface.input.context         import InputContext
 from veredi.interface.output.system         import OutputSystem
 from veredi.interface.output.envelope       import Envelope
 from veredi.interface.output.event          import Recipient
@@ -134,7 +133,7 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
         uid  = self._uid_gen.next("jeff")
         ukey = self._ukey_gen.next("jeff")
         conn = USER_CONN_INVALID
-        background.users.add_connected(User(uid, ukey, conn))
+        background.users.add_connected(UserPassport(uid, ukey, conn))
 
     # -------------------------------------------------------------------------
     # Entity/Component Test Set-Up

@@ -63,7 +63,7 @@ from veredi.game.ecs.base.component      import Component
 from veredi.game.data.identity.component import IdentityComponent
 from veredi.game.data.identity.system    import IdentitySystem
 
-from ..user                              import User
+from ..user                              import UserPassport
 from ..output.envelope                   import Envelope
 
 
@@ -418,26 +418,19 @@ class MediatorSystem(System):
         # ------------------------------
         # Get identity.
         # ------------------------------
-        entity = self._log_get_entity(event.id,
-                                      event=event)
-        if not entity:
-            # Entity disappeared, and that's ok.
+        id_sys = self._manager.system.get(IdentitySystem)
+        if not id_sys:
+            self._log.warning("Cannot send event; couldn't find the "
+                              "IdentitySystem: {}",
+                              id_sys)
             return
 
-        # Normal for entities or components to go away, but
-        # IdentityComponent should be for the entity's lifetime, and we
-        # need UserId/UserKey from somewhere.
-        ident = entity.get(IdentityComponent)
-        if not ident:
-            self._log.warning("Cannot send event; entity has no "
-                              "IdentityComponent to demark receipient: {}",
-                              event)
-            return
-        user_id = ident.user_id
-        user_key = ident.user_key
+        entity_id = event.id
+        user_id = id_sys.user_id(entity_id)
+        user_key = id_sys.user_key(entity_id)
         if not user_id:
-            self._log.warning("Cannot send event; entity's IdentityComponent "
-                              "has no UserId/UserKey to demark receipient: "
+            self._log.warning("Cannot send event; IdentitySystem didn't have "
+                              "a user_id for the entity to demark receipient: "
                               "{}, {}. event: {}",
                               user_id, user_key, event)
             # Normal for entities or components to go away, but
@@ -466,6 +459,7 @@ class MediatorSystem(System):
                            msg_type,
                            user_id=user_id,
                            user_key=user_key,
+                           entity_id=entity_id,
                            # Don't Forget the Payload...
                            #            >.>
                            payload=event.payload)
@@ -575,18 +569,17 @@ class MediatorSystem(System):
         them from connected as indicated.
         '''
         if message.type == MsgType.CONNECT:
-            # Create connected User(), add to background so other systems can
-            # translate user_id to useful info (e.g. entity)?
-            user = User(message.user_id,
-                        message.user_key,
-                        message.connection)
+            # Create UserPassport for our connected user, add to background so
+            # other systems can translate user_id to useful info (e.g. entity)?
+            user = UserPassport(message.user_id,
+                                message.user_key,
+                                message.connection)
             background.users.add_connected(user)
             return
 
         elif message.type == MsgType.DISCONNECT:
             # Remove user from background data.
-            user = User.for_comparison(message.user_id)
-            background.users.remove_connected(user)
+            background.users.remove_connected(message.user_id)
             return
 
         # Else it's somehow valid but we don't know how...
@@ -866,6 +859,15 @@ class MediatorSystem(System):
         '''
         Structured death phase. We actually shut down our MediatorServer now.
         '''
+        timed_out = self._manager.time.is_timed_out(
+                None,
+                self.timeout_desired(SystemTick.APOCALYPSE),
+                use_engine_timer=True)
+        log.info(f"apoc time: timing?: {self._manager.time.timer.timing} "
+                 f"timer: {self._manager.time.timer}, "
+                 f"timeout desired: {self.timeout_desired(SystemTick.APOCALYPSE)}, "
+                 f"timed out?: {timed_out}")
+
         # Set to failure state if over time.
         if self._manager.time.is_timed_out(
                 None,
@@ -874,6 +876,11 @@ class MediatorSystem(System):
             # Don't care about tear_down_end result; we'll check it with
             # exitcode_healthy().
             multiproc.nonblocking_tear_down_end(self.server)
+
+            if exit_health == VerediHealth.FATAL:
+                log.error("MediatorServer exit failure. "
+                          f"Exitcode: {self.server.process.exitcode}")
+
             # Update with exitcode's health, and...
             exit_health = self.server.exitcode_healthy(
                 VerediHealth.APOCALYPSE_DONE,
