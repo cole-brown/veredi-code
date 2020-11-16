@@ -161,8 +161,8 @@ class MathSystem(System):
 
     @classmethod
     def dotted(klass: 'MathSystem') -> str:
-        # self._DOTTED magically provided by @register
-        return self._DOTTED
+        # klass._DOTTED magically provided by @register
+        return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

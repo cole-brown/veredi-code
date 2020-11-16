@@ -172,8 +172,8 @@ class InputSystem(System):
 
     @classmethod
     def dotted(klass: 'InputSystem') -> str:
-        # self._DOTTED magically provided by @register
-        return self._DOTTED
+        # klass._DOTTED magically provided by @register
+        return klass._DOTTED
 
     @property
     def historian(self) -> Historian:

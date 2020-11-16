@@ -293,22 +293,22 @@ class System(ABC):
     def dotted(klass: 'System') -> str:
         '''
         The dotted name this system has. If the system uses '@register', you
-        still have to implement dotted, but you get self._DOTTED for free
+        still have to implement dotted, but you get klass._DOTTED for free
         (the @register decorator sets it).
 
         E.g.
           @register('veredi', 'jeff', 'system')
         would be:
-          self._DOTTED = 'veredi.jeff.system'
+          klass._DOTTED = 'veredi.jeff.system'
 
         So just implement like this:
 
             @classmethod
             def dotted(klass: 'JeffSystem') -> str:
-                # self._DOTTED magically provided by @register
-                return self._DOTTED
+                # klass._DOTTED magically provided by @register
+                return klass._DOTTED
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.dotted() "
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
                                   "is not implemented in base class. "
                                   "Subclasses should get it defined via "
                                   "@register, or else define it themselves.")

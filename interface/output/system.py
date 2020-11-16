@@ -218,7 +218,7 @@ class OutputSystem(System):
 
     @classmethod
     def dotted(klass: 'OutputSystem') -> str:
-        # self._DOTTED magically provided by @register
+        # klass._DOTTED magically provided by @register
         return klass._DOTTED
 
     # -------------------------------------------------------------------------

@@ -126,8 +126,8 @@ class SkillSystem(D20RulesSystem):
 
     @classmethod
     def dotted(klass: 'SkillSystem') -> str:
-        # self._DOTTED magically provided by @register
-        return self._DOTTED
+        # klass._DOTTED magically provided by @register
+        return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
