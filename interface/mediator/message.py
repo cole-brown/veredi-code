@@ -34,7 +34,7 @@ from veredi.data.identity          import UserId, UserKey
 from veredi.game.ecs.base.identity import EntityId
 
 
-from ..user                        import User
+from ..user                        import UserPassport
 from .const                        import MsgType
 from .payload.base                 import BasePayload
 from .payload.bare                 import BarePayload
@@ -493,6 +493,7 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
         '''
+
         klass.error_for(data,
                         keys=[
                             'msg_id', 'type',
@@ -618,11 +619,11 @@ class ConnectionMessage(Message,
     # Helpers
     # -------------------------------------------------------------------------
 
-    def user(self) -> User:
+    def user(self) -> UserPassport:
         '''
-        Create a User instance with our Connection information.
+        Create a UserPassport instance with our Connection information.
         '''
-        return User(self.user_id, self.user_key, self.connection)
+        return UserPassport(self.user_id, self.user_key, self.connection)
 
 
 # Hit a brick wall trying to get an Encodable enum's dotted through to

@@ -47,7 +47,7 @@ from ..message                   import Message, ConnectionMessage
 from ..context                   import (MediatorServerContext,
                                          MessageContext,
                                          UserConnToken)
-from ...user                     import User
+from ...user                     import UserConn
 from ...output.envelope          import Envelope, Address
 from ...output.event             import Recipient
 
@@ -317,7 +317,7 @@ class ClientRegistry:
     def register(self,
                  user_id:  UserId,
                  user_key: Optional[UserKey],
-                 conn:     UserConnToken) -> User:
+                 conn:     UserConnToken) -> UserConn:
         '''
         Creates a User instance and indexes it by all the things we
         can get it by.
@@ -329,9 +329,10 @@ class ClientRegistry:
                                 None,
                                 msg)
 
-        user = User(user_id, user_key, conn, self.debug,
-                    # Create a queue for the user.
-                    asyncio.Queue())
+        user = UserConn(user_id, user_key, conn,
+                        debug=self.debug,
+                        # Create a queue for the user.
+                        tx_queue=asyncio.Queue())
 
         self._id[user_id] = user
         # TODO: make user_key required?
@@ -370,21 +371,21 @@ class ClientRegistry:
     # Getters / Setters
     # ------------------------------
 
-    def id(self, user: UserId) -> Nullable[User]:
+    def id(self, user: UserId) -> Nullable[UserConn]:
         '''
         Get by user's id.
         Returns Null() if it can't find client.
         '''
         return self._id.get(user, Null())
 
-    def key(self, user: UserKey) -> Nullable[User]:
+    def key(self, user: UserKey) -> Nullable[UserConn]:
         '''
         Get by user's key.
         Returns Null() if it can't find client.
         '''
         return self._key.get(user, Null())
 
-    def connection(self, user: UserConnToken) -> Nullable[User]:
+    def connection(self, user: UserConnToken) -> Nullable[UserConn]:
         '''
         Get by user's connection token.
         Returns Null() if it can't find client.
@@ -394,7 +395,7 @@ class ClientRegistry:
     def get(self,
             user_id:  UserId,
             user_key: Optional[UserKey],
-            conn:     UserConnToken) -> Nullable[User]:
+            conn:     UserConnToken) -> Nullable[UserConn]:
         '''
         Get when you don't know what to use to get.
         Will return Null if nothing found.
@@ -820,9 +821,13 @@ class WebSocketServer(WebSocketMediator):
 
             # Have actual users for this type of recipient. Make a message for
             # each of them.
-            await self._address_to_messages(address, envelope, context)
+            await self._address_to_messages(message.msg_id,
+                                            address,
+                                            envelope,
+                                            context)
 
     async def _address_to_messages(self,
+                                   msg_id:   MonotonicId,
                                    address:  Address,
                                    envelope: Envelope,
                                    context:  VerediContext) -> None:
@@ -851,7 +856,9 @@ class WebSocketServer(WebSocketMediator):
 
             # Generate the message for this user at this address's
             # security.abac.Subject value/level.
-            message = envelope.message(address.security_subject, user)
+            message = envelope.message(msg_id,
+                                       address.security_subject,
+                                       user)
             if not message:
                 log.error("Failed to create message for use from Envelope. "
                           "User: {}, Access: {}, Envelope: {}",

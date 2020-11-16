@@ -117,6 +117,11 @@ class IdentityComponent(DataComponent):
         controlling that character this session.
         '''
 
+        self._prime_entity: bool = False
+        '''
+        Set to true if this is the user's primary entity. Or only entity.
+        '''
+
     def _verify(self,
                 data: Union[MutableMapping[str, Any], Literal[False]],
                 requirements: MutableMapping[str, Any]) -> None:
@@ -164,6 +169,25 @@ class IdentityComponent(DataComponent):
         if not names:
             return None
         return ' '.join(names)
+
+    # -------------------------------------------------------------------------
+    # Property: User <-> Entity
+    # -------------------------------------------------------------------------
+
+    @property
+    def entity_prime(self) -> bool:
+        '''
+        Returns True if this is the primary entity for its UserId.
+        '''
+        return self._entity_prime
+
+    @entity_prime.setter
+    def entity_prime(self, value: bool) -> None:
+        '''
+        Set 'primary entity' flag for this entity/user.
+        '''
+        self._entity_prime = value
+        print(f"user.entity_prime setter: self._entity_prime <- {value}")
 
     # -------------------------------------------------------------------------
     # Properties: General Entity Names

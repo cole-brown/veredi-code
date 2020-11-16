@@ -71,7 +71,7 @@ from veredi.data.config.context                 import ConfigContext
 # Mediation
 # ---
 from veredi.interface.mediator.const            import MsgType
-from veredi.interface.user                      import User
+from veredi.interface.user                      import UserPassport
 from veredi.interface.mediator.message          import Message
 from veredi.interface.mediator.websocket.client import WebSocketClient
 from veredi.interface.mediator.context          import MessageContext
@@ -112,6 +112,8 @@ from veredi.math.d20                            import tree
 # ---
 from veredi.data.codec.json                     import codec
 from veredi.rules.d20.pf2.health.component      import HealthComponent
+import veredi.interface.mediator.websocket.server
+import veredi.interface.mediator.websocket.client
 # Should be all our Encodables.
 import veredi.data.codec.provide
 
@@ -685,7 +687,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
             self.assertEqual(len(user_list), 1)
             user = user_list[0]
             self.assertIsNotNone(user)
-            self.assertIsInstance(user, User)
+            self.assertIsInstance(user, UserPassport)
             self.assertEqual(user.id, client.user_id)
             self.assertEqual(user.key, client.user_key)
             self.assertEqual(event_mediator.id, self.entity.id)

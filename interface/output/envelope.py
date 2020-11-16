@@ -46,7 +46,7 @@ from veredi.game.ecs.base.identity import EntityId
 from veredi.data.identity          import UserId, UserKey
 
 from .event                        import OutputEvent, Recipient
-from ..user                        import User
+from ..user                        import BaseUser
 
 from ..mediator.const              import MsgType
 from ..mediator.message            import Message
@@ -99,9 +99,9 @@ class Address(Encodable, dotted='veredi.interface.output.address'):
         '''
 
     def __init__(self,
-                 recipient: Recipient,
+                 recipient:        Recipient,
                  security_subject: abac.Subject,
-                 users: List[User]) -> None:
+                 users:            List[BaseUser]) -> None:
         '''
         Ignores any Falsy users. Saves the UserIds of the rest.
         '''
@@ -375,9 +375,9 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
         return self._addresses.get(recipient, None)
 
     def set_address(self,
-                    recipient:    Recipient,
+                    recipient:        Recipient,
                     security_subject: 'abac.Subject',
-                    users:        Iterable[User]) -> None:
+                    users:            Iterable[BaseUser]) -> None:
         '''
         Set/overwrite an address for the recipient.
         '''
@@ -400,8 +400,9 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
     # -------------------------------------------------------------------------
 
     def message(self,
+                msg_id:           'MonotonicId',
                 security_subject: 'abac.Subject',
-                user:             User) -> Optional[Message]:
+                user:             BaseUser) -> Optional[Message]:
         '''
         Creates a message for the `user` at `security_subject`.
 
@@ -426,10 +427,11 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
         # -------------------------------
         # Build Message
         # -------------------------------
-        message = Message(None,
+        log.ultra_hyper_debug(user, title="Envelope Message:")
+        message = Message(msg_id,
                           MsgType.ENCODED,
                           payload=payload,
-                          entity_id=user.entity_prime,
+                          # entity_id=user.entity_prime,
                           user_id=user.id,
                           user_key=user.key,
                           subject=security_subject)

@@ -31,11 +31,10 @@ if TYPE_CHECKING:
     from veredi.game.ecs.base.system       import System, SystemLifeCycle
     from veredi.interface.input.parse      import Parcel
     from .config                           import Configuration
-    from veredi.base.identity              import MonotonicId, SerializableId
     from veredi.game.ecs.base.identity     import EntityId
     from veredi.data.identity              import UserId, UserKey
     from veredi.interface.mediator.context import UserConnToken
-    from veredi.interface.user             import User
+    from veredi.interface.user             import UserPassport
 
 import enum
 import pathlib
@@ -823,25 +822,25 @@ class users:
 
     @classmethod
     def connected(klass: Type['users'],
-                  id:    Optional[UserIdTypes]) -> List['User']:
+                  id:    Optional[UserIdTypes]) -> List['UserPassport']:
         '''
-        Returns a User, if they exist in the connected users collection.
-        If `id` is Falsy, returns all connected users.
+        Returns a UserPassport, if they exist in the connected users
+        collection. If `id` is Falsy, returns all connected users.
         '''
         return klass._filter_users(klass._connected(), id)
 
     @classmethod
     def known(klass: Type['users'],
-              id:    Optional[UserIdTypes]) -> List['User']:
+              id:    Optional[UserIdTypes]) -> List['UserPassport']:
         '''
-        Returns a User, if they exist in the known users collection.
+        Returns a UserPassport, if they exist in the known users collection.
         If `id` is Falsy, returns all known users.
         '''
         return klass._filter_users(klass._known(), id)
 
     @classmethod
     def super(klass: Type['users'],
-              id:    Optional[UserIdTypes]) -> List['User']:
+              id:    Optional[UserIdTypes]) -> List['UserPassport']:
         '''
         Returns all matched superuser ids found in the super users collection.
         If `id` is Falsy, returns all GMs.
@@ -850,7 +849,7 @@ class users:
 
     @classmethod
     def gm(klass: Type['users'],
-           id:    Optional[UserIdTypes]) -> List['User']:
+           id:    Optional[UserIdTypes]) -> List['UserPassport']:
         '''
         Returns all matched GM ids found in the super users collection.
         If `id` is Falsy, returns all GMs.
@@ -866,12 +865,13 @@ class users:
 
     @classmethod
     def add_connected(klass: Type['users'],
-                      user:  'User') -> None:
+                      user:  'UserPassport') -> None:
         '''
         Adds user to 'connected' (user) collection.
 
         If `user` already exists in the collection (as defined by Python's
-        set() functionality and User.__hash__()), this will overwrite it.
+        set() functionality and UserPassport.__hash__()), this will overwrite
+        it.
         '''
         connected = klass._connected()
         connected.set(user.id, user.connection, user)
@@ -883,24 +883,26 @@ class users:
 
     @classmethod
     def add_known(klass: Type['users'],
-                  user:  'User') -> None:
+                  user:  'UserPassport') -> None:
         '''
         Adds user to 'known' (user) collection.
 
         If `user` already exists in the collection (as defined by Python's
-        set() functionality and User.__hash__()), this will overwrite it.
+        set() functionality and UserPassport.__hash__()), this will overwrite
+        it.
         '''
         known = klass._known()
         known.set(user.id, user.connection, user)
 
     @classmethod
     def add_super(klass: Type['users'],
-                  user:  'User') -> None:
+                  user:  'UserPassport') -> None:
         '''
         Adds user to 'super' (user) collection.
 
         If `user` already exists in the collection (as defined by Python's
-        set() functionality and User.__hash__()), this will overwrite it.
+        set() functionality and UserPassport.__hash__()), this will overwrite
+        it.
         '''
         super = klass._super()
         super.set(user.id, user.connection, user)
@@ -913,11 +915,11 @@ class users:
     def remove_connected(klass:    Type['users'],
                          rm_user:  UserRmTypes) -> None:
         '''
-        Removes `rm_user` (which can be a id or a User object) from
+        Removes `rm_user` (which can be a id or a UserPassport object) from
         'connected' (user) collection.
 
         If `user` doesn't exists in the collection (as defined by Python's
-        set() functionality and User.__hash__()), this does nothing.
+        set() functionality and UserPassport.__hash__()), this does nothing.
         '''
         connected = klass._connected()
         del connected[rm_user]
@@ -931,7 +933,7 @@ class users:
         Removes user from 'known' (user) collection.
 
         If `user` doesn't exists in the collection (as defined by Python's
-        set() functionality and User.__hash__()), this does nothing.
+        set() functionality and UserPassport.__hash__()), this does nothing.
         '''
         known = klass._known()
         known.discard(user)
@@ -943,7 +945,7 @@ class users:
         Removes user from 'super' (user) collection.
 
         If `user` doesn't exists in the collection (as defined by Python's
-        set() functionality and User.__hash__()), this does nothing.
+        set() functionality and UserPassport.__hash__()), this does nothing.
         '''
         super = klass._super()
         super.discard(user)
