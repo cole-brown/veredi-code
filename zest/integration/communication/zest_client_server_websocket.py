@@ -54,6 +54,7 @@ from veredi.interface.mediator.payload.logging  import (LogPayload,
                                                         LogField,
                                                         Validity,
                                                         _NC_LEVEL)
+from veredi.interface.mediator.payload.bare     import BarePayload
 
 
 # -----------------------------------------------------------------------------
@@ -84,7 +85,6 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
                                 min_log_level=log_level)
 
     multiproc._sigint_ignore()
-    log_client.init(log_level)
 
     # ------------------------------
     # Sanity Check
@@ -123,7 +123,6 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # ------------------------------
     # Sub-Process is done now.
     # ------------------------------
-    log_client.close()
     lumberjack.debug(f"MediatorServer '{comms.name}' done.")
 
 
@@ -144,7 +143,6 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
                                 min_log_level=log_level)
 
     multiproc._sigint_ignore()
-    log_client.init(log_level)
 
     # ------------------------------
     # Sanity Check
@@ -183,7 +181,6 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # ------------------------------
     # Sub-Process is done now.
     # ------------------------------
-    log_client.close()
     lumberjack.debug(f"MediatorClient '{comms.name}' done.")
 
 
@@ -507,11 +504,11 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # self.assertEqual(msg.type, recv.type)
         # Can do this though.
         self.assertEqual(recv.type, MsgType.ACK_CONNECT)
-        self.assertIsInstance(recv.payload, dict)
-        self.assertIn('code', recv.payload)
-        self.assertIn('text', recv.payload)
+        self.assertIsInstance(recv.payload, BarePayload)
+        self.assertIn('code', recv.payload.data)
+        self.assertIn('text', recv.payload.data)
         # Did we connect successfully?
-        self.assertTrue(recv.payload['code'])
+        self.assertTrue(recv.payload.data['code'])
 
         # This should be... something.
         self.assertIsNotNone(recv.user_id)
@@ -579,10 +576,9 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         msg = Message(mid, MsgType.ECHO,
                       payload=send_msg)
         ctx = self.msg_context(mid)
-        # self.debugging = True
-        with log.LoggingManager.on_or_off(self.debugging, True):
-            client.pipe.send((msg, ctx))
-            recv, ctx = client.pipe.recv()
+        client.send(msg, ctx)
+        self.wait(0.5)
+        recv, ctx = client.recv()
         # Make sure we got a message back and it has the same
         # message as we sent.
         self.assertTrue(recv)

@@ -62,6 +62,13 @@ class ConfigContext(EphemerealContext):
         set-up of sub-processes (like mediator server).
         '''
 
+        LOG_SERVER = enum.auto()
+        '''
+        A log level for things to config their sub-loggers.
+        Should just be used for main set-up (of primary logger) or
+        set-up of sub-processes (like mediator server).
+        '''
+
         SUB_PROC = enum.auto()
         '''
         A SubToProcComm object to hold on to for a sub-process.
@@ -164,6 +171,34 @@ class ConfigContext(EphemerealContext):
             context._sub_get(
                 klass.KEY,
                 klass.Link.LOG_LEVEL))
+
+    # TODO [2020-11-15]: Change to something that...:
+    #   - Differentiates log_client and log_server?
+    #   - Can tell log_clients where to log to?
+    #   - Or should we always just init log for local and then reinit for
+    #     log_client after we get a message?
+
+    @classmethod
+    def set_log_is_server(klass: Type['ConfigContext'],
+                          context: VerediContext,
+                          is_server: bool) -> None:
+        '''
+        Set is_server in `context`. Pops if `is_server` is None.
+        '''
+        context._sub_set(klass.KEY,
+                         klass.Link.LOG_SERVER,
+                         is_server)
+
+    @classmethod
+    def log_is_server(klass: Type['ConfigContext'],
+                      context: VerediContext) -> bool:
+        '''
+        Returns True if the process is a log_server.
+        '''
+        # _sub_get() returns None if key not found, which is convenient for
+        # converting to a bool.
+        return bool(context._sub_get(klass.KEY,
+                                     klass.Link.LOG_SERVER))
 
     @classmethod
     def set_subproc(klass:   Type['config'],

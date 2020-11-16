@@ -339,6 +339,7 @@ def init_logger(logger_name: str,
     # Create our logger at our default output level.
     logger = logging.getLogger(logger_name)
     logger.setLevel(Level.to_logging(level))
+    logger.debug(f"logger initialized at level {level}")
 
     return logger
 
