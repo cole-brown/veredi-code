@@ -119,6 +119,12 @@ class MonotonicId(Encodable,
                                   **kwargs)
 
         # ---
+        # _INVALID singleton
+        # ---
+        MonotonicId._init_invalid_()  # Init base class's INVALID.
+        klass._init_invalid_()        # Init this class's INVALID.
+
+        # ---
         # Encodable RX
         # ---
         if not klass._encode_simple_only():
@@ -139,26 +145,12 @@ class MonotonicId(Encodable,
         '''
         This is to prevent creating IDs willy-nilly.
         '''
-        if not klass._INVALID:
-            # Make our invalid singleton instance.
-            klass._INVALID = klass(klass._INVALID_VALUE, True)
+        # Make one if we don't have one of our (sub)class.
+        if isinstance(klass._INVALID, klass):
+            return
 
-    def __new__(klass: Type['MonotonicId'],
-                value: int,
-                allow: Optional[bool] = False) -> 'MonotonicId':
-        '''
-        This is to prevent creating IDs willy-nilly.
-        '''
-        if not allow:
-            # Just make all constructed return the INVALID singleton.
-            return klass._INVALID
-
-        inst = super().__new__(klass)
-        # I guess this is magic bullshit cuz I don't need to init it with
-        # `value` but it still gets initialized with `value`?
-
-        # no need: inst.__init__(value)
-        return inst
+        # Make our invalid singleton instance.
+        klass._INVALID = klass(klass._INVALID_VALUE, True)
 
     def __init__(self, value: int, allow: bool = False) -> None:
         '''
@@ -508,6 +500,13 @@ class SerializableId(Encodable,
                                   **kwargs)
 
         # ---
+        # _INVALID singleton
+        # ---
+        # SerializableIds are abstract - no need to init INVALID.
+        # SerializableId._init_invalid_()  # Init base class's INVALID.
+        klass._init_invalid_()           # Init this class's INVALID.
+
+        # ---
         # Encodable RX
         # ---
         if not klass._encode_simple_only():
@@ -530,9 +529,12 @@ class SerializableId(Encodable,
         Creates our invalid instance that can be gotten from read-only class
         property INVALID.
         '''
-        if not klass._INVALID:
-            # Make our invalid singleton instance.
-            klass._INVALID = klass(klass._INVALID_VALUE, klass._INVALID_VALUE)
+        # Make one if we don't have one of our (sub)class.
+        if isinstance(klass._INVALID, klass):
+            return
+
+        # Make our invalid singleton instance.
+        klass._INVALID = klass(klass._INVALID_VALUE, klass._INVALID_VALUE)
 
     def __init__(self, seed: str, name: str,
                  decoding:      bool          = False,
