@@ -224,6 +224,8 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
                 self.handle_request()
 
         # Shutdown flag was set so we're done.
+        log.debug("log_server's LogRecordSocketReceiver stopped serving "
+                  "in preparation for shutdown.")
 
 
 # ---------------------------------Log Server----------------------------------

@@ -55,9 +55,10 @@ class MonotonicTimer:
         return (self._start and not self._end)
 
     @property
-    def elapsed(self) -> float:
+    def elapsed(self) -> int:
         '''
-        If timer has been stopped, returns elapsed from start to end.
+        If timer has been stopped, returns elapsed nanoseconds from start to
+        end.
 
         Otherwise, returns elapsed from start to now.
         '''
@@ -69,9 +70,17 @@ class MonotonicTimer:
         return elapsed
 
     @property
+    def elapsed_sec(self) -> float:
+        '''
+        Converts `self.elapsed` property value (nanoseconds int) into seconds
+        float.
+        '''
+        return self.elapsed * 10.0**9
+
+    @property
     def elapsed_str(self) -> str:
         '''
-        Returns self.elapsed, formatted as HH:MM:SS.fff...
+        Returns `self.elapsed`, formatted as HH:MM:SS.fff...
         '''
         elapsed = self.elapsed
         fraction = elapsed % 1

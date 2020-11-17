@@ -352,7 +352,26 @@ class Engine:
             self._debug)
         background.system.set_meeting(self.meeting)
 
-        time.engine_init(self._tick, self._life_cycle)
+        # ---
+        # Time & Timer Set-Up
+        # ---
+        # Init Timer starts timing here and then just runs, so this is all we
+        # really need to do with it.
+        timer_run_name = self.dotted() + '.time.run'
+        self._timer_run = time.make_timer(timer_run_name)
+
+        # Life Timer times specific life-cycles (or specific parts of them).
+        # We'll reset it in transition places.
+        timer_life_name = self.dotted() + '.time.life_cycle'
+        self._timer_life = time.make_timer(timer_life_name)
+
+        # Init TimeManager with our tick objects and our timers.
+        time.engine_init(self._tick, self._life_cycle,
+                         timers={
+                             timer_run_name: self._timer_run,
+                             timer_life_name: self._timer_life,
+                         },
+                         default_name=timer_life_name)
 
         # ---
         # Logging
@@ -379,17 +398,6 @@ class Engine:
         self._metered_log.meter(SystemTick.APOCALYPSE,   self._METER_LOG_AMT)
         self._metered_log.meter(SystemTick.THE_END,      self._METER_LOG_AMT)
         self._metered_log.meter(SystemTick.FUNERAL,      self._METER_LOG_AMT)
-
-        # ---
-        # Engine Status
-        # ---
-        # Init Timer starts timing here and then just runs, so this is all we
-        # really need to do with it.
-        self._timer_init = time.make_timer()
-
-        # Life Timer times specific life-cycles (or specific parts of them).
-        # We'll reset it in transition places.
-        self._timer_life = time.make_timer()
 
         # ---
         # Systems

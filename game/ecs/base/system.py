@@ -965,7 +965,7 @@ class System(ABC):
             return self._update_genesis(time_mgr, component_mgr, entity_mgr)
 
         elif tick is SystemTick.INTRA_SYSTEM:
-            return self._update_intra_system(time_mgr.timer)
+            return self._update_intra_system(time_mgr.get_timer(None))
 
         elif tick is SystemTick.TIME:
             return self._update_time(time_mgr, component_mgr, entity_mgr)

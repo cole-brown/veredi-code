@@ -159,7 +159,6 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     lumberjack.setLevel(log_level)
 
     multiproc._sigint_ignore()
-    log_client.init(log_level)
 
     # ------------------------------
     # Sanity Check
@@ -190,7 +189,6 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # TODO: better import?
     import veredi.math.d20.tree
 
-
     # ------------------------------
     # Finish Set-Up and Start It.
     # ------------------------------
@@ -205,7 +203,6 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # ------------------------------
     # Sub-Process is done now.
     # ------------------------------
-    log_client.close()
     lumberjack.debug(f"MediatorClient '{comms.name}' done.")
 
 
@@ -318,6 +315,11 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # ---
         self._tear_down_clients()
         # MediatorSystem is responsible for any MediatorServer tear-down too.
+
+        # Was using during debugging, but don't think I need this. Does the
+        # log_server need any extra time for anything our other processes sent
+        # to it just now?
+        # self.wait_on_nothing(0.5)
 
         # And now hand over to parent for tear_down of log proc & whatever else
         # it does.

@@ -102,6 +102,12 @@ def _start_server(comms: multiproc.SubToProcComm,
     # ------------------------------
     # Set-Up
     # ------------------------------
+    log_level = ConfigContext.log_level(context)
+    lumberjack = log.get_logger(comms.name,
+                                min_log_level=log_level)
+    lumberjack.setLevel(log_level)
+    log.debug(f"_start_server: {comms.name} {log_level}",
+              veredi_logger=lumberjack)
 
     # ---
     # Config
@@ -120,24 +126,29 @@ def _start_server(comms: multiproc.SubToProcComm,
             "background context.")
 
     # ---
+    # Ignore Ctrl-C. Have parent process deal with it and us.
+    # ---
+    multiproc._sigint_ignore()
+
+    # ---
     # Logging
     # ---
-    log_level = ConfigContext.log_level(context)
-    lumberjack = log.get_logger(comms.name,
-                                min_log_level=log_level)
-
-    multiproc._sigint_ignore()
-    log_client.init(log_level)
+    # Do not set up log_client here - multiproc does that.
 
     # ------------------------------
     # Create & Start
     # ------------------------------
 
+    log.debug(f"MediatorSystem's _start_server for {comms.name} "
+              "starting MediatorServer...",
+              veredi_logger=lumberjack)
     mediator = config.make(context,
                            'server',
                            'mediator',
                            'type')
     mediator.start()
+    log.debug(f"MediatorSystem's _start_server for {comms.name} done.",
+              veredi_logger=lumberjack)
 
 
 # -----------------------------------------------------------------------------
@@ -794,7 +805,8 @@ class MediatorSystem(System):
         # Say we can be done if we have nothing from Mediator to deal with
         # right now... Probably also want some flag or something from Mediator
         # to say they're idle-ish?
-        # §-TODO-§ [2020-10-08]: Flag or something for MediatorServer /
+        #
+        # TODO [2020-10-08]: Flag or something for MediatorServer /
         # ProcToSubComm&SubToProcComm to indicate idle/busy status.
         if self.server.has_data() or self.server._ut_has_data():
             self._health = self._health.update(VerediHealth.APOPTOSIS)
@@ -861,18 +873,13 @@ class MediatorSystem(System):
         '''
         timed_out = self._manager.time.is_timed_out(
                 None,
-                self.timeout_desired(SystemTick.APOCALYPSE),
-                use_engine_timer=True)
-        log.info(f"apoc time: timing?: {self._manager.time.timer.timing} "
-                 f"timer: {self._manager.time.timer}, "
-                 f"timeout desired: {self.timeout_desired(SystemTick.APOCALYPSE)}, "
-                 f"timed out?: {timed_out}")
+                self.timeout_desired(SystemTick.APOCALYPSE))
+
 
         # Set to failure state if over time.
         if self._manager.time.is_timed_out(
                 None,
-                self.timeout_desired(SystemTick.APOCALYPSE),
-                use_engine_timer=True):
+                self.timeout_desired(SystemTick.APOCALYPSE)):
             # Don't care about tear_down_end result; we'll check it with
             # exitcode_healthy().
             multiproc.nonblocking_tear_down_end(self.server)
