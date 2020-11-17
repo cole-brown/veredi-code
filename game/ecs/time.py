@@ -8,7 +8,7 @@ Timing info for game.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, NewType, Tuple, Dict
 import numbers
 
 from datetime import datetime
@@ -36,6 +36,9 @@ from ..time.tick.round       import TickRounds, TickTypes
 # -----------------------------------------------------------------------------
 
 # TODO [2020-06-29]: Move time classes to time module.
+
+TimerInput = NewType('TimerInput', Union[MonotonicTimer, str, None])
+TimeoutInput = NewType('TimeoutInput', Union[str, float, int, None])
 
 
 # --------------------------------TimeManager----------------------------------
@@ -104,9 +107,15 @@ class TimeManager(EcsManagerWithEvents):
         Computer's time. Real-world, actual time.
         '''
 
-        self._timer: MonotonicTimer = None
+        self._timers: Dict[str, MonotonicTimer] = {}
         '''
-        A timer available for short thing.
+        Timers for things, registered by some sort of name string.
+        Dotted maybe.
+        '''
+
+        self._timer_name_default: str = None
+        '''
+        Name of the default timer.
         '''
 
     def __init__(self, tick_amount: Optional[TickTypes] = None) -> None:
@@ -126,19 +135,41 @@ class TimeManager(EcsManagerWithEvents):
         self.tick  = TickRounds(tick_amount)
 
         self.machine = MachineTime()
-        self._timer = None
 
     def engine_init(self,
-                    cn_ticks: CurrentNext[SystemTick],
-                    cn_life: CurrentNext[SystemTick]) -> None:
+                    cn_ticks:     CurrentNext[SystemTick],
+                    cn_life:      CurrentNext[SystemTick],
+                    timers:       Optional[Dict[str, MonotonicTimer]] = None,
+                    default_name: Optional[str]                       = None
+                    ) -> None:
         '''
         Engine will give us a pointer to its ticks/life-cycle objects so we can
         have getters.
 
-        Do not ever set these.
+        Do not ever set these ourself.
+
+        `timers` and `default_name` will be used to populate our timers and set
+        our default timer, if provided.
         '''
         self._engine_tick = cn_ticks
         self._engine_life_cycle = cn_life
+
+        valid_default_name = False
+        if timers:
+            for name in timers:
+                self._timers[name] = timers[name]
+                if name == default_name:
+                    valid_default_name = True
+
+        if default_name:
+            if not valid_default_name:
+                msg = (f"default name '{default_name}' not found in "
+                       "provided timers.")
+                error = KeyError(default_name, msg, timers)
+                raise log.exception(error, None,
+                                    msg + ' timers: {}', timers)
+            else:
+                self._timer_name_default = default_name
 
     # ---
     # Engine's Ticks / Life-Cycles
@@ -176,58 +207,151 @@ class TimeManager(EcsManagerWithEvents):
     # Timer
     # ---
 
-    def make_timer(self) -> MonotonicTimer():
+    def make_timer(self,
+                   save_name:  Optional[str]  = None,
+                   is_default: Optional[bool] = False) -> MonotonicTimer:
         '''
-        Returns a new, realtime MonotonicTimer. This is not TimeManager's timer
-        in any way and does not interact with any of TimeManager's
-        timer/timeout functions.
+        Returns a new, realtime MonotonicTimer.
+
+        If `save_name` is provided, TimeManager will save the timer into its
+        dictionary. If a timer already exists with that name, this will throw a
+        ValueError.
+
+
+        If `is_default` is set and `save_name` is set, the timer's name will be
+        saved to `self._timer_name_default` and used as the default in timer
+        functions.
+
+        Returns the timer created.
         '''
-        return MonotonicTimer()
+        timer = MonotonicTimer()
+        if save_name:
+            if save_name in self._timers:
+                msg = (f"{self.__class__.__name__}.make_timer: Timer "
+                       f"'{save_name}' already exists in our dictionary "
+                       f"of timers. Cannot overwrite. {self._timers}")
+                error = ValueError(msg, save_name, self._timers)
+                raise log.exceptions(error, None, msg)
+            self._timers[save_name] = timer
 
-    @property
-    def timer(self) -> MonotonicTimer:
+            # Now, we have a valid name and a timer. Is it the default?
+            # If so, just set our default name - overwriting any previous.
+            if is_default:
+                if self._timer_name_default:
+                    log.warning("Changing default timer from: "
+                                f"{self._timer_name_default} to {save_name}.")
+                self._timer_name_default = save_name
+
+        return timer
+
+    def get_timer(self, timer: TimerInput) -> MonotonicTimer:
         '''
-        Returns TimeManager's only owned/life-time timer. Use care with this
-        one - it's used by the game Engine and/or SystemManager to do offical
-        stuff.
+        Returns a timer. If supplied with a timer, just returns it.
 
-        Use make_timer() or get your own timer for special cases.
+        If supplied with a string, looks for a timer with that name in the
+        timers collection.
+
+        If nothing is supplied, uses the default timer.
+
+        What the timer is and what it does are decided by whoever made/controls
+        it. Probably the Engine, in the default timer's case.
+
+        If no timer is found, raises KeyError.
+
+        Use make_timer() if you need your own timer for special cases.
         '''
-        if not self._timer:
-            self._timer = MonotonicTimer()
-        return self._timer
+        # 'timer' is an ok param name for callers who don't care, but for in
+        # here, I want to tell what's what.
+        timer_input = timer
+        timer_output = None
 
-    def start_timeout(self) -> None:
-        if not self._timer:
-            self._timer = MonotonicTimer()
+        # Timer input param is Falsy - try to use our default timer.
+        if not timer_input:
+            if self._timer_name_default:
+                timer_output = self._timers[self._timer_name_default]
+            else:
+                msg = ("get_timer(): No 'timer' supplied and no default timer "
+                       f"exists. timer: {timer_input}, default_timer_name: "
+                       f"{self._timer_name_default}")
+                error = KeyError(timer_input, msg)
+                raise log.exception(error, None, msg + ' timers: {}',
+                                    self._timers)
 
-        self._timer.start()
+        # No-op - allow callers to work equally well with actual timers and
+        # timer names.
+        elif isinstance(timer_input, MonotonicTimer):
+            # We're a helper function so... just be hepful and give it back.
+            timer_output = timer_input
 
-    def end_timeout(self) -> float:
-        if not self._timer:
-            return
+        # Find a timer by name.
+        elif isinstance(timer_input, str):
+            timer_output = self._timers.get(timer_input, None)
 
-        self._timer.end()
-        elapsed = self._timer.elapsed
-        self._timer.reset()
+            if not timer_output:
+                msg = (f"get_timer(): No timer found for name '{timer_input}' "
+                       "in timer collection.")
+                error = KeyError(timer_input, msg)
+                raise log.exception(error, None, msg + ' timers: {}',
+                                    self._timers)
+
+        # timer_input wasn't understood - error out.
+        else:
+            msg = (f"{self.__class__.__name__}.get_timer: No timer found for "
+                   f"input '{timer_input}'.")
+            error = ValueError(msg, timer_input, self._timers)
+            raise log.exceptions(error, None, msg)
+
+        # We got here, so success! Give back valid timer.
+        return timer_output
+
+    def start_timeout(self, timer: TimerInput) -> None:
+        '''
+        Calls `get_timer(timer)` on str/timer/None provided. See `get_timer`
+        for details.
+        TL;DR:
+          - None  -> Get/use default timer.
+          - str   -> Get/use timer by name.
+          - timer -> Use that timer.
+
+        Starts timing with that timer.
+        '''
+        timer = self.get_timer(timer)
+        timer.start()
+
+    def end_timeout(self, timer: TimerInput) -> float:
+        '''
+        Calls `get_timer(timer)` on str/timer/None provided. See `get_timer`
+        for details.
+        TL;DR:
+          - None  -> Get/use default timer.
+          - str   -> Get/use timer by name.
+          - timer -> Use that timer.
+
+        Stops timing with that timer and returns timer.elapsed property value.
+        '''
+        timer = self.get_timer(timer)
+        timer.end()
+        elapsed = timer.elapsed
+        timer.reset()
         return elapsed
 
     @property
-    def timing(self):
+    def timing(self, timer: TimerInput):
         '''
         Not stopped and have a start time means probably timing something.
         '''
         return self._timer.timing
 
     def is_timed_out(self,
-                     timer:            Optional[MonotonicTimer],
-                     timeout:          Union[str, float, int, None] = None,
-                     use_engine_timer: bool = False) -> bool:
+                     timer:   TimerInput,
+                     timeout: TimeoutInput = None) -> bool:
         '''
-        If `use_engine_timer` is true /and/ `timer` is None, this will check
-        self.timer, which the engine is in charge of for the engine
-        ticks/life-cycle, to check against the timeout. Otherwise it requires a
-        timer to be passed in.
+        Calls `get_timer(timer)` on str/timer/None provided. See `get_timer`
+        for details.
+        TL;DR:
+          - None  -> Get/use default timer.
+          - str   -> Get/use timer by name.
+          - timer -> Use that timer.
 
         If `timeout` is None, uses _DEFAULT_TIMEOUT_SEC.
         If `timeout` is a number, uses that.
@@ -235,25 +359,32 @@ class TimeManager(EcsManagerWithEvents):
         that key under the TimeManager's settings.
 
         Returns true if timeout timer is:
-          - Falsy.
           - Not timing.
           - Past timeout value.
-            - or past _DEFAULT_TIMEOUT_SEC if timeout value is None.
+            - (Past _DEFAULT_TIMEOUT_SEC if timeout value is None.)
         '''
-        if not timer:
-            if use_engine_timer and self.timer:
-                timer = self.timer
-            else:
-                msg = f"is_timed_out() requires a timer. Got: {timer}"
-                raise log.exception(ValueError(msg, timer, timeout),
-                                    None,
-                                    msg + f", timeout: {timeout}")
+        # ------------------------------
+        # Get a Timer based on input.
+        # ------------------------------
+        check_timer = self.get_timer(timer)
+        if not check_timer:
+            msg = ("is_timed_out() requires a timer or timer name. "
+                   f"Got '{timer}' which didn't resolve to a timer: "
+                   f"{check_timer}")
+            raise log.exception(ValueError(msg, timer, timeout),
+                                None,
+                                msg + f", timeout: {timeout}")
+        # Verified it, so we can assign it `timer` since we don't need to know
+        # what the input value was anymore.
+        timer = check_timer
 
+        # Not timing - not sure? Returning timed out is a good bet for figuring
+        # out who forgot to start their timer, so use that.
         if not timer.timing:
             return True
 
         # ------------------------------
-        # Get a timeout setting from config?
+        # Figure out the timeout.
         # ------------------------------
         if timeout and isinstance(timeout, str):
             config = background.config.config

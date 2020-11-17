@@ -28,17 +28,23 @@ from . import log
 #   - Would have avoided the double-init issue I had/have in
 #     zest_client_server_websocket.py...
 
-_socket_handler = None
+_socket_handler: logging.Handler = None
+
+_client_name: str = None
 
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
 
 
-def init(level: Union[log.Level, int, None] = log.DEFAULT_LEVEL) -> None:
+def init(client_name: str,
+         level:       Union[log.Level, int, None] = log.DEFAULT_LEVEL) -> None:
     '''
     Initialize log.py for non-local logging.
     '''
+    global _client_name
+    _client_name = client_name
+
     # We'll use a socket handler to send out the logs.
     global _socket_handler
     _socket_handler = logging.handlers.SocketHandler(
@@ -52,7 +58,7 @@ def init(level: Union[log.Level, int, None] = log.DEFAULT_LEVEL) -> None:
              formatter=None,
              reinitialize=True)
     # log.set_level(level)
-
+    log.debug(f"log_client init: {_client_name}")
 
 def close():
     '''
@@ -61,7 +67,10 @@ def close():
     global _socket_handler
 
     if not _socket_handler:
+        log.debug(f"log_client close: {_client_name} - no _socket_handler")
         return
 
+    log.debug(f"log_client close: {_client_name} - closing _socket_handler...")
     _socket_handler.close()
     log.remove_handler(_socket_handler)
+    log.debug(f"log_client close: {_client_name} - done.")

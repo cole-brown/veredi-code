@@ -10,7 +10,7 @@ Logging utilities for Veredi.
 
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any, NewType, Type, Callable,
-                    Mapping, MutableMapping, Iterable, Dict)
+                    Mapping, MutableMapping, Iterable, Dict, List)
 if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
     from veredi.base.exceptions import VerediError
@@ -247,15 +247,15 @@ class LogName(enum.Enum):
 # Variables
 # -----------------------------------------------------------------------------
 
-__initialized = False
+__initialized: bool = False
 
-logger = None
+logger: logging.Logger = None
 '''Our main/default logger.'''
 
-__handlers = []
+__handlers: List[logging.Handler] = []
 '''Our main/default logger's main/default handler(s).'''
 
-_unit_test_callback = Null()
+_unit_test_callback: Callable = Null()
 
 
 # -----------------------------------------------------------------------------

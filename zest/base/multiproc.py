@@ -253,7 +253,6 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         self._set_up_log(proc_flags, log_level)
 
     def tear_down(self, log_level: log.Level) -> None:
-        self._stop(self.proc.log)
         self._tear_down_log()
         super().tear_down()
 
@@ -337,6 +336,9 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         '''
         stop_codes = []
         for each in self.proc.all(Processes.Direction.TEAR_DOWN):
+            # Let log be taken care of in _tear_down_log.
+            if each == self.proc.log:
+                continue
             # Stop the process, add its exit code to the list.
             stop_codes.append(self._stop(each))
 
@@ -479,7 +481,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         #   - This may have been solved at some point and maybe should be
         #     re-attempted.
         # # Hook this test itself into the log server.
-        # log_client.init(LOG_LEVEL)
+        # log_client.init(self.__class__.__name__, LOG_LEVEL)
         # log.set_level(LOG_LEVEL)
 
         # Wait for clients, server to settle out.
@@ -628,6 +630,36 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
     # Do-Something-During-A-Test Functions
     # -------------------------------------------------------------------------
     # (Or Do-Nothing,-Really in wait()'s case...)
+
+    def wait_on_nothing(self, wait_timeout) -> None:
+        '''
+        Sleeps for the wait_timeout. Doesn't care about shutdown flags or
+        anything.
+        '''
+        # Force timeout into range.
+        wait_timeout = wait_timeout or 0
+        if (wait_timeout < 0.000001
+                or wait_timeout > 5):
+            # This is a unit test, so we waint to time out and we want to do it
+            # soonish... So timeout between quite soonish to 5 sec.
+            wait_timeout = min(max(0.000001, wait_timeout), 5)
+
+        # Sleep for either 0.1 sec, or who duration if that's shorter.
+        sleep_time = min(wait_timeout, 0.1)
+        timer = MonotonicTimer()  # Timer starts timing on creation.
+        try:
+            self.log_debug("wait_on_nothing: Received SIGINT.")
+            while not timer.timed_out(wait_timeout):
+                py_time.sleep(sleep_time)
+
+        except KeyboardInterrupt:
+            # First, ask for a gentle, graceful shutdown...
+            self.log_debug("wait_on_nothing: Received SIGINT.")
+
+        else:
+            self.log_debug("wait_on_nothing: Wait finished normally.")
+
+        self.log_debug(f"wait_on_nothing: Waited for {timer.elapsed_sec} sec.")
 
     def wait(self,
              wait_timeout,

@@ -114,7 +114,7 @@ def init(config_path: Union[pathlib.Path, str],
                                                           processes.game_end)
 
     # Start our own log client now that all the kids are made.
-    log_client.init(log_level)
+    log_client.init("outdated", log_level)
 
     return processes
 
@@ -223,7 +223,7 @@ def run_mediator(conn:          multiprocessing.connection.Connection = None,
     Init and run client/engine IO mediator.
     '''
     _sigint_ignore()
-    log_client.init(log_level)
+    log_client.init("outdated mediator", log_level)
 
     if not conn:
         lumberjack = log.get_logger(ProcessType.MEDIATOR.value)
@@ -255,7 +255,7 @@ def run_engine(conn:          multiprocessing.connection.Connection = None,
     Init engine. Starts engine. Runs engine...
     '''
     _sigint_ignore()
-    log_client.init(log_level)
+    log_client.init("outdated engine", log_level)
     lumberjack = log.get_logger(ProcessType.ENGINE.value)
 
     if not conn:

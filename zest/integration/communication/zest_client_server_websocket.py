@@ -767,7 +767,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
     #
     #     # Connect this process to the log server, do a long that should be
     #     # ignored, and then disconnect.
-    #     log_client.init()
+    #     log_client.init(self.__class__.__name__, log_level)
     #     self.log_critical("You should not see this.")
     #     log_client.close()
     #     # Gotta wait a bit for the counter to sync back to this process,

@@ -600,9 +600,7 @@ def _subproc_entry(context: VerediContext) -> None:
     # Start up the logging client
     log_is_server = ConfigContext.log_is_server(context)
     if not log_is_server:
-        proc_log.debug(f"log_client: '{proc.name}' "
-                       f"log_client.init({initial_log_level}).")
-        log_client.init(initial_log_level)
+        log_client.init(proc.name, initial_log_level)
 
     # ------------------------------
     # More Sanity
@@ -678,19 +676,34 @@ def blocking_tear_down(proc: ProcToSubComm,
         graceful_wait = GRACEFUL_SHUTDOWN_TIME_SEC
 
     lumberjack = log.get_logger(proc.name)
+    log.debug(f"blocking_tear_down({proc.name}): graceful_wait: "
+              f"{graceful_wait}, shutdown? {proc.shutdown.is_set()}",
+              veredi_logger=lumberjack)
 
     # ------------------------------
     # Sanity Check, Early Out.
     # ------------------------------
     result = _tear_down_check(proc, lumberjack)
+    log.debug(f"blocking_tear_down({proc.name}): tear_down_check: {result}, "
+              f"shutdown? {proc.shutdown.is_set()}",
+              veredi_logger=lumberjack)
     if result:
+        log.debug(f"blocking_tear_down({proc.name}): finished with: "
+                  f"{result}, shutdown? {proc.shutdown.is_set()}",
+                  veredi_logger=lumberjack)
         return result
 
     # ------------------------------
     # Kick off tear-down.
     # ------------------------------
     result = _tear_down_start(proc, lumberjack)
+    log.debug(f"blocking_tear_down({proc.name}): tear_down_start: {result}, "
+              f"shutdown? {proc.shutdown.is_set()}",
+              veredi_logger=lumberjack)
     if result:
+        log.debug(f"blocking_tear_down({proc.name}): finished with: {result}, "
+                  f"shutdown? {proc.shutdown.is_set()}",
+                  veredi_logger=lumberjack)
         return result
 
     # ------------------------------
@@ -700,13 +713,25 @@ def blocking_tear_down(proc: ProcToSubComm,
                              log_enter=True,
                              log_wait_timeout=True,
                              log_exit=True)
+    log.debug(f"blocking_tear_down({proc.name}): tear_down_wait: {result}, "
+              "shutdown? {proc.shutdown.is_set()}",
+              veredi_logger=lumberjack)
     if result:
+        log.debug(f"blocking_tear_down({proc.name}): finished with: "
+                  "{result}, shutdown? {proc.shutdown.is_set()}",
+                  veredi_logger=lumberjack)
         return result
 
     # ------------------------------
     # Finish tear-down.
     # ------------------------------
     result = _tear_down_end(proc, lumberjack)
+    log.debug(f"blocking_tear_down({proc.name}): tear_down_end: {result}, "
+              "shutdown? {proc.shutdown.is_set()}",
+              veredi_logger=lumberjack)
+    log.debug(f"blocking_tear_down({proc.name}): completed with: {result}, "
+              "shutdown? {proc.shutdown.is_set()}",
+              veredi_logger=lumberjack)
     return result
 
 
