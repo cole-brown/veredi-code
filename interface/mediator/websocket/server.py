@@ -42,10 +42,14 @@ from veredi.data.config.registry import register
 from .mediator                   import WebSocketMediator
 from .exceptions                 import WebSocketError
 from .base                       import VebSocket, TxProcessor, RxProcessor
-from ..message                   import Message, MsgType
+from ..const                     import MsgType
+from ..message                   import Message, ConnectionMessage
 from ..context                   import (MediatorServerContext,
                                          MessageContext,
                                          UserConnToken)
+from ...user                     import UserConn
+from ...output.envelope          import Envelope, Address
+from ...output.event             import Recipient
 
 
 # -----------------------------------------------------------------------------
@@ -179,10 +183,10 @@ class VebSocketServer(VebSocket):
         '''
         self._sockets_open.add(websocket)
 
-    def unregister(self,
-                   websocket: websockets.WebSocketServerProtocol,
-                   close: bool = False
-                   ) -> None:
+    async def unregister(self,
+                         websocket: websockets.WebSocketServerProtocol,
+                         close: bool = False
+                         ) -> None:
         '''
         Remove this websocket from our collection of clients.
 
@@ -190,7 +194,7 @@ class VebSocketServer(VebSocket):
         '''
         self._sockets_open.remove(websocket)
         if self._unregistered:
-            self._unregistered(self.token(websocket))
+            await self._unregistered(self.token(websocket))
 
         # Both 'ws.open' and 'ws.closed' are False during opening/closing
         # sequences so I guess check both?
@@ -284,109 +288,12 @@ class VebSocketServer(VebSocket):
             task.cancel()
 
         # And we need to forget this client.
-        self.unregister(websocket)
+        await self.unregister(websocket)
 
 
 # -----------------------------------------------------------------------------
 # The "Registered Client(s) of the WebSocketServer" Bit
 # -----------------------------------------------------------------------------
-
-class RegisteredClient:
-    '''
-    Contains all the bits we need for keeping track of a registered client and
-    their data.
-    '''
-
-    def __init__(self,
-                 id:    UserId,
-                 key:   Optional[UserKey],
-                 conn:  UserConnToken,
-                 debug: Callable) -> None:
-        self._id:       UserId            = id
-        self._key:      Optional[UserKey] = key
-        self._conn:     UserConnToken     = conn
-        self._tx_queue: asyncio.Queue     = asyncio.Queue()
-        self.debug:     Callable          = debug
-
-    # ------------------------------
-    # Properties
-    # ------------------------------
-
-    @property
-    def id(self) -> UserId:
-        '''
-        User's (session) ID
-        '''
-        return self._id
-
-    @property
-    def key(self) -> UserKey:
-        '''
-        User's (session) Key
-        '''
-        return self._key
-
-    @property
-    def connection(self) -> UserConnToken:
-        '''
-        User's (socket) connection token.
-        '''
-        return self._conn
-
-    @property
-    def queue(self) -> asyncio.Queue:
-        '''
-        Queue for "received-from-game;waiting-to-send-to-user" messages.
-        '''
-        return self._tx_queue
-
-    # ------------------------------
-    # Queue Helpers
-    # ------------------------------
-
-    def has_data(self) -> bool:
-        '''Returns True if client's queue has data to send them.'''
-        return not self._tx_queue.empty()
-
-    def get_data(self) -> Tuple[Message, MessageContext]:
-        '''Gets (no wait) data from client's queue for processing/sending.'''
-        msg, ctx = self._tx_queue.get_nowait()
-        self.debug("Got from client's queue for sending to client: "
-                   f"msg: {msg}, ctx: {ctx}, client: {self}")
-        return msg, ctx
-
-    async def put_data(self,
-                       msg: Message,
-                       ctx: MessageContext) -> None:
-        '''
-        Puts data into client's queue for us to send to this client later.
-        '''
-        self.debug("Putting data into client's queue for sending to client: "
-                   f"msg: {msg}, ctx: {ctx}, client: {self}")
-        await self._tx_queue.put((msg, ctx))
-
-    # ------------------------------
-    # To String
-    # ------------------------------
-
-    def __str__(self):
-        return (
-            f"{self.__class__.__name__}: "
-            f"id: {self.id}, "
-            f"key: {self.key}, "
-            f"conn: {self.connection}, "
-            f"queue: {self.queue} "
-            f"queue-has-data?: {self.has_data()}"
-        )
-
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"{self.id}, "
-            f"{self.key}, "
-            f"{self.connection})"
-        )
-
 
 class ClientRegistry:
     '''
@@ -394,11 +301,11 @@ class ClientRegistry:
     '''
 
     def __init__(self, debug_fn: Callable) -> None:
-        self._id:   Dict[UserId,        'RegisteredClient'] = {}
-        self._key:  Dict[UserKey,       'RegisteredClient'] = {}
-        self._conn: Dict[UserConnToken, 'RegisteredClient'] = {}
+        self._id:   Dict[UserId,        User] = {}
+        self._key:  Dict[UserKey,       User] = {}
+        self._conn: Dict[UserConnToken, User] = {}
 
-        self.debug: Callable                                = debug_fn
+        self.debug: Callable                  = debug_fn
         '''
         Should be WebSocketServer.debug().
         '''
@@ -410,9 +317,9 @@ class ClientRegistry:
     def register(self,
                  user_id:  UserId,
                  user_key: Optional[UserKey],
-                 conn:     UserConnToken) -> None:
+                 conn:     UserConnToken) -> UserConn:
         '''
-        Creates a RegisteredClient instance and indexes it by all the things we
+        Creates a User instance and indexes it by all the things we
         can get it by.
         '''
         if not user_id or not conn:
@@ -422,12 +329,18 @@ class ClientRegistry:
                                 None,
                                 msg)
 
-        user = RegisteredClient(user_id, user_key, conn, self.debug)
-        self._id[user_id]   = user
+        user = UserConn(user_id, user_key, conn,
+                        debug=self.debug,
+                        # Create a queue for the user.
+                        tx_queue=asyncio.Queue())
+
+        self._id[user_id] = user
         # TODO: make user_key required?
         if user_key:
             self._key[user_key] = user
-        self._conn[conn]    = user
+        self._conn[conn] = user
+
+        return user
 
     def unregister(self,
                    user_id:  NullNoneOr[UserId],
@@ -458,21 +371,21 @@ class ClientRegistry:
     # Getters / Setters
     # ------------------------------
 
-    def id(self, user: UserId) -> Nullable['RegisteredClient']:
+    def id(self, user: UserId) -> Nullable[UserConn]:
         '''
         Get by user's id.
         Returns Null() if it can't find client.
         '''
         return self._id.get(user, Null())
 
-    def key(self, user: UserKey) -> Nullable['RegisteredClient']:
+    def key(self, user: UserKey) -> Nullable[UserConn]:
         '''
         Get by user's key.
         Returns Null() if it can't find client.
         '''
         return self._key.get(user, Null())
 
-    def connection(self, user: UserConnToken) -> Nullable['RegisteredClient']:
+    def connection(self, user: UserConnToken) -> Nullable[UserConn]:
         '''
         Get by user's connection token.
         Returns Null() if it can't find client.
@@ -482,7 +395,7 @@ class ClientRegistry:
     def get(self,
             user_id:  UserId,
             user_key: Optional[UserKey],
-            conn:     UserConnToken) -> Nullable['RegisteredClient']:
+            conn:     UserConnToken) -> Nullable[UserConn]:
         '''
         Get when you don't know what to use to get.
         Will return Null if nothing found.
@@ -559,11 +472,11 @@ class WebSocketServer(WebSocketMediator):
     # User Connection Tracking
     # -------------------------------------------------------------------------
 
-    def _validate_connect(self,
-                          uid:  UserId,
-                          ukey: Optional[UserKey],
-                          conn: UserConnToken,
-                          msg:  Message) -> bool:
+    async def _validate_connect(self,
+                                uid:  UserId,
+                                ukey: Optional[UserKey],
+                                conn: UserConnToken,
+                                msg:  Message) -> bool:
         '''
         Validates user, registers if valid, returns valid/invalid user bool.
         '''
@@ -579,28 +492,29 @@ class WebSocketServer(WebSocketMediator):
                             f"NEW: uid: {uid}, ukey: {ukey}, token: {conn}")
                 # TODO [2020-08-13]: Should we tell socket to disconnect that
                 # one?
-                self.unregister(uid, ukey, conn)
+                await self.unregister(uid, ukey, conn)
 
             return True
 
         log.critical("User failed registration validation... "
                      "No UserId/UserKey or need to decode?"
-                     f" uid: {type(uid)} {uid};",
-                     f" ukey: {type(ukey)} {ukey}")
+                     " uid: {} {}; ukey: {} {}",
+                     type(uid), uid,
+                     type(ukey), ukey)
         return False
 
-    def register(self,
-                 user_id:  UserId,
-                 user_key: Optional[UserKey],
-                 conn:     UserConnToken,
-                 msg:      Message) -> Optional[Message]:
+    async def register(self,
+                       user_id:  UserId,
+                       user_key: Optional[UserKey],
+                       conn:     UserConnToken,
+                       msg:      Message) -> Optional[Message]:
         '''
         Validate client, register as connected if passes validation.
 
         Return ACK_CONNECT message if needed.
         '''
         success = False
-        if not self._validate_connect(user_id, user_key, conn, msg):
+        if not await self._validate_connect(user_id, user_key, conn, msg):
             # Failed. Return ACK_CONNECT for failure.
             # TODO: Don't always return message? Always return None? IDK?
             success = False
@@ -608,7 +522,12 @@ class WebSocketServer(WebSocketMediator):
                        f"({user_id}, {user_key}, {conn})")
 
         else:
+            # Register the client ourselves.
             self._clients.register(user_id, user_key, conn)
+            # Also tell the game about them connecting.
+            conn_msg = ConnectionMessage.connected(user_id, user_key, conn)
+            await self._med_to_game_put(conn_msg,
+                                        self.make_msg_context(conn_msg.msg_id))
             success = True
             self.debug("Registered user: "
                        f"({user_id}, {user_key}, {conn})")
@@ -617,24 +536,29 @@ class WebSocketServer(WebSocketMediator):
         ack = Message.connected(msg, user_id, user_key, success)
         return ack
 
-    def disconnected(self,
-                     conn:     Optional[UserConnToken]
-                     ) -> Optional[Message]:
+    async def disconnected(self,
+                           conn:     Optional[UserConnToken]
+                           ) -> Optional[Message]:
         '''
         Callback for VebSocketServer to inform of a disconnected client
         connection.
         '''
-        self.unregister(None, None, conn)
+        await self.unregister(None, None, conn)
 
-    def unregister(self,
-                   user_id:  Optional[UserId],
-                   user_key: Optional[UserKey],
-                   conn:     Optional[UserConnToken]
-                   ) -> Optional[Message]:
+    async def unregister(self,
+                         user_id:  Optional[UserId],
+                         user_key: Optional[UserKey],
+                         conn:     Optional[UserConnToken]
+                         ) -> Optional[Message]:
         '''
         Client has disconnected, remove from registered.
         '''
+        # Unregister the client ourselves.
         success = self._clients.unregister(user_id, user_key, conn)
+        # Also tell the game about them unregistering.
+        conn_msg = ConnectionMessage.disconnected(user_id, user_key, conn)
+        await self._med_to_game_put(conn_msg,
+                                    self.make_msg_context(conn_msg.msg_id))
 
         if success:
             self.debug("Unregistered user: "
@@ -684,7 +608,7 @@ class WebSocketServer(WebSocketMediator):
         '''
         Make a context with our context data, our codec's, etc.
         '''
-        ctx = MediatorServerContext(self.dotted,
+        ctx = MediatorServerContext(self.dotted(),
                                     type='websocket.server',
                                     codec=self._codec.make_context_data(),
                                     conn=connection)
@@ -696,7 +620,7 @@ class WebSocketServer(WebSocketMediator):
         '''
         Make a context for a message.
         '''
-        ctx = MessageContext(self.dotted, id)
+        ctx = MessageContext(self.dotted(), id)
         return ctx
 
     def start(self) -> None:
@@ -782,6 +706,7 @@ class WebSocketServer(WebSocketMediator):
             # Skip this - we used get_nowait(), not get().
             # self._rx_queue.task_done()
             await self._continuing()
+            continue
 
     async def _from_game_watcher(self) -> None:
         '''
@@ -824,21 +749,124 @@ class WebSocketServer(WebSocketMediator):
                     await self._continuing()
                     continue
 
-            # Do we know this guy?
-            client = self._clients.id(msg.user_id)
-            if not client:
-                self.debug("No client to send this to. Not connected yet "
-                           "or already disconnected? Dropping message: "
-                           f"{msg}, context: {ctx}")
+            # ---
+            # Multiple Recipients
+            # ---
+            # Is it an Envelope? They can be addressed to many clients.
+            if msg.type == MsgType.ENVELOPE:
+                # Process the envelope message into client messages.
+                await self._envelope_to_messages(msg, ctx)
+                # Skip the rest of the steps - they're for non-envelopes.
                 await self._continuing()
                 continue
 
-            # Transfer from 'received from game pipe' to
-            # 'this user's send queue'.
-            self.debug(f"Send to client-specific tx queue: {(msg, ctx)}; "
-                       f"client: {client}")
-            await client.put_data(msg, ctx)
+            # ---
+            # Single Recipient
+            # ---
+            await self._message_to_client(msg, ctx)
             await self._continuing()
+            continue
+
+    # -------------------------------------------------------------------------
+    # Game Message Processors
+    # -------------------------------------------------------------------------
+
+    async def _message_to_client(self,
+                                 message:     Message,
+                                 context: VerediContext) -> None:
+        # Do we know this guy?
+        client = self._clients.id(message.user_id)
+        if not client:
+            self.debug("No client to send this to. Not connected yet "
+                       "or already disconnected? Dropping message: "
+                       f"{message}, context: {context}")
+            return
+
+        # Transfer from 'received from game pipe' to
+        # 'this user's send queue'.
+        self.debug(f"Send to client-specific tx queue: {(message, context)}; "
+                   f"client: {client}")
+        await client.put_data(message, context)
+
+    async def _envelope_to_messages(self,
+                                    message: Message,
+                                    context: VerediContext) -> None:
+        '''
+        Takes an envelope and turns it into a message for each addressee user.
+        '''
+        # ---
+        # Error check.
+        # ---
+        envelope = message.payload
+        if not isinstance(envelope, Envelope):
+            err_msg = ("MediatorServer got incorrect payload in "
+                       f"'{MsgType.ENVELOPE}' message. Can only handle "
+                       "Envelope, got '{message.type}' from: {message}")
+            error = ValueError(err_msg, message, context)
+            raise log.exception(error, None, message, context=context)
+
+        # ---
+        # Process each addressee.
+        # ---
+        # Loop over each type of recipient first...
+        for recipient in Recipient:
+            if (recipient is Recipient.INVALID
+                    or recipient not in envelope.valid_recipients):
+                continue
+
+            # For this type of recipient, get addresses (if any).
+            address = envelope.address(recipient)
+            if not address:
+                continue
+
+            # Have actual users for this type of recipient. Make a message for
+            # each of them.
+            await self._address_to_messages(message.msg_id,
+                                            address,
+                                            envelope,
+                                            context)
+
+    async def _address_to_messages(self,
+                                   msg_id:   MonotonicId,
+                                   address:  Address,
+                                   envelope: Envelope,
+                                   context:  VerediContext) -> None:
+        '''
+        Creates a Message from `envelope` payload for each user in `address`.
+        Queues the messages and context up for sending to the user(s).
+        '''
+        for uid in address.user_ids:
+            # Don't bother with invalid user ids.
+            if not uid or uid == UserId.INVALID:
+                log.error("Cannot address Envelope to user. "
+                          "Invalid UserId: {}",
+                          uid)
+                continue
+
+            # Get user from user's id.
+            user = self._clients.id(uid)
+            # Don't bother sending to invalid users.
+            if not user or not user.id or user.id == UserId.INVALID:
+                # This isn't an error; could be a warning; info for now. User
+                # could have logged off/disappeared/whatever while this message
+                # was getting to us.
+                log.info("Cannot address Envelope to UserId '{}' - user is "
+                         "not connected: {}", uid, user)
+                continue
+
+            # Generate the message for this user at this address's
+            # security.abac.Subject value/level.
+            message = envelope.message(msg_id,
+                                       address.security_subject,
+                                       user)
+            if not message:
+                log.error("Failed to create message for use from Envelope. "
+                          "User: {}, Access: {}, Envelope: {}",
+                          user, address.security_subject, envelope)
+                continue
+
+            # Queue up message and context.
+            await self._message_to_client(message, context)
 
     # -------------------------------------------------------------------------
     # WebSocket Server
@@ -1012,8 +1040,9 @@ class WebSocketServer(WebSocketMediator):
                 self.debug(f"Client-Conn: {conn}: "
                            "No result to send; done.")
 
-            await self._continuing()
             # reloop
+            await self._continuing()
+            continue
 
     async def _hook_produce(self,
                             msg:  Optional[Message],
@@ -1043,7 +1072,7 @@ class WebSocketServer(WebSocketMediator):
         Send auth/registration result back down to the client?
         Or was that handled during _hrx_connect?
         '''
-        return await self._htx_generic(msg, ctx, conn, 'connect')
+        return await self._htx_generic(msg, ctx, conn, log_type='connect')
 
     async def _hrx_connect(self,
                            match:   re.Match,
@@ -1054,14 +1083,14 @@ class WebSocketServer(WebSocketMediator):
         '''
         Handle auth/registration request from a client.
         '''
-        # Already a dict, I guess?
-        # payload = self._codec.decode(msg.payload, context)
-        # user_id = UserId.decode(payload)
-        user_id = UserId.decode(msg.payload)
+        # UserId already decoded by Message.
+        log.debug("_hrx_connect: msg.payload (UserId): {}",
+                  msg.payload)
+        user_id = msg.payload
         # TODO: A user key instead of 'None'.
         user_key = None
         conn = context.connection
 
         # Validate and register user.
-        reply = self.register(user_id, user_key, conn, msg)
+        reply = await self.register(user_id, user_key, conn, msg)
         return reply

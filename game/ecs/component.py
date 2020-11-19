@@ -135,16 +135,20 @@ class ComponentManager(EcsManagerWithEvents):
         self._event_manager = event_manager
         self._config        = config
 
-    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
+    def _cycle_apocalypse(self) -> VerediHealth:
         '''
-        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        Game is ending gracefully. Make sure to murder everyone.
         '''
-        # Mark every ent for destruction, then run destruction.
+        # Mark every component for destruction, then run destruction.
         for cid in self._component_by_id:
             self.destroy(cid)
-        self.destruction(time)
+        health = self.destruction(None)
 
-        return super().apoptosis(time)
+        health = health.update(
+            super()._cycle_apocalypse())
+
+        self.health = health
+        return health
 
     def _add(self, id: ComponentId, component: Component) -> None:
         '''

@@ -24,7 +24,8 @@ from veredi.base.null import null_or_none
 from veredi.data                 import background
 from veredi.data.config.registry import register
 
-from .base import (BaseSerdes, Serializable, SerializeTypes, DeserializeTypes)
+from .serializable import Serializable
+from .base import (BaseSerdes, SerializeTypes, DeserializeTypes)
 from ..exceptions import SerializableError
 
 
@@ -49,10 +50,7 @@ class StringSerdes(BaseSerdes):
         '''
         `config_context` is the context being used to set us up.
         '''
-        self._name = 'string'
-        self._bg = None
-
-        self._configure(config_context)
+        super().__init__('string', config_context)
 
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:
@@ -77,7 +75,7 @@ class StringSerdes(BaseSerdes):
         '''
         Our background data.
         '''
-        self._bg = super()._make_background(self.dotted)
+        self._bg = super()._make_background(self.dotted())
 
     # -------------------------------------------------------------------------
     # Deserialize Methods

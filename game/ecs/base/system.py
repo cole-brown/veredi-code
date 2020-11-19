@@ -9,7 +9,7 @@ Base class for game update loop systems.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type, Any, Iterable, Set)
+                    Optional, Union, Type, Any, Iterable, Set, Dict)
 from veredi.base.null import NullNoneOr, Nullable, Null
 if TYPE_CHECKING:
     from decimal                    import Decimal
@@ -24,22 +24,25 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 import enum
 
-from veredi.data.config import registry
-from veredi.logger      import log
-from veredi.base.const  import VerediHealth
-from veredi.debug.const import DebugFlag
 
-from .identity          import EntityId, SystemId
-from .exceptions        import SystemErrorV
+from veredi.data.config       import registry
+from veredi.logger            import log
+from veredi.logger.lumberjack import Lumberjack
+from veredi.base.const        import VerediHealth
+from veredi.debug.const       import DebugFlag
+from veredi.base.assortments  import DeltaNext
 
-from ..const            import SystemTick, SystemPriority
-from ..exceptions       import TickError
+from .identity                import EntityId, SystemId
+from .exceptions              import SystemErrorV
 
-from ..manager          import EcsManager
-from ..time             import TimeManager, MonotonicTimer
-from ..event            import EventManager, Event
-from ..component        import ComponentManager
-from ..entity           import EntityManager
+from ..const                  import SystemTick, SystemPriority
+from ..exceptions             import TickError
+
+from ..manager                import EcsManager
+from ..time                   import TimeManager, MonotonicTimer
+from ..event                  import EventManager, Event
+from ..component              import ComponentManager
+from ..entity                 import EntityManager
 
 
 # -----------------------------------------------------------------------------
@@ -130,22 +133,81 @@ class SystemLifeCycle(enum.Enum):
 # -----------------------------------------------------------------------------
 
 class System(ABC):
-    def __init__(self,
-                 context:  Optional['VerediContext'],
-                 sid:      SystemId,
-                 managers: 'Meeting') -> None:
 
+    # -------------------------------------------------------------------------
+    # Class Methods
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dependencies(klass: 'System') -> Optional[Dict[Type['System'], str]]:
+        '''
+        System's dependencies in a System class/type to dotted string
+        dictionary.
+
+        Required dependencies will be checked for by type.
+          - If a system of that type already exists, good.
+          - If not, the dotted string will be used to try to create one.
+        '''
+        return None
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def _define_vars(self):
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
         self._life_cycle: SystemLifeCycle = SystemLifeCycle.INVALID
-        self._system_id:          SystemId                         = sid
+        '''
+        Our current life cycle.
+        '''
 
-        self._components_req:     Optional[Set[Type['Component']]] = None
-        self._components_req_all: bool                             = True
-        self._ticks:              Optional[SystemTick]             = None
+        self._system_id: SystemId = None
+        '''
+        Our ID. Set by SystemManager. Do not touch!
+        '''
 
-        self._manager:            'Meeting'                        = managers
+        self._components_req: Optional[Set[Type['Component']]] = None
+        '''
+        The components we /absolutely require/ to function.
+        '''
 
-        self._component_type:     Type['Component']                = None
-        '''This system's component. Used in get().'''
+        self._components_req_all: bool = True
+        '''
+        True: self._components_req is a Union of all components required.
+
+        False: Any one of the components in self._components_req is enough for
+        us to do something with the entity for our tick.
+        '''
+
+        self._ticks: Optional[SystemTick] = None
+        '''
+        The ticks we desire to run in.
+
+        Systems will always get the TICKS_START and TICKS_END ticks. The
+        default _cycle_<tick> and _update_<tick> for those ticks should be
+        acceptable if the system doesn't care.
+        '''
+
+        self._manager: 'Meeting' = None
+        '''
+        A link to the engine's Meeting of ECS Managers.
+        '''
+
+        self._component_type: Type['Component'] = None
+        '''
+        This system's component type. Used in get().
+        For systems that aren't tied to a specifc component, leave as 'None'.
+        '''
+
+        # ---
+        # Logging
+        # ---
+        self._log: Lumberjack = None
+        '''
+        A logger specifically for this system. Logger name is `self.dotted()`.
+        '''
 
         # ---
         # Subscriptions
@@ -161,62 +223,103 @@ class System(ABC):
         # ---
         # If we get in a not-healthy state, we'll start just dropping inputs.
         self._health: VerediHealth = VerediHealth.HEALTHY
+        '''
+        Overall health of the system.
+        '''
+
         self._required_managers: Optional[Set[Type[EcsManager]]] = None
+        '''
+        All ECS Managers that we /require/ in order to function.
+        '''
 
         # Most systems have these, so we'll just define 'em in the base.
         self._health_meter_event:   Optional['Decimal'] = None
-        self._health_meter_update:  Optional['Decimal'] = None
+        '''
+        Store timing information for our timed/metered 'system isn't healthy'
+        messages that fire off during event things.
+        '''
 
-        # Systems can set up more logging meters like those for use with
-        # self._health_log(). E.g.:
-        # Then call self._health_log() like, say...
-        #     # Doctor checkup.
-        #     if not self._healthy(self._manager.time.engine_tick_current):
-        #         self._health_meter_jeff = self._health_log(
-        #             self._health_meter_jeff,
-        #             log.Level.WARNING,
-        #             "HEALTH({}): Skipping jeff - our system health "
-        #             "isn't good enough to process.",
-        #             self._state, event,
-        #             context=event.context)
-        #         return
+        self._health_meter_update:  Optional['Decimal'] = None
+        '''
+        Stores timing information for our timed/metered 'system isn't healthy'
+        messages that fire off during system tick things.
+        '''
+
+        self._reduced_tick_rate: Optional[Dict[SystemTick, DeltaNext]] = {}
+        '''
+        If systems want to only do some tick (or part of a tick), they can put
+        the tick and how often they want to do it here.
+
+        e.g. if we want every 10th SystemTick.CREATION for checking that some
+        data is in sync, set:
+          self._set_reduced_tick_rate(SystemTick.CREATION, 10)
+        '''
+
+    def __init__(self,
+                 context:  Optional['VerediContext'],
+                 sid:      SystemId,
+                 managers: 'Meeting') -> None:
+        self._define_vars()
 
         # ---
-        # Final init set up/configuration from context/config and
+        # Set our variables.
+        # ---
+        self._system_id = sid
+        self._manager = managers
+
+        # ---
+        # Final set up/configuration from context/config and
         # system-specific stuff.
         # ---
         self._configure(context)
+
+        # ---
+        # Logger!
+        # ---
+        # TODO: go through all systems and make sure they use this instead of
+        # log.py directly.
+        self._log = Lumberjack(self.dotted())
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
 
     @property
     def id(self) -> SystemId:
         return SystemId.INVALID if self._system_id is None else self._system_id
 
-    # TODO: rename this dotted!
-    @property
+    @classmethod
     @abstractmethod
-    def dotted(self) -> str:
+    def dotted(klass: 'System') -> str:
         '''
         The dotted name this system has. If the system uses '@register', you
-        still have to implement dotted, but you get self._DOTTED for free
+        still have to implement dotted, but you get klass._DOTTED for free
         (the @register decorator sets it).
 
         E.g.
           @register('veredi', 'jeff', 'system')
         would be:
-          self._DOTTED = 'veredi.jeff.system'
+          klass._DOTTED = 'veredi.jeff.system'
 
         So just implement like this:
 
-            @property
-            def dotted(self) -> str:
-                # self._DOTTED magically provided by @register
-                return self._DOTTED
+            @classmethod
+            def dotted(klass: 'JeffSystem') -> str:
+                # klass._DOTTED magically provided by @register
+                return klass._DOTTED
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented in base class. "
+                                  "Subclasses should get it defined via "
+                                  "@register, or else define it themselves.")
 
     @property
     def enabled(self) -> bool:
         return self._life_cycle == SystemLifeCycle.ALIVE
+
+    # -------------------------------------------------------------------------
+    # Life Cycle
+    # -------------------------------------------------------------------------
 
     @property
     def life_cycle(self) -> SystemLifeCycle:
@@ -235,7 +338,7 @@ class System(ABC):
         '''
         # Sanity.
         if new_state == self._life_cycle:
-            log.warning("Already in {}.", new_state)
+            self._log.warning("Already in {}.", new_state)
             return self.health
 
         # ------------------------------
@@ -245,11 +348,10 @@ class System(ABC):
         if new_state == SystemLifeCycle.INVALID:
             msg = (f"{str(self)}: {self._life_cycle}->{new_state} "
                    "is an invalid life-cycle to transition to.")
-            raise log.exception(ValueError(msg,
-                                           self._life_cycle,
-                                           new_state),
-                                None,
-                                msg)
+            error = ValueError(msg,
+                               self._life_cycle,
+                               new_state)
+            raise self._log.exception(error, msg)
 
         # Valid life-cycles; call specific cycle function.
         elif new_state == SystemLifeCycle.CREATING:
@@ -284,11 +386,10 @@ class System(ABC):
         else:
             msg = (f"{str(self)}: {self._life_cycle}->{new_state} "
                    "is an unknown life-cycle to transition to.")
-            raise log.exception(ValueError(msg,
-                                           self._life_cycle,
-                                           new_state),
-                                None,
-                                msg)
+            error = ValueError(msg,
+                               self._life_cycle,
+                               new_state)
+            raise self._log.exception(error, msg)
 
         return self._health
 
@@ -437,9 +538,9 @@ class System(ABC):
                 if not context:
                     context = event.context
             # Entity disappeared, and that's ok.
-            log.info("{}No entity for its id: {}",
-                     preface, entity_id,
-                     context=context)
+            self._log.info("{}No entity for its id: {}",
+                           preface, entity_id,
+                           context=context)
             # TODO [2020-06-04]: a health thing? e.g.
             # self._health_update(EntityDNE)
             return Null()
@@ -474,11 +575,11 @@ class System(ABC):
                 if not context:
                     context = event.context
             # Component disappeared, and that's ok.
-            log.info("{}No '{}' on entity: {}",
-                     preface,
-                     component.__class__.__name__,
-                     entity,
-                     context=context)
+            self._log.info("{}No '{}' on entity: {}",
+                           preface,
+                           component.__class__.__name__,
+                           entity,
+                           context=context)
             # TODO [2020-06-04]: a health thing? e.g.
             # self._health_update(ComponentDNE)
             return Null()
@@ -515,7 +616,9 @@ class System(ABC):
     # System Death
     # -------------------------------------------------------------------------
 
-    def apoptosis_time_desired(self) -> Optional[float]:
+    # TODO [2020-10-08]: Use this timeout_desired() in TICKS_START,
+    # TICKS_END to see if there's a smaller max timeout engine/sysmgr can use.
+    def timeout_desired(self, cycle: SystemTick) -> Optional[float]:
         '''
         If a system wants some minimum time, they can override this function.
         This is only a request, though. The SystemManager or Engine may not
@@ -559,7 +662,16 @@ class System(ABC):
         '''
         Tracks our system health. Returns either `current_health` or something
         worse from what all we track.
+
+        Checks for all required managers via Meeting.healthy().
+
+        Checks for existance of all systems we depend on (according to
+        self.dependencies()). If something doesn't exist, degrade health to
+        UNHEALTHY. Only checks for existance of the dependency - not health.
         '''
+        # ---
+        # Health Summary: Managers
+        # ---
         manager_health = self._manager.healthy(self._required_managers)
         if not manager_health.in_best_health:
             self._health = self._health.update(manager_health)
@@ -567,10 +679,30 @@ class System(ABC):
             # they don't exist.
             return self.health
 
+        # ---
+        # Health Summary: Systems
+        # ---
+        dependency_health = VerediHealth.HEALTHY
+        dependencies = self.dependencies() or {}
+        for sys_type in dependencies:
+            system = self._manager.system.get(sys_type)
+            if not system:
+                # Log and degrade our system dependency health.
+                self._log.warning("{} cannot find its requried system: {}",
+                                  self.__class__.__name__,
+                                  sys_type)
+                dependency_health = dependency_health.update(
+                    VerediHealth.UNHEALTHY)
+
+        # ---
+        # Health Summary: Summary
+        # ---
         # Set our state to whatever's worse and return that.
         # TODO [2020-06-04]: Eventually maybe a gradient of health so one
         # bad thing doesn't knock us offline?
-        self._health = self._health.update(current_health)
+        self._health = self._health.update(current_health,
+                                           manager_health,
+                                           dependency_health)
         return self.health
 
     def _health_log(self,
@@ -588,10 +720,11 @@ class System(ABC):
         output_log, maybe_updated_meter = self._manager.time.metered(log_meter)
         if output_log:
             log.incr_stack_level(kwargs)
-            log.at_level(log_level,
-                         "HEALTH({}): Skipping ticks - our system health "
-                         "isn't good enough to process. args: {}, kwargs: {}",
-                         self.health, args, kwargs)
+            self._log.at_level(
+                log_level,
+                "HEALTH({}): Skipping ticks - our system health "
+                "isn't good enough to process. args: {}, kwargs: {}",
+                self.health, args, kwargs)
         return maybe_updated_meter
 
     def _health_ok_msg(self,
@@ -677,20 +810,25 @@ class System(ABC):
         if (event_manager
                 and self._manager and self._manager.event
                 and self._manager.event is not event_manager):
-            raise log.exception(None,
-                                SystemErrorV,
-                                "subscribe() received an EventManager which "
-                                "is different from its saved EventManager "
-                                "from initialization. ours: {}, supplied: {}",
-                                self._manager.event, event_manager)
+            msg = ("subscribe() received an EventManager which "
+                   "is different from its saved EventManager "
+                   "from initialization. ours: {}, supplied: {}")
+            msg = msg.format(self._manager.event, event_manager)
+            error = SystemErrorV(msg,
+                                 None,
+                                 context=None,
+                                 associated=None)
+            raise self._log.exception(error, msg)
 
         if (self._required_managers and EventManager in self._required_managers
                 and not self._manager.event):
-            raise log.exception(None,
-                                SystemErrorV,
-                                "System has no event manager to subscribe to "
-                                "but requires one.",
-                                self._manager.event, event_manager)
+            msg = ("System has no event manager to subscribe to "
+                   "but requires one.")
+            error = SystemErrorV(msg,
+                                 None,
+                                 context=None,
+                                 associated=None)
+            raise self._log.exception(error, msg)
 
         # Have our sub-class do whatever it wants this one time.
         # Or, you know, more than once... depending on the health returned.
@@ -733,9 +871,32 @@ class System(ABC):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
+    def _set_reduced_tick_rate(self, tick: SystemTick, rate: int) -> None:
+        '''
+        Set an entry into our reduced tick rate dict. This does nothing on its
+        own. System must use self._is_reduced_tick() to check for if/when they
+        want to do their reduced processing.
+        '''
+        self._reduced_tick_rate[tick] = DeltaNext(rate,
+                                                  self._manager.time.tick_num)
+
+    def _is_reduced_tick(self, tick: SystemTick) -> bool:
+        '''
+        Checks to see if this tick is the reduced-tick-rate tick.
+        '''
+        red_tick = self._reduced_tick_rate.get(tick, None)
+        if not red_tick:
+            return False
+
+        if self._manager.time.tick_num >= red_tick.next:
+            # Update our DeltaNext to the next reduced tick number.
+            red_tick.cycle(self._manager.time.tick_num)
+            return True
+
+        return False
+
     def wants_update_tick(self,
-                          tick: SystemTick,
-                          time_mgr: 'TimeManager') -> bool:
+                          tick: SystemTick) -> bool:
         '''
         Returns a boolean for whether this system wants to run during this tick
         update function.
@@ -775,70 +936,55 @@ class System(ABC):
         '''
         return self._components_req_all
 
-    def _wanted_entities(self,
-                         tick:          SystemTick,
-                         time_mgr:      'TimeManager',
-                         component_mgr: 'ComponentManager',
-                         entity_mgr:    'EntityManager') -> VerediHealth:
+    def _wanted_entities(self, tick: SystemTick) -> VerediHealth:
         '''
         Loop over entities that have self.required().
         '''
-        req_fn = (entity_mgr.each_with_all
+        req_fn = (self._manager.entity.each_with_all
                   if self.require_all() else
-                  entity_mgr.each_with_any)
+                  self._manager.entity.each_with_any)
         for entity in req_fn(self.required()):
             yield entity
 
     def update_tick(self,
-                    tick:          SystemTick,
-                    time_mgr:      'TimeManager',
-                    component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> VerediHealth:
+                    tick: SystemTick) -> VerediHealth:
         '''
         Calls the correct update function for the tick state.
 
         Returns VerediHealth value.
         '''
         if tick is SystemTick.GENESIS:
-            return self._update_genesis(time_mgr, component_mgr, entity_mgr)
+            return self._update_genesis()
 
         elif tick is SystemTick.INTRA_SYSTEM:
-            return self._update_intra_system(time_mgr.timer)
+            return self._update_intra_system()
 
         elif tick is SystemTick.TIME:
-            return self._update_time(time_mgr, component_mgr, entity_mgr)
+            return self._update_time()
 
         elif tick is SystemTick.CREATION:
-            return self._update_creation(time_mgr, component_mgr, entity_mgr)
+            return self._update_creation()
 
         elif tick is SystemTick.PRE:
-            return self._update_pre(time_mgr, component_mgr, entity_mgr)
+            return self._update_pre()
 
         elif tick is SystemTick.STANDARD:
-            return self._update(time_mgr, component_mgr, entity_mgr)
+            return self._update()
 
         elif tick is SystemTick.POST:
-            return self._update_post(time_mgr, component_mgr, entity_mgr)
+            return self._update_post()
 
         elif tick is SystemTick.DESTRUCTION:
-            return self._update_destruction(time_mgr,
-                                            component_mgr,
-                                            entity_mgr)
+            return self._update_destruction()
 
         elif tick is SystemTick.APOPTOSIS:
-            return self._update_apoptosis(time_mgr,
-                                          component_mgr,
-                                          entity_mgr)
+            return self._update_apoptosis()
 
         elif tick is SystemTick.APOCALYPSE:
-            return self._update_apocalypse(time_mgr,
-                                           component_mgr,
-                                           entity_mgr)
+            return self._update_apocalypse()
 
         elif tick is SystemTick.THE_END:
-            return self._update_the_end(time_mgr,
-                                        component_mgr,
-                                        entity_mgr)
+            return self._update_the_end()
 
         else:
             # This, too, should be treated as a VerediHealth.FATAL...
@@ -846,10 +992,7 @@ class System(ABC):
                 "{} does not have an update_tick handler for {}.",
                 self.__class__.__name__, tick)
 
-    def _update_genesis(self,
-                        time_mgr:      TimeManager,
-                        component_mgr: ComponentManager,
-                        entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_genesis(self) -> VerediHealth:
         '''
         First in set-up loop. Systems should use this to load and initialize
         stuff that takes multiple cycles or is otherwise unwieldy
@@ -859,8 +1002,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_intra_sys(self,
-                          timer: MonotonicTimer) -> VerediHealth:
+    def _update_intra_sys(self) -> VerediHealth:
         '''
         Part of the set-up ticks. Systems should use this for any
         system-to-system setup. For examples:
@@ -871,10 +1013,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_time(self,
-                     time_mgr:      TimeManager,
-                     component_mgr: ComponentManager,
-                     entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_time(self) -> VerediHealth:
         '''
         First in Game update loop. Systems should use this rarely as the game
         time clock itself updates in this part of the loop.
@@ -883,10 +1022,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_creation(self,
-                         time_mgr:      TimeManager,
-                         component_mgr: ComponentManager,
-                         entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_creation(self) -> VerediHealth:
         '''
         Before Standard upate. Creation part of life cycles managed here.
         '''
@@ -894,10 +1030,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_pre(self,
-                    time_mgr:      TimeManager,
-                    component_mgr: ComponentManager,
-                    entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_pre(self) -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
@@ -906,10 +1039,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update(self,
-                time_mgr:      TimeManager,
-                component_mgr: ComponentManager,
-                entity_mgr:    EntityManager) -> VerediHealth:
+    def _update(self) -> VerediHealth:
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
@@ -917,10 +1047,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_post(self,
-                     time_mgr:      TimeManager,
-                     component_mgr: ComponentManager,
-                     entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_post(self) -> VerediHealth:
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
@@ -929,10 +1056,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_destruction(self,
-                            time_mgr:      TimeManager,
-                            component_mgr: ComponentManager,
-                            entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_destruction(self) -> VerediHealth:
         '''
         Final game-loop update. Death/deletion part of life cycles
         managed here.
@@ -941,10 +1065,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_apoptosis(self,
-                          time_mgr:      TimeManager,
-                          component_mgr: ComponentManager,
-                          entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_apoptosis(self) -> VerediHealth:
         '''
         Structured death phase. System should be responsive until it the next
         phase, but should be doing stuff for shutting down, like saving off
@@ -956,10 +1077,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_apocalypse(self,
-                           time_mgr:      TimeManager,
-                           component_mgr: ComponentManager,
-                           entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_apocalypse(self) -> VerediHealth:
         '''
         "Die now" death phase. System may now go unresponsive to events,
         function calls, etc. Systems cannot expect to have done a successful
@@ -971,10 +1089,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_the_end(self,
-                        time_mgr:      TimeManager,
-                        component_mgr: ComponentManager,
-                        entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_the_end(self) -> VerediHealth:
         '''
         Final game update. This is only called once. Systems should most likely
         have nothing to do here.
@@ -988,21 +1103,6 @@ class System(ABC):
     # -------------------------------------------------------------------------
     # Logging and String
     # -------------------------------------------------------------------------
-
-    def _log(self,
-             level:    'log.Level',
-             msg:      str,
-             *args:    Any,
-             **kwargs: Any) -> None:
-        '''
-        Stupid way of having to stuff our class name into logger output.
-        '''
-        sys_logger = log.get_logger(self.dotted)
-        log.at_level(level,
-                     msg,
-                     *args,
-                     veredi_logger=sys_logger,
-                     **kwargs)
 
     def _should_debug(self):
         '''

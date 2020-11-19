@@ -148,20 +148,41 @@ class EntityManager(EcsManagerWithEvents):
         self._event_manager     = event_manager
         self._component_manager = component_manager
 
-    def apoptosis(self, time: 'TimeManager') -> VerediHealth:
+    def _cycle_apocalypse(self) -> VerediHealth:
         '''
-        Game is ending gracefully. Do graceful end-of-the-world stuff...
+        Game is ending gracefully. Make sure to murder everyone.
         '''
         # Mark every ent for destruction, then run destruction.
         for eid in self._entity:
             self.destroy(eid)
-        self.destruction(time)
+        health = self.destruction(None)
 
-        return super().apoptosis(time)
+        health = health.update(
+            super()._cycle_apocalypse())
+
+        self.health = health
+        return health
 
     # -------------------------------------------------------------------------
     # API: Entity Collection Iteration
     # -------------------------------------------------------------------------
+
+    def each_with(self,
+                  required_component: Type[Component]
+                  ) -> Iterable[Entity]:
+        '''
+        Returns a generator that will return each entity that contains the
+        the required component.
+        '''
+        # Walk over all entities...
+        for id in self._entity:
+            entity = self._entity[id]
+            # ...and if this entity has the required component,
+            # yield it as a value.
+            if (entity
+                    and entity.enabled
+                    and required_component in entity):
+                yield entity
 
     def each_with_all(self,
                       required_components: Set[Type[Component]]

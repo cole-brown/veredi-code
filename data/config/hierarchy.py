@@ -205,6 +205,7 @@ class ConfigHierarchy(Hierarchy):
         },
 
         'engine': {
+            'systems': Info.LEAF,
             'time': {
                 'timeouts': {
                     'default': Info.LEAF,

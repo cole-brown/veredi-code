@@ -57,12 +57,23 @@ class Component:
     that actually share the same exact component.
     '''
 
+    def _define_vars(self) -> None:
+        '''
+        Set up our vars with type hinting, docstrs.
+        '''
+        self._comp_id: ComponentId = None
+        '''Component's ID number - assigned by ComponentManager'''
+
+        self._life_cycle = ComponentLifeCycle.INVALID
+        '''Component's current life cycle - assigned by ComponentManager'''
+
     def __init__(self,
                  context: Optional['VerediContext'],
                  cid:     ComponentId) -> None:
         '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
+        self._define_vars()
+
         self._comp_id = cid
-        self._life_cycle = ComponentLifeCycle.INVALID
 
         self._configure(context)
 

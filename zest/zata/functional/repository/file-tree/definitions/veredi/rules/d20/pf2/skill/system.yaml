@@ -1,0 +1,150 @@
+--- !metadata
+record-type: veredi.definition.system
+version: 2020-05-26
+
+source: veredi.system
+author: Cole Brown
+date:   2020-06-23
+
+system: d20.pf2
+name: veredi.rules.d20.pf2.skill.config
+display-name: Veredi D20 PF2 Skills Configuration
+
+
+--- !system.definition
+
+meta:
+  registry: veredi.rules.d20.pf2.skill.system
+  component:
+    registry: veredi.rules.d20.pf2.skill.component
+
+# Define all known skills. The only thing that allows users outside these bounds
+# are these lines in the grouped skills:
+#    !meta user.defined: allow
+#
+# For those groups, users can set the sub-type themselves. e.g.
+#   - Profession: Soldier
+#   - Perform: Vocal
+#
+# Note that the 'knowledge' group does not have that option so it is set in
+# stone.
+
+skill:
+  acrobatics:
+    class: false
+    ranks: 0
+  appraise:
+    class: false
+    ranks: 0
+  bluff:
+    class: false
+    ranks: 0
+  climb:
+    class: false
+    ranks: 0
+  !grouped craft:
+    !meta user.defined: allow
+    !user.defined <name>:
+      display-name: !user.defined "Craft (<NAME>)"
+      class: false
+      ranks: 0
+  diplomacy:
+    class: false
+    ranks: 0
+  disable-device:
+    class: false
+    ranks: 0
+    display-name: "Disable Device"
+  disguise:
+    class: false
+    ranks: 0
+  escape-artist:
+    class: false
+    ranks: 0
+    display-name: "Escape Artist"
+  fly:
+    class: false
+    ranks: 0
+  handle-animal:
+    class: false
+    ranks: 0
+    display-name: "Handle Animal"
+  heal:
+    class: false
+    ranks: 0
+  intimidate:
+    class: false
+    ranks: 0
+  !grouped knowledge:
+    arcana:
+      class: false
+      ranks: 0
+    dungeoneering:
+      class: false
+      ranks: 0
+    engineering:
+      class: false
+      ranks: 0
+    geography:
+      class: false
+      ranks: 0
+    history:
+      class: false
+      ranks: 0
+    local:
+      class: false
+      ranks: 0
+    nature:
+      class: false
+      ranks: 0
+    nobility:
+      class: false
+      ranks: 0
+    planes:
+      class: false
+      ranks: 0
+    religion:
+      class: false
+      ranks: 0
+  linguistics:
+    class: false
+    ranks: 0
+  perception:
+    class: false
+    ranks: 0
+  !grouped perform:
+    !meta user.defined: allow
+    !user.defined placeholder:
+      display-name: !user.defined 'Perform: Placeholder'
+      class: false
+      ranks: 0
+  !grouped profession:
+    !meta user.defined: allow
+    !user.defined placeholder:
+      display-name: !user.defined Professional Placeholder
+      class: false
+      ranks: 0
+  ride:
+    class: false
+    ranks: 0
+  sense-motive:
+    class: false
+    ranks: 0
+  sleight-of-hand:
+    class: false
+    ranks: 0
+  spellcraft:
+    class: false
+    ranks: 0
+  stealth:
+    class: false
+    ranks: 0
+  survival:
+    class: false
+    ranks: 0
+  swim:
+    class: false
+    ranks: 0
+  use-magic-device:
+    class: false
+    ranks: 0

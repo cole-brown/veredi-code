@@ -23,7 +23,7 @@ Alot of Outputs.
 # Typing
 # ---
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type, Callable, NamedTuple, Set, List)
+                    Optional, Union, Type, Callable, Set, List)
 if TYPE_CHECKING:
     from decimal                   import Decimal
 
@@ -42,6 +42,9 @@ from veredi.logger                       import log
 from veredi.base.const                   import VerediHealth
 from veredi.data.config.registry         import register
 from veredi.data.serdes.string           import StringSerdes
+
+from veredi.security                     import abac
+from veredi.security.context             import SecurityContext
 
 # Game / ECS Stuff
 from veredi.game.ecs.event               import EventManager
@@ -64,35 +67,36 @@ from veredi.game.data.identity.component import IdentityComponent
 # from ..input.component                   import InputComponent
 
 # Output-Related Stuff
-from .event                              import OutputEvent, OutputType
+from .event                              import OutputEvent, Recipient
+from .envelope                           import Envelope, Message, BasePayload
+from ..mediator.event                    import GameToMediatorEvent
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
+UT_OutRxCallback = Callable[['Envelope', Optional[Recipient]], None]
+'''
+Callback for unit tests that want to side-channel receive outputs.
+Parameters will be the Envelope used for sending and all Recipients sent to.
+'''
+
 
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
 
-class SendEntry(NamedTuple):
-    '''
-    Packages up what to send and to whom.
-    '''
-    payload:      str
-    payload_type: OutputType
-    target_type:  OutputType
-
-
 @register('veredi', 'interface', 'output', 'system')
 class OutputSystem(System):
 
-    def _configure(self, context: 'VerediContext') -> None:
+    _MAX_PER_TICK = 50
+
+    def _define_vars(self):
         '''
-        Make our stuff from context/config data.
+        Instance variable definitions, type hinting, doc strings, etc.
         '''
-        self._ut_recv_fn = None
+        super()._define_vars()
 
         self._event_queue: List[OutputEvent] = []
         '''
@@ -100,13 +104,7 @@ class OutputSystem(System):
         here when we receive them.
         '''
 
-        self._event_retry: List[OutputEvent] = []
-        '''
-        Output queue for OutputEvents that turned out to not quite be ready
-        yet. Will try again next tick.
-        '''
-
-        self._send_queue: List['SendEntry'] = []
+        self._send_queue: List['Envelope'] = []
         '''
         Output queue we work on every tick. Final output gets pushed to users
         from here.
@@ -114,6 +112,45 @@ class OutputSystem(System):
 
         self._component_type: Type[Component] = None
         '''Don't have a component type for output right now.'''
+
+        # ------------------------------
+        # TODO: DELETE THESE
+        # ------------------------------
+        # ---
+        # Config Stuff
+        # ---
+        self._codec: Optional[Codec] = None
+        '''
+        Optional Coder/Decoder for messages & envelopes. If None, skips codec
+        step.
+        '''
+
+        self._serdes: StringSerdes = StringSerdes()
+        '''
+        Serializer/deserializer for messages & envelopes.
+        '''
+        # ------------------------------
+        # /TODO: DELETE THESE
+        # ------------------------------
+
+        # ---
+        # Security: Access Control
+        # ---
+        self._pdp: 'abac.PolicyDecisionPoint' = None
+
+        # ---
+        # Unit Test Stuff
+        # ---
+        self._ut_recv_fn: UT_OutRxCallback = None
+        '''
+        Will also call this function, if it is not None, when sending out our
+        envelopes.
+        '''
+
+    def _configure(self, context: 'VerediContext') -> None:
+        '''
+        Make our stuff from context/config data.
+        '''
 
         # ---
         # Health Stuff
@@ -137,9 +174,6 @@ class OutputSystem(System):
         # ---
         # Config Stuff
         # ---
-        self._codec = None
-        self._serdes = StringSerdes()
-
         config = background.config.config
         if config:
             self._codec = config.make(None,
@@ -148,13 +182,25 @@ class OutputSystem(System):
                                       'codec')
 
         # ---
+        # Security: Access Control
+        # ---
+        # TODO: get an actual policy from config
+        self._pdp = abac.PolicyDecisionPoint()
+
+        # ---
         # Background Context Stuff
         # ---
         # Create our background context now that we have enough info.
         bg_data, bg_owner = self._background
-        background.output.set(self.dotted,
+        background.output.set(self.dotted(),
                               bg_data,
                               bg_owner)
+
+        # ---
+        # Unit Test Stuff
+        # ---
+        # Always start this off as unset. Will get set via self._unit_test()
+        self._ut_recv_fn = None
 
     @property
     def _background(self):
@@ -164,16 +210,16 @@ class OutputSystem(System):
         codec_data, _ = self._codec.background
         serdes_data, _ = self._serdes.background
         self._bg = {
-            'dotted': self.dotted,
+            'dotted': self.dotted(),
             'codec': codec_data,
             'serdes': serdes_data,
         }
         return self._bg, background.Ownership.SHARE
 
-    @property
-    def dotted(self) -> str:
-        # self._DOTTED magically provided by @register
-        return self._DOTTED
+    @classmethod
+    def dotted(klass: 'OutputSystem') -> str:
+        # klass._DOTTED magically provided by @register
+        return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -209,6 +255,7 @@ class OutputSystem(System):
         '''
         # Doctor checkup.
         if not self._health_ok_event(event):
+            # Bad health - already said we're dropping the event.
             return
 
         self._event_queue.append(event)
@@ -217,10 +264,7 @@ class OutputSystem(System):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update_post(self,
-                     time_mgr:      TimeManager,
-                     component_mgr: 'ComponentManager',
-                     entity_mgr:    'EntityManager') -> VerediHealth:
+    def _update_post(self) -> VerediHealth:
         '''
         SystemTick.POST tick function.
         '''
@@ -231,24 +275,37 @@ class OutputSystem(System):
         # ---
         # Process our Events
         # ---
-        for output in self._event_queue:
-            if self._process_output(output):
+        remaining = self._MAX_PER_TICK
+        retry = []
+        for event in self._event_queue:
+            # If we've done our max this tick, cancel out of checking the rest.
+            # _event_queue is a queue, so this'll get to the proper 'next'
+            # message next tick.
+            remaining -= 1
+            if remaining < 0:
+                break
+
+            # Try to process and send this event.
+            if self._process_event(event):
                 continue
-            # Failed... retry?
-            self._event_retry.append(output)
 
-        # Done with our outputting. Clear out the output queue and then swap it
-        # and the retry queue out in preparation of the next tick.
-        self._event_queue.clear()
-        (self._event_queue,
-         self._event_retry) = (self._event_retry,
-                               self._event_queue)
+            # Couldn't send this tick... next tick?
+            retry.append(event)
 
         # ---
-        # Send our Outputs
+        # Prep Queues for Next Go.
         # ---
-        for output in self._send_queue:
-            self._send_output(output)
+
+        # Done with our event processing. Get ready for next time by adding all
+        # the events we tried but still need to retry back to the end of the
+        # queue.
+        self._event_queue.extend(retry)
+
+        # ---
+        # Send our Envelopes out.
+        # ---
+        for envelope in self._send_queue:
+            self._send_envelope(envelope)
 
         # Done with our sending. Clear out the send in preparation of the next
         # tick.
@@ -260,41 +317,23 @@ class OutputSystem(System):
     # Output Processing
     # -------------------------------------------------------------------------
 
-    def _process_output(self, output: OutputEvent) -> bool:
+    def _process_event(self, event: OutputEvent) -> bool:
         '''
         Prepare output event, send to proper users with proper data (e.g.
         GM-only data), etc.
 
         Returns bool for success in processing/sending output.
         '''
-        # TODO [2020-07-06]: Do we save the output to the historian?
+        # Queue up output to be sent... wherever it should go.
+        entry = Envelope(event)
+        self._send_queue.append(entry)
+
+        # TODO [2020-07-06]: Do we save the event to the historian?
         # I think so. We need the result so we can undo the thing.
         # TODO: Send to historian.
-        log.warning("TODO: send to historian?")
-
-        # Use codec to encode output for transmit.
-        # TODO: Need...
-        #   - Title
-        #   - Names Dict
-        # TODO: Check output flags.
-        #   - Encode differently for GM, players?
-        #   - Encode differently for owner player, other players?
-        encoded_for = OutputType.BROADCAST
-        encoded = self._codec.encode(output, output.context)
-        if self._should_debug():
-            self._log(log.Level.DEBUG,
-                      "encoded output: {}",
-                      encoded)
-        serialized = self._serdes.serialize(encoded, output.context)
-        if self._should_debug():
-            self._log(log.Level.DEBUG,
-                      "serialized output: {}",
-                      serialized)
-
-        # Queue up output to be sent... wherever it should go.
-        send_to = OutputType.BROADCAST
-        entry = SendEntry(serialized, encoded_for, send_to)
-        self._send_queue.append(entry)
+        self._log.warning("TODO: send {} to historian: OutputEvent? Envelope? "
+                          "Wait for GameToMediatorEvent?",
+                          event.serial_id)
 
         # And... Done? Nothing more to do now at this point?
         return True
@@ -303,69 +342,160 @@ class OutputSystem(System):
     # Output Sending
     # -------------------------------------------------------------------------
 
-    def _send_output(self,
-                     output: 'SendEntry',
-                     skip:   Optional[OutputType] = None) -> None:
+    def _send_envelope(self,
+                       envelope: 'Envelope') -> Recipient:
         '''
-        Sends `output` to necessary users.
+        Take the `envelope`, build a GameToMediatorEvent, and send it to the
+        EventManager.
 
-        Checks, adds to `skip` flags; returns updated skip flag mask.
-
-        E.g. Adds 'GM' flag to `skip`
-
-        E.g. if broadcasting, can skip GM user in broadcast if already sent to
-        GM at GM encoding in previous step.
+        Returns what recipients from the desired were validated. Will probably
+        be (should be) equal to the desired recipients?
         '''
+        # ---
+        # Create address info.
+        # ---
+        # This is the point that the envelope gets its recipients validated.
+        # It returns the new, validated recipients.
+        allowed_recipients = self._address_envelope(envelope)
+
+        # Create the event and notify our EventManager.
+        event = GameToMediatorEvent(envelope)
+        self._event_notify(event)
+
+        # ---
+        # Send to Unit Test if callback exists.
+        # ---
         if self._ut_recv_fn:
-            self._ut_recv_fn(output)
+            self._ut_recv_fn(envelope, allowed_recipients)
 
-        if not skip:
-            skip = OutputType.INVALID
+        return allowed_recipients
 
-        if (output.target_type.has(OutputType.GM)
-                and output.payload_type.has(OutputType.GM)
-                and not skip.has(OutputType.GM)):
-            self._send_gm(output)
-            skip = skip.set(OutputType.GM)
-
-        if (output.target_type.any(OutputType.USER)
-                and output.payload_type.has(OutputType.USER)
-                and not skip.has(OutputType.USER)):
-            self._send_user(output)
-            skip = skip.set(OutputType.USER)
-
-        if (output.target_type.any(OutputType.BROADCAST)
-                and output.payload_type.has(OutputType.BROADCAST)
-                and not skip.has(OutputType.BROADCAST)):
-            self._send_broadcast(output)
-            skip = skip.set(OutputType.BROADCAST)
-
-        return skip
-
-    def _send_gm(self, output: 'SendEntry') -> None:
+    def _address_envelope(self,
+                          envelope: 'Envelope'
+                          # TODO: SecurityContext?
+                          ) -> Recipient:
         '''
-        TODO: Actually do this...
-        '''
-        pass
+        Set address info for all intended recipients of this envelope.
 
-    def _send_user(self, output: 'SendEntry') -> None:
+        Returns allowed recipients.
         '''
-        TODO: Actually do this...
-        '''
-        pass
+        addressed_to = Recipient.INVALID
 
-    def _send_broadcast(self, output: 'SendEntry') -> None:
+        # ---
+        # Address to GM?
+        # ---
+        if envelope.desired_recipients.has(Recipient.GM):
+            # We want to send to GM. Can we?
+            recipient = self._address_to(envelope,
+                                         Recipient.GM,
+                                         abac.Subject.GM)
+            if recipient is Recipient.INVALID:
+                self._log.error("Envelope recipient mismatch! The envelope "
+                                "has 'GM' in desired_recipients "
+                                f"({envelope.desired_recipients}), but "
+                                "failed to address itself to them. "
+                                "Ignoring this recipient level.")
+            else:
+                addressed_to = addressed_to.set(recipient)
+
+        # ---
+        # Address to owning/controlling User?
+        # ---
+        if envelope.desired_recipients.has(Recipient.USER):
+            # We want to send to USER. Can we?
+            recipient = self._address_to(envelope,
+                                         Recipient.USER,
+                                         abac.Subject.USER)
+            if recipient is Recipient.INVALID:
+                self._log.error("Envelope recipient mismatch! The envelope "
+                                "has 'USER' in desired_recipients "
+                                f"({envelope.desired_recipients}), but "
+                                "failed to address itself to them. "
+                                "Ignoring this recipient level.")
+            else:
+                addressed_to = addressed_to.set(recipient)
+
+        # ---
+        # Broadcast to everyone connected?
+        # ---
+        if envelope.desired_recipients.has(Recipient.BROADCAST):
+            # We want to send to BROADCAST. Can we?
+            recipient = self._address_to(envelope,
+                                         Recipient.BROADCAST,
+                                         abac.Subject.BROADCAST)
+            if recipient is Recipient.INVALID:
+                self._log.error("Envelope recipient mismatch! The envelope "
+                                "has 'BROADCAST' in desired_recipients "
+                                f"({envelope.desired_recipients}), but "
+                                "failed to address itself to them. "
+                                "Ignoring this recipient level.")
+            else:
+                addressed_to = addressed_to.set(recipient)
+
+        envelope.valid_recipients = addressed_to
+        return addressed_to
+
+    def _address_to(self,
+                    envelope:         'Envelope',
+                    recipient:        Recipient,
+                    security_subject: abac.Subject) -> Recipient:
         '''
-        TODO: Actually do this...
+        Add `recipient` to envelope's addressees as an
+        `attribute-subject`-level receiver.
+
+        Returns "allowed recipient", which is:
+          - `recipient` on success.
+          - Recipient.INVALID on failure.
         '''
-        pass
+        if not self._pdp.allowed(envelope.context):
+            self._log.security(f"Cannot address envelope to '{recipient}' "
+                               f"at '{security_subject}': "
+                               "Security has denied the action.")
+            # Recipient was not allowed by security - failure return.
+            return Recipient.INVALID
+
+        # ---
+        # Get the actual "addresses" - user id/key.
+        # ---
+        users = None
+        if recipient is Recipient.USER:
+            # User/'owner' has their id in the event.
+            users = background.users.connected(envelope.source_id)
+
+        elif recipient is Recipient.GM:
+            # Get all GMs for sending.
+            users = background.users.gm(None)
+            # TODO: presumably, in multi-gm games, only one GM should get
+            # some/most/all 'GM' output... But I'm not sure how/where/why/etc
+            # to demark it as such yet.
+
+        elif recipient is Recipient.BROADCAST:
+            # Get all connected users for sending.
+            users = background.users.connected(None)
+
+        if not users:
+            self._log.debug(
+                "No user(s) found for recipient {}, access {}. Ignoring.",
+                recipient, security_subject)
+            # Recipient was not found, which we'll treat as effectively a
+            # failure/disallowed.
+            return Recipient.INVALID
+
+        # ---
+        # Address envelope to the recipient.
+        # ---
+        envelope.set_address(recipient,
+                             security_subject,
+                             users)
+        # Recipient was allowed, so return it.
+        return recipient
 
     # -------------------------------------------------------------------------
     # Unit Testing
     # -------------------------------------------------------------------------
 
     def _unit_test(self,
-                   receiver_fn: Callable[['SendEntry'], None] = None) -> None:
+                   receiver_fn: UT_OutRxCallback = None) -> None:
         '''
         Set or unset 'receiver' to send to for unit testing.
         '''

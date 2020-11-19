@@ -38,6 +38,11 @@ from veredi.game.data.codec.system      import CodecSystem
 from veredi.game.data.system            import DataSystem
 
 # Registry
+from veredi.data.config                 import registry as config_registry
+from veredi.data.codec.yaml             import registry as yaml_registry
+from veredi.data.codec.encodable import EncodableRegistry
+
+# Registration
 import veredi.math.d20.parser
 # import veredi.data.repository.file
 # import veredi.data.codec.yaml.codec
@@ -59,7 +64,8 @@ SysCreateType = NewType('SysCreateType',
 
 def create_system(system_manager: SystemManager,
                   context: VerediContext,
-                  sys_type: Type[System]) -> SystemId:
+                  sys_type: Type[System],
+                  debug_flags: Optional[DebugFlag] = None) -> SystemId:
     '''
     Helper to create a system. Returns a list of SystemIds.
 
@@ -82,7 +88,8 @@ def create_system(system_manager: SystemManager,
 
 def create_systems(system_manager: SystemManager,
                    context: VerediContext,
-                   *args: SysCreateType) -> List[SystemId]:
+                   *args: SysCreateType,
+                   debug_flags: Optional[DebugFlag] = None) -> List[SystemId]:
     '''
     Helper to create systems. Takes in either types or tuples of
     (type, context). Returns a list of SystemIds.
@@ -196,9 +203,6 @@ def set_up(test_name_class:   str,
 # Background Helper
 # -----------------------------------------------------------------------------
 
-BACKGROUND_COPY = None
-
-
 def set_up_background() -> None:
     '''
     Get the context cleared out and ready for a new test.
@@ -216,3 +220,56 @@ def tear_down_background() -> None:
     # Currently nothing really to do that set_up_background() doesn't do.
     # But I want tear_down_background() for the pairing.
     background.testing.nuke()
+
+
+# -----------------------------------------------------------------------------
+# Registries Helper
+# -----------------------------------------------------------------------------
+
+# TODO [2020-11-12]: Figure out how to register Encodables for every test?
+# If not, remove these functions and the things that call them.
+
+def set_up_registries(encodables: bool = True,
+                      **kwargs:   bool) -> None:
+    '''
+    Get the registries cleared out and ready for a new test.
+    '''
+    # ------------------------------
+    # Ensure Things Are Not Registered.
+    # ------------------------------
+    config_registry._ut_unregister()
+    yaml_registry._ut_unregister()
+
+    # log.ultra_mega_debug("Nuking EncodableRegistry. Was: "
+    #                      f"\n{EncodableRegistry._get()}")
+    # EncodableRegistry.nuke()
+    #
+    # # ------------------------------
+    # # Register Things.
+    # # ------------------------------
+    # if encodables:
+    #     log.ultra_mega_debug("Providing Encodables...")
+    #     import veredi.data.codec.provide
+    #     log.ultra_mega_debug("Done. EncodableRegistry is: "
+    #                          f"\n{EncodableRegistry._get()}")
+
+    # ------------------------------
+    # Check for unknown inputs...
+    # ------------------------------
+    for reg_name in kwargs:
+        msg = (f"Unhandled registry setup for '{reg_name}'. Don't know "
+               "how to set it up.")
+        error = ValueError(reg_name, msg)
+        raise log.exception(error, None, msg)
+
+
+def tear_down_registries() -> None:
+    '''
+    Get the registries cleared out and ready for a new test.
+    '''
+    config_registry._ut_unregister()
+    yaml_registry._ut_unregister()
+
+    # # Currently nothing really to do that set_up_registries() doesn't do.
+    # # But I want to clear out the registries for the pairing.
+    # EncodableRegistry.nuke()

@@ -9,6 +9,7 @@ Tests for the Input system, events, and components.
 # -----------------------------------------------------------------------------
 
 from veredi.zest.base.system         import ZestSystem
+from veredi.logger                   import log
 
 from veredi.base.context                 import UnitTestContext
 
@@ -108,7 +109,8 @@ class Test_InputSystem(ZestSystem):
         entity = super().create_entity()
         self.assertTrue(entity)
 
-        self.manager.entity.creation(self.manager.time)
+        # Do not create until we have our IdentityRequest in and triggered.
+        # self.manager.entity.creation(self.manager.time)
 
         context = UnitTestContext(
             self.__class__.__name__,
@@ -128,6 +130,7 @@ class Test_InputSystem(ZestSystem):
         if clear_event_queue:
             self.clear_events()
 
+        # Now we can call create to bump the entity to ALIVE.
         self.manager.component.creation(self.manager.time)
 
         return entity

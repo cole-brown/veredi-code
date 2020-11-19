@@ -32,7 +32,8 @@ from veredi.data.codec.base import BaseCodec
 from veredi.time.timer      import MonotonicTimer
 from veredi.base.identity   import MonotonicId
 
-from ..message               import Message, MsgType
+from ..const                 import MsgType
+from ..message               import Message
 from ..context               import (MediatorContext,
                                      MessageContext,
                                      UserConnToken)
@@ -365,6 +366,8 @@ class VebSocket:
         Called when a producer/consumer Future is done. Will get result and
         ignore unless it's an exception that makes it past the ignored filter.
         '''
+        # TODO: drop this future somehow on exception? Or is it different one each time it spams?
+        # TODO: fix "TypeError 'str' is not callable" here
         try:
             # I don't currently care about the actual return, just if it raises
             # an exception.

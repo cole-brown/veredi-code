@@ -12,7 +12,7 @@ Input Sub-system for input history.
 # -----------------------------------------------------------------------------
 
 # Typing
-from typing import Any, Dict, List
+from typing import Optional, Any, Dict, List
 
 # General Veredi Stuff
 from veredi.data                         import background
@@ -134,9 +134,38 @@ class Historian:
         # TODO [2020-06-21]: Drop history from lists after y time?
 
     # Magically provided by @register
-    # @property
-    # def dotted(self) -> str:
+    # @classmethod
+    # def dotted(klass: 'Historian') -> str:
     #     ...
+
+    # -------------------------------------------------------------------------
+    # History Getters
+    # -------------------------------------------------------------------------
+
+    def most_recent(self,
+                    entity_id: EntityId) -> Optional[InputHistory]:
+        '''
+        Gets the most recent InputHistory of `entity_id`.
+        '''
+        full_history = self._by_entity.get(entity_id, [])
+        # Return last if we have any, otherwise None.
+        return full_history[-1] if full_history else None
+
+    def history(self,
+                entity_id: EntityId,
+                amount:    int) -> List[InputHistory]:
+        '''
+        Get up to the `amount` number of `entity_id`'s most recent InputHistory
+        items.
+        '''
+        full_history = self._by_entity.get(entity_id, [])
+        if len(full_history) > amount:
+            # Truncate down to the most recent number.
+            returned_history = full_history[-amount:]
+        else:
+            returned_history = full_history
+
+        return returned_history
 
     def get_id(self,
                entity: Entity,

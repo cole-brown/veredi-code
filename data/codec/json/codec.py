@@ -21,12 +21,13 @@ import json
 from io import StringIO
 import contextlib
 
-from veredi.logger import log
-from veredi.data import background
+from veredi.logger               import log, pretty
+from veredi.data                 import background
 from veredi.data.config.registry import register
-from veredi.data import exceptions
+from veredi.data                 import exceptions
 
-from ..base import BaseCodec, CodecOutput, CodecInput, Encodable
+from ..encodable                 import Encodable
+from ..base                      import BaseCodec, CodecOutput, CodecInput
 
 
 # -----------------------------------------------------------------------------
@@ -57,7 +58,7 @@ class JsonCodec(BaseCodec):
     # -------------------------------------------------------------------------
 
     def _make_background(self) -> None:
-        self._bg = super()._make_background(self.dotted)
+        self._bg = super()._make_background(self.dotted())
 
     @property
     def background(self):
@@ -95,8 +96,10 @@ class JsonCodec(BaseCodec):
           Maybes:
             - Other json/stream errors?
         '''
+        log.debug("json.decode input: {}", type(stream))
         self._context_decode_data(context)
         data = self._read(stream, context)
+        log.debug("json.decode output: {}", type(data))
         return data
 
     def _read(self,
@@ -207,7 +210,7 @@ class JsonCodec(BaseCodec):
 
         # Is it just an Encodable object?
         if isinstance(data, Encodable):
-            encoded = data.encode()
+            encoded = data.encode(None)
             return encoded
 
         # Mapping?
@@ -251,11 +254,13 @@ class JsonCodec(BaseCodec):
             json.dump(data, encoded)
         except (TypeError, OverflowError, ValueError) as error:
             encoded = None
+            data_pretty = pretty.indented(data)
             raise log.exception(
                 error,
                 exceptions.WriteError,
-                "Error writing data to stream: "
-                f"data: {data}, stream: {encoded}",
+                "Error writing data to stream: \n"
+                "  data: \n{}",
+                data_pretty,
                 context=context) from error
 
         return encoded

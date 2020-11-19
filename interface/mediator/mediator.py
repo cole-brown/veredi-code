@@ -40,7 +40,8 @@ from veredi.parallel.multiproc  import SubToProcComm
 
 # from .                        import exceptions
 from .context                   import MediatorContext, MessageContext
-from .message                   import Message, MsgType
+from .const                     import MsgType
+from .message                   import Message
 from .payload.logging           import LogPayload, LogField
 
 
@@ -118,12 +119,14 @@ class Mediator(ABC):
 
         self._med_tx_queue = asyncio.Queue()
         '''
-        Queue for injecting some send data from this mediator to the other end
-        of mediation.
+        Queue for sending data from this mediator to a mediator on the other
+        end (Client->Server or vice versa).
         '''
 
         self._med_to_game_queue = asyncio.Queue()
-        '''Queue for received data from server to be passed to the game.'''
+        '''
+        Queue for received data from this mediator to be passed to the game.
+        '''
 
     def __init__(self, context: VerediContext) -> None:
         # ------------------------------
@@ -170,7 +173,7 @@ class Mediator(ABC):
         # E.g. connections/pipes, multiproc event flags (shutdown flag), etc.
 
         # Pull debug up to class.
-        self._debug = self._comms.debug_flag
+        self._debug = self._comms.debug_flags
 
     # -------------------------------------------------------------------------
     # Debug
@@ -333,6 +336,17 @@ class Mediator(ABC):
                    f"msg: {msg}, ctx: {ctx}")
         self._comms.pipe.send((msg, ctx))
 
+    def _game_pipe_clear(self) -> None:
+        '''
+        Removes all current data for us in our side of the game pipe
+        connection.
+        '''
+        self.debug("Clearing game pipe...")
+
+        # Read and ignore messages while it has some.
+        while self._game_has_data():
+            self._game_pipe_get()
+
     # ------------------------------
     # Mediator-RX -> Mediator-to-Game Queue
     # ------------------------------
@@ -358,6 +372,16 @@ class Mediator(ABC):
                    f"msg: {msg}, ctx: {ctx}")
         await self._med_to_game_queue.put((msg, ctx))
 
+    def _med_to_game_clear(self) -> None:
+        '''
+        Removes all current data for us from self._med_to_game_queue.
+        '''
+        self.debug("Clearing med_to_game pipe...")
+
+        # Read and ignore messages while it has some.
+        while self._med_to_game_has_data():
+            self._med_to_game_get()
+
     # ------------------------------
     # Mediator -> Mediator Send Queue
     # ------------------------------
@@ -377,6 +401,16 @@ class Mediator(ABC):
         self.debug("Received into med_tx pipe for med_tx to process: "
                    f"msg: {msg}, ctx: {ctx}")
         await self._med_tx_queue.put((msg, ctx))
+
+    def _med_tx_clear(self) -> None:
+        '''
+        Removes all current data for us from self._med_tx_queue.
+        '''
+        self.debug("Clearing med_tx_queue pipe...")
+
+        # Read and ignore messages while it has some.
+        while self._med_tx_has_data():
+            self._med_tx_get()
 
     # ------------------------------
     # Mediator -> Mediator Receive Queue
@@ -398,6 +432,16 @@ class Mediator(ABC):
         self.debug("Received into med_rx pipe for med_rx to process: "
                    f"msg: {msg}, ctx: {ctx}")
         await self._med_rx_queue.put((msg, ctx))
+
+    def _med_rx_clear(self) -> None:
+        '''
+        Removes all current data for us from self._med_rx_queue.
+        '''
+        self.debug("Clearing med_rx_queue pipe...")
+
+        # Read and ignore messages while it has some.
+        while self._med_rx_has_data():
+            self._med_rx_get()
 
     # ------------------------------
     # Unit Test Case -> Mediator
@@ -442,6 +486,20 @@ class Mediator(ABC):
                    f"string: {send}")
         self._comms.ut_pipe.send(send)
 
+    def _test_pipe_clear(self) -> None:
+        '''
+        Removes all current data for us from self._comms.ut_pipe.
+        '''
+        if not self._test_pipe_exists():
+            # No test pipe - nothing to.
+            return
+
+        self.debug("Clearing unit-test pipe...")
+
+        # Read and ignore messages while it has some.
+        while self._test_has_data():
+            self._test_pipe_get()
+
     # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
@@ -476,6 +534,7 @@ class Mediator(ABC):
                 break
             # Await something so other async tasks can run? IDK.
             await self._continuing()
+            continue
 
         # Shutdown has been signaled to us somehow; make sure we signal to
         # other processes/awaitables.
@@ -511,6 +570,7 @@ class Mediator(ABC):
                     # Done; _continue() and reloop.
 
             await self._continuing()
+            continue
 
     async def _test_watcher(self) -> None:
         '''

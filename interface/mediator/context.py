@@ -15,7 +15,7 @@ from veredi.base.context           import EphemerealContext
 from veredi.base.identity          import MonotonicId
 from veredi.game.ecs.base.identity import EntityId
 
-from .message                      import MsgType
+from .const                        import MsgType
 
 
 # -----------------------------------------------------------------------------
@@ -25,6 +25,11 @@ from .message                      import MsgType
 UserConnToken = NewType('UserConnToken', int)
 '''
 Don't need anything fancy - just want type hinting basically.
+'''
+
+USER_CONN_INVALID = UserConnToken(0)
+'''
+Invalid connection token for initializing or resetting variables or whatever.
 '''
 
 
@@ -116,7 +121,7 @@ class MessageContext(EphemerealContext):
         '''
         Initializes and returns a MessageContext from a MediatorContext.
         '''
-        return MessageContext(ctx.dotted,
+        return MessageContext(ctx.dotted(),
                               id=id,
                               path=ctx.path)
 

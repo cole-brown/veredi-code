@@ -393,7 +393,7 @@ class Test_EntityManager_Events(Test_EntityManager):
         # Add EventManager so that tests in parent class will
         # generate/check events.
         self.config    = zmake.config()
-        self.event_mgr = EventManager(self.config)
+        self.event_mgr = EventManager(self.config, None)
         self.finish_setUp()
         self.register_events()
 

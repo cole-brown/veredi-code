@@ -13,7 +13,7 @@ Base Veredi Class for Tests.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 
 import sys
 import unittest
@@ -33,9 +33,6 @@ from veredi.zest.zpath                  import TestType
 from veredi.zest                        import zload
 from veredi.debug.const                 import DebugFlag
 from veredi.base                        import dotted
-
-from veredi.data.config                 import registry as config_registry
-from veredi.data.codec.yaml             import registry as yaml_registry
 
 
 # -----------------------------------------------------------------------------
@@ -259,7 +256,7 @@ class ZestBase(unittest.TestCase):
         Mainly used with log.LoggingManager.on_or_off() context manager.
         '''
 
-        self.debug_flags:    DebugFlag     = None
+        self.debug_flags:    DebugFlag     = DebugFlag.GAME_ALL
         '''
         Debug flags to pass on to things that use them, like:
         Engine, Systems, Mediators, etc.
@@ -286,6 +283,23 @@ class ZestBase(unittest.TestCase):
         whenever you want to see timing info.
         '''
 
+        # ------------------------------
+        # Registries
+        # ------------------------------
+        self._registry_setup: Dict[str, bool] = {
+            'encodables': False,
+        }
+        '''
+        Must be keyword arg names for zload.set_up_registries().
+        '''
+
+    def want_registered(self, registry_setup_name: str) -> None:
+        '''
+        Call in set_up() with a key string for self._registry_setup() to mark
+        those for registration.
+        '''
+        self._registry_setup[registry_setup_name] = True
+
     def set_up(self) -> None:
         '''
         Use this!
@@ -309,8 +323,12 @@ class ZestBase(unittest.TestCase):
 
         self.set_up()
 
+        # Set up registries after custom set_up so they can set flags for what
+        # registries to populate/ignore.
+        self._set_up_registries()
+
     # ------------------------------
-    # Background Context Set-Up
+    # Background / Registry Set-Up
     # ------------------------------
 
     def _set_up_background(self) -> None:
@@ -322,6 +340,16 @@ class ZestBase(unittest.TestCase):
         # Nuke background data so it all can remake itself.
         # ---
         zload.set_up_background()
+
+    def _set_up_registries(self) -> None:
+        '''
+        Nukes all entries in various registries.
+        '''
+
+        # ---
+        # Nuke registries' data so it all can remake itself.
+        # ---
+        zload.set_up_registries(**self._registry_setup)
 
     # -------------------------------------------------------------------------
     # Tear-Down
@@ -369,12 +397,12 @@ class ZestBase(unittest.TestCase):
 
     def _tear_down_registries(self) -> None:
         '''
-        Nukes all entries into various registries.
-          - config.registry
-          - codec.yaml.registry
+        Nukes all entries in various registries.
         '''
-        config_registry._ut_unregister()
-        yaml_registry._ut_unregister()
+        # ---
+        # Nuke  data so it all can remake itself.
+        # ---
+        zload.tear_down_registries()
 
     def _tear_down_background(self) -> None:
         '''

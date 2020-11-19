@@ -9,10 +9,12 @@ Data component - a component that has persistent data on it.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, MutableMapping)
+                    Optional, Union, Any, MutableMapping, Literal)
 if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
+
+from veredi.logger               import log
 from veredi.data.config.registry import register
 from veredi.data.identity        import UserId, UserKey
 
@@ -95,11 +97,12 @@ class IdentityComponent(DataComponent):
     # Init Stuff
     # -------------------------------------------------------------------------
 
-    def _configure(self,
-                   context: Optional['ConfigContext']) -> None:
+    def _define_vars(self) -> None:
         '''
-        Create instance vars for some transient (per-session) identity data.
+        Set up our vars with type hinting, docstrs.
         '''
+        super()._define_vars()
+
         self._user_id:  Optional[UserId]  = None
         '''
         User Identity of user that should be communicated with about this
@@ -113,6 +116,34 @@ class IdentityComponent(DataComponent):
         entity. E.g. a player-character should have the UserKey of the user
         controlling that character this session.
         '''
+
+        self._prime_entity: bool = False
+        '''
+        Set to true if this is the user's primary entity. Or only entity.
+        '''
+
+    def _verify(self,
+                data: Union[MutableMapping[str, Any], Literal[False]],
+                requirements: MutableMapping[str, Any]) -> None:
+        '''
+        Verifies our `data` against a template/requirements data set provided
+        by `requirements`.
+
+        If `data` is False, we allow it through as verified. Otherwise we only
+        accept valid data.
+
+        Raises:
+          - DataNotPresentError (VerediError)
+          - DataRestrictedError (VerediError)
+          - NotImplementedError - temporarily
+        '''
+        # If no data, allow an empty identity, otherwise require valid data.
+        if data is False:
+            return
+
+        super()._verify(data, requirements)
+        for key in self._REQ_KEYS:
+            self._verify_key(key, data, self._REQ_KEYS[key])
 
     def _from_data(self, data: MutableMapping[str, Any] = None) -> None:
         '''
@@ -138,6 +169,25 @@ class IdentityComponent(DataComponent):
         if not names:
             return None
         return ' '.join(names)
+
+    # -------------------------------------------------------------------------
+    # Property: User <-> Entity
+    # -------------------------------------------------------------------------
+
+    @property
+    def entity_prime(self) -> bool:
+        '''
+        Returns True if this is the primary entity for its UserId.
+        '''
+        return self._entity_prime
+
+    @entity_prime.setter
+    def entity_prime(self, value: bool) -> None:
+        '''
+        Set 'primary entity' flag for this entity/user.
+        '''
+        self._entity_prime = value
+        print(f"user.entity_prime setter: self._entity_prime <- {value}")
 
     # -------------------------------------------------------------------------
     # Properties: General Entity Names
@@ -283,7 +333,7 @@ class IdentityComponent(DataComponent):
         '''
         Set this entity's UserId. Set to 'None' to unset.
         '''
-        return self._user_id
+        self._user_id = value
 
     @property
     def user_key(self) -> Optional[UserKey]:
@@ -297,4 +347,4 @@ class IdentityComponent(DataComponent):
         '''
         Set this entity's UserKey. Set to 'None' to unset.
         '''
-        return self._user_key
+        self._user_key = value

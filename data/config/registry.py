@@ -24,8 +24,9 @@ from veredi.base.context import VerediContext
 
 # Registry is here, but also toss the reg strs into the background context.
 _REGISTRY = {}
+_REG_DOTTED = 'veredi.data.config.registry'
 
-_DOTTED_PROPERTY_IGNORE = set()
+_DOTTED_FUNC_IGNORE = set()
 
 
 # -----------------------------------------------------------------------------
@@ -35,11 +36,11 @@ _DOTTED_PROPERTY_IGNORE = set()
 def ignore(parent_class: Type) -> None:
     '''
     Add a parent class to the ignore list for log warnings about
-    add_dotted_property()'s auto-magical creation of the 'dotted' property.
+    add_dotted_func()'s auto-magical creation of the 'dotted' func.
 
     e.g. System base class has to do this for its children.
     '''
-    _DOTTED_PROPERTY_IGNORE.add(parent_class)
+    _DOTTED_FUNC_IGNORE.add(parent_class)
 
 
 def add_dotted_value(cls_or_func: Union[Type[Any], Callable[..., Type[Any]]],
@@ -53,22 +54,23 @@ def add_dotted_value(cls_or_func: Union[Type[Any], Callable[..., Type[Any]]],
     if not isinstance(cls_or_func, type):
         return
 
-    # If it already has the PROPERTY, and doesn't have the ATTRIBUTE_PRIVATE,
-    # we'll give it the ATTRIBUTE_PRIVATE. We have an annoying case of not
-    # knowing enough Python to magically shenanigan our way out of an
-    # '@abstractproperty', so e.g. System base class declares 'dotted' as one
-    # and the systems that register still have to declare their own but I'd
-    # like to at least auto-fill their dotted names in for them.
+    # If it already has the dotted._KLASS_FUNC_NAME, and doesn't have the
+    # dotted._ATTRIBUTE_PRIVATE_NAME, we'll give it the
+    # _ATTRIBUTE_PRIVATE_NAME. We have an annoying case of not knowing enough
+    # Python to magically shenanigan our way out of an '@abstractfunc', so e.g.
+    # System base class declares 'dotted' as one and the systems that register
+    # still have to declare their own but I'd like to at least auto-fill their
+    # dotted names in for them.
 
-    # So, basically... Add the ATTRIBUTE_PRIVATE regardless. *shrug*
+    # So, basically... Add the _ATTRIBUTE_PRIVATE_NAME regardless. *shrug*
 
     # ---
     # Set the attribute with the class's dotted name value.
     # ---
-    setattr(cls_or_func, dotted.ATTRIBUTE_PRIVATE, dotted_name)
+    setattr(cls_or_func, dotted._ATTRIBUTE_PRIVATE_NAME, dotted_name)
 
 
-def add_dotted_property(
+def add_dotted_func(
         cls_or_func: Union[Type[Any], Callable[..., Type[Any]]],
         dotted_name: str) -> None:
     '''
@@ -84,36 +86,37 @@ def add_dotted_property(
     # ---
     # Set the attribute with the class's dotted name value.
     # ---
-    setattr(cls_or_func, dotted.ATTRIBUTE_PRIVATE, dotted_name)
+    setattr(cls_or_func, dotted._ATTRIBUTE_PRIVATE_NAME, dotted_name)
 
     # ---
-    # Check the dotted property now.
+    # Check the dotted func now.
     # ---
 
     # Ignore things that already have the attribute we want to add. But do not
     # ignore if they are abstract - we will replace with concrete in that case.
-    dotted_attr = getattr(cls_or_func, dotted.PROPERTY, None)
+    dotted_attr = getattr(cls_or_func, dotted._KLASS_FUNC_NAME, None)
     if dotted_attr:
         # Pre-existing dotted attribute; is it abstract?
         if getattr(dotted_attr, '__isabstractmethod__', False):
-            msg = (f"Failed '{dotted_name}' registry: {cls_or_func.__name__} "
-                   f"has an abstract '{dotted.PROPERTY}' attribute, which "
-                   "we cannot auto-generate a replacement for. Please "
-                   "implement one manually:\n"
-                   "    @property\n"
-                   "    def dotted(self) -> str:\n"
-                   "        # self._DOTTED magically provided by @register\n"
-                   "        return self._DOTTED")
+            msg = (f"{_REG_DOTTED}: Failed '{dotted_name}' registry of "
+                   f"{cls_or_func.__name__} has an abstract "
+                   "'{dotted._KLASS_FUNC_NAME}' attribute, which we cannot "
+                   "auto-generate a replacement for. Please implement "
+                   "one manually:\n"
+                   "    @classmethod\n"
+                   "    def dotted(klass: 'YOURKLASS') -> str:\n"
+                   "        # klass._DOTTED magically provided by @register\n"
+                   "        return klass._DOTTED")
             raise log.exception(AttributeError(msg, cls_or_func),
                                 None,
                                 msg)
-        elif isinstance(cls_or_func, tuple(_DOTTED_PROPERTY_IGNORE)):
+        elif isinstance(cls_or_func, tuple(_DOTTED_FUNC_IGNORE)):
             # This is fine, but let 'em know. They could've let it be
             # auto-magically created.
-            msg = (f"'{dotted}' registry: {cls_or_func.__name__} "
-                   f"has a '{dotted.PROPERTY}' attribute already. "
+            msg = (f"{_REG_DOTTED}: {cls_or_func.__name__} "
+                   f"has a '{dotted._KLASS_FUNC_NAME}' attribute already. "
                    "@register(...) can implement one automatically though; "
-                   f"your '{dotted.PROPERTY}' attribute would be: "
+                   f"your '{dotted._KLASS_FUNC_NAME}' attribute would be: "
                    f"'{dotted_name}'")
             log.info(msg)
             return
@@ -121,9 +124,8 @@ def add_dotted_property(
     # ---
     # Make Getter.
     # ---
-    # Is this a class or instance thing?
     def get_dotted(klass: Type[Any]) -> Optional[str]:
-        return getattr(klass, dotted.ATTRIBUTE_PRIVATE, None)
+        return getattr(klass, dotted._ATTRIBUTE_PRIVATE_NAME, None)
 
     # ---
     # No Setter.
@@ -134,10 +136,10 @@ def add_dotted_property(
     # prop = property(get_dotted, set_dotted)
 
     # ---
-    # Set the getter property function.
+    # Set the getter @classmethod function.
     # ---
-    prop = property(get_dotted)
-    setattr(cls_or_func, dotted.PROPERTY, prop)
+    method = classmethod(get_dotted)
+    setattr(cls_or_func, dotted._KLASS_FUNC_NAME, method)
 
 
 # Decorator way of doing factory registration. Note that we will only get
@@ -172,14 +174,14 @@ def register(*args: str) -> Callable[..., Type[Any]]:
         except IndexError as error:
             raise log.exception(
                 error,
-                exceptions.RegistyError,
+                exceptions.RegistryError,
                 "Need to know what to register this ({}) as. "
-                "E.g. @register('foo', 'bar'). Got no args: {}",
+                "E.g. @register('veredi', 'jeff', 'system'). Got no args: {}",
                 name, args,
                 stacklevel=3)
 
         registration = _REGISTRY
-        reggie_jr = background.registry.get()
+        reggie_jr = background.registry.get(_REG_DOTTED)
         length = len(args)
         # -1 as we've got our config name already from that final args entry
         for i in range(length - 1):
@@ -208,7 +210,7 @@ def register(*args: str) -> Callable[..., Type[Any]]:
         # Finally, add the 'dotted' property if applicable.
         dotted_name = dotted.join(*args)
         add_dotted_value(cls_or_func, dotted_name)
-        add_dotted_property(cls_or_func, dotted_name)
+        add_dotted_func(cls_or_func, dotted_name)
 
         return cls_or_func
 

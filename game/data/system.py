@@ -115,11 +115,11 @@ class DataSystem(System):
         Basic background.data info for this service.
         '''
         return {
-            'dotted': self.dotted,
+            'dotted': self.dotted(),
         }
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'DataSystem') -> str:
         return 'veredi.game.data.system'
 
     # -------------------------------------------------------------------------
@@ -267,7 +267,9 @@ class DataSystem(System):
                 context=event.context)
             return
 
-        pass
+        self._log.warning(f"{self.__class__.__name__}.event_serialized() "
+                          "is not really implemented... ignoring event: {}",
+                          event)
 
         # TODO: Clear out any dirty or save flag?
 
@@ -276,8 +278,10 @@ class DataSystem(System):
 
         # context = self._repository.context.push(event.context)
         #
-        # # §-TODO-§ [2020-05-22]: Encode it.
-        # raise NotImplementedError
+        # # TODO [2020-05-22]: Encode it.
+        # raise NotImplementedError(
+        #     f"{self.__class__.__name__}.event_serialized() "
+        #     "is not implemented.")
         # serialized = None
         #
         # # Done; fire off event for whoever wants the next step.
@@ -290,10 +294,7 @@ class DataSystem(System):
     # -------------------------------------------------------------------------
 
     def update_tick(self,
-                    tick:          SystemTick,
-                    time_mgr:      TimeManager,
-                    component_mgr: ComponentManager,
-                    entity_mgr:    EntityManager) -> VerediHealth:
+                    tick: SystemTick) -> VerediHealth:
         '''
         Generic tick function. We do the same thing every tick state we process
         so do it all here.

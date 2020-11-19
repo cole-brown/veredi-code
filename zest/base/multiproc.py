@@ -253,7 +253,6 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         self._set_up_log(proc_flags, log_level)
 
     def tear_down(self, log_level: log.Level) -> None:
-        self._stop(self.proc.log)
         self._tear_down_log()
         super().tear_down()
 
@@ -295,7 +294,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
                                         initial_log_level=log_level,
                                         context=context,
                                         config=self.config,
-                                        debug_flag=self.debug_flag)
+                                        debug_flags=self.debug_flags)
 
     def _tear_down_log(self) -> None:
         if not self.proc.log:
@@ -337,6 +336,9 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         '''
         stop_codes = []
         for each in self.proc.all(Processes.Direction.TEAR_DOWN):
+            # Let log be taken care of in _tear_down_log.
+            if each == self.proc.log:
+                continue
             # Stop the process, add its exit code to the list.
             stop_codes.append(self._stop(each))
 
@@ -359,7 +361,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        log.at_level(level, msg, args, kwargs,
+        log.at_level(level, msg, *args, **kwargs,
                      veredi_logger=self.lumberjack)
 
     def log_ultra_mega_debug(self,
@@ -369,32 +371,42 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        log.ultra_mega_debug(msg, args, kwargs,
+        log.ultra_mega_debug(msg, *args, **kwargs,
                              veredi_logger=self.lumberjack)
+
+    def log_ultra_hyper_debug(self,
+                              msg: str,
+                              *args: Any,
+                              **kwargs: Any) -> None:
+        '''
+        Log with self.lumberjack (has self.NAME_MAIN as its name).
+        '''
+        log.ultra_hyper_debug(msg, *args, **kwargs,
+                              veredi_logger=self.lumberjack)
 
     def log_debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        self.log(log.Level.DEBUG, msg, args, kwargs)
+        self.log(log.Level.DEBUG, msg, *args, **kwargs)
 
     def log_info(self, msg: str, *args: Any, **kwargs: Any) -> None:
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        self.log(log.Level.INFO, msg, args, kwargs)
+        self.log(log.Level.INFO, msg, *args, **kwargs)
 
     def log_warning(self, msg: str, *args: Any, **kwargs: Any) -> None:
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        self.log(log.Level.WARNING, msg, args, kwargs)
+        self.log(log.Level.WARNING, msg, *args, **kwargs)
 
     def log_critical(self, msg: str, *args: Any, **kwargs: Any) -> None:
         '''
         Log with self.lumberjack (has self.NAME_MAIN as its name).
         '''
-        self.log(log.Level.CRITICAL, msg, args, kwargs)
+        self.log(log.Level.CRITICAL, msg, *args, **kwargs)
 
     # -------------------------------------------------------------------------
     # Test Helpers
@@ -469,7 +481,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         #   - This may have been solved at some point and maybe should be
         #     re-attempted.
         # # Hook this test itself into the log server.
-        # log_client.init(LOG_LEVEL)
+        # log_client.init(self.__class__.__name__, LOG_LEVEL)
         # log.set_level(LOG_LEVEL)
 
         # Wait for clients, server to settle out.
@@ -527,10 +539,6 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         except Exception as err:
             error = err
 
-            # # Debugggggggggg >_<
-            # self.log_ultra_mega_debug("runner_of_tests: except generic "
-            #                           f"Exception; reraising: {err}")
-
             # [2020-09-03] Wasn't reraising - but the error loses its stack
             # trace and then you just have no idea where the thing that hates
             # you is. Trying out reraising now instead.
@@ -566,17 +574,92 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
                              msg="Exception raised at some point during test.")
 
     def assert_empty_pipes(self) -> None:
+        # ------------------------------
+        # Check All Clients - Normal and Test Pipes.
+        # ------------------------------
         for client in self.proc.clients:
-            self.assertFalse(client.pipe.poll())
-            self.assertFalse(client.ut_pipe.poll())
+            # ---
+            # Normal Pipe
+            # ---
+            client_pipe_data = client.has_data()
+            if client_pipe_data:
+                # Print out what's in the pipe?
+                log.critical("Client IPC pipe is not empty!")
+                data = client.recv()
+                log.ultra_hyper_debug(data)
+            self.assertFalse(client_pipe_data)
+
+            # ---
+            # Test Pipe
+            # ---
+            client_test_pipe_data = client._ut_has_data()
+            if client_test_pipe_data:
+                # Print out what's in the pipe?
+                log.critical("Client IPC /test/ pipe is not empty!")
+                data = client._ut_recv()
+                log.ultra_hyper_debug(data)
+            self.assertFalse(client_test_pipe_data)
+
+        # ------------------------------
+        # Check Server Pipes
+        # ------------------------------
         if self.proc.server:
-            self.assertFalse(self.proc.server.pipe.poll())
-            self.assertFalse(self.proc.server.ut_pipe.poll())
+            # ---
+            # Normal Pipe
+            # ---
+            server_pipe_data = self.proc.server.has_data()
+            if server_pipe_data:
+                # Print out what's in the pipe?
+                log.critical("Server IPC pipe is not empty!")
+                data = self.proc.server.recv()
+                log.ultra_hyper_debug(data)
+            self.assertFalse(server_pipe_data)
+
+            # ---
+            # Test Pipe
+            # ---
+            server_test_pipe_data = self.proc.server.ut_pipe.poll()
+            if server_test_pipe_data:
+                # Print out what's in the pipe?
+                log.critical("Server IPC /test/ pipe is not empty!")
+                data = self.proc.server._ut_recv()
+                log.ultra_hyper_debug(data)
+            self.assertFalse(server_test_pipe_data)
 
     # -------------------------------------------------------------------------
     # Do-Something-During-A-Test Functions
     # -------------------------------------------------------------------------
     # (Or Do-Nothing,-Really in wait()'s case...)
+
+    def wait_on_nothing(self, wait_timeout) -> None:
+        '''
+        Sleeps for the wait_timeout. Doesn't care about shutdown flags or
+        anything.
+        '''
+        # Force timeout into range.
+        wait_timeout = wait_timeout or 0
+        if (wait_timeout < 0.000001
+                or wait_timeout > 5):
+            # This is a unit test, so we waint to time out and we want to do it
+            # soonish... So timeout between quite soonish to 5 sec.
+            wait_timeout = min(max(0.000001, wait_timeout), 5)
+
+        # Sleep for either 0.1 sec, or who duration if that's shorter.
+        sleep_time = min(wait_timeout, 0.1)
+        timer = MonotonicTimer()  # Timer starts timing on creation.
+        try:
+            self.log_debug("wait_on_nothing: Received SIGINT.")
+            while not timer.timed_out(wait_timeout):
+                py_time.sleep(sleep_time)
+
+        except KeyboardInterrupt:
+            # First, ask for a gentle, graceful shutdown...
+            self.log_debug("wait_on_nothing: Received SIGINT.")
+
+        else:
+            self.log_debug("wait_on_nothing: Wait finished normally.")
+
+        self.log_debug(f"wait_on_nothing: Waited for {timer.elapsed_sec} sec.")
 
     def wait(self,
              wait_timeout,

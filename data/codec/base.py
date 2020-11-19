@@ -11,8 +11,7 @@ Aka ___ Codec.
 
 from typing import (TYPE_CHECKING,
                     Optional, Union,
-                    NewType, Protocol,
-                    Any, Iterable, Mapping, List, Dict, TextIO)
+                    NewType, Any, Iterable, Mapping, List, Dict, TextIO)
 if TYPE_CHECKING:
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
@@ -21,153 +20,13 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 from io import StringIO
 
-from ..exceptions import EncodableError
+
+from .encodable import Encodable
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-class Encodable:
-    '''
-    Mixin for classes that want to support encoding/decoding themselves.
-
-    The class should convert its data to/from a mapping of strings to basic
-    value-types (str, int, etc). If anything it (directly) contains also needs
-    encoding/decoding, the class should ask it to during the encode/decode.
-    '''
-
-    _TYPE_FIELD = '_encodable'
-
-    @classmethod
-    def claim(klass: 'Encodable', mapping: Mapping[str, Any]) -> bool:
-        '''
-        Returns true if this Encodable class thinks it can/should decode this
-        mapping.
-        '''
-        return (klass._TYPE_FIELD in mapping
-                and mapping[klass._TYPE_FIELD] == klass.__name__)
-
-    def encode(self) -> Mapping[str, Any]:
-        '''
-        Encode self as a Mapping of strings to (basic) values (str, int, etc).
-        '''
-        return {
-            self._TYPE_FIELD: self.__class__.__name__,
-        }
-
-    @classmethod
-    def decode(klass: 'Encodable', mapping: Mapping[str, Any]) -> 'Encodable':
-        '''
-        Decode a Mapping of strings to (basic) values (str, int, etc), using it
-        to build an instance of this class.
-
-        Return the instance.
-        '''
-        ...
-
-    def encode_str(self) -> str:
-        '''
-        If it is a simple Encodable, perhaps it can be encoded into just a str
-        field. If so, implement encode_str(), decode_str() and
-        get_decode_str_rx().
-
-        Encode this instance into a string.
-
-        Return the string.
-        '''
-        return str(self)
-
-    @classmethod
-    def decode_str(klass: 'Encodable', string: str) -> 'Encodable':
-        '''
-        If it is a simple Encodable, perhaps it can be encoded into just a str
-        field. If so, implement encode_str(), decode_str() and
-        get_decode_str_rx().
-
-        Decode the `string` to a `klass` instance.
-
-        Return the instance.
-        '''
-        ...
-
-    @classmethod
-    def get_decode_str_rx(klass: 'Encodable') -> Optional[str]:
-        '''
-        Returns regex /string/ (not compiled regex) of what to look for to
-        claim just a string as this class.
-
-        For example, perhaps a UserId for 'jeff' has a normal decode of:
-          {
-            '_encodable': 'UserId',
-            'uid': 'deadbeef-cafe-1337-1234-e1ec771cd00d',
-          }
-        And perhaps it has str() of 'uid:deadbeef-cafe-1337-1234-e1ec771cd00d'
-
-        This would expect an rx string for the str.
-        '''
-        ...
-
-    @classmethod
-    def error_for_claim(klass: 'Encodable',
-                        mapping: Mapping[str, Any]) -> None:
-        '''
-        Raises an EncodableError if claim() returns false.
-        '''
-        if not klass.claim(mapping):
-            raise EncodableError(
-                f"Cannot claim for {klass.__name__} for decoding: {mapping}",
-                None)
-
-    @classmethod
-    def error_for_key(klass: 'Encodable',
-                      key: str,
-                      mapping: Mapping[str, Any]) -> None:
-        '''
-        Raises an EncodableError if supplied `key` is not in `mapping`.
-        '''
-        if key not in mapping:
-            raise EncodableError(
-                f"Cannot decode to {klass.__name__}: {mapping}",
-                None)
-
-    @classmethod
-    def error_for_value(klass:   'Encodable',
-                        key:     str,
-                        value:   Any,
-                        mapping: Mapping[str, Any]) -> None:
-        '''
-        Raises an EncodableError if `key` value in `mapping` is not equal to
-        supplied `value`.
-
-        Assumes `error_for_key()` has been called for the key.
-        '''
-        if mapping[key] != value:
-            raise EncodableError(
-                f"Cannot decode to {klass.__name__}. "
-                f"Value of '{key}' is incorrect. "
-                f"Expected '{value}'; got '{mapping[key]}"
-                f": {mapping}",
-                None)
-
-    @classmethod
-    def error_for(klass:   'Encodable',
-                  mapping: Mapping[str, Any],
-                  keys:    Iterable[str]     = [],
-                  values:  Mapping[str, Any] = {}) -> None:
-        '''
-        Runs:
-          - error_for_claim()
-          - error_for_key() on all `keys`
-          - error_for_value() on all key/value pairs in `values`.
-        '''
-        klass.error_for_claim(mapping)
-
-        for key in keys:
-            klass.error_for_key(key, mapping)
-
-        for key in values:
-            klass.error_for_value(key, values[key], mapping)
 
 
 # TODO [2020-08-22]: Rename; CodecInput and CodecOutput are both
@@ -230,7 +89,8 @@ class BaseCodec(ABC):
         '''
         Data for the Veredi Background context.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.background() "
+                                  "is not implemented.")
 
     def _make_background(self, dotted_name):
         '''
@@ -252,7 +112,7 @@ class BaseCodec(ABC):
         Returns context data for inserting into someone else's context.
         '''
         return {
-            'dotted': self.dotted,
+            'dotted': self.dotted(),
             'type': self.name,
         }
 
@@ -267,7 +127,8 @@ class BaseCodec(ABC):
         Allows codecs to grab anything from the config data that they need to
         set up themselves.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._configure() "
+                                  "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Abstract: Decode Methods
@@ -283,7 +144,8 @@ class BaseCodec(ABC):
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.decode() "
+                                  "is not implemented.")
 
     @abstractmethod
     def decode_all(self,
@@ -295,7 +157,8 @@ class BaseCodec(ABC):
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.decode_all() "
+                                  "is not implemented.")
 
     @abstractmethod
     def _read(self,
@@ -310,7 +173,8 @@ class BaseCodec(ABC):
           - exceptions.ReadError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._read() "
+                                  "is not implemented.")
 
     @abstractmethod
     def _read_all(self,
@@ -325,7 +189,8 @@ class BaseCodec(ABC):
           - exceptions.ReadError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._read_all() "
+                                  "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Abstract: Encode Methods
@@ -341,7 +206,8 @@ class BaseCodec(ABC):
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.encode() "
+                                  "is not implemented.")
 
     @abstractmethod
     def encode_all(self,
@@ -353,7 +219,8 @@ class BaseCodec(ABC):
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.encode_all() "
+                                  "is not implemented.")
 
     @abstractmethod
     def _write(self,
@@ -368,7 +235,8 @@ class BaseCodec(ABC):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._write() "
+                                  "is not implemented.")
 
     @abstractmethod
     def _write_all(self,
@@ -383,4 +251,5 @@ class BaseCodec(ABC):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}._write_all() "
+                                  "is not implemented.")

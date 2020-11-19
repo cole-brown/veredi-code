@@ -61,6 +61,7 @@ def command(context: Optional[InputContext] = None) -> CommandStatus:
     '''
     Debug command invocation handler.
     '''
+
     # Get entity info so we can:
     #   a) Log who called this?
     #        TODO [2020-07-07]: command/history should do this.
@@ -70,7 +71,8 @@ def command(context: Optional[InputContext] = None) -> CommandStatus:
     component = entity.get(IdentityComponent)
 
     # TODO: to_entity()
-    to_log(component.log_name())
+    # TODO: Figure out what the hell I meant by "TODO: to_entity()"
+    to_log(component.log_name)
 
     return CommandStatus.successful(context)
 

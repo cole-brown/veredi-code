@@ -66,7 +66,7 @@ class Test_Commander(ZestEcs):
             },
         })
 
-        self.event_manager     = EventManager(self.config)
+        self.event_manager     = EventManager(self.config, self.debug_flags)
         self.parsers           = Parcel(None)
         self.commander         = Commander(None)
 
@@ -117,7 +117,7 @@ class Test_Commander(ZestEcs):
 
     def user_input_ctx(self, input_str, entity_id, entity_name):
         return InputContext(None, input_str, entity_id, entity_name,
-                            self.commander.dotted + '.unit-test')
+                            self.commander.dotted() + '.unit-test')
 
     def allow_registration(self):
         if self.reg_open:

@@ -8,7 +8,7 @@ Helper classes for managing contexts for events, error messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Type, MutableMapping, Dict
+from typing import Optional, Union, Any, Type, MutableMapping, Dict, Literal
 import enum
 import uuid
 
@@ -65,23 +65,21 @@ class VerediContext:
         self._dotted = dotted
         self._key  = key
 
-    @property
-    def dotted(self) -> str:
+    def dotted(self, value: Union[str, Literal[False]] = False) -> None:
         '''
-        Returns our context's dotted name.
-        e.g. YamlCodec's dotted is "veredi.data.codec.yaml".
-        '''
-        return self._dotted
+        Getter/setter for context's dotted name.
 
-    @dotted.setter
-    def dotted(self, value: str) -> None:
+        If `value` keyword arg is supplied, sets dotted to value if we have
+        context data. Ignore if we do not have context data.
+
+        Returns self._dotted (after setting it, if needed).
         '''
-        Sets our context's dotted name.
-        e.g. YamlCodec's dotted is "veredi.data.codec.yaml".
-        '''
-        if self.data:
-            self.data.setdefault(self.key, {})[self._KEY_DOTTED] = value
-        self._dotted = value
+        if value is not False and isinstance(value, str):
+            if self.data:
+                self.data.setdefault(self.key, {})[self._KEY_DOTTED] = value
+                self._dotted = value
+
+        return self._dotted
 
     @property
     def key(self) -> str:
@@ -287,7 +285,7 @@ class VerediContext:
         # Ensure our name if we're ensuring our subcontext.
         if (top_key is self.key
                 and self._KEY_DOTTED not in sub_context):
-            sub_context[self._KEY_DOTTED] = self.dotted
+            sub_context[self._KEY_DOTTED] = self.dotted()
         return sub_context
 
     # TODO: rename to _get_full?

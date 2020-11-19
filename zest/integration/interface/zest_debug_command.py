@@ -29,7 +29,7 @@ from veredi.game.ecs.const            import SystemTick
 
 # import veredi.zest.debug.debug
 import veredi.zest.debug.background
-# import veredi.data.background
+import veredi.data.background
 
 
 # -----------------------------------------------------------------------------
@@ -83,6 +83,20 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
         self.assertTrue(self.reg_open)
         self.assertTrue(self.input_system._commander._commands)
 
+    def create_entity(self):
+        admin = super().create_entity()
+        self.create_identity(admin,
+                             data={
+                                 'identity': {
+                                     'name': 'Miss GM Sir',
+                                     'group': 'admin',
+                                     'owner': 'u/gm_dm',
+                                     'display-name': 'Her Excellency The Rev Sir Doctor Game Master',
+                                     'title': '(Do Not Anger)',
+                                 },
+                             })
+        return admin
+
     def test_background_cmd(self):
         self.engine_life_start()
 
@@ -116,6 +130,9 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
                 log_level = captured_log[0]
                 log_msg = captured_log[1]
                 break
+        else:
+            self.fail("No background debug log found. log level: "
+                      f"{log_level}, log msg: {log_msg}")
 
         # TODO: Check output more, somehow?
         self.assertEqual(log_level, log.Level.CRITICAL)
@@ -155,6 +172,9 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
                 log_level = captured_log[0]
                 log_msg = captured_log[1]
                 break
+        else:
+            self.fail("No background debug log found. log level: "
+                      f"{log_level}, log msg: {log_msg}")
 
         # TODO: Check output more, somehow?
         self.assertEqual(log_level, log.Level.CRITICAL)

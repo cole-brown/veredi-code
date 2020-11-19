@@ -62,7 +62,7 @@ from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
                                                 CommandStatus)
 from veredi.math.parser                 import MathTree
 from veredi.math.system                 import MathSystem
-from veredi.interface.output.event      import OutputType
+from veredi.interface.output.event      import Recipient
 from veredi.math.event                  import MathOutputEvent
 from veredi.interface.input.context     import InputContext
 
@@ -124,10 +124,10 @@ class SkillSystem(D20RulesSystem):
         # Just the normal one, for now.
         self._ticks: SystemTick = SystemTick.STANDARD
 
-    @property
-    def dotted(self) -> str:
-        # self._DOTTED magically provided by @register
-        return self._DOTTED
+    @classmethod
+    def dotted(klass: 'SkillSystem') -> str:
+        # klass._DOTTED magically provided by @register
+        return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -165,7 +165,7 @@ class SkillSystem(D20RulesSystem):
             return
 
         skill_check = CommandRegisterReply(event,
-                                           self.dotted,
+                                           self.dotted(),
                                            'skill',
                                            CommandPermission.COMPONENT,
                                            self.command_skill,
@@ -222,11 +222,10 @@ class SkillSystem(D20RulesSystem):
             self._rule_defs.canonical,
             self._query,
             MathOutputEvent(entity.id, entity.type_id,
-                            context,
-                            math,
+                            math, context,
+                            InputContext.input_id(context),
                             # TODO [2020-07-11]: a proper output type...
-                            OutputType.BROADCAST,
-                            InputContext.input_id(context)),
+                            Recipient.BROADCAST),
             context)
 
         return CommandStatus.successful(context)
@@ -263,21 +262,15 @@ class SkillSystem(D20RulesSystem):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update(self,
-                tick:          SystemTick,
-                time_mgr:      TimeManager,
-                component_mgr: ComponentManager,
-                entity_mgr:    EntityManager) -> VerediHealth:
+    def _update(self) -> VerediHealth:
         '''
-        Generic tick function. We do the same thing every tick state we process
-        so do it all here.
+        SystemTick.STANDARD tick function.
         '''
         # Doctor checkup.
         if not self._health_ok_tick(SystemTick.STANDARD):
             return self.health
 
-        for entity in self._wanted_entities(tick, time_mgr,
-                                            component_mgr, entity_mgr):
+        for entity in self._wanted_entities(tick):
             # Check if entity in turn order has a (skill) action queued up.
             # Also make sure to check if entity/component still exist.
             if not entity:
