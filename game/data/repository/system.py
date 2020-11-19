@@ -85,8 +85,8 @@ class RepositorySystem(System):
         background.data.link_set(background.data.Link.REPO,
                                  self._repository)
 
-    @property
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'RepositorySystem') -> str:
         return 'veredi.game.data.repository.system'
 
     def priority(self) -> Union[SystemPriority, int]:
@@ -163,7 +163,8 @@ class RepositorySystem(System):
         context = self._repository.context.push(event.context)
 
         # TODO [2020-05-22]: Encode it.
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.event_encoded() "
+                                  "is not yet implemented.")
         serialized = None
 
         # Done; fire off event for whoever wants the next step.

@@ -44,21 +44,24 @@ from veredi.data.codec.json                     import codec
 # ---
 # Mediation
 # ---
-from veredi.interface.mediator.message          import Message, MsgType
+from veredi.interface.mediator.const            import MsgType
+from veredi.interface.mediator.message          import Message
 from veredi.interface.mediator.websocket.server import WebSocketServer
 from veredi.interface.mediator.websocket.client import WebSocketClient
 from veredi.interface.mediator.context          import MessageContext
 from veredi.interface.mediator.payload.logging  import (LogPayload,
                                                         LogReply,
                                                         LogField,
+                                                        Validity,
                                                         _NC_LEVEL)
+from veredi.interface.mediator.payload.bare     import BarePayload
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-LOG_LEVEL = log.Level.INFO
+LOG_LEVEL = log.Level.INFO  # DEBUG
 '''Test should set this to desired during setUp()'''
 
 
@@ -78,11 +81,10 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
             "MediatorServer requires a SubToProcComm; received None.")
 
     log_level = ConfigContext.log_level(context)
-    lumberjack = log.get_logger(comms.name)
-    lumberjack.setLevel(int(log_level))
+    lumberjack = log.get_logger(comms.name,
+                                min_log_level=log_level)
 
     multiproc._sigint_ignore()
-    log_client.init(log_level)
 
     # ------------------------------
     # Sanity Check
@@ -112,7 +114,7 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # ------------------------------
 
     # Always set LOG_SKIP flag in case its wanted.
-    comms.debug_flag = comms.debug_flag | DebugFlag.LOG_SKIP
+    comms.debug_flags = comms.debug_flags | DebugFlag.LOG_SKIP
 
     lumberjack.debug(f"Starting WebSocketServer '{comms.name}'...")
     mediator = WebSocketServer(context)
@@ -121,7 +123,6 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # ------------------------------
     # Sub-Process is done now.
     # ------------------------------
-    log_client.close()
     lumberjack.debug(f"MediatorServer '{comms.name}' done.")
 
 
@@ -138,11 +139,10 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
             "MediatorClient requires a SubToProcComm; received None.")
 
     log_level = ConfigContext.log_level(context)
-    lumberjack = log.get_logger(comms.name)
-    lumberjack.setLevel(int(log_level))
+    lumberjack = log.get_logger(comms.name,
+                                min_log_level=log_level)
 
     multiproc._sigint_ignore()
-    log_client.init(log_level)
 
     # ------------------------------
     # Sanity Check
@@ -172,7 +172,7 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # ------------------------------
 
     # Always set LOG_SKIP flag in case its wanted.
-    comms.debug_flag = comms.debug_flag | DebugFlag.LOG_SKIP
+    comms.debug_flags = comms.debug_flags | DebugFlag.LOG_SKIP
 
     lumberjack.debug(f"Starting WebSocketClient '{comms.name}'...")
     mediator = WebSocketClient(context)
@@ -181,7 +181,6 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # ------------------------------
     # Sub-Process is done now.
     # ------------------------------
-    log_client.close()
     lumberjack.debug(f"MediatorClient '{comms.name}' done.")
 
 
@@ -204,24 +203,24 @@ class Test_WebSockets(ZestIntegrateMultiproc):
     # -------------------------------------------------------------------------
 
     def set_up(self):
-        self.debug_flag = DebugFlag.MEDIATOR_ALL
+        self.debug_flags = DebugFlag.MEDIATOR_ALL
         self.DISABLED_TESTS = set({
             # Nothing, ideally.
 
-            # ---
-            # This is cheating.
-            # ---
+            # # ---
+            # # This is cheating.
+            # # ---
             # 'test_ignored_tests',
 
-            # ---
-            # Simplest test.
-            # ---
+            # # ---
+            # # Simplest test.
+            # # ---
             # 'test_nothing',
             # 'test_logs_ignore',
 
-            # ---
-            # More complex tests.
-            # ---
+            # # ---
+            # # More complex tests.
+            # # ---
             # 'test_connect',
             # 'test_ping',
             # 'test_echo',
@@ -283,7 +282,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
                                             context=context,
                                             entry_fn=run_server,
                                             initial_log_level=LOG_LEVEL,
-                                            debug_flag=self.debug_flag,
+                                            debug_flags=self.debug_flags,
                                             unit_testing=True,
                                             proc_test=proc_test)
 
@@ -341,7 +340,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
                                       entry_fn=run_client,
                                       t_proc_to_sub=ClientProcToSubComm,
                                       initial_log_level=LOG_LEVEL,
-                                      debug_flag=self.debug_flag,
+                                      debug_flags=self.debug_flags,
                                       unit_testing=True,
                                       proc_test=proc_test,
                                       shutdown=shutdown)
@@ -402,6 +401,9 @@ class Test_WebSockets(ZestIntegrateMultiproc):
                       payload=None)
         client.pipe.send((msg, self.msg_context(mid)))
 
+        # Wait a bit for all the interprocess communicating to happen.
+        self.wait(0.5)
+
         # Received "you're connected now" back?
         recv, ctx = client.pipe.recv()
 
@@ -413,6 +415,17 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertEqual(recv.type, MsgType.ACK_CONNECT)
         self.assertIsNotNone(recv.user_id)
 
+        # Server->game. Server sends game user info when they connect.
+        self.assertTrue(self.proc.server.has_data())
+        recv, ctx = self.proc.server.recv()
+        self.assertIsNotNone(recv)
+        self.assertIsNotNone(ctx)
+        self.assertIsInstance(recv, Message)
+        self.assertIsInstance(recv.msg_id, Message.SpecialId)
+        self.assertEqual(recv.msg_id, Message.SpecialId.CONNECT)
+        self.assertEqual(recv.type, MsgType.CONNECT)
+
+        # Ok; now everyone should be empty.
         self.assert_empty_pipes()
 
     # =========================================================================
@@ -491,11 +504,11 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # self.assertEqual(msg.type, recv.type)
         # Can do this though.
         self.assertEqual(recv.type, MsgType.ACK_CONNECT)
-        self.assertIsInstance(recv.payload, dict)
-        self.assertIn('code', recv.payload)
-        self.assertIn('text', recv.payload)
+        self.assertIsInstance(recv.payload, BarePayload)
+        self.assertIn('code', recv.payload.data)
+        self.assertIn('text', recv.payload.data)
         # Did we connect successfully?
-        self.assertTrue(recv.payload['code'])
+        self.assertTrue(recv.payload.data['code'])
 
         # This should be... something.
         self.assertIsNotNone(recv.user_id)
@@ -563,10 +576,9 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         msg = Message(mid, MsgType.ECHO,
                       payload=send_msg)
         ctx = self.msg_context(mid)
-        # self.debugging = True
-        with log.LoggingManager.on_or_off(self.debugging, True):
-            client.pipe.send((msg, ctx))
-            recv, ctx = client.pipe.recv()
+        client.send(msg, ctx)
+        self.wait(0.5)
+        recv, ctx = client.recv()
         # Make sure we got a message back and it has the same
         # message as we sent.
         self.assertTrue(recv)
@@ -638,7 +650,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertEqual(mid, client_recv_msg.msg_id)
         self.assertEqual(client_send.msg_id, client_recv_msg.msg_id)
         self.assertEqual(client_recv_msg.type, MsgType.ACK_ID)
-        ack_id = mid.decode(client_recv_msg.payload)
+        ack_id = client_recv_msg.payload
         self.assertIsInstance(ack_id, type(mid))
 
         # ---
@@ -719,7 +731,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertEqual(mid, server_recv_msg.msg_id)
         self.assertEqual(server_send.msg_id, server_recv_msg.msg_id)
         self.assertEqual(server_recv_msg.type, MsgType.ACK_ID)
-        ack_id = mid.decode(server_recv_msg.payload)
+        ack_id = server_recv_msg.payload
         self.assertIsInstance(ack_id, type(mid))
 
         # Make sure we don't have anything in the queues...
@@ -755,7 +767,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
     #
     #     # Connect this process to the log server, do a long that should be
     #     # ignored, and then disconnect.
-    #     log_client.init()
+    #     log_client.init(self.__class__.__name__, log_level)
     #     self.log_critical("You should not see this.")
     #     log_client.close()
     #     # Gotta wait a bit for the counter to sync back to this process,
@@ -917,11 +929,11 @@ class Test_WebSockets(ZestIntegrateMultiproc):
 
         # Got reply for our level request?
         self.assertIsInstance(level, LogReply)
-        self.assertEqual(level.valid, LogReply.Valid.VALID)
+        self.assertEqual(level.valid, Validity.VALID)
 
         # Got /valid/ reply?
         self.assertTrue(LogReply.validity(level.value, _NC_LEVEL),
-                        LogReply.Valid.VALID)
+                        Validity.VALID)
 
         # Client reports they're now at the level we requested?
         self.assertEqual(level.value, log.Level.DEBUG)

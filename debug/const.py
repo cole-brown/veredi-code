@@ -40,6 +40,12 @@ class DebugFlag(FlagCheckMixin, enum.Flag):
     RAISE_ERRORS = enum.auto()
     '''Re-raises any errors/exceptions caught in Engine object itself.'''
 
+    RAISE_HEALTH = enum.auto()
+    '''
+    Raise an error if health becomes unrunnable. For help debugging when a
+    health goes bad...
+    '''
+
     SYSTEM_DEBUG = enum.auto()
     '''Output extra SystemManager/System logs at debug level.'''
 
@@ -48,7 +54,8 @@ class DebugFlag(FlagCheckMixin, enum.Flag):
     Makes the engine only do one tick at a time, instead of infinitely looping.
     '''
 
-    GAME_ALL = LOG_TICK | RAISE_ERRORS | SYSTEM_DEBUG | MANUAL_ENGINE_TICK
+    GAME_ALL = (LOG_TICK | RAISE_ERRORS | RAISE_HEALTH
+                | SYSTEM_DEBUG | MANUAL_ENGINE_TICK)
     '''All the game debugging flags.'''
 
     # ------------------------------

@@ -267,7 +267,7 @@ class CommandStatus:
         if not entity_name:
             reason = "Couldn't find the entity for the command."
         else:
-            entity_data = component.dotted
+            entity_data = component.dotted()
             if entity_data:
                 entity_data += ' '
             reason = "Couldn't find either '{}' or their {}data.".format(
@@ -411,6 +411,24 @@ class CommandStatus:
         '''
         self._flags = value
 
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+    def __str__(self) -> str:
+        return (f"CommandStatus({' OK ' if self.success else 'FAIL'}): "
+                f"cmd: '{self.command_safe}', "
+                f"user_reason: '{self.user_reason}', "
+                f"internal_reason: '{self.internal_reason}', "
+                f"flags: '{self._flags}', "
+                f"specifics: '{self.specifics}'")
+
+    def __repr__(self) -> str:
+        return (f"CommandStatus({self.success}, "
+                f"'{self.command_safe}', "
+                f"'{self.user_reason}', "
+                f"{self.internal_reason}', "
+                f"{self._flags}, "
+                f"{self.specifics})")
 
 # -----------------------------------------------------------------------------
 # Command Invocation Signature

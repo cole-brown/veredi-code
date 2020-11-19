@@ -8,14 +8,26 @@ Tree base classes for a d20 roll tree.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, NewType, Protocol, Iterable
+from typing import (TYPE_CHECKING, Optional, Any, NewType)
+if TYPE_CHECKING:
+    import re
+
+from abc import ABC, abstractmethod
+
 
 from functools import reduce
 
-from veredi.base import random
 
-from ..parser import MathTree, NodeType, VTags
-from .const import FormatOptions
+from veredi.base                 import random
+from veredi.data.codec.encodable import (Encodable,
+                                         EncodedComplex,
+                                         EncodedSimple)
+
+from ..parser                    import MathTree, NodeType, VTags
+from .const                      import FormatOptions
+
+
+# TODO [2020-10-28]: Type hinting for this file.
 
 
 # -----------------------------------------------------------------------------
@@ -27,10 +39,10 @@ from .const import FormatOptions
 # Base-most class for tree (leaves, branches, everything).
 # -----------------------------------------------------------------------------
 
-class Node(MathTree):
+class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
     '''Base-most class for tree (leaves, branches, everything).'''
 
-    # Just using MathTree's __init__.
+    # Just using MathTree's __init__ at the moment.
 
     # -------------------------------------------------------------------------
     # Evaluate
@@ -180,12 +192,48 @@ class Node(MathTree):
             return self._value != other._value
         return self._value != other
 
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
+
+    def _encode_simple(self) -> EncodedSimple:
+        '''
+        Don't support simple by default.
+        '''
+        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+               "simple string.")
+        raise NotImplementedError(msg)
+
+    @classmethod
+    def _decode_simple(klass: 'Encodable',
+                       data: EncodedSimple) -> 'Encodable':
+        '''
+        Don't support simple by default.
+        '''
+        msg = (f"{klass.__name__} doesn't support decoding from a "
+               "simple string.")
+        raise NotImplementedError(msg)
+
+    @classmethod
+    def _get_decode_str_rx(klass: 'Encodable') -> Optional[str]:
+        '''
+        We don't support simple encoding.
+        '''
+        return None
+
+    @classmethod
+    def _get_decode_rx(klass: 'Encodable') -> Optional['re.Pattern']:
+        '''
+        We don't support simple encoding.
+        '''
+        return None
+
 
 # -----------------------------------------------------------------------------
 # Leaves
 # -----------------------------------------------------------------------------
 
-class Leaf(Node):
+class Leaf(Node, dotted=Encodable._DO_NOT_REGISTER):
     '''Leaf node of parsed tree. Dice, constants, vars, etc.'''
 
     # -------------------------------------------------------------------------
@@ -251,7 +299,13 @@ class Leaf(Node):
 # Leaf Actuals
 # -----------------------------------------------------------------------------
 
-class Dice(Leaf):
+class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
+
+    _NAME = 'dice'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def __init__(self, dice, faces, tags=None):
         super().__init__(NodeType.RANDOM, name='dice', tags=tags)
@@ -259,6 +313,10 @@ class Dice(Leaf):
         self.dice = dice
         self.faces = faces
         self.roll = None
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
 
     def __str__(self):
         return (
@@ -270,6 +328,10 @@ class Dice(Leaf):
             f"{'==' + str(self.value) if self.value is not None else ''}"
             f")"
         )
+
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
 
     def _eval(self):
         # Roll each die, record result.
@@ -320,14 +382,68 @@ class Dice(Leaf):
 
         return str_out
 
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
 
-class Constant(Leaf):
+    @classmethod
+    def _type_field(klass: 'Dice') -> str:
+        return klass._NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Get our parents to do their work.
+        enc_data = super()._encode_complex()
+
+        # Add our specific Dice data.
+        enc_data['dice']  = self.dice
+        enc_data['faces'] = self.faces
+        enc_data['roll']  = self.roll
+
+        # Done
+        return enc_data
+
+    @classmethod
+    def _decode_complex(klass: 'Dice',
+                        data: EncodedComplex) -> 'Dice':
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Get our stuff from the data.
+        num_dice = data['dice']
+        faces = data['faces']
+        roll = data.get('roll', None)
+
+        # And build our instance from the data.
+        dice = Dice(num_dice, faces)
+        dice.roll = roll
+
+        # Finish building by having our parents do their things.
+        klass._decode_super(dice, data)
+
+        return dice
+
+
+class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
+
+    _NAME = 'constant'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def __init__(self, constant, tags=None):
         super().__init__(NodeType.CONSTANT,
                          value=constant,
                          name=constant,
                          tags=tags)
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
 
     def __str__(self):
         return (
@@ -337,6 +453,10 @@ class Constant(Leaf):
             f"{self._value}"
             f")"
         )
+
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
 
     def _eval(self):
         # We already have our (constant) value and
@@ -356,14 +476,61 @@ class Constant(Leaf):
 
         return str(self.value)
 
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
 
-class Variable(Leaf):
+    @classmethod
+    def _type_field(klass: 'Constant') -> str:
+        return klass._NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Get our parents to do their work.
+        enc_data = super()._encode_complex()
+
+        # And... we have nothing to add.
+
+        # Done
+        return enc_data
+
+    @classmethod
+    def _decode_complex(klass: 'Constant',
+                        data: EncodedComplex) -> 'Constant':
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Get our stuff from the data. We have nothing.
+
+        # And build our instance from the data.
+        constant = Constant(None)
+
+        # Finish building by having our parents do their things.
+        klass._decode_super(constant, data)
+
+        return constant
+
+
+class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
+
+    _NAME = 'variable'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def __init__(self, var, milieu=None, tags=None):
         super().__init__(NodeType.VARIABLE,
                          milieu=milieu,
                          name=var,
                          tags=tags)
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
 
     def __str__(self):
         return (
@@ -374,6 +541,10 @@ class Variable(Leaf):
             f", '{self.milieu if self.milieu else ''}'"
             f")"
         )
+
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
 
     def _eval(self):
         '''
@@ -415,23 +586,89 @@ class Variable(Leaf):
 
         return str_out
 
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _type_field(klass: 'Variable') -> str:
+        return klass._NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Get our parents to do their work.
+        enc_data = super()._encode_complex()
+
+        # And... we have nothing to add.
+
+        # Done
+        return enc_data
+
+    @classmethod
+    def _decode_complex(klass: 'Variable',
+                        data: EncodedComplex) -> 'Variable':
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Get our stuff from the data. We have nothing.
+
+        # And build our instance from the data.
+        variable = Variable(None)
+
+        # Finish building by having our parents do their things.
+        klass._decode_super(variable, data)
+
+        return variable
+
 
 # -----------------------------------------------------------------------------
 # Tree Node
 # -----------------------------------------------------------------------------
 
-class Branch(Node):
+class Branch(Node, ABC, dotted=Encodable._DO_NOT_REGISTER):
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self, children, type, name, tags=None):
         super().__init__(NodeType.BRANCH | type,
                          children=children,
                          name=name,
                          tags=tags)
 
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
+
+    @abstractmethod
+    def _evaluate_children(self, left, right):
+        '''
+        Do whatever it is the branch should do with its children.
+        E.g.: OperatorAdd should add them all together.
+
+        Returns.... int/float/etc? IDK?
+        '''
+        raise NotImplementedError(
+            f"{self.__class__.__name__}._evaluate_children() "
+            "is not implemented.")
+
     @property
     def children(self):
         return self._children
 
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+
     def __str__(self):
+        if not self.children:
+            raise ValueError(f"Branch class {self.__class__.__name__} has no "
+                             f"children?! children: {self._children}", self)
+
         out = [f"{self.__class__.__name__}",
                "("]
         first = True
@@ -446,6 +683,10 @@ class Branch(Node):
             out.append("==")
             out.append(str(self.value))
         return ''.join(out)
+
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
 
     def _pretty_name(self):
         return f"{self.__class__.__name__}"
@@ -486,23 +727,27 @@ class Branch(Node):
         Branches probably have same evaluation: Do something to children and
         store accumulated result.
         '''
-        self._value = reduce(self._act_on_children, self.children)
+        self._value = reduce(self._evaluate_children, self.children)
 
 
 # -----------------------------------------------------------------------------
 # Mathmatic Operations
 # -----------------------------------------------------------------------------
 
-class OperatorMath(Branch):
+class OperatorMath(Branch, dotted=Encodable._DO_NOT_REGISTER):
     '''Base class for math nodes.'''
 
-    def __init__(self, children, operator, op_str, tags=None):
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def __init__(self, children, op_str, tags=None):
         super().__init__(children, NodeType.OPERATOR, op_str, tags)
-        self.__operator = operator
         self.__operator_str = op_str
 
-    def _act_on_children(self, left, right):
-        return self.__operator(left, right)
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
 
     def _expr_str(self, options=None):
         '''String for this node's math expression representation.
@@ -515,55 +760,198 @@ class OperatorMath(Branch):
         return self.__operator_str
 
 
-class OperatorAdd(OperatorMath):
+class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
     STR_ASCII = '+'
     STR_UNICODE = '+'
     # STR_UNICODE = '\u002B'
     # STR_UNICODE = '\N{PLUS SIGN}'
 
+    _NAME = 'Add'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self, children, tags=None):
         super().__init__(children,
-                         self.__add_children,
                          OperatorAdd.STR_UNICODE,
                          tags)
 
-    def __add_children(self, left, right):
+    def _evaluate_children(self, left, right):
+        '''
+        OperatorAdd will add these two children together.
+        '''
         return left + right
 
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
 
-class OperatorSub(OperatorMath):
+    @classmethod
+    def _type_field(klass: 'OperatorAdd') -> str:
+        return klass._NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Get our parents to do their work.
+        enc_data = super()._encode_complex()
+
+        # We don't have anything...
+
+        # Done
+        return enc_data
+
+    @classmethod
+    def _decode_complex(klass: 'OperatorAdd',
+                        data: EncodedComplex) -> 'OperatorAdd':
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Get our stuff from the data. We have none.
+
+        # And build our instance from the data.
+        add = OperatorAdd(None)
+
+        # Finish building by having our parents do their things.
+        klass._decode_super(add, data)
+
+        return add
+
+
+class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
     STR_ASCII = '-'
     STR_UNICODE = '−'
     # STR_UNICODE = '\u2212'
     # STR_UNICODE = '\N{MINUS SIGN}'
 
+    _NAME = 'subtract'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self, children, tags=None):
         super().__init__(children,
-                         self.__sub_children,
                          OperatorSub.STR_UNICODE,
                          tags)
 
-    def __sub_children(self, left, right):
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
+
+    def _evaluate_children(self, left, right):
+        '''
+        OperatorSub will subtract these two children.
+        '''
         return left - right
 
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
 
-class OperatorMult(OperatorMath):
+    @classmethod
+    def _type_field(klass: 'OperatorSub') -> str:
+        return klass._NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Get our parents to do their work.
+        enc_data = super()._encode_complex()
+
+        # We don't have anything...
+
+        # Done
+        return enc_data
+
+    @classmethod
+    def _decode_complex(klass: 'OperatorSub',
+                        data: EncodedComplex) -> 'OperatorSub':
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Get our stuff from the data. We have none.
+
+        # And build our instance from the data.
+        sub = OperatorSub(None)
+
+        # Finish building by having our parents do their things.
+        klass._decode_super(sub, data)
+
+        return sub
+
+
+class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
     STR_ASCII = '*'
     STR_UNICODE = '×'
     # STR_UNICODE = '\u00D7'
     # STR_UNICODE = '\N{MULTIPLICATION SIGN}'
 
+    _NAME = 'multiply'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self, children, tags=None):
         super().__init__(children,
-                         self.__mul_children,
                          OperatorMult.STR_UNICODE,
                          tags)
 
-    def __mul_children(self, left, right):
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
+
+    def _evaluate_children(self, left, right):
+        '''
+        OperatorMult will multiply these two children.
+        '''
         return left * right
 
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
 
-class OperatorDiv(OperatorMath):
+    @classmethod
+    def _type_field(klass: 'OperatorMult') -> str:
+        return klass._NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Get our parents to do their work.
+        enc_data = super()._encode_complex()
+
+        # We don't have anything...
+
+        # Done
+        return enc_data
+
+    @classmethod
+    def _decode_complex(klass: 'OperatorMult',
+                        data: EncodedComplex) -> 'OperatorMult':
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Get our stuff from the data. We have none.
+
+        # And build our instance from the data.
+        mult = OperatorMult(None)
+
+        # Finish building by having our parents do their things.
+        klass._decode_super(mult, data)
+
+        return mult
+
+
+class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
     '''
     Covers both truediv (float math) and floor div (int math) operators.
     '''
@@ -582,53 +970,198 @@ class OperatorDiv(OperatorMath):
     STR_ASCII_FLOOR = '//'
     STR_UNICODE_FLOOR = '÷÷'
 
+    _NAME = 'divide'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self, children, truediv=True, tags=None):
-        div_fn = (self.__truediv_children
-                  if truediv else
-                  self.__floordiv_children)
+        self.truediv = truediv
         div_str = (self.STR_UNICODE_TRUE
                    if truediv else
                    self.STR_UNICODE_FLOOR)
 
         super().__init__(children,
-                         div_fn,
                          div_str,
                          tags)
 
-    def __truediv_children(self, left, right):
-        '''"True" division aka float maths.'''
-        return left / right
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
 
-    def __floordiv_children(self, left, right):
-        '''"Floor" division aka int maths.'''
+    def _evaluate_children(self, left, right):
+        '''
+        OperatorDiv will divide these two children. It will either use 'true'
+        (float) division or 'floor' (int) division, based on self.truediv flag.
+        '''
+        if self.truediv:
+            # True/float division.
+            return left / right
+        # Else floor/int division.
         return left // right
 
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
 
-class OperatorMod(OperatorMath):
+    @classmethod
+    def _type_field(klass: 'OperatorDiv') -> str:
+        return klass._NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Get our parents to do their work.
+        enc_data = super()._encode_complex()
+
+        # We don't have anything...
+
+        # Done
+        return enc_data
+
+    @classmethod
+    def _decode_complex(klass: 'OperatorDiv',
+                        data: EncodedComplex) -> 'OperatorDiv':
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Get our stuff from the data. We have none.
+
+        # And build our instance from the data.
+        div = OperatorDiv(None)
+
+        # Finish building by having our parents do their things.
+        klass._decode_super(div, data)
+
+        return div
+
+
+class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
     STR_ASCII = '%'
     STR_UNICODE = '%'  # Modulo doesn't have a math symbol...
 
+    _NAME = 'modulo'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self, children, tags=None):
         super().__init__(children,
-                         self.__mod_children,
                          OperatorMod.STR_UNICODE,
                          tags)
 
-    def __mod_children(self, left, right):
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
+
+    def _evaluate_children(self, left, right):
+        '''
+        OperatorMod will modulo these two children.
+        '''
         return left % right
 
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
 
-class OperatorPow(OperatorMath):
+    @classmethod
+    def _type_field(klass: 'OperatorMod') -> str:
+        return klass._NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Get our parents to do their work.
+        enc_data = super()._encode_complex()
+
+        # We don't have anything...
+
+        # Done
+        return enc_data
+
+    @classmethod
+    def _decode_complex(klass: 'OperatorMod',
+                        data: EncodedComplex) -> 'OperatorMod':
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Get our stuff from the data. We have none.
+
+        # And build our instance from the data.
+        mod = OperatorMod(None)
+
+        # Finish building by having our parents do their things.
+        klass._decode_super(mod, data)
+
+        return mod
+
+
+class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
     STR_ASCII = '^'
     # It would be nice to super-script the 'power-of' component, but
     # that is complicated... maybe?
     STR_UNICODE = '^'
 
+    _NAME = 'power'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self, children, tags=None):
         super().__init__(children,
-                         self.__pow_children,
                          OperatorPow.STR_UNICODE,
                          tags)
 
-    def __pow_children(self, left, right):
+    # -------------------------------------------------------------------------
+    # Node Functions
+    # -------------------------------------------------------------------------
+
+    def _evaluate_children(self, left, right):
+        '''
+        OperatorPow will return `left` to the power of `right`.
+        '''
         return left ** right
+
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _type_field(klass: 'OperatorPow') -> str:
+        return klass._NAME
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # Get our parents to do their work.
+        enc_data = super()._encode_complex()
+
+        # We don't have anything...
+
+        # Done
+        return enc_data
+
+    @classmethod
+    def _decode_complex(klass: 'OperatorPow',
+                        data: EncodedComplex) -> 'OperatorPow':
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        # Get our stuff from the data. We have none.
+
+        # And build our instance from the data.
+        pow = OperatorPow(None)
+
+        # Finish building by having our parents do their things.
+        klass._decode_super(pow, data)
+
+        return pow

@@ -23,6 +23,7 @@ import asyncio
 import multiprocessing
 import multiprocessing.connection
 import re
+from contextlib import contextmanager
 
 
 # ---
@@ -38,7 +39,8 @@ from veredi.data.config.config   import Configuration
 from veredi.data.codec.base      import BaseCodec
 from veredi.data.config.registry import register
 
-from ..message                   import Message, MsgType
+from ..const                     import MsgType
+from ..message                   import Message
 from .mediator                   import WebSocketMediator
 from .base                       import VebSocket, TxProcessor, RxProcessor
 from ..context                   import (MediatorClientContext,
@@ -150,6 +152,12 @@ class WebSocketClient(WebSocketMediator):
     Mediator for... client-ing over WebSockets.
     '''
 
+    _MAX_CONNECT_ATTEMPT_FAILS: int = 10
+    '''
+    Maximum number of errors/failures to connect to server before just
+    giving up.
+    '''
+
     def _define_vars(self) -> None:
         '''
         Set up our vars with type hinting, docstrs.
@@ -180,6 +188,12 @@ class WebSocketClient(WebSocketMediator):
 
         Note: Not really "are we connected right now". Just "has the server
         confirmed our CONNECT with an ACK_CONNECT at some point in the past?"
+        '''
+
+        self._connect_attempts: int = 0
+        '''
+        If connect itself has error, we don't want to just infinitely spam. So
+        count connection attempts and give up eventually.
         '''
 
     def __init__(self,
@@ -239,7 +253,7 @@ class WebSocketClient(WebSocketMediator):
         '''
         Make a context with our context data, our codec's, etc.
         '''
-        ctx = MediatorClientContext(self.dotted)
+        ctx = MediatorClientContext(self.dotted())
         ctx.sub['type'] = 'websocket.client'
         ctx.sub['codec'] = self._codec.make_context_data()
         return ctx
@@ -248,7 +262,7 @@ class WebSocketClient(WebSocketMediator):
         '''
         Make a context for a message.
         '''
-        ctx = MessageContext(self.dotted, id)
+        ctx = MessageContext(self.dotted(), id)
         return ctx
 
     def start(self) -> None:
@@ -326,6 +340,112 @@ class WebSocketClient(WebSocketMediator):
             # Skip this - we used get_nowait(), not get().
             # self._rx_queue.task_done()
             await self._continuing()
+            continue
+
+    @contextmanager
+    def _connect_manager(self) -> 'WebSocketClient':
+        '''
+        Manages attempts at connecting to the server.
+        Manages: self._connect_request flag, self._connect_attempts
+        '''
+        # ------------------------------
+        # Checks and Prep for Attempt.
+        # ------------------------------
+        self.debug("Starting connection to server...")
+
+        # We're trying to connect now, so we don't need our connect request
+        # flag set anymore.
+        self._clear_connect()
+
+        # Error check: time to give up?
+        if self._connect_attempts > self._MAX_CONNECT_ATTEMPT_FAILS:
+            # Raise error to get out of context manager.
+            msg = (f"{self.__class__.__name__}: Failed to connect to "
+                   f"the server! Failed {str(self._connect_attempts + 1)} "
+                   "attempts.")
+            error = ConnectionError(msg, None)
+            raise log.exception(error, None, msg)
+
+        # Increment our attempts counter, as we are now attempting.
+        self._connect_attempts += 1
+
+        # ------------------------------
+        # Do an attempt.
+        # ------------------------------
+        try:
+            # "Do the code now."
+            yield self
+
+        # Always reraise all exceptions - we're in a `with` context.
+        except Exception as error:
+            log.exception(error, None,
+                          "Client->Server Connection Attempt {}/{} "
+                          "failed with error: {}",
+                          self._connect_attempts,
+                          self._MAX_CONNECT_ATTEMPT_FAILS,
+                          error)
+            raise
+
+        # ------------------------------
+        # Done with management. Clean up.
+        # ------------------------------
+        # Don't clear attempts counter yet... We're done asking to connect.
+        # Server needs to reply for us to actually connect successfully.
+        # return self._connection_attempt_success()
+
+    def _connection_attempt_success(self) -> None:
+        '''
+        Connection was successful. Clean up connection attempts data.
+        '''
+        self.debug("Connection attempt successful!")
+
+        # ------------------------------
+        # Set as connected.
+        # ------------------------------
+        self._connected = True
+        self._connect_attempts = 0
+
+        # ------------------------------
+        # Done.
+        # ------------------------------
+        self.debug("Connection Successful: Done.")
+
+    def _connection_attempt_failure(self) -> None:
+        '''
+        Couldn't connect. Give up.
+        '''
+        self.debug("Connection attempt failed!")
+
+        # TODO [2020-08-13]: Give up if a 'give up' fail message/code comes
+        # from... somewhere?
+
+        # ------------------------------
+        # Set as not connected.
+        # ------------------------------
+        self._connected = False
+        # Leave attempt counter as is... Force something to be done about
+        # previous failure before allowinng another try.
+        # self._connect_attempts = 0
+
+        # Close socket if it exists.
+        if self._socket:
+            self._socket.close()
+            self._socket = None
+
+        # ------------------------------
+        # Drop data queued.
+        # ------------------------------
+        self.debug("Connection Failed: Dropping messages in pipes/queues.")
+        self._game_pipe_clear()
+        self._med_to_game_clear()
+        self._med_tx_clear()
+        self._med_rx_clear()
+        self._test_pipe_clear()
+
+        # ------------------------------
+        # Done.
+        # ------------------------------
+        self.debug("Connection Failed: Done.")
 
     async def _server_watcher(self) -> None:
         '''
@@ -357,35 +477,39 @@ class WebSocketClient(WebSocketMediator):
             if not self._desire_connect():
                 await self._continuing()
                 continue
-            self._clear_connect()
 
-            # Ok. Bring server connection online.
-            self.debug("Starting connection to server...")
+            # ------------------------------
+            # Connection Manager for tracking failures.
+            # ------------------------------
+            with self._connect_manager():
+                # All the 'connecting' code should be under the `with` so it's
+                # all managed and success/failure noticed.
 
-            if self._socket:
-                raise log.exception(None,
-                                    WebSocketError,
-                                    "WebSocket to server exists but we were "
-                                    "expecting it not to. {}",
-                                    self._socket)
+                if self._socket:
+                    raise log.exception(None,
+                                        WebSocketError,
+                                        "WebSocket to server exists but we "
+                                        "were expecting it not to. {}",
+                                        self._socket)
 
-            # TODO: path for my user? With user id, user key?
-            self.debug("Creating connection to server...")
-            self._socket = self._server_connection()
+                # TODO: path for my user? With user id, user key?
+                self.debug("Creating connection to server...")
+                self._socket = self._server_connection()
 
-            # TODO: get connect message working
-            self.debug("Queueing connect message...")
-            connect_msg, connect_ctx = self._connect_message()
-            await self._med_tx_put(connect_msg, connect_ctx)
+                # TODO: get connect message working
+                self.debug("Queueing connect message...")
+                connect_msg, connect_ctx = self._connect_message()
+                await self._med_tx_put(connect_msg, connect_ctx)
 
-            self.debug("Starting connection handlers...")
-            await self._socket.connect_parallel(self._handle_produce,
-                                                self._handle_consume)
-            self.debug("Done with connection to server.")
+                self.debug("Starting connection handlers...")
+                await self._socket.connect_parallel(self._handle_produce,
+                                                    self._handle_consume)
+                self.debug("Done with connection to server.")
 
             # And back to waiting on the connection request flag.
             self._socket = None
             await self._continuing()
+            continue
 
     def _connect_message(self, ctx: Optional[MessageContext] = None) -> None:
         '''
@@ -432,7 +556,7 @@ class WebSocketClient(WebSocketMediator):
         '''
         Send a connection auth/registration request to the server.
         '''
-        return await self._htx_generic(msg, ctx, conn, 'connect')
+        return await self._htx_generic(msg, ctx, conn, log_type='connect')
 
     async def _hrx_connect(self,
                            match: re.Match,
@@ -443,27 +567,19 @@ class WebSocketClient(WebSocketMediator):
         '''
         Receive connect ack/response from server.
         '''
-        payload = msg.payload
-        self.debug(f"Received connect response: {type(payload)}: {payload}")
+        self.debug(f"Received connect response: {type(msg.payload)}: "
+                   f"{msg.payload}")
 
-        # TODO: Whatever builds connect payload should also check it here...
-        if 'code' in payload and payload['code'] is True:
-            if self._debug and not self._debug.has(DebugFlag.LOG_SKIP):
-                log.info("{self._name}: Connected to server! "
-                         f"match: {match}, path: {path}, msg: {msg}")
-            self._connected = True
+        # Have Message check that this msg is a ACK_CONNECT and tell us if it
+        # succeeded or not.
+        success, reason = msg.verify_connected()
+        if success:
+            self._connection_attempt_success()
         else:
             log.error("{self._name}: Failed to connect to server! "
-                      f"match: {match}, path: {path}, msg: {msg}")
-            self._connected = False
-
-            # Should we close here? Think so... But currently that'll just have
-            # mediator keep trying. Need mediator or game to give up or
-            # something.
-            # TODO [2020-08-13]: Give up if too many failed connects?
-            # TODO [2020-08-13]: Give up if a 'give up' fail code?
-            self._socket.close()
-            self._socket = None
+                      f"match: {match}, path: {path}, msg: {msg},"
+                      f"Connection failure: {reason}")
+            self._connection_attempt_failure()
 
         return await self._hrx_generic(match, path, msg, context,
                                        # Don't ack the ack back.

@@ -62,6 +62,7 @@ class VerediHealth(enum.IntEnum):
     _RUN_OK_HEALTH_MIN = -19
     '''
     Engine is in acceptable health for running if above this value.
+    NOTE! Probably don't use this - use 'in_runnable_health' property.
     '''
 
     # ------------------------------
@@ -93,6 +94,7 @@ class VerediHealth(enum.IntEnum):
     _GOOD_HEALTH_MIN = 19
     '''
     Minimum health that is acceptable as 'good'.
+    NOTE! Probably don't use this - use 'in_best_health' or 'limbo' property.
     '''
 
     # The Slightly Less Good One.

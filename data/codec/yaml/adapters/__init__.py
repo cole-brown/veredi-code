@@ -19,6 +19,7 @@ def import_and_register() -> None:
     register the classes/functions/etc with YAML and with our tag/class
     registry.
     '''
+    from . import types
     from . import document
     from . import function
     from . import identity

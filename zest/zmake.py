@@ -111,7 +111,8 @@ def meeting(
     '''
     configuration = configuration     or config(test_type)
     time          = time_manager      or TimeManager()
-    event         = event_manager     or EventManager(configuration)
+    event         = event_manager     or EventManager(configuration,
+                                                      debug_flags)
     component     = component_manager or ComponentManager(configuration,
                                                           event)
     entity        = entity_manager    or EntityManager(configuration,

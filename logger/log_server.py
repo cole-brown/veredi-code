@@ -12,8 +12,7 @@ logs from one game/server are well-formatted and in one place.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union
-from veredi.base.null import Null, null_to_none
+from typing import Optional
 
 import multiprocessing
 from multiprocessing.connection import Connection as mp_conn
@@ -78,21 +77,21 @@ class LogServerSub(multiproc.SubToProcComm):
     '''
 
     def __init__(self,
-                 name:       str,
-                 config:     Optional[Configuration],
-                 entry_fn:   multiproc.StartProcFn,
-                 pipe:       mp_conn,
-                 shutdown:   multiprocessing.Event,
-                 ignore_logs:     multiprocessing.Event                 = None,
-                 ignored_counter: multiprocessing.Value                 = None,
-                 debug_flag: Optional[DebugFlag] = None,
-                 ut_pipe:    Optional[mp_conn]   = None) -> None:
+                 name:            str,
+                 config:          Optional[Configuration],
+                 entry_fn:        multiproc.StartProcFn,
+                 pipe:            mp_conn,
+                 shutdown:        multiprocessing.Event,
+                 ignore_logs:     multiprocessing.Event = None,
+                 ignored_counter: multiprocessing.Value = None,
+                 debug_flags:     Optional[DebugFlag]   = None,
+                 ut_pipe:         Optional[mp_conn]     = None) -> None:
         super().__init__(name=name,
                          config=config,
                          entry_fn=entry_fn,
                          pipe=pipe,
                          shutdown=shutdown,
-                         debug_flag=debug_flag,
+                         debug_flags=debug_flags,
                          ut_pipe=ut_pipe)
         self.ignore_logs = ignore_logs
         self.ignored_counter = ignored_counter
@@ -188,7 +187,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
             handler:         logging.Handler = LogRecordStreamHandler
     ) -> None:
         socketserver.ThreadingTCPServer.__init__(self, (host, port), handler)
-        self.timeout = 1
+        self.timeout = 0.5
         self.logname = None
         self.shutdown_flag = shutdown_flag
         self.ignore_flag = ignore_flag
@@ -225,6 +224,8 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
                 self.handle_request()
 
         # Shutdown flag was set so we're done.
+        log.debug("log_server's LogRecordSocketReceiver stopped serving "
+                  "in preparation for shutdown.")
 
 
 # ---------------------------------Log Server----------------------------------
@@ -239,7 +240,7 @@ def init(process_name: str = 'veredi.log.server',
          initial_log_level: Optional[log.Level] = None,
          context: VerediContext = None,
          config: Configuration = None,
-         debug_flag: DebugFlag = None) -> LogServerComm:
+         debug_flags: DebugFlag = None) -> LogServerComm:
     '''
     Create / Set-Up the Log Server according to context/config data.
     '''
@@ -249,6 +250,9 @@ def init(process_name: str = 'veredi.log.server',
 
     # Grab ut flag from background?
     ut_flagged = background.testing.get_unit_testing()
+
+    # We are the log_server, so... tell the multiproc code that.
+    ConfigContext.set_log_is_server(context, True)
 
     # ---
     # Init
@@ -267,7 +271,7 @@ def init(process_name: str = 'veredi.log.server',
         context=context,
         entry_fn=run,
         initial_log_level=initial_log_level,
-        debug_flag=debug_flag,
+        debug_flags=debug_flags,
         unit_testing=ut_flagged)
 
     return server
@@ -278,6 +282,7 @@ def _finalize_proc(proc: multiproc.ProcToSubComm,
     '''
     Finalize the ProcToSubComm and SubToProcComm objects before init finishes.
     '''
+
     # LogServer-specific multiprocessing stuff.
     ignore_logs = multiprocessing.Event()
     ignored_logs_counter = multiprocessing.Value(c_int, 0)

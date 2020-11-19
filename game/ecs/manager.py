@@ -42,7 +42,8 @@ class EcsManager:
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__}.subscribe() "
+                                  "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Life-Cycle Transitions

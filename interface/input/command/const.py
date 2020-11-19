@@ -26,8 +26,9 @@ this.
 # -----------------------------------------------------------------------------
 # Permissions
 # -----------------------------------------------------------------------------
-# TODO [2020-06-15]: Move to wherever permissions/authz lives once it lives
 
+# TODO [2020-06-15]: Change everything to use veredi.security.permissions
+# (Attributes or Roles) instead of CommandPermission.
 @enum.unique
 class CommandPermission(FlagCheckMixin, enum.Flag):
     '''

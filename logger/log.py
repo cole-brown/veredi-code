@@ -9,11 +9,12 @@ Logging utilities for Veredi.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Type, Callable,
-                    Mapping, MutableMapping, Iterable)
+                    Optional, Union, Any, NewType, Type, Callable,
+                    Mapping, MutableMapping, Iterable, Dict, List)
 if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
     from veredi.base.exceptions import VerediError
+
 
 # ------------------------------
 # Imports for helping others do type hinting
@@ -30,13 +31,18 @@ import math
 import enum
 
 
-from veredi.base.null import Null, Nullable, NullNoneOr
+from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
 from veredi.base      import dotted
+
+from . import pretty
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+LogLvlConversion = NewType('', NullNoneOr[Union['Level', int]])
+
 
 FMT_DATETIME = '%Y-%m-%d %H:%M:%S.{msecs:03d}%z'  # Yeah, this is fun.
 
@@ -70,13 +76,28 @@ _ULTRA_MEGA_DEBUG_DBG = (
     + _ULTRA_MEGA_DEBUG_TB
 )
 _ULTRA_MEGA_DEBUG_FMT = (
-    '\n\n'
+    '\n'
     + _ULTRA_MEGA_DEBUG_DBG + (_ULTRA_MEGA_DEBUG_TB * 30) + '\n'
     + ('v' * 69) + '\n\n'
     + '{output}' + '\n\n'
     + ('^' * 69) + '\n'
     + _ULTRA_MEGA_DEBUG_DBG + (_ULTRA_MEGA_DEBUG_TB * 30) + '\n'
     + '\n\n'
+)
+
+
+_ULTRA_HYPER_DEBUG = 'U-L-T-R-A = H-Y-P-E-R = D-E-B-U-G = L-O-G'
+_ULTRA_HYPER_SYMBOL = '☢'
+_ULTRA_HYPER_INDENT_AMT = 4
+_ULTRA_HYPER_DEBUG_FMT = (
+    '\n'
+    + '---\n'
+    + '-----\n'
+    + '-= ' + _ULTRA_HYPER_DEBUG + ' =-\n'
+    + '{output}\n'
+    + '-= ' + _ULTRA_HYPER_DEBUG + ' =-\n'
+    + '-----\n'
+    + '---\n\n'
 )
 
 
@@ -101,14 +122,14 @@ class Level(enum.IntEnum):
         return False
 
     @staticmethod
-    def to_logging(lvl: Union['Level', int, None]) -> int:
-        if lvl is None:
+    def to_logging(lvl: LogLvlConversion) -> int:
+        if null_or_none(lvl):
             lvl = Level.NOTSET
         return int(lvl)
 
     @staticmethod
-    def from_logging(lvl: Union['Level', int, None]) -> 'Level':
-        if lvl is None:
+    def from_logging(lvl: LogLvlConversion) -> 'Level':
+        if null_or_none(lvl):
             return Level.NOTSET
         return Level(lvl)
 
@@ -151,6 +172,31 @@ class Level(enum.IntEnum):
 
 
 DEFAULT_LEVEL = Level.INFO
+
+
+# ------------------------------
+# Logging "Groups"
+# ------------------------------
+
+@enum.unique
+class Group(enum.IntEnum):
+    '''
+    A logging group is for relating certain logs to a log.Level indirectly.
+
+    E.g. log.Group.SECURITY can be set to Level.WARNING, or turned down to
+    Level.DEBUG, and all log.Group.SECURITY logs will dynamically log out at
+    the current level for the group.
+    '''
+
+    SECURITY = enum.auto()
+    '''veredi.security.* logs, and related logs.'''
+
+    # TODO: more groups?
+
+
+_GROUP_LEVELS: Dict[Group, Level] = {
+    Group.SECURITY: Level.WARNING,
+}
 
 
 # ------------------------------
@@ -201,22 +247,22 @@ class LogName(enum.Enum):
 # Variables
 # -----------------------------------------------------------------------------
 
-__initialized = False
+__initialized: bool = False
 
-logger = None
+logger: logging.Logger = None
 '''Our main/default logger.'''
 
-__handlers = []
+__handlers: List[logging.Handler] = []
 '''Our main/default logger's main/default handler(s).'''
 
-_unit_test_callback = Null()
+_unit_test_callback: Callable = Null()
 
 
 # -----------------------------------------------------------------------------
 # Logger Code
 # -----------------------------------------------------------------------------
 
-def init(level:        Union[Level, int]           = DEFAULT_LEVEL,
+def init(level:        LogLvlConversion            = DEFAULT_LEVEL,
          handler:      Optional[logging.Handler]   = None,
          formatter:    Optional[logging.Formatter] = None,
          reinitialize: Optional[bool]              = None,
@@ -227,33 +273,38 @@ def init(level:        Union[Level, int]           = DEFAULT_LEVEL,
     `debug` purely here for debugging log_server, log_client setting up their
     loggers.
     '''
+    # ------------------------------
+    # No Re-Init.
+    # ------------------------------
     global __initialized
-    if __initialized:  # and not reinitialize:
+    if __initialized and not reinitialize:
         return
+    __initialized = True
 
+    # ------------------------------
+    # Logger
+    # ------------------------------
     global logger
-    logger = init_logger(str(LogName.ROOT), level, handler, formatter)
+    logger = init_logger(str(LogName.ROOT), level, formatter)
 
+    # ------------------------------
+    # Root Logger's Handler(s)
+    # ------------------------------
 
-def init_logger(logger_name: str,
-                level:       Union[Level, int]           = DEFAULT_LEVEL,
-                handler:     Optional[logging.Handler]   = None,
-                formatter:   Optional[logging.Formatter] = None
-                ) -> logging.Logger:
-    '''
-    Initializes and returns a logger with the supplied name.
-    '''
-    # Create our logger at our default output level.
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(Level.to_logging(level))
+    # Only let the root logger have special handlers.
 
     # Either got supplied a handler or we'll be making one. Either way, we want
     # to get rid of any of ours it has.
     global __handlers
     if __handlers:
-        for each in __handlers:
-            logger.removeHandler(each)
+        for handle in __handlers:
+            logger.removeHandler(handle)
         __handlers = []
+
+    # Get rid of any of its own handlers if we've got ones to give it.
+    if handler is not None:
+        for handle in list(logger.handlers):
+            logger.removeHandler(handler)
 
     if not handler:
         # Console Handler, same level.
@@ -273,15 +324,29 @@ def init_logger(logger_name: str,
                                 style=STYLE)
         handler.setFormatter(formatter)
 
+    # Now set it in our collection and on the logger.
     __handlers.append(handler)
     logger.addHandler(handler)
+
+
+def init_logger(logger_name: str,
+                level:       LogLvlConversion            = DEFAULT_LEVEL,
+                formatter:   Optional[logging.Formatter] = None
+                ) -> logging.Logger:
+    '''
+    Initializes and returns a logger with the supplied name.
+    '''
+    # Create our logger at our default output level.
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(Level.to_logging(level))
+    logger.debug(f"logger initialized at level {level}")
 
     return logger
 
 
 def remove_handler(handler:     logging.Handler,
                    logger:      Optional[logging.Logger] = None,
-                   logger_name: Optional[str]            = None):
+                   logger_name: Optional[str]            = None) -> None:
     '''
     Look in log.__handlers for `handler`. If it finds a match, removes it from
     log.__handlers.
@@ -299,7 +364,7 @@ def remove_handler(handler:     logging.Handler,
 
 
 def get_logger(*names: str,
-               min_log_level: Union[int, Level, None] = None
+               min_log_level: LogLvlConversion = None
                ) -> logging.Logger:
     '''
     Get a logger by name. Names should be module name, or module and
@@ -313,8 +378,8 @@ def get_logger(*names: str,
     E.g.:
       get_logger(__name__, self.__class__.__name__)
       get_logger(__name__)
-      get_logger(self.dotted, min_log_level=log.Level.DEBUG)
-      get_logger(self.dotted, 'client', '{:02d}'.format(client_num))
+      get_logger(self.dotted(), min_log_level=log.Level.DEBUG)
+      get_logger(self.dotted(), 'client', '{:02d}'.format(client_num))
     '''
     # Ignore any Falsy values in names
     logger_name = '.'.join([each for each in names if each])
@@ -350,7 +415,7 @@ def get_level(veredi_logger: NullNoneOr[logging.Logger] = None) -> Level:
     return level
 
 
-def set_level(level: Union[Level, int] = DEFAULT_LEVEL,
+def set_level(level:         LogLvlConversion           = DEFAULT_LEVEL,
               veredi_logger: NullNoneOr[logging.Logger] = None) -> None:
     '''Change logger's log level. Options are:
       - log.CRITICAL
@@ -370,7 +435,7 @@ def set_level(level: Union[Level, int] = DEFAULT_LEVEL,
     this.setLevel(Level.to_logging(level))
 
 
-def will_output(level: Union[Level, int],
+def will_output(level:         LogLvlConversion,
                 veredi_logger: NullNoneOr[logging.Logger] = None) -> bool:
     '''
     Returns true if supplied `level` is high enough to output a log.
@@ -415,39 +480,44 @@ def brace_message(fmt: str,
     return fmt.format(*args, **kwargs) + ctx_msg
 
 
-def pop_stack_level(kwargs: Mapping[str, Any]) -> int:
-    '''
-    Returns kwargs['stacklevel'] if it exists, or default (of 2).
-    '''
-    retval = 2
-    if kwargs:
-        retval = kwargs.pop('stacklevel', 2)
-    return retval
-
-
-def set_stack_level(
-        level: int,
-        kwargs: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
-    '''
-    Adds or sets 'stacklevel' in kwargs.
-    '''
-    if not kwargs:
-        kwargs = {}
-    kwargs['stacklevel'] = level
-    return kwargs
-
-
 def incr_stack_level(
-        kwargs: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
+        kwargs: MutableMapping[str, Any],
+        amount: Optional[int] = 1) -> MutableMapping[str, Any]:
     '''
-    Adds or sets 'stacklevel' in kwargs.
+    Adds `amount` to existing 'stacklevel' in kwargs, or sets it to `amount` if
+    non-existing.
     '''
     if not kwargs:
         kwargs = {}
-    stacklevel = pop_stack_level(kwargs)
-    stacklevel += 1
-    set_stack_level(stacklevel, kwargs)
+    stacklevel = kwargs.pop('stacklevel', 0)
+    stacklevel += amount
+    kwargs['stacklevel'] = stacklevel
     return kwargs
+
+
+def pop_log_kwargs(kwargs: Mapping[str, Any]) -> int:
+    '''
+    Pops kwargs intended for logger out of `kwargs`. Leaves the rest for the
+    message formatter.
+
+    Returns a new dictionary with the popped args in it, if any.
+    '''
+    log_args = {}
+
+    # Do we have anything to work with?
+    if kwargs:
+        # Check for, pop anything of interest.
+
+        if 'stacklevel' in kwargs:
+            log_args['stacklevel'] = kwargs.pop('stacklevel', False)
+
+        # Turns out this isn't at thing for logs cuz sensibly they always
+        # flush.
+        # if 'flush' in kwargs:
+        #     log_args['flush'] = kwargs.pop('flush', False)
+
+    # Return dict of log's kwargs. NOT the input kwargs!!
+    return log_args
 
 
 def ultra_mega_debug(msg: str,
@@ -458,7 +528,7 @@ def ultra_mega_debug(msg: str,
     Logs at Level.CRITICAL using either passed in logger or logger named:
       'veredi.debug.DEBUG.!!!DEBUG!!!'
 
-    All logs start with two newlines characters.
+    All logs start with a newline character.
 
     All logs are prepended with a row starting with '!~DEBUG~!' and
     then repeating '~!'.
@@ -473,7 +543,6 @@ def ultra_mega_debug(msg: str,
     In other words, a log.ultra_mega_debug('test') is this:
 
       <log line prefix output>
-
       !~DEBUG~!~!~!~!~!~!~!~!~!....
       vvvvvvvvvvvvvvvvvvvvvvvvv....
 
@@ -484,7 +553,7 @@ def ultra_mega_debug(msg: str,
 
 
     '''
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.CRITICAL, output):
@@ -492,59 +561,134 @@ def ultra_mega_debug(msg: str,
                 or get_logger('veredi.debug.DEBUG.!!!DEBUG!!!'))
         log_out = _ULTRA_MEGA_DEBUG_FMT.format(output=output)
         this.critical(log_out,
-                      stacklevel=stacklevel)
+                      **log_kwargs)
+
+
+def ultra_hyper_debug(msg:           str,
+                      *args:         Any,
+                      format_str:    bool                       = True,
+                      add_type:      bool                       = False,
+                      add_title:     Optional[str]              = None,
+                      veredi_logger: NullNoneOr[logging.Logger] = None,
+                      **kwargs:      Any) -> None:
+    '''
+    Logs at Level.CRITICAL using either passed in logger or logger named:
+      'veredi.debug.DEBUG.☢☢DEBUG☢☢'
+
+    If `msg` is a str and `format_str` is True, this acts like other log
+    functions (calls `brace_message()` to get a formatted output message).
+
+    If `msg` is not a str, this will pass the `msg` object to
+    `pretty.indented()` so as to get a prettily formatted dict, list, or
+    whatever.
+
+    If `add_type` is True or if `msg` is not a str: this will prepend "type:
+    <type str>" to the output message.
+
+    If `add_title` is not None, it will be prepended as "title: {add_title}" on
+    its own line to front of output message.
+
+    All logs start with a newline character.
+
+    All logs end with two newlines characters.
+
+    Basically, a log.ultra_hyper_debug('test', add_title='jeff') is this:
+
+      <log line prefix output>
+      ---
+      -----
+      --U-L-T-R-A-=-H-Y-P-E-R-=-D-E-B-U-G-=-L-O-G--
+          title: jeff
+
+          test
+      --U-L-T-R-A-=-H-Y-P-E-R-=-D-E-B-U-G-=-L-O-G--
+      ---
+      -----
+    '''
+    log_kwargs = pop_log_kwargs(kwargs)
+    # Do normal {} string formatting if we have a message string... but let
+    # non-strings through so pretty.indented() can work better with dicts, etc.
+    output = msg
+    if isinstance(msg, str) and format_str:
+        output = brace_message(msg,
+                               *args, **kwargs)
+
+    # Indent output message before printing.
+    output = pretty.indented(output,
+                             indent_amount=_ULTRA_HYPER_INDENT_AMT)
+
+    # And one more thing: if msg wasn't a string (or they asked us to), let's
+    # say what it is:
+    if not isinstance(msg, str) or add_type:
+        output = (pretty.indented(f"type: {type(msg)}")
+                  + "\n\n"
+                  + output)
+
+    # And one more thing: if they want us to add a title, we will do that:
+    if add_title:
+        output = (pretty.indented(f"title: {add_title}")
+                  + "\n\n"
+                  + output)
+
+    # Now output the log message.
+    if not ut_call(Level.CRITICAL, output):
+        this = (veredi_logger
+                or get_logger('veredi.debug.DEBUG.☢☢DEBUG☢☢'))
+        log_out = _ULTRA_HYPER_DEBUG_FMT.format(output=output)
+        this.critical(log_out,
+                      **log_kwargs)
 
 
 def debug(msg: str,
           *args: Any,
           veredi_logger: NullNoneOr[logging.Logger] = None,
           **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.DEBUG, output):
         this = _logger(veredi_logger)
         this.debug(output,
-                   stacklevel=stacklevel)
+                   **log_kwargs)
 
 
 def info(msg: str,
          *args: Any,
          veredi_logger: NullNoneOr[logging.Logger] = None,
          **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.INFO, output):
         this = _logger(veredi_logger)
         this.info(output,
-                  stacklevel=stacklevel)
+                  **log_kwargs)
 
 
 def warning(msg: str,
             *args: Any,
             veredi_logger: NullNoneOr[logging.Logger] = None,
             **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.WARNING, output):
         this = _logger(veredi_logger)
         this.warning(output,
-                     stacklevel=stacklevel)
+                     **log_kwargs)
 
 
 def error(msg: str,
           *args: Any,
           veredi_logger: NullNoneOr[logging.Logger] = None,
           **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.ERROR, output):
         this = _logger(veredi_logger)
         this.error(output,
-                   stacklevel=stacklevel)
+                   **log_kwargs)
 
 
 def exception(err: Exception,
@@ -601,7 +745,7 @@ def exception(err: Exception,
         log_msg_err_type = wrap_type
         log_msg_err_str = None
 
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     if not msg:
         msg = "Exception caught. type: {}, str: {}"
         args = [log_msg_err_type, log_msg_err_str]
@@ -613,7 +757,7 @@ def exception(err: Exception,
     log_msg = brace_message(msg, *args, context=context, **kwargs)
     this = _logger(veredi_logger)
     this.error(log_msg,
-               stacklevel=stacklevel)
+               **log_kwargs)
 
     if wrap_type:
         return wrap_type(log_msg, err,
@@ -626,13 +770,13 @@ def critical(msg: str,
              *args: Any,
              veredi_logger: NullNoneOr[logging.Logger] = None,
              **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.CRITICAL, output):
         this = _logger(veredi_logger)
         this.critical(output,
-                      stacklevel=stacklevel)
+                      **log_kwargs)
 
 
 def at_level(level: 'Level',
@@ -661,6 +805,50 @@ def at_level(level: 'Level',
         log_fn = critical
 
     log_fn(msg, *args, veredi_logger=veredi_logger, **kwargs)
+
+
+# -----------------------------------------------------------------------------
+# Logging Groups
+# -----------------------------------------------------------------------------
+
+def group(group: 'Group',
+          msg: str,
+          *args: Any,
+          veredi_logger: NullNoneOr[logging.Logger] = None,
+          **kwargs: Any) -> None:
+    '''
+    Log at `group` log.Level, whatever it's set to right now.
+    '''
+    level = _GROUP_LEVELS[group]
+    kwargs = incr_stack_level(kwargs)
+    at_level(level, msg,
+             *args,
+             veredi_logger=veredi_logger,
+             **kwargs)
+
+
+def set_group_level(group: 'Group',
+                    level: 'Level') -> None:
+    '''
+    Updated `group` to logging `level`.
+    '''
+    global _GROUP_LEVELS
+    _GROUP_LEVELS[group] = level
+
+
+def security(msg: str,
+             *args: Any,
+             veredi_logger: NullNoneOr[logging.Logger] = None,
+             **kwargs: Any) -> None:
+    '''
+    Log at Group.SECURITY log.Level, whatever it's set to right now.
+    '''
+    level = _GROUP_LEVELS[Group.SECURITY]
+    kwargs = incr_stack_level(kwargs)
+    at_level(level, msg,
+             *args,
+             veredi_logger=veredi_logger,
+             **kwargs)
 
 
 # -----------------------------------------------------------------------------

@@ -143,9 +143,7 @@ class Test_MathSystem(ZestSystem):
         self.assertEqual(len(self.events), 0)
 
         # Tick once should be enough to finalize and get an event ready.
-        health = self.system._update(self.manager.time,
-                                     self.manager.component,
-                                     self.manager.event)
+        health = self.system._update()
         self.assertEqual(health,
                          VerediHealth.HEALTHY)
         # Should have nothing queued in MathSystem and one event ready for
@@ -198,9 +196,7 @@ class Test_MathSystem(ZestSystem):
         # Tick once should find stable math during recurse, put into finalize
         # queue, immediate take from finalize, evaluate it, and send out
         # the event.
-        health = self.system._update(self.manager.time,
-                                     self.manager.component,
-                                     self.manager.event)
+        health = self.system._update()
         self.assertEqual(health,
                          VerediHealth.HEALTHY)
         self.assertEqual(len(self.system._recurse), 0)

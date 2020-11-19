@@ -125,7 +125,7 @@ class SystemTick(FlagCheckMixin, enum.Flag):
     TICKS_RUN = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
     '''All ticks considered part of the standard game loop.'''
 
-    TICKS_END = APOPTOSIS | APOCALYPSE | THE_END
+    TICKS_END = APOPTOSIS | APOCALYPSE | THE_END | FUNERAL
     '''The game will die now.'''
 
     AFTER_THE_END = FUNERAL | THE_END

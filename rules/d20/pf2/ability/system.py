@@ -15,10 +15,11 @@ Open doors the aggressive way.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Set, Type, Union)
+                    Optional, Set, Type, Union, Dict)
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
-    from ..ecs.manager       import EcsManager
+    from veredi.game.ecs.manager       import EcsManager
+    from veredi.game.ecs.base.system       import System
 
 
 from veredi.logger                      import log
@@ -48,7 +49,7 @@ from veredi.interface.input.command.reg import (CommandRegistrationBroadcast,
 from veredi.interface.input.context     import InputContext
 from veredi.math.parser                 import MathTree
 from veredi.math.system                 import MathSystem
-from veredi.interface.output.event      import OutputType
+from veredi.interface.output.event      import Recipient
 from veredi.math.event                  import MathOutputEvent
 
 # Ability-Related Events & Components
@@ -73,6 +74,21 @@ from .event import (
 @register('veredi', 'rules', 'd20', 'pf2', 'ability', 'system')
 class AbilitySystem(D20RulesSystem):
 
+    @classmethod
+    def dependencies(
+            klass: 'AbilitySystem') -> Optional[Dict[Type['System'], str]]:
+        '''
+        AbilitySystem's dependencies in a System class/type to dotted string
+        dictionary.
+
+        Required dependencies will be checked for by type.
+          - If a system of that type already exists, good.
+          - If not, the dotted string will be used to try to create one.
+        '''
+        return {
+            MathSystem: 'veredi.math.system',
+        }
+
     def _configure(self, context: 'VerediContext') -> None:
         '''
         Make our stuff from context/config data.
@@ -85,7 +101,7 @@ class AbilitySystem(D20RulesSystem):
                                'ability')
 
         # ---
-        # Health Stuff
+        # Required Stuff
         # ---
         self._required_managers:    Optional[Set[Type['EcsManager']]] = {
             TimeManager,
@@ -108,10 +124,10 @@ class AbilitySystem(D20RulesSystem):
                                    | SystemTick.STANDARD
                                    | SystemTick.POST)
 
-    @property
-    def dotted(self) -> str:
-        # self._DOTTED magically provided by @register
-        return self._DOTTED
+    @classmethod
+    def dotted(klass: 'AbilitySystem') -> str:
+        # klass._DOTTED magically provided by @register
+        return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -152,7 +168,7 @@ class AbilitySystem(D20RulesSystem):
         # General Command
         # ---
         cmd = CommandRegisterReply(event,
-                                   self.dotted,
+                                   self.dotted(),
                                    'ability',
                                    CommandPermission.COMPONENT,
                                    self.command_ability,
@@ -213,11 +229,10 @@ class AbilitySystem(D20RulesSystem):
             self._rule_defs.canonical,
             self._query,
             MathOutputEvent(entity.id, entity.type_id,
-                            context,
+                            math, context,
                             InputContext.input_id(context),
                             # TODO [2020-07-11]: a proper output type...
-                            OutputType.BROADCAST,
-                            math),
+                            Recipient.BROADCAST),
             context)
 
         return CommandStatus.successful(context)
@@ -245,3 +260,42 @@ class AbilitySystem(D20RulesSystem):
         # next step.
         next_event = AbilityResult(event, result)
         self._event_notify(next_event)
+
+    # -------------------------------------------------------------------------
+    # System Ticks
+    # -------------------------------------------------------------------------
+
+    def _update_pre(self) -> VerediHealth:
+        '''
+        Pre-update. For any systems that need to squeeze in something just
+        before actual tick.
+        '''
+        health = VerediHealth.HEALTHY
+
+        # TODO: implement or remove from self._ticks.
+
+        self.health = health
+        return self.health
+
+    def _update(self) -> VerediHealth:
+        '''
+        Normal/Standard upate. Basically everything should happen here.
+        '''
+        health = VerediHealth.HEALTHY
+
+        # TODO: implement or remove from self._ticks.
+
+        self.health = health
+        return self.health
+
+    def _update_post(self) -> VerediHealth:
+        '''
+        Post-update. For any systems that need to squeeze in something just
+        after actual tick.
+        '''
+        health = VerediHealth.HEALTHY
+
+        # TODO: implement or remove from self._ticks.
+
+        self.health = health
+        return self.health

@@ -13,21 +13,18 @@ For:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, NewType, Mapping, Tuple
+from typing import Optional, Union, Any, NewType, Mapping
 
-from abc import ABC, abstractmethod
-import multiprocessing
-import multiprocessing.connection
-import asyncio
 import enum
-import contextlib
 
-from veredi.logger          import log
-from veredi.data.codec.base import Encodable
-from veredi.data.exceptions import EncodableError
-from veredi.base.identity   import MonotonicId
-from veredi.data.identity   import UserId, UserKey
 
+from veredi.logger               import log
+from veredi.base.enum            import EnumEncodeNameMixin
+from veredi.data.codec.encodable import (Encodable,
+                                         EncodedComplex,
+                                         EncodedSimple)
+
+from .base                       import BasePayload, Validity
 
 # TODO
 # TODO
@@ -61,7 +58,7 @@ _NC_STR   = "no-comment"
 # ------------------------------
 
 @enum.unique
-class LogField(enum.Enum):
+class LogField(EnumEncodeNameMixin, enum.Enum):
     '''
     Trying this out for the logging field names?
     '''
@@ -93,112 +90,228 @@ class LogField(enum.Enum):
     addition to local log output).
     '''
 
+    # ------------------------------
+    # Encodable
+    # ------------------------------
+
+    @classmethod
+    def dotted(klass: 'LogField') -> str:
+        return 'veredi.interface.mediator.payload.logfield'
+
+    @classmethod
+    def _type_field(klass: 'LogField') -> str:
+        '''
+        A short, unique name for encoding an instance into a field in a dict.
+        Override this if you don't like what veredi.base.dotted.auto() and
+        veredi.base.dotted.munge_to_short() do for your type field.
+        '''
+        return 'field'
+
+
+# Enums and that auto-register parameter "dotted='jeff.whatever'" don't
+# get along - registering manually...
+LogField.register_manually()
+
 
 # -----------------------------------------------------------------------------
 # LogPayload Reply Value from Client
 # -----------------------------------------------------------------------------
 
-class LogReply(Encodable):
+class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
     '''
     A helper class for logging payload fields from the client. Allows client to
     refuse to comment about specific things.
     '''
 
-    @enum.unique
-    class Valid(enum.Enum):
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
+
+    # ------------------------------
+    # Constants: Encodable
+    # ------------------------------
+
+    _ENCODE_NAME: str = 'reply'
+    '''
+    Name for this class when encoding/decoding. Will be inside a LogPayload, so
+    lacking 'log' is fine.
+    '''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def _define_vars(self) -> None:
         '''
-        Validity of field so we can tell "actually 'None'" from
-        "'None' because I don't want to say", for example.
+        Instance variable definitions, type hinting, doc strings, etc.
         '''
-        INVALID    = enum.auto()
-        NO_COMMENT = enum.auto()
-        VALID      = enum.auto()
+
+        self.value: Any = None
+        '''
+        The actual reply. Type and such depend on what the reply actually
+        is for...
+        '''
+
+        self.valid: Validity = Validity.INVALID
+        '''Validity of `self.value`.'''
 
     def __init__(self,
                  value:            Any,
-                 valid:            'LogReply.Valid' = Valid.INVALID,
-                 no_comment_check: Any              = Valid.INVALID
+                 valid:            'Validity' = Validity.INVALID,
+                 no_comment_check: Any        = Validity.INVALID,
+                 skip_validation:  bool       = False,
                  ) -> None:
+        self._define_vars()
+
+        # Just set value
         self.value = value
 
-        if valid != LogReply.Valid.INVALID:
+        # Validate or not?
+        if skip_validation:
+            # Ok. `valid` is what it is.
             self.valid = valid
-        elif no_comment_check != LogReply.Valid.INVALID:
-            self.valid = self.validity(value, no_comment_check)
 
-        if self.valid == LogReply.Valid.INVALID:
-            raise ValueError(
-                "LogReply cannot have a `valid` status of INVALID.",
-                value, valid, no_comment_check, self.valid)
+        else:
+            # Validate this LogReply.
+            if valid != Validity.INVALID:
+                self.valid = valid
+            elif no_comment_check != Validity.INVALID:
+                self.valid = self.validity(value, no_comment_check)
+
+            # Error out for invalid LogReplies.
+            if self.valid == Validity.INVALID:
+                raise ValueError(
+                    "LogReply cannot have a `valid` status of INVALID.",
+                    value, valid, no_comment_check, self.valid)
 
     @classmethod
     def validity(klass: 'LogReply',
                  value: Any,
-                 no_comment: Any) -> 'LogReply.Valid':
+                 no_comment: Any) -> 'Validity':
         '''
         Returns VALID if `value` is not equal to `no_comment`
         or NO_COMMENT otherwise.
         '''
-        return (LogReply.Valid.VALID
+        return (Validity.VALID
                 if value != no_comment else
-                LogReply.Valid.NO_COMMENT)
+                Validity.NO_COMMENT)
 
-    def get_or_validity(self) -> Union['LogReply.Valid', Optional[Any]]:
+    def get_or_validity(self) -> Union['Validity', Optional[Any]]:
         '''
         If `self.valid` is VALID, returns `self.value`.
         Otherwise return `self.valid`.
         '''
-        if self.valid == LogReply.Valid.VALID:
+        if self.valid == Validity.VALID:
             return self.value
 
         return self.valid
 
-    # ------------------------------
-    # Encodable API (Codec Support)
-    # ------------------------------
-
-    def encode(self) -> Mapping[str, Union[str, int]]:
-        '''
-        Returns a representation of ourself as a dictionary.
-        '''
-        encoded = super().encode()
-        encoded.update({
-            'valid': self.valid.value,
-            'value': self.value
-        })
-        return encoded
+    # -------------------------------------------------------------------------
+    # Encodable API
+    # -------------------------------------------------------------------------
 
     @classmethod
-    def decode(klass: 'LogReply',
-               mapping: Mapping[str, Union[str, int]]) -> 'LogReply':
+    def _type_field(klass: 'LogReply') -> str:
+        return klass._ENCODE_NAME
+
+    def _encode_simple(self) -> EncodedSimple:
         '''
-        Turns our encoded dict into a LogReply instance.
+        Don't support simple for LogReplies.
         '''
-        klass.error_for(mapping, keys=['valid', 'value'])
-        return klass(valid=klass.Valid(mapping['valid']),
-                     value=mapping['value'])
+        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+               "simple string.")
+        raise NotImplementedError(msg)
+
+    @classmethod
+    def _decode_simple(klass: 'LogReply',
+                       data: EncodedSimple) -> 'LogReply':
+        '''
+        Don't support simple by default.
+        '''
+        msg = (f"{klass.__name__} doesn't support decoding from a "
+               "simple string.")
+        raise NotImplementedError(msg)
+
+    def _encode_complex(self) -> EncodedComplex:
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        # self.value is "Any", so... Try to decode it. It may already be
+        # decoded - this function should handle those cases.
+        value = self.encode_any(self.value)
+
+        # Build our representation to return.
+        return {
+            'valid': self.valid.encode(None),
+            'value': value,
+        }
+
+    @classmethod
+    def _decode_complex(klass: 'LogReply',
+                        data:  EncodedComplex) -> 'LogReply':
+        '''
+        Decode ourself from an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        klass.error_for(data, keys=['valid', 'value'])
+
+        valid = Validity.decode(data['valid'])
+        value = klass.decode_any(data['value'])
+
+        # Make class with decoded data, skip_validation because this exists and
+        # we're just decoding it, not creating a new one.
+        decoded = klass(value, valid,
+                        skip_validation=True)
+        return decoded
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}(self.valid): {self.value}"
+        )
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}({self.value}, valid={self.valid})"
+        )
 
 
 # -----------------------------------------------------------------------------
 # Payload Actual
 # -----------------------------------------------------------------------------
 
-class LogPayload(Encodable):
+class LogPayload(BasePayload,
+                 dotted='veredi.interface.mediator.payload.logging'):
     '''
     Payload for a MsgType.LOGGING Message instance.
     '''
 
-    def __init__(self,
-                 data: Mapping[str, Union[str, int]] = None) -> None:
-        self.data: Mapping[str, Union[str, int]] = data or {}
-        '''
-        Our information. Includes both request from server and
-        response from client.
-        '''
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
 
     # ------------------------------
-    # Data Structure
+    # Constants: Encodable
     # ------------------------------
+
+    _ENCODE_NAME: str = 'payload.log'
+    '''Name for this class when encoding/decoding.'''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def __init__(self,
+                 data: Mapping[str, Union[str, int]] = None) -> None:
+        # Ignoring validity to start with...
+        super().__init__(data, Validity.VALID)
+
+    # -------------------------------------------------------------------------
+    # Data Structure
+    # -------------------------------------------------------------------------
 
     @property
     def request(self) -> Mapping[str, str]:
@@ -207,30 +320,12 @@ class LogPayload(Encodable):
         '''
         return self.data.setdefault(LogField.REQUEST, {})
 
-    # TODO: probably delete? Will just set sub-fields on return from request
-    # getter property.
-    @request.setter
-    def request(self, value: Mapping[str, Any]) -> None:
-        '''
-        Set the Server->Client request portion of the data mapping.
-        '''
-        self.data[LogField.REQUEST] = value
-
     @property
     def response(self):
         '''
         Get the Client->Server response portion of the data mapping.
         '''
         return self.data.setdefault(LogField.RESPONSE, {})
-
-    # TODO: probably delete? Will just set sub-fields on return from response
-    # getter property.
-    @response.setter
-    def response(self, value: Mapping[str, Any]) -> None:
-        '''
-        Set the Client->Server response portion of the data mapping.
-        '''
-        self.data[LogField.RESPONSE] = value
 
     def _set_or_pop(self,
                     submap:    Mapping,
@@ -255,9 +350,9 @@ class LogPayload(Encodable):
         # "but it isn't there" error.
         submap.pop(field, None)
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Server -> Client: Set Requests
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     # def request_many(self,
     #                  level: log.Level = log.Level.NOTSET,
@@ -283,9 +378,9 @@ class LogPayload(Encodable):
         '''Sets up a request for logging report.'''
         self.request[LogField.REPORT] = True
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Client -> Server: Logging Report
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def create_report(self,
                       level:   log.Level = _NC_LEVEL,
@@ -303,9 +398,9 @@ class LogPayload(Encodable):
         report[LogField.LEVEL] = LogReply(level, no_comment_check=_NC_LEVEL)
         report[LogField.REMOTE] = LogReply(remotes, no_comment_check=_NC_STR)
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Server: Get Logging Report
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     @property
     def report(self) -> Mapping[str, LogReply]:
@@ -313,168 +408,62 @@ class LogPayload(Encodable):
         report = self.response.get(LogField.REPORT, None)
         return report
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Encodable API (Codec Support)
-    # ------------------------------
-
-    def encode(self) -> Mapping[str, Union[str, int]]:
-        '''
-        Returns a representation of ourself as a dictionary.
-        '''
-        # log.debug(f"\n\nlogging.encode: {self.data}\n\n")
-
-        # Get started with parent class's encoding.
-        encoded = super().encode()
-        # Updated with our own.
-        encoded = self._encode_map(self.data, encoded)
-
-        # log.debug(f"\n\n   done.encode: {encoded}\n\n")
-        return encoded
-
-    # TODO [2020-08-18]: Move _encode_map, _encode_key, _encode_value to
-    # Encodable?
-    def _encode_map(self,
-                    encode_from: Mapping,
-                    encode_to:   Optional[Mapping] = None,
-                    # TODO: Better return type - NewType it so it's usable all
-                    # over for encodables?
-                    ) -> Mapping[str, Union[str, int, float, None]]:
-        '''
-        If `encode_to` is supplied, use that. Else create an empty `encode_to`
-        dictionary. Get values in `encode_from` dict, encode them, and put them
-        in `encode_to` under an encoded key.
-
-        Returns `encode_to` instance (either the new one we created or the
-        existing updated one).
-        '''
-        if encode_to is None:
-            encode_to = {}
-
-        # log.debug(f"\n\nlogging._encode_map: {encode_from}\n\n")
-        for key, value in encode_from.items():
-            field = self._encode_key(key)
-            node = self._encode_value(value)
-            encode_to[field] = node
-
-        # log.debug(f"\n\n   done._encode_map: {encode_to}\n\n")
-        return encode_to
-
-    def _encode_key(self, key: Any) -> str:
-        # log.debug(f"\n\nlogging._encode_key: {key}\n\n")
-        field = None
-        if isinstance(key, str):
-            field = key
-        elif isinstance(key, LogField):
-            field = key.value
-        else:
-            field = str(key)
-
-        # log.debug(f"\n\n   done._encode_key: {field}\n\n")
-        return field
-
-    def _encode_value(self, value: Any) -> str:
-        # log.debug(f"\n\nlogging._encode_value: {value}\n\n")
-        node = None
-        if isinstance(value, dict):
-            node = self._encode_map(value)
-
-        elif isinstance(value, Encodable):
-            # Encode via its function.
-            node = value.encode()
-
-        elif isinstance(value, (enum.Enum, enum.IntEnum)):
-            node = value.value
-
-        else:
-            node = value
-
-        # log.debug(f"\n\n   done._encode_value: {node}\n\n")
-        return node
+    # -------------------------------------------------------------------------
 
     @classmethod
-    def decode(klass: 'LogPayload',
-               mapping: Mapping[str, Union[str, int]]) -> 'LogPayload':
+    def _type_field(klass: 'LogPayload') -> str:
+        return klass._ENCODE_NAME
+
+    # Simple:  BasePayload's are good.
+
+    def _encode_complex(self) -> EncodedComplex:
         '''
-        Turns our encoded dict into a LogPayload.
+        Encode ourself as an EncodedComplex, return that value.
         '''
-        # log.debug(f"\n\nlogging.decode {type(mapping)}: {mapping}\n\n")
+        # Our data is a dict with LogField enum values as keys and LogReplies
+        # or log.Level or something as values.
+        encoded = self._encode_map(self.data)
 
-        # Currently don't have any actual required keys/vaules, so just error
-        # on claim fail.
-        klass.error_for_claim(mapping)
-
-        decoded = klass._decode_map(mapping)
-        ret_val = klass(data=decoded)
-        # log.debug(f"\n\n   done.decode: {ret_val}\n\n")
-        return ret_val
-
-    # TODO [2020-08-18]: Move _decode_map, _decode_key, _decode_value to
-    # Encodable?
-    @classmethod
-    def _decode_map(klass: 'LogPayload',
-                    mapping: Mapping
-                    # TODO: Better return type - NewType it so it's usable all
-                    # over for encodables?
-                    ) -> Mapping[str, Any]:
-        # log.debug(f"\n\nlogging._decode_map {type(mapping)}: {mapping}\n\n")
-        decoded = {}
-        for key, value in mapping.items():
-            field = klass._decode_key(key)
-            node = klass._decode_value(value)
-            decoded[field] = node
-
-        # Is this dictionary anything special?
-        if LogReply.claim(decoded):
-            decoded = LogReply.decode(decoded)
-
-        # log.debug(f"\n\n   done._decode_map: {decoded}\n\n")
-        return decoded
+        # Build our representation to return.
+        return {
+            'valid': self.valid.encode(None),
+            'data': encoded,
+        }
 
     @classmethod
-    def _decode_key(klass: 'LogPayload', key: Any) -> str:
-        # log.debug(f"\n\nlogging._decode_key {type(key)}: {key}\n\n")
-        field = None
-        if isinstance(key, str):
-            try:
-                field = LogField(key)
-            except ValueError:
-                # Not a LogField, so... just a string?
-                field = key
-        else:
-            raise EncodableError(f"Don't know how to decode key: {key}",
-                                 None)
+    def _decode_complex(klass: 'BasePayload',
+                        data:  EncodedComplex) -> 'BasePayload':
+        '''
+        Decode ourself from an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        klass.error_for(data, keys=['valid', 'data'])
 
-        # log.debug(f"\n\n   done._decode_key: {field}\n\n")
-        return field
+        # Decode the validity field.
+        valid = Validity.decode(data['valid'])
 
-    @classmethod
-    def _decode_value(klass: 'LogPayload', value: Any) -> str:
-        # log.debug(f"\n\nlogging._decode_value {type(value)}: {value}\n\n")
-        node = None
-        if isinstance(value, dict):
-            node = klass._decode_map(value)
+        # Decode the data field with our expected key hint of LogField.
+        decoded = klass._decode_map(data['data'],
+                                    expected_keys=[LogField])
 
-        elif isinstance(value, Encodable):
-            # Decode via its function.
-            node = value.decode()
+        # And make our class... Set valid afterwards since LogPayload doesn't
+        # care about validity to start with.
+        log_payload = klass(decoded)
+        log_payload.valid = valid
+        return log_payload
 
-        else:
-            # Simple value like int, str? Hopefully?
-            node = value
-
-        # log.debug(f"\n\n   done._decode_value: {node}\n\n")
-        return node
-
-    # ------------------------------
-    # To String
-    # ------------------------------
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}: {self.data}"
+            f"{self.__class__.__name__}(self.valid): {self.data}"
         )
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}(data={self.data})"
+            f"{self.__class__.__name__}(data={self.data}, valid={self.valid})"
         )
