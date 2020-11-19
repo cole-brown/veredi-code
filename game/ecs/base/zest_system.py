@@ -52,10 +52,7 @@ class SysJeff(system.System):
     def required(self):
         return {CompOne, CompTwo}
 
-    def _update_pre(self,
-                    time,
-                    sys_entities,
-                    sys_time):
+    def _update_pre(self) -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
@@ -63,20 +60,14 @@ class SysJeff(system.System):
         self.last_tick = const.SystemTick.PRE
         return VerediHealth.HEALTHY
 
-    def _update(self,
-                time,
-                sys_entities,
-                sys_time):
+    def _update(self) -> VerediHealth:
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
         self.last_tick = const.SystemTick.STANDARD
         return VerediHealth.FATAL
 
-    def _update_post(self,
-                     time,
-                     sys_entities,
-                     sys_time):
+    def _update_post(self) -> VerediHealth:
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
@@ -130,13 +121,13 @@ class Test_System(ZestBase):
     def test_tick(self):
         self.assertTrue(self.sys.last_tick, const.SystemTick.DESTRUCTION)
 
-        self.sys._update_pre(1.0, None, None)
+        self.sys._update_pre()
         self.assertTrue(self.sys.last_tick, const.SystemTick.PRE)
 
-        self.sys._update(1.0, None, None)
+        self.sys._update()
         self.assertTrue(self.sys.last_tick, const.SystemTick.STANDARD)
 
-        health = self.sys._update_post(1.0, None, None)
+        health = self.sys._update_post()
         self.assertTrue(self.sys.last_tick, const.SystemTick.POST)
         self.assertTrue(health, VerediHealth.HEALTHY)
 

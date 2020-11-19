@@ -264,10 +264,7 @@ class OutputSystem(System):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update_post(self,
-                     time_mgr:      TimeManager,
-                     component_mgr: 'ComponentManager',
-                     entity_mgr:    'EntityManager') -> VerediHealth:
+    def _update_post(self) -> VerediHealth:
         '''
         SystemTick.POST tick function.
         '''

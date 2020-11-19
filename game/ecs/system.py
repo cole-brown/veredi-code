@@ -423,11 +423,7 @@ class SystemManager(EcsManagerWithEvents):
 
         self._reschedule = False
 
-    def update(self,
-               tick: SystemTick,
-               time: 'TimeManager',
-               component: 'ComponentManager',
-               entity: 'EntityManager') -> VerediHealth:
+    def update(self, tick: SystemTick) -> VerediHealth:
         '''
         Engine calls us for each update tick, and we'll call all our
         game systems.
@@ -438,11 +434,13 @@ class SystemManager(EcsManagerWithEvents):
             self._update_schedule()
             self._log_tick("Updated schedule. tick: {}", tick)
 
+        time = background.system.meeting.time
+
         worst_health = VerediHealth.HEALTHY
         # TODO: self._schedule[tick] is a priority/topographical tree or
         # something that doesn't pop off members each loop?
         for system in self._schedule:
-            if not system.wants_update_tick(tick, time):
+            if not system.wants_update_tick(tick):
                 continue
 
             self._log_tick(
@@ -455,16 +453,13 @@ class SystemManager(EcsManagerWithEvents):
             # single repeating exception.
             try:
                 # Call the tick.
-                sys_tick_health = system.update_tick(tick,
-                                                     time,
-                                                     component,
-                                                     entity)
+                sys_tick_health = system.update_tick(tick)
                 self._dbg_health(system,
                                  sys_tick_health,
                                  worst_health,
                                  (f"SystemManager.update for {tick} of "
-                                  f"{system.dotted()} resulted in poor health: "
-                                  f"{sys_tick_health}."),
+                                  f"{system.dotted()} resulted in poor "
+                                  f"health: {sys_tick_health}."),
                                  tick=tick)
 
                 # Update worst_health var with this system's tick return value.

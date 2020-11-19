@@ -248,10 +248,7 @@ class CombatSystem(D20RulesSystem):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update_time(self,
-                     time_manager:      TimeManager,
-                     component_manager: ComponentManager,
-                     entity_manager:    EntityManager) -> VerediHealth:
+    def _update_time(self) -> VerediHealth:
         '''
         First in Game update loop. Systems should use this rarely as the game
         time clock itself updates in this part of the loop.
@@ -262,8 +259,7 @@ class CombatSystem(D20RulesSystem):
 
         tick = SystemTick.TIME
         print("TODO: THIS TICK!", tick)
-        for entity in self._wanted_entities(tick, time_manager,
-                                            component_manager, entity_manager):
+        for entity in self._wanted_entities(tick):
             # Check if entity in turn order has a combat action queued up.
             # Also make sure to check if entity/component still exist.
             if not entity:
@@ -300,10 +296,7 @@ class CombatSystem(D20RulesSystem):
 
         return self._health_check(SystemTick.TIME)
 
-    def _update_pre(self,
-                    time_manager:      TimeManager,
-                    component_manager: ComponentManager,
-                    entity_manager:    EntityManager) -> VerediHealth:
+    def _update_pre(self) -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
@@ -314,14 +307,10 @@ class CombatSystem(D20RulesSystem):
 
         tick = SystemTick.PRE
         print("TODO: THIS TICK!", tick)
-        for entity in self._wanted_entities(tick, time_manager,
-                                            component_manager, entity_manager):
+        for entity in self._wanted_entities(tick):
             pass
 
-    def _update(self,
-                time_manager:      TimeManager,
-                component_manager: ComponentManager,
-                entity_manager:    EntityManager) -> VerediHealth:
+    def _update(self) -> VerediHealth:
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
@@ -331,14 +320,10 @@ class CombatSystem(D20RulesSystem):
 
         tick = SystemTick.STANDARD
         print("TODO: THIS TICK!", tick)
-        for entity in self._wanted_entities(tick, time_manager,
-                                            component_manager, entity_manager):
+        for entity in self._wanted_entities(tick):
             pass
 
-    def _update_post(self,
-                     time_manager:      TimeManager,
-                     component_manager: ComponentManager,
-                     entity_manager:    EntityManager) -> VerediHealth:
+    def _update_post(self) -> VerediHealth:
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
@@ -349,6 +334,5 @@ class CombatSystem(D20RulesSystem):
 
         tick = SystemTick.POST
         print("TODO: THIS TICK!", tick)
-        for entity in self._wanted_entities(tick, time_manager,
-                                            component_manager, entity_manager):
+        for entity in self._wanted_entities(tick):
             pass

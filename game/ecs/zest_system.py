@@ -14,6 +14,7 @@ from veredi.zest           import zmake
 from veredi.base.const     import VerediHealth
 from veredi.base.context   import UnitTestContext
 from veredi.debug.const    import DebugFlag
+from veredi.data           import background
 
 from .event                import EventManager
 from .time                 import TimeManager
@@ -67,9 +68,9 @@ class SysTest(System):
             SystemTick.DESTRUCTION: set(),
         }
 
-    def _look_at_entities(self, tick, time_mgr, comp_mgr, entity_mgr):
-        for entity in self._wanted_entities(tick,
-                                            time_mgr, comp_mgr, entity_mgr):
+    def _look_at_entities(self, tick):
+        manager = background.system.meeting
+        for entity in self._wanted_entities(tick):
             self.ents_seen[tick].add(entity.id)
 
     def test_saw_total(self):
@@ -87,52 +88,28 @@ class SysTest(System):
         for each in self.ents_seen:
             each.clear()
 
-    def _update_time(self,
-                     time_mgr,
-                     component_mgr,
-                     entity_mgr):
-        self._look_at_entities(SystemTick.TIME,
-                               time_mgr, component_mgr, entity_mgr)
+    def _update_time(self) -> VerediHealth:
+        self._look_at_entities(SystemTick.TIME)
         return VerediHealth.HEALTHY
 
-    def _update_creation(self,
-                         time_mgr,
-                         component_mgr,
-                         entity_mgr):
-        self._look_at_entities(SystemTick.CREATION,
-                               time_mgr, component_mgr, entity_mgr)
+    def _update_creation(self) -> VerediHealth:
+        self._look_at_entities(SystemTick.CREATION)
         return VerediHealth.HEALTHY
 
-    def _update_pre(self,
-                    time_mgr,
-                    component_mgr,
-                    entity_mgr):
-        self._look_at_entities(SystemTick.PRE,
-                               time_mgr, component_mgr, entity_mgr)
+    def _update_pre(self) -> VerediHealth:
+        self._look_at_entities(SystemTick.PRE)
         return VerediHealth.HEALTHY
 
-    def _update(self,
-                time_mgr,
-                component_mgr,
-                entity_mgr):
-        self._look_at_entities(SystemTick.STANDARD,
-                               time_mgr, component_mgr, entity_mgr)
+    def _update(self) -> VerediHealth:
+        self._look_at_entities(SystemTick.STANDARD)
         return VerediHealth.HEALTHY
 
-    def _update_post(self,
-                     time_mgr,
-                     component_mgr,
-                     entity_mgr):
-        self._look_at_entities(SystemTick.POST,
-                               time_mgr, component_mgr, entity_mgr)
+    def _update_post(self) -> VerediHealth:
+        self._look_at_entities(SystemTick.POST)
         return VerediHealth.HEALTHY
 
-    def _update_destruction(self,
-                            time_mgr,
-                            component_mgr,
-                            entity_mgr):
-        self._look_at_entities(SystemTick.DESTRUCTION,
-                               time_mgr, component_mgr, entity_mgr)
+    def _update_destruction(self) -> VerediHealth:
+        self._look_at_entities(SystemTick.DESTRUCTION)
         return VerediHealth.HEALTHY
 
 

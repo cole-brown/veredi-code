@@ -896,8 +896,7 @@ class System(ABC):
         return False
 
     def wants_update_tick(self,
-                          tick: SystemTick,
-                          time_mgr: 'TimeManager') -> bool:
+                          tick: SystemTick) -> bool:
         '''
         Returns a boolean for whether this system wants to run during this tick
         update function.
@@ -937,70 +936,55 @@ class System(ABC):
         '''
         return self._components_req_all
 
-    def _wanted_entities(self,
-                         tick:          SystemTick,
-                         time_mgr:      'TimeManager',
-                         component_mgr: 'ComponentManager',
-                         entity_mgr:    'EntityManager') -> VerediHealth:
+    def _wanted_entities(self, tick: SystemTick) -> VerediHealth:
         '''
         Loop over entities that have self.required().
         '''
-        req_fn = (entity_mgr.each_with_all
+        req_fn = (self._manager.entity.each_with_all
                   if self.require_all() else
-                  entity_mgr.each_with_any)
+                  self._manager.entity.each_with_any)
         for entity in req_fn(self.required()):
             yield entity
 
     def update_tick(self,
-                    tick:          SystemTick,
-                    time_mgr:      'TimeManager',
-                    component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> VerediHealth:
+                    tick: SystemTick) -> VerediHealth:
         '''
         Calls the correct update function for the tick state.
 
         Returns VerediHealth value.
         '''
         if tick is SystemTick.GENESIS:
-            return self._update_genesis(time_mgr, component_mgr, entity_mgr)
+            return self._update_genesis()
 
         elif tick is SystemTick.INTRA_SYSTEM:
-            return self._update_intra_system(time_mgr.get_timer(None))
+            return self._update_intra_system()
 
         elif tick is SystemTick.TIME:
-            return self._update_time(time_mgr, component_mgr, entity_mgr)
+            return self._update_time()
 
         elif tick is SystemTick.CREATION:
-            return self._update_creation(time_mgr, component_mgr, entity_mgr)
+            return self._update_creation()
 
         elif tick is SystemTick.PRE:
-            return self._update_pre(time_mgr, component_mgr, entity_mgr)
+            return self._update_pre()
 
         elif tick is SystemTick.STANDARD:
-            return self._update(time_mgr, component_mgr, entity_mgr)
+            return self._update()
 
         elif tick is SystemTick.POST:
-            return self._update_post(time_mgr, component_mgr, entity_mgr)
+            return self._update_post()
 
         elif tick is SystemTick.DESTRUCTION:
-            return self._update_destruction(time_mgr,
-                                            component_mgr,
-                                            entity_mgr)
+            return self._update_destruction()
 
         elif tick is SystemTick.APOPTOSIS:
-            return self._update_apoptosis(time_mgr,
-                                          component_mgr,
-                                          entity_mgr)
+            return self._update_apoptosis()
 
         elif tick is SystemTick.APOCALYPSE:
-            return self._update_apocalypse(time_mgr,
-                                           component_mgr,
-                                           entity_mgr)
+            return self._update_apocalypse()
 
         elif tick is SystemTick.THE_END:
-            return self._update_the_end(time_mgr,
-                                        component_mgr,
-                                        entity_mgr)
+            return self._update_the_end()
 
         else:
             # This, too, should be treated as a VerediHealth.FATAL...
@@ -1008,10 +992,7 @@ class System(ABC):
                 "{} does not have an update_tick handler for {}.",
                 self.__class__.__name__, tick)
 
-    def _update_genesis(self,
-                        time_mgr:      TimeManager,
-                        component_mgr: ComponentManager,
-                        entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_genesis(self) -> VerediHealth:
         '''
         First in set-up loop. Systems should use this to load and initialize
         stuff that takes multiple cycles or is otherwise unwieldy
@@ -1021,8 +1002,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_intra_sys(self,
-                          timer: MonotonicTimer) -> VerediHealth:
+    def _update_intra_sys(self) -> VerediHealth:
         '''
         Part of the set-up ticks. Systems should use this for any
         system-to-system setup. For examples:
@@ -1033,10 +1013,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_time(self,
-                     time_mgr:      TimeManager,
-                     component_mgr: ComponentManager,
-                     entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_time(self) -> VerediHealth:
         '''
         First in Game update loop. Systems should use this rarely as the game
         time clock itself updates in this part of the loop.
@@ -1045,10 +1022,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_creation(self,
-                         time_mgr:      TimeManager,
-                         component_mgr: ComponentManager,
-                         entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_creation(self) -> VerediHealth:
         '''
         Before Standard upate. Creation part of life cycles managed here.
         '''
@@ -1056,10 +1030,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_pre(self,
-                    time_mgr:      TimeManager,
-                    component_mgr: ComponentManager,
-                    entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_pre(self) -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
@@ -1068,10 +1039,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update(self,
-                time_mgr:      TimeManager,
-                component_mgr: ComponentManager,
-                entity_mgr:    EntityManager) -> VerediHealth:
+    def _update(self) -> VerediHealth:
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
@@ -1079,10 +1047,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_post(self,
-                     time_mgr:      TimeManager,
-                     component_mgr: ComponentManager,
-                     entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_post(self) -> VerediHealth:
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
@@ -1091,10 +1056,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_destruction(self,
-                            time_mgr:      TimeManager,
-                            component_mgr: ComponentManager,
-                            entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_destruction(self) -> VerediHealth:
         '''
         Final game-loop update. Death/deletion part of life cycles
         managed here.
@@ -1103,10 +1065,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_apoptosis(self,
-                          time_mgr:      TimeManager,
-                          component_mgr: ComponentManager,
-                          entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_apoptosis(self) -> VerediHealth:
         '''
         Structured death phase. System should be responsive until it the next
         phase, but should be doing stuff for shutting down, like saving off
@@ -1118,10 +1077,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_apocalypse(self,
-                           time_mgr:      TimeManager,
-                           component_mgr: ComponentManager,
-                           entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_apocalypse(self) -> VerediHealth:
         '''
         "Die now" death phase. System may now go unresponsive to events,
         function calls, etc. Systems cannot expect to have done a successful
@@ -1133,10 +1089,7 @@ class System(ABC):
         self.health = default_return
         return self.health
 
-    def _update_the_end(self,
-                        time_mgr:      TimeManager,
-                        component_mgr: ComponentManager,
-                        entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_the_end(self) -> VerediHealth:
         '''
         Final game update. This is only called once. Systems should most likely
         have nothing to do here.

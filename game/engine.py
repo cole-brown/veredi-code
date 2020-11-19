@@ -1640,10 +1640,7 @@ class Engine:
         this tick.
         '''
         self.meeting.event.update(tick, self.meeting.time)
-        health = self.meeting.system.update(tick,
-                                            self.meeting.time,
-                                            self.meeting.component,
-                                            self.meeting.entity)
+        health = self.meeting.system.update(tick)
         return health
 
     # -------------------------------------------------------------------------
@@ -1714,10 +1711,7 @@ class Engine:
         # Tick systems.
         # ---
         # Let any systems that exist now have a GENESIS tick.
-        health = self.meeting.system.update(SystemTick.GENESIS,
-                                            self.meeting.time,
-                                            self.meeting.component,
-                                            self.meeting.entity)
+        health = self.meeting.system.update(SystemTick.GENESIS)
 
         self._dbg_tick("Tick: {}, Tick health: {}",
                        self.tick, health)
@@ -1761,10 +1755,7 @@ class Engine:
         # Tick systems.
         # ---
         # Let all our running systems have an INTRA_SYSTEM tick.
-        health = self.meeting.system.update(SystemTick.INTRA_SYSTEM,
-                                            self.meeting.time,
-                                            self.meeting.component,
-                                            self.meeting.entity)
+        health = self.meeting.system.update(SystemTick.INTRA_SYSTEM)
         events_published = self.meeting.event.update(
             SystemTick.INTRA_SYSTEM,
             self.meeting.time)

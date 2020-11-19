@@ -649,8 +649,7 @@ class MediatorSystem(System):
     # Game Start-Up Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update_intra_system(self,
-                             timer: 'MonotonicTimer') -> VerediHealth:
+    def _update_intra_system(self) -> VerediHealth:
         '''
         Start the mediator, do any other start-up needed here.
         '''
@@ -673,7 +672,8 @@ class MediatorSystem(System):
             # Give our process a bit of time to start up.
             # TODO [2020-09-25]: Could send/recv a test message to see when it
             # actually is ready.
-            if not timer.timed_out(self.TIME_PROCESS_START_SEC):
+            if not self._manager.time.is_timed_out(None,
+                                                   self.TIME_PROCESS_START_SEC):
                 return VerediHealth.PENDING
             else:
                 return VerediHealth.HEALTHY
@@ -710,10 +710,7 @@ class MediatorSystem(System):
             message, context = self.server.recv()
             self._deliver_message(message, context)
 
-    def _update_pre(self,
-                    time_mgr:      TimeManager,
-                    component_mgr: 'ComponentManager',
-                    entity_mgr:    'EntityManager') -> VerediHealth:
+    def _update_pre(self) -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
@@ -736,10 +733,7 @@ class MediatorSystem(System):
         self._get_external_messages()
         return self._health_check(SystemTick.PRE)
 
-    def _update_post(self,
-                     time_mgr:      TimeManager,
-                     component_mgr: 'ComponentManager',
-                     entity_mgr:    'EntityManager') -> VerediHealth:
+    def _update_post(self) -> VerediHealth:
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.
@@ -794,10 +788,7 @@ class MediatorSystem(System):
         # Not sure...
         return VerediHealth.APOPTOSIS
 
-    def _update_apoptosis(self,
-                          time_mgr:      TimeManager,
-                          component_mgr: 'ComponentManager',
-                          entity_mgr:    'EntityManager') -> VerediHealth:
+    def _update_apoptosis(self) -> VerediHealth:
         '''
         Structured death phase. System should be responsive until apocalypse,
         so just check if MediatorServer is busy right now or not.
@@ -864,10 +855,7 @@ class MediatorSystem(System):
 
         return VerediHealth.APOCALYPSE
 
-    def _update_apocalypse(self,
-                           time_mgr:      TimeManager,
-                           component_mgr: 'ComponentManager',
-                           entity_mgr:    'EntityManager') -> VerediHealth:
+    def _update_apocalypse(self) -> VerediHealth:
         '''
         Structured death phase. We actually shut down our MediatorServer now.
         '''

@@ -345,8 +345,7 @@ class InputSystem(System):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update_intra_system(self,
-                             timer: MonotonicTimer) -> VerediHealth:
+    def _update_intra_system(self) -> VerediHealth:
         '''
         Generic tick function. We do the same thing every tick state we process
         so do it all here.
