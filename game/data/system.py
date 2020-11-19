@@ -294,10 +294,7 @@ class DataSystem(System):
     # -------------------------------------------------------------------------
 
     def update_tick(self,
-                    tick:          SystemTick,
-                    time_mgr:      TimeManager,
-                    component_mgr: ComponentManager,
-                    entity_mgr:    EntityManager) -> VerediHealth:
+                    tick: SystemTick) -> VerediHealth:
         '''
         Generic tick function. We do the same thing every tick state we process
         so do it all here.

@@ -427,7 +427,6 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
         # -------------------------------
         # Build Message
         # -------------------------------
-        log.ultra_hyper_debug(user, title="Envelope Message:")
         message = Message(msg_id,
                           MsgType.ENCODED,
                           payload=payload,

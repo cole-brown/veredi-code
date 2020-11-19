@@ -195,12 +195,12 @@ class Lumberjack:
         '''
         Increment the stack level by one (or more) to account for passing
         through these logging wrapper functions.
+
+        Returns `kwargs` input with increased stack level.
         '''
         # Increment stack level by whatever 'amount' is...
-        stacklevel = log.pop_stack_level(kwargs)
-        stacklevel += amount
-        # ...then set and return it.
-        return log.set_stack_level(stacklevel, kwargs)
+        log.incr_stack_level(kwargs, amount)
+        return kwargs
 
     def ultra_mega_debug(self,
                          msg:      str,

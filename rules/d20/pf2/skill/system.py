@@ -262,21 +262,15 @@ class SkillSystem(D20RulesSystem):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update(self,
-                tick:          SystemTick,
-                time_mgr:      TimeManager,
-                component_mgr: ComponentManager,
-                entity_mgr:    EntityManager) -> VerediHealth:
+    def _update(self) -> VerediHealth:
         '''
-        Generic tick function. We do the same thing every tick state we process
-        so do it all here.
+        SystemTick.STANDARD tick function.
         '''
         # Doctor checkup.
         if not self._health_ok_tick(SystemTick.STANDARD):
             return self.health
 
-        for entity in self._wanted_entities(tick, time_mgr,
-                                            component_mgr, entity_mgr):
+        for entity in self._wanted_entities(tick):
             # Check if entity in turn order has a (skill) action queued up.
             # Also make sure to check if entity/component still exist.
             if not entity:

@@ -265,10 +265,7 @@ class AbilitySystem(D20RulesSystem):
     # System Ticks
     # -------------------------------------------------------------------------
 
-    def _update_pre(self,
-                    time_mgr:      TimeManager,
-                    component_mgr: ComponentManager,
-                    entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_pre(self) -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
@@ -280,10 +277,7 @@ class AbilitySystem(D20RulesSystem):
         self.health = health
         return self.health
 
-    def _update(self,
-                time_mgr:      TimeManager,
-                component_mgr: ComponentManager,
-                entity_mgr:    EntityManager) -> VerediHealth:
+    def _update(self) -> VerediHealth:
         '''
         Normal/Standard upate. Basically everything should happen here.
         '''
@@ -294,10 +288,7 @@ class AbilitySystem(D20RulesSystem):
         self.health = health
         return self.health
 
-    def _update_post(self,
-                     time_mgr:      TimeManager,
-                     component_mgr: ComponentManager,
-                     entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_post(self) -> VerediHealth:
         '''
         Post-update. For any systems that need to squeeze in something just
         after actual tick.

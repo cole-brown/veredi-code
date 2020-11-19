@@ -480,39 +480,44 @@ def brace_message(fmt: str,
     return fmt.format(*args, **kwargs) + ctx_msg
 
 
-def pop_stack_level(kwargs: Mapping[str, Any]) -> int:
-    '''
-    Returns kwargs['stacklevel'] if it exists, or default (of 2).
-    '''
-    retval = 2
-    if kwargs:
-        retval = kwargs.pop('stacklevel', 2)
-    return retval
-
-
-def set_stack_level(
-        level: int,
-        kwargs: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
-    '''
-    Adds or sets 'stacklevel' in kwargs.
-    '''
-    if not kwargs:
-        kwargs = {}
-    kwargs['stacklevel'] = level
-    return kwargs
-
-
 def incr_stack_level(
-        kwargs: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
+        kwargs: MutableMapping[str, Any],
+        amount: Optional[int] = 1) -> MutableMapping[str, Any]:
     '''
-    Adds or sets 'stacklevel' in kwargs.
+    Adds `amount` to existing 'stacklevel' in kwargs, or sets it to `amount` if
+    non-existing.
     '''
     if not kwargs:
         kwargs = {}
-    stacklevel = pop_stack_level(kwargs)
-    stacklevel += 1
-    set_stack_level(stacklevel, kwargs)
+    stacklevel = kwargs.pop('stacklevel', 0)
+    stacklevel += amount
+    kwargs['stacklevel'] = stacklevel
     return kwargs
+
+
+def pop_log_kwargs(kwargs: Mapping[str, Any]) -> int:
+    '''
+    Pops kwargs intended for logger out of `kwargs`. Leaves the rest for the
+    message formatter.
+
+    Returns a new dictionary with the popped args in it, if any.
+    '''
+    log_args = {}
+
+    # Do we have anything to work with?
+    if kwargs:
+        # Check for, pop anything of interest.
+
+        if 'stacklevel' in kwargs:
+            log_args['stacklevel'] = kwargs.pop('stacklevel', False)
+
+        # Turns out this isn't at thing for logs cuz sensibly they always
+        # flush.
+        # if 'flush' in kwargs:
+        #     log_args['flush'] = kwargs.pop('flush', False)
+
+    # Return dict of log's kwargs. NOT the input kwargs!!
+    return log_args
 
 
 def ultra_mega_debug(msg: str,
@@ -548,7 +553,7 @@ def ultra_mega_debug(msg: str,
 
 
     '''
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.CRITICAL, output):
@@ -556,7 +561,7 @@ def ultra_mega_debug(msg: str,
                 or get_logger('veredi.debug.DEBUG.!!!DEBUG!!!'))
         log_out = _ULTRA_MEGA_DEBUG_FMT.format(output=output)
         this.critical(log_out,
-                      stacklevel=stacklevel)
+                      **log_kwargs)
 
 
 def ultra_hyper_debug(msg:           str,
@@ -600,7 +605,7 @@ def ultra_hyper_debug(msg:           str,
       ---
       -----
     '''
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     # Do normal {} string formatting if we have a message string... but let
     # non-strings through so pretty.indented() can work better with dicts, etc.
     output = msg
@@ -631,59 +636,59 @@ def ultra_hyper_debug(msg:           str,
                 or get_logger('veredi.debug.DEBUG.☢☢DEBUG☢☢'))
         log_out = _ULTRA_HYPER_DEBUG_FMT.format(output=output)
         this.critical(log_out,
-                      stacklevel=stacklevel)
+                      **log_kwargs)
 
 
 def debug(msg: str,
           *args: Any,
           veredi_logger: NullNoneOr[logging.Logger] = None,
           **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.DEBUG, output):
         this = _logger(veredi_logger)
         this.debug(output,
-                   stacklevel=stacklevel)
+                   **log_kwargs)
 
 
 def info(msg: str,
          *args: Any,
          veredi_logger: NullNoneOr[logging.Logger] = None,
          **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.INFO, output):
         this = _logger(veredi_logger)
         this.info(output,
-                  stacklevel=stacklevel)
+                  **log_kwargs)
 
 
 def warning(msg: str,
             *args: Any,
             veredi_logger: NullNoneOr[logging.Logger] = None,
             **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.WARNING, output):
         this = _logger(veredi_logger)
         this.warning(output,
-                     stacklevel=stacklevel)
+                     **log_kwargs)
 
 
 def error(msg: str,
           *args: Any,
           veredi_logger: NullNoneOr[logging.Logger] = None,
           **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.ERROR, output):
         this = _logger(veredi_logger)
         this.error(output,
-                   stacklevel=stacklevel)
+                   **log_kwargs)
 
 
 def exception(err: Exception,
@@ -740,7 +745,7 @@ def exception(err: Exception,
         log_msg_err_type = wrap_type
         log_msg_err_str = None
 
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     if not msg:
         msg = "Exception caught. type: {}, str: {}"
         args = [log_msg_err_type, log_msg_err_str]
@@ -752,7 +757,7 @@ def exception(err: Exception,
     log_msg = brace_message(msg, *args, context=context, **kwargs)
     this = _logger(veredi_logger)
     this.error(log_msg,
-               stacklevel=stacklevel)
+               **log_kwargs)
 
     if wrap_type:
         return wrap_type(log_msg, err,
@@ -765,13 +770,13 @@ def critical(msg: str,
              *args: Any,
              veredi_logger: NullNoneOr[logging.Logger] = None,
              **kwargs: Any) -> None:
-    stacklevel = pop_stack_level(kwargs)
+    log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
                            *args, **kwargs)
     if not ut_call(Level.CRITICAL, output):
         this = _logger(veredi_logger)
         this.critical(output,
-                      stacklevel=stacklevel)
+                      **log_kwargs)
 
 
 def at_level(level: 'Level',

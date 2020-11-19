@@ -9,38 +9,42 @@ ZestEngine. No one currently uses this directly [2020-08-24].
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, List, Iterable
+from typing import Optional, Union, Any, Type, List, Iterable, Dict
 
-from veredi.logger                      import log
-from .unit                              import ZestBase
-from ..                                 import zload
-from ..zpath                            import TestType
-from veredi.base.context                import VerediContext, UnitTestContext
+from veredi.logger                       import log
+from .unit                               import ZestBase
+from ..                                  import zload
+from ..zpath                             import TestType
+from veredi.base.context                 import VerediContext, UnitTestContext
 
-from veredi.base.null                   import Null
-from veredi.data.config.config          import Configuration
+from veredi.base.null                    import Null
+from veredi.data.config.config           import Configuration
 
-from veredi.game.ecs.base.system        import System
-from veredi.game.ecs.base.entity        import (Entity,
-                                                EntityLifeCycle)
-from veredi.game.ecs.base.identity      import EntityId
-from veredi.game.ecs.base.component     import (Component,
-                                                ComponentLifeCycle)
-from veredi.game.ecs.event              import Event
-from veredi.game.data.event             import DataLoadedEvent
+from veredi.game.ecs.base.system         import System
+from veredi.game.ecs.base.entity         import (Entity,
+                                                 EntityLifeCycle)
+from veredi.game.ecs.base.identity       import EntityId
+from veredi.game.ecs.base.component      import (Component,
+                                                 ComponentLifeCycle)
+from veredi.game.ecs.event               import Event
+from veredi.game.data.event              import DataLoadedEvent
+from veredi.game.data.identity.event     import (IdentityRequest,
+                                                 CodeIdentityRequest)
+from veredi.game.data.identity.component import IdentityComponent
 
-from veredi.game.ecs.time               import TimeManager
-from veredi.game.ecs.event              import EventManager
-from veredi.game.ecs.component          import ComponentManager
-from veredi.game.ecs.entity             import EntityManager
-from veredi.game.ecs.system             import SystemManager
-from veredi.game.engine                 import Engine
-from veredi.game.ecs.meeting            import Meeting
 
-from veredi.interface.input.system      import InputSystem
-from veredi.interface.input.command.reg import CommandRegistrationBroadcast
+from veredi.game.ecs.time                import TimeManager
+from veredi.game.ecs.event               import EventManager
+from veredi.game.ecs.component           import ComponentManager
+from veredi.game.ecs.entity              import EntityManager
+from veredi.game.ecs.system              import SystemManager
+from veredi.game.engine                  import Engine
+from veredi.game.ecs.meeting             import Meeting
 
-from veredi.interface.output.system     import OutputSystem
+from veredi.interface.input.system       import InputSystem
+from veredi.interface.input.command.reg  import CommandRegistrationBroadcast
+
+from veredi.interface.output.system      import OutputSystem
 
 
 # -----------------------------------------------------------------------------
@@ -490,9 +494,110 @@ class ZestEcs(ZestBase):
         self.assertNotEqual(eid, EntityId.INVALID)
         entity = self.manager.entity.get(eid)
         self.assertTrue(entity)
+        # Entity should not be alive just yet.
         self.assertNotEqual(entity.life_cycle, EntityLifeCycle.ALIVE)
 
         return entity
+
+    def create_component(self,
+                         entity:                  Entity,
+                         event:                   Event,
+                         expected_component_type: Type[Component],
+                         expected_events:         int  = 0,
+                         clear_event_queue:       bool = True
+                         ) -> Entity:
+        '''
+        Ensures event is for the entity, publishes it via
+        self.trigger_events(event, expected_events=`expected_events`), and
+        assumes it is an event that will result in a component being created on
+        the entity.
+
+        The event will be sent out to do its thing, then if
+        `clear_event_queue` is set, we will call self.clear_events().
+
+        Checks that the entity has a component attached of the
+        `expected_component_type`.
+
+        Finally, we will call ComponentManager.creation() in order to put the
+        component into the ALIVE life-cycle.
+        '''
+        if event:
+            # Event provided; just make sure it's for the right guy.
+            self.assertEqual(event.id, entity.id)
+            self.assertEqual(event.type, entity.type_id)
+
+        else:
+            # Fail - dunno how to proceed.
+            self.fail("create_component got no event Cannot create identity. "
+                      f"event: {event}, expected: {expected_component_type}, "
+                      f"expected_events: {expected_events}, entity: {entity}")
+
+        # We aren't registered to receive the reply, so don't expect anything.
+        self.trigger_events(event, expected_events=0)
+
+        # But clear it out just in cases and to be a good helper function.
+        if clear_event_queue:
+            self.clear_events()
+
+        self.manager.component.creation(self.manager.time)
+        component = entity.get(expected_component_type)
+        # Not None, not Null(), not nothing except expected_component_type.
+        self.assertIsInstance(component, expected_component_type)
+
+    def create_identity(self,
+                        entity:  Entity,
+                        request:           Optional[IdentityRequest] = None,
+                        data:              Optional[Dict[str, str]]  = None,
+                        expected_events:   int                       = 0,
+                        clear_event_queue: bool                      = True
+                        ) -> Entity:
+        '''
+        Ensures (Code)IdentityRequest `identity` is for the entity, then does
+        the necessary steps to get it attached to the entity.
+
+        Provide /EITHER/ `request` or `data`.
+          - If `request` is provided, it takes priority over `data`. We will
+            force it to be for the EntityId/EntityType of `entity`.
+          - If `data` is provided, we will create a CodeIdentityRequest with
+            it.
+
+        The IdentityRequest event will be sent out to do its thing, then if
+        `clear_event_queue` is set, we will call self.clear_events().
+
+        Finally, we will call ComponentManager.creation() in order to put the
+        component into the ALIVE life-cycle.
+        '''
+        if request:
+            # Request provided; just make sure it's for the right guy.
+            self.assertEqual(request.id, entity.id)
+            self.assertEqual(request.type_id, entity.type)
+            event = request
+
+        elif data:
+            context = UnitTestContext(
+                self.__class__.__name__,
+                'identity_request',
+                {})  # no initial sub-context
+
+            # Create a request for our dude get an identity assigned via data
+            # dictionary.
+            event = CodeIdentityRequest(
+                entity.id,
+                entity.type_id,
+                context,
+                data)
+
+        else:
+            # Fail - dunno how to proceed.
+            self.fail("create_identity got no IdentityRequest and no "
+                      "identity data. Cannot create identity. request: "
+                      f"{request}, data: {data}, entity: {entity}")
+
+        self.create_component(entity,
+                              event,
+                              IdentityComponent,
+                              expected_events=0,
+                              clear_event_queue=True)
 
     def force_alive(self,
                     *ents_or_comps: Union[Entity, Component, Null]) -> None:

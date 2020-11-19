@@ -359,10 +359,7 @@ class IdentitySystem(System):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update_pre(self,
-                    time_mgr:      TimeManager,
-                    component_mgr: ComponentManager,
-                    entity_mgr:    EntityManager) -> VerediHealth:
+    def _update_pre(self) -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
@@ -438,10 +435,7 @@ class IdentitySystem(System):
         self.health = health
         return health
 
-    # def _update(self,
-    #             time_mgr:      TimeManager,
-    #             component_mgr: ComponentManager,
-    #             entity_mgr:    EntityManager) -> VerediHealth:
+    # def _update(self) -> VerediHealth:
     #     '''
     #     Standard tick. Do we have ticky things to do?
     #     '''
@@ -451,8 +445,7 @@ class IdentitySystem(System):
     #
     #     log.critical('todo: a identity tick thingy?')
     #
-    #     # for entity in self._wanted_entities(tick, time_mgr,
-    #     #                                     component_mgr, entity_mgr):
+    #     # for entity in self._wanted_entities(tick):
     #     #     # Check if entity in turn order has a (identity) action queued up
     #     #     # Also make sure to check if entity/component still exist.
     #     #     if not entity:

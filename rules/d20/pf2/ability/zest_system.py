@@ -103,6 +103,8 @@ class Test_AbilitySystem(ZestSystem):
 
         # Create and attach components.
         self.create_identity(entity,
+                             data=self.ID_DATA,
+                             expected_events=0,
                              clear_event_queue=clear_event_queue)
         self.create_ability(entity)
 
@@ -114,29 +116,6 @@ class Test_AbilitySystem(ZestSystem):
             self.clear_events()
 
         return entity
-
-    def create_identity(self, entity,
-                        id_data=ID_DATA,
-                        clear_event_queue=True):
-        context = UnitTestContext(
-            self.__class__.__name__,
-            'identity_request',
-            {})  # no initial sub-context
-
-        # Request our dude get an identity assigned via code.
-        event = CodeIdentityRequest(
-            entity.id,
-            entity.type_id,
-            context,
-            id_data)
-
-        # We aren't registered to receive the reply, so don't expect anything.
-        self.trigger_events(event, expected_events=0)
-        # But clear it out just in cases and to be a good helper function.
-        if clear_event_queue:
-            self.clear_events()
-
-        self.manager.component.creation(self.manager.time)
 
     def create_ability(self, entity):
         # Make the load request event for our entity.
