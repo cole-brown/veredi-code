@@ -342,7 +342,17 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
     @abstractmethod
     def eval(self) -> Any:
         '''
-        Evaluate this tree node (roll dice, add children together, whatever).
+        Evaluate this tree node (roll dice, add children together, whatever)
+        and return the resultant final value of this node.
+        '''
+        raise NotImplementedError(f"{self.__class__.__name__}.eval() is "
+                                  "not implemented.")
+
+    @abstractmethod
+    def _eval(self) -> None:
+        '''
+        Internal method for evaluating this tree node (roll dice, add children
+        together, whatever) and saving results internally.
         '''
         raise NotImplementedError(f"{self.__class__.__name__}.eval() is "
                                   "not implemented.")
