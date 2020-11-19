@@ -8,7 +8,7 @@ Tree base classes for a d20 roll tree.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (TYPE_CHECKING, Optional, Any, NewType)
+from typing import (TYPE_CHECKING, Optional, Any, Dict, List)
 if TYPE_CHECKING:
     import re
 
@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from functools import reduce
 
 
-from veredi.base                 import random
+from veredi.base                 import random, numbers
 from veredi.data.codec.encodable import (Encodable,
                                          EncodedComplex,
                                          EncodedSimple)
@@ -48,7 +48,7 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
     # Evaluate
     # -------------------------------------------------------------------------
 
-    def eval(self):
+    def eval(self) -> numbers.NumberTypes:
         '''
         Evaluate this tree node (roll dice, add children together, whatever).
         '''
@@ -59,7 +59,7 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
     # Single-Line Math/Roll Expression String
     # -------------------------------------------------------------------------
 
-    def expr_str(self, options=None):
+    def expr_str(self, options: FormatOptions = None) -> str:
         '''
         String for this node's math expression representation. No context -
         just this node.
@@ -70,7 +70,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
     # Maths
     # -------------------------------------------------------------------------
 
-    def __add__(self, other):
+    def __add__(self, other: 'Node') -> numbers.NumberTypes:
+        '''
+        Add nodes.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot add; {str(self)} has a value of None.")
 
@@ -78,7 +81,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value + other._value
         return self._value + other
 
-    def __sub__(self, other):
+    def __sub__(self, other: 'Node') -> numbers.NumberTypes:
+        '''
+        Subtract nodes.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot subtract; {str(self)} has a "
                              "value of None.")
@@ -87,7 +93,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value - other._value
         return self._value - other
 
-    def __mul__(self, other):
+    def __mul__(self, other: 'Node') -> numbers.NumberTypes:
+        '''
+        Multiply nodes.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot multiply; {str(self)} has a "
                              "value of None.")
@@ -96,7 +105,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value * other._value
         return self._value * other
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: 'Node') -> numbers.NumberTypes:
+        '''
+        Divide nodes ("true"/float division).
+        '''
         if self._value is None:
             raise ValueError(f"Cannot true-divide; {str(self)} has a "
                              "value of None.")
@@ -105,7 +117,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value / other._value
         return self._value / other
 
-    def __floordiv__(self, other):
+    def __floordiv__(self, other: 'Node') -> numbers.NumberTypes:
+        '''
+        Divide nodes ("floor"/int division).
+        '''
         if self._value is None:
             raise ValueError(f"Cannot floor-divide; {str(self)} has a "
                              "value of None.")
@@ -114,7 +129,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value // other._value
         return self._value // other
 
-    def __mod__(self, other):
+    def __mod__(self, other: 'Node') -> numbers.NumberTypes:
+        '''
+        Modulo nodes.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot modulo; {str(self)} has a "
                              "value of None.")
@@ -123,7 +141,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value % other._value
         return self._value % other
 
-    def __pow__(self, other):
+    def __pow__(self, other: 'Node') -> numbers.NumberTypes:
+        '''
+        By the power of nodes...
+        '''
         if self._value is None:
             raise ValueError(f"Cannot power; {str(self)} has a "
                              "value of None.")
@@ -138,7 +159,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
 
     # # TODO [2020-04-25]: May need to compare tags and such...
 
-    def __lt__(self, other):
+    def __lt__(self, other: 'Node') -> bool:
+        '''
+        "Less Than" boolean operator.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot less-than; {str(self)} has a "
                              "value of None.")
@@ -147,7 +171,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value < other._value
         return self._value < other
 
-    def __gt__(self, other):
+    def __gt__(self, other: 'Node') -> bool:
+        '''
+        "Greater Than" boolean operator.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot greater-than; {str(self)} has a "
                              "value of None.")
@@ -156,7 +183,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value > other._value
         return self._value > other
 
-    def __le__(self, other):
+    def __le__(self, other: 'Node') -> bool:
+        '''
+        "Less Than Or Equal To" boolean operator.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot less-than-or-equal; {str(self)} has a "
                              "value of None.")
@@ -165,7 +195,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value <= other._value
         return self._value <= other
 
-    def __ge__(self, other):
+    def __ge__(self, other: 'Node') -> bool:
+        '''
+        "Greater Than Or Equal To" boolean operator.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot greater-than-or-equal; {str(self)} has "
                              "a value of None.")
@@ -174,7 +207,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value >= other._value
         return self._value >= other
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'Node') -> bool:
+        '''
+        "Equal To" boolean operator.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot equal; {str(self)} has a "
                              "value of None.")
@@ -183,7 +219,10 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
             return self._value == other._value
         return self._value == other
 
-    def __ne__(self, other):
+    def __ne__(self, other: 'Node') -> bool:
+        '''
+        "Not Equal To" boolean operator.
+        '''
         if self._value is None:
             raise ValueError(f"Cannot not-equal; {str(self)} has a "
                              "value of None.")
@@ -260,38 +299,39 @@ class Leaf(Node, dotted=Encodable._DO_NOT_REGISTER):
     # To String
     # -------------------------------------------------------------------------
 
-    def __str__(self):
+    def __str__(self) -> str:
+        '''
+        Python's str() function.
+        '''
         return self.__class__.__name__
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        '''
+        Python's repr() function.
+        '''
         return self.__str__()
 
-    def _pretty_name(self):
+    def _pretty_name(self) -> str:
+        '''
+        A pretty string name for this.
+        '''
         return str(self)
 
     # -------------------------------------------------------------------------
     # Unary Operators
     # -------------------------------------------------------------------------
 
-    def neg(self):
+    def neg(self) -> None:
         '''
         Negate this leaf (i.e. flip the sign).
         '''
         self._sign = self._sign * -1
 
-    def pos(self):
+    def pos(self) -> None:
         '''
         Do nothing to this leaf. (Unary '+' operator...)
         '''
         # self._sign = self._sign * 1
-        pass
-
-    # -------------------------------------------------------------------------
-    # To Final Value
-    # -------------------------------------------------------------------------
-    def _eval(self):
-        # TODO [2020-04-23]: make this an abstract base class and force
-        # children to implement this
         pass
 
 
@@ -307,7 +347,10 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, dice, faces, tags=None):
+    def __init__(self,
+                 dice: int,
+                 faces: int,
+                 tags: Dict[str, str] = None) -> None:
         super().__init__(NodeType.RANDOM, name='dice', tags=tags)
 
         self.dice = dice
@@ -318,7 +361,10 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
     # Python Functions
     # -------------------------------------------------------------------------
 
-    def __str__(self):
+    def __str__(self) -> str:
+        '''
+        Python's str() function.
+        '''
         return (
             f"{self.__class__.__name__}"
             f"("
@@ -333,7 +379,11 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
     # Node Functions
     # -------------------------------------------------------------------------
 
-    def _eval(self):
+    def _eval(self) -> None:
+        '''
+        Internal method for evaluating this dice node (roll dice, sum result)
+        and saving results internally.
+        '''
         # Roll each die, record result.
         self.roll = []
         for i in range(self.dice):
@@ -342,10 +392,10 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
         # Save total as value.
         self._value = sum(self.roll)
 
-    def _expr_str(self, options=None):
-        '''String for this node's math expression representation.
+    def _expr_str(self, options: FormatOptions = None) -> str:
+        '''
+        String for this node's math expression representation.
         No context - just this node.
-
         '''
         if options is FormatOptions.NONE:
             return ''
@@ -388,6 +438,7 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
 
     @classmethod
     def _type_field(klass: 'Dice') -> str:
+        '''Encodable type name.'''
         return klass._NAME
 
     def _encode_complex(self) -> EncodedComplex:
@@ -435,7 +486,9 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, constant, tags=None):
+    def __init__(self,
+                 constant: numbers.NumberTypes,
+                 tags: Dict[str, str] = None) -> None:
         super().__init__(NodeType.CONSTANT,
                          value=constant,
                          name=constant,
@@ -445,7 +498,10 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
     # Python Functions
     # -------------------------------------------------------------------------
 
-    def __str__(self):
+    def __str__(self) -> str:
+        '''
+        Python's str() function.
+        '''
         return (
             f"{self.__class__.__name__}"
             f"("
@@ -459,14 +515,18 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
     # -------------------------------------------------------------------------
 
     def _eval(self):
+        '''
+        Internal method for evaluating this Constant node.
+        Constants are constant, so no-op.
+        '''
         # We already have our (constant) value and
         # nothing will (should?) change it.
         pass
 
-    def _expr_str(self, options=None):
-        '''String for this node's math expression representation.
+    def _expr_str(self, options: FormatOptions = None) -> str:
+        '''
+        String for this node's math expression representation.
         No context - just this node.
-
         '''
         if options is FormatOptions.NONE:
             return ''
@@ -482,6 +542,7 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
 
     @classmethod
     def _type_field(klass: 'Constant') -> str:
+        '''Encodable type name.'''
         return klass._NAME
 
     def _encode_complex(self) -> EncodedComplex:
@@ -522,7 +583,10 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, var, milieu=None, tags=None):
+    def __init__(self,
+                 var: str,
+                 milieu: str = None,
+                 tags: Dict[str, str] = None):
         super().__init__(NodeType.VARIABLE,
                          milieu=milieu,
                          name=var,
@@ -532,7 +596,10 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
     # Python Functions
     # -------------------------------------------------------------------------
 
-    def __str__(self):
+    def __str__(self) -> str:
+        '''
+        Python's str() function.
+        '''
         return (
             f"{self.__class__.__name__}"
             f"("
@@ -546,17 +613,17 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
     # Node Functions
     # -------------------------------------------------------------------------
 
-    def _eval(self):
+    def _eval(self) -> None:
         '''
         Variable should have had its value replaced by whatever system or thing
         knows the value of its variable. So we have nothing to do for eval.
         '''
         pass
 
-    def _expr_str(self, options=None):
-        '''String for this node's math expression representation.
+    def _expr_str(self, options: FormatOptions = None) -> str:
+        '''
+        String for this node's math expression representation.
         No context - just this node.
-
         '''
         if options is FormatOptions.NONE:
             return ''
@@ -592,6 +659,7 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
 
     @classmethod
     def _type_field(klass: 'Variable') -> str:
+        '''Encodable type name.'''
         return klass._NAME
 
     def _encode_complex(self) -> EncodedComplex:
@@ -634,7 +702,11 @@ class Branch(Node, ABC, dotted=Encodable._DO_NOT_REGISTER):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, children, type, name, tags=None):
+    def __init__(self,
+                 children: List['Node'],
+                 type: NodeType,
+                 name: str,
+                 tags: Dict[str, str] = None):
         super().__init__(NodeType.BRANCH | type,
                          children=children,
                          name=name,
@@ -645,26 +717,31 @@ class Branch(Node, ABC, dotted=Encodable._DO_NOT_REGISTER):
     # -------------------------------------------------------------------------
 
     @abstractmethod
-    def _evaluate_children(self, left, right):
+    def _evaluate_children(self,
+                           left: 'Node',
+                           right: 'Node') -> numbers.NumberTypes:
         '''
         Do whatever it is the branch should do with its children.
         E.g.: OperatorAdd should add them all together.
 
-        Returns.... int/float/etc? IDK?
+        Returns some sort of number... int/float/etc.
         '''
         raise NotImplementedError(
             f"{self.__class__.__name__}._evaluate_children() "
             "is not implemented.")
 
     @property
-    def children(self):
+    def children(self) -> List['Node']:
         return self._children
 
     # -------------------------------------------------------------------------
     # Python Functions
     # -------------------------------------------------------------------------
 
-    def __str__(self):
+    def __str__(self) -> str:
+        '''
+        Python's str() function.
+        '''
         if not self.children:
             raise ValueError(f"Branch class {self.__class__.__name__} has no "
                              f"children?! children: {self._children}", self)
@@ -688,10 +765,13 @@ class Branch(Node, ABC, dotted=Encodable._DO_NOT_REGISTER):
     # Node Functions
     # -------------------------------------------------------------------------
 
-    def _pretty_name(self):
+    def _pretty_name(self) -> str:
+        '''
+        A pretty string name for this.
+        '''
         return f"{self.__class__.__name__}"
 
-    def _pretty(self, level, indent_str):
+    def _pretty(self, level: int, indent_str: str) -> str:
         '''
         Returns a line of str fragments to concat into one pretty branch line
         output.
@@ -719,10 +799,10 @@ class Branch(Node, ABC, dotted=Encodable._DO_NOT_REGISTER):
 
         return lines
 
-    def pretty(self, indent_str='- '):
+    def pretty(self, indent_str: str = '- ') -> str:
         return ''.join(self._pretty(0, indent_str))
 
-    def _eval(self):
+    def _eval(self) -> None:
         '''
         Branches probably have same evaluation: Do something to children and
         store accumulated result.
@@ -741,7 +821,10 @@ class OperatorMath(Branch, dotted=Encodable._DO_NOT_REGISTER):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, children, op_str, tags=None):
+    def __init__(self,
+                 children: List['Node'],
+                 op_str: str,
+                 tags: Dict[str, str] = None):
         super().__init__(children, NodeType.OPERATOR, op_str, tags)
         self.__operator_str = op_str
 
@@ -749,10 +832,10 @@ class OperatorMath(Branch, dotted=Encodable._DO_NOT_REGISTER):
     # Node Functions
     # -------------------------------------------------------------------------
 
-    def _expr_str(self, options=None):
-        '''String for this node's math expression representation.
+    def _expr_str(self, options: FormatOptions = None) -> str:
+        '''
+        String for this node's math expression representation.
         No context - just this node.
-
         '''
         if options is FormatOptions.NONE:
             return ''
@@ -772,12 +855,14 @@ class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, children, tags=None):
+    def __init__(self, children: List['Node'], tags: Dict[str, str] = None):
         super().__init__(children,
                          OperatorAdd.STR_UNICODE,
                          tags)
 
-    def _evaluate_children(self, left, right):
+    def _evaluate_children(self,
+                           left: 'Node',
+                           right: 'Node') -> numbers.NumberTypes:
         '''
         OperatorAdd will add these two children together.
         '''
@@ -789,6 +874,7 @@ class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
 
     @classmethod
     def _type_field(klass: 'OperatorAdd') -> str:
+        '''Encodable type name.'''
         return klass._NAME
 
     def _encode_complex(self) -> EncodedComplex:
@@ -833,7 +919,7 @@ class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, children, tags=None):
+    def __init__(self, children: List['Node'], tags: Dict[str, str] = None):
         super().__init__(children,
                          OperatorSub.STR_UNICODE,
                          tags)
@@ -842,7 +928,9 @@ class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
     # Node Functions
     # -------------------------------------------------------------------------
 
-    def _evaluate_children(self, left, right):
+    def _evaluate_children(self,
+                           left: 'Node',
+                           right: 'Node') -> numbers.NumberTypes:
         '''
         OperatorSub will subtract these two children.
         '''
@@ -854,6 +942,7 @@ class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
 
     @classmethod
     def _type_field(klass: 'OperatorSub') -> str:
+        '''Encodable type name.'''
         return klass._NAME
 
     def _encode_complex(self) -> EncodedComplex:
@@ -898,7 +987,7 @@ class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, children, tags=None):
+    def __init__(self, children: List['Node'], tags: Dict[str, str] = None):
         super().__init__(children,
                          OperatorMult.STR_UNICODE,
                          tags)
@@ -907,7 +996,9 @@ class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
     # Node Functions
     # -------------------------------------------------------------------------
 
-    def _evaluate_children(self, left, right):
+    def _evaluate_children(self,
+                           left: 'Node',
+                           right: 'Node') -> numbers.NumberTypes:
         '''
         OperatorMult will multiply these two children.
         '''
@@ -919,6 +1010,7 @@ class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
 
     @classmethod
     def _type_field(klass: 'OperatorMult') -> str:
+        '''Encodable type name.'''
         return klass._NAME
 
     def _encode_complex(self) -> EncodedComplex:
@@ -976,7 +1068,10 @@ class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, children, truediv=True, tags=None):
+    def __init__(self,
+                 children: List['Node'],
+                 truediv: bool = True,
+                 tags: Dict[str, str] = None):
         self.truediv = truediv
         div_str = (self.STR_UNICODE_TRUE
                    if truediv else
@@ -990,7 +1085,9 @@ class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
     # Node Functions
     # -------------------------------------------------------------------------
 
-    def _evaluate_children(self, left, right):
+    def _evaluate_children(self,
+                           left: 'Node',
+                           right: 'Node') -> numbers.NumberTypes:
         '''
         OperatorDiv will divide these two children. It will either use 'true'
         (float) division or 'floor' (int) division, based on self.truediv flag.
@@ -1007,6 +1104,7 @@ class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
 
     @classmethod
     def _type_field(klass: 'OperatorDiv') -> str:
+        '''Encodable type name.'''
         return klass._NAME
 
     def _encode_complex(self) -> EncodedComplex:
@@ -1049,7 +1147,7 @@ class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, children, tags=None):
+    def __init__(self, children: List['Node'], tags: Dict[str, str] = None):
         super().__init__(children,
                          OperatorMod.STR_UNICODE,
                          tags)
@@ -1058,7 +1156,9 @@ class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
     # Node Functions
     # -------------------------------------------------------------------------
 
-    def _evaluate_children(self, left, right):
+    def _evaluate_children(self,
+                           left: 'Node',
+                           right: 'Node') -> numbers.NumberTypes:
         '''
         OperatorMod will modulo these two children.
         '''
@@ -1070,6 +1170,7 @@ class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
 
     @classmethod
     def _type_field(klass: 'OperatorMod') -> str:
+        '''Encodable type name.'''
         return klass._NAME
 
     def _encode_complex(self) -> EncodedComplex:
@@ -1114,7 +1215,7 @@ class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, children, tags=None):
+    def __init__(self, children: List['Node'], tags: Dict[str, str] = None):
         super().__init__(children,
                          OperatorPow.STR_UNICODE,
                          tags)
@@ -1123,7 +1224,9 @@ class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
     # Node Functions
     # -------------------------------------------------------------------------
 
-    def _evaluate_children(self, left, right):
+    def _evaluate_children(self,
+                           left: 'Node',
+                           right: 'Node') -> numbers.NumberTypes:
         '''
         OperatorPow will return `left` to the power of `right`.
         '''
@@ -1135,6 +1238,7 @@ class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
 
     @classmethod
     def _type_field(klass: 'OperatorPow') -> str:
+        '''Encodable type name.'''
         return klass._NAME
 
     def _encode_complex(self) -> EncodedComplex:

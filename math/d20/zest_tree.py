@@ -17,8 +17,69 @@ from ..parser import NodeType
 
 
 # -----------------------------------------------------------------------------
-# Constants
+# Mock Classes
 # -----------------------------------------------------------------------------
+
+class MockNode(tree.Node, dotted='veredi.math.d20.tree.zest_tree.mock_node'):
+
+    def __init__(self, type, value=None):
+        super().__init__(type,
+                         value=value)
+
+    def _eval(self) -> None:
+        pass
+
+    @classmethod
+    def _type_field(klass):
+        '''Encodable type name.'''
+        return 'mock-node'
+
+    def _encode_complex(self):
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        raise NotImplementedError
+
+    @classmethod
+    def _decode_complex(klass, data):
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        raise NotImplementedError
+
+
+class MockLeaf(tree.Leaf, dotted='veredi.math.d20.tree.zest_tree.mock_leaf'):
+
+    def __init__(self, type, value=None):
+        super().__init__(type,
+                         value=value)
+
+    @classmethod
+    def _type_field(klass):
+        '''Encodable type name.'''
+        return 'mock-leaf'
+
+    def _eval(self) -> None:
+        '''
+        Internal method for evaluating this dice node (roll dice, sum result)
+        and saving results internally.
+        '''
+        raise NotImplementedError
+
+    def _encode_complex(self):
+        '''
+        Encode ourself as an EncodedComplex, return that value.
+        '''
+        raise NotImplementedError
+
+    @classmethod
+    def _decode_complex(klass, data):
+        '''
+        Decode ourself as an EncodedComplex, return a new instance of `klass`
+        as the result of the decoding.
+        '''
+        raise NotImplementedError
 
 
 # ------------------------------------Tree-------------------------------------
@@ -32,10 +93,10 @@ from ..parser import NodeType
 class Test_Node(ZestBase):
 
     def set_up(self):
-        self.node0 = tree.Node(NodeType.INVALID)
+        self.node0 = MockNode(NodeType.INVALID)
         self.value0 = 42
 
-        self.node1 = tree.Node(NodeType.INVALID)
+        self.node1 = MockNode(NodeType.INVALID)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
@@ -229,10 +290,10 @@ class Test_Node(ZestBase):
 class Test_Leaf(ZestBase):
 
     def set_up(self):
-        self.leaf0 = tree.Leaf(NodeType.INVALID)
+        self.leaf0 = MockLeaf(NodeType.INVALID)
         self.value0 = 42
 
-        self.leaf1 = tree.Leaf(NodeType.INVALID)
+        self.leaf1 = MockLeaf(NodeType.INVALID)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
