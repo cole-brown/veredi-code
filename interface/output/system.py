@@ -41,7 +41,6 @@ from veredi.data                         import background
 from veredi.logger                       import log
 from veredi.base.const                   import VerediHealth
 from veredi.data.config.registry         import register
-from veredi.data.serdes.string           import StringSerdes
 
 from veredi.security                     import abac
 from veredi.security.context             import SecurityContext
@@ -113,26 +112,6 @@ class OutputSystem(System):
         self._component_type: Type[Component] = None
         '''Don't have a component type for output right now.'''
 
-        # ------------------------------
-        # TODO: DELETE THESE
-        # ------------------------------
-        # ---
-        # Config Stuff
-        # ---
-        self._codec: Optional[Codec] = None
-        '''
-        Optional Coder/Decoder for messages & envelopes. If None, skips codec
-        step.
-        '''
-
-        self._serdes: StringSerdes = StringSerdes()
-        '''
-        Serializer/deserializer for messages & envelopes.
-        '''
-        # ------------------------------
-        # /TODO: DELETE THESE
-        # ------------------------------
-
         # ---
         # Security: Access Control
         # ---
@@ -174,12 +153,9 @@ class OutputSystem(System):
         # ---
         # Config Stuff
         # ---
-        config = background.config.config
-        if config:
-            self._codec = config.make(None,
-                                      'server',
-                                      'output',
-                                      'codec')
+        # config = background.config.config
+        # if config:
+        #     # Stuff from config.
 
         # ---
         # Security: Access Control
@@ -207,12 +183,8 @@ class OutputSystem(System):
         '''
         Get background data for background.output.set().
         '''
-        codec_data, _ = self._codec.background
-        serdes_data, _ = self._serdes.background
         self._bg = {
             'dotted': self.dotted(),
-            'codec': codec_data,
-            'serdes': serdes_data,
         }
         return self._bg, background.Ownership.SHARE
 
