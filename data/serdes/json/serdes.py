@@ -27,7 +27,9 @@ from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 
 from ..encodable                 import Encodable
-from ..base                      import BaseSerdes, SerdesOutput, SerdesInput
+from ..base                      import (BaseSerdes,
+                                         DeserializeTypes,
+                                         SerializeTypes)
 
 
 # -----------------------------------------------------------------------------
@@ -86,7 +88,7 @@ class JsonSerdes(BaseSerdes):
 
     def decode(self,
                stream: Union[TextIO, str],
-               context: 'VerediContext') -> SerdesOutput:
+               context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and decodes data from a single data stream.
 
@@ -139,7 +141,7 @@ class JsonSerdes(BaseSerdes):
 
     def decode_all(self,
                    stream: Union[TextIO, str],
-                   context: 'VerediContext') -> SerdesOutput:
+                   context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and decodes all documents from the data stream.
 
@@ -183,7 +185,7 @@ class JsonSerdes(BaseSerdes):
         return context
 
     def encode(self,
-               data: SerdesInput,
+               data: SerializeTypes,
                context: 'VerediContext') -> StringIO:
         '''
         Write and encodes a single document from the data stream.
@@ -198,7 +200,7 @@ class JsonSerdes(BaseSerdes):
         return stream
 
     def _encode_prep(self,
-                     data: SerdesInput,
+                     data: SerializeTypes,
                      context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into
@@ -237,7 +239,7 @@ class JsonSerdes(BaseSerdes):
             context=context)
 
     def _write(self,
-               data: Union[Dict[str, Any], List[Any], None],
+               data: SerializeTypes,
                context: 'VerediContext') -> StringIO:
         '''
         Write data to a stream.
@@ -266,7 +268,7 @@ class JsonSerdes(BaseSerdes):
         return encoded
 
     def encode_all(self,
-                   data: Mapping[str, Any],
+                   data: SerializeTypes,
                    context: 'VerediContext') -> StringIO:
         '''
         Write and encodes all documents from the data stream.
@@ -282,7 +284,7 @@ class JsonSerdes(BaseSerdes):
         raise NotImplementedError("TODO: this")
 
     def _write_all(self,
-                   data: Mapping[str, Any],
+                   data: SerializeTypes,
                    context: 'VerediContext') -> StringIO:
         '''
         Write data from a single data stream.

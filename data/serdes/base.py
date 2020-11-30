@@ -30,22 +30,20 @@ from .encodable import Encodable
 # -----------------------------------------------------------------------------
 
 
-# TODO [2020-08-22]: Rename; SerdesInput and SerdesOutput are both
-# inputs/outputs to serdes because serdes is coder/decoder so this name makes
-# me sad that I came up with it...
-# EncodeTypes/DecodeTypes?
-SerdesOutput = NewType('SerdesOutput',
-                       Union[List[Any], Dict[str, Any], None])
+DeserializeTypes = NewType('DeserializeTypes',
+                           Union[List[Any], Dict[str, Any], None])
+'''Serdes can deserialize to these types.'''
 
 
-# TODO [2020-08-22]: Rename; SerdesInput and SerdesOutput are both
-# inputs/outputs to serdes because serdes is coder/decoder so this name makes
-# me sad that I came up with it...
-# EncodeTypes/DecodeTypes?
-SerdesInput = NewType('SerdesInput',
-                      Union[Encodable, Iterable[Any], Mapping[str, Any], None])
+SerializeTypes = NewType('SerializeTypes',
+                         Union[Encodable,
+                               Iterable[Any],
+                               Mapping[str, Any],
+                               None])
+'''Serdes can serialize these types.'''
 
-# TODO [2020-08-22]: YAML Serdes should use the renamed SerdesInput/Output.
+# TODO [2020-11-30]: ReadTypes/WriteTypes for _read(_all) and _write(_all)
+# functions?
 
 
 # -----------------------------------------------------------------------------
@@ -138,7 +136,7 @@ class BaseSerdes(ABC):
     @abstractmethod
     def decode(self,
                stream: Union[TextIO, str],
-               context: 'VerediContext') -> SerdesOutput:
+               context: 'VerediContext') -> DeserializeTypes:
         '''Read and decodes a single document from the data stream.
 
         Raises:
@@ -151,7 +149,7 @@ class BaseSerdes(ABC):
     @abstractmethod
     def decode_all(self,
                    stream: Union[TextIO, str],
-                   context: 'VerediContext') -> SerdesOutput:
+                   context: 'VerediContext') -> DeserializeTypes:
         '''Read and decodes all documents from the data stream.
 
         Raises:
@@ -199,7 +197,7 @@ class BaseSerdes(ABC):
 
     @abstractmethod
     def encode(self,
-               data: Mapping[str, Any],
+               data: SerializeTypes,
                context: 'VerediContext') -> StringIO:
         '''Write and encodes a single document from the data stream.
 
@@ -212,7 +210,7 @@ class BaseSerdes(ABC):
 
     @abstractmethod
     def encode_all(self,
-                   data: Mapping[str, Any],
+                   data: SerializeTypes,
                    context: 'VerediContext') -> StringIO:
         '''Write and encodes all documents from the data stream.
 

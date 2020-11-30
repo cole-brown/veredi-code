@@ -14,7 +14,7 @@ from veredi.base.null import Nullable, Null
 if TYPE_CHECKING:
     from veredi.base.context         import VerediContext
     from veredi.data.repository.base import BaseRepository
-    from veredi.data.serdes.base     import BaseSerdes, SerdesOutput
+    from veredi.data.serdes.base     import BaseSerdes, DeserializeTypes
 
 import pathlib
 
@@ -392,7 +392,7 @@ class Configuration:
 
         return VerediHealth.HEALTHY
 
-    def _load_doc(self, document: 'SerdesOutput') -> None:
+    def _load_doc(self, document: 'DeserializeTypes') -> None:
         if isinstance(document, list):
             raise log.exception(
                 None,
