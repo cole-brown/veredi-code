@@ -27,7 +27,9 @@ from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 
 from ..encodable                 import Encodable
-from ..base                      import BaseSerdes, SerdesOutput, SerdesInput
+from ..base                      import (BaseSerdes,
+                                         DeserializeTypes,
+                                         SerializeTypes)
 
 from . import adapters
 
@@ -95,7 +97,7 @@ class YamlSerdes(BaseSerdes):
 
     def decode(self,
                stream: Union[TextIO, str],
-               context: 'VerediContext') -> SerdesOutput:
+               context: 'VerediContext') -> DeserializeTypes:
         '''Read and decodes data from a single data stream.
 
         Raises:
@@ -123,7 +125,7 @@ class YamlSerdes(BaseSerdes):
 
     def decode_all(self,
                    stream: Union[TextIO, str],
-                   context: 'VerediContext') -> SerdesOutput:
+                   context: 'VerediContext') -> DeserializeTypes:
         '''Read and decodes data from a single data stream.
 
         Raises:
@@ -266,7 +268,7 @@ class YamlSerdes(BaseSerdes):
         return context
 
     def _encode_prep(self,
-                     data: SerdesInput,
+                     data: SerializeTypes,
                      context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into
@@ -305,7 +307,7 @@ class YamlSerdes(BaseSerdes):
             context=context)
 
     def encode(self,
-               data: Any,
+               data: SerializeTypes,
                context: 'VerediContext') -> StringIO:
         '''
         Encodes data from a single data object.
@@ -329,7 +331,7 @@ class YamlSerdes(BaseSerdes):
         return output
 
     def encode_all(self,
-                   data: Iterable[Any],
+                   data: SerializeTypes,
                    context: 'VerediContext') -> StringIO:
         '''
         Encodes data from an iterable of data objects. Each will be a separate
@@ -356,7 +358,7 @@ class YamlSerdes(BaseSerdes):
         return output
 
     def _write(self,
-               data: Any,
+               data: SerializeTypes,
                context: 'VerediContext') -> StringIO:
         '''
         Write data from a single data stream.
@@ -392,7 +394,7 @@ class YamlSerdes(BaseSerdes):
         return encoded
 
     def _write_all(self,
-                   data: Any,
+                   data: SerializeTypes,
                    context: 'VerediContext') -> StringIO:
         '''Write data from a single data stream.
 
