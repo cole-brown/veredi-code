@@ -62,7 +62,6 @@ server:
 
   output:
     type: veredi.interface.output.system
-    codec: veredi.codec.yaml
 
 
 client:

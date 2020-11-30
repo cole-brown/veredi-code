@@ -237,7 +237,6 @@ class ConfigHierarchy(Hierarchy):
 
             'output': {
                 'type': Info.LEAF,
-                'codec': Info.LEAF,
             },
         },
 
