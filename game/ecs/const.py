@@ -196,7 +196,7 @@ class SystemPriority(enum.IntEnum):
     # ---
     # Specific Systems
     # ---
-    DATA_CODEC = HIGH - 6
+    DATA_SERDES = HIGH - 6
     DATA_REPO  = HIGH - 8
     DATA_REQ   = HIGH - 10
 

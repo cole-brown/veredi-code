@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Veredi's Adapter classes for interfacing specific codec backends to
+Veredi's Adapter classes for interfacing specific serdes backends to
 Veredi systems.
 
 E.g. the YAML tag '!grouped' should have a Veredi class to be its face. So when

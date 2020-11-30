@@ -50,7 +50,7 @@ from .ecs.base.entity                   import Entity
 
 # Required Systems
 from veredi.game.data.repository.system import RepositorySystem
-from veredi.game.data.codec.system      import CodecSystem
+from veredi.game.data.serdes.system     import SerdesSystem
 from veredi.game.data.system            import DataSystem
 
 
@@ -222,7 +222,7 @@ class Engine:
     one time-step loop (currently).
     '''
 
-    SYSTEMS_REQUIRED = frozenset((RepositorySystem, CodecSystem, DataSystem))
+    SYSTEMS_REQUIRED = frozenset((RepositorySystem, SerdesSystem, DataSystem))
 
     DOTTED = 'veredi.game.engine'
 

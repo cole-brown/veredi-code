@@ -14,7 +14,7 @@ from veredi.base.null import Nullable, Null
 if TYPE_CHECKING:
     from veredi.base.context         import VerediContext
     from veredi.data.repository.base import BaseRepository
-    from veredi.data.codec.base      import BaseCodec, CodecOutput
+    from veredi.data.serdes.base     import BaseSerdes, SerdesOutput
 
 import pathlib
 
@@ -66,9 +66,9 @@ class Configuration:
     _CTX_NAME = 'configuration'
 
     def __init__(self,
-                 config_path:  Optional[pathlib.Path]     = None,
-                 config_repo:  Optional['BaseRepository'] = None,
-                 config_codec: Optional['BaseCodec']      = None) -> None:
+                 config_path:   Optional[pathlib.Path]     = None,
+                 config_repo:   Optional['BaseRepository'] = None,
+                 config_serdes: Optional['BaseSerdes']     = None) -> None:
         '''Raises LoadError and ConfigError'''
         self._path = config_path or default_path()
 
@@ -76,7 +76,7 @@ class Configuration:
         self._config = {}
 
         try:
-            # Setup our context, import repo & codec's.
+            # Setup our context, import repo & serdes's.
             # Also includes a handy back-link to this Configuration.
             background.config.init(self._path,
                                    self)
@@ -88,10 +88,10 @@ class Configuration:
                 self._repo = FileBareRepository(Null())
 
             # Avoid a circular import
-            self._codec = config_codec
-            if not self._codec:
-                from ..codec.yaml import codec
-                self._codec = codec.YamlCodec(Null())
+            self._serdes = config_serdes
+            if not self._serdes:
+                from ..serdes.yaml import serdes
+                self._serdes = serdes.YamlSerdes(Null())
 
             self._set_background()
 
@@ -126,17 +126,17 @@ class Configuration:
                               self._bg,
                               background.Ownership.SHARE)
 
-        # Set config's repo/codec too.
+        # Set config's repo/serdes too.
         bg_data, bg_owner = (self._repo.background
                              if self._repo else
                              (None, background.Ownership.SHARE))
         background.config.set(background.Name.REPO,
                               bg_data,
                               bg_owner)
-        bg_data, bg_owner = (self._codec.background
-                             if self._codec else
+        bg_data, bg_owner = (self._serdes.background
+                             if self._serdes else
                              (None, background.Ownership.SHARE))
-        background.config.set(background.Name.CODEC,
+        background.config.set(background.Name.SERDES,
                               bg_data,
                               bg_owner)
 
@@ -341,11 +341,11 @@ class Configuration:
                 exceptions.ConfigError,
                 "No path for config data after loading!")
 
-        if not self._codec:
+        if not self._serdes:
             raise log.exception(
                 None,
                 exceptions.ConfigError,
-                "No codec for config data after loading!")
+                "No serdes for config data after loading!")
 
         if not self._repo:
             raise log.exception(
@@ -367,14 +367,14 @@ class Configuration:
                               ConfigContext.KEY,
                               self._path)
         with self._repo.load(ctx) as stream:
-            # Decode w/ codec.
+            # Decode w/ serdes.
             # Can raise an error - we'll let it.
             try:
                 log.debug("Config Load Context: {}, "
                           "Confgig Repo: {}, "
-                          "Confgig Codec: {}",
-                          ctx, self._repo, self._codec)
-                for each in self._codec.decode_all(stream, ctx):
+                          "Confgig Serdes: {}",
+                          ctx, self._repo, self._serdes)
+                for each in self._serdes.decode_all(stream, ctx):
                     log.debug("Config Loading Doc: {}", each)
                     self._load_doc(each)
 
@@ -392,7 +392,7 @@ class Configuration:
 
         return VerediHealth.HEALTHY
 
-    def _load_doc(self, document: 'CodecOutput') -> None:
+    def _load_doc(self, document: 'SerdesOutput') -> None:
         if isinstance(document, list):
             raise log.exception(
                 None,
@@ -425,26 +425,26 @@ class Configuration:
         '''
         Load a definition for the given dotted name.
 
-        Expects a game data repo and codec to have been linked into
+        Expects a game data repo and serdes to have been linked into
         background.data.
 
         For out-of-band loading like during system init/set_up phases where
         timing and consistent ticking aren't critical.
         '''
         def_repo = background.data.repository
-        def_codec = background.data.codec
-        if not def_repo or not def_codec:
+        def_serdes = background.data.serdes
+        if not def_repo or not def_serdes:
             raise log.exception(
                 None,
                 exceptions.ConfigError,
                 "Cannot load definition for {}! "
-                "No repostiory or codec. repo: {}, codec: {}",
+                "No repostiory or serdes. repo: {}, serdes: {}",
                 dotted_name,
                 str(def_repo),
-                str(def_codec))
+                str(def_serdes))
 
         loaded = def_repo.definition(dotted_name, context)
-        decoded = def_codec.decode_all(loaded, context)
+        decoded = def_serdes.decode_all(loaded, context)
         return decoded
 
     # -------------------------------------------------------------------------

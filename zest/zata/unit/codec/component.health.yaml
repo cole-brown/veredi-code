@@ -1,5 +1,5 @@
 # This is just test data; it's not a real/final/actual health component data or metadata.
-# I just wanted something relatively non-simple for testing codec.
+# I just wanted something relatively non-simple for testing serdes.
 
 --- !metadata
 record-type: veredi.unit-test

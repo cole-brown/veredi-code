@@ -19,7 +19,7 @@ data:
     type: veredi.repository.file-tree
     directory: ../repository/file-tree
     sanitize: veredi.sanitize.human.path-safe
-  codec: veredi.codec.yaml
+  serdes: veredi.serdes.yaml
 
 
 rules:
@@ -48,7 +48,7 @@ engine:
 server:
   mediator:
     type: veredi.interface.mediator.websocket.server
-    codec: veredi.codec.json
+    serdes: veredi.serdes.json
     hostname: 127.0.0.1  # Can't use 'localhost' or IPv6 for now...
     port: 13369
     ssl: false
@@ -67,7 +67,7 @@ server:
 client:
   mediator:
     type: veredi.interface.mediator.websocket.client
-    codec: veredi.codec.json
+    serdes: veredi.serdes.json
     hostname: 127.0.0.1  # Can't use 'localhost' or IPv6 for now...
     port: 13369
     ssl: false

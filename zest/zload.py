@@ -34,19 +34,19 @@ from veredi.game.engine                 import Engine
 
 # System Stuff
 from veredi.game.data.repository.system import RepositorySystem
-from veredi.game.data.codec.system      import CodecSystem
+from veredi.game.data.serdes.system     import SerdesSystem
 from veredi.game.data.system            import DataSystem
 
 # Registry
 from veredi.data.config                 import registry as config_registry
-from veredi.data.codec.yaml             import registry as yaml_registry
+from veredi.data.serdes.yaml            import registry as yaml_registry
 from veredi.data.codec.encodable import EncodableRegistry
 
 # Registration
 import veredi.math.d20.parser
 # import veredi.data.repository.file
-# import veredi.data.codec.yaml.codec
-# import veredi.data.codec.json.codec
+# import veredi.data.serdes.yaml.serdes
+# import veredi.data.serdes.json.serdes
 
 
 # -----------------------------------------------------------------------------
@@ -145,7 +145,7 @@ def set_up(test_name_class:   str,
     Creates a managers' meeting (via zmake.meeting).
     Creates a real context (via zontext.real_contfig).
     Creates supplied Systems (using our zload.create_systems).
-      - If none supplied, creates default RepositorySystem, CodecSystem, and
+      - If none supplied, creates default RepositorySystem, SerdesSystem, and
         DataSystem.
       - These are (currently) the min required to get from disk to component.
 
@@ -192,7 +192,7 @@ def set_up(test_name_class:   str,
                                   *desired_systems)
         elif not require_engine:
             sids = create_systems(system_manager, context,
-                                  RepositorySystem, CodecSystem, DataSystem)
+                                  RepositorySystem, SerdesSystem, DataSystem)
         # Else: our engine creates the requried stuff and we don't want to
         # double-create.
 

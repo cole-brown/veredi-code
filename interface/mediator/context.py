@@ -39,7 +39,7 @@ Invalid connection token for initializing or resetting variables or whatever.
 
 class MediatorContext(EphemerealContext):
     '''
-    Context for mediators. For indicating what kind of mediations, codec, etc
+    Context for mediators. For indicating what kind of mediations, serdes, etc
     is in use.
     '''
 
@@ -47,13 +47,13 @@ class MediatorContext(EphemerealContext):
                  dotted: str,
                  path:   Optional[str]               = None,
                  type:   Optional[str]               = None,
-                 codec:  Optional[Mapping[str, str]] = None,
+                 serdes:  Optional[Mapping[str, str]] = None,
                  conn:   Optional[UserConnToken]     = None
                  ) -> None:
         super().__init__(dotted, 'mediator')
         self.sub['path'] = path
         self.sub['type'] = type
-        self.sub['codec'] = codec
+        self.sub['serdes'] = serdes
         self.sub['connection'] = conn
 
     @property
@@ -75,7 +75,7 @@ class MediatorContext(EphemerealContext):
 class MediatorServerContext(MediatorContext):
     '''
     Context for mediators on the server side. For indicating what kind of
-    mediations, codec, etc is in use.
+    mediations, serdes, etc is in use.
     '''
 
     def __repr_name__(self):
@@ -85,7 +85,7 @@ class MediatorServerContext(MediatorContext):
 class MediatorClientContext(MediatorContext):
     '''
     Context for mediators on the client side. For indicating what kind of
-    mediations, codec, etc is in use.
+    mediations, serdes, etc is in use.
     '''
 
     def __repr_name__(self):

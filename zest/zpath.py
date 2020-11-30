@@ -57,14 +57,14 @@ def rooted(test_type: TestType,
 
 
 # -----------------------------------------------------------------------------
-# Codecs
+# Serdess
 # -----------------------------------------------------------------------------
 
-def codec(test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:
+def serdes(test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:
     '''
-    Returns pathlib.Path to codec test data.
+    Returns pathlib.Path to serdes test data.
     '''
-    return retval(rooted(test_type, 'codec'))
+    return retval(rooted(test_type, 'serdes'))
 
 
 # -----------------------------------------------------------------------------

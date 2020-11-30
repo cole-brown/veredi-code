@@ -151,7 +151,7 @@ class Test_DataDict(ZestBase):
 # -----------------------------------------------------------------------------
 
 # Can't just run file from here... Do:
-#   doc-veredi python -m veredi.data.codec.adapter.zest_dict
+#   doc-veredi python -m veredi.data.serdes.adapter.zest_dict
 
 if __name__ == '__main__':
     import unittest

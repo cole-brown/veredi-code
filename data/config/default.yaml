@@ -19,13 +19,13 @@ data:
       type: veredi.repository.file-tree
       directory: /var/veredi/repository/file-tree
       sanitize: veredi.sanitize.human.path-safe
-    codec: veredi.codec.yaml
+    serdes: veredi.serdes.yaml
 
   template:
     repository:
       type: veredi.repository.file-tree
       directory: /etc/veredi/templates/file-tree
       sanitize: veredi.sanitize.human.path-safe
-    codec: veredi.codec.yaml
+    serdes: veredi.serdes.yaml
 
 # and more?

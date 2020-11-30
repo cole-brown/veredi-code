@@ -38,7 +38,6 @@ from veredi.logger                      import log
 from veredi.base.const                  import VerediHealth
 from veredi.data                        import background
 from veredi.data.config.registry        import register
-from veredi.data.codec.adapter          import definition
 from veredi.data.milieu                 import ValueMilieu
 
 # Game / ECS Stuff

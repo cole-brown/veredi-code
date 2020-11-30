@@ -28,7 +28,7 @@ from veredi.rules.d20.pf2.health.component import HealthComponent
 # Constants
 # -----------------------------------------------------------------------------
 
-# Similar to game.data.codec.zest_system's test_data, but in python form.
+# Similar to game.data.serdes.zest_system's test_data, but in python form.
 test_data = [
     {
         'doc-type': 'metadata',
@@ -36,7 +36,7 @@ test_data = [
     },
 
     {
-        # Gotta add this on since it's injected by codec when decoding.
+        # Gotta add this on since it's injected by serdes when decoding.
         'doc-type': 'component',
 
         'meta': {

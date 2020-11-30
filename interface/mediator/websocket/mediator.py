@@ -24,7 +24,7 @@ from veredi.base                 import dotted
 from veredi.base.context         import VerediContext
 from veredi.debug.const          import DebugFlag
 from veredi.data                 import background
-from veredi.data.codec.base      import BaseCodec
+from veredi.data.serdes.base     import BaseSerdes
 from veredi.data.config.config   import Configuration
 from veredi.data.codec.encodable import EncodableRegistry
 
@@ -72,8 +72,8 @@ class WebSocketMediator(Mediator):
         self._name:  str              = None
         '''Should be 'client' or 'server'.'''
 
-        self._codec: BaseCodec        = None
-        '''Mediator's codec will be from Configuration.'''
+        self._serdes: BaseSerdes      = None
+        '''Mediator's serdes will be from Configuration.'''
 
         self._host:  str              = None
         '''Mediator's host name/ip string will be from Configuration.'''
@@ -128,10 +128,10 @@ class WebSocketMediator(Mediator):
         self._name = species
 
         # Grab our data from the config...
-        self._codec = config.make(None,
+        self._serdes = config.make(None,
                                   self._name,
                                   'mediator',
-                                  'codec')
+                                  'serdes')
 
         self._host = config.get(self._name,
                                 'mediator',
@@ -170,7 +170,7 @@ class WebSocketMediator(Mediator):
         self._bg = {
             'dotted': self.dotted(),
             'type': dotted.join('websocket', self._name),
-            'codec': self._codec.dotted(),
+            'serdes': self._serdes.dotted(),
         }
         return self._bg, background.Ownership.SHARE
 
@@ -280,83 +280,6 @@ class WebSocketMediator(Mediator):
             return send
 
         return None
-
-    # def _h_codec_encode(self,
-    #                     msg: Message,
-    #                     context: Optional[MediatorContext]
-    #                     ) -> Optional[Message]:
-    #     '''
-    #     Helper for handling messages that need encoding before sending.
-    #     '''
-    #     if not msg:
-    #         return msg
-    #     if not msg.payload:
-    #         # Replace whatever Falsy value is in there now
-    #         # with flat-out None for consistency?
-    #         msg.payload = None
-    #         return msg
-
-    #     # §-TODO-§ [2020-11-10]: Delete this message type tx/rx pipeline?
-    #     # Message itself knows what to do with its data now.
-    #     self.debug("TODO: delete this path.")
-
-    #     self.debug(f"msg: {msg}")
-    #     encoded = self._codec.encode(msg.payload, context)
-    #     self.debug(f"encoded stream ({type(encoded)}): {encoded}")
-    #     payload = encoded.getvalue()
-    #     encoded.close()
-    #     self.debug(f"encoded payload ({type(payload)}): {payload}")
-
-    #     # Replace message's payload with the encoded payload.
-    #     msg.payload = payload
-    #     return msg
-
-    # def _h_codec_decode(self,
-    #                     msg:     Message,
-    #                     context: Optional[MediatorContext]
-    #                     ) -> Optional[Message]:
-    #     '''
-    #     Helper for handling messages that need decoding before passing off to
-    #     receiver pipe/queue.
-    #     '''
-    #     if not msg:
-    #         return msg
-    #     if not msg.payload:
-    #         # Replace whatever Falsy value is in there now
-    #         # with flat-out None for consistency?
-    #         msg.payload = None
-    #         return msg
-
-    #     self.debug(f"msg: {msg}")
-    #     payload = msg.payload
-
-    #     # TODO: BaseCodec.encode/decode -> serialize/deserialize? Since
-    #     # Encodable is the real 'codec' now...
-    #     # Actually... Move json/yaml to serdes. And move Encodable to codec.
-
-    #     if isinstance(payload, str):
-    #         # We receive a string. Now we need to deserialize to either str or
-    #         # a python collection (e.g. dict)...
-    #         # TODO: THIS SHOULD BE A SERDES, NOT A CODEC, I TIHNK!!!
-    #         #   or... not? It should decode json to dict. Yeah.
-    #         print("h_codec_decode: string payload:")
-    #         log.ultra_hyper_debug(payload)
-    #         deserialized = self._codec.decode(payload, context)
-    #         self.debug(f"deserialized to ({type(deserialized)}): "
-    #                    f"{deserialized}")
-
-    #         # Now we can decode it into its final form.
-    #         decoded = EncodableRegistry.decode(payload)
-    #         self.debug(f"decoded to ({type(decoded)}): "
-    #                    f"{decoded}")
-
-    #         # Replace message's payload with the decoded payload.
-    #         msg.payload = decoded
-
-    #     else:
-    #         self.debug(f"skip non-str payload ({type(payload)}): {payload}")
-
-    #     return msg
 
     # -------------------------------------------------------------------------
     # TX / RX Handlers
@@ -670,50 +593,6 @@ class WebSocketMediator(Mediator):
         return await self._hrx_generic(match, path, msg, context,
                                        send_ack=True,
                                        log_type='encoded')
-
-    # async def _htx_codec(self,
-    #                      msg:  Message,
-    #                      ctx:  Optional[MediatorContext],
-    #                      conn: UserConnToken) -> Optional[Message]:
-    #     '''
-    #     Handle sending a message with a payload we've been requested
-    #     to 'codec plz'.
-
-    #     So encode payload, then send.
-    #     '''
-    #     self.debug(f"htx_codec msg: {msg}")
-    #     msg = self._h_codec_encode(msg, ctx)
-    #     self.debug(f"encoded payload: {msg.payload}")
-    #     # TODO: do I really need to make a new message? Can I just use the msg
-    #     # after _h_codec_encode() is done with it?
-    #     send = Message.codec(msg, msg.payload)
-    #     return await self._htx_generic(send, ctx, conn, log_type='codec')
-
-    # async def _hrx_codec(self,
-    #                      match:   re.Match,
-    #                      path:    str,
-    #                      msg:     Message,
-    #                      context: Optional[MediatorContext]
-    #                      ) -> Optional[Message]:
-    #     '''
-    #     Handle receiving a message with a payload we've been requested
-    #     to 'codec plz'.
-
-    #     So receive, then decode payload, then send on up.
-    #     '''
-    #     self.debug(f"received 'codec' {msg}...")
-
-    #     # Decode first, then pass on to generic handler for the rest.
-    #     msg = self._h_codec_decode(msg, context)
-    #     # TODO: do I really need to make a new message? Can I just use the msg
-    #     # after _h_codec_encode() is done with it?
-    #     recv = Message.codec(msg, msg.payload)
-
-    #     # recv is our processed msg, feed into _hrx_generic to process (ack,
-    #     # put in rx queue, etc).
-    #     return await self._hrx_generic(match, path, recv, context,
-    #                                    send_ack=True,
-    #                                    log_type='codec')
 
     async def _htx_envelope(self,
                             msg:  Message,

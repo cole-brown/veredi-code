@@ -62,13 +62,13 @@ class NoFileConfig(Configuration):
         self._config = config_data or {}
 
         try:
-            # Setup our context, import repo & codec's.
+            # Setup our context, import repo & serdes's.
             # Also includes a handy back-link to this Configuration.
             background.config.init(self._path,
                                    self)
 
             self._repo = None
-            self._codec = None
+            self._serdes = None
 
             self._set_background()
 

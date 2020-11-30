@@ -1,7 +1,8 @@
 # coding: utf-8
 
 '''
-Encodable mixin class for customizing how a class is encoded/decoded by Codecs.
+Encodable mixin class for customizing how a class is encoded/decoded to
+basic Python values/structures (int, dict, etc).
 '''
 
 # -----------------------------------------------------------------------------

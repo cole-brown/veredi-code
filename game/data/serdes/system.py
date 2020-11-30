@@ -19,7 +19,7 @@ from veredi.logger import log
 from veredi.data import background
 from veredi.base.const import VerediHealth
 from veredi.base.context import VerediContext
-from veredi.data.codec.base import BaseCodec
+from veredi.data.serdes.base import BaseSerdes
 
 # Game / ECS Stuff
 from ...ecs.manager import EcsManager
@@ -49,7 +49,7 @@ from ..event import (
 # Code
 # -----------------------------------------------------------------------------
 
-class CodecSystem(System):
+class SerdesSystem(System):
 
     # -------------------------------------------------------------------------
     # System Set Up
@@ -59,7 +59,7 @@ class CodecSystem(System):
         '''
         Make our repo from config data.
         '''
-        self._codec: Optional[BaseCodec] = None
+        self._serdes: Optional[BaseSerdes] = None
 
         self._component_type: Type['Component'] = None
         '''DataSystem doesn't have a component type.'''
@@ -81,27 +81,27 @@ class CodecSystem(System):
 
         config = background.config.config
         if config:
-            self._codec = config.make(None,
+            self._serdes = config.make(None,
                                       'data',
-                                      'codec')
+                                      'serdes')
 
-        bg_data, bg_owner = self._codec.background
-        background.data.set(background.Name.CODEC,
+        bg_data, bg_owner = self._serdes.background
+        background.data.set(background.Name.SERDES,
                             bg_data,
                             bg_owner)
-        background.data.link_set(background.data.Link.CODEC,
-                                 self._codec)
+        background.data.link_set(background.data.Link.SERDES,
+                                 self._serdes)
 
     @classmethod
-    def dotted(klass: 'CodecSystem') -> str:
-        return 'veredi.game.data.codec.system'
+    def dotted(klass: 'SerdesSystem') -> str:
+        return 'veredi.game.data.serdes.system'
 
     def priority(self) -> Union[SystemPriority, int]:
         '''
         Returns a SystemPriority (or int) for when, relative to other systems,
         this should run. Highest priority goes firstest.
         '''
-        return SystemPriority.DATA_CODEC
+        return SystemPriority.DATA_SERDES
 
     # -------------------------------------------------------------------------
     # Events
@@ -113,17 +113,17 @@ class CodecSystem(System):
         event_manager if need to sub/unsub more dynamically.
         '''
 
-        # Codec subs to:
+        # Serdes subs to:
         # - DeserializedEvent
         #   Deserialized Data needs to be decoded so it can be used in game.
-        #   - Codec creates a DecodedEvent once it has done this.
+        #   - Serdes creates a DecodedEvent once it has done this.
         self._manager.event.subscribe(DeserializedEvent,
                                       self.event_deserialized)
 
-        # Codec subs to:
+        # Serdes subs to:
         # - DataSaveRequest
         #   Data needs to be encoded before it can be saved.
-        #   - Codec creates an EncodedEvent once it has done this.
+        #   - Serdes creates an EncodedEvent once it has done this.
         self._manager.event.subscribe(DataSaveRequest,
                                       self.event_data_save_request)
 
@@ -141,10 +141,10 @@ class CodecSystem(System):
         serial = event.data
         context = event.context
 
-        # Send into my codec for decoding.
-        decoded = self._codec.decode_all(serial, context)
+        # Send into my serdes for decoding.
+        decoded = self._serdes.decode_all(serial, context)
 
-        # Take codec data result (just a python dict?) and set into
+        # Take serdes data result (just a python dict?) and set into
         # DecodedEvent data/context/whatever. Then have EventManager fire off
         # event for whoever wants the next step.
         event = DecodedEvent(event.id,
@@ -170,7 +170,7 @@ class CodecSystem(System):
                 context=event.context)
             return
 
-        context = self._codec.context.push(event.context)
+        context = self._serdes.context.push(event.context)
 
         # TODO [2020-05-22]: Encode it.
         raise NotImplementedError(

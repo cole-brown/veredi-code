@@ -15,7 +15,7 @@ import os
 
 # Veredi
 from . import template
-# from veredi.data.codec.yaml.codec import YamlCodec
+# from veredi.data.serdes.yaml.serdes import YamlSerdes
 
 
 # -----------------------------------------------------------------------------

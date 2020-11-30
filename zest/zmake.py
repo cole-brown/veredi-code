@@ -18,7 +18,7 @@ from veredi.debug.const           import DebugFlag
 # Config Stuff
 from veredi.data.config.config    import Configuration
 from veredi.data.repository.base  import BaseRepository
-from veredi.data.codec.base       import BaseCodec
+from veredi.data.serdes.base      import BaseSerdes
 from veredi.data.config.hierarchy import Document
 
 # Meeting Stuff
@@ -39,13 +39,13 @@ from veredi.game.ecs.meeting      import Meeting
 # Configuration
 # -----------------------------------------------------------------------------
 
-def config(test_type:    zpath.TestType                 = zpath.TestType.UNIT,
-           config_path:  Union[pathlib.Path, str, None] = None,
-           config_repo:  Optional[BaseRepository]       = None,
-           config_codec: Optional[BaseCodec]            = None,
-           repo_dotted:  Optional[str]                  = None,
-           repo_path:    Union[pathlib.Path, str, None] = None,
-           repo_clean:   Optional[str]                  = None,
+def config(test_type:     zpath.TestType                 = zpath.TestType.UNIT,
+           config_path:   Union[pathlib.Path, str, None] = None,
+           config_repo:   Optional[BaseRepository]       = None,
+           config_serdes: Optional[BaseSerdes]           = None,
+           repo_dotted:   Optional[str]                  = None,
+           repo_path:     Union[pathlib.Path, str, None] = None,
+           repo_clean:    Optional[str]                  = None,
            ) -> Configuration:
     '''
     Creates a configuration with the requested config file path.
@@ -60,9 +60,9 @@ def config(test_type:    zpath.TestType                 = zpath.TestType.UNIT,
         path = pathlib.Path('config.testing.yaml')
 
     path = zpath.config(path, test_type)
-    config = Configuration(path, config_repo, config_codec)
+    config = Configuration(path, config_repo, config_serdes)
 
-    # Inject specific codec for unit test.
+    # Inject specific serdes for unit test.
     if repo_dotted:
         config.ut_inject(repo_dotted,
                          Document.CONFIG,

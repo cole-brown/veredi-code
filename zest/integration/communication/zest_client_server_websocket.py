@@ -38,7 +38,7 @@ from veredi.data.config.context         import ConfigContext
 # ---
 # Need these to register...
 # ---
-from veredi.data.codec.json                     import codec
+from veredi.data.serdes.json                    import serdes
 
 
 # ---

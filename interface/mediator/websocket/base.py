@@ -27,10 +27,10 @@ from io import StringIO
 # ---
 # Veredi Imports
 # ---
-from veredi.logger          import log
-from veredi.data.codec.base import BaseCodec
-from veredi.time.timer      import MonotonicTimer
-from veredi.base.identity   import MonotonicId
+from veredi.logger           import log
+from veredi.data.serdes.base import BaseSerdes
+from veredi.time.timer       import MonotonicTimer
+from veredi.base.identity    import MonotonicId
 
 from ..const                 import MsgType
 from ..message               import Message
@@ -104,7 +104,7 @@ class VebSocket:
     ''' Should be 'client' or 'server', depending. '''
 
     def __init__(self,
-                 codec:          BaseCodec,
+                 serdes:         BaseSerdes,
                  med_context_fn: MediatorMakeContext,
                  msg_context_fn: MessageMakeContext,
                  host:           str,
@@ -116,7 +116,7 @@ class VebSocket:
         # ---
         # Required
         # ---
-        self._codec:            BaseCodec           = codec
+        self._serdes:           BaseSerdes          = serdes
         self._med_make_context: MediatorMakeContext = med_context_fn
         self._msg_make_context: MessageMakeContext  = msg_context_fn
         self._host:             str                 = host
@@ -305,20 +305,20 @@ class VebSocket:
 
     def encode(self, msg: Message, context: MediatorContext) -> str:
         '''
-        Encodes msg as a structured string using our codec.
+        Encodes msg as a structured string using our serdes.
         '''
-        stream = self._codec.encode(msg, context)
+        stream = self._serdes.encode(msg, context)
         value = stream.getvalue()
         stream.close()
         return value
 
     def decode(self, recvd: str, context: MediatorContext) -> Message:
         '''
-        Decodes received string using our codec.
+        Decodes received string using our serdes.
         '''
         stream = StringIO(recvd)
         try:
-            value = self._codec.decode(recvd, context)
+            value = self._serdes.decode(recvd, context)
         finally:
             stream.close()
         msg = Message.decode(value)
