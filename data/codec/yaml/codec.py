@@ -10,13 +10,15 @@ Aka YAML Codec.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, TextIO, Iterable)
+                    Optional, Union, Any, TextIO, Iterable, Mapping)
+from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
     from veredi.data.config.context import ConfigContext
 
 import yaml
 from io import StringIO
+import contextlib
 
 from veredi.logger               import log
 
@@ -24,7 +26,8 @@ from veredi.data                 import background
 from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 
-from ..base                      import BaseCodec, CodecOutput
+from ..encodable                 import Encodable
+from ..base                      import BaseCodec, CodecOutput, CodecInput
 
 from . import adapters
 
@@ -251,7 +254,55 @@ class YamlCodec(BaseCodec):
     # Encode Methods
     # -------------------------------------------------------------------------
 
-    # TODO: _encode_prep from JSON
+    def _context_encode_data(self,
+                             context: 'VerediContext') -> 'VerediContext':
+        '''
+        Inject our codec data into the context.
+        '''
+        meta, _ = self.background
+        context[str(background.Name.CODEC)] = {
+            'meta': meta,
+        }
+        return context
+
+    def _encode_prep(self,
+                     data: CodecInput,
+                     context: 'VerediContext') -> Mapping[str, Any]:
+        '''
+        Tries to turn the various possibilities for data (list, dict, etc) into
+        something ready for yaml to encode.
+        '''
+        encoded = None
+        if null_or_none(data):
+            return encoded
+
+        # Is it just an Encodable object?
+        if isinstance(data, Encodable):
+            encoded = data.encode(None)
+            return encoded
+
+        # Mapping?
+        with contextlib.suppress(AttributeError):
+            encoded = {}
+            for each in data.keys():
+                # TODO [2020-07-29]: Change to non-recursive?
+                encoded[str(each)] = self._encode_prepass(data[each], context)
+            return encoded
+
+        # Iterable
+        with contextlib.suppress(AttributeError):
+            encoded = []
+            for each in data:
+                # TODO [2020-07-29]: Change to non-recursive?
+                encoded.append(self._encode_prepass(each), context)
+            return encoded
+
+        msg = "Don't know how to process data."
+        raise log.exception(
+            ValueError(msg, data),
+            exceptions.WriteError,
+            msg + f" data: {data}",
+            context=context)
 
     def encode(self,
                data: Any,
@@ -266,7 +317,8 @@ class YamlCodec(BaseCodec):
 
         # self._context_encode_data(context)
         log.debug(f"encode data: {data}")
-        output = self._write(data, context)
+        to_encode = self._encode_prep(data, context)
+        output = self._write(to_encode, context)
         if not output:
             raise log.exception(
                 None,
@@ -274,9 +326,6 @@ class YamlCodec(BaseCodec):
                 "Writing yaml from data resulted in no output: {}",
                 output,
                 context=context)
-
-        # TODO: Here is where we'd check for sanity and stuff?
-
         return output
 
     def encode_all(self,
@@ -291,8 +340,9 @@ class YamlCodec(BaseCodec):
             - wrapped yaml.YAMLEncodeError
         '''
 
+        to_encode = self._encode_prep(data, context)
         # self._context_encode_data(context)
-        output = self._write_all(data, context)
+        output = self._write_all(to_encode, context)
         if not output:
             raise log.exception(
                 None,

@@ -218,7 +218,7 @@ class JsonCodec(BaseCodec):
             encoded = {}
             for each in data.keys():
                 # TODO [2020-07-29]: Change to non-recursive?
-                encoded[str(each)] = self._encode_prepass(data[each], context)
+                encoded[str(each)] = self._encode_prep(data[each], context)
             return encoded
 
         # Iterable
@@ -226,7 +226,7 @@ class JsonCodec(BaseCodec):
             encoded = []
             for each in data:
                 # TODO [2020-07-29]: Change to non-recursive?
-                encoded.append(self._encode_prepass(each), context)
+                encoded.append(self._encode_prep(each), context)
             return encoded
 
         msg = "Don't know how to process data."
