@@ -85,7 +85,7 @@ class VerediContext:
     def key(self) -> str:
         '''
         Returns our context's key (aka the context dict key for our subcontext
-        data dict) (e.g. "YamlCodec" context key is "codec").
+        data dict).
         '''
         return self._key
 
@@ -93,7 +93,7 @@ class VerediContext:
     def key(self, value: str) -> None:
         '''
         Sets our context's key (aka the context dict key for our subcontext
-        data dict) (e.g. "YamlCodec" context key is "codec").
+        data dict).
         '''
         context = self._get()
         sub_context = context.pop(self._key, None)

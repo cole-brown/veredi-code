@@ -3,7 +3,7 @@
 '''
 General Data System for the Game. Handles:
   - initiating load/save requests
-  - loading/unloading data in components for codec
+  - loading/unloading data in components for serdes
 
 That is, it is the start and end point of loads and saves.
 '''

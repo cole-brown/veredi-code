@@ -35,7 +35,7 @@ class Test_Configuration(ZestBase):
         self.config = zmake.config(zpath.TestType.UNIT,
                                    config_path=self.path,
                                    config_repo=None,
-                                   config_codec=None)
+                                   config_serdes=None)
 
     def tearDown(self):
         self.path = None
@@ -90,10 +90,10 @@ class Test_Configuration(ZestBase):
                                               'directory'),
                          'test-target-repo/file-tree')
         self.assertEqual(self.config.get('data',
-                                         'codec'),
-                         'veredi.codec.yaml')
-        self.assertEqual(self.config.get_data('codec'),
-                         'veredi.codec.yaml')
+                                         'serdes'),
+                         'veredi.serdes.yaml')
+        self.assertEqual(self.config.get_data('serdes'),
+                         'veredi.serdes.yaml')
 
     def test_config_make_repo(self):
         debugging = False

@@ -110,7 +110,7 @@ from veredi.math.d20                            import tree
 # ---
 # Registry
 # ---
-from veredi.data.codec.json                     import codec
+from veredi.data.serdes.json                    import serdes
 from veredi.rules.d20.pf2.health.component      import HealthComponent
 import veredi.interface.mediator.websocket.server
 import veredi.interface.mediator.websocket.client

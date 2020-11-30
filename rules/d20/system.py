@@ -22,7 +22,7 @@ from veredi.logger                      import log
 from veredi.base.const                  import VerediHealth
 from veredi.base                        import dotted
 from veredi.data                        import background
-from veredi.data.codec.adapter          import definition
+from veredi.data.serdes.adapter         import definition
 from veredi.data.milieu                 import ValueMilieu
 from veredi.data.config.config          import Configuration
 

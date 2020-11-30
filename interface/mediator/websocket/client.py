@@ -36,7 +36,7 @@ from veredi.base.context         import VerediContext
 from veredi.data.identity        import UserId
 from veredi.data                 import background
 from veredi.data.config.config   import Configuration
-from veredi.data.codec.base      import BaseCodec
+from veredi.data.serdes.base     import BaseSerdes
 from veredi.data.config.registry import register
 
 from ..const                     import MsgType
@@ -67,7 +67,7 @@ class VebSocketClient(VebSocket):
     ''' Should be 'client' or 'server', depending. '''
 
     def __init__(self,
-                 codec:          BaseCodec,
+                 serdes:         BaseSerdes,
                  med_context_fn: Callable[[], MediatorClientContext],
                  msg_context_fn: Callable[[], MessageContext],
                  host:           str,
@@ -75,7 +75,7 @@ class VebSocketClient(VebSocket):
                  port:           Optional[int]           = None,
                  secure:         Optional[bool]          = True,
                  debug_fn:       Optional[Callable]      = None) -> None:
-        super().__init__(codec, med_context_fn, msg_context_fn,
+        super().__init__(serdes, med_context_fn, msg_context_fn,
                          host,
                          path=path,
                          port=port,
@@ -251,11 +251,11 @@ class WebSocketClient(WebSocketMediator):
                          connection: websockets.WebSocketCommonProtocol = None
                          ) -> MediatorClientContext:
         '''
-        Make a context with our context data, our codec's, etc.
+        Make a context with our context data, our serdes, etc.
         '''
         ctx = MediatorClientContext(self.dotted())
         ctx.sub['type'] = 'websocket.client'
-        ctx.sub['codec'] = self._codec.make_context_data()
+        ctx.sub['serdes'] = self._serdes.make_context_data()
         return ctx
 
     def make_msg_context(self, id: MonotonicId) -> MessageContext:
@@ -623,7 +623,7 @@ class WebSocketClient(WebSocketMediator):
         '''
         Get a new WebSocket connection to our server.
         '''
-        socket = VebSocketClient(self._codec,
+        socket = VebSocketClient(self._serdes,
                                  self.make_med_context,
                                  self.make_msg_context,
                                  self._host,

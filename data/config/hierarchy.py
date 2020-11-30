@@ -89,7 +89,7 @@ class Hierarchy:
         VKEY_DOC_TYPE: Info.LEAF
     }
     '''
-    These will be in every Document Hierarchy, placed there by the Codec when
+    These will be in every Document Hierarchy, placed there by the Serdes when
     decoded. They do not exist when encoded/on disk/etc.
     '''
 
@@ -189,7 +189,7 @@ class ConfigHierarchy(Hierarchy):
                 'directory': Info.LEAF,
                 'sanitize': Info.LEAF,
             },
-            'codec': Info.LEAF,
+            'serdes': Info.LEAF,
         },
 
         'rules': {
@@ -220,7 +220,7 @@ class ConfigHierarchy(Hierarchy):
         'server': {
             'mediator': {
                 'type': Info.LEAF,
-                'codec': Info.LEAF,
+                'serdes': Info.LEAF,
                 'hostname': Info.LEAF,
                 'port': Info.LEAF,
                 'ssl': Info.LEAF,
@@ -243,7 +243,7 @@ class ConfigHierarchy(Hierarchy):
         'client': {
             'mediator': {
                 'type': Info.LEAF,
-                'codec': Info.LEAF,
+                'serdes': Info.LEAF,
                 'hostname': Info.LEAF,
                 'port': Info.LEAF,
                 'ssl': Info.LEAF,

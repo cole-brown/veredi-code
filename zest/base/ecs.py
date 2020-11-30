@@ -289,7 +289,7 @@ class ZestEcs(ZestBase):
         Initializes several systems you need but don't need to hang on to
         directly for your test.
 
-        NOTE: Already created RepositorySystem, CodecSystem, DataSystem in
+        NOTE: Already created RepositorySystem, SerdesSystem, DataSystem in
         set_up_ecs() if your test called that.
         '''
         sids = zload.create_systems(self.manager.system,

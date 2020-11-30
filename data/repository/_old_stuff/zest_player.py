@@ -15,8 +15,8 @@ import os
 
 # Veredi
 from . import player
-from veredi.data.codec.json.codec import JsonCodec
-from veredi.data.codec.yaml.codec import YamlCodec
+from veredi.data.serdes.json.serdes import JsonSerdes
+from veredi.data.serdes.yaml.serdes import YamlSerdes
 
 # Our Stuff
 from veredi.zester import test_data
@@ -57,7 +57,7 @@ class Test_PlayerRepo_FileJson(unittest.TestCase):
 
     def test_load(self):
         repo = player.PlayerFileTree(self.data_root,
-                                     data_codec=JsonCodec())
+                                     data_serdes=JsonSerdes())
         data = repo.load_by_name(self.name_user,
                                  self.name_campaign,
                                  self.name_player)
@@ -97,7 +97,7 @@ class Test_PlayerRepo_FileYaml(unittest.TestCase):
 
     def test_load(self):
         repo = player.PlayerFileTree(self.data_root,
-                                     data_codec=YamlCodec())
+                                     data_serdes=YamlSerdes())
         data = repo.load_by_name(self.name_user,
                                  self.name_campaign,
                                  self.name_player)

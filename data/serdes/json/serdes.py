@@ -2,7 +2,7 @@
 
 '''
 Reader/Loader & Writer/Dumper of JSON Format.
-Aka JSON Codec.
+Aka JSON Serdes.
 '''
 
 # -----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 
 from ..encodable                 import Encodable
-from ..base                      import BaseCodec, CodecOutput, CodecInput
+from ..base                      import BaseSerdes, SerdesOutput, SerdesInput
 
 
 # -----------------------------------------------------------------------------
@@ -39,13 +39,13 @@ from ..base                      import BaseCodec, CodecOutput, CodecInput
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'codec', 'json')
-class JsonCodec(BaseCodec):
-    _CODEC_NAME   = 'json'
+@register('veredi', 'serdes', 'json')
+class JsonSerdes(BaseSerdes):
+    _SERDES_NAME   = 'json'
 
     def __init__(self,
                  context: Optional['ConfigContext'] = None) -> None:
-        super().__init__(JsonCodec._CODEC_NAME,
+        super().__init__(JsonSerdes._SERDES_NAME,
                          context)
 
     def _configure(self,
@@ -72,10 +72,10 @@ class JsonCodec(BaseCodec):
     def _context_decode_data(self,
                              context: 'VerediContext') -> 'VerediContext':
         '''
-        Inject our codec data into the context.
+        Inject our serdes data into the context.
         '''
         meta, _ = self.background
-        context[str(background.Name.CODEC)] = {
+        context[str(background.Name.SERDES)] = {
             'meta': meta,
         }
         return context
@@ -86,7 +86,7 @@ class JsonCodec(BaseCodec):
 
     def decode(self,
                stream: Union[TextIO, str],
-               context: 'VerediContext') -> CodecOutput:
+               context: 'VerediContext') -> SerdesOutput:
         '''
         Read and decodes data from a single data stream.
 
@@ -139,7 +139,7 @@ class JsonCodec(BaseCodec):
 
     def decode_all(self,
                    stream: Union[TextIO, str],
-                   context: 'VerediContext') -> CodecOutput:
+                   context: 'VerediContext') -> SerdesOutput:
         '''
         Read and decodes all documents from the data stream.
 
@@ -174,16 +174,16 @@ class JsonCodec(BaseCodec):
     def _context_encode_data(self,
                              context: 'VerediContext') -> 'VerediContext':
         '''
-        Inject our codec data into the context.
+        Inject our serdes data into the context.
         '''
         meta, _ = self.background
-        context[str(background.Name.CODEC)] = {
+        context[str(background.Name.SERDES)] = {
             'meta': meta,
         }
         return context
 
     def encode(self,
-               data: CodecInput,
+               data: SerdesInput,
                context: 'VerediContext') -> StringIO:
         '''
         Write and encodes a single document from the data stream.
@@ -198,7 +198,7 @@ class JsonCodec(BaseCodec):
         return stream
 
     def _encode_prep(self,
-                     data: CodecInput,
+                     data: SerdesInput,
                      context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into

@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Tests for the CodecSystem class.
+Tests for the SerdesSystem class.
 '''
 
 # -----------------------------------------------------------------------------
@@ -13,7 +13,7 @@ from io import StringIO
 from veredi.zest.base.system import ZestSystem
 from veredi.base.context     import UnitTestContext
 
-from .system                 import CodecSystem
+from .system                 import SerdesSystem
 from ..event                 import (DeserializedEvent, DataSaveRequest,
                                      DecodedEvent, EncodedEvent)
 
@@ -54,37 +54,37 @@ health:
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_CodecSystem(ZestSystem):
+class Test_SerdesSystem(ZestSystem):
 
     def set_up(self):
         super().set_up()
-        self.codec         = CodecSystem(None, 1, self.manager)
+        self.serdes         = SerdesSystem(None, 1, self.manager)
 
     def tear_down(self):
         super().tear_down()
-        self.codec         = None
+        self.serdes         = None
 
     def sub_decoded(self):
         self.manager.event.subscribe(DecodedEvent, self.event_decoded)
 
     def set_up_subs(self):
         self.sub_decoded()
-        self.codec.subscribe(self.manager.event)
+        self.serdes.subscribe(self.manager.event)
 
     def event_decoded(self, event):
         self.events.append(event)
 
     def test_init(self):
-        self.assertTrue(self.codec)
+        self.assertTrue(self.serdes)
         self.assertTrue(self.manager.event)
 
     def test_subscribe(self):
         self.assertFalse(self.manager.event._subscriptions)
-        self.codec.subscribe(self.manager.event)
+        self.serdes.subscribe(self.manager.event)
         self.assertTrue(self.manager.event._subscriptions)
 
         self.assertEqual(self.manager.event,
-                         self.codec._manager.event)
+                         self.serdes._manager.event)
 
     def test_event_deserialize(self):
         self.set_up_subs()
@@ -102,7 +102,7 @@ class Test_CodecSystem(ZestSystem):
                 data=stream)
             self.assertTrue(event)
             self.manager.event.notify(event, True)
-            # CodecSystem will reply with its own event (not immediately
+            # SerdesSystem will reply with its own event (not immediately
             # published?)... publish it for it.
             self.manager.event.publish()
             self.assertTrue(self.events)
@@ -145,7 +145,7 @@ class Test_CodecSystem(ZestSystem):
 # -----------------------------------------------------------------------------
 
 # Can't just run file from here... Do:
-#   doc-veredi python -m veredi.game.data.codec.zest_system
+#   doc-veredi python -m veredi.game.data.serdes.zest_system
 
 if __name__ == '__main__':
     import unittest

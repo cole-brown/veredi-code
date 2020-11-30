@@ -2,7 +2,7 @@
 
 '''
 Reader/Loader & Writer/Dumper of YAML Format.
-Aka YAML Codec.
+Aka YAML Serdes.
 '''
 
 # -----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 
 from ..encodable                 import Encodable
-from ..base                      import BaseCodec, CodecOutput, CodecInput
+from ..base                      import BaseSerdes, SerdesOutput, SerdesInput
 
 from . import adapters
 
@@ -41,17 +41,17 @@ from . import adapters
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'codec', 'yaml')
-class YamlCodec(BaseCodec):
+@register('veredi', 'serdes', 'yaml')
+class YamlSerdes(BaseSerdes):
     # https://pyyaml.org/wiki/PyYAMLDocumentation
 
     _SANITIZE_KEYCHAIN = ['game', 'repository', 'sanitize']
 
-    _CODEC_NAME   = 'yaml'
+    _SERDES_NAME   = 'yaml'
 
     def __init__(self,
                  context: Optional['VerediContext'] = None) -> None:
-        super().__init__(YamlCodec._CODEC_NAME,
+        super().__init__(YamlSerdes._SERDES_NAME,
                          context)
 
         adapters.import_and_register()
@@ -81,10 +81,10 @@ class YamlCodec(BaseCodec):
     def _context_decode_data(self,
                              context: 'VerediContext') -> 'VerediContext':
         '''
-        Inject our codec data into the context.
+        Inject our serdes data into the context.
         '''
         meta, _ = self.background
-        context[str(background.Name.CODEC)] = {
+        context[str(background.Name.SERDES)] = {
             'meta': meta,
         }
         return context
@@ -95,7 +95,7 @@ class YamlCodec(BaseCodec):
 
     def decode(self,
                stream: Union[TextIO, str],
-               context: 'VerediContext') -> CodecOutput:
+               context: 'VerediContext') -> SerdesOutput:
         '''Read and decodes data from a single data stream.
 
         Raises:
@@ -123,7 +123,7 @@ class YamlCodec(BaseCodec):
 
     def decode_all(self,
                    stream: Union[TextIO, str],
-                   context: 'VerediContext') -> CodecOutput:
+                   context: 'VerediContext') -> SerdesOutput:
         '''Read and decodes data from a single data stream.
 
         Raises:
@@ -220,7 +220,7 @@ class YamlCodec(BaseCodec):
             - Other yaml/stream errors?
         '''
 
-        # print('Codec read:', stream.read(None))
+        # print('Serdes read:', stream.read(None))
         # log.critical("\n\nstream at: {} {}", str(type(stream.tell())), str(stream.tell()))
         # stream.seek(0)
 
@@ -257,16 +257,16 @@ class YamlCodec(BaseCodec):
     def _context_encode_data(self,
                              context: 'VerediContext') -> 'VerediContext':
         '''
-        Inject our codec data into the context.
+        Inject our serdes data into the context.
         '''
         meta, _ = self.background
-        context[str(background.Name.CODEC)] = {
+        context[str(background.Name.SERDES)] = {
             'meta': meta,
         }
         return context
 
     def _encode_prep(self,
-                     data: CodecInput,
+                     data: SerdesInput,
                      context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into
@@ -410,7 +410,7 @@ class YamlCodec(BaseCodec):
             - Other yaml/stream errors?
         '''
 
-        # print('Codec read:', stream.read(None))
+        # print('Serdes read:', stream.read(None))
         # stream.seek(0)
 
         encoded = StringIO()

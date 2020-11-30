@@ -5,7 +5,7 @@ Base Veredi Class for Testing ECS Engine.
   - Helpful functions.
   - Set-up / Tear-down for global Veredi stuff.
     - config registry
-    - yaml codec tag registry
+    - yaml serdes tag registry
     - etc.
 '''
 

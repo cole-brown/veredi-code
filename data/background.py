@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from veredi.base.const                 import VerediHealth
     from veredi.base.context               import VerediContext
     from veredi.data.repository.base       import BaseRepository
-    from veredi.data.codec.base            import BaseCodec
+    from veredi.data.serdes.base           import BaseSerdes
     from veredi.game.ecs.meeting           import Meeting
     from veredi.game.ecs.base.system       import System, SystemLifeCycle
     from veredi.interface.input.parse      import Parcel
@@ -210,7 +210,7 @@ DOTTED_NAME = 'veredi.context.background'
 @enum.unique
 class Name(enum.Enum):
     REPO = 'repository'
-    CODEC = 'codec'
+    SERDES = 'serdes'
     DATA_SYS = 'system'
     CONFIG = 'configuration'
 
@@ -381,7 +381,7 @@ class config(metaclass=ConfigMeta):
             data:      ContextMap,
             ownership: Ownership) -> None:
         '''
-        Repo and Codec have to be created and want to register some data into
+        Repo and Serdes have to be created and want to register some data into
         the background context.
 
         Makes a deep copy of inputs if ownership wants.
@@ -629,9 +629,9 @@ class DataMeta(type):
         return retval
 
     @property
-    def codec(klass: Type['data']) -> Nullable['BaseCodec']:
+    def serdes(klass: Type['data']) -> Nullable['BaseSerdes']:
         ctx = klass._get()
-        retval = ctx.get(klass.Link.CODEC, Null())
+        retval = ctx.get(klass.Link.SERDES, Null())
         return retval
 
 
@@ -648,10 +648,10 @@ class data(metaclass=DataMeta):
         DataSystem/RepositorySystem/etc should be used instead.
         '''
 
-        CODEC = enum.auto()
+        SERDES = enum.auto()
         '''
-        A Codec for the Game Data. Should not be used - the
-        DataSystem/CodecSystem/etc should be used instead.
+        A Serdes for the Game Data. Should not be used - the
+        DataSystem/SerdesSystem/etc should be used instead.
         '''
 
     @classmethod
@@ -702,9 +702,9 @@ class data(metaclass=DataMeta):
 
     # Provided by DataMeta:
     # @classmethod
-    # def codec(klass: Type['data']) -> Nullable['BaseCodec']:
+    # def serdes(klass: Type['data']) -> Nullable['BaseSerdes']:
     #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.CODEC, Null())
+    #     retval = ctx.get(klass.Link.SERDES, Null())
     #     return retval
 
 

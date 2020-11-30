@@ -2,7 +2,8 @@
 
 '''
 Base class for Reader/Loader & Writer/Dumper of ___ Format.
-Aka ___ Codec.
+Aka ___ Serdes.
+Aka ___ Serializer/Deserializer.
 '''
 
 # -----------------------------------------------------------------------------
@@ -29,22 +30,22 @@ from .encodable import Encodable
 # -----------------------------------------------------------------------------
 
 
-# TODO [2020-08-22]: Rename; CodecInput and CodecOutput are both
-# inputs/outputs to codec because codec is coder/decoder so this name makes me
-# sad that I came up with it...
+# TODO [2020-08-22]: Rename; SerdesInput and SerdesOutput are both
+# inputs/outputs to serdes because serdes is coder/decoder so this name makes
+# me sad that I came up with it...
 # EncodeTypes/DecodeTypes?
-CodecOutput = NewType('CodecOutput',
-                      Union[List[Any], Dict[str, Any], None])
+SerdesOutput = NewType('SerdesOutput',
+                       Union[List[Any], Dict[str, Any], None])
 
 
-# TODO [2020-08-22]: Rename; CodecInput and CodecOutput are both
-# inputs/outputs to codec because codec is coder/decoder so this name makes me
-# sad that I came up with it...
+# TODO [2020-08-22]: Rename; SerdesInput and SerdesOutput are both
+# inputs/outputs to serdes because serdes is coder/decoder so this name makes
+# me sad that I came up with it...
 # EncodeTypes/DecodeTypes?
-CodecInput = NewType('CodecInput',
-                     Union[Encodable, Iterable[Any], Mapping[str, Any], None])
+SerdesInput = NewType('SerdesInput',
+                      Union[Encodable, Iterable[Any], Mapping[str, Any], None])
 
-# TODO [2020-08-22]: YAML Codec should use the renamed CodecInput/Output.
+# TODO [2020-08-22]: YAML Serdes should use the renamed SerdesInput/Output.
 
 
 # -----------------------------------------------------------------------------
@@ -52,23 +53,23 @@ CodecInput = NewType('CodecInput',
 # -----------------------------------------------------------------------------
 
 # Subclasses, register like this:
-# @register('veredi', 'codec', 'CodecSubclass')
-class BaseCodec(ABC):
+# @register('veredi', 'serdes', 'SerdesSubclass')
+class BaseSerdes(ABC):
     def __init__(self,
-                 codec_name:     str,
+                 serdes_name:    str,
                  config_context: Optional['VerediContext'] = None) -> None:
         '''
-        `codec_name` should be short and will be lowercased. It should probably
-        be like a filename extension, e.g. 'yaml', 'json'.
+        `serdes_name` should be short and will be lowercased. It should
+        probably be like a filename extension, e.g. 'yaml', 'json'.
 
         `config_context` is the context being used to set us up.
         '''
-        self._name = codec_name.lower()
+        self._name = serdes_name.lower()
 
         self._configure(config_context)
 
     # -------------------------------------------------------------------------
-    # Codec Properties/Methods
+    # Serdes Properties/Methods
     # -------------------------------------------------------------------------
 
     @property
@@ -124,7 +125,7 @@ class BaseCodec(ABC):
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:
         '''
-        Allows codecs to grab anything from the config data that they need to
+        Allows serdess to grab anything from the config data that they need to
         set up themselves.
         '''
         raise NotImplementedError(f"{self.__class__.__name__}._configure() "
@@ -137,7 +138,7 @@ class BaseCodec(ABC):
     @abstractmethod
     def decode(self,
                stream: Union[TextIO, str],
-               context: 'VerediContext') -> CodecOutput:
+               context: 'VerediContext') -> SerdesOutput:
         '''Read and decodes a single document from the data stream.
 
         Raises:
@@ -150,7 +151,7 @@ class BaseCodec(ABC):
     @abstractmethod
     def decode_all(self,
                    stream: Union[TextIO, str],
-                   context: 'VerediContext') -> CodecOutput:
+                   context: 'VerediContext') -> SerdesOutput:
         '''Read and decodes all documents from the data stream.
 
         Raises:

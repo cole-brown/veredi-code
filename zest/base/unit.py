@@ -5,7 +5,7 @@ Base Veredi Class for Tests.
   - Helpful functions.
   - Set-up / Tear-down for global Veredi stuff.
     - config registry
-    - yaml codec tag registry
+    - yaml serdes tag registry
     - etc.
 '''
 
@@ -186,7 +186,7 @@ class ZestBase(unittest.TestCase):
       - Helpful functions.
       - Set-up / Tear-down for global Veredi stuff.
         - config registry
-        - yaml codec tag registry
+        - yaml serdes tag registry
         - etc.
 
     Internal (probably) helpers/functions/variables - that is ones subclasses

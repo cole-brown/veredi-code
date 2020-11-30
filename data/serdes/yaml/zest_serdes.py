@@ -12,7 +12,7 @@ import datetime
 
 from veredi.zest.base.unit   import ZestBase
 
-from .codec                  import YamlCodec
+from .serdes                 import YamlSerdes
 from .adapters.document      import DocMetadata
 from .adapters.ecs.component import DocComponent
 
@@ -28,14 +28,14 @@ from veredi.zest             import zpath
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_YamlCodec(ZestBase):
+class Test_YamlSerdes(ZestBase):
 
     def set_up(self):
-        self.codec = YamlCodec()
-        self.path = zpath.codec() / 'component.health.yaml'
+        self.serdes = YamlSerdes()
+        self.path = zpath.serdes() / 'component.health.yaml'
 
     def tear_down(self):
-        self.codec = None
+        self.serdes = None
         self.path = None
 
     def context(self):
@@ -45,14 +45,14 @@ class Test_YamlCodec(ZestBase):
         }
 
     def test_init(self):
-        self.assertTrue(self.codec)
+        self.assertTrue(self.serdes)
         self.assertTrue(self.path)
         self.assertTrue(self.path.exists())
 
     def test_read(self):
         read = None
         with self.path.open('r') as f:
-            read = self.codec._read_all(f, self.context())
+            read = self.serdes._read_all(f, self.context())
 
         self.assertIsNotNone(read)
         # We should have these documents in this order:
@@ -63,7 +63,7 @@ class Test_YamlCodec(ZestBase):
     def test_metadata(self):
         read = None
         with self.path.open('r') as f:
-            read = self.codec._read_all(f, self.context())
+            read = self.serdes._read_all(f, self.context())
 
         self.assertIsNotNone(read)
         self.assertEqual(type(read[0]), DocMetadata)
@@ -89,7 +89,7 @@ class Test_YamlCodec(ZestBase):
     def test_component(self):
         read = None
         with self.path.open('r') as f:
-            read = self.codec._read_all(f, self.context())
+            read = self.serdes._read_all(f, self.context())
 
         self.assertIsNotNone(read)
         self.assertEqual(type(read[1]), DocComponent)
@@ -153,7 +153,7 @@ class Test_YamlCodec(ZestBase):
 # -----------------------------------------------------------------------------
 
 # Can't just run file from here... Do:
-#   doc-veredi python -m veredi.data.codec.yaml.zest_codec
+#   doc-veredi python -m veredi.data.serdes.yaml.zest_serdes
 
 if __name__ == '__main__':
     import unittest

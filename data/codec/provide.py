@@ -105,17 +105,6 @@ import veredi.base.identity
 # ------------------------------
 # Data
 # ------------------------------
-# ---
-# Codec
-# ---
-# # Just for CodecInput NewType.
-# import veredi.data.codec.base
-
-# # Encodable itself - don't import.
-# import veredi.data.codec.encodable
-
-# # Just an isinstance().
-# import veredi.data.codec.json.codec
 
 # UserId - subclass of SerializableId
 # UserKey - subclass of SerializableId

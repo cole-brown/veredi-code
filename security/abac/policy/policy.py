@@ -11,7 +11,7 @@ about the request that needs conntrolling - subject, resource, action, context.
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from veredi.data.codec.base import BaseCodec
+    from veredi.data.serdes.base import BaseSerdes
 
 import enum
 
@@ -31,7 +31,7 @@ class Request:
     '''todo'''
 
     @classmethod
-    def from_codec(klass: 'Request', codec: 'BaseCodec') -> 'Request':
+    def from_serdes(klass: 'Request', serdes: 'BaseSerdes') -> 'Request':
         '''todo'''
         return Request()
 

@@ -36,7 +36,7 @@ from veredi.base.context         import VerediContext
 from veredi.data                 import background
 from veredi.data.identity        import UserId, UserKey
 from veredi.data.config.config   import Configuration
-from veredi.data.codec.base      import BaseCodec
+from veredi.data.serdes.base     import BaseSerdes
 from veredi.data.config.registry import register
 
 from .mediator                   import WebSocketMediator
@@ -70,7 +70,7 @@ class VebSocketServer(VebSocket):
     ''' Should be 'client' or 'server', depending. '''
 
     def __init__(self,
-                 codec:          BaseCodec,
+                 serdes:         BaseSerdes,
                  med_context_fn: Callable[[],
                                           MediatorServerContext],
                  msg_context_fn: Callable[[],
@@ -83,7 +83,7 @@ class VebSocketServer(VebSocket):
                  secure:         Optional[Union[str, bool]]            = True,
                  debug_fn:       Optional[Callable]                    = None
                  ) -> None:
-        super().__init__(codec, med_context_fn, msg_context_fn,
+        super().__init__(serdes, med_context_fn, msg_context_fn,
                          host,
                          path     = path,
                          port     = port,
@@ -458,7 +458,7 @@ class WebSocketServer(WebSocketMediator):
         # ---
         # Now we can make our WebSocket stuff...
         # ---
-        self._socket = VebSocketServer(self._codec,
+        self._socket = VebSocketServer(self._serdes,
                                        self.make_med_context,
                                        self.make_msg_context,
                                        self.disconnected,
@@ -606,11 +606,11 @@ class WebSocketServer(WebSocketMediator):
                          connection: UserConnToken = None
                          ) -> MediatorServerContext:
         '''
-        Make a context with our context data, our codec's, etc.
+        Make a context with our context data, our serdes, etc.
         '''
         ctx = MediatorServerContext(self.dotted(),
                                     type='websocket.server',
-                                    codec=self._codec.make_context_data(),
+                                    serdes=self._serdes.make_context_data(),
                                     conn=connection)
         return ctx
 

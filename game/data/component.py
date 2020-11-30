@@ -13,18 +13,18 @@ from typing import (TYPE_CHECKING,
                     Collection, Container, MutableMapping)
 from veredi.base.null import Null, Nullable
 if TYPE_CHECKING:
-    from veredi.base.context        import VerediContext
-    from veredi.data.config.context import ConfigContext
+    from veredi.base.context         import VerediContext
+    from veredi.data.config.context  import ConfigContext
 
 
-from veredi.logger                  import log
-from veredi.data.exceptions         import DataNotPresentError
-from ..ecs.base.component           import Component
-from ..ecs.base.identity            import ComponentId
+from veredi.logger                   import log
+from veredi.data.exceptions          import DataNotPresentError
+from ..ecs.base.component            import Component
+from ..ecs.base.identity             import ComponentId
 
 # Data Stuff
-from veredi.data.codec.adapter.dict import DataDict
-from veredi.base                    import dotted
+from veredi.data.serdes.adapter.dict import DataDict
+from veredi.base                     import dotted
 
 
 # -----------------------------------------------------------------------------

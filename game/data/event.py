@@ -37,17 +37,17 @@ from ..ecs.event import Event
 #  └─┬ Deserialized Event    - Repo owns
 #    │   - aka Load Event?
 #    │                       - Repo pubs
-#    │                       - Codec subs
-#    └─┬ Decoded Event       - Codec owns
-#      │                     - Codec pubs
+#    │                       - Serdes subs
+#    └─┬ Decoded Event       - Serdes owns
+#      │                     - Serdes pubs
 #      │                     - ComponentManager subs?
 #      ├── Data Loaded Event - ?
 #      ├── ...
 #      └─┬ Data Save Request - Repo owns ?
-#        │                   - Codec owns ?
-#        │                   - Codec subs
-#      ┌─┴ Encoded Event     - Codec owns
-#      │                     - Codec pubs
+#        │                   - Serdes owns ?
+#        │                   - Serdes subs
+#      ┌─┴ Encoded Event     - Serdes owns
+#      │                     - Serdes pubs
 #      │                     - Repo subs
 #    ┌─┴ Serialized Event    - Repo owns
 #    │                       - Repo pubs
@@ -188,7 +188,7 @@ class SerializedEvent(DataEvent):
 
 
 # -----------------------------------------------------------------------------
-# Codec Events
+# Serdes Events
 # -----------------------------------------------------------------------------
 
 class DecodedEvent(DataEvent):

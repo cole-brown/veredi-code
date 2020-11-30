@@ -288,7 +288,7 @@ class Mediator(ABC):
     @abstractmethod
     def make_med_context(self) -> MediatorContext:
         '''
-        Make a context with our context data, our codec's, etc.
+        Make a context with our context data, our serdes', etc.
         '''
         ...
 
