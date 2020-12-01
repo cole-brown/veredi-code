@@ -179,7 +179,6 @@ class MediatorSystem(System):
     MSG_TYPE_GAME = frozenset({
         MsgType.TEXT,
         MsgType.ENCODED,
-        MsgType.CODEC,
     })
     '''
     Messages between Mediator (Server or Client-via-Server) & Game will use
@@ -456,7 +455,7 @@ class MediatorSystem(System):
 
         # Figure out message type.
         # self._decide_msg_type(event.payload, entity, user_id)???
-        msg_type = MsgType.CODEC
+        msg_type = MsgType.TEXT
         if isinstance(event.payload, Envelope):
             msg_type = MsgType.ENVELOPE
 

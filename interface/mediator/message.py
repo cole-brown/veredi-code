@@ -190,21 +190,6 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def codec(klass:   'Message',
-              msg:     'Message',
-              payload: Union[Any, str]) -> 'Message':
-        '''
-        Create a 'codec' Message from this message by using `msg` for all
-        fields (except `self._payload`, `self._type`), then `payload` for the
-        new Message instance's payload (string if encoded, whatever if
-        decoded).
-        '''
-        return klass(msg.msg_id, MsgType.CODEC,
-                     payload=payload,
-                     user_id=msg.user_id,
-                     user_key=msg.user_key)
-
-    @classmethod
     def echo(klass: 'Message',
              msg:   'Message') -> 'Message':
         '''
@@ -386,9 +371,10 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
     @payload.setter
     def payload(self, value: str) -> None:
         '''
-        Replace payload with its encoded/decoded equal. Should only really be
-        used by e.g. CODEC messages for replacing an object/str with its
-        encoded str/decoded object.
+        Replace payload with its (encoded/decoded/serialized/deserialized)
+        equal.
+
+        TODO: Should payload be straight up replaced? Keep original somewhere?
         '''
         self._payload = value
 
@@ -413,29 +399,6 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
         # Security should be set to 'debug' or something if undesired for
         # whatever reason.
         return self._security_subject
-
-    @property
-    def path(self) -> Optional[str]:
-        '''
-        Returns a path str or None, based on MsgType.
-
-        # TODO [2020-10-27]: delete this.
-        # TODO [2020-07-29]: Also based on other things? Payload...
-        '''
-        if self._type == MsgType.PING:
-            return 'ping'
-        elif (self._type == MsgType.ECHO
-              or self._type == MsgType.ECHO_ECHO):
-            return 'echo'
-        elif self._type == MsgType.TEXT:
-            return 'text'
-        elif (self._type == MsgType.ENCODED
-              or self._type == MsgType.CODEC):
-            return 'encoded'
-        elif self._type == MsgType.LOGGING:
-            return 'logging'
-
-        return None
 
     # -------------------------------------------------------------------------
     # Encodable API
