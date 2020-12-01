@@ -497,7 +497,7 @@ class WebSocketServer(WebSocketMediator):
             return True
 
         log.critical("User failed registration validation... "
-                     "No UserId/UserKey or need to decode?"
+                     "No UserId/UserKey or need to deserialize/decode?"
                      " uid: {} {}; ukey: {} {}",
                      type(uid), uid,
                      type(ukey), ukey)

@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from io import StringIO
 
 
-from .encodable import Encodable
+from ..codec.encodable import Encodable
 
 
 # -----------------------------------------------------------------------------
@@ -134,29 +134,29 @@ class BaseSerdes(ABC):
     # -------------------------------------------------------------------------
 
     @abstractmethod
-    def decode(self,
+    def deserialize(self,
                stream: Union[TextIO, str],
                context: 'VerediContext') -> DeserializeTypes:
-        '''Read and decodes a single document from the data stream.
+        '''Read and deserializes a single document from the data stream.
 
         Raises:
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.decode() "
+        raise NotImplementedError(f"{self.__class__.__name__}.deserialize() "
                                   "is not implemented.")
 
     @abstractmethod
-    def decode_all(self,
+    def deserialize_all(self,
                    stream: Union[TextIO, str],
                    context: 'VerediContext') -> DeserializeTypes:
-        '''Read and decodes all documents from the data stream.
+        '''Read and deserializes all documents from the data stream.
 
         Raises:
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.decode_all() "
+        raise NotImplementedError(f"{self.__class__.__name__}.deserialize_all() "
                                   "is not implemented.")
 
     @abstractmethod
@@ -192,33 +192,33 @@ class BaseSerdes(ABC):
                                   "is not implemented.")
 
     # -------------------------------------------------------------------------
-    # Abstract: Encode Methods
+    # Abstract: Serialize Methods
     # -------------------------------------------------------------------------
 
     @abstractmethod
-    def encode(self,
+    def serialize(self,
                data: SerializeTypes,
                context: 'VerediContext') -> StringIO:
-        '''Write and encodes a single document from the data stream.
+        '''Write and serializes a single document from the data stream.
 
         Raises:
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.encode() "
+        raise NotImplementedError(f"{self.__class__.__name__}.serialize() "
                                   "is not implemented.")
 
     @abstractmethod
-    def encode_all(self,
+    def serialize_all(self,
                    data: SerializeTypes,
                    context: 'VerediContext') -> StringIO:
-        '''Write and encodes all documents from the data stream.
+        '''Write and serializes all documents from the data stream.
 
         Raises:
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.encode_all() "
+        raise NotImplementedError(f"{self.__class__.__name__}.serialize_all() "
                                   "is not implemented.")
 
     @abstractmethod

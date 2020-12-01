@@ -52,7 +52,7 @@ def event_id(event: OutputEvent) -> Tuple[str, str]:
     '''
     Gives the input id of the event.
     '''
-    return ('id', null_to_none(event.serial_id.encode(None)))
+    return ('id', null_to_none(event.serial_id.serialize(None)))
 
 
 def event_type(event: OutputEvent) -> Tuple[str, str]:

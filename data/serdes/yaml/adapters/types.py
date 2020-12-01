@@ -58,6 +58,6 @@ class TimeDuration(base.VerediYamlTag):
 # "foo: !duration 5sec" explicitly).
 registry.register(TimeDuration._YAML_TAG_NAME,
                   TimeDuration,
-                  decode_fn=None,
-                  encode_fn=None,
+                  deserialize_fn=None,
+                  serialize_fn=None,
                   implicit_rx=parse._TIME_DURATION_REGEX)
