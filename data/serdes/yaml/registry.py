@@ -22,17 +22,17 @@ from . import tags
 # Types
 # -----------------------------------------------------------------------------
 
-YamlDecode = NewType('YamlDecode',
+YamlDeserialize = NewType('YamlDeserialize',
                      Callable[[yaml.SafeLoader, yaml.nodes.Node], Type])
 
 
-YamlEncode = NewType('YamlEncode',
+YamlSerialize = NewType('YamlSerialize',
                      Callable[[yaml.SafeDumper, Type], yaml.nodes.Node])
 
 
 YamlAddClassTuple = NewType(
     'YamlAddClassTuple',
-    Tuple[str, Type, Optional[YamlDecode], Optional[YamlEncode]])
+    Tuple[str, Type, Optional[YamlDeserialize], Optional[YamlSerialize]])
 
 
 # -----------------------------------------------------------------------------
@@ -146,11 +146,11 @@ def _internal_register(tag: str, klass: Type) -> None:
 
 
 # -----------------------------------------------------------------------------
-# Veredi Class / YAML encode/decode Registry Functions
+# Veredi Class / YAML serialize/deserialize Registry Functions
 # -----------------------------------------------------------------------------
 
 # Thought about making this a property like Veredi's registry.register(), and
-# that would work great for the YAMLObject classes, but the decode/encode
+# that would work great for the YAMLObject classes, but the deserialize/serialize
 # functions (aka representer/constructor by YAML) can't be registered so
 # easily? And in some cases one function pair is used for multiple things... So
 # for now it's not a property unless I figure out a way I like for those
@@ -158,8 +158,8 @@ def _internal_register(tag: str, klass: Type) -> None:
 
 def register(name:        str,
              klass:       Type,
-             decode_fn:   Optional[YamlDecode],
-             encode_fn:   Optional[YamlEncode],
+             deserialize_fn:   Optional[YamlDeserialize],
+             serialize_fn:   Optional[YamlSerialize],
              implicit_rx: Optional[re.Pattern] = None) -> None:
     '''
     Basically, register with ourself and with YAML.
@@ -192,30 +192,30 @@ def register(name:        str,
     # ---
     # Register to YAML
     # ---
-    if decode_fn and encode_fn:
+    if deserialize_fn and serialize_fn:
         yaml.add_constructor(tag,
-                             decode_fn,
+                             deserialize_fn,
                              Loader=yaml.SafeLoader)
         yaml.add_representer(klass,
-                             encode_fn,
+                             serialize_fn,
                              Dumper=yaml.SafeDumper)
 
-    elif not decode_fn and not encode_fn:
+    elif not deserialize_fn and not serialize_fn:
         if not issubclass(klass, yaml.YAMLObject):
             raise log.exception(
                 None,
                 RegistryError,
                 f"Class '{klass}' must either derive from YAMLObject or "
-                "provided encoder/decoder functions for YAML to use."
-                f"Got: {encode_fn}, {decode_fn}.")
+                "provided serializer/deserializer functions for YAML to use."
+                f"Got: {serialize_fn}, {deserialize_fn}.")
 
     else:
         raise log.exception(
             None,
             RegistryError,
             f"Class '{klass}' must either derive from YAMLObject or "
-            "provided encoder/decoder functions for YAML to use."
-            f"Got: {encode_fn}, {decode_fn}.")
+            "provided serializer/deserializer functions for YAML to use."
+            f"Got: {serialize_fn}, {deserialize_fn}.")
 
     # They can also optionally have an implicit resolver...
     if implicit_rx:

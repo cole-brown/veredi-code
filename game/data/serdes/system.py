@@ -142,7 +142,7 @@ class SerdesSystem(System):
         context = event.context
 
         # Send into my serdes for decoding.
-        decoded = self._serdes.decode_all(serial, context)
+        decoded = self._serdes.deserialize_all(serial, context)
 
         # Take serdes data result (just a python dict?) and set into
         # DecodedEvent data/context/whatever. Then have EventManager fire off

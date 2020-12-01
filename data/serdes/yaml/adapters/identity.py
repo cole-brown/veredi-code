@@ -12,8 +12,8 @@ import yaml
 
 from veredi.logger        import log
 from veredi.base.identity import MonotonicId, SerializableId
-from ..exceptions         import (VerediYamlEncodeError,
-                                  VerediYamlDecodeError)
+from ..exceptions         import (VerediYamlSerializeError,
+                                  VerediYamlDeserializeError)
 from .. import tags
 from .. import registry
 
@@ -43,7 +43,7 @@ def monotonic_id_constructor(loader: yaml.SafeLoader,
     Just raise Error. Should not get MonotonicId.
     '''
     msg = f"Shouldn't be decoding a MonotonicId? Found: {node}"
-    error = VerediYamlDecodeError(msg)
+    error = VerediYamlDeserializeError(msg)
     raise log.exception(error, None, msg)
 
 
@@ -57,7 +57,7 @@ def monotonic_id_representer(dumper: yaml.SafeDumper,
     Error on MonotonicId - shouldn't get read/written.
     '''
     msg = f"Shouldn't be encoding a MonotonicId? Found: {mid}"
-    error = VerediYamlEncodeError(msg)
+    error = VerediYamlSerializeError(msg)
     raise log.exception(error, None, msg)
 
 
@@ -95,10 +95,10 @@ def serializable_id_constructor(loader: yaml.SafeLoader,
     if not klass:
         msg = ("Couldn't find a SerializableId id sub-class to "
                f"construct for this node: {node}")
-        error = VerediYamlDecodeError(msg)
+        error = VerediYamlDeserializeError(msg)
         raise log.exception(error, None, msg)
 
-    instance = klass.decode(ident_map)
+    instance = klass.deserialize(ident_map)
     return instance
 
 
@@ -117,23 +117,24 @@ def serializable_id_representer(dumper: yaml.SafeDumper,
     if not yaml_tag:
         msg = ("Couldn't find a SerializableId yaml tag to "
                f"construct for this: {ident}")
-        error = VerediYamlEncodeError(msg)
+        error = VerediYamlSerializeError(msg)
         raise log.exception(error, None, msg)
 
     # Claim '!id' tag as generic SerializableId. Specific ids will have their
-    # type in the encode() return so we'll be able to decode with just this.
-    # Plus we have implicit resolvers too.
+    # type in the serialize() return so we'll be able to deserialize with just
+    # this. Plus we have implicit resolvers too.
 
     log.debug(f'Dump this SerializableId: {ident}')
     return dumper.represent_mapping(yaml_tag,
-                                    ident.encode(None))
+                                    ident.serialize(None))
 
 
 # ------------------------------
 # Register SerializableIDs!
 # ------------------------------
 
-# TODO: is this different kind of reg or should it use new registrar base class too?
+# TODO: is this different kind of reg or should it use new registrar base class
+# too?
 registry.register(UserId._ENCODE_FIELD_NAME, UserId,
                   serializable_id_constructor,
                   serializable_id_representer,

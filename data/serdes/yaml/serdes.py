@@ -26,7 +26,7 @@ from veredi.data                 import background
 from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 
-from ..encodable                 import Encodable
+from ...codec.encodable          import Encodable
 from ..base                      import (BaseSerdes,
                                          DeserializeTypes,
                                          SerializeTypes)
@@ -80,7 +80,7 @@ class YamlSerdes(BaseSerdes):
         '''
         return self._bg, background.Ownership.SHARE
 
-    def _context_decode_data(self,
+    def _context_deserialize_data(self,
                              context: 'VerediContext') -> 'VerediContext':
         '''
         Inject our serdes data into the context.
@@ -92,22 +92,22 @@ class YamlSerdes(BaseSerdes):
         return context
 
     # -------------------------------------------------------------------------
-    # Decode Methods
+    # Deserialize Methods
     # -------------------------------------------------------------------------
 
-    def decode(self,
+    def deserialize(self,
                stream: Union[TextIO, str],
                context: 'VerediContext') -> DeserializeTypes:
-        '''Read and decodes data from a single data stream.
+        '''Read and deserializes data from a single data stream.
 
         Raises:
           - exceptions.ReadError
-            - wrapped yaml.YAMLDecodeError
+            - wrapped yaml.YAMLDeserializeError
           Maybes:
             - Other yaml/stream errors?
         '''
 
-        self._context_decode_data(context)
+        self._context_deserialize_data(context)
         data = self._read(stream, context)
 
         # TODO: Here is where we'd check metadata for versions and stuff?
@@ -123,19 +123,19 @@ class YamlSerdes(BaseSerdes):
         # Game data should just be python: dicts, lists, str, int, etc.
         return self._to_game(data)
 
-    def decode_all(self,
+    def deserialize_all(self,
                    stream: Union[TextIO, str],
                    context: 'VerediContext') -> DeserializeTypes:
-        '''Read and decodes data from a single data stream.
+        '''Read and deserializes data from a single data stream.
 
         Raises:
           - exceptions.ReadError
-            - wrapped yaml.YAMLDecodeError
+            - wrapped yaml.YAMLDeserializeError
           Maybes:
             - Other yaml/stream errors?
         '''
 
-        self._context_decode_data(context)
+        self._context_deserialize_data(context)
         data = self._read_all(stream, context)
         if not data:
             raise log.exception(
@@ -183,7 +183,7 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.ReadError
-            - wrapped yaml.YAMLDecodeError
+            - wrapped yaml.YAMLDeserializeError
           Maybes:
             - Other yaml/stream errors?
         '''
@@ -217,23 +217,15 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.ReadError
-            - wrapped yaml.YAMLDecodeError
+            - wrapped yaml.YAMLDeserializeError
           Maybes:
             - Other yaml/stream errors?
         '''
-
-        # print('Serdes read:', stream.read(None))
-        # log.critical("\n\nstream at: {} {}", str(type(stream.tell())), str(stream.tell()))
-        # stream.seek(0)
 
         data = None
         try:
             data = yaml.safe_load_all(stream)
             data = self._finish_read(data)
-            # if not data:
-            #     log.critical("DED STREAM!!!")
-            # import pprint
-            # print(f"\n\n{self.__class__.__name__}.decode_all:\n  context: \n{pprint.pformat(context)}\n\n   data = \n{pprint.pformat(data)}\n\n")
         except yaml.YAMLError as error:
             data = None
             raise log.exception(
@@ -253,10 +245,10 @@ class YamlSerdes(BaseSerdes):
         return list(data)
 
     # -------------------------------------------------------------------------
-    # Encode Methods
+    # Serialize Methods
     # -------------------------------------------------------------------------
 
-    def _context_encode_data(self,
+    def _context_serialize_data(self,
                              context: 'VerediContext') -> 'VerediContext':
         '''
         Inject our serdes data into the context.
@@ -267,37 +259,37 @@ class YamlSerdes(BaseSerdes):
         }
         return context
 
-    def _encode_prep(self,
+    def _serialize_prep(self,
                      data: SerializeTypes,
                      context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into
-        something ready for yaml to encode.
+        something ready for yaml to serialize.
         '''
-        encoded = None
+        serialized = None
         if null_or_none(data):
-            return encoded
+            return serialized
 
         # Is it just an Encodable object?
         if isinstance(data, Encodable):
-            encoded = data.encode(None)
-            return encoded
+            serialized = data.encode(None)
+            return serialized
 
         # Mapping?
         with contextlib.suppress(AttributeError):
-            encoded = {}
+            serialized = {}
             for each in data.keys():
                 # TODO [2020-07-29]: Change to non-recursive?
-                encoded[str(each)] = self._encode_prepass(data[each], context)
-            return encoded
+                serialized[str(each)] = self._serialize_prepass(data[each], context)
+            return serialized
 
         # Iterable
         with contextlib.suppress(AttributeError):
-            encoded = []
+            serialized = []
             for each in data:
                 # TODO [2020-07-29]: Change to non-recursive?
-                encoded.append(self._encode_prepass(each), context)
-            return encoded
+                serialized.append(self._serialize_prepass(each), context)
+            return serialized
 
         msg = "Don't know how to process data."
         raise log.exception(
@@ -306,21 +298,21 @@ class YamlSerdes(BaseSerdes):
             msg + f" data: {data}",
             context=context)
 
-    def encode(self,
+    def serialize(self,
                data: SerializeTypes,
                context: 'VerediContext') -> StringIO:
         '''
-        Encodes data from a single data object.
+        Serializes data from a single data object.
 
         Raises:
           - exceptions.WriteError
-            - wrapped yaml.YAMLEncodeError
+            - wrapped yaml.YAMLSerializeError
         '''
 
-        # self._context_encode_data(context)
-        log.debug(f"encode data: {data}")
-        to_encode = self._encode_prep(data, context)
-        output = self._write(to_encode, context)
+        # self._context_serialize_data(context)
+        log.debug(f"serialize data: {data}")
+        to_serialize = self._serialize_prep(data, context)
+        output = self._write(to_serialize, context)
         if not output:
             raise log.exception(
                 None,
@@ -330,21 +322,21 @@ class YamlSerdes(BaseSerdes):
                 context=context)
         return output
 
-    def encode_all(self,
+    def serialize_all(self,
                    data: SerializeTypes,
                    context: 'VerediContext') -> StringIO:
         '''
-        Encodes data from an iterable of data objects. Each will be a separate
+        Serializes data from an iterable of data objects. Each will be a separate
         yaml doc in the output.
 
         Raises:
           - exceptions.WriteError
-            - wrapped yaml.YAMLEncodeError
+            - wrapped yaml.YAMLSerializeError
         '''
 
-        to_encode = self._encode_prep(data, context)
-        # self._context_encode_data(context)
-        output = self._write_all(to_encode, context)
+        to_serialize = self._serialize_prep(data, context)
+        # self._context_serialize_data(context)
+        output = self._write_all(to_serialize, context)
         if not output:
             raise log.exception(
                 None,
@@ -372,26 +364,26 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.WriteError
-            - wrapped yaml.YAMLEncodeError
+            - wrapped yaml.YAMLSerializeError
           Maybes:
             - Other yaml/stream errors?
         '''
 
-        encoded = StringIO()
+        serialized = StringIO()
         try:
-            yaml.safe_dump(data, default_flow_style=None, stream=encoded)
+            yaml.safe_dump(data, default_flow_style=None, stream=serialized)
             # TODO [2020-07-04]: may need to evaluate this in some way to get
             # it past its lazy writeing... I want to catch any yaml exceptions
             # here and not let them infect unrelated code.
         except yaml.YAMLError as error:
-            encoded = None
+            serialized = None
             raise log.exception(
                 error,
                 exceptions.WriteError,
                 'YAML failed while writing the data.',
                 context=context) from error
 
-        return encoded
+        return serialized
 
     def _write_all(self,
                    data: SerializeTypes,
@@ -407,7 +399,7 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.WriteError
-            - wrapped yaml.YAMLEncodeError
+            - wrapped yaml.YAMLSerializeError
           Maybes:
             - Other yaml/stream errors?
         '''
@@ -415,16 +407,16 @@ class YamlSerdes(BaseSerdes):
         # print('Serdes read:', stream.read(None))
         # stream.seek(0)
 
-        encoded = StringIO()
+        serialized = StringIO()
         try:
-            yaml.safe_dump_all(data, default_flow_style=None, stream=encoded)
-            # print(f"{self.__class__.__name__}.encode_all: output = {output}")
+            yaml.safe_dump_all(data, default_flow_style=None, stream=serialized)
+            # print(f"{self.__class__.__name__}.serialize_all: output = {output}")
         except yaml.YAMLError as error:
-            encoded = None
+            serialized = None
             raise log.exception(
                 error,
                 exceptions.WriteError,
                 'YAML failed while writing all the data.',
                 context=context) from error
 
-        return encoded
+        return serialized

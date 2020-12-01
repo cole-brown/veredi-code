@@ -374,7 +374,7 @@ class Configuration:
                           "Confgig Repo: {}, "
                           "Confgig Serdes: {}",
                           ctx, self._repo, self._serdes)
-                for each in self._serdes.decode_all(stream, ctx):
+                for each in self._serdes.deserialize_all(stream, ctx):
                     log.debug("Config Loading Doc: {}", each)
                     self._load_doc(each)
 
@@ -444,7 +444,7 @@ class Configuration:
                 str(def_serdes))
 
         loaded = def_repo.definition(dotted_name, context)
-        decoded = def_serdes.decode_all(loaded, context)
+        decoded = def_serdes.deserialize_all(loaded, context)
         return decoded
 
     # -------------------------------------------------------------------------

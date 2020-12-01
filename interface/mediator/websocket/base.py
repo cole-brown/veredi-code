@@ -303,24 +303,26 @@ class VebSocket:
     # Packet Building
     # -------------------------------------------------------------------------
 
-    def encode(self, msg: Message, context: MediatorContext) -> str:
+    def serialize(self, msg: Message, context: MediatorContext) -> str:
         '''
-        Encodes msg as a structured string using our serdes.
+        Serializes msg as a structured string using our serdes.
         '''
-        stream = self._serdes.encode(msg, context)
+        stream = self._serdes.serialize(msg, context)
         value = stream.getvalue()
         stream.close()
         return value
 
-    def decode(self, recvd: str, context: MediatorContext) -> Message:
+    def deserialize(self, recvd: str, context: MediatorContext) -> Message:
         '''
-        Decodes received string using our serdes.
+        Deserializes received string using our serdes.
         '''
         stream = StringIO(recvd)
         try:
-            value = self._serdes.decode(recvd, context)
+            value = self._serdes.deserialize(recvd, context)
         finally:
             stream.close()
+        # TODO [2020-12-01]: serialize() has serdes encode message... So
+        # should serdes also decode message?
         msg = Message.decode(value)
         return msg
 
@@ -419,7 +421,7 @@ class VebSocket:
                        f" raw: {raw}")
             mediator_ctx = self._med_make_context(
                 connection=self.token(websocket))
-            recv = self.decode(raw, mediator_ctx)
+            recv = self.deserialize(raw, mediator_ctx)
             self.debug(f"{self.SHORT_NAME}: <--  : "
                        f"recv: {recv}")
 
@@ -433,7 +435,7 @@ class VebSocket:
             if immediate_reply:
                 self.debug(f"{self.SHORT_NAME}:  -->: "
                            f"reply-msg: {immediate_reply}")
-                send = self.encode(immediate_reply, mediator_ctx)
+                send = self.serialize(immediate_reply, mediator_ctx)
                 self.debug(f"{self.SHORT_NAME}:  -->: "
                            f"reply-raw: {send}")
                 await websocket.send(send)
@@ -461,9 +463,9 @@ class VebSocket:
                     return
 
                 self.debug(f"{self.SHORT_NAME}:  -->: send: {message}")
-                send = self.encode(message,
-                                   self._med_make_context(
-                                       connection=self.token(websocket)))
+                send = self.serialize(message,
+                                      self._med_make_context(
+                                          connection=self.token(websocket)))
                 self.debug(f"{self.SHORT_NAME}:  -->: raw: {send}")
                 await websocket.send(send)
 

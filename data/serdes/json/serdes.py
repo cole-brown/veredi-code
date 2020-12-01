@@ -26,7 +26,7 @@ from veredi.data                 import background
 from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 
-from ..encodable                 import Encodable
+from ...codec.encodable          import Encodable
 from ..base                      import (BaseSerdes,
                                          DeserializeTypes,
                                          SerializeTypes)
@@ -71,7 +71,7 @@ class JsonSerdes(BaseSerdes):
         '''
         return self._bg, background.Ownership.SHARE
 
-    def _context_decode_data(self,
+    def _context_deserialize_data(self,
                              context: 'VerediContext') -> 'VerediContext':
         '''
         Inject our serdes data into the context.
@@ -83,25 +83,25 @@ class JsonSerdes(BaseSerdes):
         return context
 
     # -------------------------------------------------------------------------
-    # Decode Methods
+    # Deserialize Methods
     # -------------------------------------------------------------------------
 
-    def decode(self,
+    def deserialize(self,
                stream: Union[TextIO, str],
                context: 'VerediContext') -> DeserializeTypes:
         '''
-        Read and decodes data from a single data stream.
+        Read and deserializes data from a single data stream.
 
         Raises:
           - exceptions.ReadError
-            - wrapped json.JSONDecodeError
+            - wrapped json.JSONDeserializeError
           Maybes:
             - Other json/stream errors?
         '''
-        log.debug("json.decode input: {}", type(stream))
-        self._context_decode_data(context)
+        log.debug("json.deserialize input: {}", type(stream))
+        self._context_deserialize_data(context)
         data = self._read(stream, context)
-        log.debug("json.decode output: {}", type(data))
+        log.debug("json.deserialize output: {}", type(data))
         return data
 
     def _read(self,
@@ -119,7 +119,7 @@ class JsonSerdes(BaseSerdes):
 
         Raises:
           - exceptions.ReadError
-            - wrapped json.JSONDecodeError
+            - wrapped json.JSONDeserializeError
           Maybes:
             - Other json/file errors?
         '''
@@ -129,7 +129,7 @@ class JsonSerdes(BaseSerdes):
                 data = json.loads(stream)
             else:
                 data = json.load(stream)
-        except json.JSONDecodeError as error:
+        except json.JSONDeserializeError as error:
             data = None
             raise log.exception(
                 error,
@@ -139,18 +139,18 @@ class JsonSerdes(BaseSerdes):
 
         return data
 
-    def decode_all(self,
+    def deserialize_all(self,
                    stream: Union[TextIO, str],
                    context: 'VerediContext') -> DeserializeTypes:
         '''
-        Read and decodes all documents from the data stream.
+        Read and deserializes all documents from the data stream.
 
         Raises:
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        self._context_decode_data(context)
-        # TODO [2020-05-22]: decode_all
+        self._context_deserialize_data(context)
+        # TODO [2020-05-22]: deserialize_all
         raise NotImplementedError("TODO: this")
 
     def _read_all(self,
@@ -170,10 +170,10 @@ class JsonSerdes(BaseSerdes):
         raise NotImplementedError("TODO: this")
 
     # -------------------------------------------------------------------------
-    # Encode Methods
+    # Serialize Methods
     # -------------------------------------------------------------------------
 
-    def _context_encode_data(self,
+    def _context_serialize_data(self,
                              context: 'VerediContext') -> 'VerediContext':
         '''
         Inject our serdes data into the context.
@@ -184,52 +184,52 @@ class JsonSerdes(BaseSerdes):
         }
         return context
 
-    def encode(self,
+    def serialize(self,
                data: SerializeTypes,
                context: 'VerediContext') -> StringIO:
         '''
-        Write and encodes a single document from the data stream.
+        Write and serializes a single document from the data stream.
 
         Raises:
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        self._context_encode_data(context)
-        to_encode = self._encode_prep(data, context)
-        stream = self._write(to_encode, context)
+        self._context_serialize_data(context)
+        to_serialize = self._serialize_prep(data, context)
+        stream = self._write(to_serialize, context)
         return stream
 
-    def _encode_prep(self,
+    def _serialize_prep(self,
                      data: SerializeTypes,
                      context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into
-        something ready for json to encode.
+        something ready for json to serialize.
         '''
-        encoded = None
+        serialized = None
         if null_or_none(data):
-            return encoded
+            return serialized
 
         # Is it just an Encodable object?
         if isinstance(data, Encodable):
-            encoded = data.encode(None)
-            return encoded
+            serialized = data.encode(None)
+            return serialized
 
         # Mapping?
         with contextlib.suppress(AttributeError):
-            encoded = {}
+            serialized = {}
             for each in data.keys():
                 # TODO [2020-07-29]: Change to non-recursive?
-                encoded[str(each)] = self._encode_prep(data[each], context)
-            return encoded
+                serialized[str(each)] = self._serialize_prep(data[each], context)
+            return serialized
 
         # Iterable
         with contextlib.suppress(AttributeError):
-            encoded = []
+            serialized = []
             for each in data:
                 # TODO [2020-07-29]: Change to non-recursive?
-                encoded.append(self._encode_prep(each), context)
-            return encoded
+                serialized.append(self._serialize_prep(each), context)
+            return serialized
 
         msg = "Don't know how to process data."
         raise log.exception(
@@ -245,17 +245,17 @@ class JsonSerdes(BaseSerdes):
         Write data to a stream.
 
         Returns:
-          The stream with the encoded data in it.
+          The stream with the serialized data in it.
 
         Raises:
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        encoded = StringIO()
+        serialized = StringIO()
         try:
-            json.dump(data, encoded)
+            json.dump(data, serialized)
         except (TypeError, OverflowError, ValueError) as error:
-            encoded = None
+            serialized = None
             data_pretty = pretty.indented(data)
             raise log.exception(
                 error,
@@ -265,16 +265,16 @@ class JsonSerdes(BaseSerdes):
                 data_pretty,
                 context=context) from error
 
-        return encoded
+        return serialized
 
-    def encode_all(self,
+    def serialize_all(self,
                    data: SerializeTypes,
                    context: 'VerediContext') -> StringIO:
         '''
-        Write and encodes all documents from the data stream.
+        Write and serializes all documents from the data stream.
 
         Returns:
-          The stream with the encoded data in it.
+          The stream with the serialized data in it.
 
         Raises:
           - exceptions.WriteError
