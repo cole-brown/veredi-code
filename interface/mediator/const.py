@@ -99,12 +99,6 @@ class MsgType(FlagCheckMixin, FlagSetMixin, FlagEncodeValueMixin, enum.Flag):
     ENCODED = enum.auto()
     '''The payload is already encoded somehow?'''
 
-    CODEC = enum.auto()
-    '''
-    Please encode(/decode) this using your codec
-    before sending(/after receiving).
-    '''
-
     ENVELOPE = enum.auto()
     '''
     This is an Envelope object. Use its addresses and encode its data as you
@@ -115,11 +109,6 @@ class MsgType(FlagCheckMixin, FlagSetMixin, FlagEncodeValueMixin, enum.Flag):
     '''
     The mediator should figure this one out and it should be one of the
     GAME_MSGS types.
-    '''
-
-    GAME_MSGS = TEXT | ENCODED | CODEC
-    '''
-    Expected message types from the game.
     '''
 
     # ------------------------------

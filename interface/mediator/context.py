@@ -178,12 +178,9 @@ class MessageContext(EphemerealContext):
         elif MsgType.ENCODED:
             field = 'encoded'
 
-        elif MsgType.CODEC:
-            field = 'codec'
-
         # Other MsgTypes are invalid for the Game so we error on them.
         else:
-            supported = {MsgType.TEXT, MsgType.ENCODED, MsgType.CODEC}
+            supported = {MsgType.TEXT, MsgType.ENCODED}
             msg = (f"Invalid MsgType. Can only support: {supported}. "
                    f"Got: {type}.")
             raise log.exception(ValueError(msg, type, value),
@@ -241,20 +238,6 @@ class MessageContext(EphemerealContext):
         Set the value of the encoded-based message.
         '''
         return self.set_msg_payload(MsgType.ENCODED, value)
-
-    @property
-    def msg_codec(self) -> Optional[str]:
-        '''
-        If a codec-based message, this will return the string.
-        '''
-        return self.get_msg_payload(MsgType.CODEC)
-
-    @msg_codec.setter
-    def msg_codec(self, value: Optional[str]) -> None:
-        '''
-        Set the value of the codec-based message.
-        '''
-        return self.set_msg_payload(MsgType.CODEC, value)
 
     # ------------------------------
     # Pythonic Functions
