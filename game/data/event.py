@@ -28,32 +28,46 @@ from ..ecs.event import Event
 # -----------------------------------------------------------------------------
 # Events
 # ---
+#   External Events:
+#    - Start with "Data"
+#    - "Input" Events:
+#      - DataSystem expect these from game systems to initiate a save/load.
+#      - DataLoadRequest
+#      - DataSaveRequest
+#    - "Output" Events:
+#      - DataSystem publishes these once a save/load is completed.
+#      - DataLoadedEvent
+#      - DataSavedEvent
+#
+#   Internal Events:
+#     - Start with "_Data"
+#     - Don't generally get publish - just internal to DataSystem.
+#
 # ---
 # Data Event Flow:
 # ---
-#  ┌ Data Load Request       - data/save owns
-#  │                         - data/save pubs ?
-#  │                         - Repo subs
-#  └─┬ Deserialized Event    - Repo owns
-#    │   - aka Load Event?
-#    │                       - Repo pubs
-#    │                       - Serdes subs
-#    └─┬ Decoded Event       - Serdes owns
-#      │                     - Serdes pubs
-#      │                     - ComponentManager subs?
-#      ├── Data Loaded Event - ?
-#      ├── ...
-#      └─┬ Data Save Request - Repo owns ?
-#        │                   - Serdes owns ?
-#        │                   - Serdes subs
-#      ┌─┴ Encoded Event     - Serdes owns
-#      │                     - Serdes pubs
-#      │                     - Repo subs
-#    ┌─┴ Serialized Event    - Repo owns
-#    │                       - Repo pubs
-#    │                       - data/save subs
-#    ├ Data Saved Event      - data/save owns
-#    │                       - data/save pubs
+# ┐
+# └┬ Data Load Request         - Some game system or something publishes.
+#  │                           - DataSystem receives.
+#  │
+#  └─┬ Loaded Event            - (internal)
+#    │
+#    └─┬ Deserialized Event    - (internal)
+#      │
+#      ├── Data Loaded Event   - DataSystem publishes.
+#      │                       - Any system can receive.
+#      │
+#      ├── ...                 - Game Stuff Happens Here.
+#      │
+#      └── Data Save Request   - Some game system or something publishes.
+#           │                  - DataSystem receives.
+#        ┌──┘
+#        Serialized Event      - (internal)
+#      ┌─┘
+#      Saved Event             - (internal)
+#    ┌─┘
+#    Data Saved Event          - DataSystem publishes.
+# ───┘                         - Any system can receive.
 # -----------------------------------------------------------------------------
 
 
@@ -68,7 +82,7 @@ class DataEvent(Event):
 
 
 # -----------------------------------------------------------------------------
-# General Data Events
+# Requests / Initiation
 # -----------------------------------------------------------------------------
 
 class DataLoadRequest(DataEvent):
@@ -78,6 +92,10 @@ class DataLoadRequest(DataEvent):
 class DataSaveRequest(DataEvent):
     pass
 
+
+# -----------------------------------------------------------------------------
+# Results / Notifications
+# -----------------------------------------------------------------------------
 
 class DataLoadedEvent(DataEvent):
     def __init__(self,
@@ -126,10 +144,10 @@ class DataSavedEvent(DataEvent):
 
 
 # -----------------------------------------------------------------------------
-# Serialization / Repository Events
+# Repository Events
 # -----------------------------------------------------------------------------
 
-class DeserializedEvent(DataEvent):
+class _LoadedEvent(DataEvent):
     def __init__(self,
                  id:      Union[int, MonotonicId],
                  type:    Union[int, enum.Enum],
@@ -183,7 +201,7 @@ class DeserializedEvent(DataEvent):
                 f"context: {str(self._context)}>")
 
 
-class SerializedEvent(DataEvent):
+class _SavedEvent(DataEvent):
     ...
 
 
@@ -191,7 +209,7 @@ class SerializedEvent(DataEvent):
 # Serdes Events
 # -----------------------------------------------------------------------------
 
-class DecodedEvent(DataEvent):
+class _DeserializedEvent(DataEvent):
     def __init__(self,
                  id:      Union[int, MonotonicId],
                  type:    Union[int, enum.Enum],
@@ -245,5 +263,5 @@ class DecodedEvent(DataEvent):
                 f"context: {str(self._context)}>")
 
 
-class EncodedEvent(DataEvent):
+class _SerializedEvent(DataEvent):
     pass

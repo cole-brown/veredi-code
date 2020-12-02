@@ -196,9 +196,7 @@ class SystemPriority(enum.IntEnum):
     # ---
     # Specific Systems
     # ---
-    DATA_SERDES = HIGH - 6
-    DATA_REPO  = HIGH - 8
-    DATA_REQ   = HIGH - 10
+    DATA   = HIGH - 10
 
     # @staticmethod
     # def sort_key(key: 'SystemPriority') -> Union[SystemPriority, int]:

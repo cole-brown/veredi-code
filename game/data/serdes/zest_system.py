@@ -14,8 +14,8 @@ from veredi.zest.base.system import ZestSystem
 from veredi.base.context     import UnitTestContext
 
 from .system                 import SerdesSystem
-from ..event                 import (DeserializedEvent, DataSaveRequest,
-                                     DecodedEvent, EncodedEvent)
+from ..event                 import (_LoadedEvent, DataSaveRequest,
+                                     _DeserializedEvent, _SerializedEvent)
 
 
 # -----------------------------------------------------------------------------
@@ -65,7 +65,7 @@ class Test_SerdesSystem(ZestSystem):
         self.serdes         = None
 
     def sub_decoded(self):
-        self.manager.event.subscribe(DecodedEvent, self.event_decoded)
+        self.manager.event.subscribe(_DeserializedEvent, self.event_decoded)
 
     def set_up_subs(self):
         self.sub_decoded()
@@ -92,7 +92,7 @@ class Test_SerdesSystem(ZestSystem):
         with StringIO(test_data) as stream:
             self.assertTrue(stream)
 
-            event = DeserializedEvent(
+            event = _LoadedEvent(
                 42,
                 0xDEADBEEF,
                 UnitTestContext(
@@ -110,7 +110,7 @@ class Test_SerdesSystem(ZestSystem):
             # Test what we got back.
             received = self.events[0]
             self.assertIsNotNone(received)
-            self.assertEqual(type(received), DecodedEvent)
+            self.assertEqual(type(received), _DeserializedEvent)
             self.assertIsInstance(received.data, list)
             self.assertEqual(len(received.data), 1)
             component = received.data[0]
