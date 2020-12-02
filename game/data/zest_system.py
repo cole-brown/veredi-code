@@ -18,7 +18,7 @@ from ..ecs.base.identity import ComponentId
 from ..ecs.component import ComponentManager
 
 from .system import DataSystem
-from .event import DecodedEvent, DataLoadedEvent
+from .event import _DeserializedEvent, DataLoadedEvent
 
 from .component import DataComponent
 from veredi.rules.d20.pf2.health.component import HealthComponent
@@ -110,9 +110,9 @@ class Test_DataSystem(ZestSystem):
         ctx = UnitTestContext(
             self.__class__.__name__,
             'test_event_deserialize',
-            {'unit-testing': "Manually created DecodedEvent."})
+            {'unit-testing': "Manually created _DeserializedEvent."})
         ctx.pull(self.context)
-        decode_event = DecodedEvent(
+        decode_event = _DeserializedEvent(
             42,
             0xDEADBEEF,
             ctx,

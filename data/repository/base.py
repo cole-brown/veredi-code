@@ -79,8 +79,8 @@ class BaseRepository(ABC):
           'veredi.repository.file-bare'
         '''
         return {
-            'dotted': dotted_name,
-            'type': self.name,
+            background.Name.DOTTED.key: dotted_name,
+            background.Name.TYPE.key: self.name,
         }
 
     # -------------------------------------------------------------------------

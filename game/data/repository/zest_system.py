@@ -14,8 +14,8 @@ from veredi.data.context     import (DataLoadContext,
                                      DataSaveContext,
                                      DataGameContext)
 from .system                 import RepositorySystem
-from ..event                 import (SerializedEvent, DeserializedEvent,
-                                     EncodedEvent, DataLoadRequest)
+from ..event                 import (_SavedEvent, _LoadedEvent,
+                                     _SerializedEvent, DataLoadRequest)
 from ...ecs.event            import EventManager
 from veredi.data.exceptions  import LoadError
 
@@ -63,7 +63,7 @@ class Test_RepoSystem(ZestSystem):
         self.path   = None
 
     def sub_events(self):
-        self.manager.event.subscribe(DeserializedEvent,
+        self.manager.event.subscribe(_LoadedEvent,
                                      self.event_deserialized)
 
     def set_up_events(self):
@@ -136,7 +136,7 @@ class Test_RepoSystem(ZestSystem):
         self.trigger_events(event)
 
         self.assertEqual(len(self.events), 1)
-        self.assertIsInstance(self.events[0], DeserializedEvent)
+        self.assertIsInstance(self.events[0], _LoadedEvent)
 
         loaded_stream = self.events[0].data
         self.assertIsNotNone(loaded_stream)

@@ -25,8 +25,6 @@ from typing import (TYPE_CHECKING,
 if TYPE_CHECKING:
     from veredi.base.const                 import VerediHealth
     from veredi.base.context               import VerediContext
-    from veredi.data.repository.base       import BaseRepository
-    from veredi.data.serdes.base           import BaseSerdes
     from veredi.game.ecs.meeting           import Meeting
     from veredi.game.ecs.base.system       import System, SystemLifeCycle
     from veredi.interface.input.parse      import Parcel
@@ -209,10 +207,23 @@ DOTTED_NAME = 'veredi.context.background'
 
 @enum.unique
 class Name(enum.Enum):
-    REPO = 'repository'
-    SERDES = 'serdes'
-    DATA_SYS = 'system'
-    CONFIG = 'configuration'
+    DOTTED  = 'dotted'
+    TYPE    = 'type'
+
+    REPO    = 'repository'
+    PATH    = 'path'
+
+    SERDES  = 'serdes'
+
+    SYS     = 'system'
+    CONFIG  = 'configuration'
+
+    @property
+    def key(self):
+        '''
+        Return enum value for use as key in dict.
+        '''
+        return str(self)
 
     def __str__(self):
         '''
@@ -622,18 +633,6 @@ class DataMeta(type):
         retval = ctx.get(klass.Link.PATH, Null())
         return retval
 
-    @property
-    def repository(klass: Type['data']) -> Nullable['BaseRepository']:
-        ctx = klass._get()
-        retval = ctx.get(klass.Link.REPO, Null())
-        return retval
-
-    @property
-    def serdes(klass: Type['data']) -> Nullable['BaseSerdes']:
-        ctx = klass._get()
-        retval = ctx.get(klass.Link.SERDES, Null())
-        return retval
-
 
 class data(metaclass=DataMeta):
 
@@ -641,18 +640,6 @@ class data(metaclass=DataMeta):
     class Link(enum.Enum):
         PATH = enum.auto()
         '''A pathlib.Path to somewhere.'''
-
-        REPO = enum.auto()
-        '''
-        A Repository for the Game Data. Should not be used - the
-        DataSystem/RepositorySystem/etc should be used instead.
-        '''
-
-        SERDES = enum.auto()
-        '''
-        A Serdes for the Game Data. Should not be used - the
-        DataSystem/SerdesSystem/etc should be used instead.
-        '''
 
     @classmethod
     def _get(klass: Type['data']):
@@ -673,9 +660,13 @@ class data(metaclass=DataMeta):
         Makes a deep copy of inputs if ownership wants.
         '''
         context = klass._get()
-        if name is Name.REPO and 'path' in data:
+        # Save the path off if there is one.
+        if (name is Name.SYS
+                and Name.REPO.key in data
+                and 'path' in data[Name.REPO.key]):
             context[klass.Link.PATH] = data['path']
 
+        # Set the rest of the background context into place.
         _set(context, str(name), data, ownership)
 
     @classmethod

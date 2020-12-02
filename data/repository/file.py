@@ -143,7 +143,7 @@ class FileBareRepository(base.BaseRepository):
     def _make_background(self, safing_ds: str) -> None:
         self._bg = super()._make_background(self._DOTTED_NAME)
 
-        self._bg['path'] = self.root
+        self._bg[background.Name.PATH.key] = self.root
         self._bg['path-safing'] = safing_ds
 
     @property

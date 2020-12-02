@@ -45,8 +45,8 @@ from .event import (
     DataLoadedEvent,
     DataSavedEvent,
     # Our subscriptions
-    DecodedEvent,
-    SerializedEvent)
+    _DeserializedEvent,
+    _SavedEvent)
 
 # Our friendly component.
 from .component import DataComponent
@@ -143,26 +143,26 @@ class DataSystem(System):
         event_manager if need to sub/unsub more dynamically.
         '''
         # DataSystem subs to:
-        # - DecodedEvent
+        # - _DeserializedEvent
         #   The data has been interpreted into Python/Veredi. Now it needs to
         #   be stuffed into a component or something and attached to an entity
         #   or something.
         #   - We create a DataLoadedEvent once this is done.
-        self._manager.event.subscribe(DecodedEvent,
+        self._manager.event.subscribe(_DeserializedEvent,
                                       self.event_decoded)
 
         # DataSystem subs to:
-        # - SerializedEvent
+        # - _SavedEvent
         #   Once data is serialized to repo, we want to say it's been saved.
         #   - We'll creates a DataSavedEvent to do this.
-        self._manager.event.subscribe(SerializedEvent,
+        self._manager.event.subscribe(_SavedEvent,
                                       self.event_serialized)
 
         return VerediHealth.HEALTHY
 
     def request_creation(self,
                          doc: Mapping[str, Any],
-                         event: DecodedEvent) -> ComponentId:
+                         event: _DeserializedEvent) -> ComponentId:
         '''
         Asks ComponentManager to create this doc from this event,
         whatever it is.
@@ -188,7 +188,7 @@ class DataSystem(System):
                                                 data=doc)
         return retval
 
-    def event_decoded(self, event: DecodedEvent) -> None:
+    def event_decoded(self, event: _DeserializedEvent) -> None:
         '''
         Decoded data needs to be put into game. Once that's done, trigger a
         DataLoadedEvent.
@@ -252,7 +252,7 @@ class DataSystem(System):
                                         component_id=cid)
                 self._event_notify(event)
 
-    def event_serialized(self, event: SerializedEvent) -> None:
+    def event_serialized(self, event: _SavedEvent) -> None:
         '''
         Data is serialized. Now we can trigger DataSavedEvent.
         '''
@@ -285,7 +285,7 @@ class DataSystem(System):
         # serialized = None
         #
         # # Done; fire off event for whoever wants the next step.
-        # event = SerializedEvent(event.id, event.type, event.context,
+        # event = _SavedEvent(event.id, event.type, event.context,
         #                         component_id=cid)
         # self._event_notify(event)
 

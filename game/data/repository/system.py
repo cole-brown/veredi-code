@@ -31,10 +31,10 @@ from ...ecs.base.system         import System
 # Events
 from ..event import (
     # Our events
-    SerializedEvent,
-    DeserializedEvent,
+    _SavedEvent,
+    _LoadedEvent,
     # Our subscriptions
-    EncodedEvent,
+    _SerializedEvent,
     DataLoadRequest)
 
 
@@ -108,15 +108,15 @@ class RepositorySystem(System):
         # Repository subs to:
         # - DataLoadRequest
         #   The data needs to be fetched and deserialized.
-        #   - Repository creates a DeserializedEvent once it has done this.
+        #   - Repository creates a _LoadedEvent once it has done this.
         self._manager.event.subscribe(DataLoadRequest,
                                       self.event_data_load_request)
 
         # Repository subs to:
-        # - EncodedEvent
+        # - _SerializedEvent
         #   Once data is encoded, it needs to be serialized to repo.
-        #   - Repository creates an SerializedEvent once it has done this.
-        self._manager.event.subscribe(EncodedEvent,
+        #   - Repository creates an _SavedEvent once it has done this.
+        self._manager.event.subscribe(_SerializedEvent,
                                       self.event_encoded)
 
         return VerediHealth.HEALTHY
@@ -124,7 +124,7 @@ class RepositorySystem(System):
     def event_data_load_request(self, event: DataLoadRequest) -> None:
         '''
         Request for data to be loaded. We must ask the repo for it and pack it
-        into a DeserializedEvent.
+        into a _LoadedEvent.
         '''
         # Doctor checkup.
         if not self._health_ok_event(event):
@@ -137,15 +137,15 @@ class RepositorySystem(System):
         deserialized = self._repository.load(context)
         # Get back deserialized data stream.
 
-        # Take our repository load result and set into DeserializedEvent. Then
+        # Take our repository load result and set into _LoadedEvent. Then
         # have EventManager fire off event for whoever wants the next step.
-        event = DeserializedEvent(event.id, event.type, context,
-                                  data=deserialized)
+        event = _LoadedEvent(event.id, event.type, context,
+                            data=deserialized)
 
         self._event_notify(event,
                            False)
 
-    def event_encoded(self, event: EncodedEvent) -> None:
+    def event_encoded(self, event: _SerializedEvent) -> None:
         '''
         Data is encoded and now must be saved.
         '''
@@ -168,8 +168,8 @@ class RepositorySystem(System):
         serialized = None
 
         # Done; fire off event for whoever wants the next step.
-        event = SerializedEvent(event.id, event.type, context,
-                                data=serialized)
+        event = _SavedEvent(event.id, event.type, context,
+                           data=serialized)
 
         self._event_notify(event,
                            False)

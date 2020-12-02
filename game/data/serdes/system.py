@@ -33,11 +33,11 @@ from ...ecs.base.system import System
 # Events
 from ..event import (
     # Our events
-    DecodedEvent,
-    EncodedEvent,
+    _DeserializedEvent,
+    _SerializedEvent,
     # Our subscriptions
     DataSaveRequest,
-    DeserializedEvent)
+    _LoadedEvent)
 
 
 # -----------------------------------------------------------------------------
@@ -82,8 +82,8 @@ class SerdesSystem(System):
         config = background.config.config
         if config:
             self._serdes = config.make(None,
-                                      'data',
-                                      'serdes')
+                                       'data',
+                                       'serdes')
 
         bg_data, bg_owner = self._serdes.background
         background.data.set(background.Name.SERDES,
@@ -114,22 +114,22 @@ class SerdesSystem(System):
         '''
 
         # Serdes subs to:
-        # - DeserializedEvent
+        # - _LoadedEvent
         #   Deserialized Data needs to be decoded so it can be used in game.
-        #   - Serdes creates a DecodedEvent once it has done this.
-        self._manager.event.subscribe(DeserializedEvent,
+        #   - Serdes creates a _DeserializedEvent once it has done this.
+        self._manager.event.subscribe(_LoadedEvent,
                                       self.event_deserialized)
 
         # Serdes subs to:
         # - DataSaveRequest
         #   Data needs to be encoded before it can be saved.
-        #   - Serdes creates an EncodedEvent once it has done this.
+        #   - Serdes creates an _SerializedEvent once it has done this.
         self._manager.event.subscribe(DataSaveRequest,
                                       self.event_data_save_request)
 
         return VerediHealth.HEALTHY
 
-    def event_deserialized(self, event: DeserializedEvent) -> None:
+    def event_deserialized(self, event: _LoadedEvent) -> None:
         '''
         Data has been deserialized. We must decode it and pass it along.
         '''
@@ -145,9 +145,9 @@ class SerdesSystem(System):
         decoded = self._serdes.deserialize_all(serial, context)
 
         # Take serdes data result (just a python dict?) and set into
-        # DecodedEvent data/context/whatever. Then have EventManager fire off
-        # event for whoever wants the next step.
-        event = DecodedEvent(event.id,
+        # _DeserializedEvent data/context/whatever. Then have EventManager fire
+        # off event for whoever wants the next step.
+        event = _DeserializedEvent(event.id,
                              event.type,
                              context,
                              data=decoded)
@@ -180,7 +180,7 @@ class SerdesSystem(System):
         encoded = None
 
         # Done; fire off event for whoever wants the next step.
-        event = EncodedEvent(event.id,
+        event = _SerializedEvent(event.id,
                              event.type,
                              context,
                              data=encoded)
