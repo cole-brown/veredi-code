@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 
 
+from veredi.data import background
+
+
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------

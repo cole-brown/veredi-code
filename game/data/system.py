@@ -285,6 +285,10 @@ class DataSystem(System):
         loaded = self._repository.load(context)
         # Get back loaded data stream.
 
+        # print("\nloaded:")
+        # print(loaded.read(None))
+        # print("\n")
+
         # Take our repository load result and set into _LoadedEvent. Then
         # have EventManager fire off event for whoever wants the next step.
         event = _LoadedEvent(event.id, event.type, context,
@@ -502,7 +506,7 @@ class DataSystem(System):
             return
 
         # Get loaded data stream from event.
-        loaded = event.data
+        loaded = event.data(seek_to=0)
         context = event.context
 
         # Send into my serdes for decoding.

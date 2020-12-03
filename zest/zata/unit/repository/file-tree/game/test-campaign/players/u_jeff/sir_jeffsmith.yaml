@@ -17,7 +17,7 @@ display-name: Veredi Unit-Testing Repository File-Tree
 --- !component
 
 meta:
-  registry: veredi.unit-test.health
+  registry: veredi.rules.d20.pf2.health.component
 
 health:
   # Tracks current hit point amounts.

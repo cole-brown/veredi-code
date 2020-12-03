@@ -505,6 +505,9 @@ class FileTreeRepository(base.BaseRepository):
                 # print("\n\nfile tell:", file_stream.tell())
                 data_stream = StringIO(file_stream.read(None))
                 # print("string tell:", data_stream.tell(), "\n\n")
+                # print("\ndata_stream:")
+                # print(data_stream.read(None))
+                # print("\n")
             except exceptions.LoadError:
                 # Let this one bubble up as-is.
                 if data_stream and not data_stream.closed:

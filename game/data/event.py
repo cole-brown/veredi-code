@@ -9,7 +9,7 @@ Events related to game data.
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Union
-from io import TextIOBase
+import io
 import enum
 
 from veredi.base.context import VerediContext
@@ -78,7 +78,7 @@ class DataEvent(Event):
     #     return ()
     #
     # def create_kwargs(self) -> Mapping[str, Any]:
-    #     return {'data': self.data}
+    #     return {'data': self._data}
 
 
 # -----------------------------------------------------------------------------
@@ -126,7 +126,7 @@ class DataLoadedEvent(DataEvent):
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
     def __repr_name__(self):
-        return "DLdEvent"
+        return "LoadEvent"
 
 
 class DataSavedEvent(DataEvent):
@@ -140,7 +140,7 @@ class DataSavedEvent(DataEvent):
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
     def __repr_name__(self):
-        return "DSdEvent"
+        return "SavedEvent"
 
 
 # -----------------------------------------------------------------------------
@@ -148,24 +148,73 @@ class DataSavedEvent(DataEvent):
 # -----------------------------------------------------------------------------
 
 class _LoadedEvent(DataEvent):
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self,
                  id:      Union[int, MonotonicId],
                  type:    Union[int, enum.Enum],
                  context: VerediContext,
-                 data:    Optional[TextIOBase]    = None) -> None:
+                 data:    Optional[io.TextIOBase] = None) -> None:
+        self._data: io.TextIOBase = None
         self.set(id, type, context, data)
 
     def set(self,
             id:      Union[int, MonotonicId],
             type:    Union[int, enum.Enum],
             context: VerediContext,
-            data:    Optional[TextIOBase]) -> None:
+            data:    Optional[io.TextIOBase]) -> None:
         super().set(id, type, context)
-        self.data = data
+        self._data = data
 
     def reset(self) -> None:
         super().reset()
-        self.data = None
+        self._data = None
+
+    # -------------------------------------------------------------------------
+    # Data Accessors
+    # -------------------------------------------------------------------------
+
+    def data_exists(self) -> bool:
+        '''
+        Returns true if self._data is not none and is not zero length. Can
+        return true even if data is not readable, for example: when data exists
+        but stream position is at the very end of the data (so no /more/ data
+        can be read).
+        '''
+        return (self._data
+                and (self._data.readable() or
+                     self._data.tell() > 0))
+
+    def data_ready(self) -> bool:
+        '''
+        Returns true if self._data is not none and can currently be read from.
+        Only returns true if you can read the data with no other operations.
+        '''
+        return self._data and self._data.readable()
+
+    def data(self,
+             seek_to: Optional[int] = None) -> Optional[str]:
+        '''
+        Returns data string from current position in stream to the current end
+        of stream.
+
+        Set `seek_to` to 0 if you want to be sure to read /all/ off the current
+        data.
+
+        Raises OSError if the stream `read()` call fails.
+        '''
+        if self._data is None:
+            return None
+
+        # Seek to elsewhere in stream?
+        if seek_to is not None:
+            self._data.seek(seek_to)
+
+        # Return stream's string.
+        return self._data.read(None)
 
     # -------------------------------------------------------------------------
     # To String
@@ -173,13 +222,13 @@ class _LoadedEvent(DataEvent):
 
     def _str_data(self):
         return ('None'
-                if not self.data else
-                ('Closed Stream' if self.data.closed else 'Open Stream'))
+                if not self.data_exists() else
+                ('Closed Stream' if self._data.closed else 'Open Stream'))
 
     def _repr_data(self):
         return ('None'
-                if not self.data else
-                ('closed' if self.data.closed else 'open'))
+                if not self.data_exists() else
+                ('closed' if self._data.closed else 'open'))
 
     def _pretty(self):
         from veredi.logger import pretty
@@ -193,7 +242,7 @@ class _LoadedEvent(DataEvent):
                 f"context: {str(self._context)}")
 
     def __repr_name__(self):
-        return "DesEvent"
+        return "_LdEvent"
 
     def __repr__(self):
         return (f"<{self._str_name(self.__repr_name__())}: "
@@ -202,7 +251,8 @@ class _LoadedEvent(DataEvent):
 
 
 class _SavedEvent(DataEvent):
-    ...
+    def __repr_name__(self):
+        return "_SvdEvent"
 
 
 # -----------------------------------------------------------------------------
@@ -255,7 +305,7 @@ class _DeserializedEvent(DataEvent):
                 f"context: {str(self._context)}")
 
     def __repr_name__(self):
-        return "DesEvent"
+        return "_DesEvent"
 
     def __repr__(self):
         return (f"<{self._str_name(self.__repr_name__())}: "
@@ -264,4 +314,5 @@ class _DeserializedEvent(DataEvent):
 
 
 class _SerializedEvent(DataEvent):
-    pass
+    def __repr_name__(self):
+        return "_SerEvent"
