@@ -152,6 +152,7 @@ class BaseTest_DataSystem(ZestSystem):
 
     def set_up(self):
         super().set_up()
+        self._all_events_external = False
         self.system = self.manager.system.get(DataSystem)
         self.path = self.system._repository.root
 
@@ -172,38 +173,9 @@ class BaseTest_DataSystem(ZestSystem):
         super().tear_down()
         self.path   = None
 
-    # ------------------------------
-    # Events
-    # ------------------------------
-
-    def _sub_data_loaded(self) -> None:
-        '''
-        Automatically called in set_up_events() currently, but we don't want
-        any data events automatically subscribed to. So change to a no-op.
-        '''
-        pass
-
-    def sub_events(self):
-        raise NotImplementedError(f"{self.__class__.__name__} must "
-                                  "implement sub_events().")
-
-
-# -----------------------------------------------------------------------------
-# Repo Test Class
-# -----------------------------------------------------------------------------
-
-class Test_DataSystem_Repo(BaseTest_DataSystem):
-    '''
-    Test our DataSystem with HealthComponent class against some health data.
-    '''
-
-    # ------------------------------
-    # Events
-    # ------------------------------
-
-    def sub_events(self):
-        self.manager.event.subscribe(_LoadedEvent,
-                                     self._eventsub_generic_append)
+    def set_all_events_external(self, all_events_external: bool) -> None:
+        self._all_events_external = all_events_external
+        self.system._ut_all_events_external = self._all_events_external
 
     # ------------------------------
     # Helpers
@@ -243,6 +215,39 @@ class Test_DataSystem_Repo(BaseTest_DataSystem):
         return ctx, path
 
     # ------------------------------
+    # Events
+    # ------------------------------
+
+    def _sub_data_loaded(self) -> None:
+        '''
+        Automatically called in set_up_events() currently, but we don't want
+        any data events automatically subscribed to. So change to a no-op.
+        '''
+        pass
+
+    def sub_events(self):
+        raise NotImplementedError(f"{self.__class__.__name__} must "
+                                  "implement sub_events().")
+
+
+# -----------------------------------------------------------------------------
+# Repo Test Class
+# -----------------------------------------------------------------------------
+
+class Test_DataSystem_Repo(BaseTest_DataSystem):
+    '''
+    Test our DataSystem with HealthComponent class against some health data.
+    '''
+
+    # ------------------------------
+    # Events
+    # ------------------------------
+
+    def sub_events(self):
+        self.manager.event.subscribe(_LoadedEvent,
+                                     self._eventsub_generic_append)
+
+    # ------------------------------
     # Tests
     # ------------------------------
 
@@ -260,6 +265,7 @@ class Test_DataSystem_Repo(BaseTest_DataSystem):
                          self.system._manager.event)
 
     def test_load(self):
+        self.set_all_events_external(True)
         self.set_up_events(clear_self=True, clear_manager=True)
 
         load_ctx, load_path = self.context_load(
@@ -323,6 +329,7 @@ class BaseTest_DataSystem_Serdes(BaseTest_DataSystem):
                          self.system._manager.event)
 
     def test_deserialize(self):
+        self.set_all_events_external(True)
         self.set_up_events(clear_self=True, clear_manager=True)
 
         with StringIO(test_data_serdes) as stream:
@@ -380,7 +387,7 @@ class BaseTest_DataSystem_Serdes(BaseTest_DataSystem):
 # DataSystem Test Class
 # -----------------------------------------------------------------------------
 
-class Test_DataSystem_Actual(BaseTest_DataSystem):
+class Test_DataSystem_ToGame(BaseTest_DataSystem):
     '''
     Test our DataSystem with HealthComponent class against some health data.
     '''
@@ -406,6 +413,7 @@ class Test_DataSystem_Actual(BaseTest_DataSystem):
         '''
         _DeserializedEvent -> DataLoadedEvent
         '''
+        self.set_all_events_external(True)
         self.set_up_events(clear_self=True, clear_manager=True)
 
         ctx = UnitTestContext(
@@ -441,6 +449,72 @@ class Test_DataSystem_Actual(BaseTest_DataSystem):
 
         data_processed = component.persistent
         self.assertEqual(data_source, data_processed)
+
+
+# -----------------------------------------------------------------------------
+# Repo Test Class
+# -----------------------------------------------------------------------------
+
+class Test_DataSystem_Actual(BaseTest_DataSystem):
+    '''
+    Test our DataSystem with HealthComponent class against some health data.
+    '''
+
+    # ------------------------------
+    # Events
+    # ------------------------------
+
+    def sub_events(self):
+        self.manager.event.subscribe(DataLoadedEvent,
+                                     self._eventsub_generic_append)
+
+    # ------------------------------
+    # Tests
+    # ------------------------------
+
+    def test_init(self):
+        self.assertTrue(self.manager.event)
+        self.assertTrue(self.system)
+
+    def test_load(self):
+        self.set_up_events(clear_self=True, clear_manager=True)
+
+        # Make a DataLoadRequest for repo to load something.
+        load_ctx, load_path = self.context_load(
+            DataGameContext.DataType.PLAYER)
+        load_ctx.sub['user'] = 'u/jeff'
+        load_ctx.sub['player'] = 'Sir Jeffsmith'
+
+        event = DataLoadRequest(
+            42,
+            load_ctx.type,
+            load_ctx)
+        self.assertFalse(self.events)
+        self.trigger_events(event)
+
+        # Expect a DataLoadedEvent with output from deserializing.
+        self.assertEqual(len(self.events), 1)
+        self.assertIsInstance(self.events[0], DataLoadedEvent)
+
+        event = self.events[0]
+        cid = event.component_id
+        self.assertNotEqual(cid, ComponentId.INVALID)
+        component = self.manager.component.get(cid)
+        self.assertIsInstance(component, DataComponent)
+
+        self.assertIsInstance(component, HealthComponent)
+
+        # Vague checks for sanity of expected vs actual.
+        data_expected = test_data_actual[1]
+        self.assertIn('health', data_expected)
+        data_actual = component.persistent
+        self.assertIn('health', data_actual)
+
+        # A single more specific check.
+        health_expected = data_expected['health']
+        health_actual = data_actual['health']
+        self.assertEqual(health_expected['current']['permanent'],
+                         health_actual['current']['permanent'])
 
 
 # --------------------------------Unit Testing---------------------------------
