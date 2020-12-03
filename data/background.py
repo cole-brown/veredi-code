@@ -663,8 +663,8 @@ class data(metaclass=DataMeta):
         # Save the path off if there is one.
         if (name is Name.SYS
                 and Name.REPO.key in data
-                and 'path' in data[Name.REPO.key]):
-            context[klass.Link.PATH] = data['path']
+                and Name.PATH.key in data[Name.REPO.key]):
+            context[klass.Link.PATH] = data[Name.REPO.key][Name.PATH.key]
 
         # Set the rest of the background context into place.
         _set(context, str(name), data, ownership)

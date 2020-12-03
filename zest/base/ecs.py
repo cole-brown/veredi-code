@@ -247,8 +247,7 @@ class ZestEcs(ZestBase):
 
     def _sub_data_loaded(self) -> None:
         '''
-        Include this in your _sub_events_test or elsewhere to receive
-        DataLoadedEvent.
+        Automatically called in set_up_events() currently.
         '''
         if not self.manager or not self.manager.event:
             return

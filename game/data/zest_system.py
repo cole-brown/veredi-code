@@ -19,13 +19,13 @@ from veredi.logger                         import log
 from veredi.data.context                   import (DataLoadContext,
                                                    # DataSaveContext,
                                                    DataGameContext)
+from veredi.data.exceptions import LoadError
 
 from ..ecs.base.identity                   import ComponentId
 from .component                            import DataComponent
 from veredi.rules.d20.pf2.health.component import HealthComponent
 
-from .system2                              import DataSystem
-
+from .system                              import DataSystem
 
 # ---
 # Data Events
@@ -59,7 +59,7 @@ test_data_serdes = '''
 --- !component
 
 meta:
-  registry: veredi.unit-test.health
+  registry: veredi.rules.d20.pf2.health.component
 
 health:
   # Tracks current hit point amounts.
@@ -75,6 +75,16 @@ health:
         hit-points: 12
       - angry-unschooled-fighter: 2
         hit-points: 9
+
+    hit-points: 21
+
+  unconscious:
+    hit-points: 0
+
+  death:
+    hit-points: 0
+
+  resistance:
 '''
 '''
 Serialized YAML test data for serdes tests.
@@ -136,6 +146,10 @@ class BaseTest_DataSystem(ZestSystem):
     Test our DataSystem with HealthComponent class against some health data.
     '''
 
+    # ------------------------------
+    # Set-Up & Tear-Down
+    # ------------------------------
+
     def set_up(self):
         super().set_up()
         self.system = self.manager.system.get(DataSystem)
@@ -158,6 +172,21 @@ class BaseTest_DataSystem(ZestSystem):
         super().tear_down()
         self.path   = None
 
+    # ------------------------------
+    # Events
+    # ------------------------------
+
+    def _sub_data_loaded(self) -> None:
+        '''
+        Automatically called in set_up_events() currently, but we don't want
+        any data events automatically subscribed to. So change to a no-op.
+        '''
+        pass
+
+    def sub_events(self):
+        raise NotImplementedError(f"{self.__class__.__name__} must "
+                                  "implement sub_events().")
+
 
 # -----------------------------------------------------------------------------
 # Repo Test Class
@@ -168,18 +197,17 @@ class Test_DataSystem_Repo(BaseTest_DataSystem):
     Test our DataSystem with HealthComponent class against some health data.
     '''
 
+    # ------------------------------
+    # Events
+    # ------------------------------
+
     def sub_events(self):
-        # Don't care about all the normal stuff.
         self.manager.event.subscribe(_LoadedEvent,
-                                     self.event_deserialized)
+                                     self._eventsub_generic_append)
 
-    def set_up_events(self):
-        self._sub_events_systems()
-        self.sub_events()
-
-
-    def event_deserialized(self, event):
-        self.events.append(event)
+    # ------------------------------
+    # Helpers
+    # ------------------------------
 
     def context_load(self, type):
         ctx = DataLoadContext('unit-testing',
@@ -214,6 +242,10 @@ class Test_DataSystem_Repo(BaseTest_DataSystem):
 
         return ctx, path
 
+    # ------------------------------
+    # Tests
+    # ------------------------------
+
     def test_init(self):
         self.assertTrue(self.manager.event)
         self.assertTrue(self.system)
@@ -227,9 +259,8 @@ class Test_DataSystem_Repo(BaseTest_DataSystem):
         self.assertEqual(self.manager.event,
                          self.system._manager.event)
 
-    def test_event_load_req(self):
-        self.set_up_events()
-        self.clear_events(clear_manager=True)
+    def test_load(self):
+        self.set_up_events(clear_self=True, clear_manager=True)
 
         load_ctx, load_path = self.context_load(
             DataGameContext.DataType.PLAYER)
@@ -246,17 +277,15 @@ class Test_DataSystem_Repo(BaseTest_DataSystem):
         self.assertEqual(len(self.events), 1)
         self.assertIsInstance(self.events[0], _LoadedEvent)
 
-        loaded_stream = self.events[0].data
-        self.assertIsNotNone(loaded_stream)
-
         # read file directly, assert contents are same.
         with load_path.open(mode='r') as file_stream:
             self.assertIsNotNone(file_stream)
 
             file_data = file_stream.read(None)
-            repo_data = loaded_stream.read(None)
+            repo_data = self.events[0].data(seek_to=0)
             self.assertIsNotNone(file_data)
             self.assertIsNotNone(repo_data)
+
             self.assertEqual(repo_data, file_data)
 
 
@@ -269,30 +298,32 @@ class BaseTest_DataSystem_Serdes(BaseTest_DataSystem):
     Test our DataSystem with HealthComponent class against some health data.
     '''
 
-    def sub_decoded(self):
-        self.manager.event.subscribe(_DeserializedEvent, self.event_decoded)
+    # ------------------------------
+    # Events
+    # ------------------------------
 
-    def set_up_subs(self):
-        self.sub_decoded()
-        self.serdes.subscribe(self.manager.event)
+    def sub_events(self):
+        self.manager.event.subscribe(_DeserializedEvent,
+                                     self._eventsub_generic_append)
 
-    def event_decoded(self, event):
-        self.events.append(event)
+    # ------------------------------
+    # Tests
+    # ------------------------------
 
     def test_init(self):
-        self.assertTrue(self.serdes)
+        self.assertTrue(self.system)
         self.assertTrue(self.manager.event)
 
     def test_subscribe(self):
         self.assertFalse(self.manager.event._subscriptions)
-        self.serdes.subscribe(self.manager.event)
+        self.set_up_events(clear_self=True, clear_manager=True)
         self.assertTrue(self.manager.event._subscriptions)
 
         self.assertEqual(self.manager.event,
-                         self.serdes._manager.event)
+                         self.system._manager.event)
 
-    def test_event_deserialize(self):
-        self.set_up_subs()
+    def test_deserialize(self):
+        self.set_up_events(clear_self=True, clear_manager=True)
 
         with StringIO(test_data_serdes) as stream:
             self.assertTrue(stream)
@@ -302,7 +333,7 @@ class BaseTest_DataSystem_Serdes(BaseTest_DataSystem):
                 0xDEADBEEF,
                 UnitTestContext(
                     self.__class__.__name__,
-                    'test_event_deserialize',
+                    'test_event_load',
                     {'unit-testing': "string 'test-data' in zest_system.py"}),
                 data=stream)
             self.assertTrue(event)
@@ -323,7 +354,7 @@ class BaseTest_DataSystem_Serdes(BaseTest_DataSystem):
             meta = component.get('meta', {})
             self.assertTrue(meta)
             self.assertEqual(meta['registry'],
-                             'veredi.unit-test.health')
+                             'veredi.rules.d20.pf2.health.component')
 
             health = component.get('health', {})
             self.assertTrue(health)
@@ -353,6 +384,18 @@ class Test_DataSystem_Actual(BaseTest_DataSystem):
     '''
     Test our DataSystem with HealthComponent class against some health data.
     '''
+
+    # ------------------------------
+    # Events
+    # ------------------------------
+
+    def sub_events(self):
+        self.manager.event.subscribe(DataLoadedEvent,
+                                     self._eventsub_generic_append)
+
+    # ------------------------------
+    # Tests
+    # ------------------------------
 
     def test_init(self):
         self.assertTrue(self.manager.event)
@@ -405,7 +448,7 @@ class Test_DataSystem_Actual(BaseTest_DataSystem):
 # -----------------------------------------------------------------------------
 
 # Can't just run file from here... Do:
-#   doc-veredi python -m veredi.game.data.zest_system2
+#   doc-veredi python -m veredi.game.data.zest_system
 
 if __name__ == '__main__':
     import unittest
