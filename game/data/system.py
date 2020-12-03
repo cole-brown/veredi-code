@@ -98,6 +98,15 @@ class DataSystem(System):
         '''
         super()._define_vars()
 
+        self._ut_all_events_external: bool = False
+        '''
+        Subscribe to all our events (requests and internals), not just the
+        requests (DataLoadRequest and DataSaveRequest).
+
+        Also publish all our events instead of handling the internals
+        internally.
+        '''
+
         self._serdes: Optional[BaseSerdes] = None
         '''
         Our Serializer/Deserializer for saving/loading data.
@@ -160,7 +169,6 @@ class DataSystem(System):
         # ---
         # Background Stuff
         # ---
-
         bg_data, bg_owner = self.background
         background.data.set(background.Name.SYS,
                             bg_data,
@@ -210,11 +218,16 @@ class DataSystem(System):
 
     def _subscribe(self) -> VerediHealth:
         '''
-        Subscribe to all of DataSystem's events.
+        Subscribe to DataSystem's events.
+
+        In the general case, only DataLoadRequest and DataSaveRequest will be
+        subscribed to, but tests and such may do something special and trigger
+        intermediate/internal events, so we are able to subscribe to all if set
+        up to.
         '''
 
         # ------------------------------
-        # Request for Load / Save
+        # External/Expected: Request for Load / Save
         # ------------------------------
 
         # - DataLoadRequest
@@ -230,7 +243,14 @@ class DataSystem(System):
                                       self.event_data_save_request)
 
         # ------------------------------
-        # Serialize / Deserialize with Serdes
+        # Normal Path: Done
+        # ------------------------------
+        if not self._ut_all_events_external:
+            return VerediHealth.HEALTHY
+        # Unit Testing? Subscribe to the internal events too.
+
+        # ------------------------------
+        # Internal: Serialize / Deserialize with Serdes
         # ------------------------------
 
         # - _DeserializedEvent
@@ -248,7 +268,7 @@ class DataSystem(System):
                                       self.event_serialized)
 
         # ------------------------------
-        # Load / Save from Repository
+        # Internal: Load / Save from Repository
         # ------------------------------
 
         # - _SavedEvent
@@ -294,8 +314,14 @@ class DataSystem(System):
         event = _LoadedEvent(event.id, event.type, context,
                              data=loaded)
 
-        self._event_notify(event,
-                           False)
+        # Special Shenanigans: Publish this event, wait for it to come back.
+        if self._ut_all_events_external:
+            self._event_notify(event,
+                               False)
+
+        # Normal Case: Pass on to process loaded data
+        else:
+            self.event_loaded(event)
 
     def event_data_save_request(self, event: DataSaveRequest) -> None:
         '''
@@ -327,8 +353,14 @@ class DataSystem(System):
                                  context,
                                  data=serialized)
 
-        self._event_notify(event,
-                           False)
+        # Special Shenanigans: Publish this event, wait for it to come back.
+        if self._ut_all_events_external:
+            self._event_notify(event,
+                               False)
+
+        # Normal Case: Pass on to process deserialized data.
+        else:
+            self.event_serialized(event)
 
     # -------------------------------------------------------------------------
     # Events: Serialize / Deserialize with Serdes
@@ -449,12 +481,20 @@ class DataSystem(System):
             "is not yet implemented.")
         serialized = None
 
+        # ---
         # Done; fire off event for whoever wants the next step.
+        # ---
         event = _SavedEvent(event.id, event.type, context,
                             data=serialized)
 
-        self._event_notify(event,
-                           False)
+        # Special Shenanigans: Publish this event, wait for it to come back.
+        if self._ut_all_events_external:
+            self._event_notify(event,
+                               False)
+
+        # Normal Case: Pass on to process saved data.
+        else:
+            self.event_saved(event)
 
     # -------------------------------------------------------------------------
     # Events: Load / Save from Repository
@@ -493,7 +533,7 @@ class DataSystem(System):
         # saved = None
         #
         # # Done; fire off event for whoever wants the next step.
-        # event = _SavedEvent(event.id, event.type, event.context,
+        # event = DataSavedEvent(event.id, event.type, event.context,
         #                         component_id=cid)
         # self._event_notify(event)
 
@@ -520,8 +560,14 @@ class DataSystem(System):
                                    context,
                                    data=deserialized)
 
-        self._event_notify(event,
-                           False)
+        # Special Shenanigans: Publish this event, wait for it to come back.
+        if self._ut_all_events_external:
+            self._event_notify(event,
+                               False)
+
+        # Normal Case: Pass on to process deserialized data.
+        else:
+            self.event_deserialized(event)
 
     # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions
