@@ -13,7 +13,8 @@ Some code used from Lark's calc example:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Type, NewType, Protocol, Iterable
+from typing import (Optional, Any, Type, NewType, Protocol,
+                    Iterable, MutableMapping)
 
 import lark  # Lark, Transformer, Visitor, v_args
 
@@ -144,17 +145,43 @@ class Parser:
 #   Instead of:
 #     assign_vars(self, items)
 # NOTE: Should not be used for large lists of args. But all of mine are just
-# one or two items.
+#       one or two items.
+# NOTE: Don't do at class level. We want some to be broken out for us and some
+#       not, so use the v_args decorator on a per-function basis.
 # @lark.v_args(inline=True)
 class Transformer(lark.Transformer):
-    '''Transforms a lexed/parsed tree into a Veredi roll tree.'''
+    '''
+    Transforms a lexed/parsed tree into a Veredi roll tree.
+    '''
 
     # -------------------------------------------------------------------------
-    # Constructor
+    # Initialization
     # -------------------------------------------------------------------------
 
-    def __init__(self, milieu: Optional[str] = None) -> None:
-        self.vars = {}
+    def __init__(self) -> None:
+        '''
+        Define our vars, but don't assign them. They'll be set in `set_up()`
+        for each transform.
+        '''
+
+        self.vars: MutableMapping[lark.Token, tree.Node] = None
+        '''
+        A collection to hold the name & value of any variables declared in the
+        tree.
+        '''
+
+        self.milieu: str = None
+        '''
+        A string to insert into the `milieu` of any tree.Variable returned.
+        '''
+
+    def set_up(self,
+               vars:   MutableMapping[lark.Token, tree.Node],
+               milieu: str) -> None:
+        '''
+        Sets our vars dict and stuff and things
+        '''
+        self.vars = vars
         self.milieu = milieu
 
     # -------------------------------------------------------------------------
@@ -263,8 +290,38 @@ class D20Parser(MathParser):
     tree.
     '''
 
-    # Nothing to do for __init__/_configure. We don't even need an instance of
-    # ourselves to do anything right now, though that could change.
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        super()._define_vars()
+
+        self._transformer: Transformer = Transformer()
+        '''
+        Our lark->veredi tree transformer.
+        '''
+
+        self._variables: MutableMapping[lark.Token, tree.Node] = {}
+        '''
+        A collection to hold the name & value of any variables declared in the
+        tree.
+        '''
+
+        self._milieu: str = None
+        '''
+        A string to insert into the `milieu` of any tree.Variable returned.
+        '''
+
+    def _set_up(self, milieu: Optional[str]) -> None:
+        '''
+        Initialize/reset/clear/whatever our instance variables in prep for next
+        parse & transform.
+        '''
+        self._milieu = milieu
+        self._variables.clear()
+
+        # And set up our transformer.
+        self._transformer.set_up(self._variables, self._milieu)
 
     def parse(self,
               string: str,
@@ -273,7 +330,14 @@ class D20Parser(MathParser):
         Parse input `string` and return the resultant MathTree, or None if
         parsing/transforming failed at some point.
         '''
-        log.debug("parse input: '{}'", string)
+        # Set milieu and clear any old vars, also set up our xformer.
+        self._set_up(milieu)
+
+        log.debug("parse input{}: '{}' ",
+                  ("(w/ milieu: '" + self._milieu + "')"
+                   if self._milieu else
+                   ''),
+                  string)
 
         syntax_tree = Parser.parse(string)
         if log.will_output(log.Level.DEBUG):
@@ -281,13 +345,7 @@ class D20Parser(MathParser):
             log.debug("Parser (lark) output: \n{}",
                       Parser.format(syntax_tree))
 
-        # TODO [2020-06-13]: Do we want transformer to hold onto vars
-        # like it does or try to make a static class like Parser?
-
-        # Make a new transformer for each parse run as it holds on to
-        # var names?
-        xform = Transformer(milieu)
-        math_tree = xform.transform(syntax_tree)
+        math_tree = self._transformer.transform(syntax_tree)
         if log.will_output(log.Level.DEBUG):
             # Dont format tree into string unless we're actually logging it.
             log.debug("Math Tree: \n{}",
