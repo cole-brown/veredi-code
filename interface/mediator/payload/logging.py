@@ -102,8 +102,8 @@ class LogField(EnumEncodeNameMixin, enum.Enum):
     def _type_field(klass: 'LogField') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
-        Override this if you don't like what veredi.base.dotted.auto() and
-        veredi.base.dotted.munge_to_short() do for your type field.
+        Override this if you don't like what veredi.base.label.auto() and
+        veredi.base.label.munge_to_short() do for your type field.
         '''
         return 'field'
 

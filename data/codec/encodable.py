@@ -20,7 +20,7 @@ import re
 
 from veredi.logger import log, pretty
 from veredi.base.registrar import CallRegistrar, RegisterType
-import veredi.base.dotted
+from veredi.base import label
 from veredi.base import numbers
 
 from ..exceptions import EncodableError
@@ -281,7 +281,7 @@ class Encodable:
         # ---
         # Register
         # ---
-        dotted_args = veredi.base.dotted.split(dotted)
+        dotted_args = label.split(dotted)
         EncodableRegistry.register(klass, *dotted_args)
 
     @classmethod
@@ -1249,7 +1249,7 @@ class EncodableRegistry(CallRegistrar):
             name = encodable._type_field()
         except NotImplementedError as error:
             msg = (f"{klass.__name__}._register: '{type(encodable)}' "
-                   f"(\"{veredi.base.dotted.join(*reg_args)}\") needs to "
+                   f"(\"{label.join(*reg_args)}\") needs to "
                    "implement _type_field() function.")
             log.exception(error, None, msg)
             # Let error through. Just want more info.
@@ -1319,7 +1319,7 @@ class EncodableRegistry(CallRegistrar):
         # ---
         else:
             registry = klass._get()
-            data_dotted = veredi.base.dotted.from_map(data, squelch_error=True)
+            data_dotted = label.from_map(data, squelch_error=True)
             registree = klass._search(registry,
                                       data_dotted,
                                       data,
@@ -1389,7 +1389,7 @@ class EncodableRegistry(CallRegistrar):
         # ---
         # More like 'get' than search...
         if dotted and isinstance(dotted, str):
-            keys = veredi.base.dotted.split(dotted)
+            keys = label.split(dotted)
             # Path shouldn't be long. Just let Null-pattern pretend to be a
             # dict if we hit a 'Does Not Exist'.
             for key in keys:

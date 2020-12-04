@@ -19,7 +19,7 @@ import enum
 from veredi.logger import log
 
 from veredi.base import vstring
-from veredi.base                    import dotted
+from veredi.base                    import label
 from veredi.data.config.hierarchy import Hierarchy
 from .dict import DataDict, DDKey
 
@@ -226,7 +226,7 @@ class Definition(abc.MutableMapping):
         if not isinstance(bookmark, (str, int, float)):
             self._append_default(canon)
 
-        return dotted.join(*canon)
+        return label.join(*canon)
 
     def _canon_this(self,
                     canon: List[str],
@@ -313,7 +313,7 @@ class Definition(abc.MutableMapping):
             See AbilitySystem for how it deals with things so that its 'mod'
             alias doesn't get registered as an ability command.
         '''
-        names, check_this = dotted.this(string, milieu)
+        names, check_this = label.this(string, milieu)
 
         # Is the first part even a thing?
         if not names or not names[0]:
@@ -321,7 +321,7 @@ class Definition(abc.MutableMapping):
 
         check = names[0]
         if not isinstance(check, str):
-            # dotted.this may have given us an embedded list for
+            # label.this may have given us an embedded list for
             # a 'this' replacement.
             check = check[0]
 

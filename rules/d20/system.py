@@ -20,7 +20,7 @@ from abc import abstractmethod
 
 from veredi.logger                      import log
 from veredi.base.const                  import VerediHealth
-from veredi.base                        import dotted
+from veredi.base                        import label
 from veredi.data                        import background
 from veredi.data.serdes.adapter         import definition
 from veredi.data.milieu                 import ValueMilieu
@@ -169,7 +169,7 @@ class D20RulesSystem(System):
             return self._query_this(component, *entry)
 
         entry = self._rule_defs.canonical(entry, None)
-        return self._query_split(component, *dotted.split(entry))
+        return self._query_split(component, *label.split(entry))
 
     def _query_this(self,
                     component: Component,
@@ -194,7 +194,7 @@ class D20RulesSystem(System):
           or develops."
         Close enough?
         '''
-        split_name = dotted.this(entry, milieu)
+        split_name = label.this(entry, milieu)
         entry = self._rule_defs.canonical(entry, milieu)
         return self._query_split(component, *split_name)
 
@@ -213,4 +213,4 @@ class D20RulesSystem(System):
             -> (20, 'strength.score')
         '''
         return ValueMilieu(component.query(*entry),
-                           dotted.join(*entry))
+                           label.join(*entry))

@@ -32,7 +32,7 @@ import enum
 
 
 from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
-from veredi.base      import dotted
+from veredi.base      import label
 
 from . import pretty
 
@@ -205,12 +205,12 @@ _GROUP_LEVELS: Dict[Group, Level] = {
 
 @enum.unique
 class LogName(enum.Enum):
-    ROOT = dotted.join('veredi')
+    ROOT = label.join('veredi')
     '''
     The default/root veredi logger.
     '''
 
-    MULTIPROC = dotted.join(ROOT, 'multiproc')
+    MULTIPROC = label.join(ROOT, 'multiproc')
     '''
     multiproc's logger for setting up/tearing down sub-processes.
     '''
@@ -223,7 +223,7 @@ class LogName(enum.Enum):
 
         Should use `rooted()` unless you're special.
         '''
-        return dotted.join(*name)
+        return label.join(*name)
 
     def rooted(self, *name: str) -> str:
         '''
@@ -234,7 +234,7 @@ class LogName(enum.Enum):
           LogName.MULTIPROC.rooted('server', 'jeff')
             -> 'veredi.multiproc.server.jeff'
         '''
-        return dotted.join(str(self), *name)
+        return label.join(str(self), *name)
 
     def __str__(self) -> str:
         '''

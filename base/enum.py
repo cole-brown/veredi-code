@@ -16,7 +16,7 @@ import re
 
 
 from veredi.logger               import log
-from veredi.base                 import dotted
+from veredi.base                 import label
 from veredi.data.codec.encodable import (Encodable,
                                          EncodedComplex)
 
@@ -163,10 +163,10 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     def _type_field(klass: 'FlagEncodeValueMixin') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
-        Override this if you don't like what veredi.base.dotted.auto() and
-        veredi.base.dotted.munge_to_short() do for your type field.
+        Override this if you don't like what veredi.base.label.auto() and
+        veredi.base.label.munge_to_short() do for your type field.
         '''
-        return dotted.munge_to_short(dotted.auto(klass))
+        return label.munge_to_short(label.auto(klass))
 
     @classmethod
     def _encode_simple_only(klass: 'FlagEncodeValueMixin') -> bool:
@@ -316,10 +316,10 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     def _type_field(klass: 'FlagEncodeNameMixin') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
-        Override this if you don't like what veredi.base.dotted.auto() and
-        veredi.base.dotted.munge_to_short() do for your type field.
+        Override this if you don't like what veredi.base.label.auto() and
+        veredi.base.label.munge_to_short() do for your type field.
         '''
-        return dotted.munge_to_short(dotted.auto(klass))
+        return label.munge_to_short(label.auto(klass))
 
     @classmethod
     def _encode_simple_only(klass: 'FlagEncodeNameMixin') -> bool:
@@ -492,10 +492,10 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     def _type_field(klass: 'EnumEncodeNameMixin') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
-        Override this if you don't like what veredi.base.dotted.auto() and
-        veredi.base.dotted.munge_to_short() do for your type field.
+        Override this if you don't like what veredi.base.label.auto() and
+        veredi.base.label.munge_to_short() do for your type field.
         '''
-        return dotted.munge_to_short(dotted.auto(klass))
+        return label.munge_to_short(label.auto(klass))
 
     @classmethod
     def _encode_simple_only(klass: 'EnumEncodeNameMixin') -> bool:

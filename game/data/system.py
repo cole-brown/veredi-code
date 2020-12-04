@@ -26,7 +26,7 @@ from typing import Optional, Any, Set, Type, Union, Mapping
 # Veredi Stuff
 # ---
 from veredi.logger          import log
-from veredi.base import dotted as label
+from veredi.base import label
 from veredi.base.const      import VerediHealth
 from veredi.base.exceptions import VerediError
 from veredi.base.context    import VerediContext
