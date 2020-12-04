@@ -144,12 +144,19 @@ class MathParser(ABC):
     For getting from a string to some valid math tree.
     '''
 
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        ...
+
     def __init__(self, context: VerediContext) -> None:
         '''
         Initialize from the context.
 
         Calls _configure(context) after verifying context exists.
         '''
+        self._define_vars()
         self._configure(context)
 
     def _configure(self, context: VerediContext) -> None:

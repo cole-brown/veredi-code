@@ -296,7 +296,10 @@ class Test_Transformer(ZestBase):
 
     def str_to_transformed(self, string):
         ast = parser.Parser.parse(string)
+        vars = {}
+        milieu = None
         xform = parser.Transformer()
+        xform.set_up(vars, milieu)
         roll_tree = xform.transform(ast)
         return roll_tree
 
@@ -480,6 +483,9 @@ class Test_Transformer(ZestBase):
         self.assertEqual(roll_tree.children[1].value, 20)
 
     # TODO: test transform with milieu value
+
+
+# TODO [2020-12-04]: Make a test of D20Parser.
 
 
 # --------------------------------Unit Testing---------------------------------
