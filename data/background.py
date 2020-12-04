@@ -633,6 +633,18 @@ class DataMeta(type):
         retval = ctx.get(klass.Link.PATH, Null())
         return retval
 
+    @property
+    def repository(klass: Type['data']) -> Nullable['BaseRepository']:
+        ctx = klass._get()
+        retval = ctx.get(klass.Link.REPO, Null())
+        return retval
+
+    @property
+    def serdes(klass: Type['data']) -> Nullable['BaseSerdes']:
+        ctx = klass._get()
+        retval = ctx.get(klass.Link.SERDES, Null())
+        return retval
+
 
 class data(metaclass=DataMeta):
 
@@ -640,6 +652,18 @@ class data(metaclass=DataMeta):
     class Link(enum.Enum):
         PATH = enum.auto()
         '''A pathlib.Path to somewhere.'''
+
+        REPO = enum.auto()
+        '''
+        A Repository for the Game Data. Should not be used - the
+        DataSystem/RepositorySystem/etc should be used instead.
+        '''
+
+        SERDES = enum.auto()
+        '''
+        A Serdes for the Game Data. Should not be used - the
+        DataSystem/SerdesSystem/etc should be used instead.
+        '''
 
     @classmethod
     def _get(klass: Type['data']):
