@@ -173,6 +173,10 @@ class DataSystem(System):
         background.data.set(background.Name.SYS,
                             bg_data,
                             bg_owner)
+        background.data.link_set(background.data.Link.SERDES,
+                                 self._serdes)
+        background.data.link_set(background.data.Link.REPO,
+                                 self._repository)
 
     @property
     def background(self):
