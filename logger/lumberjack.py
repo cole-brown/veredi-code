@@ -24,7 +24,7 @@ from contextlib import contextmanager
 # ------------------------------
 # Veredi Logging & Stuff
 # ------------------------------
-from veredi.base import dotted
+from veredi.base import label
 from .           import log
 
 
@@ -90,7 +90,7 @@ class Lumberjack:
         # Set/Verify Name
         # ------------------------------
         self._name = name
-        if require_veredi_name and not dotted.is_veredi(self._name):
+        if require_veredi_name and not label.is_veredi(self._name):
             err_msg = ("Name must be a veredi-derived name (must start with "
                        f"'veredi.'). Got: '{name}'. If this is not the "
                        "desired functionality, set `require_veredi_name` "

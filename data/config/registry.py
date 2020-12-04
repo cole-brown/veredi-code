@@ -9,13 +9,11 @@ Bit of a Factory thing going on here...
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Union, Type, Any, Callable
-from veredi.base.null import Nullable
-from ..background import ContextMap
 
 from veredi.logger import log
 from .. import background
 from .. import exceptions
-from veredi.base import dotted
+from veredi.base import label
 from veredi.base.context import VerediContext
 
 # -----------------------------------------------------------------------------
@@ -54,8 +52,8 @@ def add_dotted_value(cls_or_func: Union[Type[Any], Callable[..., Type[Any]]],
     if not isinstance(cls_or_func, type):
         return
 
-    # If it already has the dotted._KLASS_FUNC_NAME, and doesn't have the
-    # dotted._ATTRIBUTE_PRIVATE_NAME, we'll give it the
+    # If it already has the label._KLASS_FUNC_NAME, and doesn't have the
+    # label._ATTRIBUTE_PRIVATE_NAME, we'll give it the
     # _ATTRIBUTE_PRIVATE_NAME. We have an annoying case of not knowing enough
     # Python to magically shenanigan our way out of an '@abstractfunc', so e.g.
     # System base class declares 'dotted' as one and the systems that register
@@ -67,7 +65,7 @@ def add_dotted_value(cls_or_func: Union[Type[Any], Callable[..., Type[Any]]],
     # ---
     # Set the attribute with the class's dotted name value.
     # ---
-    setattr(cls_or_func, dotted._ATTRIBUTE_PRIVATE_NAME, dotted_name)
+    setattr(cls_or_func, label._ATTRIBUTE_PRIVATE_NAME, dotted_name)
 
 
 def add_dotted_func(
@@ -86,7 +84,7 @@ def add_dotted_func(
     # ---
     # Set the attribute with the class's dotted name value.
     # ---
-    setattr(cls_or_func, dotted._ATTRIBUTE_PRIVATE_NAME, dotted_name)
+    setattr(cls_or_func, label._ATTRIBUTE_PRIVATE_NAME, dotted_name)
 
     # ---
     # Check the dotted func now.
@@ -94,13 +92,13 @@ def add_dotted_func(
 
     # Ignore things that already have the attribute we want to add. But do not
     # ignore if they are abstract - we will replace with concrete in that case.
-    dotted_attr = getattr(cls_or_func, dotted._KLASS_FUNC_NAME, None)
+    dotted_attr = getattr(cls_or_func, label._KLASS_FUNC_NAME, None)
     if dotted_attr:
         # Pre-existing dotted attribute; is it abstract?
         if getattr(dotted_attr, '__isabstractmethod__', False):
             msg = (f"{_REG_DOTTED}: Failed '{dotted_name}' registry of "
                    f"{cls_or_func.__name__} has an abstract "
-                   "'{dotted._KLASS_FUNC_NAME}' attribute, which we cannot "
+                   "'{label._KLASS_FUNC_NAME}' attribute, which we cannot "
                    "auto-generate a replacement for. Please implement "
                    "one manually:\n"
                    "    @classmethod\n"
@@ -116,7 +114,7 @@ def add_dotted_func(
             msg = (f"{_REG_DOTTED}: {cls_or_func.__name__} "
                    f"has a '{dotted._KLASS_FUNC_NAME}' attribute already. "
                    "@register(...) can implement one automatically though; "
-                   f"your '{dotted._KLASS_FUNC_NAME}' attribute would be: "
+                   f"your '{label._KLASS_FUNC_NAME}' attribute would be: "
                    f"'{dotted_name}'")
             log.info(msg)
             return
@@ -125,7 +123,7 @@ def add_dotted_func(
     # Make Getter.
     # ---
     def get_dotted(klass: Type[Any]) -> Optional[str]:
-        return getattr(klass, dotted._ATTRIBUTE_PRIVATE_NAME, None)
+        return getattr(klass, label._ATTRIBUTE_PRIVATE_NAME, None)
 
     # ---
     # No Setter.
@@ -139,7 +137,7 @@ def add_dotted_func(
     # Set the getter @classmethod function.
     # ---
     method = classmethod(get_dotted)
-    setattr(cls_or_func, dotted._KLASS_FUNC_NAME, method)
+    setattr(cls_or_func, label._KLASS_FUNC_NAME, method)
 
 
 # Decorator way of doing factory registration. Note that we will only get
@@ -208,7 +206,7 @@ def register(*args: str) -> Callable[..., Type[Any]]:
         reggie_jr.setdefault('.', []).append(config_name)
 
         # Finally, add the 'dotted' property if applicable.
-        dotted_name = dotted.join(*args)
+        dotted_name = label.join(*args)
         add_dotted_value(cls_or_func, dotted_name)
         add_dotted_func(cls_or_func, dotted_name)
 
@@ -229,7 +227,7 @@ def get(dotted_keys_str: str,
     Context just used for errors/exceptions.
     '''
     registration = _REGISTRY
-    split_keys = dotted_keys_str.split('.')
+    split_keys = label.split(dotted_keys_str)
     i = 0
     for key in split_keys:
         if registration is None:

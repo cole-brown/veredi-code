@@ -24,7 +24,7 @@ from ..ecs.base.identity             import ComponentId
 
 # Data Stuff
 from veredi.data.serdes.adapter.dict import DataDict
-from veredi.base                     import dotted
+from veredi.base                     import label
 
 
 # -----------------------------------------------------------------------------
@@ -202,7 +202,7 @@ class DataComponent(Component):
         '''
         if len(dot_path) == 1:
             # replace, probably, ['strength.score'] with ['strength', 'score']
-            dot_path = dotted.split(dot_path[0])
+            dot_path = label.split(dot_path[0])
 
         data = self.persistent
         for each in dot_path:

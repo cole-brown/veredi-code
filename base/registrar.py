@@ -15,7 +15,7 @@ from typing import (Optional, Union, Type, NewType, Any, Mapping,
 from abc import ABC, abstractmethod
 
 
-import veredi.base.dotted
+from veredi.base import label
 from veredi.logger import log
 from veredi.data import background
 from veredi.data.exceptions import RegistryError
@@ -254,7 +254,7 @@ class BaseRegistrar(ABC):
                    "the incorrect type? Expected something that can deal "
                    f"with 'in' operator. Have: {type(registration)} -> "
                    f"{registration}. Trying to register {cls_or_func} at "
-                   f"'{veredi.base.dotted.join(*args)}'. "
+                   f"'{label.join(*args)}'. "
                    "Registry: \n{}")
             from veredi.logger import pretty
             log.exception(error, None, msg,
@@ -296,7 +296,7 @@ class BaseRegistrar(ABC):
           KeyError - dotted string not found in our registry.
         '''
         registration = klass._get()
-        split_keys = veredi.base.dotted.split(dotted_keys_str)
+        split_keys = label.split(dotted_keys_str)
 
         # ---
         # Walk into our registry using the keys for our path.
@@ -450,9 +450,9 @@ class DottedRegistrar(BaseRegistrar):
         # ---
         # Set the attribute with the class's dotted name value.
         # ---
-        dotted_name = veredi.base.dotted.join(reg_args)
+        dotted_name = label.join(reg_args)
         setattr(registeree,
-                veredi.base.dotted._ATTRIBUTE_PRIVATE_NAME,
+                label._ATTRIBUTE_PRIVATE_NAME,
                 dotted_name)
 
         # ---
@@ -460,14 +460,14 @@ class DottedRegistrar(BaseRegistrar):
         # ---
 
         dotted_attr = getattr(registeree,
-                              veredi.base.dotted._KLASS_FUNC_NAME, None)
+                              label._KLASS_FUNC_NAME, None)
         if dotted_attr:
             # Pre-existing dotted attribute; is it abstract?
             # Complain about abstract.
             if getattr(dotted_attr, '__isabstractmethod__', False):
                 msg = (f"{klass.dotted()}: Failed '{dotted_name}' registry of "
                        f"{registeree.__name__}. Registree has an abstract "
-                       "'{veredi.base.dotted._KLASS_FUNC_NAME}' attribute, "
+                       "'{label._KLASS_FUNC_NAME}' attribute, "
                        "which we cannot auto-generate a replacement for. "
                        "Please implement one manually:\n"
                        "    @classmethod\n"
@@ -475,7 +475,7 @@ class DottedRegistrar(BaseRegistrar):
                        "        # klass._DOTTED magically provided "
                        "by {klass.__name__}\n"
                        "        return klass."
-                       "{_veredi.base.dotted._KLASS_FUNC_NAME}")
+                       "{label._KLASS_FUNC_NAME}")
                 raise log.exception(AttributeError(msg, registeree),
                                     None,
                                     msg)
@@ -487,7 +487,7 @@ class DottedRegistrar(BaseRegistrar):
                 msg = (f"{klass.dotted()}: Failed '{dotted_name}' registry of "
                        f"{registeree.__name__}. Registree has a dotted() "
                        "return value of "
-                       f"'{veredi.base.dotted._KLASS_FUNC_NAME}', which is "
+                       f"'{label._KLASS_FUNC_NAME}', which is "
                        "not what it's trying to register as. Please fix the "
                        "class to have the same registration dotted name as "
                        "it has in its dotted() function.")
@@ -500,7 +500,7 @@ class DottedRegistrar(BaseRegistrar):
         # ---
         def get_dotted(klass: Type[Any]) -> Optional[str]:
             return getattr(klass,
-                           veredi.base.dotted._ATTRIBUTE_PRIVATE_NAME,
+                           label._ATTRIBUTE_PRIVATE_NAME,
                            None)
 
         # ---
@@ -514,7 +514,7 @@ class DottedRegistrar(BaseRegistrar):
         # ---
         method = classmethod(get_dotted)
         setattr(registeree,
-                veredi.base.dotted._KLASS_FUNC_NAME,
+                label._KLASS_FUNC_NAME,
                 method)
 
 

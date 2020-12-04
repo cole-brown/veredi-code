@@ -20,7 +20,7 @@ import multiprocessing.connection
 import re
 
 from veredi.logger               import log
-from veredi.base                 import dotted
+from veredi.base                 import label
 from veredi.base.context         import VerediContext
 from veredi.debug.const          import DebugFlag
 from veredi.data                 import background
@@ -169,7 +169,7 @@ class WebSocketMediator(Mediator):
         '''
         self._bg = {
             'dotted': self.dotted(),
-            'type': dotted.join('websocket', self._name),
+            'type': label.join('websocket', self._name),
             'serdes': self._serdes.dotted(),
         }
         return self._bg, background.Ownership.SHARE

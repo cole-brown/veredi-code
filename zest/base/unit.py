@@ -32,7 +32,7 @@ from veredi.logger                      import log
 from veredi.zest.zpath                  import TestType
 from veredi.zest                        import zload
 from veredi.debug.const                 import DebugFlag
-from veredi.base                        import dotted
+from veredi.base                        import label
 
 
 # -----------------------------------------------------------------------------
@@ -214,7 +214,7 @@ class ZestBase(unittest.TestCase):
             pass
 
         # Didja know this exists?
-        return dotted.from_path(uufileuu)
+        return label.from_path(uufileuu)
 
     # -------------------------------------------------------------------------
     # Set-Up
