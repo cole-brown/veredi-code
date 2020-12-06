@@ -519,7 +519,7 @@ class DataSystem(System):
                 context=event.context)
             return
 
-        self._log.warning(f"{self.__class__.__name__}.event_saved() "
+        self._log_warning(f"{self.__class__.__name__}.event_saved() "
                           "is not really implemented... ignoring event: {}",
                           event)
 

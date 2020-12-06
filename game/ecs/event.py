@@ -188,6 +188,17 @@ class EventManager(EcsManager):
         # Pool for event objects?
 
     # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'EventManager') -> str:
+        '''
+        The dotted name this Manager has.
+        '''
+        return 'veredi.game.ecs.manager.event'
+
+    # -------------------------------------------------------------------------
     # Debug Stuff
     # -------------------------------------------------------------------------
 
@@ -222,9 +233,9 @@ class EventManager(EcsManager):
         Log an error, and raise it if `self.debug_flagged` to do so.
         '''
         kwargs = kwargs or {}
-        log.incr_stack_level(kwargs)
+        kwargs = self._log_stack(**kwargs)
         if self.debug_flagged(DebugFlag.RAISE_ERRORS):
-            raise log.exception(
+            raise self._log_exception(
                 error,
                 v_err_wrap,
                 msg,
@@ -233,7 +244,7 @@ class EventManager(EcsManager):
                 **kwargs
             ) from error
         else:
-            log.exception(
+            self._log_exception(
                 error,
                 v_err_wrap,
                 msg,
@@ -252,15 +263,15 @@ class EventManager(EcsManager):
         Subscribe to all events triggered for `target_class` and any of its
         sub-classes.
         '''
-        log.debug("Adding subscriber {} for event {}.",
-                  handler_fn, target_class)
+        self._log_debug("Adding subscriber {} for event {}.",
+                        handler_fn, target_class)
         subs = self._subscriptions.setdefault(target_class, set())
         if handler_fn in subs:
-            raise log.exception(None,
-                                EventError,
-                                "Subscriber is trying to re-register."
-                                "subscriber: {}, event: {}",
-                                handler_fn, target_class)
+            raise self._log_exception(None,
+                                      EventError,
+                                      "Subscriber is trying to re-register."
+                                      "subscriber: {}, event: {}",
+                                      handler_fn, target_class)
         subs.add(handler_fn)
 
     # -------------------------------------------------------------------------
@@ -312,9 +323,11 @@ class EventManager(EcsManager):
         Note: you are turning over lifecycle management of the event to
         EventManager.
         '''
-        log.debug("Received {} for publishing {}.",
-                  event,
-                  "IMMEDIATELY" if requires_immediate_publish else "later")
+        self._log_debug("Received {} for publishing {}.",
+                        event,
+                        ("IMMEDIATELY"
+                         if requires_immediate_publish else
+                         "later"))
         if requires_immediate_publish:
             self._push(event)
             return
@@ -390,7 +403,7 @@ class EventManager(EcsManager):
             # TODO: add notice, event to error
             # Always log in catch-all?
             # For now anyways.
-            log.exception(
+            self._log_exception(
                 None,
                 VerediError,
                 "EventManager tried to notify a subscriber about an event, "
@@ -407,15 +420,15 @@ class EventManager(EcsManager):
         for push_type in event.__class__.__mro__:
             subs = self._subscriptions.get(push_type, ())
             if subs:
-                log.debug("Pushing {} to its {} subcribers: {}",
-                          event, push_type, subs)
+                self._log_debug("Pushing {} to its {} subcribers: {}",
+                                event, push_type, subs)
             for notice in subs:
                 has_subs = True
                 self._call_catch(notice, event)
 
         if not has_subs:
-            log.debug("Tried to push {}, but it has no subscribers.",
-                      event)
+            self._log_debug("Tried to push {}, but it has no subscribers.",
+                            event)
 
     def publish(self) -> int:
         '''
@@ -424,8 +437,8 @@ class EventManager(EcsManager):
         Returns number published.
         '''
         publishing = len(self._events)
-        log.debug("Publishing {} events...",
-                  publishing)
+        self._log_debug("Publishing {} events...",
+                        publishing)
 
         for each in self._events:
             self._push(each)
@@ -457,7 +470,7 @@ class EventManager(EcsManager):
         # For other ticks... WTF - should be no others.
         msg = f"EventManager doesn't know what to do for update tick: {tick}"
         error = ValueError(msg, tick)
-        raise log.exception(error, None, msg)
+        raise self._log_exception(error, None, msg)
 
     def _update_ticks_end(self, tick: SystemTick) -> int:
         '''
@@ -507,7 +520,7 @@ class EventManager(EcsManager):
             msg = ("EventManager doesn't know what to do for ending "
                    f"update tick: {tick}")
             error = ValueError(msg, tick)
-            raise log.exception(error, None, msg)
+            raise self._log_exception(error, None, msg)
 
         self.health = health
         return published

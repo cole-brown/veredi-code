@@ -50,11 +50,20 @@ class TimeManager(EcsManagerWithEvents):
     This class has the potential to be saved to data fields. Let it control its
     timezones. Convert to user-friendly elsewhere.
     '''
+
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
+
     _DEFAULT_TICK_STEP = Decimal(6)
     _DEFAULT_TIMEOUT_SEC = 10
     _SHORT_TIMEOUT_SEC = 1
 
     _METER_TIMEOUT_SEC = _DEFAULT_TICK_STEP * 4
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def _define_vars(self) -> None:
         super()._define_vars()
@@ -127,8 +136,8 @@ class TimeManager(EcsManagerWithEvents):
         # zero is not an allowed tick amount so...
         tick_amount = tick_amount or self._DEFAULT_TICK_STEP
         if tick_amount <= 0:
-            log.error("tick_amount should be `None` or a "
-                      "non-zero, positive amount.")
+            self.log_error("tick_amount should be `None` or a "
+                           "non-zero, positive amount.")
             raise exceptions.SystemErrorV("tick_amount should be `None` or a "
                                           "non-zero, positive amount.",
                                           None, None)
@@ -166,10 +175,21 @@ class TimeManager(EcsManagerWithEvents):
                 msg = (f"default name '{default_name}' not found in "
                        "provided timers.")
                 error = KeyError(default_name, msg, timers)
-                raise log.exception(error, None,
-                                    msg + ' timers: {}', timers)
+                raise self._log_exception(error, None,
+                                          msg + ' timers: {}', timers)
             else:
                 self._timer_name_default = default_name
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'TimeManager') -> str:
+        '''
+        The dotted name this Manager has.
+        '''
+        return 'veredi.game.ecs.manager.time'
 
     # ---
     # Engine's Ticks / Life-Cycles
@@ -231,15 +251,16 @@ class TimeManager(EcsManagerWithEvents):
                        f"'{save_name}' already exists in our dictionary "
                        f"of timers. Cannot overwrite. {self._timers}")
                 error = ValueError(msg, save_name, self._timers)
-                raise log.exceptions(error, None, msg)
+                raise self._log_exceptions(error, None, msg)
             self._timers[save_name] = timer
 
             # Now, we have a valid name and a timer. Is it the default?
             # If so, just set our default name - overwriting any previous.
             if is_default:
                 if self._timer_name_default:
-                    log.warning("Changing default timer from: "
-                                f"{self._timer_name_default} to {save_name}.")
+                    self._log_warning("Changing default timer from: "
+                                      f"{self._timer_name_default} to "
+                                      f"{save_name}.")
                 self._timer_name_default = save_name
 
         return timer
@@ -274,8 +295,8 @@ class TimeManager(EcsManagerWithEvents):
                        f"exists. timer: {timer_input}, default_timer_name: "
                        f"{self._timer_name_default}")
                 error = KeyError(timer_input, msg)
-                raise log.exception(error, None, msg + ' timers: {}',
-                                    self._timers)
+                raise self._log_exception(error, None, msg + ' timers: {}',
+                                          self._timers)
 
         # No-op - allow callers to work equally well with actual timers and
         # timer names.
@@ -291,15 +312,15 @@ class TimeManager(EcsManagerWithEvents):
                 msg = (f"get_timer(): No timer found for name '{timer_input}' "
                        "in timer collection.")
                 error = KeyError(timer_input, msg)
-                raise log.exception(error, None, msg + ' timers: {}',
-                                    self._timers)
+                raise self._log_exception(error, None, msg + ' timers: {}',
+                                          self._timers)
 
         # timer_input wasn't understood - error out.
         else:
             msg = (f"{self.__class__.__name__}.get_timer: No timer found for "
                    f"input '{timer_input}'.")
             error = ValueError(msg, timer_input, self._timers)
-            raise log.exceptions(error, None, msg)
+            raise self._log_exceptions(error, None, msg)
 
         # We got here, so success! Give back valid timer.
         return timer_output
@@ -371,9 +392,9 @@ class TimeManager(EcsManagerWithEvents):
             msg = ("is_timed_out() requires a timer or timer name. "
                    f"Got '{timer}' which didn't resolve to a timer: "
                    f"{check_timer}")
-            raise log.exception(ValueError(msg, timer, timeout),
-                                None,
-                                msg + f", timeout: {timeout}")
+            raise self._log_exception(ValueError(msg, timer, timeout),
+                                      None,
+                                      msg + f", timeout: {timeout}")
         # Verified it, so we can assign it `timer` since we don't need to know
         # what the input value was anymore.
         timer = check_timer
@@ -389,9 +410,9 @@ class TimeManager(EcsManagerWithEvents):
         if timeout and isinstance(timeout, str):
             config = background.config.config
             if not config:
-                log.info("TimeManager cannot get config for checking "
-                         "timeout value of '{}'",
-                         timeout)
+                self._log_info("TimeManager cannot get config for checking "
+                               "timeout value of '{}'",
+                               timeout)
                 timeout = self._DEFAULT_TIMEOUT_SEC
             else:
                 try:
@@ -403,9 +424,9 @@ class TimeManager(EcsManagerWithEvents):
                     if not isinstance(timeout, float):
                         timeout = float(timeout)
                 except ConfigError:
-                    log.info("TimeManager cannot get config for checking "
-                             "timeout value of '{}'",
-                             timeout)
+                    self._log_info("TimeManager cannot get config "
+                                   "for checking timeout value of '{}'",
+                                   timeout)
                     timeout = self._DEFAULT_TIMEOUT_SEC
 
             # Timeout should be a float now.

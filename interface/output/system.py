@@ -303,7 +303,7 @@ class OutputSystem(System):
         # TODO [2020-07-06]: Do we save the event to the historian?
         # I think so. We need the result so we can undo the thing.
         # TODO: Send to historian.
-        self._log.warning("TODO: send {} to historian: OutputEvent? Envelope? "
+        self._log_warning("TODO: send {} to historian: OutputEvent? Envelope? "
                           "Wait for GameToMediatorEvent?",
                           event.serial_id)
 
@@ -362,7 +362,7 @@ class OutputSystem(System):
                                          Recipient.GM,
                                          abac.Subject.GM)
             if recipient is Recipient.INVALID:
-                self._log.error("Envelope recipient mismatch! The envelope "
+                self._log_error("Envelope recipient mismatch! The envelope "
                                 "has 'GM' in desired_recipients "
                                 f"({envelope.desired_recipients}), but "
                                 "failed to address itself to them. "
@@ -379,7 +379,7 @@ class OutputSystem(System):
                                          Recipient.USER,
                                          abac.Subject.USER)
             if recipient is Recipient.INVALID:
-                self._log.error("Envelope recipient mismatch! The envelope "
+                self._log_error("Envelope recipient mismatch! The envelope "
                                 "has 'USER' in desired_recipients "
                                 f"({envelope.desired_recipients}), but "
                                 "failed to address itself to them. "
@@ -396,7 +396,7 @@ class OutputSystem(System):
                                          Recipient.BROADCAST,
                                          abac.Subject.BROADCAST)
             if recipient is Recipient.INVALID:
-                self._log.error("Envelope recipient mismatch! The envelope "
+                self._log_error("Envelope recipient mismatch! The envelope "
                                 "has 'BROADCAST' in desired_recipients "
                                 f"({envelope.desired_recipients}), but "
                                 "failed to address itself to them. "
@@ -420,7 +420,7 @@ class OutputSystem(System):
           - Recipient.INVALID on failure.
         '''
         if not self._pdp.allowed(envelope.context):
-            self._log.security(f"Cannot address envelope to '{recipient}' "
+            self._log_security(f"Cannot address envelope to '{recipient}' "
                                f"at '{security_subject}': "
                                "Security has denied the action.")
             # Recipient was not allowed by security - failure return.
@@ -446,7 +446,7 @@ class OutputSystem(System):
             users = background.users.connected(None)
 
         if not users:
-            self._log.debug(
+            self._log_debug(
                 "No user(s) found for recipient {}, access {}. Ignoring.",
                 recipient, security_subject)
             # Recipient was not found, which we'll treat as effectively a

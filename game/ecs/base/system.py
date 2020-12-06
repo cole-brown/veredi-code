@@ -27,7 +27,7 @@ import enum
 
 from veredi.data.config       import registry
 from veredi.logger            import log
-from veredi.logger.lumberjack import Lumberjack
+from veredi.logger.mixin      import LogMixin
 from veredi.base.const        import VerediHealth
 from veredi.debug.const       import DebugFlag
 from veredi.base.assortments  import DeltaNext
@@ -132,7 +132,7 @@ class SystemLifeCycle(enum.Enum):
 # Code
 # -----------------------------------------------------------------------------
 
-class System(ABC):
+class System(LogMixin, ABC):
 
     # -------------------------------------------------------------------------
     # Class Methods
@@ -204,10 +204,7 @@ class System(ABC):
         # ---
         # Logging
         # ---
-        self._log: Lumberjack = None
-        '''
-        A logger specifically for this system. Logger name is `self.dotted()`.
-        '''
+        # We're a LogMixin. Use self._log_<level>(), self._log_group(), etc.
 
         # ---
         # Subscriptions
@@ -268,17 +265,18 @@ class System(ABC):
         self._manager = managers
 
         # ---
+        # Logger!
+        # ---
+        # Set up before _configure() so we have self._log_*() working ASAP.
+
+        # Config our LogMixin.
+        self._log_config(self.dotted())
+
+        # ---
         # Final set up/configuration from context/config and
         # system-specific stuff.
         # ---
         self._configure(context)
-
-        # ---
-        # Logger!
-        # ---
-        # TODO: go through all systems and make sure they use this instead of
-        # log.py directly.
-        self._log = Lumberjack(self.dotted())
 
     # -------------------------------------------------------------------------
     # Properties
@@ -338,7 +336,7 @@ class System(ABC):
         '''
         # Sanity.
         if new_state == self._life_cycle:
-            self._log.warning("Already in {}.", new_state)
+            self._log_warning("Already in {}.", new_state)
             return self.health
 
         # ------------------------------
@@ -351,7 +349,7 @@ class System(ABC):
             error = ValueError(msg,
                                self._life_cycle,
                                new_state)
-            raise self._log.exception(error, msg)
+            raise self._log_exception(error, msg)
 
         # Valid life-cycles; call specific cycle function.
         elif new_state == SystemLifeCycle.CREATING:
@@ -389,7 +387,7 @@ class System(ABC):
             error = ValueError(msg,
                                self._life_cycle,
                                new_state)
-            raise self._log.exception(error, msg)
+            raise self._log_exception(error, msg)
 
         return self._health
 
@@ -538,7 +536,7 @@ class System(ABC):
                 if not context:
                     context = event.context
             # Entity disappeared, and that's ok.
-            self._log.info("{}No entity for its id: {}",
+            self._log_info("{}No entity for its id: {}",
                            preface, entity_id,
                            context=context)
             # TODO [2020-06-04]: a health thing? e.g.
@@ -575,7 +573,7 @@ class System(ABC):
                 if not context:
                     context = event.context
             # Component disappeared, and that's ok.
-            self._log.info("{}No '{}' on entity: {}",
+            self._log_info("{}No '{}' on entity: {}",
                            preface,
                            component.__class__.__name__,
                            entity,
@@ -688,7 +686,7 @@ class System(ABC):
             system = self._manager.system.get(sys_type)
             if not system:
                 # Log and degrade our system dependency health.
-                self._log.warning("{} cannot find its requried system: {}",
+                self._log_warning("{} cannot find its requried system: {}",
                                   self.__class__.__name__,
                                   sys_type)
                 dependency_health = dependency_health.update(
@@ -719,8 +717,8 @@ class System(ABC):
         '''
         output_log, maybe_updated_meter = self._manager.time.metered(log_meter)
         if output_log:
-            log.incr_stack_level(kwargs)
-            self._log.at_level(
+            kwargs = self._log_stack(**kwargs)
+            self._log_at_level(
                 log_level,
                 "HEALTH({}): Skipping ticks - our system health "
                 "isn't good enough to process. args: {}, kwargs: {}",
@@ -735,7 +733,7 @@ class System(ABC):
         '''Check health, log if needed, and return True if able to proceed.'''
         tick = self._manager.time.engine_tick_current
         if not self._healthy(tick):
-            kwargs = log.incr_stack_level(None)
+            kwargs = self._log_stack(**kwargs)
             self._health_meter_event = self._health_log(
                 self._health_meter_event,
                 log.Level.WARNING,
@@ -753,7 +751,7 @@ class System(ABC):
         if not self._healthy(tick):
             msg = ("Dropping event {} - our system health "
                    "isn't good enough to process.")
-            kwargs = log.incr_stack_level(None)
+            kwargs = self._log_stack(None)
             self._health_meter_event = self._health_log(
                 self._health_meter_event,
                 log.Level.WARNING,
@@ -771,7 +769,7 @@ class System(ABC):
         if not self._healthy(tick):
             msg = ("Skipping tick {} - our system health "
                    "isn't good enough to process.")
-            kwargs = log.incr_stack_level(None)
+            kwargs = self._log_stack(None)
             self._health_meter_update = self._health_log(
                 self._health_meter_update,
                 log.Level.WARNING,
@@ -818,7 +816,7 @@ class System(ABC):
                                  None,
                                  context=None,
                                  associated=None)
-            raise self._log.exception(error, msg)
+            raise self._log_exception(error, msg)
 
         if (self._required_managers and EventManager in self._required_managers
                 and not self._manager.event):
@@ -828,7 +826,7 @@ class System(ABC):
                                  None,
                                  context=None,
                                  associated=None)
-            raise self._log.exception(error, msg)
+            raise self._log_exception(error, msg)
 
         # Have our sub-class do whatever it wants this one time.
         # Or, you know, more than once... depending on the health returned.
