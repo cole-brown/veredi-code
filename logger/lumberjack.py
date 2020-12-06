@@ -158,7 +158,7 @@ class Lumberjack:
         '''
         Log at `group` log.Level, whatever it's set to right now.
         '''
-        kwargs = log.incr_stack_level(kwargs)
+        kwargs = self._stack(1, **kwargs)
         log.group(group, msg,
                   *args,
                   veredi_logger=self._logger,

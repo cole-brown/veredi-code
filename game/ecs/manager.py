@@ -11,9 +11,11 @@ Manager interface for ECS managers.
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .event import EventManager
+from abc import ABC, abstractmethod
 
-from veredi.base.const import VerediHealth
-from .const            import SystemTick
+from veredi.base.const   import VerediHealth
+from veredi.logger.mixin import LogMixin
+from .const              import SystemTick
 
 
 # -----------------------------------------------------------------------------
@@ -25,7 +27,7 @@ from .const            import SystemTick
 # Code
 # -----------------------------------------------------------------------------
 
-class EcsManager:
+class EcsManager(LogMixin, ABC):
     '''
     Interface for ECS Managers.
     '''
@@ -37,6 +39,13 @@ class EcsManager:
     def __init__(self) -> None:
         self._define_vars()
 
+        # ---
+        # Logger!
+        # ---
+        # Set up ASAP so that we have self._log_*() working... ASAP? Yeah.
+        self._log_config(self.dotted())
+
+    @abstractmethod
     def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
@@ -44,6 +53,20 @@ class EcsManager:
         '''
         raise NotImplementedError(f"{self.__class__.__name__}.subscribe() "
                                   "is not implemented.")
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    @abstractmethod
+    def dotted(klass: 'EcsManager') -> str:
+        '''
+        The dotted name this Manager has. E.g. 'veredi.game.ecs.manager.entity'
+        '''
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented in base class. "
+                                  "Subclasses should defined it themselves.")
 
     # -------------------------------------------------------------------------
     # Life-Cycle Transitions
