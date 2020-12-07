@@ -142,12 +142,19 @@ class ConfigContext(EphemerealContext):
         the stacktrace of the exception.
         '''
         # An extra stacklevel should get us back to whoever called us...
-        raise log.exception(
-            source,
-            ContextError,
-            msg, *args, **kwargs,
-            context=context,
-            stacklevel=3)
+        kwargs = log.incr_stack_level(kwargs)
+        # TODO [2020-12-07]: ConfigError, like comment says, or
+        # ContextError, like code does?
+        if source:
+            raise log.exception(
+                ContextError,
+                msg, *args, **kwargs,
+                context=context) from source
+        else:
+            raise log.exception(
+                ContextError,
+                msg, *args, **kwargs,
+                context=context)
 
     @classmethod
     def set_log_level(klass:   Type['ConfigContext'],

@@ -144,7 +144,7 @@ class CommandArg:
                 error = NotImplementedError(
                     msg,
                     input_str)
-                raise log.exception(error, None, msg)
+                raise log.exception(error, msg)
                 # If not raising anymore, return full input_str as remainder.
                 # return (None, input_str)
             return (arg, remainder)
@@ -164,7 +164,7 @@ class CommandArg:
         error = NotImplementedError(
             msg,
             input_str)
-        raise log.exception(error, None, msg)
+        raise log.exception(error, msg)
 
 
 class CommandKwarg(CommandArg):

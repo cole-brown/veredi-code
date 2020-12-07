@@ -49,7 +49,7 @@ from .event                        import OutputEvent, Recipient
 from ..user                        import BaseUser
 
 from ..mediator.const              import MsgType
-from ..mediator.message            import Message
+from ..mediator.message            import Message, MsgIdTypes
 from ..mediator.payload.base       import BasePayload
 
 
@@ -368,9 +368,7 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
             err_msg = ("Recipient must be a single receipient value."
                        f"Got: '{recipient}'")
             error = ValueError(err_msg, recipient)
-            raise log.exception(error,
-                                None,
-                                err_msg)
+            raise log.exception(error, err_msg)
 
         return self._addresses.get(recipient, None)
 
@@ -388,9 +386,7 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
             err_msg = ("Recipient must be a single receipient value."
                        f"Got: '{recipient}'")
             error = ValueError(err_msg, recipient)
-            raise log.exception(error,
-                                None,
-                                err_msg)
+            raise log.exception(error, err_msg)
 
         address = Address(recipient, security_subject, users)
         self._addresses[recipient] = address
@@ -400,7 +396,7 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
     # -------------------------------------------------------------------------
 
     def message(self,
-                msg_id:           'MonotonicId',
+                msg_id:           MsgIdTypes,
                 security_subject: 'abac.Subject',
                 user:             BaseUser) -> Optional[Message]:
         '''
@@ -413,11 +409,9 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
         # ---
         if not security_subject.is_solo:
             err_msg = ("security_subject must be a single value."
-                       f"Got: '{security_subject}' for user {user}")
+                       f"Got: '{security_subject}' for user {user}.")
             error = ValueError(err_msg, security_subject, user)
-            raise log.exception(error,
-                                None,
-                                err_msg)
+            raise log.exception(error, err_msg)
 
         # -------------------------------
         # Payload == OutputEvent's Output

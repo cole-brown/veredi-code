@@ -274,7 +274,6 @@ def _set(subctx: ContextMutableMap,
         subctx[key] = copy.deepcopy(value)
     else:
         log.exception(
-            None,
             ContextError,
             "Cannot set data into background context. Don't know what to "
             "do with Ownership type {}. sub-context: {}, key: {}, data: {},",
@@ -353,7 +352,6 @@ class config(metaclass=ConfigMeta):
         # Make sure the path is a directory.
         if path is None:
             raise log.exception(
-                None,
                 ConfigError,
                 "Background needs a path to __init__ properly.")
         elif path is False:
@@ -431,7 +429,6 @@ class config(metaclass=ConfigMeta):
     @classmethod
     def exception(klass:     Type['config'],
                   context:   'VerediContext',
-                  source:    Optional[Exception],
                   msg:       Optional[str],
                   *args:     Any,
                   **kwargs:  Any) -> None:
@@ -442,8 +439,10 @@ class config(metaclass=ConfigMeta):
         Sets stack level one more than usual so that caller of this should be
         the stacktrace of the exception.
         '''
+        kwargs = log.incr_stack_level(**kwargs)
+
+        # Let a generic ConfigError be made.
         return log.exception(
-            source,
             ConfigError,
             msg, *args, **kwargs,
             context=context)

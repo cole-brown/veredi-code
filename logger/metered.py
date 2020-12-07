@@ -10,7 +10,7 @@ Log metering to reduce spammy logs.
 
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any, Type,
-                    Generic, TypeVar, NewType,
+                    Generic, TypeVar, NewType, Callable,
                     Dict, Tuple, Iterable)
 if TYPE_CHECKING:
     import logging
@@ -375,12 +375,12 @@ class MeteredLog(Generic[MeterT]):
                                   *args,
                                   **kwargs)
         except KeyError as key_error:
-            # Catch key error and don't rethrow - let the actual except
-            # take precedence.
-            log.exception(key_error,
-                          None,
-                          "Could not find a meter for metering type {}.",
-                          meter_type)
+            # Catch key error and rethrow in this case - just a log, and we
+            # don't know how to meter it.
+            # TODO [2020-12-07]: LOG: meter these with a class-level metering.
+            raise log.exception(key_error,
+                                "Could not find a meter for metering type {}.",
+                                meter_type)
 
         # If our LogMeter says it's ok to log, do it. Otherwise just ignore it.
         if not allow_log:
@@ -398,10 +398,10 @@ class MeteredLog(Generic[MeterT]):
 
     def exception(self,
                   meter_type: MeterT,
-                  error:      Exception,
-                  wrap_type:  Optional[Type['VerediError']],
+                  error:      Union[Exception, Type[Exception]],
                   msg:        str,
                   *args:      Any,
+                  log_fn:     Optional[Callable] = None,
                   context:    Optional['VerediContext'] = None,
                   associate:  Optional[Union[Any, Iterable[Any]]] = None,
                   **kwargs:   Any) -> Tuple[bool, Exception]:
@@ -409,8 +409,7 @@ class MeteredLog(Generic[MeterT]):
         Logs `error`, `msg`, `args`, `kwargs` at `level`, or get squelched,
         depending on the LogMeter for the `meter_type`.
 
-        Uses log.exception(). `error` will optionally get wrapped up in a
-        VerediError type if a `wrap_type` is supplied.
+        Uses log.exception() if `log_fn` is Falsy.
 
         Logs a KeyError log.exception if the `meter_type` doesn't exist as one
         of our LogMeters (does not rethrow it). Then presumes it's not
@@ -429,10 +428,11 @@ class MeteredLog(Generic[MeterT]):
                                   *args,
                                   **kwargs)
         except KeyError as key_error:
-            # Catch key error and don't rethrow - let the actual except
-            # take precedence.
+            # Catch key error and don't rethrow - let the actual error
+            # we're returing take precedence.
+            # TODO [2020-12-07]: LOG: meter these with a class-level metering.
+            #   - LOG: and allow/skip logging actual error at the same time.
             log.exception(key_error,
-                          None,
                           "Could not find a meter for metering type {}.",
                           meter_type)
 
@@ -444,7 +444,6 @@ class MeteredLog(Generic[MeterT]):
         kwargs = kwargs or {}
         log.incr_stack_level(kwargs)
         logger_error = log.exception(error,
-                                     wrap_type,
                                      self._meter_msg(meter_type, msg),
                                      *args,
                                      **kwargs,

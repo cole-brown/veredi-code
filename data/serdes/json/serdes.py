@@ -72,7 +72,7 @@ class JsonSerdes(BaseSerdes):
         return self._bg, background.Ownership.SHARE
 
     def _context_deserialize_data(self,
-                             context: 'VerediContext') -> 'VerediContext':
+                                  context: 'VerediContext') -> 'VerediContext':
         '''
         Inject our serdes data into the context.
         '''
@@ -87,8 +87,8 @@ class JsonSerdes(BaseSerdes):
     # -------------------------------------------------------------------------
 
     def deserialize(self,
-               stream: Union[TextIO, str],
-               context: 'VerediContext') -> DeserializeTypes:
+                    stream: Union[TextIO, str],
+                    context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes data from a single data stream.
 
@@ -101,6 +101,17 @@ class JsonSerdes(BaseSerdes):
         log.debug("json.deserialize input: {}", type(stream))
         self._context_deserialize_data(context)
         data = self._read(stream, context)
+        if not data:
+            msg = "Reading all json from stream resulted in no data."
+            error = exceptions.ReadError(
+                msg,
+                context=context,
+                data={
+                    'data': data,
+                })
+            raise log.exception(error, msg,
+                                context=context)
+
         log.debug("json.deserialize output: {}", type(data))
         return data
 
@@ -129,19 +140,32 @@ class JsonSerdes(BaseSerdes):
                 data = json.loads(stream)
             else:
                 data = json.load(stream)
-        except json.JSONDeserializeError as error:
+        except json.JSONDeserializeError as json_error:
             data = None
-            raise log.exception(
-                error,
-                exceptions.ReadError,
-                f"Error reading json from stream: {stream}",
-                context=context) from error
+            msg = f"Error reading json from stream: {stream}"
+            error = exceptions.ReadError(
+                msg,
+                context=context,
+                data={
+                    'data': stream,
+                    'data_stream.closed': (stream.closed()
+                                           if stream else
+                                           None),
+                    'data_stream.readable': (stream.readable()
+                                             if stream else
+                                             None),
+                    'data_stream.pos': (stream.tell()
+                                        if stream else
+                                        None),
+                })
+            raise log.exception(error, msg,
+                                context=context) from json_error
 
         return data
 
     def deserialize_all(self,
-                   stream: Union[TextIO, str],
-                   context: 'VerediContext') -> DeserializeTypes:
+                        stream: Union[TextIO, str],
+                        context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes all documents from the data stream.
 
@@ -200,8 +224,8 @@ class JsonSerdes(BaseSerdes):
         return stream
 
     def _serialize_prep(self,
-                     data: SerializeTypes,
-                     context: 'VerediContext') -> Mapping[str, Any]:
+                        data: SerializeTypes,
+                        context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into
         something ready for json to serialize.
@@ -220,7 +244,8 @@ class JsonSerdes(BaseSerdes):
             serialized = {}
             for each in data.keys():
                 # TODO [2020-07-29]: Change to non-recursive?
-                serialized[str(each)] = self._serialize_prep(data[each], context)
+                serialized[str(each)] = self._serialize_prep(data[each],
+                                                             context)
             return serialized
 
         # Iterable
@@ -231,12 +256,15 @@ class JsonSerdes(BaseSerdes):
                 serialized.append(self._serialize_prep(each), context)
             return serialized
 
+        # Falling through to here is bad; raise Exception.
         msg = "Don't know how to process data."
-        raise log.exception(
-            ValueError(msg, data),
-            exceptions.WriteError,
-            msg + f" data: {data}",
-            context=context)
+        error = exceptions.WriteError(msg,
+                                      context=context,
+                                      data={
+                                          'data': data,
+                                      })
+        raise log.exception(error, msg,
+                            context=context)
 
     def _write(self,
                data: SerializeTypes,
@@ -254,22 +282,23 @@ class JsonSerdes(BaseSerdes):
         serialized = StringIO()
         try:
             json.dump(data, serialized)
-        except (TypeError, OverflowError, ValueError) as error:
+        except (TypeError, OverflowError, ValueError) as json_error:
             serialized = None
-            data_pretty = pretty.indented(data)
-            raise log.exception(
-                error,
-                exceptions.WriteError,
-                "Error writing data to stream: \n"
-                "  data: \n{}",
-                data_pretty,
-                context=context) from error
+            # data_pretty = pretty.indented(data)
+            msg = "Error writing data to stream."
+            error = exceptions.WriteError(msg,
+                                          context=context,
+                                          data={
+                                              'data': data,
+                                          })
+            raise log.exception(error, msg,
+                                context=context) from json_error
 
         return serialized
 
     def serialize_all(self,
-                   data: SerializeTypes,
-                   context: 'VerediContext') -> StringIO:
+                      data: SerializeTypes,
+                      context: 'VerediContext') -> StringIO:
         '''
         Write and serializes all documents from the data stream.
 

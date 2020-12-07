@@ -119,9 +119,7 @@ class DoubleIndexDict:
 
         if default is self._DefaultValue.INVALID:
             msg = f"Key '{key}' not found in either dictionary."
-            raise log.exception(KeyError(msg, key),
-                                None,
-                                msg)
+            raise log.exception(KeyError(msg, key), msg)
         return default
 
     def set(self,
@@ -199,9 +197,7 @@ class DoubleIndexDict:
         item = self.get(key)
         if not item:
             msg = f"Key '{key}' not found in either dictionary."
-            raise log.exception(KeyError(msg, key),
-                                None,
-                                msg)
+            raise log.exception(KeyError(msg, key), msg)
 
         # ---
         # Delete based on item.

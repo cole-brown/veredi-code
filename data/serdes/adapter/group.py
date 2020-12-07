@@ -182,7 +182,6 @@ class KeyGroup(abc.MutableMapping, abc.Hashable):
             msg = msg.format(each.type)
             raise log.exception(
                 ValueError(msg, each),
-                None,
                 msg)
 
         return remove
@@ -197,7 +196,6 @@ class KeyGroup(abc.MutableMapping, abc.Hashable):
             msg = msg.format(value.type)
             raise log.exception(
                 ValueError(msg, value),
-                None,
                 msg)
         self._user_defined = value
 
@@ -268,7 +266,6 @@ class KeyGroup(abc.MutableMapping, abc.Hashable):
             msg = f"Could not split '{full_key}' into (group, member) keys."
             raise log.exception(
                 ValueError(msg, full_key, allow_only_member_key),
-                None,
                 msg)
 
         return retval

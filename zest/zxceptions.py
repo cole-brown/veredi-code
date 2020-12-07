@@ -1,17 +1,24 @@
 # coding: utf-8
 
 '''
-Exceptions
+Unit-Testing-Only Exceptions.
+
+All others will be towed at owner's expense.
 '''
 
 # -----------------------------------------------------------------------------
 # Imports
 # -----------------------------------------------------------------------------
 
+from veredi.base.exceptions import VerediError
+
 
 # -----------------------------------------------------------------------------
-# Exceptions
+# Unit Test Exceptions
 # -----------------------------------------------------------------------------
 
-# class D20Error(VerediError):
-#     pass
+class UnitTestError(VerediError):
+    '''
+    Generic unit-test error.
+    '''
+    ...

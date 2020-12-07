@@ -158,13 +158,13 @@ class DataSystem(System):
                    f"config data: {label.join(key_serdes)} "
                    f"{config.get(key_serdes)}")
             error = ConfigError(msg, None)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
         if not self._repository:
             msg = ("Could not create Repository from "
                    f"config data: {label.join(key_repo)} "
                    f"{config.get(key_repo)}")
             error = ConfigError(msg, None)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         # ---
         # Background Stuff
@@ -383,7 +383,6 @@ class DataSystem(System):
         dotted_from_meta =  metadata.get('registry', None)
         if not dotted_from_meta:
             raise log.exception(
-                None,
                 SystemErrorV,
                 "{} could not create anything from event {}. "
                 "args: {}, kwargs: {}, context: {}",
@@ -442,7 +441,6 @@ class DataSystem(System):
             except VerediError as error:
                 # Chain/wrap in a SystemErrorV.
                 raise log.exception(
-                    error,
                     SystemErrorV,
                     "{} failed when trying "
                     "to create from data. event: {}, "

@@ -540,7 +540,6 @@ class Engine(LogMixin):
                f"{str(prev_health)} -> {str(curr_health)}. ")
         error = HealthError(curr_health, prev_health, msg, None)
         raise self._log_exception(error,
-                                  None,
                                   msg + info,
                                   *args,
                                   **kwargs)
@@ -576,7 +575,6 @@ class Engine(LogMixin):
     def log_tick_maybe_raise(self,
                              tick:         SystemTick,
                              error:        Exception,
-                             v_err_wrap:   Optional[Type[VerediError]],
                              msg:          Optional[str],
                              *args:        Any,
                              context:      Optional['VerediContext'] = None,
@@ -601,7 +599,6 @@ class Engine(LogMixin):
         # if needed.
         _, logged_error = self._metered_log.exception(tick,
                                                       error,
-                                                      v_err_wrap,
                                                       msg,
                                                       *args,
                                                       context=context,
@@ -1864,7 +1861,6 @@ class Engine(LogMixin):
             # For now anyways.
             self._metered_log.exception(
                 self.tick,
-                None,
                 VerediError,
                 "Engine's tick() received a _very_ "
                 "unknown exception at: {}",

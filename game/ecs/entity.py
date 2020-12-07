@@ -269,7 +269,6 @@ class EntityManager(EcsManagerWithEvents):
         entity = Entity(context, eid, type_id, self._component_manager)
         if not entity:
             raise self._log_exception(
-                None,
                 EntityError,
                 "Failed to create Entity for would-be "
                 "entity_id {}. got: {}, context: {}",
@@ -373,7 +372,6 @@ class EntityManager(EcsManagerWithEvents):
             except EntityError as error:
                 self._log_exception(
                     error,
-                    None,
                     "EntityError in creation() for entity_id {}.",
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
@@ -416,7 +414,6 @@ class EntityManager(EcsManagerWithEvents):
             except EntityError as error:
                 self._log_exception(
                     error,
-                    None,
                     "EntityError in destruction() for entity_id {}.",
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?

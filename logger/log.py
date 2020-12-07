@@ -31,8 +31,9 @@ import math
 import enum
 
 
-from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
-from veredi.base      import label
+from veredi.base.null       import Null, Nullable, NullNoneOr, null_or_none
+from veredi.base            import label
+from veredi.base.exceptions import VerediError
 
 from . import pretty
 
@@ -691,79 +692,135 @@ def error(msg: str,
                    **log_kwargs)
 
 
-def exception(err: Exception,
-              wrap_type: Optional[Type['VerediError']],
+def exception(exception: Union[Exception, Type[Exception]],
               msg:       Optional[str],
               *args:     Any,
               context:   Optional['VerediContext'] = None,
-              associate: Optional[Union[Any, Iterable[Any]]] = None,
               veredi_logger: NullNoneOr[logging.Logger] = None,
               **kwargs:  Any) -> None:
     '''
-    The exception this logs is:
-      - if err is not None
-           err
-        else
-           wrap_type(<our log msg pre logging.Formatter>,
-                    None,
-                    context)
+    Log the exception at ERROR level.
 
-    Log the exception at ERROR level. If no `msg` supplied, will use:
+    If `exception` is a type, this will create and return an instance by
+    constructing: `exception(log_msg_output_str)`
+
+    If `exception` is Falsy, this logs at CRITICAL level instead.
+
+    If no `msg` supplied, will use:
         msg = "Exception caught. type: {}, str: {}"
-        args = [type(err), str(err)]
+        args = [type(exception), str(exception)]
+
     Otherwise error info will be tacked onto end.
       msg += " (Exception type: {err_type}, str: {err_str})"
-      kwargs['err_type'] = type(err)
-      kwargs['err_type'] = str(err)
+      kwargs['err_type'] = type(exception)
+      kwargs['err_type'] = str(exception)
 
-    If something is supplied as 'associate' kwarg, it will go into the
-    'associated' value of the veredi wrapping exception.
-
-    Then returns either:
-      - if wrap_type is None:
-          err (the input error)
-      - else:
-          wrap_type(<our log msg pre logging.Formatter>,
-                    err,
-                    context)
-    This way you can:
-    except SomeError as error:
-        raise log.exception(
-            error,
-            SomeVerediError,
-            "Cannot frobnicate {} from {}. {} instead.",
-            source, target, nonFrobMunger,
-            context=self.context
-        ) from error
+    Finially, this returns the `exception` supplied. This way you can do
+    something like:
+      except SomeError as error:
+          some_other_error = ConfigError(...)
+          raise log.exception(
+              some_other_error,
+              "Cannot frobnicate {} from {}. {} instead.",
+              source, target, nonFrobMunger,
+              context=self.context
+          ) from error
     '''
+    # ---
+    # Why would you log an exception with no exception supplied?
+    # Log critically. And judge them. Critically.
+    # ---
+    if not exception:
+        critical(msg, *args,
+                 context=context,
+                 veredi_logger=veredi_logger,
+                 **kwargs)
+        return exception
+
+    # ---
+    # Did we get an instance or a type?
+    # ---
+    make_instance = False
     log_msg_err_type = None
     log_msg_err_str = None
-    if err is not None:
-        log_msg_err_type = type(err)
-        log_msg_err_str = str(err)
-    else:
-        log_msg_err_type = wrap_type
-        log_msg_err_str = None
+    if (not isinstance(exception, Exception)
+            and issubclass(exception, VerediError)):
 
+        # A truthy value we can check for doing VerediError vs Python Error.
+        make_instance = exception
+
+    elif (not isinstance(exception, Exception)
+            and issubclass(exception, Exception)):
+        make_instance = True
+        log_msg_err_type = exception
+
+    else:
+        log_msg_err_str = str(exception)
+        log_msg_err_type = type(exception)
+
+    # ---
+    # Create log msg.
+    # ---
     log_kwargs = pop_log_kwargs(kwargs)
     if not msg:
-        msg = "Exception caught. type: {}, str: {}"
-        args = [log_msg_err_type, log_msg_err_str]
+        msg = "Exception caught. "
+
+        if log_msg_err_type:
+            msg += "type: {err_type}"
+            kwargs['err_type'] = log_msg_err_type
+
+        if log_msg_err_str:
+            if log_msg_err_type:
+                msg += ", str: {err_str}"
+            else:
+                "str: {err_str}"
+            kwargs['err_str'] = log_msg_err_str
     else:
-        msg += " (Exception type: {err_type}, str: {err_str})"
-        kwargs['err_type'] = log_msg_err_type
-        kwargs['err_str'] = log_msg_err_str
+        msg_append = []
+
+        if log_msg_err_type or log_msg_err_str:
+            msg_append.append(' (Exception ')
+
+        if log_msg_err_type:
+            msg_append.append("type: {err_type}")
+            kwargs['err_type'] = log_msg_err_type
+
+        if log_msg_err_str:
+            if log_msg_err_type:
+                msg_append.append("type: {err_type}")
+                msg += ", str: {err_str}"
+            else:
+                "str: {err_str}"
+            kwargs['err_str'] = log_msg_err_str
+
+        if msg_append:
+            msg_append.append(')')
+
+        msg += ''.join(msg_append)
 
     log_msg = brace_message(msg, *args, context=context, **kwargs)
     this = _logger(veredi_logger)
     this.error(log_msg,
                **log_kwargs)
 
-    if wrap_type:
-        return wrap_type(log_msg, err,
-                         context=context,
-                         associated=associate)
-    return err
+    # ---
+    # Return the Exception instance.
+    # ---
+    # Can finally make it if needed now that message is resolved.
+    if issubclass(make_instance, VerediError):
+        # Make the VerediError.
+        exception = exception(log_msg,
+                              context=context,
+                              data={
+                                  'log': 'Auto-created by log.exception',
+                              })
+
+    elif make_instance is True:
+        # Make the Python Exception.
+        exception = exception(log_msg)
+
+    # else it's an instance already - leave as-is.
+    return exception
 
 
 def critical(msg: str,
@@ -789,7 +846,6 @@ def at_level(level: 'Level',
     if level == Level.NOTSET:
         exception(ValueError("Cannot log at NOTSET level.",
                              msg, args, kwargs),
-                  None,
                   msg,
                   args,
                   kwargs)

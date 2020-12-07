@@ -175,7 +175,7 @@ class TimeManager(EcsManagerWithEvents):
                 msg = (f"default name '{default_name}' not found in "
                        "provided timers.")
                 error = KeyError(default_name, msg, timers)
-                raise self._log_exception(error, None,
+                raise self._log_exception(error,
                                           msg + ' timers: {}', timers)
             else:
                 self._timer_name_default = default_name
@@ -295,7 +295,7 @@ class TimeManager(EcsManagerWithEvents):
                        f"exists. timer: {timer_input}, default_timer_name: "
                        f"{self._timer_name_default}")
                 error = KeyError(timer_input, msg)
-                raise self._log_exception(error, None, msg + ' timers: {}',
+                raise self._log_exception(error, msg + ' timers: {}',
                                           self._timers)
 
         # No-op - allow callers to work equally well with actual timers and
@@ -312,7 +312,7 @@ class TimeManager(EcsManagerWithEvents):
                 msg = (f"get_timer(): No timer found for name '{timer_input}' "
                        "in timer collection.")
                 error = KeyError(timer_input, msg)
-                raise self._log_exception(error, None, msg + ' timers: {}',
+                raise self._log_exception(error, msg + ' timers: {}',
                                           self._timers)
 
         # timer_input wasn't understood - error out.
@@ -393,7 +393,6 @@ class TimeManager(EcsManagerWithEvents):
                    f"Got '{timer}' which didn't resolve to a timer: "
                    f"{check_timer}")
             raise self._log_exception(ValueError(msg, timer, timeout),
-                                      None,
                                       msg + f", timeout: {timeout}")
         # Verified it, so we can assign it `timer` since we don't need to know
         # what the input value was anymore.

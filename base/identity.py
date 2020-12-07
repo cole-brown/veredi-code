@@ -222,8 +222,7 @@ class MonotonicId(Encodable,
                 msg = (f"{klass.__name__}: Cannot get decode regex "
                        "- there is no decode regex string to compile it from.")
                 error = ValueError(msg, rx_str)
-                raise log.exception(error, None,
-                                    msg)
+                raise log.exception(error, msg)
 
             klass._ENCODABLE_RX = re.compile(rx_str, klass._ENCODABLE_RX_FLAGS)
 
@@ -261,8 +260,7 @@ class MonotonicId(Encodable,
             msg = (f"{klass.__name__}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Have regex, but does it work on data?
         match = rx.match(data)
@@ -271,8 +269,7 @@ class MonotonicId(Encodable,
                    f"data - cannot decode: {data} "
                    f"(regex: {klass._get_decode_str_rx()})")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         value = int(match.group('value'))
         # And now we should be able to decode.
@@ -657,8 +654,7 @@ class SerializableId(Encodable,
             msg = (f"{klass.__name__}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Have regex, but does it work on data?
         match = rx.match(data)
@@ -666,8 +662,7 @@ class SerializableId(Encodable,
             msg = (f"{klass.__name__}: Decode regex failed to match "
                    f"data - cannot decode: {data}")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Get actual value from match, remove nice separators so we have just a
         # hex number...
