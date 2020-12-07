@@ -95,10 +95,10 @@ class Configuration:
 
             self._set_background()
 
-        except Exception as e:
-            raise log.exception(e,
-                                VerediError,
-                                "Found an exception when creating...") from e
+        except Exception as err:
+            raise log.exception(exceptions.ConfigError,
+                                "Found an exception when creating config."
+                                ) from err
 
         self._load()
         self._set_up()
@@ -160,7 +160,6 @@ class Configuration:
         '''
         if not dotted_str:
             raise log.exception(
-                None,
                 exceptions.ConfigError,
                 "Need a dotted_str in order to get anything from registry. "
                 "dotted_str: {}, args: {}, kwargs: {}, context: {}",
@@ -177,7 +176,6 @@ class Configuration:
             raise
         except Exception as error:
             raise log.exception(
-                error,
                 exceptions.ConfigError,
                 "Configuration could not get '{}'. "
                 "args: {}, kwargs: {}, context: {}",
@@ -210,7 +208,6 @@ class Configuration:
             raise
         except Exception as error:
             raise log.exception(
-                error,
                 exceptions.ConfigError,
                 "Configuration could not create '{}'. "
                 "args: {}, kwargs: {}, context: {}",
@@ -301,7 +298,6 @@ class Configuration:
         hierarchy = Document.hierarchy(doc_type)
         if not hierarchy.valid(*keychain):
             raise log.exception(
-                None,
                 exceptions.ConfigError,
                 "Invalid keychain '{}' for {} document type. See its "
                 "Hierarchy class for proper layout.",
@@ -337,19 +333,16 @@ class Configuration:
 
         if not self._path:
             raise log.exception(
-                None,
                 exceptions.ConfigError,
                 "No path for config data after loading!")
 
         if not self._serdes:
             raise log.exception(
-                None,
                 exceptions.ConfigError,
                 "No serdes for config data after loading!")
 
         if not self._repo:
             raise log.exception(
-                None,
                 exceptions.ConfigError,
                 "No repository for config data after loading!")
 
@@ -385,7 +378,6 @@ class Configuration:
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up as-is.
                 raise log.exception(
-                    error,
                     VerediError,
                     "Unhandled exception! type: {}, str: {}",
                     type(error), str(error)) from error
@@ -395,7 +387,6 @@ class Configuration:
     def _load_doc(self, document: 'DeserializeTypes') -> None:
         if isinstance(document, list):
             raise log.exception(
-                None,
                 exceptions.LoadError,
                 "TODO: How do we deal with list document? {}: {}",
                 type(document),
@@ -410,7 +401,6 @@ class Configuration:
 
         else:
             raise log.exception(
-                None,
                 exceptions.LoadError,
                 "Unknown document while loading! "
                 "Does it have a '{}' field? "
@@ -435,7 +425,6 @@ class Configuration:
         def_serdes = background.data.serdes
         if not def_repo or not def_serdes:
             raise log.exception(
-                None,
                 exceptions.ConfigError,
                 "Cannot load definition for {}! "
                 "No repostiory or serdes. repo: {}, serdes: {}",

@@ -94,7 +94,6 @@ class D20RulesSystem(System):
         if not self._rule_defs:
             raise background.config.exception(
                 context,
-                None,
                 "Cannot configure {} without its system definitions.",
                 self.__class__.__name__)
 

@@ -287,7 +287,6 @@ class WebSocketClient(WebSocketMediator):
             trace = traceback.format_exc()
             log.exception(
                 error,
-                None,
                 "Caught exception running MediatorClient coroutines:\n{}",
                 trace)
 
@@ -364,7 +363,7 @@ class WebSocketClient(WebSocketMediator):
                    f"the server! Failed {str(self._connect_attempts + 1)} "
                    "attempts.")
             error = ConnectionError(msg, None)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         # Increment our attempts counter, as we are now attempting.
         self._connect_attempts += 1
@@ -378,7 +377,7 @@ class WebSocketClient(WebSocketMediator):
 
         # Always reraise all exceptions - we're in a `with` context.
         except Exception as error:
-            log.exception(error, None,
+            log.exception(error,
                           "Client->Server Connection Attempt {}/{} "
                           "failed with error: {}",
                           self._connect_attempts,
@@ -486,8 +485,7 @@ class WebSocketClient(WebSocketMediator):
                 # all managed and success/failure noticed.
 
                 if self._socket:
-                    raise log.exception(None,
-                                        WebSocketError,
+                    raise log.exception(WebSocketError,
                                         "WebSocket to server exists but we "
                                         "were expecting it not to. {}",
                                         self._socket)

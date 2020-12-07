@@ -224,7 +224,6 @@ class EventManager(EcsManager):
 
     def _error_maybe_raise(self,
                            error:      Exception,
-                           v_err_wrap: Optional[Type[VerediError]],
                            msg:        Optional[str],
                            *args:      Any,
                            context:    Optional['VerediContext'] = None,
@@ -237,7 +236,6 @@ class EventManager(EcsManager):
         if self.debug_flagged(DebugFlag.RAISE_ERRORS):
             raise self._log_exception(
                 error,
-                v_err_wrap,
                 msg,
                 *args,
                 context=context,
@@ -246,7 +244,6 @@ class EventManager(EcsManager):
         else:
             self._log_exception(
                 error,
-                v_err_wrap,
                 msg,
                 *args,
                 context=context,
@@ -267,8 +264,7 @@ class EventManager(EcsManager):
                         handler_fn, target_class)
         subs = self._subscriptions.setdefault(target_class, set())
         if handler_fn in subs:
-            raise self._log_exception(None,
-                                      EventError,
+            raise self._log_exception(EventError,
                                       "Subscriber is trying to re-register."
                                       "subscriber: {}, event: {}",
                                       handler_fn, target_class)
@@ -404,7 +400,6 @@ class EventManager(EcsManager):
             # Always log in catch-all?
             # For now anyways.
             self._log_exception(
-                None,
                 VerediError,
                 "EventManager tried to notify a subscriber about an event, "
                 "but got a _very_ unknown exception.")
@@ -470,7 +465,7 @@ class EventManager(EcsManager):
         # For other ticks... WTF - should be no others.
         msg = f"EventManager doesn't know what to do for update tick: {tick}"
         error = ValueError(msg, tick)
-        raise self._log_exception(error, None, msg)
+        raise self._log_exception(error, msg)
 
     def _update_ticks_end(self, tick: SystemTick) -> int:
         '''
@@ -520,7 +515,7 @@ class EventManager(EcsManager):
             msg = ("EventManager doesn't know what to do for ending "
                    f"update tick: {tick}")
             error = ValueError(msg, tick)
-            raise self._log_exception(error, None, msg)
+            raise self._log_exception(error, msg)
 
         self.health = health
         return published

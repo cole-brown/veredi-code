@@ -329,12 +329,11 @@ class MathSystem(System):
             # Parse value as MathTree, replace our node with it.
             mather = InputContext.math(entry.context)
             if not mather:
-                error = ("No MathParser found in context; "
+                msg = ("No MathParser found in context; "
                          "cannot process '{value}'.")
-                raise log.exception(AttributeError(error),
-                                    CommandExecutionError,
-                                    None,
-                                    context=entry.context)
+                raise self._log_exception(CommandExecutionError,
+                                          msg
+                                          context=entry.context)
 
             if self._should_debug():
                 self._log_debug(f"mather.parse(value='{value}', "
@@ -386,10 +385,9 @@ class MathSystem(System):
             if not entry.root.replace(existing, replacement):
                 error = ("Failed to replace a math tree node: {existing} "
                          "cannot replace with: {replacement}")
-                raise log.exception(None,
-                                    CommandExecutionError,
-                                    error,
-                                    context=entry.context)
+                raise self._log_exception(CommandExecutionError,
+                                          error,
+                                          context=entry.context)
             replaced += 1
 
         if self._should_debug():
@@ -466,15 +464,17 @@ class MathSystem(System):
                 if self._should_debug():
                     self._log_debug("Evaluated math tree to: {}. tree: \n{}",
                                     total, entry.root)
-            except ValueError as error:
+            except ValueError as eval_error:
                 msg = "Failed to evaluate math tree."
-                wrapped = MathError(msg, error,
-                                    context=entry.context,
-                                    associated=entry.root)
-                raise self._log_exception(wrapped,
+                error = MathError(msg,
+                                  context=entry.context,
+                                  data={
+                                      'root': entry.root,
+                                  })
+                raise self._log_exception(error,
                                           msg,
-                                          context=entry.context,
-                                          associate=entry.root) from error
+                                          context=entry.context
+                                          ) from eval_error
 
             # Send out result as event. Finalize if a math type of event.
             if isinstance(entry.event, (math_event.MathEvent,

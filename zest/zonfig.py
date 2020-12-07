@@ -11,11 +11,12 @@ Configuration file reader/writer for Veredi games.
 from typing import Any, MutableMapping
 
 from veredi.logger          import log
-from veredi.base.exceptions import VerediError
 
 from veredi.data                  import background
 from veredi.data.config.config    import Configuration
 from veredi.data.config.hierarchy import Document
+
+from .zxceptions import UnitTestError
 
 
 # -----------------------------------------------------------------------------
@@ -72,10 +73,10 @@ class NoFileConfig(Configuration):
 
             self._set_background()
 
-        except Exception as e:
-            raise log.exception(e,
-                                VerediError,
-                                "Found an exception when creating...") from e
+        except Exception as err:
+            raise log.exception(
+                UnitTestError,
+                "Found an exception when creating NoFileConfig...") from err
 
         # No load/set-up. All that is in our config_data, hand-crafted by the
         # finest unit-test artisans.

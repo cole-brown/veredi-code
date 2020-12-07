@@ -115,13 +115,13 @@ def _start_server(comms: multiproc.SubToProcComm,
     comms = ConfigContext.subproc(context)
     if not comms:
         raise log.exception(
+            TypeError,
             "MediatorServer requires a SubToProcComm; received None.")
 
     config = background.config.config
     if not config:
         raise background.config.exception(
             context,
-            None,
             "Cannot configure a MediatorServer without a Configuration in the "
             "background context.")
 
@@ -259,7 +259,6 @@ class MediatorSystem(System):
         if not config:
             raise background.config.exception(
                 context,
-                None,
                 "Cannot configure {} without a Configuration in the "
                 "supplied context.",
                 self.__class__.__name__)

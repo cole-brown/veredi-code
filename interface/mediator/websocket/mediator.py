@@ -360,7 +360,6 @@ class WebSocketMediator(Mediator):
 
             except EOFError as error:
                 log.exception(error,
-                              None,
                               "Failed getting from game pipe; "
                               "ignoring and continuing.")
                 # EOFError gets raised if nothing left to receive or other end

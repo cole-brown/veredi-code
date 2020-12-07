@@ -66,7 +66,6 @@ class MediatorError(VerediError):
 #         log.error(f"Caught asyncio exception (with just message): {msg}")
 #     else:
 #         log.exception(error,
-#                       None,
 #                       "Caught asyncio exception: "
 #                       f"error: {error}, msg: {msg}")
 

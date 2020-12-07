@@ -108,8 +108,7 @@ class CommandRegisterReply(CommandEvent):
         # TODO [2020-06-14]: Regex check... also must start with letter.
         if self.name.startswith(const._TEXT_CMD_PREFIX):
             self.name = None
-            raise log.exception(None,
-                                CommandRegisterError,
+            raise log.exception(CommandRegisterError,
                                 "Command name '{}' cannot start with '{}'. "
                                 "That is the command input prefix for "
                                 "text-based commands.",
@@ -134,7 +133,6 @@ class CommandRegisterReply(CommandEvent):
         if (not self.permissions.has(const.CommandPermission.COMPONENT)
                 or self.permission_components is None):
             raise log.exception(
-                None,
                 CommandRegisterError,
                 "CommandRegisterReply '{}' is not set to require components. "
                 "Set CommandPermission.COMPONENT flag in your permissions in "
@@ -158,7 +156,6 @@ class CommandRegisterReply(CommandEvent):
         '''
         if not callable(event_constructor):
             raise log.exception(
-                None,
                 CommandRegisterError,
                 "CommandRegisterReply '{}' needs a callable() for "
                 "constructing a command event to be published. "
@@ -220,7 +217,6 @@ class CommandRegisterReply(CommandEvent):
 
         if not equivalent.startswith(self.name):
             raise log.exception(
-                None,
                 CommandRegisterError,
                 "An alias' `equivalent` command must start with the actual"
                 "command. '{}' must start with '{}' for '{}' to be an alias of"

@@ -8,20 +8,27 @@ YAML library subclasses for encoding identities.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Type
+from typing import Optional, Type, Tuple
 
 from veredi.logger import log
 from ...exceptions import RegistryError
+
 
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
 
-def valid(tag: str) -> bool:
+def valid(tag: str) -> Tuple[bool, Optional[str]]:
     '''
     Sanity check for tag string.
+
+    Returns:
+      bool - True/False for passed valid checks.
+      str  -
     '''
-    return tag.startswith('!')
+    if not tag.startswith('!'):
+        return (False, "Missing starting '!'.")
+    return (True, None)
 
 
 def make(string: str) -> str:
@@ -34,10 +41,9 @@ def make(string: str) -> str:
     if not string.startswith('!'):
         tag = '!' + string
 
-    if not valid(tag):
-        raise log.exception(None,
-                            RegistryError,
-                            "Invalid tag! Already registered maybe? "
-                            f"Tag: {tag}, registered to?: "
-                            f"{get_class(tag)}")
+    success, reason = valid(tag)
+    if not success:
+        raise log.exception(RegistryError,
+                            "Invalid tag! {reason}"
+                            f"Tag: '{tag}'")
     return tag

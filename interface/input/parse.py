@@ -72,7 +72,6 @@ class Mather:
         config = background.config.config
         if not config:
             raise log.exception(
-                None,
                 ConfigError,
                 'Mather requires a configuration to configure itself.')
 

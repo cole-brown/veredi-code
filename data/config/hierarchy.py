@@ -43,11 +43,13 @@ class Document(enum.Enum):
         Gets the Hierarchy sub-class for the `doc_type`.
         '''
         if doc_type is Document.INVALID:
-            error = NameError(
-                "Document.INVALID has no hierarchy class.")
+            error = exceptions.ConfigError(
+                "Document.INVALID has no hierarchy class.",
+                data={
+                    'doc_type': doc_type,
+                })
             raise log.exception(
                 error,
-                exceptions.ConfigError,
                 "Should never be looking for INVALID document type.")
 
         elif doc_type is Document.METADATA:
@@ -57,12 +59,13 @@ class Document(enum.Enum):
             return ConfigHierarchy
 
         else:
-            error = NameError(
+            error = exceptions.ConfigError(
                 "Unknown document type - cannot get hierarchy class.",
-                doc_type)
+                data={
+                    'doc_type': doc_type,
+                })
             raise log.exception(
                 error,
-                exceptions.ConfigError,
                 "No case check for Document type: {}", doc_type)
 
 
@@ -108,10 +111,9 @@ class Hierarchy:
         Not much currently...
         '''
         if klass._KEYS is None:
-            error = NameError(
+            error = ValueError(
                 "Hierarchy subclass should have '_KEYS' class variable.")
             raise log.exception(error,
-                                exceptions.ConfigError,
                                 "{}._KEYS is None and shouldn't be.",
                                 klass.__name__)
 

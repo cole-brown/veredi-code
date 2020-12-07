@@ -391,26 +391,40 @@ class VerediContext:
         Assignment/shallow copy (not deep copy, currently).
         '''
         if m_from is None or m_to is None:
-            raise log.exception(
-                None,
-                ContextError,
-                "Cannot {} a 'None' context. from: {}, to: {}",
-                verb, m_from, m_to,
-                context=self)
+            msg = f"Cannot {verb} a 'None' context. from: {m_from}, to: {m_to}"
+            error = ContextError(msg,
+                                 context=self,
+                                 data={
+                                     'm_from': m_from,
+                                     'm_to': m_to,
+                                     'resolution': resolution,
+                                 })
+            raise log.exception(error, msg, context=self)
+
         elif m_to is m_from:
-            raise log.exception(
-                None,
-                ContextError,
-                "Cannot {} something with itself. from: {}, to: {}",
-                verb, m_from, m_to,
-                context=self)
+            msg = (f"Cannot {verb} something with itself. "
+                   f"from: {m_from}, to: {m_to}")
+            error = ContextError(msg,
+                                 context=self,
+                                 data={
+                                     'm_from': m_from,
+                                     'm_to': m_to,
+                                     'resolution': resolution,
+                                 })
+            raise log.exception(error, msg, context=self)
+
         elif isinstance(m_to, PersistentContext):
-            raise log.exception(
-                None,
-                ContextError,
-                "Cannot {} {} a PersistentContext. from: {}, to: {}",
-                verb, preposition, m_from, m_to,
-                context=self)
+            msg = (f"Cannot {verb} {preposition} a PersistentContext. "
+                   f"from: {m_from}, to: {m_to}")
+            error = ContextError(msg,
+                                 context=self,
+                                 data={
+                                     'm_from': m_from,
+                                     'm_to': m_to,
+                                     'resolution': resolution,
+                                 })
+            raise log.exception(error, msg, context=self)
+
         elif isinstance(m_from, dict) or isinstance(m_to, dict):
             # This was for catching any "a context is a dict" places that still
             # existed back when VerediContext was created. It can probably be
@@ -474,15 +488,20 @@ class VerediContext:
 
         # Munging options still to do - can only do those to strings.
         if not isinstance(key_sender, str):
-            raise log.exception(
-                TypeError(
-                    "Cannot munge-to-deconflict keys that are not strings.",
-                    key_sender),
-                ContextError,
-                "{}({}): Cannot munge-to-deconflict keys that are "
-                "not strings. sender[{}] = {}, vs receiver[{}] = {}",
-                verb, resolution, key_sender, value_sender, key_sender,
-                d_to[key_sender], context=self)
+            msg = "Cannot munge-to-deconflict keys that are not strings."
+            error = ContextError(
+                msg,
+                context=self,
+                data={
+                    'd_to': d_to,
+                    'resolution': resolution,
+                    'key_sender': key_sender,
+                    'value_sender': value_sender,
+                    'd_to[key_sender]': d_to[key_sender],
+                })
+            raise log.exception(error,
+                                msg,
+                                context=self)
 
         if resolution == Conflict.SENDER_MUNGED:
             if not quiet:

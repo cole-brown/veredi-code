@@ -114,12 +114,14 @@ class DataDict(abc.MutableMapping):
         elif isinstance(key, abc.Sequence):
             return self.normalize(key[0]), key[1]
         else:
-            raise log.exception(TypeError("Can't get kv from unknown source.",
-                                          key, data),
-                                exceptions.LoadError,
-                                "Key is not tuple and data is not a map, so "
-                                "no idea where to get value from.",
-                                key, data)
+            msg = ("Key is not tuple and data is not a map, so "
+                   "no idea where to get value from.")
+            error = exceptions.LoadError(msg,
+                                         data={
+                                             'key': key,
+                                             'data': data,
+                                         })
+            raise log.exception(error, msg)
 
     def update_all(self, data: Union[Mapping, Iterable]) -> None:
         '''

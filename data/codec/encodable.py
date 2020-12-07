@@ -178,7 +178,7 @@ class Encodable:
                    f"{klass.__name__} with frozen methods "
                    f"{set(klass.__abstractmethods__)}")
             error = TypeError(msg, klass, args, kwargs)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         return super().__call__(*args, **kwargs)
 
@@ -227,7 +227,7 @@ class Encodable:
                    f"'veredi.jeff.jeffory'). Got: {klass.__name__}(..., "
                    f"dotted='{dotted}', kwargs={{}})")
             error = ValueError(msg, klass, dotted, kwargs)
-            raise log.exception(error, None, msg, kwargs)
+            raise log.exception(error, msg, kwargs)
 
         elif dotted == klass._DO_NOT_REGISTER:
             # A 'do not register' dotted string probably means a base class is
@@ -268,7 +268,7 @@ class Encodable:
             msg = ("Encodable sub-classes must be registered with a `dotted` "
                    f"parameter. Got: '{dotted}'")
             error = ValueError(msg, klass, dotted)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         elif dotted == klass._DO_NOT_REGISTER:
             # A 'do not register' dotted string probably means a base class is
@@ -303,7 +303,7 @@ class Encodable:
                        "tried to register manually, but did not provide a "
                        "dotted string and also did not have a 'dotted()' "
                        "class function.")
-                log.exception(error, None, msg)
+                log.exception(error, msg)
                 raise
 
             if not dotted:
@@ -312,7 +312,7 @@ class Encodable:
                        "dotted string and also did not return a string from "
                        f"its 'dotted()' class function. Got: '{dotted}'")
                 error = ValueError(msg, dotted, klass)
-                raise log.exception(error, None, msg)
+                raise log.exception(error, msg)
 
         log.debug(f"{klass.__name__}.register_manually: {dotted}")
         # ---
@@ -630,7 +630,7 @@ class Encodable:
             msg = (f"Cannot decode data to '{klass.__name__}'. "
                    "Class only encodes simply and didn't match data")
             error = TypeError(data, msg)
-            raise log.exception(error, None,
+            raise log.exception(error,
                                 msg + ' data: {}',
                                 data)
 
@@ -706,7 +706,6 @@ class Encodable:
             raise log.exception(KeyError(Encodable._ENCODABLE_REG_FIELD,
                                          msg,
                                          data),
-                                None,
                                 msg + " Cannot decode: {}",
                                 pretty_data)
 
@@ -720,7 +719,6 @@ class Encodable:
             raise log.exception(KeyError(Encodable._ENCODABLE_REG_FIELD,
                                          msg,
                                          data),
-                                None,
                                 msg)
 
         # ------------------------------
@@ -842,7 +840,7 @@ class Encodable:
         if not claiming:
             msg = f"Cannot claim for {klass.__name__}: {reason}."
             error = EncodableError(msg, None, associated=data)
-            raise log.exception(error, None, msg + ' data: {}', data)
+            raise log.exception(error, msg + ' data: {}', data)
 
     @classmethod
     def error_for_key(klass: 'Encodable',
@@ -854,7 +852,7 @@ class Encodable:
         if key not in data:
             msg = f"Cannot decode to {klass.__name__}: {data}"
             error = EncodableError(msg, None)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
     @classmethod
     def error_for_value(klass:   'Encodable',
@@ -876,7 +874,7 @@ class Encodable:
                 None
             )
             error = EncodableError(msg, None)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
     @classmethod
     def error_for(klass:   'Encodable',
@@ -981,7 +979,7 @@ class Encodable:
                        f"'{key}' cannot be encoded into a key value for "
                        "a dict.")
                 error = AttributeError(msg, key, self)
-                raise log.exception(error, None, msg)
+                raise log.exception(error, msg)
 
         # If key is a str, just use it.
         elif isinstance(key, str):
@@ -1219,7 +1217,7 @@ class EncodableRegistry(CallRegistrar):
             msg = ("EncodableRegistry only accepts Encodable subclasses for "
                    "registration. Got: {encodable}")
             error = ValueError(msg, encodable, reg_args)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         return True
 
@@ -1251,7 +1249,7 @@ class EncodableRegistry(CallRegistrar):
             msg = (f"{klass.__name__}._register: '{type(encodable)}' "
                    f"(\"{label.join(*reg_args)}\") needs to "
                    "implement _type_field() function.")
-            log.exception(error, None, msg)
+            log.exception(error, msg)
             # Let error through. Just want more info.
             raise
 
@@ -1354,7 +1352,7 @@ class EncodableRegistry(CallRegistrar):
         if squelch_error:
             raise error
         else:
-            raise log.exception(error, None, msg + extra,
+            raise log.exception(error, msg + extra,
                                 pretty.indented(registry),
                                 pretty.indented(data))
 

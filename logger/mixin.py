@@ -328,18 +328,16 @@ class LogMixin:
         Returns the error; not much use in this version where the error doesn't
         change types, so just do this, probably:
         except SomeError as error:
-            lumberjack.exception(
+            # Reraise error if desired like this.
+            raise self._log_exception(
                 error,
                 "Cannot frobnicate {} from {}. {} instead.",
                 source, target, nonFrobMunger,
                 context=self.context
             )
-            # Reraise error if desired like this.
-            raise
         '''
         kwargs = self._log_stack(**kwargs)
         self._lumberjack.exception(error,
-                                   None,
                                    msg,
                                    *args,
                                    context=context,

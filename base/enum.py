@@ -73,9 +73,7 @@ class FlagCheckMixin:
             msg = (f"FlagCheckMixin.is_solo: '{flag}' is not an "
                    "enum.Flag derived type.")
             error = ValueError(msg, flag)
-            raise log.exception(error,
-                                None,
-                                msg)
+            raise log.exception(error, msg)
 
         # A nice clean-looking way of doing, but could miss some cases. For
         # example, if a flag mask exists as a value in the enum and the flag
@@ -199,8 +197,7 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
                 msg = (f"{klass.__name__}: Cannot get decode regex "
                        "- there is no decode regex string to compile it from.")
                 error = ValueError(msg, rx_str)
-                raise log.exception(error, None,
-                                    msg)
+                raise log.exception(error, msg)
 
             klass._ENCODABLE_RX = re.compile(rx_str, klass._ENCODABLE_RX_FLAGS)
 
@@ -234,8 +231,7 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
             msg = (f"{klass.__name__}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Have regex, but does it work on data?
         match = rx.match(data)
@@ -243,8 +239,7 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
             msg = (f"{klass.__name__}: Decode regex failed to match "
                    f"data - cannot decode: {data}")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Have regex, have match. Build instance.
         decoded = klass(int(match.group('value')))
@@ -352,8 +347,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
                 msg = (f"{klass.__name__}: Cannot get decode regex "
                        "- there is no decode regex string to compile it from.")
                 error = ValueError(msg, rx_str)
-                raise log.exception(error, None,
-                                    msg)
+                raise log.exception(error, msg)
 
             klass._ENCODABLE_RX = re.compile(rx_str, klass._ENCODABLE_RX_FLAGS)
 
@@ -379,8 +373,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
                    f"'{str(self)}' didn't resolve to any of its class's "
                    "enums values.")
             error = ValueError(msg, self, names)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Turn list of names into one string for final return string.
         return self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
@@ -405,8 +398,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
             msg = (f"{klass.__name__}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Have regex, but does it work on data?
         match = rx.match(data)
@@ -414,8 +406,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
             msg = (f"{klass.__name__}: Decode regex failed to match "
                    f"data - cannot decode: {data}")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Have regex, have match.
         # Chop up match by separator to build flags up.
@@ -528,8 +519,7 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
                 msg = (f"{klass.__name__}: Cannot get decode regex "
                        "- there is no decode regex string to compile it from.")
                 error = ValueError(msg, rx_str)
-                raise log.exception(error, None,
-                                    msg)
+                raise log.exception(error, msg)
 
             klass._ENCODABLE_RX = re.compile(rx_str, klass._ENCODABLE_RX_FLAGS)
 
@@ -547,8 +537,7 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
                    f"'{str(self)}' didn't resolve to any of its class's "
                    "enums values.")
             error = ValueError(msg, self, name)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Encode it.
         return self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
@@ -573,8 +562,7 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
             msg = (f"{klass.__name__}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Have regex, but does it work on data?
         match = rx.match(data)
@@ -582,8 +570,7 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
             msg = (f"{klass.__name__}: Decode regex failed to match "
                    f"data - cannot decode: {data}")
             error = ValueError(msg, data)
-            raise log.exception(error, None,
-                                msg)
+            raise log.exception(error, msg)
 
         # Have regex, have match.
         # Turn into an enum value.

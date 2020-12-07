@@ -384,7 +384,7 @@ class Commander:
             msg = "Invoked command '{}' did not return status. input: '{}'"
             msg = msg.format(name, command_safe)
             error = CommandExecutionError(msg, None, context=context)
-            raise log.exception(error, msg, context=context)
+            raise self._log_exception(error, msg, context=context)
 
         # Did a thing; return whether it was a successful doing of a thing.
         return status

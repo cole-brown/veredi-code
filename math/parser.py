@@ -277,13 +277,13 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
                    "type: {}, allowed: {}").format(self.type,
                                                    self._SET_NAME_ALLOWED)
             error = AttributeError(msg)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         if self._name and not self.name_is_shortcut:
             msg = ("Node is not allowed to change name unless name has "
                    "'this' in it. current name: {}").format(self.name)
             error = ValueError(msg)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         self._name = new_name
 
@@ -302,7 +302,7 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
                    "type: {}, allowed: {}").format(self.type,
                                                    self._SET_VALUE_ALLOWED)
             error = AttributeError(msg)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         self._value = new_value
 
@@ -321,7 +321,7 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
                    "type: {}, allowed: {}").format(self.type,
                                                    self._SET_VALUE_ALLOWED)
             error = AttributeError(msg)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         self._milieu = new_milieu
 

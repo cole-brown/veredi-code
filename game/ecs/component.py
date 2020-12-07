@@ -246,7 +246,6 @@ class ComponentManager(EcsManagerWithEvents):
                                                        **kwargs)
         except Exception as error:
             raise self._log_exception(
-                error,
                 ComponentError,
                 "Exception during Component creation for would-be "
                 "component_id {}. dotted_str: {}, args: {}, "
@@ -275,7 +274,6 @@ class ComponentManager(EcsManagerWithEvents):
             component = comp_class(context, cid, *args, **kwargs)
         except Exception as error:
             raise self._log_exception(
-                error,
                 ComponentError,
                 "Exception during Component creation for would-be "
                 "component_id {}. comp_class: {}, context: {}",
@@ -318,7 +316,6 @@ class ComponentManager(EcsManagerWithEvents):
         # Die if we created nothing.
         if not component:
             raise self._log_exception(
-                None,
                 ComponentError,
                 "Failed to create Component for would-be "
                 "component_id {}. got: {}, str_or_type: {}, args: {}, "
@@ -386,7 +383,6 @@ class ComponentManager(EcsManagerWithEvents):
             except ComponentError as error:
                 self._log_exception(
                     error,
-                    None,
                     "ComponentError in creation() for component_id {}.",
                     component_id)
                 # TODO: put this component in... jail or something? Delete?
@@ -428,7 +424,6 @@ class ComponentManager(EcsManagerWithEvents):
             except ComponentError as error:
                 self._log_exception(
                     error,
-                    None,
                     "ComponentError in destruction() for component_id {}.",
                     component_id)
                 # TODO: put this component in... jail or something?

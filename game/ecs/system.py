@@ -187,7 +187,6 @@ class SystemManager(EcsManagerWithEvents):
             # context gets lost I guess?
             raise self._log_exception(
                 error,
-                None,
                 msg,
                 *args,
                 context=context,
@@ -196,7 +195,6 @@ class SystemManager(EcsManagerWithEvents):
         else:
             self._log_exception(
                 error,
-                None,
                 msg,
                 *args,
                 context=context,
@@ -247,7 +245,6 @@ class SystemManager(EcsManagerWithEvents):
                f"during {during}: {health_transition}. ")
         error = HealthError(curr_health, prev_health, msg, None)
         raise self._log_exception(error,
-                                  None,
                                   msg + info,
                                   *args,
                                   **kwargs)
@@ -549,7 +546,6 @@ class SystemManager(EcsManagerWithEvents):
         for system in self._system.id.values():
             if isinstance(system, sys_class):
                 raise self._log_exception(
-                    None,
                     SystemErrorV,
                     "Cannot create another system of type: {}. "
                     "There is already one running: {}",

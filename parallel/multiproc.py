@@ -188,7 +188,6 @@ class ProcToSubComm:
         if not self.process:
             # Not sure this should be an exception. Have as a log for now.
             # raise log.exception(
-            #     None,
             #     MultiProcError,
             #     "ProcToSubComm.process is null for {self.name};"
             #     "cannot stop process.")
@@ -573,14 +572,12 @@ def _subproc_entry(context: VerediContext) -> None:
     # ------------------------------
     if not context:
         raise log.exception(
-            None,
             MultiProcError,
             "Require a context to run sub-process. Got nothing.")
 
     proc = ConfigContext.subproc(context)
     if not proc:
         raise log.exception(
-            None,
             MultiProcError,
             "Require SubToProcComm to run sub-process. Got nothing.",
             context=context)
@@ -607,7 +604,6 @@ def _subproc_entry(context: VerediContext) -> None:
     # ------------------------------
     if not proc.pipe:
         raise log.exception(
-            None,
             MultiProcError,
             "Process '{}' requires a pipe procection; has None.",
             proc.name,
@@ -616,7 +612,6 @@ def _subproc_entry(context: VerediContext) -> None:
     # though.
     if not proc.config:
         raise log.exception(
-            None,
             MultiProcError,
             "Process '{}' requires a configuration; has None.",
             proc.name,
@@ -624,7 +619,6 @@ def _subproc_entry(context: VerediContext) -> None:
     # If no log level, allow it to be default?
     # if not initial_log_level:
     #     raise log.exception(
-    #         None,
     #         MultiProcError,
     #         "Process '{}' requires a default log level (int); "
     #         "received None.",
@@ -632,7 +626,6 @@ def _subproc_entry(context: VerediContext) -> None:
     #         veredi_logger=proc_log)
     if not proc.shutdown:
         raise log.exception(
-            None,
             MultiProcError,
             "Process '{}' requires a shutdown flag; has None.",
             proc.name,
