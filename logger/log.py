@@ -13,7 +13,6 @@ from typing import (TYPE_CHECKING,
                     Mapping, MutableMapping, Iterable, Dict, List)
 if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
-    from veredi.base.exceptions import VerediError
 
 
 # ------------------------------
@@ -29,7 +28,7 @@ import logging
 import datetime
 import math
 import enum
-
+from types import TracebackType
 
 from veredi.base.null       import Null, Nullable, NullNoneOr, null_or_none
 from veredi.base            import label
@@ -68,6 +67,7 @@ FMT_LINE_HUMAN = (
     '{module:s}.{funcName:s}: {message:s}'
 )
 
+_CONTEXT_INDENT_AMT = 4
 
 _ULTRA_MEGA_DEBUG_BT = '!~'
 _ULTRA_MEGA_DEBUG_TB = '~!'
@@ -260,7 +260,7 @@ _unit_test_callback: Callable = Null()
 
 
 # -----------------------------------------------------------------------------
-# Logger Code
+# Initialization
 # -----------------------------------------------------------------------------
 
 def init(level:        LogLvlConversion            = DEFAULT_LEVEL,
@@ -345,6 +345,10 @@ def init_logger(logger_name: str,
     return logger
 
 
+# -----------------------------------------------------------------------------
+# Logger Helpers
+# -----------------------------------------------------------------------------
+
 def remove_handler(handler:     logging.Handler,
                    logger:      Optional[logging.Logger] = None,
                    logger_name: Optional[str]            = None) -> None:
@@ -364,7 +368,7 @@ def remove_handler(handler:     logging.Handler,
         logging.getLogger(logger_name).removeHandler(handler)
 
 
-def get_logger(*names: str,
+def get_logger(*names:        str,
                min_log_level: LogLvlConversion = None
                ) -> logging.Logger:
     '''
@@ -409,6 +413,10 @@ def _logger(veredi_logger: NullNoneOr[logging.Logger] = None
             logger)
 
 
+# -----------------------------------------------------------------------------
+# Log Output Levels
+# -----------------------------------------------------------------------------
+
 def get_level(veredi_logger: NullNoneOr[logging.Logger] = None) -> Level:
     '''Returns current log level of logger, translated into Level enum.'''
     this = _logger(veredi_logger)
@@ -447,6 +455,10 @@ def will_output(level:         LogLvlConversion,
     return level >= this.level
 
 
+# -----------------------------------------------------------------------------
+# Log Output Formatting
+# -----------------------------------------------------------------------------
+
 class BestTimeFmt(logging.Formatter):
     converter = datetime.datetime.fromtimestamp
 
@@ -463,23 +475,34 @@ class BestTimeFmt(logging.Formatter):
         return string
 
 
-def brace_message(fmt: str,
-                  *args: Any,
-                  context: Optional['VerediContext'] = None,
+def brace_message(fmt:      str,
+                  *args:    Any,
+                  context:  Optional['VerediContext'] = None,
                   **kwargs: Mapping[str, Any]) -> str:
     '''
     Pass-through `fmt` if no args/kwargs.
 
     Otherwise use '.format()' brace formatting on `fmt` string.
+
+    If `context` exists, it will be formatted by `pretty.indented()`, then
+    appended to the log as such:
+      <log_line(s)>
+      context:
+          <indented, formatted context>
     '''
-    # print(f"bm:: fmt: {fmt}, args: {args}, kwa: {kwargs}")
     ctx_msg = ''
     if context:
-        ctx_msg = f' context: {context}'
+        ctx_formatted = pretty.indented(context,
+                                        indent_amount=_CONTEXT_INDENT_AMT)
+        ctx_msg = '\ncontext:\n' + ctx_formatted
     if not args and not kwargs:
         return fmt + ctx_msg
     return fmt.format(*args, **kwargs) + ctx_msg
 
+
+# -----------------------------------------------------------------------------
+# Log Keyword Args Helpers
+# -----------------------------------------------------------------------------
 
 def incr_stack_level(
         kwargs: MutableMapping[str, Any],
@@ -521,10 +544,15 @@ def pop_log_kwargs(kwargs: Mapping[str, Any]) -> int:
     return log_args
 
 
-def ultra_mega_debug(msg: str,
-                     *args: Any,
+# -----------------------------------------------------------------------------
+# Logger Crazy Debug Functions
+# -----------------------------------------------------------------------------
+
+def ultra_mega_debug(msg:           str,
+                     *args:         Any,
                      veredi_logger: NullNoneOr[logging.Logger] = None,
-                     **kwargs: Any) -> None:
+                     context:       'VerediContext' = None,
+                     **kwargs:      Any) -> None:
     '''
     Logs at Level.CRITICAL using either passed in logger or logger named:
       'veredi.debug.DEBUG.!!!DEBUG!!!'
@@ -556,7 +584,9 @@ def ultra_mega_debug(msg: str,
     '''
     log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
-                           *args, **kwargs)
+                           *args,
+                           context=context,
+                           **kwargs)
     if not ut_call(Level.CRITICAL, output):
         this = (veredi_logger
                 or get_logger('veredi.debug.DEBUG.!!!DEBUG!!!'))
@@ -571,6 +601,7 @@ def ultra_hyper_debug(msg:           str,
                       add_type:      bool                       = False,
                       add_title:     Optional[str]              = None,
                       veredi_logger: NullNoneOr[logging.Logger] = None,
+                      context:       'VerediContext' = None,
                       **kwargs:      Any) -> None:
     '''
     Logs at Level.CRITICAL using either passed in logger or logger named:
@@ -612,6 +643,8 @@ def ultra_hyper_debug(msg:           str,
     output = msg
     if isinstance(msg, str) and format_str:
         output = brace_message(msg,
+                               # Add context to string output.
+                               context=context,
                                *args, **kwargs)
 
     # Indent output message before printing.
@@ -624,6 +657,10 @@ def ultra_hyper_debug(msg:           str,
         output = (pretty.indented(f"type: {type(msg)}")
                   + "\n\n"
                   + output)
+        # Add context to non-string output.
+        if context:
+            output += ("\n\ncontext:\n"
+                       + pretty.indented(context))
 
     # And one more thing: if they want us to add a title, we will do that:
     if add_title:
@@ -640,64 +677,80 @@ def ultra_hyper_debug(msg:           str,
                       **log_kwargs)
 
 
-def debug(msg: str,
-          *args: Any,
+# -----------------------------------------------------------------------------
+# Logger Normal Functions
+# -----------------------------------------------------------------------------
+
+def debug(msg:           str,
+          *args:         Any,
           veredi_logger: NullNoneOr[logging.Logger] = None,
-          **kwargs: Any) -> None:
+          context:       'VerediContext' = None,
+          **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
-                           *args, **kwargs)
+                           *args,
+                           context=context,
+                           **kwargs)
     if not ut_call(Level.DEBUG, output):
         this = _logger(veredi_logger)
         this.debug(output,
                    **log_kwargs)
 
 
-def info(msg: str,
-         *args: Any,
+def info(msg:           str,
+         *args:         Any,
          veredi_logger: NullNoneOr[logging.Logger] = None,
-         **kwargs: Any) -> None:
+         context:       'VerediContext' = None,
+         **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
-                           *args, **kwargs)
+                           *args,
+                           context=context,
+                           **kwargs)
     if not ut_call(Level.INFO, output):
         this = _logger(veredi_logger)
         this.info(output,
                   **log_kwargs)
 
 
-def warning(msg: str,
-            *args: Any,
+def warning(msg:           str,
+            *args:         Any,
             veredi_logger: NullNoneOr[logging.Logger] = None,
-            **kwargs: Any) -> None:
+            context:       'VerediContext' = None,
+            **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
-                           *args, **kwargs)
+                           *args,
+                           context=context,
+                           **kwargs)
     if not ut_call(Level.WARNING, output):
         this = _logger(veredi_logger)
         this.warning(output,
                      **log_kwargs)
 
 
-def error(msg: str,
-          *args: Any,
+def error(msg:           str,
+          *args:         Any,
           veredi_logger: NullNoneOr[logging.Logger] = None,
-          **kwargs: Any) -> None:
+          context:       'VerediContext' = None,
+          **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
-                           *args, **kwargs)
+                           *args,
+                           context=context,
+                           **kwargs)
     if not ut_call(Level.ERROR, output):
         this = _logger(veredi_logger)
         this.error(output,
                    **log_kwargs)
 
 
-def exception(exception: Union[Exception, Type[Exception]],
-              msg:       Optional[str],
-              *args:     Any,
-              context:   Optional['VerediContext'] = None,
+def exception(exception:     Union[Exception, Type[Exception]],
+              msg:           Optional[str],
+              *args:         Any,
+              context:       Optional['VerediContext'] = None,
               veredi_logger: NullNoneOr[logging.Logger] = None,
-              **kwargs:  Any) -> None:
+              **kwargs:      Any) -> None:
     '''
     Log the exception at ERROR level.
 
@@ -824,24 +877,28 @@ def exception(exception: Union[Exception, Type[Exception]],
     return exception
 
 
-def critical(msg: str,
-             *args: Any,
+def critical(msg:           str,
+             *args:         Any,
              veredi_logger: NullNoneOr[logging.Logger] = None,
-             **kwargs: Any) -> None:
+             context:       'VerediContext' = None,
+             **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
     output = brace_message(msg,
-                           *args, **kwargs)
+                           *args,
+                           context=context,
+                           **kwargs)
     if not ut_call(Level.CRITICAL, output):
         this = _logger(veredi_logger)
         this.critical(output,
                       **log_kwargs)
 
 
-def at_level(level: 'Level',
-             msg: str,
-             *args: Any,
+def at_level(level:         'Level',
+             msg:           str,
+             *args:         Any,
              veredi_logger: NullNoneOr[logging.Logger] = None,
-             **kwargs: Any) -> None:
+             context:       'VerediContext' = None,
+             **kwargs:      Any) -> None:
     kwargs = incr_stack_level(kwargs)
     log_fn = None
     if level == Level.NOTSET:
@@ -861,18 +918,22 @@ def at_level(level: 'Level',
     elif level == Level.CRITICAL:
         log_fn = critical
 
-    log_fn(msg, *args, veredi_logger=veredi_logger, **kwargs)
+    log_fn(msg, *args,
+           veredi_logger=veredi_logger,
+           context=context,
+           **kwargs)
 
 
 # -----------------------------------------------------------------------------
 # Logging Groups
 # -----------------------------------------------------------------------------
 
-def group(group: 'Group',
-          msg: str,
-          *args: Any,
+def group(group:         'Group',
+          msg:           str,
+          *args:         Any,
           veredi_logger: NullNoneOr[logging.Logger] = None,
-          **kwargs: Any) -> None:
+          context:       'VerediContext' = None,
+          **kwargs:      Any) -> None:
     '''
     Log at `group` log.Level, whatever it's set to right now.
     '''
@@ -881,6 +942,7 @@ def group(group: 'Group',
     at_level(level, msg,
              *args,
              veredi_logger=veredi_logger,
+             context=context,
              **kwargs)
 
 
@@ -893,10 +955,11 @@ def set_group_level(group: 'Group',
     _GROUP_LEVELS[group] = level
 
 
-def security(msg: str,
-             *args: Any,
+def security(msg:           str,
+             *args:         Any,
              veredi_logger: NullNoneOr[logging.Logger] = None,
-             **kwargs: Any) -> None:
+             context:       'VerediContext' = None,
+             **kwargs:      Any) -> None:
     '''
     Log at Group.SECURITY log.Level, whatever it's set to right now.
     '''
@@ -905,6 +968,7 @@ def security(msg: str,
     at_level(level, msg,
              *args,
              veredi_logger=veredi_logger,
+             context=context,
              **kwargs)
 
 
@@ -933,7 +997,10 @@ class LoggingManager:
         self._original = get_level()
         set_level(self._desired)
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self,
+                 type:      Optional[Type[BaseException]] = None,
+                 value:     Optional[BaseException]       = None,
+                 traceback: Optional[TracebackType]       = None) -> bool:
         '''We do the same thing, regardless of an exception or not.'''
         if self._do_nothing:
             return

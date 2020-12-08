@@ -25,7 +25,6 @@ class VerediError(Exception):
                  message:    str,
                  cause:      Optional[Exception]       = None,
                  context:    Optional['VerediContext'] = None,
-                 associated: Optional[Any]             = None,
                  **data:     Optional[Dict[Any, Any]]) -> None:
         '''Context data included.'''
         self.message    = message
@@ -42,12 +41,6 @@ class VerediError(Exception):
         The Veredi Context, if there is one.
         '''
 
-        self.associated = associated
-        '''
-        Something closely associated with the error.
-        TODO: remove and just use `data`.
-        '''
-
         self.data       = data
         '''
         A bucket to stuff any extra data about the error.
@@ -57,8 +50,6 @@ class VerediError(Exception):
         output = f"{self.message}"
         if self.cause:
             output += f" from {self.cause}"
-        if self.associated:
-            output += f" associated with {self.associated}"
         if self.context:
             output += f" with context {self.context}"
         if self.data:
@@ -85,12 +76,12 @@ class HealthError(VerediError):
     def __init__(self,
                  current_health: 'VerediHealth',
                  prev_health:    'VerediHealth',
-                 message: str,
-                 cause: Optional[Exception],
-                 context: Optional['VerediContext'] = None,
-                 associated: Optional[Any] = None):
+                 message:        str,
+                 cause:          Optional[Exception],
+                 context:        Optional['VerediContext'] = None,
+                 **data:         Optional[Dict[Any, Any]]):
         '''Healths saved in addition to the usual VerediError stuff.'''
-        super().__init__(message, cause, context, associated)
+        super().__init__(message, cause, context, **data)
 
         self.current = current_health
         '''Health the error creator set things to.'''

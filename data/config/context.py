@@ -127,36 +127,6 @@ class ConfigContext(EphemerealContext):
         keychain = config_ctx.get(klass.Link.KEYCHAIN, Null())
         return keychain
 
-    # TODO [2020-12-08]: LOG: delete this
-    # @classmethod
-    # def exception(klass:     Type['ConfigContext'],
-    #               context:   VerediContext,
-    #               source:    Optional[Exception],
-    #               msg:       Optional[str],
-    #               *args:     Any,
-    #               **kwargs:  Any) -> None:
-    #     '''
-    #     Calls log.exception() to raise a ContextError with message built from
-    #     msg, args, kwargs and with supplied context.
-
-    #     Sets stack level one more than usual so that caller of this should be
-    #     the stacktrace of the exception.
-    #     '''
-    #     # An extra stacklevel should get us back to whoever called us...
-    #     kwargs = log.incr_stack_level(kwargs)
-    #     # TODO [2020-12-07]: ConfigError, like comment says, or
-    #     # ContextError, like code does?
-    #     if source:
-    #         raise log.exception(
-    #             ContextError,
-    #             msg, *args, **kwargs,
-    #             context=context) from source
-    #     else:
-    #         raise log.exception(
-    #             ContextError,
-    #             msg, *args, **kwargs,
-    #             context=context)
-
     @classmethod
     def set_log_level(klass:   Type['ConfigContext'],
                       context: VerediContext,

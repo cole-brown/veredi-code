@@ -811,8 +811,7 @@ class System(LogMixin, ABC):
             msg = msg.format(self._manager.event, event_manager)
             error = EcsSystemError(msg,
                                    None,
-                                   context=None,
-                                   associated=None)
+                                   context=None)
             raise self._log_exception(error, msg)
 
         if (self._required_managers and EventManager in self._required_managers
@@ -821,8 +820,7 @@ class System(LogMixin, ABC):
                    "but requires one.")
             error = EcsSystemError(msg,
                                    None,
-                                   context=None,
-                                   associated=None)
+                                   context=None)
             raise self._log_exception(error, msg)
 
         # Have our sub-class do whatever it wants this one time.

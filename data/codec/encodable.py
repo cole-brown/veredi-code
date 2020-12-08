@@ -839,7 +839,10 @@ class Encodable:
         claiming, _, reason = klass.claim(data)
         if not claiming:
             msg = f"Cannot claim for {klass.__name__}: {reason}."
-            error = EncodableError(msg, None, associated=data)
+            error = EncodableError(msg, None,
+                                   data={
+                                       'data': data,
+                                   })
             raise log.exception(error, msg + ' data: {}', data)
 
     @classmethod
@@ -851,7 +854,11 @@ class Encodable:
         '''
         if key not in data:
             msg = f"Cannot decode to {klass.__name__}: {data}"
-            error = EncodableError(msg, None)
+            error = EncodableError(msg, None,
+                                   data={
+                                       'key': key,
+                                       'data': data,
+                                   })
             raise log.exception(error, msg)
 
     @classmethod
@@ -873,7 +880,12 @@ class Encodable:
                 f": {data}",
                 None
             )
-            error = EncodableError(msg, None)
+            error = EncodableError(msg, None,
+                                   data={
+                                       'key': key,
+                                       'value': value,
+                                       'data': data,
+                                   })
             raise log.exception(error, msg)
 
     @classmethod
@@ -1148,7 +1160,11 @@ class Encodable:
             field = key
         else:
             raise EncodableError(f"Don't know how to decode key: {key}",
-                                 None)
+                                 None,
+                                 data={
+                                     'key': key,
+                                     'expected_keys': expected_keys,
+                                 })
 
         # log.debug(f"\n\n   done._decode_key: {field}\n\n")
         return field
