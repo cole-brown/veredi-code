@@ -181,7 +181,11 @@ class Commander:
                                                        existing)
         error = CommandRegisterError(msg, None,
                                      context=context,
-                                     associated=existing)
+                                     data={
+                                         'existing': existing,
+                                         'existing.name': existing.name,
+                                         'cmd_or_alias': cmd_or_alias,
+                                     })
         raise self._log_exception(error,
                                   msg,
                                   context=context,
