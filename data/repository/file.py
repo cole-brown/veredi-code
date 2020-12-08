@@ -116,7 +116,6 @@ class FileBareRepository(base.BaseRepository):
         if not config:
             raise background.config.exception(
                 context,
-                None,
                 "Cannot configure {} without a Configuration in the "
                 "supplied context.",
                 self.__class__.__name__)
@@ -238,7 +237,6 @@ class FileBareRepository(base.BaseRepository):
         # load_path should be exact - no globbing.
         if not load_path.exists():
             raise log.exception(
-                None,
                 exceptions.LoadError,
                 "Cannot load file. Path/file does not exist: {}",
                 str(load_path),
@@ -262,7 +260,6 @@ class FileBareRepository(base.BaseRepository):
                     data_stream.close()
                 data_stream = None
                 raise log.exception(
-                    error,
                     exceptions.LoadError,
                     "Error loading data from file. context: {}",
                     context=context) from error
@@ -302,7 +299,6 @@ class FileBareRepository(base.BaseRepository):
 
         if not self.fn_path_safing:
             raise log.exception(
-                None,
                 exceptions.LoadError,
                 "No path safing function set! Cannot create file paths. ",
                 context=context)
@@ -357,7 +353,6 @@ class FileTreeRepository(base.BaseRepository):
         if not config:
             raise background.config.exception(
                 context,
-                None,
                 "Cannot configure {} without a Configuration in the "
                 "supplied context.",
                 self.__class__.__name__)
@@ -521,7 +516,6 @@ class FileTreeRepository(base.BaseRepository):
                     data_stream.close()
                 data_stream = None
                 raise log.exception(
-                    error,
                     exceptions.LoadError,
                     "Error loading data from file. context: {}",
                     context=context) from error
@@ -641,7 +635,6 @@ class FileTreeRepository(base.BaseRepository):
 
         if not self.fn_path_safing:
             raise log.exception(
-                None,
                 exceptions.LoadError,
                 "No path safing function set! Cannot create file paths.",
                 context=context)

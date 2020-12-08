@@ -128,28 +128,6 @@ class ConfigContext(EphemerealContext):
         return keychain
 
     @classmethod
-    def exception(klass:     Type['ConfigContext'],
-                  context:   VerediContext,
-                  source:    Optional[Exception],
-                  msg:       Optional[str],
-                  *args:     Any,
-                  **kwargs:  Any) -> None:
-        '''
-        Calls log.exception() to raise a ConfigError with message built from
-        msg, args, kwargs and with supplied context.
-
-        Sets stack level one more than usual so that caller of this should be
-        the stacktrace of the exception.
-        '''
-        # An extra stacklevel should get us back to whoever called us...
-        raise log.exception(
-            source,
-            ContextError,
-            msg, *args, **kwargs,
-            context=context,
-            stacklevel=3)
-
-    @classmethod
     def set_log_level(klass:   Type['ConfigContext'],
                       context: VerediContext,
                       level:   log.LogLvlConversion
@@ -171,12 +149,6 @@ class ConfigContext(EphemerealContext):
             context._sub_get(
                 klass.KEY,
                 klass.Link.LOG_LEVEL))
-
-    # TODO [2020-11-15]: Change to something that...:
-    #   - Differentiates log_client and log_server?
-    #   - Can tell log_clients where to log to?
-    #   - Or should we always just init log for local and then reinit for
-    #     log_client after we get a message?
 
     @classmethod
     def set_log_is_server(klass: Type['ConfigContext'],

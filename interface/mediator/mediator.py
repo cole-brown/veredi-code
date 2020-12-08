@@ -144,14 +144,12 @@ class Mediator(ABC):
         else:
             raise background.config.exception(
                 context,
-                None,
                 "Cannot configure {} without a supplied context.",
                 self.__class__.__name__)
 
         if not self._comms:
             raise background.config.exception(
                 context,
-                None,
                 "Cannot configure {} without SubToProcComm object in context.",
                 self.__class__.__name__)
 
@@ -160,7 +158,6 @@ class Mediator(ABC):
         if not config:
             raise background.config.exception(
                 context,
-                None,
                 "Cannot configure {} without a Configuration in the "
                 "supplied context.",
                 self.__class__.__name__)
@@ -593,7 +590,6 @@ class Mediator(ABC):
 
             except EOFError as error:
                 log.exception(error,
-                              None,
                               "Failed getting from test pipe; "
                               "ignoring and continuing.")
                 # EOFError gets raised if nothing left to receive or other end
@@ -613,7 +609,6 @@ class Mediator(ABC):
                            f"with received testing string: {string}")
                 raise log.exception(
                     ValueError(message),
-                    None,
                     message)
 
             # Done processing; sleep a bit then continue.

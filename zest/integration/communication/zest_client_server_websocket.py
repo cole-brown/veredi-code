@@ -78,6 +78,7 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     comms = ConfigContext.subproc(context)
     if not comms:
         raise log.exception(
+            TypeError,
             "MediatorServer requires a SubToProcComm; received None.")
 
     log_level = ConfigContext.log_level(context)
@@ -93,19 +94,23 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # basics.
     if not comms.pipe:
         raise log.exception(
+            TypeError,
             "MediatorServer requires a pipe connection; received None.",
             veredi_logger=lumberjack)
     if not comms.config:
         raise log.exception(
+            TypeError,
             "MediatorServer requires a configuration; received None.",
             veredi_logger=lumberjack)
     if not log_level:
         raise log.exception(
+            TypeError,
             "MediatorServer requires a default log level (int); "
             "received None.",
             veredi_logger=lumberjack)
     if not comms.shutdown:
         raise log.exception(
+            TypeError,
             "MediatorServer requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
 
@@ -136,6 +141,7 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     comms = ConfigContext.subproc(context)
     if not comms:
         raise log.exception(
+            TypeError,
             "MediatorClient requires a SubToProcComm; received None.")
 
     log_level = ConfigContext.log_level(context)
@@ -151,19 +157,23 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # basics.
     if not comms.pipe:
         raise log.exception(
+            TypeError,
             "MediatorClient requires a pipe connection; received None.",
             veredi_logger=lumberjack)
     if not comms.config:
         raise log.exception(
+            TypeError,
             "MediatorClient requires a configuration; received None.",
             veredi_logger=lumberjack)
     if not log_level:
         raise log.exception(
+            TypeError,
             "MediatorClient requires a default log level (int); "
             "received None.",
             veredi_logger=lumberjack)
     if not comms.shutdown:
         raise log.exception(
+            TypeError,
             "MediatorClient requires a shutdown flag; received None.",
             veredi_logger=lumberjack)
 

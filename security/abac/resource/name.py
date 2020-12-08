@@ -157,9 +157,7 @@ class ResourceType(enum.Enum):
             msg = ("ResourceTypes with a value of None or non-string are "
                    f"not allowed. Got: '{self.value}'")
             err = ValueError(msg, self)
-            raise log.exception(err,
-                                None,
-                                msg)
+            raise log.exception(err, msg)
 
         return str(self.value).lower()
 
@@ -208,7 +206,7 @@ def _make_owner(owner_id: Union[str, Encodable]) -> str:
         msg = ("Cannot make a VRN owner string from an owner_id "
                f"value of: '{owner_id}'.")
         err = ValueError(msg, owner_id)
-        raise log.exception(err, None, msg)
+        raise log.exception(err, msg)
 
     # ---
     # Validate owner.
@@ -219,7 +217,7 @@ def _make_owner(owner_id: Union[str, Encodable]) -> str:
                f"'{owner_str}' (from '{owner_id}') did not match the regex:"
                f"'{_NAME_VALID_STR}'")
         err = ValueError(msg, owner_str, owner_id)
-        raise log.exception(err, None, msg)
+        raise log.exception(err, msg)
 
     # ---
     # Lowercase before returning.
@@ -251,7 +249,7 @@ def _make_name(name: str) -> str:
         msg = ("Cannot make a VRN name string from a"
                f"value of: '{name}'.")
         err = ValueError(msg, name)
-        raise log.exception(err, None, msg)
+        raise log.exception(err, msg)
 
     # ---
     # Validate name.
@@ -261,7 +259,7 @@ def _make_name(name: str) -> str:
                f"'{name}' did not match the regex:"
                f"'{_NAME_VALID_STR}'")
         err = ValueError(msg, name)
-        raise log.exception(err, None, msg)
+        raise log.exception(err, msg)
 
     # ---
     # Lowercase before returning.

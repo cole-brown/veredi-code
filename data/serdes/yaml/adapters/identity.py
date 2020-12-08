@@ -44,7 +44,7 @@ def monotonic_id_constructor(loader: yaml.SafeLoader,
     '''
     msg = f"Shouldn't be decoding a MonotonicId? Found: {node}"
     error = VerediYamlDeserializeError(msg)
-    raise log.exception(error, None, msg)
+    raise log.exception(error, msg)
 
 
 # ------------------------------
@@ -58,7 +58,7 @@ def monotonic_id_representer(dumper: yaml.SafeDumper,
     '''
     msg = f"Shouldn't be encoding a MonotonicId? Found: {mid}"
     error = VerediYamlSerializeError(msg)
-    raise log.exception(error, None, msg)
+    raise log.exception(error, msg)
 
 
 # ------------------------------
@@ -96,7 +96,7 @@ def serializable_id_constructor(loader: yaml.SafeLoader,
         msg = ("Couldn't find a SerializableId id sub-class to "
                f"construct for this node: {node}")
         error = VerediYamlDeserializeError(msg)
-        raise log.exception(error, None, msg)
+        raise log.exception(error, msg)
 
     instance = klass.deserialize(ident_map)
     return instance
@@ -118,7 +118,7 @@ def serializable_id_representer(dumper: yaml.SafeDumper,
         msg = ("Couldn't find a SerializableId yaml tag to "
                f"construct for this: {ident}")
         error = VerediYamlSerializeError(msg)
-        raise log.exception(error, None, msg)
+        raise log.exception(error, msg)
 
     # Claim '!id' tag as generic SerializableId. Specific ids will have their
     # type in the serialize() return so we'll be able to deserialize with just

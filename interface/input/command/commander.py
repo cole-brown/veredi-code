@@ -181,8 +181,12 @@ class Commander:
                                                        existing)
         error = CommandRegisterError(msg, None,
                                      context=context,
-                                     associated=existing)
-        raise self._log.exception(error,
+                                     data={
+                                         'existing': existing,
+                                         'existing.name': existing.name,
+                                         'cmd_or_alias': cmd_or_alias,
+                                     })
+        raise self._log_exception(error,
                                   msg,
                                   context=context,
                                   **kwargs)
@@ -198,7 +202,7 @@ class Commander:
             msg = msg.format(event)
             error = CommandRegisterError(msg, None,
                                          context=event.context)
-            raise self._log.exception(error,
+            raise self._log_exception(error,
                                       msg,
                                       context=event.context)
         self.assert_not_registered(event.name, event.context)
@@ -212,7 +216,7 @@ class Commander:
                              event)
             error = CommandRegisterError(msg, None,
                                          context=event.context)
-            raise self._log.exception(error,
+            raise self._log_exception(error,
                                       msg,
                                       context=event.context)
 
@@ -268,7 +272,7 @@ class Commander:
         log_fmt = msg_pre + message + '{msg_post}'
         kwargs['msg_post'] = msg_post
         log.incr_stack_level(kwargs)
-        self._log.at_level(level, log_fmt, *args, **kwargs)
+        self._log_at_level(level, log_fmt, *args, **kwargs)
 
     # -------------------------------------------------------------------------
     # Sub-Command Functions
@@ -384,7 +388,7 @@ class Commander:
             msg = "Invoked command '{}' did not return status. input: '{}'"
             msg = msg.format(name, command_safe)
             error = CommandExecutionError(msg, None, context=context)
-            raise log.exception(error, msg, context=context)
+            raise self._log_exception(error, msg, context=context)
 
         # Did a thing; return whether it was a successful doing of a thing.
         return status

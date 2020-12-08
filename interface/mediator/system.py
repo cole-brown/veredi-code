@@ -115,13 +115,13 @@ def _start_server(comms: multiproc.SubToProcComm,
     comms = ConfigContext.subproc(context)
     if not comms:
         raise log.exception(
+            TypeError,
             "MediatorServer requires a SubToProcComm; received None.")
 
     config = background.config.config
     if not config:
         raise background.config.exception(
             context,
-            None,
             "Cannot configure a MediatorServer without a Configuration in the "
             "background context.")
 
@@ -259,7 +259,6 @@ class MediatorSystem(System):
         if not config:
             raise background.config.exception(
                 context,
-                None,
                 "Cannot configure {} without a Configuration in the "
                 "supplied context.",
                 self.__class__.__name__)
@@ -430,7 +429,7 @@ class MediatorSystem(System):
         # ------------------------------
         id_sys = self._manager.system.get(IdentitySystem)
         if not id_sys:
-            self._log.warning("Cannot send event; couldn't find the "
+            self._log_warning("Cannot send event; couldn't find the "
                               "IdentitySystem: {}",
                               id_sys)
             return
@@ -439,7 +438,7 @@ class MediatorSystem(System):
         user_id = id_sys.user_id(entity_id)
         user_key = id_sys.user_key(entity_id)
         if not user_id:
-            self._log.warning("Cannot send event; IdentitySystem didn't have "
+            self._log_warning("Cannot send event; IdentitySystem didn't have "
                               "a user_id for the entity to demark receipient: "
                               "{}, {}. event: {}",
                               user_id, user_key, event)
@@ -507,7 +506,7 @@ class MediatorSystem(System):
         # log's bracket formatter at the moment [2020-10-24], so I guess
         # format the message twice.
         msg = "Invalid MsgType. Can only support: {} Got: {}."
-        raise self._log.exception(
+        raise self._log_exception(
             ValueError(msg.format(self.MSG_TYPE_SUPPORTED,
                                   message.type)),
             msg,
@@ -548,7 +547,7 @@ class MediatorSystem(System):
         # Else it's somehow valid but we don't know how...
         msg = ("Valid MsgType but no message processor for it. "
                f"MsgType: {message.type}.")
-        raise self._log.exception(
+        raise self._log_exception(
             ValueError(msg),
             msg,
             context=context)
@@ -566,7 +565,7 @@ class MediatorSystem(System):
 
         # Else it's somehow valid but we don't know how...
         msg = f"Don't know how to process message: {message}"
-        raise self._log.exception(
+        raise self._log_exception(
             ValueError(msg),
             msg,
             context=context)
@@ -595,7 +594,7 @@ class MediatorSystem(System):
         # Else it's somehow valid but we don't know how...
         msg = ("Don't know how to process ConnectionMessage of type "
                f"'{message.type}': {message}")
-        raise self._log.exception(
+        raise self._log_exception(
             ValueError(msg),
             msg,
             context=context)

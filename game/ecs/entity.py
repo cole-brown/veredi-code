@@ -37,7 +37,7 @@ from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 from veredi.base.null          import Null
 
-from .base.exceptions          import EntityError
+from .base.exceptions          import EcsEntityError
 from .base.identity            import ComponentId, EntityId
 from .base.component           import (Component,
                                        CompIdOrType)
@@ -83,7 +83,7 @@ class EntityManager(EcsManagerWithEvents):
             name = jeff_ent.get(NameComponent).name or fallback_value
             result = jeff_ent.get(ComplicatedComp).do_a_complicated_thing()
             if not result.success:
-                log.info(...)
+                self._log_info(...)
             ...
 
     The entities and components should be either: real or Null(), and so you'll
@@ -100,13 +100,17 @@ class EntityManager(EcsManagerWithEvents):
             if comp_comp:
                 result = comp_comp.do_a_complicated_thing()
                 if not result or not result.success:
-                    log.info(...)
+                    self._log_info(...)
                 else:
                     ...
             else:
                 ...
             ...
     '''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def _define_vars(self) -> None:
         super()._define_vars()
@@ -147,6 +151,21 @@ class EntityManager(EcsManagerWithEvents):
         self._config            = config
         self._event_manager     = event_manager
         self._component_manager = component_manager
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'EntityManager') -> str:
+        '''
+        The dotted name this Manager has.
+        '''
+        return 'veredi.game.ecs.manager.entity'
+
+    # -------------------------------------------------------------------------
+    # Internal Functions
+    # -------------------------------------------------------------------------
 
     def _cycle_apocalypse(self) -> VerediHealth:
         '''
@@ -249,9 +268,8 @@ class EntityManager(EcsManagerWithEvents):
 
         entity = Entity(context, eid, type_id, self._component_manager)
         if not entity:
-            raise log.exception(
-                None,
-                EntityError,
+            raise self._log_exception(
+                EcsEntityError,
                 "Failed to create Entity for would-be "
                 "entity_id {}. got: {}, context: {}",
                 eid, entity, context
@@ -351,11 +369,10 @@ class EntityManager(EcsManagerWithEvents):
                 # Bump it to alive now.
                 entity._life_cycled(EntityLifeCycle.ALIVE)
 
-            except EntityError as error:
-                log.exception(
+            except EcsEntityError as error:
+                self._log_exception(
                     error,
-                    None,
-                    "EntityError in creation() for entity_id {}.",
+                    "EcsEntityError in creation() for entity_id {}.",
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
 
@@ -394,11 +411,10 @@ class EntityManager(EcsManagerWithEvents):
                 # ...and forget about it.
                 self._entity.pop(entity_id, None)
 
-            except EntityError as error:
-                log.exception(
+            except EcsEntityError as error:
+                self._log_exception(
                     error,
-                    None,
-                    "EntityError in destruction() for entity_id {}.",
+                    "EcsEntityError in destruction() for entity_id {}.",
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
 

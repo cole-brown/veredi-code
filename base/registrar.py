@@ -193,13 +193,13 @@ class BaseRegistrar(ABC):
             leaf_key = args[-1]
             '''Final key where the registration will actually be stored.'''
         except IndexError as error:
+            kwargs = log.incr_stack_level(None)
             raise log.exception(
-                error,
                 RegistryError,
                 "Need to know what to register this ({}) as. "
                 "E.g. @register('jeff', 'geoff'). Got no args: {}",
                 name, args,
-                stacklevel=3)
+                **kwargs) from error
 
         registration = klass._get()
         '''Our register - full info saved here.'''
@@ -257,7 +257,7 @@ class BaseRegistrar(ABC):
                    f"'{label.join(*args)}'. "
                    "Registry: \n{}")
             from veredi.logger import pretty
-            log.exception(error, None, msg,
+            log.exception(error, msg,
                           pretty.indented(klass._REGISTRY))
             # Reraise it. Just want more info.
             raise
@@ -310,7 +310,6 @@ class BaseRegistrar(ABC):
                 registration = registration[key]
             except KeyError as error:
                 raise log.exception(
-                    error,
                     RegistryError,
                     "Registry has nothing at: {} (full path: {})",
                     split_keys[: i + 1],
@@ -322,7 +321,6 @@ class BaseRegistrar(ABC):
         # ---
         if isinstance(registration, dict):
             raise log.exception(
-                None,
                 RegistryError,
                 "Registry for '{}' is not at a leaf - "
                 "still has entries to go: {}",
@@ -386,7 +384,6 @@ class BaseRegistrar(ABC):
             #     - This dies cuz data was set to '001', then kwargs also
             #       had a 'data'.
             raise log.exception(
-                error,
                 RegistryError,
                 # Leave (k)args for others.
                 "Registry failed creating '{}' with: args: {}, "
@@ -476,9 +473,7 @@ class DottedRegistrar(BaseRegistrar):
                        "by {klass.__name__}\n"
                        "        return klass."
                        "{label._KLASS_FUNC_NAME}")
-                raise log.exception(AttributeError(msg, registeree),
-                                    None,
-                                    msg)
+                raise log.exception(AttributeError(msg, registeree), msg)
 
             # Complain loudly if the registeree has a `dotted` function and
             # what it returns disagrees with what they gave us as their dotted
@@ -491,10 +486,7 @@ class DottedRegistrar(BaseRegistrar):
                        "not what it's trying to register as. Please fix the "
                        "class to have the same registration dotted name as "
                        "it has in its dotted() function.")
-                raise log.exception(AttributeError(msg, registeree),
-                                    None,
-                                    msg)
-
+                raise log.exception(AttributeError(msg, registeree), msg)
         # ---
         # Make Getter.
         # ---

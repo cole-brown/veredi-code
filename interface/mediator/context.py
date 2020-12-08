@@ -183,8 +183,7 @@ class MessageContext(EphemerealContext):
             supported = {MsgType.TEXT, MsgType.ENCODED}
             msg = (f"Invalid MsgType. Can only support: {supported}. "
                    f"Got: {type}.")
-            raise log.exception(ValueError(msg, type, value),
-                                None,
+            raise log.exception(ValueError(msg, type),
                                 msg,
                                 context=self)
 

@@ -43,9 +43,7 @@ class DocType(enum.Enum):
             return klass.DEF_SYSTEM
 
         msg = f"'{string}' is not a DocType value."
-        raise log.exception(ValueError(msg),
-                            None,
-                            msg)
+        raise log.exception(ValueError(msg), msg)
 
 
 # -----------------------------------------------------------------------------
@@ -76,9 +74,7 @@ class Definition(abc.MutableMapping):
             if Hierarchy.VKEY_DOC_TYPE not in doc:
                 msg = ("Required (auto-injected) key "
                        f"'{Hierarchy.VKEY_DOC_TYPE}' is not in document.")
-                raise log.exception(KeyError(msg, doc),
-                                    None,
-                                    msg)
+                raise log.exception(KeyError(msg, doc), msg)
 
             doc_type = DocType.from_str(doc[Hierarchy.VKEY_DOC_TYPE])
             self._add_doc(doc_type, doc)
@@ -93,9 +89,7 @@ class Definition(abc.MutableMapping):
         else:
             msg = (f"Don't know what to do with document type {doc_type} "
                    "to create definition...")
-            raise log.exception(ValueError(msg, doc),
-                                None,
-                                msg)
+            raise log.exception(ValueError(msg, doc), msg)
 
     def _add_singleton(self,
                        doc_type: 'DocType',
@@ -103,9 +97,7 @@ class Definition(abc.MutableMapping):
         if doc_type in self._documents:
             msg = (f"Document type {doc_type} exists more than once in the "
                    "record, but we are only allowed one.")
-            raise log.exception(ValueError(msg, doc),
-                                None,
-                                msg)
+            raise log.exception(ValueError(msg, doc), msg)
 
         self._documents[doc_type] = DataDict(doc)
 
@@ -268,7 +260,7 @@ class Definition(abc.MutableMapping):
                    "there is nothing up next to warrent a 'this' reference? "
                    f"canon-so-far: {canon}, 'this': {these}, next: {next}")
             error = ValueError(msg, canon, these, next)
-            raise log.exception(error, None, msg)
+            raise log.exception(error, msg)
 
         # Push canon input into canon output; walk down definitions tree while
         # we're at it.

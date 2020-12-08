@@ -9,7 +9,7 @@ Base class for game update loop systems.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Set, Type, Dict, List)
+                    Optional, Union, Any, Set, Type, List)
 from veredi.base.null import Null, Nullable, NullNoneOr
 if TYPE_CHECKING:
     from veredi.base.identity import MonotonicIdGenerator
@@ -29,10 +29,10 @@ from .base.system              import (System,
                                        SystemLifeCycle)
 
 from veredi.base.exceptions    import VerediError, HealthError
-from .base.exceptions          import SystemErrorV
+from .base.exceptions          import EcsSystemError
 
 from .const                    import SystemTick
-from .time                     import TimeManager, MonotonicTimer
+from .time                     import TimeManager
 from .event                    import EcsManagerWithEvents, EventManager, Event
 from .component                import ComponentManager
 from .entity                   import EntityManager
@@ -109,17 +109,11 @@ class SystemManager(EcsManagerWithEvents):
         Flag for redoing our System tick priority schedule (self._schedule).
         '''
 
-        self._timer: Optional['MonotonicTimer'] = MonotonicTimer()
+        self._timer: Optional[MonotonicTimer] = MonotonicTimer()
         '''
         We'll use this timer in certain life-cycles/tick-cycles (e.g.
         apoptosis) to let systems time how long it's been since the start of
         that cycle.
-        '''
-
-        self._logger: log.PyLogType = log.get_logger(self.dotted())
-        '''
-        Named logger for engine logging. Metered logger will end up getting the
-        same one because we use the same name.
         '''
 
     def __init__(self,
@@ -174,9 +168,8 @@ class SystemManager(EcsManagerWithEvents):
             return
 
         # Bump up stack by one so it points to our caller.
-        log.incr_stack_level(kwargs)
-        log.debug(msg, *args, **kwargs,
-                  veredi_logger=self._logger)
+        kwargs = self._log_stack(**kwargs)
+        self._log_debug(msg, *args, **kwargs)
 
     def _error_maybe_raise(self,
                            error:      Exception,
@@ -188,27 +181,23 @@ class SystemManager(EcsManagerWithEvents):
         Log an error, and raise it if `self.debug_flagged` to do so.
         '''
         kwargs = kwargs or {}
-        log.incr_stack_level(kwargs)
+        kwargs = self._log_stack(**kwargs)
         if self.debug_flagged(DebugFlag.RAISE_ERRORS):
             # Can't provide an wrapping error type here or my error's stack
             # context gets lost I guess?
-            raise log.exception(
+            raise self._log_exception(
                 error,
-                None,
                 msg,
                 *args,
                 context=context,
-                veredi_logger=self._logger,
                 **kwargs
             ) from error
         else:
-            log.exception(
+            self._log_exception(
                 error,
-                None,
                 msg,
                 *args,
                 context=context,
-                veredi_logger=self._logger,
                 **kwargs)
 
     def _dbg_health(self,
@@ -252,15 +241,13 @@ class SystemManager(EcsManagerWithEvents):
         else:
             health_transition = f"{str(prev_health)} -> {str(curr_health)}"
 
-        msg = (f"{system.dotted()}'s health became unrunnable during {during}: "
-               f"{health_transition}. ")
+        msg = (f"{system.dotted()}'s health became unrunnable "
+               f"during {during}: {health_transition}. ")
         error = HealthError(curr_health, prev_health, msg, None)
-        raise log.exception(error,
-                            None,
-                            msg + info,
-                            *args,
-                            **kwargs,
-                            veredi_logger=self._logger)
+        raise self._log_exception(error,
+                                  msg + info,
+                                  *args,
+                                  **kwargs)
 
     # -------------------------------------------------------------------------
     # Life-Cycle Transitions
@@ -558,13 +545,11 @@ class SystemManager(EcsManagerWithEvents):
         '''
         for system in self._system.id.values():
             if isinstance(system, sys_class):
-                raise log.exception(
-                    None,
-                    SystemErrorV,
+                raise self._log_exception(
+                    EcsSystemError,
                     "Cannot create another system of type: {}. "
                     "There is already one running: {}",
-                    str(sys_class), str(system),
-                    veredi_logger=self._logger)
+                    str(sys_class), str(system))
 
         sid = self._system_id.next()
 
@@ -670,10 +655,9 @@ class SystemManager(EcsManagerWithEvents):
             system = self.get(system_id)
             if (not system
                     or system._life_cycle != SystemLifeCycle.CREATING):
-                log.error("Cannot transition {} to created; needs to be "
-                          "in CREATING. Removing from creation pool.",
-                          system, system._life_cycle,
-                          veredi_logger=self._logger)
+                self._log_error("Cannot transition {} to created; needs to be "
+                                "in CREATING. Removing from creation pool.",
+                                system, system._life_cycle)
                 finished.add(system_id)
                 continue
 
@@ -681,13 +665,12 @@ class SystemManager(EcsManagerWithEvents):
                 # Bump it to alive now.
                 self._life_cycle_set(system, SystemLifeCycle.ALIVE)
 
-            except SystemErrorV as error:
+            except EcsSystemError as error:
                 finished.add(system_id)
-                log.exception(
+                self._log_exception(
                     error,
-                    "SystemErrorV in creation() for system_id {}.",
-                    system_id,
-                    veredi_logger=self._logger)
+                    "EcsSystemError in creation() for system_id {}.",
+                    system_id)
                 # TODO: put this system in... jail or something? Delete?
 
             finished.add(system_id)
@@ -726,12 +709,11 @@ class SystemManager(EcsManagerWithEvents):
                 # ...and forget about it.
                 self._system.del_by_keys(system_id, type(system))
 
-            except SystemErrorV as error:
-                log.exception(
+            except EcsSystemError as error:
+                self._log_exception(
                     error,
-                    "SystemErrorV in creation() for system_id {}.",
-                    system_id,
-                    veredi_logger=self._logger)
+                    "EcsSystemError in creation() for system_id {}.",
+                    system_id)
                 # TODO: put this system in... jail or something? Delete?
 
             self._event_create(SystemLifeEvent,

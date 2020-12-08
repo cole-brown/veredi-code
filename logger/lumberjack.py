@@ -98,7 +98,7 @@ class Lumberjack:
             err = ValueError(err_msg, name, initial_level,
                              # require_veredi_name, handler, formatter)
                              require_veredi_name, formatter)
-            raise log.exception(err, None, err_msg)
+            raise log.exception(err, err_msg)
 
         # ------------------------------
         # Set-Up
@@ -158,7 +158,7 @@ class Lumberjack:
         '''
         Log at `group` log.Level, whatever it's set to right now.
         '''
-        kwargs = log.incr_stack_level(kwargs)
+        kwargs = self._stack(1, **kwargs)
         log.group(group, msg,
                   *args,
                   veredi_logger=self._logger,
@@ -404,7 +404,6 @@ class Lumberjack:
         '''
         kwargs = self._stack(1, **kwargs)
         log.exception(error,
-                      None,
                       msg,
                       *args,
                       veredi_logger=self._logger,

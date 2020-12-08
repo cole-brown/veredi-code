@@ -13,6 +13,7 @@ from typing import Union, Optional, Type, NewType, Tuple, Iterable, List
 from veredi.logger                      import log
 from .                                  import zmake, zontext
 from .zpath                             import TestType
+from .zxceptions                        import UnitTestError
 
 from veredi.data                        import background
 from veredi.debug.const                 import DebugFlag
@@ -256,8 +257,8 @@ def set_up_registries(encodables: bool = True,
     for reg_name in kwargs:
         msg = (f"Unhandled registry setup for '{reg_name}'. Don't know "
                "how to set it up.")
-        error = ValueError(reg_name, msg)
-        raise log.exception(error, None, msg)
+        error = UnitTestError(reg_name, msg)
+        raise log.exception(error, msg)
 
 
 def tear_down_registries() -> None:

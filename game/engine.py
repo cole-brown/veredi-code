@@ -21,6 +21,7 @@ from veredi.base.null                   import NullNoneOr, null_or_none
 # Error Handling
 from veredi.logger                      import log
 from veredi.logger.metered              import MeteredLog
+from veredi.logger.mixin                import LogMixin
 from veredi.base.exceptions             import VerediError, HealthError
 from .ecs.exceptions                    import TickError
 
@@ -216,7 +217,7 @@ from veredi.game.data.system            import DataSystem
 # TODO [2020-09-27]: Check function names. Only used-externally should
 # start with a letter. All internal-onyl should be "_blank".
 
-class Engine:
+class Engine(LogMixin):
     '''
     Implements an ECS-powered game engine with just
     one time-step loop (currently).
@@ -288,12 +289,6 @@ class Engine:
         self._metered_log: MeteredLog = None
         '''Metered logging for things that could be spammy, like tick logs.'''
 
-        self._logger: log.PyLogType = log.get_logger(self.dotted())
-        '''
-        Named logger for engine logging. Metered logger will end up getting the
-        same one because we use the same name.
-        '''
-
     def __init__(self,
                  owner:             Entity,
                  campaign_id:       int,
@@ -309,6 +304,14 @@ class Engine:
         # Define Our Vars.
         # ---
         self._define_vars()
+
+        # ---
+        # LogMixin!
+        # ---
+        # Set up ASAP so we have self._log_*() working ASAP.
+
+        # Config our LogMixin.
+        self._log_config(self.dotted())
 
         # ---
         # Ye Olde Todoses
@@ -374,7 +377,7 @@ class Engine:
                          default_name=timer_life_name)
 
         # ---
-        # Logging
+        # Metered Logging
         # ---
         self._metered_log = MeteredLog(self.dotted(),
                                        log.Level.NOTSET,
@@ -428,8 +431,8 @@ class Engine:
             for name in requested_systems:
                 sys_dotted = requested_systems[name]
                 sys_type = config.get_registered(sys_dotted, context)
-                log.debug("Engine config system: {} -> {} -> {}",
-                          name, sys_dotted, sys_type)
+                self._log_debug("Engine config system: {} -> {} -> {}",
+                                name, sys_dotted, sys_type)
 
                 # Already exists? Uh... ok?
                 if self.meeting.system.get(sys_type):
@@ -452,8 +455,8 @@ class Engine:
             for name in dependencies:
                 sys_dotted = requested_systems[name]
                 sys_type = config.get_registered(sys_dotted, context)
-                log.debug("{} depends on: {} -> {} -> {}",
-                          required_type, name, sys_dotted, sys_type)
+                self._log_debug("{} depends on: {} -> {} -> {}",
+                                required_type, name, sys_dotted, sys_type)
 
                 # Already exists? Ok.
                 if self.meeting.system.get(sys_type):
@@ -466,11 +469,11 @@ class Engine:
         # Create the systems we gathered.
         # ---
         for sys_type in from_systems:
-            log.debug("Creating system from dependency: {}", sys_type)
+            self._log_debug("Creating system from dependency: {}", sys_type)
             self.meeting.system.create(sys_type, context)
 
         for sys_type in from_config:
-            log.debug("Creating system from config: {}", sys_type)
+            self._log_debug("Creating system from config: {}", sys_type)
             self.meeting.system.create(sys_type, context)
 
     @classmethod
@@ -512,9 +515,8 @@ class Engine:
             return
 
         # Bump up stack by one so it points to our caller.
-        log.incr_stack_level(kwargs)
-        log.debug(msg, *args, **kwargs,
-                  veredi_logger=self._logger)
+        kwargs = self._log_stack(**kwargs)
+        self._log_debug(msg, *args, **kwargs)
 
     def _dbg_health(self,
                     tick:        SystemTick,
@@ -537,12 +539,10 @@ class Engine:
         msg = (f"Engine's health became unrunnable during {tick}: "
                f"{str(prev_health)} -> {str(curr_health)}. ")
         error = HealthError(curr_health, prev_health, msg, None)
-        raise log.exception(error,
-                            None,
-                            msg + info,
-                            *args,
-                            **kwargs,
-                            veredi_logger=self._logger)
+        raise self._log_exception(error,
+                                  msg + info,
+                                  *args,
+                                  **kwargs)
 
     # -------------------------------------------------------------------------
     # Log Stuff
@@ -565,7 +565,7 @@ class Engine:
         Returns True if logged, False if squelched.
         '''
         kwargs = kwargs or {}
-        log.incr_stack_level(kwargs)
+        kwargs = self._log_stack(**kwargs)
         return self._metered_log.log(tick,
                                      level,
                                      msg,
@@ -575,7 +575,6 @@ class Engine:
     def log_tick_maybe_raise(self,
                              tick:         SystemTick,
                              error:        Exception,
-                             v_err_wrap:   Optional[Type[VerediError]],
                              msg:          Optional[str],
                              *args:        Any,
                              context:      Optional['VerediContext'] = None,
@@ -593,14 +592,13 @@ class Engine:
         (DebugFlag.RAISE_ERRORS).
         '''
         kwargs = kwargs or {}
-        log.incr_stack_level(kwargs)
+        kwargs = self._log_stack(**kwargs)
 
         # Send everything to MeteredLog. Don't care whether it logged or
         # ignored. Do care about the error it gives back - we'll reraise that
         # if needed.
         _, logged_error = self._metered_log.exception(tick,
                                                       error,
-                                                      v_err_wrap,
                                                       msg,
                                                       *args,
                                                       context=context,
@@ -1193,8 +1191,8 @@ class Engine:
                f"'{cycle_from}'; only from '{valid_str}'")
         error = ValueError(msg)
         kwargs = {}
-        log.incr_stack_level(kwargs)
-        self.log_tick_maybe_raise(cycle_from, error, None, msg, **kwargs)
+        kwargs = self._log_stack(**kwargs)
+        self.log_tick_maybe_raise(cycle_from, error, msg, **kwargs)
         self.set_tick_health(VerediHealth.FATAL, True)
         return SystemTick.ERROR
 
@@ -1221,7 +1219,6 @@ class Engine:
         else:
             self.log_tick_maybe_raise(
                 cycle,
-                None,
                 VerediError,
                 "{}._run_cycle({}) received an un-runnable SystemTick: {}. "
                 "Valid options are: ",
@@ -1366,7 +1363,7 @@ class Engine:
             msg = (f"_run_cycle_run must start in "
                    f"{str(valid_start)}, not {str(self.tick)}.")
             error = ValueError(msg)
-            self.log_tick_maybe_raise(self.tick, error, None, msg)
+            self.log_tick_maybe_raise(self.tick, error, msg)
             health = VerediHealth.UNHEALTHY
             self.set_all_health(health)
             return health
@@ -1399,7 +1396,7 @@ class Engine:
             msg = (f"_run_cycle_run must end at "
                    f"{str(valid_end)}, not {str(self.tick)}.")
             error = ValueError(msg)
-            self.log_tick_maybe_raise(self.tick, error, None, msg)
+            self.log_tick_maybe_raise(self.tick, error, msg)
             health = VerediHealth.UNHEALTHY
             self.set_all_health(health)
             return health
@@ -1825,7 +1822,6 @@ class Engine:
             self.log_tick_maybe_raise(
                 self.tick,
                 error,
-                None,
                 "Engine's tick() received an error of type '{}' "
                 "at: {}",
                 type(error), self.meeting.time.error_game_time)
@@ -1838,7 +1834,6 @@ class Engine:
             self.log_tick_maybe_raise(
                 self.tick,
                 error,
-                None,
                 "Engine's tick() received an unknown exception "
                 "at: {}",
                 self.meeting.time.error_game_time)
@@ -1863,7 +1858,6 @@ class Engine:
             # For now anyways.
             self._metered_log.exception(
                 self.tick,
-                None,
                 VerediError,
                 "Engine's tick() received a _very_ "
                 "unknown exception at: {}",
@@ -1877,7 +1871,7 @@ class Engine:
                f"handle. Tick: {self.tick} at "
                f"{self.meeting.time.error_game_time}.")
         error = TickError(msg, None)
-        self.log_tick_maybe_raise(self.tick, error, None, msg,
+        self.log_tick_maybe_raise(self.tick, error, msg,
                                   always_raise=True)
         return self.tick_health
 
