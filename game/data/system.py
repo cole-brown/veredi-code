@@ -49,7 +49,7 @@ from ..ecs.const            import (SystemTick,
 
 from ..ecs.base.identity    import ComponentId
 from ..ecs.base.system      import (System,
-                                    SystemErrorV)
+                                    EcsSystemError)
 from ..ecs.base.component   import Component
 
 # ---
@@ -379,7 +379,7 @@ class DataSystem(System):
         dotted_from_meta =  metadata.get('registry', None)
         if not dotted_from_meta:
             raise log.exception(
-                SystemErrorV,
+                EcsSystemError,
                 "{} could not create anything from event {}. "
                 "args: {}, kwargs: {}, context: {}",
                 self.__class__.__name__,
@@ -431,13 +431,13 @@ class DataSystem(System):
                 if 'doc-type' in doc and doc['doc-type'] == 'component':
                     log.debug("Found component; requesting creation.")
                     cid = self.request_creation(doc, event)
-            except SystemErrorV:
+            except EcsSystemError:
                 # Ignore these - bubble up.
                 raise
             except VerediError as error:
-                # Chain/wrap in a SystemErrorV.
+                # Chain/wrap in a EcsSystemError.
                 raise log.exception(
-                    SystemErrorV,
+                    EcsSystemError,
                     "{} failed when trying "
                     "to create from data. event: {}, "
                     "context: {}",

@@ -18,21 +18,21 @@ from veredi.base.exceptions import VerediError
 # Exceptions
 # -----------------------------------------------------------------------------
 
-class ComponentError(VerediError):
+class EcsComponentError(VerediError):
     '''
     Some sort of component-related error.
     '''
     ...
 
 
-class EntityError(VerediError):
+class EcsEntityError(VerediError):
     '''
     Some sort of entity-related error.
     '''
     ...
 
 
-class SystemErrorV(VerediError):
+class EcsSystemError(VerediError):
     '''
     A Veredi System, or SystemManager, had a system-related error.
 

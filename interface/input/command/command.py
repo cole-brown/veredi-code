@@ -139,7 +139,7 @@ class Command:
             raise log.exception(error,
                                 msg,
                                 context=context)
-o
+
         if (isinstance(arg.type, CommandArgType)
             and (arg.type == CommandArgType.MATH
                  or arg.type == CommandArgType.VARIABLE)):
