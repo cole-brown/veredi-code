@@ -37,7 +37,7 @@ from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 from veredi.base.null          import Null
 
-from .base.exceptions          import EntityError
+from .base.exceptions          import EcsEntityError
 from .base.identity            import ComponentId, EntityId
 from .base.component           import (Component,
                                        CompIdOrType)
@@ -269,7 +269,7 @@ class EntityManager(EcsManagerWithEvents):
         entity = Entity(context, eid, type_id, self._component_manager)
         if not entity:
             raise self._log_exception(
-                EntityError,
+                EcsEntityError,
                 "Failed to create Entity for would-be "
                 "entity_id {}. got: {}, context: {}",
                 eid, entity, context
@@ -369,10 +369,10 @@ class EntityManager(EcsManagerWithEvents):
                 # Bump it to alive now.
                 entity._life_cycled(EntityLifeCycle.ALIVE)
 
-            except EntityError as error:
+            except EcsEntityError as error:
                 self._log_exception(
                     error,
-                    "EntityError in creation() for entity_id {}.",
+                    "EcsEntityError in creation() for entity_id {}.",
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
 
@@ -411,10 +411,10 @@ class EntityManager(EcsManagerWithEvents):
                 # ...and forget about it.
                 self._entity.pop(entity_id, None)
 
-            except EntityError as error:
+            except EcsEntityError as error:
                 self._log_exception(
                     error,
-                    "EntityError in destruction() for entity_id {}.",
+                    "EcsEntityError in destruction() for entity_id {}.",
                     entity_id)
                 # TODO: put this entity in... jail or something? Delete?
 

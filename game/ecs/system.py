@@ -9,7 +9,7 @@ Base class for game update loop systems.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Set, Type, Dict, List)
+                    Optional, Union, Any, Set, Type, List)
 from veredi.base.null import Null, Nullable, NullNoneOr
 if TYPE_CHECKING:
     from veredi.base.identity import MonotonicIdGenerator
@@ -29,10 +29,10 @@ from .base.system              import (System,
                                        SystemLifeCycle)
 
 from veredi.base.exceptions    import VerediError, HealthError
-from .base.exceptions          import SystemErrorV
+from .base.exceptions          import EcsSystemError
 
 from .const                    import SystemTick
-from .time                     import TimeManager, MonotonicTimer
+from .time                     import TimeManager
 from .event                    import EcsManagerWithEvents, EventManager, Event
 from .component                import ComponentManager
 from .entity                   import EntityManager
@@ -109,7 +109,7 @@ class SystemManager(EcsManagerWithEvents):
         Flag for redoing our System tick priority schedule (self._schedule).
         '''
 
-        self._timer: Optional['MonotonicTimer'] = MonotonicTimer()
+        self._timer: Optional[MonotonicTimer] = MonotonicTimer()
         '''
         We'll use this timer in certain life-cycles/tick-cycles (e.g.
         apoptosis) to let systems time how long it's been since the start of
@@ -546,7 +546,7 @@ class SystemManager(EcsManagerWithEvents):
         for system in self._system.id.values():
             if isinstance(system, sys_class):
                 raise self._log_exception(
-                    SystemErrorV,
+                    EcsSystemError,
                     "Cannot create another system of type: {}. "
                     "There is already one running: {}",
                     str(sys_class), str(system))
@@ -665,11 +665,11 @@ class SystemManager(EcsManagerWithEvents):
                 # Bump it to alive now.
                 self._life_cycle_set(system, SystemLifeCycle.ALIVE)
 
-            except SystemErrorV as error:
+            except EcsSystemError as error:
                 finished.add(system_id)
                 self._log_exception(
                     error,
-                    "SystemErrorV in creation() for system_id {}.",
+                    "EcsSystemError in creation() for system_id {}.",
                     system_id)
                 # TODO: put this system in... jail or something? Delete?
 
@@ -709,10 +709,10 @@ class SystemManager(EcsManagerWithEvents):
                 # ...and forget about it.
                 self._system.del_by_keys(system_id, type(system))
 
-            except SystemErrorV as error:
+            except EcsSystemError as error:
                 self._log_exception(
                     error,
-                    "SystemErrorV in creation() for system_id {}.",
+                    "EcsSystemError in creation() for system_id {}.",
                     system_id)
                 # TODO: put this system in... jail or something? Delete?
 

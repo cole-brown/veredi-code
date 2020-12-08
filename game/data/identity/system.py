@@ -43,7 +43,7 @@ from veredi.game.ecs.const           import (SystemTick,
 from veredi.game.ecs.base.identity   import EntityId, ComponentId
 from veredi.game.ecs.base.entity     import EntityLifeCycle
 from veredi.game.ecs.base.system     import System
-from veredi.game.ecs.base.exceptions import SystemErrorV
+from veredi.game.ecs.base.exceptions import EcsSystemError
 
 # Identity-Related Events & Components
 from .event                          import IdentityRequest, IdentityResult
@@ -205,12 +205,12 @@ class IdentitySystem(System):
         elif not component_data:
             msg = (f"{self.__class__.__name__} could not create "
                    "IdentityComponent from no data.")
-            error = SystemErrorV(msg,
-                                 context=context,
-                                 data={
-                                     'entity_id': entity_id,
-                                     'component_data': component_data,
-                                 })
+            error = EcsSystemError(msg,
+                                   context=context,
+                                   data={
+                                       'entity_id': entity_id,
+                                       'component_data': component_data,
+                                   })
             raise log.exception(error, msg,
                                 context=context)
 
@@ -233,11 +233,11 @@ class IdentitySystem(System):
         except AttributeError as error:
             msg = (f"{self.__class__.__name__} could not get identity "
                    "data from event.")
-            error = SystemErrorV(msg,
-                                 context=event.context,
-                                 data={
-                                     'event': event,
-                                 })
+            error = EcsSystemError(msg,
+                                   context=event.context,
+                                   data={
+                                       'event': event,
+                                   })
             raise log.exception(error, msg,
                                 context=event.context)
 

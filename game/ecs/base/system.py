@@ -33,16 +33,13 @@ from veredi.debug.const       import DebugFlag
 from veredi.base.assortments  import DeltaNext
 
 from .identity                import EntityId, SystemId
-from .exceptions              import SystemErrorV
+from .exceptions              import EcsSystemError
 
 from ..const                  import SystemTick, SystemPriority
 from ..exceptions             import TickError
 
 from ..manager                import EcsManager
-from ..time                   import TimeManager, MonotonicTimer
 from ..event                  import EventManager, Event
-from ..component              import ComponentManager
-from ..entity                 import EntityManager
 
 
 # -----------------------------------------------------------------------------
@@ -812,20 +809,20 @@ class System(LogMixin, ABC):
                    "is different from its saved EventManager "
                    "from initialization. ours: {}, supplied: {}")
             msg = msg.format(self._manager.event, event_manager)
-            error = SystemErrorV(msg,
-                                 None,
-                                 context=None,
-                                 associated=None)
+            error = EcsSystemError(msg,
+                                   None,
+                                   context=None,
+                                   associated=None)
             raise self._log_exception(error, msg)
 
         if (self._required_managers and EventManager in self._required_managers
                 and not self._manager.event):
             msg = ("System has no event manager to subscribe to "
                    "but requires one.")
-            error = SystemErrorV(msg,
-                                 None,
-                                 context=None,
-                                 associated=None)
+            error = EcsSystemError(msg,
+                                   None,
+                                   context=None,
+                                   associated=None)
             raise self._log_exception(error, msg)
 
         # Have our sub-class do whatever it wants this one time.

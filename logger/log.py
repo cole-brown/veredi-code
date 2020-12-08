@@ -807,7 +807,8 @@ def exception(exception: Union[Exception, Type[Exception]],
     # Return the Exception instance.
     # ---
     # Can finally make it if needed now that message is resolved.
-    if issubclass(make_instance, VerediError):
+    if (not isinstance(make_instance, bool)
+            and issubclass(make_instance, VerediError)):
         # Make the VerediError.
         exception = exception(log_msg,
                               context=context,

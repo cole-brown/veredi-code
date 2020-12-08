@@ -127,6 +127,7 @@ class ConfigContext(EphemerealContext):
         keychain = config_ctx.get(klass.Link.KEYCHAIN, Null())
         return keychain
 
+    # TODO [2020-12-08]: LOG: delete this
     # @classmethod
     # def exception(klass:     Type['ConfigContext'],
     #               context:   VerediContext,

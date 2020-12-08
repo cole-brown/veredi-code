@@ -20,14 +20,14 @@ from veredi.data             import background
 from veredi.data.exceptions  import ConfigError
 from veredi.logger           import log
 from veredi.base.const       import VerediHealth
-from .                       import exceptions
 
 from .const                  import SystemTick
 from .event                  import EcsManagerWithEvents
+from .base.exceptions        import EcsSystemError
 
-from ..time.clock            import Clock
 from veredi.time.machine     import MachineTime
 from veredi.time.timer       import MonotonicTimer
+from ..time.clock            import Clock
 from ..time.tick.round       import TickRounds, TickTypes
 
 
@@ -138,9 +138,9 @@ class TimeManager(EcsManagerWithEvents):
         if tick_amount <= 0:
             self.log_error("tick_amount should be `None` or a "
                            "non-zero, positive amount.")
-            raise exceptions.SystemErrorV("tick_amount should be `None` or a "
-                                          "non-zero, positive amount.",
-                                          None, None)
+            raise EcsSystemError("tick_amount should be `None` or a "
+                                 "non-zero, positive amount.",
+                                 None, None)
         self.tick  = TickRounds(tick_amount)
 
         self.machine = MachineTime()
