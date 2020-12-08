@@ -150,12 +150,6 @@ class ConfigContext(EphemerealContext):
                 klass.KEY,
                 klass.Link.LOG_LEVEL))
 
-    # TODO [2020-11-15]: Change to something that...:
-    #   - Differentiates log_client and log_server?
-    #   - Can tell log_clients where to log to?
-    #   - Or should we always just init log for local and then reinit for
-    #     log_client after we get a message?
-
     @classmethod
     def set_log_is_server(klass: Type['ConfigContext'],
                           context: VerediContext,
