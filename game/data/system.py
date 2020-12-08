@@ -34,8 +34,7 @@ from veredi.data            import background
 
 from veredi.data.repository.base import BaseRepository
 from veredi.data.serdes.base import BaseSerdes
-from veredi.data.codec.encodable import Encodable
-from veredi.data.exceptions                    import ConfigError
+
 
 # ---
 # Game / ECS Stuff
@@ -44,14 +43,13 @@ from ..ecs.manager          import EcsManager
 from ..ecs.event            import EventManager
 from ..ecs.time             import TimeManager
 from ..ecs.component        import ComponentManager
-from ..ecs.entity           import EntityManager
 
 from ..ecs.const            import (SystemTick,
                                     SystemPriority)
 
 from ..ecs.base.identity    import ComponentId
 from ..ecs.base.system      import (System,
-                                    SystemErrorV)
+                                    EcsSystemError)
 from ..ecs.base.component   import Component
 
 # ---
@@ -157,14 +155,12 @@ class DataSystem(System):
             msg = ("Could not create Serdes (serializer/Deserializer) from "
                    f"config data: {label.join(key_serdes)} "
                    f"{config.get(key_serdes)}")
-            error = ConfigError(msg, None)
-            raise log.exception(error, None, msg)
+            raise background.config.exception(context, msg)
         if not self._repository:
             msg = ("Could not create Repository from "
                    f"config data: {label.join(key_repo)} "
                    f"{config.get(key_repo)}")
-            error = ConfigError(msg, None)
-            raise log.exception(error, None, msg)
+            raise background.config.exception(context, msg)
 
         # ---
         # Background Stuff
@@ -383,8 +379,7 @@ class DataSystem(System):
         dotted_from_meta =  metadata.get('registry', None)
         if not dotted_from_meta:
             raise log.exception(
-                None,
-                SystemErrorV,
+                EcsSystemError,
                 "{} could not create anything from event {}. "
                 "args: {}, kwargs: {}, context: {}",
                 self.__class__.__name__,
@@ -436,14 +431,13 @@ class DataSystem(System):
                 if 'doc-type' in doc and doc['doc-type'] == 'component':
                     log.debug("Found component; requesting creation.")
                     cid = self.request_creation(doc, event)
-            except SystemErrorV:
+            except EcsSystemError:
                 # Ignore these - bubble up.
                 raise
             except VerediError as error:
-                # Chain/wrap in a SystemErrorV.
+                # Chain/wrap in a EcsSystemError.
                 raise log.exception(
-                    error,
-                    SystemErrorV,
+                    EcsSystemError,
                     "{} failed when trying "
                     "to create from data. event: {}, "
                     "context: {}",
@@ -519,7 +513,7 @@ class DataSystem(System):
                 context=event.context)
             return
 
-        self._log.warning(f"{self.__class__.__name__}.event_saved() "
+        self._log_warning(f"{self.__class__.__name__}.event_saved() "
                           "is not really implemented... ignoring event: {}",
                           event)
 

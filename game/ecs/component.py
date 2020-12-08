@@ -36,7 +36,7 @@ from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 from veredi.base.null                import Null
 
-from .base.exceptions          import ComponentError
+from .base.exceptions          import EcsComponentError
 from .base.identity            import ComponentId
 from .base.component           import (Component,
                                        ComponentLifeCycle)
@@ -74,7 +74,7 @@ class ComponentManager(EcsManagerWithEvents):
             name = jeff_ent.get(NameComponent).name or fallback_value
             result = jeff_ent.get(ComplicatedComp).do_a_complicated_thing()
             if not result.success:
-                log.info(...)
+                self._log_info(...)
             ...
 
     The entities and components should be either: real or Null(), and so you'll
@@ -91,13 +91,17 @@ class ComponentManager(EcsManagerWithEvents):
             if comp_comp:
                 result = comp_comp.do_a_complicated_thing()
                 if not result or not result.success:
-                    log.info(...)
+                    self._log_info(...)
                 else:
                     ...
             else:
                 ...
             ...
     '''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def _define_vars(self) -> None:
         super()._define_vars()
@@ -134,6 +138,21 @@ class ComponentManager(EcsManagerWithEvents):
 
         self._event_manager = event_manager
         self._config        = config
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'ComponentManager') -> str:
+        '''
+        The dotted name this Manager has.
+        '''
+        return 'veredi.game.ecs.manager.component'
+
+    # -------------------------------------------------------------------------
+    # Internal Helpers
+    # -------------------------------------------------------------------------
 
     def _cycle_apocalypse(self) -> VerediHealth:
         '''
@@ -226,9 +245,8 @@ class ComponentManager(EcsManagerWithEvents):
                                                        *args,
                                                        **kwargs)
         except Exception as error:
-            raise log.exception(
-                error,
-                ComponentError,
+            raise self._log_exception(
+                EcsComponentError,
                 "Exception during Component creation for would-be "
                 "component_id {}. dotted_str: {}, args: {}, "
                 "kwargs: {}, context: {}",
@@ -255,9 +273,8 @@ class ComponentManager(EcsManagerWithEvents):
         try:
             component = comp_class(context, cid, *args, **kwargs)
         except Exception as error:
-            raise log.exception(
-                error,
-                ComponentError,
+            raise self._log_exception(
+                EcsComponentError,
                 "Exception during Component creation for would-be "
                 "component_id {}. comp_class: {}, context: {}",
                 cid, comp_class, context
@@ -298,9 +315,8 @@ class ComponentManager(EcsManagerWithEvents):
 
         # Die if we created nothing.
         if not component:
-            raise log.exception(
-                None,
-                ComponentError,
+            raise self._log_exception(
+                EcsComponentError,
                 "Failed to create Component for would-be "
                 "component_id {}. got: {}, str_or_type: {}, args: {}, "
                 "kwargs: {}, context: {}",
@@ -364,11 +380,10 @@ class ComponentManager(EcsManagerWithEvents):
                 # Bump it to alive now.
                 component._life_cycled(ComponentLifeCycle.ALIVE)
 
-            except ComponentError as error:
-                log.exception(
+            except EcsComponentError as error:
+                self._log_exception(
                     error,
-                    None,
-                    "ComponentError in creation() for component_id {}.",
+                    "EcsComponentError in creation() for component_id {}.",
                     component_id)
                 # TODO: put this component in... jail or something? Delete?
 
@@ -406,11 +421,10 @@ class ComponentManager(EcsManagerWithEvents):
                 component._life_cycled(ComponentLifeCycle.DEAD)
                 self._remove(component_id)
 
-            except ComponentError as error:
-                log.exception(
+            except EcsComponentError as error:
+                self._log_exception(
                     error,
-                    None,
-                    "ComponentError in destruction() for component_id {}.",
+                    "EcsComponentError in destruction() for component_id {}.",
                     component_id)
                 # TODO: put this component in... jail or something?
                 # Delete harder?

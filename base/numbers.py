@@ -101,4 +101,4 @@ def to_number(string: str) -> Decimal:
 
     msg = f"Could not convert string to Decimal: '{string}'"
     error = ValueError(msg, string)
-    raise log.exception(error, None, msg)
+    raise log.exception(error, msg)

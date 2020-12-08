@@ -325,9 +325,7 @@ class ClientRegistry:
         if not user_id or not conn:
             msg = ("UserId and UserConnToken required to register a user! "
                    f"Got: id: {user_id}, key: {user_key}, conn: {conn}")
-            raise log.exception(ValueError(msg, user_id, user_key, conn),
-                                None,
-                                msg)
+            raise log.exception(ValueError(msg, user_id, user_key, conn), msg)
 
         user = UserConn(user_id, user_key, conn,
                         debug=self.debug,
@@ -424,9 +422,7 @@ class ClientRegistry:
         # Else how am I supposed to check that even?!
         msg = (f"Can't check if '{check}' is a registered user. "
                f"Unknown type: {type(check)}")
-        raise log.exception(ValueError(msg, check),
-                            None,
-                            msg)
+        raise log.exception(ValueError(msg, check), msg)
 
 
 # -----------------------------------------------------------------------------
@@ -649,7 +645,6 @@ class WebSocketServer(WebSocketMediator):
             trace = traceback.format_exc()
             log.exception(
                 error,
-                None,
                 "Caught exception running MediatorServer coroutines:\n{}",
                 trace)
 
@@ -728,7 +723,6 @@ class WebSocketServer(WebSocketMediator):
                 msg, ctx = self._game_pipe_get()
             except EOFError as error:
                 log.exception(error,
-                              None,
                               "Failed getting from game pipe; "
                               "ignoring and continuing.")
                 # EOFError gets raised if nothing left to receive or other end
@@ -803,7 +797,7 @@ class WebSocketServer(WebSocketMediator):
                        f"'{MsgType.ENVELOPE}' message. Can only handle "
                        "Envelope, got '{message.type}' from: {message}")
             error = ValueError(err_msg, message, context)
-            raise log.exception(error, None, message, context=context)
+            raise log.exception(error, message, context=context)
 
         # ---
         # Process each addressee.

@@ -104,25 +104,40 @@ class Command:
         arg_word = "Arg" if not is_kwarg else "Kwarg"
 
         if not arg.name:
-            error = "{} must have a name."
-            error.format(arg_word)
-            raise log.exception(TypeError(error, arg),
-                                CommandRegisterError,
-                                None,
+            msg = "{} must have a name.".format(arg_word)
+            error = CommandRegisterError(
+                msg,
+                context=context,
+                data={
+                    'arg': arg,
+                })
+            raise log.exception(error,
+                                msg,
                                 context=context)
+
         if arg.type is None:
-            error = "{} '{}' must have a type.".format(arg_word, arg.name)
-            raise log.exception(TypeError(error, arg),
-                                CommandRegisterError,
-                                None,
+            msg = "{} '{}' must have a type.".format(arg_word, arg.name)
+            error = CommandRegisterError(
+                msg,
+                context=context,
+                data={
+                    'arg': arg,
+                })
+            raise log.exception(error,
+                                msg,
                                 context=context)
 
         if is_kwarg and not arg.kwarg:
-            error = "{} '{}' must have a kwarg name."
-            error = error.format(arg_word, arg.name)
-            raise log.exception(TypeError(error, arg),
-                                CommandRegisterError,
-                                None,
+            msg = "{} '{}' must have a kwarg name."
+            msg = msg.format(arg_word, arg.name)
+            error = CommandRegisterError(
+                msg,
+                context=context,
+                data={
+                    'arg': arg,
+                })
+            raise log.exception(error,
+                                msg,
                                 context=context)
 
         if (isinstance(arg.type, CommandArgType)
@@ -136,22 +151,36 @@ class Command:
             else:
                 # Command that was some other lang now wants to be math for
                 # this arg. Complain about this.
-                error = ("All args must be for same input type/language. "
-                         "Previously had '{}' and now want '{}'.")
-                error = error.format(self._language, InputLanguage.MATH)
-                raise log.exception(TypeError(error, arg),
-                                    CommandRegisterError,
-                                    None,
+                msg = ("All args must be for same input type/language. "
+                       "Previously had '{}' and now want '{}'.")
+                msg = msg.format(self._language, InputLanguage.MATH)
+                error = CommandRegisterError(
+                    msg,
+                    context=context,
+                    data={
+                        'lang': self._language,
+                        'lang_input': InputLanguage.MATH,
+                        'arg': arg,
+                    })
+                raise log.exception(error,
+                                    msg,
                                     context=context)
 
         # Not a math arg, but we're in math mode - error.
         elif self._language == InputLanguage.MATH:
-            error = ("All args must be for same input type/language. "
-                     "Previously had '{}' and now want '{}'.")
-            error = error.format(self._language, InputLanguage.TEXT)
-            raise log.exception(TypeError(error, arg),
-                                CommandRegisterError,
-                                None,
+            msg = ("All args must be for same input type/language. "
+                   "Previously had '{}' and now want '{}'.")
+            msg = msg.format(self._language, InputLanguage.TEXT)
+            error = CommandRegisterError(
+                msg,
+                context=context,
+                data={
+                    'lang': self._language,
+                    'lang_input': InputLanguage.TEXT,
+                    'arg': arg,
+                })
+            raise log.exception(error,
+                                msg,
                                 context=context)
 
         else:
@@ -235,11 +264,15 @@ class Command:
         # input string.
         mather = InputContext.math(context)
         if not mather:
-            error = ("No MathParser found in context; "
-                     "cannot process input.")
-            raise log.exception(AttributeError(error, input_safe),
-                                CommandExecutionError,
-                                None,
+            msg = "No MathParser found in context; cannot process input."
+            error = CommandExecutionError(msg,
+                                          context=context,
+                                          data={
+                                              'input_safe': input_safe,
+                                              'mather': mather,
+                                          })
+            raise log.exception(error,
+                                msg,
                                 context=context)
         tree = mather.parse(input_safe)
         if not tree:

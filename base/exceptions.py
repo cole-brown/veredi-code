@@ -8,10 +8,12 @@ All your Exceptions are belong to these classes.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Optional, Any, Dict
 if TYPE_CHECKING:
     from .context    import VerediContext
     from .base.const import VerediHealth
+
+from veredi.logger import pretty
 
 
 # -----------------------------------------------------------------------------
@@ -20,24 +22,39 @@ if TYPE_CHECKING:
 
 class VerediError(Exception):
     def __init__(self,
-                 message: str,
-                 cause: Optional[Exception],
-                 context: Optional['VerediContext'] = None,
-                 associated: Optional[Any] = None):
+                 message:    str,
+                 cause:      Optional[Exception]       = None,
+                 context:    Optional['VerediContext'] = None,
+                 **data:     Optional[Dict[Any, Any]]) -> None:
         '''Context data included.'''
         self.message    = message
+        '''Human-friendly error message.'''
+
         self.cause      = cause
+        '''
+        (Optional) Python/Third-Party exception that caused Veredi to raise
+        this exception.
+        '''
+
         self.context    = context
-        self.associated = associated
+        '''
+        The Veredi Context, if there is one.
+        '''
+
+        self.data       = data
+        '''
+        A bucket to stuff any extra data about the error.
+        '''
 
     def __str__(self):
         output = f"{self.message}"
         if self.cause:
             output += f" from {self.cause}"
-        if self.associated:
-            output += f" associated with {self.associated}"
         if self.context:
             output += f" with context {self.context}"
+        if self.data:
+            output += ". \nAdditional Error Data:\n"
+            output += pretty.indented(self.data)
 
         return output
 
@@ -59,12 +76,12 @@ class HealthError(VerediError):
     def __init__(self,
                  current_health: 'VerediHealth',
                  prev_health:    'VerediHealth',
-                 message: str,
-                 cause: Optional[Exception],
-                 context: Optional['VerediContext'] = None,
-                 associated: Optional[Any] = None):
+                 message:        str,
+                 cause:          Optional[Exception],
+                 context:        Optional['VerediContext'] = None,
+                 **data:         Optional[Dict[Any, Any]]):
         '''Healths saved in addition to the usual VerediError stuff.'''
-        super().__init__(message, cause, context, associated)
+        super().__init__(message, cause, context, **data)
 
         self.current = current_health
         '''Health the error creator set things to.'''

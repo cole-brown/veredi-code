@@ -96,27 +96,46 @@ def _internal_register(tag: str, klass: Type) -> None:
     thing.
     '''
     # Just make sure they have a good tag name...
-    if not tags.valid(tag):
-        raise log.exception(None,
-                            RegistryError,
-                            "Invalid tag! YAML Tags must start with '!'. "
-                            f"Got: {tag}.")
+    valid, reason = tags.valid(tag)
+    if not valid:
+        msg = (f"Invalid tag '{tag}'! {reason}")
+        error = RegistryError(msg,
+                              data={
+                                  'tag': tag,
+                                  'class': klass,
+                              })
+        raise log.exception(error, msg)
 
     # Prevent overwrites.
     if tag in _TAG_TO_CLASS and _TAG_TO_CLASS[tag] != klass:
         ex_klass = _TAG_TO_CLASS[tag]
+        msg = "Tag already exists in registry. "
+        error = RegistryError(msg,
+                              data={
+                                  'tag': tag,
+                                  'class': klass,
+                                  'existing_class': ex_klass,
+                              })
+        msg += (f"Existing: {tag} -> {ex_klass}. "
+                f"Requested: {tag} -> {klass}.")
         raise log.exception(None,
                             RegistryError,
                             "Tag already exists in registry. "
                             f"Existing: {tag} -> {ex_klass}. "
                             f"Requested: {tag} -> {klass}.")
+
     if klass in _CLASS_TO_TAG and _CLASS_TO_TAG[klass] != tag:
         ex_tag = _CLASS_TO_TAG[klass]
-        raise log.exception(None,
-                            RegistryError,
-                            "Class already exists in registry. "
-                            f"Existing: {klass} -> {ex_tag}. "
-                            f"Requested: {klass} -> {tag}.")
+        msg = "Class already exists in registry. "
+        error = RegistryError(msg,
+                              data={
+                                  'tag': tag,
+                                  'class': klass,
+                                  'existing_tag': ex_tag,
+                              })
+        msg += (f"Existing: {klass} -> {ex_tag}. "
+                f"Requested: {klass} -> {tag}.")
+        raise log.exception(error, msg)
 
     # Add to both registries.
     _TAG_TO_CLASS[tag] = klass
@@ -150,11 +169,11 @@ def _internal_register(tag: str, klass: Type) -> None:
 # -----------------------------------------------------------------------------
 
 # Thought about making this a property like Veredi's registry.register(), and
-# that would work great for the YAMLObject classes, but the deserialize/serialize
-# functions (aka representer/constructor by YAML) can't be registered so
-# easily? And in some cases one function pair is used for multiple things... So
-# for now it's not a property unless I figure out a way I like for those
-# reasons.
+# that would work great for the YAMLObject classes, but the
+# deserialize/serialize functions (aka representer/constructor by YAML) can't
+# be registered so easily? And in some cases one function pair is used for
+# multiple things... So for now it's not a property unless I figure out a way I
+# like for those reasons.
 
 def register(name:        str,
              klass:       Type,
@@ -175,12 +194,20 @@ def register(name:        str,
     # ---
     # Tag
     # ---
-    if tags.valid(name):
-        raise log.exception(
-            None,
-            RegistryError,
-            "Expecting string, not YAML Tag. String should not start with '!'."
-            f"Got: {name} for {klass}.")
+    valid, _ = tags.valid(name)
+    if valid:
+        msg = ("Expecting name string, not YAML Tag string. "
+               "String should not start with '!'."
+               f"Got: '{name}' for {klass}.")
+        error = RegistryError(msg,
+                              data={
+                                  'name': name,
+                                  'class': klass,
+                                  'serialize_fn': serialize_fn,
+                                  'deserialize_fn': deserialize_fn,
+                                  'implicit_rx': implicit_rx,
+                              })
+        raise log.exception(error, msg)
 
     # ---
     # Register to us.
@@ -202,20 +229,36 @@ def register(name:        str,
 
     elif not deserialize_fn and not serialize_fn:
         if not issubclass(klass, yaml.YAMLObject):
-            raise log.exception(
-                None,
-                RegistryError,
-                f"Class '{klass}' must either derive from YAMLObject or "
-                "provided serializer/deserializer functions for YAML to use."
-                f"Got: {serialize_fn}, {deserialize_fn}.")
+            msg = (f"Class '{klass}' must either derive from YAMLObject or "
+                   "provided serializer/deserializer functions for YAML "
+                   f"to use. Got: {serialize_fn}, {deserialize_fn}.")
+            error = RegistryError(msg,
+                                  data={
+                                      'name': name,
+                                      'class': klass,
+                                      'subclass?': issubclass(klass,
+                                                              yaml.YAMLObject),
+                                      'serialize_fn': serialize_fn,
+                                      'deserialize_fn': deserialize_fn,
+                                      'implicit_rx': implicit_rx,
+                                  })
+            raise log.exception(error, msg)
 
     else:
-        raise log.exception(
-            None,
-            RegistryError,
-            f"Class '{klass}' must either derive from YAMLObject or "
-            "provided serializer/deserializer functions for YAML to use."
-            f"Got: {serialize_fn}, {deserialize_fn}.")
+        msg = (f"Class '{klass}' must either derive from YAMLObject or "
+               "provided serializer/deserializer functions for YAML to use."
+               f"Got: {serialize_fn}, {deserialize_fn}.")
+        error = RegistryError(msg,
+                              data={
+                                  'name': name,
+                                  'class': klass,
+                                  'subclass?': issubclass(klass,
+                                                          yaml.YAMLObject),
+                                  'serialize_fn': serialize_fn,
+                                  'deserialize_fn': deserialize_fn,
+                                  'implicit_rx': implicit_rx,
+                              })
+        raise log.exception(error, msg)
 
     # They can also optionally have an implicit resolver...
     if implicit_rx:

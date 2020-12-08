@@ -315,9 +315,9 @@ class MathSystem(System):
         value, milieu = entry.fill(entry.entity_id, canon, entry.context)
 
         if self._should_debug():
-            self._log.debug(f"replace '{canon}' with "
+            self._log_debug(f"replace '{canon}' with "
                             "'{str(type(value))}({value})' and '{milieu}'")
-            self._log.debug(f"'{value}' is {numbers.NumberTypesTuple}? "
+            self._log_debug(f"'{value}' is {numbers.NumberTypesTuple}? "
                             "{isinstance(value, numbers.NumberTypesTuple)}")
 
         # Is that it, or do we need to keep going?
@@ -329,21 +329,20 @@ class MathSystem(System):
             # Parse value as MathTree, replace our node with it.
             mather = InputContext.math(entry.context)
             if not mather:
-                error = ("No MathParser found in context; "
-                         "cannot process '{value}'.")
-                raise log.exception(AttributeError(error),
-                                    CommandExecutionError,
-                                    None,
-                                    context=entry.context)
+                msg = ("No MathParser found in context; "
+                       "cannot process '{value}'.")
+                raise self._log_exception(CommandExecutionError,
+                                          msg,
+                                          context=entry.context)
 
             if self._should_debug():
-                self._log.debug(f"mather.parse(value='{value}', "
+                self._log_debug(f"mather.parse(value='{value}', "
                                 f"milieu='{milieu}'")
 
             replacement = mather.parse(value, milieu)
 
             if self._should_debug():
-                self._log.debug("replacement: {}", replacement)
+                self._log_debug("replacement: {}", replacement)
 
             if not replacement:
                 # Return what we failed on.
@@ -361,8 +360,8 @@ class MathSystem(System):
         replace = []
         for var in entry.root.each_var():
             if self._should_debug():
-                self._log.debug(f"      ----- working on var: {var} -----")
-                self._log.debug(f"canonicalize_fn: var.name: {var.name}, "
+                self._log_debug(f"      ----- working on var: {var} -----")
+                self._log_debug(f"canonicalize_fn: var.name: {var.name}, "
                                 f"var.milieu: {var.milieu}")
             # If the function can canonicalize this variable's name, we'll
             # assume it's the owner and have it fill it in.
@@ -384,28 +383,27 @@ class MathSystem(System):
         replaced = 0
         for existing, replacement in replace:
             if not entry.root.replace(existing, replacement):
-                error = ("Failed to replace a math tree node: {existing} "
-                         "cannot replace with: {replacement}")
-                raise log.exception(None,
-                                    CommandExecutionError,
-                                    error,
-                                    context=entry.context)
+                msg = ("Failed to replace a math tree node: {existing} "
+                       "cannot replace with: {replacement}")
+                raise self._log_exception(CommandExecutionError,
+                                          msg,
+                                          context=entry.context)
             replaced += 1
 
         if self._should_debug():
-            self._log.debug("Resolved: {}", resolved)
-            self._log.debug("Replaced: {}", replaced)
+            self._log_debug("Resolved: {}", resolved)
+            self._log_debug("Replaced: {}", replaced)
         if not resolved and not replaced:
             # Math has come to steady state... stick in final queue.
             self._finalize.push(entry)
             if self._should_debug():
-                self._log.debug('Pushed to finalize. len: {}',
+                self._log_debug('Pushed to finalize. len: {}',
                                 len(self._finalize))
         else:
             # Math is still wibbly-wobbly.
             self._recurse.push(entry)
             if self._should_debug():
-                self._log.debug('Pushed to recurse. len: {}',
+                self._log_debug('Pushed to recurse. len: {}',
                                 len(self._recurse))
 
         return None
@@ -449,10 +447,10 @@ class MathSystem(System):
             failure = self.resolve(entry)
             if failure:
                 if self._should_debug():
-                    self._log.debug('recurse failure:', failure)
+                    self._log_debug('recurse failure:', failure)
                 # TODO [2020-07-05]: let someone known or something?
                 # Send out result event as error somehow.
-                self._log.error("TODO: let someone known or something? "
+                self._log_error("TODO: let someone known or something? "
                                 "failure: {}",
                                 failure)
                 continue
@@ -464,17 +462,19 @@ class MathSystem(System):
             try:
                 total = Evaluator.eval(entry.root)
                 if self._should_debug():
-                    self._log.debug("Evaluated math tree to: {}. tree: \n{}",
+                    self._log_debug("Evaluated math tree to: {}. tree: \n{}",
                                     total, entry.root)
-            except ValueError as error:
+            except ValueError as eval_error:
                 msg = "Failed to evaluate math tree."
-                wrapped = MathError(msg, error,
-                                    context=entry.context,
-                                    associated=entry.root)
-                raise self._log.exception(wrapped,
+                error = MathError(msg,
+                                  context=entry.context,
+                                  data={
+                                      'root': entry.root,
+                                  })
+                raise self._log_exception(error,
                                           msg,
-                                          context=entry.context,
-                                          associate=entry.root) from error
+                                          context=entry.context
+                                          ) from eval_error
 
             # Send out result as event. Finalize if a math type of event.
             if isinstance(entry.event, (math_event.MathEvent,
@@ -483,10 +483,10 @@ class MathSystem(System):
             self._event_notify(entry.event)
 
         if self._should_debug():
-            self._log.debug('Updated.')
-            self._log.debug('    self._recurse:  {}',
+            self._log_debug('Updated.')
+            self._log_debug('    self._recurse:  {}',
                             self._recurse)
-            self._log.debug('    self._finalize: {}',
+            self._log_debug('    self._finalize: {}',
                             self._finalize)
 
         # Done for this tick.

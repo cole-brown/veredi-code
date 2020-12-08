@@ -138,9 +138,16 @@ def _check_config(config_path: Union[pathlib.Path, str]) -> None:
     # Could be a string; so make sure it's a path.
     config_path = pathlib.Path(config_path)
     if not config_path or not config_path.is_file():
+        msg = ("No config path supplied, or config path doesn't point to a "
+               f"file: {str(config_path)} "
+               f"{'(file does not exist)' if config_path else ''}")
+        error = ConfigError(msg,
+                            data={
+                                'config_path': str(config_path),
+                                'is_file': config_path.is_file(),
+                            })
         raise log.exception(
-            None,
-            ConfigError,
+            error,
             "No config path supplied, or config path doesn't point to a "
             f"file: {str(config_path)} "
             f"{'(file does not exist)' if config_path else ''}")
@@ -228,16 +235,19 @@ def run_mediator(conn:          multiprocessing.connection.Connection = None,
     if not conn:
         lumberjack = log.get_logger(ProcessType.MEDIATOR.value)
         raise log.exception(
+            ConfigError,
             "Mediator requires a pipe connection; received None.",
             veredi_logger=lumberjack)
     if not config_path:
         lumberjack = log.get_logger(ProcessType.MEDIATOR.value)
         raise log.exception(
+            ConfigError,
             "Mediator requires a config file; received no path to one.",
             veredi_logger=lumberjack)
     if not log_level:
         lumberjack = log.get_logger(ProcessType.MEDIATOR.value)
         raise log.exception(
+            ConfigError,
             "Mediator requires a default log level (int); received None.",
             veredi_logger=lumberjack)
 
@@ -260,14 +270,17 @@ def run_engine(conn:          multiprocessing.connection.Connection = None,
 
     if not conn:
         raise log.exception(
+            ConfigError,
             "Engine requires a pipe connection; received None.",
             veredi_logger=lumberjack)
     if not config_path:
         raise log.exception(
+            ConfigError,
             "Engine requires a config file; received no path to one.",
             veredi_logger=lumberjack)
     if not log_level:
         raise log.exception(
+            ConfigError,
             "Engine requires a default log level (int); received None.",
             veredi_logger=lumberjack)
 

@@ -49,7 +49,6 @@ class Evaluator:
                        f"({total}) for final eval - cannot resolve "
                        f"math of {root}.")
                 raise log.exception(ValueError(msg, total),
-                                    None,
                                     msg,
                                     context=context)
 

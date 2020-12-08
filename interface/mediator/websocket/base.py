@@ -342,7 +342,6 @@ class VebSocket:
         if msg.type != MsgType.PING:
             error = ValueError("Requested ping of non-ping message.", msg)
             raise log.exception(error,
-                                None,
                                 f"Requested ping of non-ping message: {msg}")
 
         timer = MonotonicTimer()  # Timer starts timing on creation.
@@ -386,9 +385,9 @@ class VebSocket:
             # The error kind and the... parent class of Error and Ok, maybe?
             # TODO [2020-08-01]: Get UserId for logging.
             log.exception(error,
-                          WebSocketError,
                           f"Connection for user 'TODO' closed due to: {error}")
-            # TODO [2020-08-01]: (re)raise this?
+            # TODO [2020-08-01]: (re)raise this as
+            # "log.exception(WebSocketError, ...) from error"?
 
         except asyncio.InvalidStateError as error:
             # This shouldn't be raised, but I want to check for it anyways
@@ -401,7 +400,6 @@ class VebSocket:
             import traceback
             trace = traceback.format_exc()
             log.exception(error,
-                          WebSocketError,
                           "A Future had InvalidStateError as its exception?!"
                           f"{error}\n{trace}")
 
@@ -480,6 +478,6 @@ class VebSocket:
             # TODO [2020-08-01]: Get UserId for logging.
             log.exception(
                 error,
-                WebSocketError,
                 f"Connection on client 'TODO' closed due to: {error}")
-            # TODO [2020-08-01]: (re)raise this?
+            # TODO [2020-08-01]: (re)raise this as
+            # "log.exception(WebSocketError, ...) from error"?

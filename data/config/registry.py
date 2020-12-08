@@ -171,12 +171,11 @@ def register(*args: str) -> Callable[..., Type[Any]]:
             config_name = args[-1]
         except IndexError as error:
             raise log.exception(
-                error,
                 exceptions.RegistryError,
                 "Need to know what to register this ({}) as. "
                 "E.g. @register('veredi', 'jeff', 'system'). Got no args: {}",
                 name, args,
-                stacklevel=3)
+                stacklevel=3) from error
 
         registration = _REGISTRY
         reggie_jr = background.registry.get(_REG_DOTTED)
@@ -237,7 +236,6 @@ def get(dotted_keys_str: str,
             registration = registration[key]
         except KeyError as error:
             raise log.exception(
-                error,
                 exceptions.RegistryError,
                 "Registry has nothing at: {} (full path: {})",
                 split_keys[: i + 1],
@@ -247,7 +245,6 @@ def get(dotted_keys_str: str,
 
     if isinstance(registration, dict):
         raise log.exception(
-            None,
             exceptions.RegistryError,
             "Registry for '{}' is not at a leaf - still has entries to go: {}",
             dotted_keys_str,
@@ -282,7 +279,6 @@ def create(dotted_keys_str: str,
         #     - This dies cuz data was set to '001', then kwargs also
         #       had a 'data'.
         raise log.exception(
-            error,
             exceptions.ConfigError,
             # Leave (k)args for others.
             "Registry failed creating '{}' with: args: {}, "
