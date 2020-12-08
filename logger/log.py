@@ -718,9 +718,9 @@ def exception(exception: Union[Exception, Type[Exception]],
     Finially, this returns the `exception` supplied. This way you can do
     something like:
       except SomeError as error:
-          some_other_error = ConfigError(...)
+          other_error = OtherError(...)
           raise log.exception(
-              some_other_error,
+              other_error,
               "Cannot frobnicate {} from {}. {} instead.",
               source, target, nonFrobMunger,
               context=self.context

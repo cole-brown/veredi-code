@@ -440,15 +440,15 @@ class config(metaclass=ConfigMeta):
         the stacktrace of the exception.
         '''
         kwargs = log.incr_stack_level(**kwargs)
+        # If we raised instead of returned, we could add an extra stacklevel to
+        # get the log back to whoever called us...
+        #                             amount=2)
 
         # Let a generic ConfigError be made.
         return log.exception(
             ConfigError,
             msg, *args, **kwargs,
             context=context)
-        # If we raised instead of returned, we could add an extra stacklevel to
-        # get the log back to whoever called us...
-        #    stacklevel=3)
 
     # -------------------------------------------------------------------------
     # Unit Testing

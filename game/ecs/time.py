@@ -251,7 +251,7 @@ class TimeManager(EcsManagerWithEvents):
                        f"'{save_name}' already exists in our dictionary "
                        f"of timers. Cannot overwrite. {self._timers}")
                 error = ValueError(msg, save_name, self._timers)
-                raise self._log_exceptions(error, None, msg)
+                raise self._log_exceptions(error, msg)
             self._timers[save_name] = timer
 
             # Now, we have a valid name and a timer. Is it the default?
@@ -320,7 +320,7 @@ class TimeManager(EcsManagerWithEvents):
             msg = (f"{self.__class__.__name__}.get_timer: No timer found for "
                    f"input '{timer_input}'.")
             error = ValueError(msg, timer_input, self._timers)
-            raise self._log_exceptions(error, None, msg)
+            raise self._log_exceptions(error, msg)
 
         # We got here, so success! Give back valid timer.
         return timer_output

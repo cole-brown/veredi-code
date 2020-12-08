@@ -1192,7 +1192,7 @@ class Engine(LogMixin):
         error = ValueError(msg)
         kwargs = {}
         kwargs = self._log_stack(**kwargs)
-        self.log_tick_maybe_raise(cycle_from, error, None, msg, **kwargs)
+        self.log_tick_maybe_raise(cycle_from, error, msg, **kwargs)
         self.set_tick_health(VerediHealth.FATAL, True)
         return SystemTick.ERROR
 
@@ -1219,7 +1219,6 @@ class Engine(LogMixin):
         else:
             self.log_tick_maybe_raise(
                 cycle,
-                None,
                 VerediError,
                 "{}._run_cycle({}) received an un-runnable SystemTick: {}. "
                 "Valid options are: ",
@@ -1364,7 +1363,7 @@ class Engine(LogMixin):
             msg = (f"_run_cycle_run must start in "
                    f"{str(valid_start)}, not {str(self.tick)}.")
             error = ValueError(msg)
-            self.log_tick_maybe_raise(self.tick, error, None, msg)
+            self.log_tick_maybe_raise(self.tick, error, msg)
             health = VerediHealth.UNHEALTHY
             self.set_all_health(health)
             return health
@@ -1397,7 +1396,7 @@ class Engine(LogMixin):
             msg = (f"_run_cycle_run must end at "
                    f"{str(valid_end)}, not {str(self.tick)}.")
             error = ValueError(msg)
-            self.log_tick_maybe_raise(self.tick, error, None, msg)
+            self.log_tick_maybe_raise(self.tick, error, msg)
             health = VerediHealth.UNHEALTHY
             self.set_all_health(health)
             return health
@@ -1823,7 +1822,6 @@ class Engine(LogMixin):
             self.log_tick_maybe_raise(
                 self.tick,
                 error,
-                None,
                 "Engine's tick() received an error of type '{}' "
                 "at: {}",
                 type(error), self.meeting.time.error_game_time)
@@ -1836,7 +1834,6 @@ class Engine(LogMixin):
             self.log_tick_maybe_raise(
                 self.tick,
                 error,
-                None,
                 "Engine's tick() received an unknown exception "
                 "at: {}",
                 self.meeting.time.error_game_time)
@@ -1874,7 +1871,7 @@ class Engine(LogMixin):
                f"handle. Tick: {self.tick} at "
                f"{self.meeting.time.error_game_time}.")
         error = TickError(msg, None)
-        self.log_tick_maybe_raise(self.tick, error, None, msg,
+        self.log_tick_maybe_raise(self.tick, error, msg,
                                   always_raise=True)
         return self.tick_health
 
