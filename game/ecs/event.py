@@ -349,7 +349,6 @@ class EventManager(EcsManager):
             # TODO: add notice, event to error
             self._error_maybe_raise(
                 error,
-                None,
                 "EventManager tried to notify a subscriber about an event, "
                 "but got an EventError of type '{}'.",
                 type(error))
@@ -361,7 +360,6 @@ class EventManager(EcsManager):
             # Plow on ahead anyways or raise due to debug flags.
             self._error_maybe_raise(
                 error,
-                None,
                 "EventManager tried to notify a subscriber about an event, "
                 "but got an error of type '{}'.",
                 type(error))
@@ -375,7 +373,6 @@ class EventManager(EcsManager):
             # Plow on ahead anyways or raise due to debug flags.
             self._error_maybe_raise(
                 error,
-                None,
                 "EventManager tried to notify a subscriber about an event, "
                 "but got an error of type '{}'.",
                 type(error))
@@ -387,7 +384,6 @@ class EventManager(EcsManager):
             # Plow on ahead anyways or raise due to debug flags.
             self._error_maybe_raise(
                 error,
-                None,
                 "EventManager tried to notify a subscriber about an event, "
                 "but got an error of type '{}'.",
                 type(error))

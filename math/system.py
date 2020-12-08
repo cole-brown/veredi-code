@@ -330,9 +330,9 @@ class MathSystem(System):
             mather = InputContext.math(entry.context)
             if not mather:
                 msg = ("No MathParser found in context; "
-                         "cannot process '{value}'.")
+                       "cannot process '{value}'.")
                 raise self._log_exception(CommandExecutionError,
-                                          msg
+                                          msg,
                                           context=entry.context)
 
             if self._should_debug():
@@ -383,10 +383,10 @@ class MathSystem(System):
         replaced = 0
         for existing, replacement in replace:
             if not entry.root.replace(existing, replacement):
-                error = ("Failed to replace a math tree node: {existing} "
-                         "cannot replace with: {replacement}")
+                msg = ("Failed to replace a math tree node: {existing} "
+                       "cannot replace with: {replacement}")
                 raise self._log_exception(CommandExecutionError,
-                                          error,
+                                          msg,
                                           context=entry.context)
             replaced += 1
 

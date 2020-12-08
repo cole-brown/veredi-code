@@ -14,7 +14,6 @@ from veredi.logger          import log
 
 from veredi.data            import background
 from veredi.base.context    import VerediContext
-from veredi.data.exceptions import ConfigError
 
 from veredi.math.parser     import MathParser, MathTree
 
@@ -71,8 +70,8 @@ class Mather:
 
         config = background.config.config
         if not config:
-            raise log.exception(
-                ConfigError,
+            raise background.config.exception(
+                context,
                 'Mather requires a configuration to configure itself.')
 
         self._parser: MathParser = config.make(None,
