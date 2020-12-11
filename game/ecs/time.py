@@ -15,7 +15,7 @@ from datetime import datetime
 
 from decimal import Decimal
 
-from veredi.base.assortments import CurrentNext
+from veredi.base.assortments import CurrentNext, DeltaNext
 from veredi.data             import background
 from veredi.data.exceptions  import ConfigError
 from veredi.logger           import log
@@ -516,6 +516,39 @@ class TimeManager(EcsManagerWithEvents):
         if now > meter + self._METER_TIMEOUT_SEC:
             return True, now
         return False, meter
+
+    # -------------------------------------------------------------------------
+    # Reduced Ticking
+    # -------------------------------------------------------------------------
+
+    def set_reduced_tick_rate(self,
+                              tick: SystemTick,
+                              rate: int,
+                              reduced: Dict[SystemTick, DeltaNext]) -> None:
+        '''
+        Set an entry into the provided reduced tick rate dict. This does
+        nothing on its own. Callers must also use `is_reduced_tick()` to check
+        for if/when they want to do their reduced processing.
+        '''
+        reduced[tick] = DeltaNext(rate,
+                                  self.tick_num)
+
+    def is_reduced_tick(self,
+                        tick:    SystemTick,
+                        reduced: Dict[SystemTick, DeltaNext]) -> bool:
+        '''
+        Checks to see if this tick is the reduced-tick-rate tick.
+        '''
+        reduced_tick = reduced.get(tick, None)
+        if not reduced_tick:
+            return False
+
+        if self._manager.time.tick_num >= reduced_tick.next:
+            # Update our DeltaNext to the next reduced tick number.
+            reduced_tick.cycle(self.tick_num)
+            return True
+
+        return False
 
     # -------------------------------------------------------------------------
     # Life-Cycle Transitions

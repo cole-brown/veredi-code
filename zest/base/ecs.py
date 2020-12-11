@@ -22,14 +22,14 @@ from veredi.data.config.config           import Configuration
 
 from veredi.game.ecs.base.system         import System
 from veredi.game.ecs.base.entity         import (Entity,
-                                                 EntityLifeCycle)
+                                                   EntityLifeCycle)
 from veredi.game.ecs.base.identity       import EntityId
 from veredi.game.ecs.base.component      import (Component,
-                                                 ComponentLifeCycle)
+                                                   ComponentLifeCycle)
 from veredi.game.ecs.event               import Event
 from veredi.game.data.event              import DataLoadedEvent
 from veredi.game.data.identity.event     import (IdentityRequest,
-                                                 CodeIdentityRequest)
+                                                   CodeIdentityRequest)
 from veredi.game.data.identity.component import IdentityComponent
 
 
@@ -38,6 +38,7 @@ from veredi.game.ecs.event               import EventManager
 from veredi.game.ecs.component           import ComponentManager
 from veredi.game.ecs.entity              import EntityManager
 from veredi.game.ecs.system              import SystemManager
+from veredi.game.data.identity.manager   import IdentityManager
 from veredi.game.engine                  import Engine
 from veredi.game.ecs.meeting             import Meeting
 
@@ -155,6 +156,7 @@ class ZestEcs(ZestBase):
                     component_manager: Optional[ComponentManager]    = None,
                     entity_manager:    Optional[EntityManager]       = None,
                     system_manager:    Optional[SystemManager]       = None,
+                    identity_manager:  Optional[IdentityManager]     = None,
                     # Optional to pass in - else we'll make  if asked:
                     engine:            Optional[Engine]              = None
                     ) -> None:
@@ -187,6 +189,7 @@ class ZestEcs(ZestBase):
                                          component_manager=component_manager,
                                          entity_manager=entity_manager,
                                          system_manager=system_manager,
+                                         identity_manager=identity_manager,
                                          engine=engine)
 
     # ------------------------------
@@ -278,6 +281,9 @@ class ZestEcs(ZestBase):
 
             if self.manager.system:
                 self.manager.system.subscribe(self.manager.event)
+
+            if self.manager.identity:
+                self.manager.identity.subscribe(self.manager.event)
 
     # -------------------------------------------------------------------------
     # System Creation Helpers
@@ -473,7 +479,10 @@ class ZestEcs(ZestBase):
     # Create Things for Tests
     # -------------------------------------------------------------------------
 
-    def create_entity(self) -> Entity:
+    def create_entity(self,
+                      clear_received_events=True,
+                      clear_manager_event_queue=True,
+                      force_entity_alive=False) -> Entity:
         '''
         Creates an empty entity of type _TYPE_DONT_CARE.
         '''
@@ -495,6 +504,14 @@ class ZestEcs(ZestBase):
         self.assertTrue(entity)
         # Entity should not be alive just yet.
         self.assertNotEqual(entity.life_cycle, EntityLifeCycle.ALIVE)
+
+        # Throw away entity creation events if desired.
+        if clear_received_events:
+            self.clear_events(clear_manager=clear_manager_event_queue)
+
+        # Short-circuit entity to alive?
+        if force_entity_alive:
+            entity._life_cycled(EntityLifeCycle.ALIVE)
 
         return entity
 

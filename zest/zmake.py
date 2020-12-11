@@ -11,23 +11,24 @@ Helper for unit test data.
 from typing import Union, Optional
 import pathlib
 
-from .                            import zpath
-from veredi.data                  import background
-from veredi.debug.const           import DebugFlag
+from .                                 import zpath
+from veredi.data                       import background
+from veredi.debug.const                import DebugFlag
 
 # Config Stuff
-from veredi.data.config.config    import Configuration
-from veredi.data.repository.base  import BaseRepository
-from veredi.data.serdes.base      import BaseSerdes
-from veredi.data.config.hierarchy import Document
+from veredi.data.config.config         import Configuration
+from veredi.data.repository.base       import BaseRepository
+from veredi.data.serdes.base           import BaseSerdes
+from veredi.data.config.hierarchy      import Document
 
 # Meeting Stuff
-from veredi.game.ecs.time         import TimeManager
-from veredi.game.ecs.event        import EventManager
-from veredi.game.ecs.component    import ComponentManager
-from veredi.game.ecs.entity       import EntityManager
-from veredi.game.ecs.system       import SystemManager
-from veredi.game.ecs.meeting      import Meeting
+from veredi.game.ecs.time              import TimeManager
+from veredi.game.ecs.event             import EventManager
+from veredi.game.ecs.component         import ComponentManager
+from veredi.game.ecs.entity            import EntityManager
+from veredi.game.ecs.system            import SystemManager
+from veredi.game.ecs.meeting           import Meeting
+from veredi.game.data.identity.manager import IdentityManager
 
 
 # -----------------------------------------------------------------------------
@@ -102,6 +103,7 @@ def meeting(
         component_manager: Optional[ComponentManager] = None,
         entity_manager:    Optional[EntityManager]    = None,
         system_manager:    Optional[EntityManager]    = None,
+        identity_manager:  Optional[IdentityManager]  = None,
         debug_flags:       Optional[DebugFlag]        = None) -> None:
     '''
     Creates a Meeting of EcsManagers using inputs, or creating defaults for
@@ -109,7 +111,11 @@ def meeting(
 
     If no configuration, uses zmake.config(test_type)
     '''
+
+    # Get a config of some sort... Managers need it.
     configuration = configuration     or config(test_type)
+
+    # Create any managers that weren't passed in.
     time          = time_manager      or TimeManager()
     event         = event_manager     or EventManager(configuration,
                                                       debug_flags)
@@ -124,8 +130,26 @@ def meeting(
                                                        component,
                                                        entity,
                                                        debug_flags)
+    identity      = identity_manager  or IdentityManager(configuration,
+                                                         time,
+                                                         event,
+                                                         entity,
+                                                         debug_flags)
 
-    meeting = Meeting(time, event, component, entity, system, debug_flags)
-    background.system.set_meeting(meeting)
+    # And now we can create the meeting itself.
+    meeting = Meeting(time,
+                      event,
+                      component,
+                      entity,
+                      system,
+                      identity,
+                      debug_flags)
+
+    # Save to background and return.
+    mtg_bg_data, mtg_bg_owner = meeting.get_background()
+    background.manager.set(meeting.dotted(),
+                           meeting,
+                           mtg_bg_data,
+                           mtg_bg_owner)
 
     return meeting

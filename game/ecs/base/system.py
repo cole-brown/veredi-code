@@ -717,9 +717,8 @@ class System(LogMixin, ABC):
             kwargs = self._log_stack(**kwargs)
             self._log_at_level(
                 log_level,
-                "HEALTH({}): Skipping ticks - our system health "
-                "isn't good enough to process. args: {}, kwargs: {}",
-                self.health, args, kwargs)
+                f"HEALTH({self.health}): " + msg,
+                args, kwargs)
         return maybe_updated_meter
 
     def _health_ok_msg(self,

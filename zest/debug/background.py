@@ -66,7 +66,7 @@ def command(context: Optional[InputContext] = None) -> CommandStatus:
     #   a) Log who called this?
     #        TODO [2020-07-07]: command/history should do this.
     #   b) Send background data back to them.
-    entity = background.system.meeting.entity.get(
+    entity = background.manager.entity.get(
         InputContext.source_id(context))
     component = entity.get(IdentityComponent)
 

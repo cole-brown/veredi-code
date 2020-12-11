@@ -26,13 +26,24 @@ if TYPE_CHECKING:
     from veredi.base.const                 import VerediHealth
     from veredi.base.context               import VerediContext
     from veredi.game.ecs.meeting           import Meeting
+    from veredi.game.ecs.time              import TimeManager
+    from veredi.game.ecs.event             import EventManager
+    from veredi.game.ecs.component         import ComponentManager
+    from veredi.game.ecs.entity            import EntityManager
+    from veredi.game.ecs.system            import SystemManager
+    from veredi.game.data.identity.manager import IdentityManager
+
     from veredi.game.ecs.base.system       import System, SystemLifeCycle
+
     from veredi.interface.input.parse      import Parcel
     from .config                           import Configuration
+
     from veredi.game.ecs.base.identity     import EntityId
     from veredi.data.identity              import UserId, UserKey
     from veredi.interface.mediator.context import UserConnToken
     from veredi.interface.user             import UserPassport
+    from veredi.data.repository.base       import BaseRepository
+    from veredi.data.serdes.base           import BaseSerdes
 
 import enum
 import pathlib
@@ -91,7 +102,14 @@ _CONFIG = 'configuration'
 # Game Stuff
 # ------------------------------
 _GAME = 'game'
-'''Game and game systems' root key.'''
+'''
+Game and game systems' root key.
+'''
+
+_MANAGER = 'manager'
+'''
+Game's Meeting object with all managers.
+'''
 
 _SYSTEM = 'system'
 '''
@@ -168,6 +186,7 @@ _CONTEXT_LAYOUT = {
         _CONFIG: {},
         _REGISTRY: {},
         _GAME: {
+            _MANAGER: {},
             _SYSTEM: {
                 _SYS_VITALS: [],
             },
@@ -488,7 +507,7 @@ class registry:
             registrar_name: str) -> Nullable[ContextMutableMap]:
         '''
         Get registry's sub-context for a specific registrar from background
-        context. Creates an empty one if none exists. foo
+        context. Creates an empty one if none exists.
         '''
         all_reg = klass._get()
         return all_reg.setdefault(registrar_name, {})
@@ -516,38 +535,129 @@ class game:
 
 
 # -------------------------------------------------------------------------
-# System Namespace
+# Manager Namespace
 # -------------------------------------------------------------------------
 
-class SystemMeta(type):
+class ManagerMeta(type):
     '''
     Metaclass shenanigans to make some read-only /class/ property.
     '''
-    @property
-    def manager(klass: Type['system']) -> Nullable['Meeting']:
-        '''
-        Checks for the Meeting of Managers link in config's spot
-        in this context.
-        '''
-        return klass.meeting
+
+    # -------------------------------------------------------------------------
+    # Properties: The Whole Meeting of Managers
+    # -------------------------------------------------------------------------
 
     @property
-    def meeting(klass: Type['system']) -> Nullable['Meeting']:
+    def meeting(klass: Type['manager']) -> Nullable['Meeting']:
         '''
-        Checks for the Meeting of Managers link in config's spot
-        in this context.
+        Returns the Meeting of managers. Meeting has helper functions and maybe
+        you want to access several managers from it?
         '''
         ctx = klass._get()
         retval = ctx.get(klass.Link.MEETING, Null())
         return retval
 
+    # -------------------------------------------------------------------------
+    # Properties: Specific Manager Accessors
+    # -------------------------------------------------------------------------
 
-class system(metaclass=SystemMeta):
+    @property
+    def time(klass: Type['manager']) -> Nullable['TimeManager']:
+        '''
+        Helper for getting at Meeting's TimeManager directly.
+        '''
+        return klass.meeting.time
+
+    @property
+    def event(klass: Type['manager']) -> Nullable['EventManager']:
+        '''
+        Helper for getting at Meeting's EventManager directly.
+        '''
+        return klass.meeting.event
+
+    @property
+    def component(klass: Type['manager']) -> Nullable['ComponentManager']:
+        '''
+        Helper for getting at Meeting's ComponentManager directly.
+        '''
+        return klass.meeting.component
+
+    @property
+    def entity(klass: Type['manager']) -> Nullable['EntityManager']:
+        '''
+        Helper for getting at Meeting's EntityManager directly.
+        '''
+        return klass.meeting.entity
+
+    @property
+    def system(klass: Type['manager']) -> Nullable['SystemManager']:
+        '''
+        Helper for getting at Meeting's SystemManager directly.
+        '''
+        return klass.meeting.system
+
+    @property
+    def identity(klass: Type['manager']) -> Nullable['IdentityManager']:
+        '''
+        Helper for getting at Meeting's IdentityManager directly.
+        '''
+        return klass.meeting.identity
+
+
+class manager(metaclass=ManagerMeta):
+    '''
+    Background stuff for ECS's Meeting of Managers.
+
+    Has class properties for getting at meeting or a manager directly.
+    For example, TimeManager:
+      background.manager.time
+    '''
 
     @enum.unique
     class Link(enum.Enum):
         MEETING = enum.auto()
-        '''The Meeting of Managers'''
+        '''
+        The Meeting of Managers.
+        '''
+
+    # -------------------------------------------------------------------------
+    # Getters / Setters
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def _get(klass: Type['manager']) -> Nullable[ContextMutableMap]:
+        '''
+        Get manager's sub-context from background context.
+        '''
+        global _MANAGER
+        return game.get().get(_MANAGER, Null())
+
+    @classmethod
+    def set(klass:       Type['manager'],
+            dotted_name: str,
+            managers:    'Meeting',
+            data:        ContextMap,
+            ownership:   Ownership) -> None:
+        '''
+        Set a created manager's entry in background with `data`. Also sets the
+        managers into their proper place.
+        '''
+        context = klass._get()
+        _set(context, dotted_name, data, ownership)
+        context[klass.Link.MEETING] = managers
+
+    # -------------------------------------------------------------------------
+    # Properties: Manager Accessors
+    # -------------------------------------------------------------------------
+
+    # Getters are in ManagerMeta class.
+
+
+# -------------------------------------------------------------------------
+# System Namespace
+# -------------------------------------------------------------------------
+
+class system:
 
     # -------------------------------------------------------------------------
     # Getters / Setters
@@ -588,34 +698,11 @@ class system(metaclass=SystemMeta):
         vital_records = subctx.setdefault(_SYS_VITALS, [])
         entry = {
             'dotted': sys.dotted(),
-            'time': klass.manager.time.machine.stamp_to_str(),
-            'cycle': cycle.name,
+            'time':   manager.time.machine.stamp_to_str(),
+            'cycle':  cycle.name,
             'health': health.name,
         }
         vital_records.append(entry)
-
-    # -------------------------------------------------------------------------
-    # Managers
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def set_meeting(klass: Type['system'],
-                    meeting: NullNoneOr['Meeting']) -> None:
-        '''
-        Sets our managers.
-        '''
-        ctx = klass._get()
-        ctx[klass.Link.MEETING] = meeting
-
-    # Provided by SystemMeta:
-    # @classmethod
-    # def manager(klass: Type['system']) -> Nullable['Meeting']:
-    #     '''
-    #     Checks for a CONFIG link in config's spot in this context.
-    #     '''
-    #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.MEETING, Null())
-    #     return retval
 
 
 # -----------------------------------------------------------------------------
@@ -811,7 +898,8 @@ class users:
     @classmethod
     def _filter_users(klass:     Type['users'],
                       users:     DoubleIndexDict,
-                      filter_id: Optional[UserIdTypes]) -> List['User']:
+                      filter_id: Optional[UserIdTypes]
+                      ) -> List['UserPassport']:
         '''
         Takes the `users` dict and filters it based on the `id`.
         '''

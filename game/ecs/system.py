@@ -421,7 +421,7 @@ class SystemManager(EcsManagerWithEvents):
             self._update_schedule()
             self._log_tick("Updated schedule. tick: {}", tick)
 
-        time = background.system.meeting.time
+        time = background.manager.time
 
         worst_health = VerediHealth.HEALTHY
         # TODO: self._schedule[tick] is a priority/topographical tree or
@@ -558,7 +558,7 @@ class SystemManager(EcsManagerWithEvents):
 
         system = sys_class(context,
                            sid,
-                           background.system.meeting)
+                           background.manager.meeting)
         self._system.set(sid, sys_class, system)
         self._system_create.add(sid)
         self._life_cycle_set(system, SystemLifeCycle.CREATING)

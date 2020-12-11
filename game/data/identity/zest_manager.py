@@ -8,15 +8,25 @@ Tests for the Skill system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.base.system        import ZestSystem
+from veredi.zest.base.ecs          import ZestEcs
+from veredi.zest                    import zmake
+
 from veredi.base.context            import UnitTestContext
 from veredi.logger                  import log
+
+from veredi.game.ecs.event                import EventManager
+from veredi.game.ecs.time                 import TimeManager
+from veredi.game.ecs.component            import ComponentManager
+from veredi.game.ecs.entity               import EntityManager
+from veredi.game.ecs.system               import SystemManager
+from veredi.game.ecs.meeting              import Meeting
 
 from veredi.game.ecs.base.identity  import ComponentId
 from veredi.game.ecs.base.component import ComponentLifeCycle
 from veredi.game.data.component     import DataComponent
 
-from .system                        import IdentitySystem
+
+from .manager                       import IdentityManager
 from .event                         import CodeIdentityRequest, IdentityResult
 from .component                     import IdentityComponent
 
@@ -30,9 +40,13 @@ from .component                     import IdentityComponent
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_IdentitySystem(ZestSystem):
+class Test_IdentityManager(ZestEcs):
     '''
-    Test our IdentitySystem with some on-disk data.
+    Test our IdentityManager with some on-disk data.
+
+    Using ZestEcs as our base instead of ZestBase (which most other managers
+    use) as we are reliant on a lot of the other managers anyways... Time,
+    Event, and Entity directly; Component indirectly.
     '''
 
     ID_DATA = {
@@ -47,23 +61,41 @@ class Test_IdentitySystem(ZestSystem):
         },
     }
 
+    # -------------------------------------------------------------------------
+    # Set-Up
+    # -------------------------------------------------------------------------
+
     def set_up(self):
         super().set_up()
-        self.init_self_system(IdentitySystem)
 
-    def sub_events(self):
-        self.manager.event.subscribe(IdentityResult, self.event_identity_res)
+        self.identity = self.manager.identity
 
-    def event_identity_res(self, event):
-        self.events.append(event)
+    # -------------------------------------------------------------------------
+    # Tear-Down
+    # -------------------------------------------------------------------------
+
+    def tear_down(self):
+        self.config      = None
+        self.identity    = None
+        self.manager     = None
+
+    # -------------------------------------------------------------------------
+    # Events
+    # -------------------------------------------------------------------------
+
+    def _sub_data_loaded(self) -> None:
+        '''Don't want DataLoadedEvent.'''
+        pass
+
+    def sub_events(self) -> None:
+        self.manager.event.subscribe(IdentityResult,
+                                     self._eventsub_generic_append)
 
     def identity_request_code(self, entity, id_data):
         context = UnitTestContext(
             self.__class__.__name__,
             'identity_request',
             {})  # no initial sub-context
-        # ctx = self.context.spawn(EphemerealContext,
-        #                          'unit-testing', None)
 
         event = CodeIdentityRequest(
             entity.id,
@@ -73,22 +105,38 @@ class Test_IdentitySystem(ZestSystem):
 
         return event
 
+    # -------------------------------------------------------------------------
+    # Tests
+    # -------------------------------------------------------------------------
+
     def test_init(self):
+        self.assertTrue(self.identity)
         self.assertTrue(self.manager)
-        self.assertTrue(self.context)
-        self.assertTrue(self.manager.system)
-        self.assertTrue(self.system)
+        self.assertTrue(self.manager.identity)
 
     def test_identity_req_code(self):
+        # ---
+        # Test Set-Up
+        # ---
         self.set_up_events()
-        entity = self.create_entity()
-        # Throw away loading events.
-        self.clear_events(clear_manager=True)
+        entity = self.create_entity(force_entity_alive=True)
+        # Throw away any loading events?
+        # self.clear_events(clear_manager=True)
+        # Would rather know that nothing I need was created...
+        self.assertEqual(len(self.events), 0)
+        # ...and nothing anyone else needs is dangling.
+        self.assertFalse(self.manager.event.has_queued())
 
+        # ---
+        # Request an IdentityComponent be created from our data.
+        # ---
         request = self.identity_request_code(entity, self.ID_DATA)
         with log.LoggingManager.on_or_off(self.debugging):
             self.trigger_events(request)
 
+        # ---
+        # Verify result.
+        # ---
         result = self.events[0]
         self.assertIsInstance(result, IdentityResult)
         # request and result should be both for our entity
@@ -127,7 +175,7 @@ class Test_IdentitySystem(ZestSystem):
 # -----------------------------------------------------------------------------
 
 # Can't just run file from here... Do:
-#   doc-veredi python -m veredi.game.data.identity.zest_system
+#   doc-veredi python -m veredi.game.data.identity.zest_manager
 
 if __name__ == '__main__':
     import unittest

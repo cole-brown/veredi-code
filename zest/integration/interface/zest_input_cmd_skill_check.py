@@ -34,7 +34,6 @@ from veredi.game.data.event               import (DataLoadRequest,
                                                   DataLoadedEvent)
 
 from veredi.interface.input.event         import CommandInputEvent
-from veredi.game.data.identity.system     import IdentitySystem
 
 from veredi.rules.d20.pf2.skill.system    import SkillSystem
 from veredi.rules.d20.pf2.skill.event     import SkillResult
@@ -54,7 +53,7 @@ class Test_InputCmd_SkillCheck(ZestIntegrateEcs):
 
     def set_up(self):
         super().set_up()
-        self.init_many_systems(IdentitySystem, SkillSystem)
+        self.init_one_system(SkillSystem)
 
     def sub_events(self) -> None:
         self.manager.event.subscribe(SkillResult, self.event_skill_res)

@@ -13,7 +13,6 @@ from veredi.logger                   import log
 
 from veredi.base.context                 import UnitTestContext
 
-from veredi.game.data.identity.system    import IdentitySystem
 from veredi.game.data.identity.component import IdentityComponent
 from veredi.game.data.identity.event     import CodeIdentityRequest
 from veredi.game.ecs.base.entity         import Entity
@@ -62,7 +61,6 @@ class Test_InputSystem(ZestSystem):
         # ...so assign it to the traditional self.system
         self.system = self.input_system
 
-        self.init_one_system(IdentitySystem)
         self.test_cmd_recv = None
         self.test_cmd_ctx = None
 

@@ -125,7 +125,7 @@ class Historian:
         self._by_input:  Dict[InputId, InputHistory]        = {}
         self._by_entity: Dict[EntityId, List[InputHistory]] = {}
 
-        self._manager:   Meeting                = background.system.manager
+        self._manager:   Meeting                = background.manager
 
         self._input_id:  InputIdGenerator       = InputId.generator(
             self._manager.time)

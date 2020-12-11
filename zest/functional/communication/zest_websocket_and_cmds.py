@@ -98,7 +98,6 @@ from veredi.math.event                          import MathOutputEvent
 
 from veredi.game.data.event                     import (DataLoadedEvent,
                                                         DataLoadRequest)
-from veredi.game.data.identity.system           import IdentitySystem
 from veredi.game.data.identity.component        import IdentityComponent
 from veredi.data.context                        import (DataGameContext,
                                                         DataLoadContext)
@@ -248,7 +247,6 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
             # InputSystem:  Covered by ZestIntegrateEngine.set_up()
             # OutputSystem: Covered by ZestIntegrateEngine.set_up()
             AbilitySystem,
-            IdentitySystem,
             MediatorSystem,
         })
         '''Extra systems we need to fill in this game's systems.'''
