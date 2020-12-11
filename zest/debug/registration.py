@@ -35,13 +35,13 @@ def register(event: CommandRegistrationBroadcast) -> None:
     '''
     Our event handler for the registration broadcast.
     '''
-    if not background.system.meeting.event:
+    if not background.manager.event:
         log.warning(f"'{DOTTED_NAME}' cannot register its commands as there "
                     "is no EventManager in the background meeting.")
         return
 
     # Get our debug commands' registration events sent out.
-    background.system.meeting.event.notify(
+    background.manager.event.notify(
         debug.register(event))
-    background.system.meeting.event.notify(
+    background.manager.event.notify(
         dbg_bg.register(event))

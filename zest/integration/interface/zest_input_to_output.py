@@ -55,7 +55,6 @@ from veredi.rules.d20.pf2.ability.component import AbilityComponent
 
 from veredi.math.system                     import MathSystem
 from veredi.math.parser                     import MathTree
-from veredi.game.data.identity.system       import IdentitySystem
 from veredi.game.data.identity.component    import IdentityComponent
 from veredi.rules.d20.pf2.health.component  import HealthComponent
 
@@ -81,7 +80,7 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
                                     AbilityComponent,
                                     HealthComponent}
 
-        self.init_many_systems(IdentitySystem, MathSystem, AbilitySystem)
+        self.init_many_systems(MathSystem, AbilitySystem)
 
         self._uid_gen = UserId.generator()
         self._ukey_gen = UserKey.generator()

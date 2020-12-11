@@ -1,10 +1,11 @@
 # coding: utf-8
 
 '''
-System for handling Identity information (beyond the temporary in-game ID
-numbers like MonotonicIds).
+IdentityManager for... managing... IdentityComponents, UserIds, UserKeys, etc.
+  - Identity Numbers beyond the temporary IDs like ComponentId, EntityId, etc.
+  - Identity Names for entities, users, etc.
 
-Papers, please.
+"Papers, please."
 '''
 
 
@@ -16,38 +17,45 @@ Papers, please.
 # Typing
 # ---
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, MutableMapping,
-                    List, Literal)
+                    Optional, Union, Any, Type,
+                    MutableMapping, Dict, List, Literal)
+from veredi.base.null              import Null, Nullable, NullNoneOr
 if TYPE_CHECKING:
-    from veredi.base.context             import VerediContext
-
+    from veredi.base.context       import VerediContext
+    from ..ecs.meeting             import Meeting
+    from ..ecs.event               import Event
 
 # ---
 # Code
 # ---
-from veredi.logger                   import log
-from veredi.base.const               import VerediHealth
-from veredi.base.dicts               import BidirectionalDict
-from veredi.data.config.registry     import register
-from veredi.data.identity            import UserId, UserKey
+from decimal                       import Decimal
+
+from veredi.logger                 import log
+from veredi.base.const             import VerediHealth
+from veredi.base.dicts             import BidirectionalDict
+from veredi.base.assortments       import DeltaNext
+from veredi.debug.const            import DebugFlag
+from veredi.data                   import background
+from veredi.data.config.config     import Configuration
+from veredi.data.config.registry   import register
+from veredi.data.identity          import UserId, UserKey
 
 # Game / ECS Stuff
-from veredi.game.ecs.event           import EventManager
-from veredi.game.ecs.time            import TimeManager
-from veredi.game.ecs.component       import ComponentManager
-from veredi.game.ecs.entity          import EntityManager, EntityLifeEvent
+from veredi.game.ecs.event         import EventManager, EcsManagerWithEvents
+from veredi.game.ecs.time          import TimeManager
+from veredi.game.ecs.component     import ComponentManager
+from veredi.game.ecs.entity        import EntityManager, EntityLifeEvent
 
-from veredi.game.ecs.const           import (SystemTick,
-                                             SystemPriority)
+from veredi.game.ecs.const         import SystemTick
 
-from veredi.game.ecs.base.identity   import EntityId, ComponentId
-from veredi.game.ecs.base.entity     import EntityLifeCycle
-from veredi.game.ecs.base.system     import System
-from veredi.game.ecs.base.exceptions import EcsSystemError
+from veredi.game.ecs.base.identity import EntityId, ComponentId
+from veredi.game.ecs.base.entity   import EntityLifeCycle
+from veredi.game.ecs.base.system   import System
+from veredi.game.ecs.exceptions    import EventError
 
 # Identity-Related Events & Components
-from .event                          import IdentityRequest, IdentityResult
-from .component                      import IdentityComponent
+from .event                        import IdentityRequest, IdentityResult
+from .component                    import IdentityComponent
 
 
 # -----------------------------------------------------------------------------
@@ -59,16 +67,95 @@ from .component                      import IdentityComponent
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'game', 'identity', 'system')
-class IdentitySystem(System):
+class IdentityManager(EcsManagerWithEvents):
+    '''
+    "Manager" of Identities.
+
+    The main point we're a "manager" when we could really just be a system or
+    just let identities only exist as IdentityComponents: So that Systems can
+    expect us to just exist as a directly callable manager instead of having to
+    go through the event system or components...
+
+    Another reason is that there is no requirement (currently [2020-12-09])
+    that some piece of an Identity has to be tied to an IdentityComponent or
+    Entity or anything.
+
+    And identities will be tied to basically everything, so an event loop delay
+    for basically everything seems like a decent thing to optimize out.
+    '''
 
     _SYNC_ENTITIES_REDUCED_TICK = 10
+    '''
+    Do the reduced tick every this many ticks.
+    '''
 
     def _define_vars(self):
         '''
         Instance variable definitions, type hinting, doc strings, etc.
         '''
         super()._define_vars()
+
+        self._debug: Nullable[DebugFlag] = Null()
+        '''
+        Debug Flags.
+        '''
+
+        self._component_type: Type[IdentityComponent] = IdentityComponent
+        '''
+        The component type for storing ID info on an entity.
+        '''
+
+        # ------------------------------
+        # Ticking
+        # ------------------------------
+
+        self._ticks: Optional[SystemTick] = None
+        '''
+        The ticks we desire to run in.
+
+        Systems will always get the TICKS_START and TICKS_END ticks. The
+        default _cycle_<tick> and _update_<tick> for those ticks should be
+        acceptable if the system doesn't care.
+        '''
+
+        self._reduced_tick_rate: Optional[Dict[SystemTick, DeltaNext]] = {}
+        '''
+        If systems want to only do some tick (or part of a tick), they can put
+        the tick and how often they want to do it here.
+
+        e.g. if we want every 10th SystemTick.CREATION for checking that some
+        data is in sync, set:
+          self._set_reduced_tick_rate(SystemTick.CREATION, 10)
+        '''
+
+        # ------------------------------
+        # Health
+        # ------------------------------
+
+        self._health_meter_event:   Optional['Decimal'] = None
+        '''
+        Store timing information for our timed/metered 'system isn't healthy'
+        messages that fire off during event things.
+        '''
+
+        self._health_meter_update:  Optional['Decimal'] = None
+        '''
+        Stores timing information for our timed/metered 'system isn't healthy'
+        messages that fire off during system tick things.
+        '''
+
+        # ------------------------------
+        # Required Other Managers
+        # ------------------------------
+        self._entity: EntityManager = None
+        '''
+        The ECS Entity Manager.
+        '''
+
+        self._event: EventManager = None
+        '''
+        The ECS Event Manager.
+        '''
 
         # ------------------------------
         # Quick Lookups
@@ -85,47 +172,44 @@ class IdentitySystem(System):
         assigned the same UserKey because familiars, companions, the DM...
         '''
 
-    def _configure(self, context: 'VerediContext') -> None:
+    def __init__(self,
+                 config:         Optional[Configuration],
+                 time_manager:   TimeManager,
+                 event_manager:  EventManager,
+                 entity_manager: EntityManager,
+                 debug_flags:    NullNoneOr[DebugFlag]) -> None:
         '''
         Make our stuff from context/config data.
         '''
-        self._component_type = IdentityComponent
+        super().__init__()
 
-        # ---
-        # Health Stuff
-        # ---
-        self._required_managers = {
-            TimeManager,
-            EventManager,
-            ComponentManager,
-            EntityManager
-        }
+        self._debug = debug_flags
 
-        # ---
-        # Ticking Stuff
-        # ---
-        self._components = [
-            # For ticking, we need the ones with IdentityComponents.
-            # They're the ones with Identitys.
-            # Obviously.
-            IdentityComponent
-        ]
+        self._ticks = SystemTick.PRE  # Just PRE so far.
+        time_manager.set_reduced_tick_rate(SystemTick.PRE,
+                                           self._SYNC_ENTITIES_REDUCED_TICK,
+                                           self._reduced_tick_rate)
 
-        self._ticks = SystemTick.PRE  # | SystemTick.STANDARD
-        self._set_reduced_tick_rate(SystemTick.PRE,
-                                    self._SYNC_ENTITIES_REDUCED_TICK)
+        self._entity = entity_manager
+        self._event = event_manager
 
     @classmethod
-    def dotted(klass: 'IdentitySystem') -> str:
-        # klass._DOTTED magically provided by @register
-        return klass._DOTTED
+    def dotted(klass: 'IdentityManager') -> str:
+        '''
+        This manager's dotted label.
+        '''
+        return 'veredi.game.data.identity.manager'
+
+    @property
+    def _meeting(self) -> 'Meeting':
+        '''
+        Shortcut to getting the Meeting of Managers singleton.
+        '''
+        return background.manager.meeting
 
     # -------------------------------------------------------------------------
     # Direct Getters
     # -------------------------------------------------------------------------
-
-    # Requried Game System, so we don't necessarily have to go through event
-    # system or components...
 
     def user_id(self, entity_id: EntityId) -> Optional[UserId]:
         '''
@@ -154,37 +238,39 @@ class IdentitySystem(System):
         return self._ukeys.inverse.get(user_key, None)
 
     # -------------------------------------------------------------------------
-    # System Registration / Definition
-    # -------------------------------------------------------------------------
-
-    def priority(self) -> Union[SystemPriority, int]:
-        '''
-        Returns a SystemPriority (or int) for when, relative to other systems,
-        this should run. Highest priority goes firstest.
-        '''
-        return SystemPriority.LOW
-
-    # -------------------------------------------------------------------------
     # Events
     # -------------------------------------------------------------------------
 
-    def _subscribe(self) -> VerediHealth:
+    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        # IdentitySystem subs to:
-        # - IdentityRequests - This covers:
-        #   - CodeIdentityRequest
-        #   - DataIdentityRequest - may want to ignore or delete these...?
-        # - EntityLifeEvent - Entity gets created/destroyed.
-        self._manager.event.subscribe(IdentityRequest,
-                                      self.event_identity_req)
+        # IdentityRequests cover:
+        #   - DataIdentityRequest - IdentityComponent backed by repo data.
+        #                         - Mainly game data.
+        #   - CodeIdentityRequest - IdentityComponent backed by code.
+        #                         - Mainly unit tests that avoid needing repo.
+        self._event.subscribe(IdentityRequest,
+                              self.event_identity_req)
 
-        self._manager.event.subscribe(EntityLifeEvent,
-                                      self.event_entity_life)
+        # EntityLifeEvent:
+        #   - Entity gets created/destroyed/etc.
+        self._event.subscribe(EntityLifeEvent,
+                              self.event_entity_life)
 
         return VerediHealth.HEALTHY
+
+    def _event_notify(self,
+                      event:                      'Event',
+                      requires_immediate_publish: bool = False) -> None:
+        '''
+        Calls our EventManager.notify(), if we have an EventManager.
+        '''
+        if not self._event:
+            return
+        self._event.notify(event,
+                           requires_immediate_publish)
 
     def _create_component(
             self,
@@ -202,19 +288,22 @@ class IdentitySystem(System):
         if component_data is False:
             # This is ok value - means "Make an empty IdentityComponent".
             pass
+
         elif not component_data:
+            # Empty data is not ok. Throw an error.
             msg = (f"{self.__class__.__name__} could not create "
                    "IdentityComponent from no data.")
-            error = EcsSystemError(msg,
-                                   context=context,
-                                   data={
-                                       'entity_id': entity_id,
-                                       'component_data': component_data,
-                                   })
+            error = EventError(msg,
+                               context=context,
+                               data={
+                                   'entity_id': entity_id,
+                                   'component_data': component_data,
+                               })
             raise log.exception(error, msg,
                                 context=context)
 
-        retval = self._manager.create_attach(entity_id,
+        # Create our component and attach to an entity.
+        retval = self._meeting.create_attach(entity_id,
                                              IdentityComponent,
                                              context,
                                              data=component_data)
@@ -233,11 +322,11 @@ class IdentitySystem(System):
         except AttributeError as error:
             msg = (f"{self.__class__.__name__} could not get identity "
                    "data from event.")
-            error = EcsSystemError(msg,
-                                   context=event.context,
-                                   data={
-                                       'event': event,
-                                   })
+            error = EventError(msg,
+                               context=event.context,
+                               data={
+                                   'event': event,
+                               })
             raise log.exception(error, msg,
                                 context=event.context)
 
@@ -250,11 +339,24 @@ class IdentitySystem(System):
         Identity thingy want; make with the component plz.
         '''
         # Doctor checkup.
-        if not self._health_ok_event(event):
+        if not self._health.in_best_health:
+            meter = self._health_meter_event
+            output_log, meter = self._meeting.time.metered(meter)
+            if output_log:
+                msg = ("Dropping event {} - our system health "
+                       "isn't good enough to process.")
+                kwargs = self._log_stack(None)
+                self._log_warning(
+                    f"HEALTH({self.health}): " + msg,
+                    event,
+                    context=event.context,
+                    **kwargs)
             return
 
-        entity = self._log_get_entity(event.id,
-                                      event=event)
+        entity = self._entity.get_with_log(
+            f'{self.__class__.__name__}',
+            event.id,
+            event=event)
         if not entity:
             # Entity disappeared, and that's ok.
             return
@@ -338,7 +440,7 @@ class IdentitySystem(System):
                 cid = self._create_component(entity_id,
                                              False,
                                              event.context)
-                id_comp = self._manager.component.get(cid)
+                id_comp = self._meeting.component.get(cid)
 
             # Now they have an IdentityComponent - update our dicts.
             self._user_ident_update(entity_id,
@@ -362,26 +464,37 @@ class IdentitySystem(System):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update_pre(self) -> VerediHealth:
+    def update(self, tick: SystemTick) -> VerediHealth:
         '''
         Pre-update. For any systems that need to squeeze in something just
         before actual tick.
         '''
+        # ------------------------------
+        # Ignored Tick?
+        # ------------------------------
+        if not self._ticks or not self._ticks.has(tick):
+            # Don't even care about my health since we don't even want
+            # this tick.
+            return VerediHealth.HEALTHY
+
         health = VerediHealth.HEALTHY
 
         # ------------------------------
-        # Full Tick Rate Start
+        # Full Tick Rate: Start
         # ------------------------------
 
         # Nothing, at the moment.
 
         # ------------------------------
-        # Full Tick Rate End
+        # Full Tick Rate: End
         # - - - - - - - - - - -
-        if not self._is_reduced_tick(SystemTick.PRE):
+        if not self._meeting.time.is_reduced_tick(
+                tick,
+                self._reduced_tick_rate):
+            self.health = self.health.update(health)
             return self.health
         # - - - - - - - - - - -
-        # !! REDUCED Tick Rate START !!
+        # !! REDUCED Tick Rate: START !!
         # ------------------------------
 
         # Ok - our reduced tick is happening so make sure our dictionaries are
@@ -391,7 +504,7 @@ class IdentitySystem(System):
         # Update EntityIds, UserIds, UserKeys.
         # ---
         all_with_id = set()
-        for entity in self._manager.entity.each_with(self._component_type):
+        for entity in self._entity.each_with(self._component_type):
             id_comp = self.get(entity.id)
             if not id_comp:
                 continue
@@ -433,41 +546,7 @@ class IdentitySystem(System):
             health = health.update(VerediHealth.UNHEALTHY)
 
         # ------------------------------
-        # !! REDUCED Tick Rate END !!
+        # !! REDUCED Tick Rate: END !!
         # ------------------------------
-        self.health = health
+        self.health = self.health.update(health)
         return health
-
-    # def _update(self) -> VerediHealth:
-    #     '''
-    #     Standard tick. Do we have ticky things to do?
-    #     '''
-    #     # Doctor checkup.
-    #     if not self._health_ok_tick(SystemTick.STANDARD):
-    #         return self._health_check(SystemTick.STANDARD)
-    #
-    #     log.critical('todo: a identity tick thingy?')
-    #
-    #     # for entity in self._wanted_entities(tick):
-    #     #     # Check if entity in turn order has a (identity) action queued up
-    #     #     # Also make sure to check if entity/component still exist.
-    #     #     if not entity:
-    #     #         continue
-    #     #     component = component_mgr.get(IdentityComponent)
-    #     #     if not component or not component.has_action:
-    #     #         continue
-    #
-    #     #     action = component.dequeue
-    #     #     log.debug("Entity {}, Comp {} has identity action: {}",
-    #     #               entity, component, action)
-    #
-    #     #     # Check turn order?
-    #     #     # Would that be, like...
-    #     #     #   - engine.time_flow()?
-    #     #     #   - What does PF2/Starfinder call it? Like the combat vs
-    #     #     #     short-term vs long-term 'things are happening' modes...
-    #
-    #     #     # process action
-    #     #     print('todo: a identity thingy', action)
-    #
-    #     return self._health_check(SystemTick.STANDARD)

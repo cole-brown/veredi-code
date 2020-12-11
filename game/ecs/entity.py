@@ -25,6 +25,7 @@ Inspired by:
 
 from typing import (TYPE_CHECKING,
                     Optional, Union, Type, NewType, Iterable, Set, Dict)
+from veredi.base.null import NullNoneOr, Nullable, Null
 if TYPE_CHECKING:
     from .time import TimeManager
     from veredi.base.identity import MonotonicIdGenerator
@@ -252,6 +253,45 @@ class EntityManager(EcsManagerWithEvents):
         Returns the Component object or the Null() singleton object.
         '''
         return self._entity.get(entity_id, Null())
+
+    def get_with_log(self,
+                     caller: str,
+                     entity_id: 'EntityId',
+                     event:     NullNoneOr['Event']         = None,
+                     context:   NullNoneOr['VerediContext'] = None,
+                     preface:   Optional[str]               = None,
+                     ) -> Nullable['Entity']:
+        '''
+        Calls `get(entity_id)` to get entity. Just returns the entity if it
+        exists.
+
+        If it does not exist:
+          - Logs at INFO level:
+            caller  (e.g. 'IdentityManager.event_identity_req')
+            + preface (or "Dropping event {event} - "
+                       if preface is None and event is not None)
+            + "No entity for its id: {entity_id}"
+
+          - `context` gets logged too - if not None. `context` will be pulled
+            from `event` if `event` exists and `context` is not set.
+
+          - returns Null()
+        '''
+        entity = self.get(entity_id)
+        if not entity:
+            # Entity disappeared, and that's ok.
+            preface = preface or ''
+            if event:
+                preface = preface or f"Dropping event {event} - "
+                if not context:
+                    context = event.context
+            # Entity disappeared, and that's ok.
+            self._log_info("{}No entity for its id: {}",
+                           preface, entity_id,
+                           context=context)
+            return Null()
+
+        return entity
 
     def create(self,
                type_id: EntityTypeId,

@@ -69,7 +69,6 @@ class SysTest(System):
         }
 
     def _look_at_entities(self, tick):
-        manager = background.system.meeting
         for entity in self._wanted_entities(tick):
             self.ents_seen[tick].add(entity.id)
 

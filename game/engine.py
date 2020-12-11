@@ -46,6 +46,9 @@ from .ecs.entity                        import EntityManager
 from .ecs.system                        import SystemManager
 from .ecs.meeting                       import Meeting
 
+# Identity Manager
+from .data.identity.manager             import IdentityManager
+
 # ECS Minions
 from .ecs.base.entity                   import Entity
 
@@ -298,6 +301,7 @@ class Engine(LogMixin):
                  component_manager: NullNoneOr[ComponentManager] = None,
                  entity_manager:    NullNoneOr[EntityManager]    = None,
                  system_manager:    NullNoneOr[SystemManager]    = None,
+                 identity_manager:  NullNoneOr[IdentityManager]  = None,
                  debug:             NullNoneOr[DebugFlag]        = None
                  ) -> None:
         # ---
@@ -346,14 +350,25 @@ class Engine(LogMixin):
                                                        component,
                                                        entity,
                                                        self._debug)
+        identity  = identity_manager  or IdentityManager(configuration,
+                                                         time,
+                                                         event,
+                                                         entity,
+                                                         self._debug)
+
         self.meeting = Meeting(
             time,
             event,
             component,
             entity,
             system,
+            identity,
             self._debug)
-        background.system.set_meeting(self.meeting)
+        mtg_bg_data, mtg_bg_owner = self.meeting.get_background()
+        background.manager.set(self.meeting.dotted(),
+                               self.meeting,
+                               mtg_bg_data,
+                               mtg_bg_owner)
 
         # ---
         # Time & Timer Set-Up

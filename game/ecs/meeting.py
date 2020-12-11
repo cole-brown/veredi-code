@@ -9,7 +9,7 @@ Manager interface for ECS managers.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Union, Optional, Type, Any, Set)
+                    Union, Optional, Type, Any, Set, Tuple, Dict)
 from veredi.base.null import NullNoneOr, NullFalseOr, Null, null_or_none
 if TYPE_CHECKING:
     from .manager            import EcsManager
@@ -17,17 +17,19 @@ if TYPE_CHECKING:
     from .base.component     import Component
 
 
-from veredi.base.const  import VerediHealth
-from veredi.debug.const import DebugFlag
+from veredi.base.const       import VerediHealth
+from veredi.debug.const      import DebugFlag
+from veredi.data             import background
 
-from .time              import TimeManager
-from .event             import EventManager
-from .component         import ComponentManager
-from .entity            import EntityManager
-from .system            import SystemManager
+from .time                   import TimeManager
+from .event                  import EventManager
+from .component              import ComponentManager
+from .entity                 import EntityManager
+from .system                 import SystemManager
+from ..data.identity.manager import IdentityManager
 
-from .const             import SystemTick
-from .base.identity     import ComponentId, EntityId
+from .const                  import SystemTick
+from .base.identity          import ComponentId, EntityId
 
 
 # -----------------------------------------------------------------------------
@@ -46,23 +48,70 @@ class Meeting:
     Helper class to hold onto stuff we use and pass into created Systems.
     '''
 
+    def _define_vars(self):
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        self._debug:             NullFalseOr[DebugFlag]        = Null()
+        '''
+        Debug flags for managers.
+        '''
+
+        self._time_manager:      NullFalseOr[TimeManager]      = Null()
+        '''
+        "Singleton" for TimeManager.
+          - `False` indicates it explicitly does not exist.
+          - `Null` indates it should but does not exist.
+        '''
+
+        self._event_manager:     NullFalseOr[EventManager]     = Null()
+        '''
+        "Singleton" for EventManager.
+          - `False` indicates it explicitly does not exist.
+          - `Null` indates it should but does not exist.
+        '''
+
+        self._component_manager: NullFalseOr[ComponentManager] = Null()
+        '''
+        "Singleton" for ComponentManager.
+          - `False` indicates it explicitly does not exist.
+          - `Null` indates it should but does not exist.
+        '''
+
+        self._entity_manager:    NullFalseOr[EntityManager]    = Null()
+        '''
+        "Singleton" for EntityManager.
+          - `False` indicates it explicitly does not exist.
+          - `Null` indates it should but does not exist.
+        '''
+
+        self._system_manager:    NullFalseOr[SystemManager]    = Null()
+        '''
+        "Singleton" for SystemManager.
+          - `False` indicates it explicitly does not exist.
+          - `Null` indates it should but does not exist.
+        '''
+
+        self._identity_manager:  NullFalseOr[IdentityManager]  = Null()
+        '''
+        "Singleton" for IdentityManager.
+          - `False` indicates it explicitly does not exist.
+          - `Null` indates it should but does not exist.
+        '''
+
     def __init__(self,
                  time_manager:      NullFalseOr[TimeManager],
                  event_manager:     NullFalseOr[EventManager],
                  component_manager: NullFalseOr[ComponentManager],
                  entity_manager:    NullFalseOr[EntityManager],
                  system_manager:    NullFalseOr[SystemManager],
+                 identity_manager:  NullFalseOr[IdentityManager],
                  debug_flags:       NullFalseOr[DebugFlag]) -> None:
         '''
         Set a manager to False if you know explicitly that it does not exist.
         '''
+        self._define_vars()
         # We allow None, Null, or a thing... But we'll ignore None now.
-        self._debug:             NullFalseOr[DebugFlag]        = Null()
-        self._time_manager:      NullFalseOr[TimeManager]      = Null()
-        self._event_manager:     NullFalseOr[EventManager]     = Null()
-        self._component_manager: NullFalseOr[ComponentManager] = Null()
-        self._entity_manager:    NullFalseOr[EntityManager]    = Null()
-        self._system_manager:    NullFalseOr[SystemManager]    = Null()
 
         self._debug             = debug_flags       or self._debug
         self._time_manager      = time_manager      or self._time_manager
@@ -70,6 +119,7 @@ class Meeting:
         self._component_manager = component_manager or self._component_manager
         self._entity_manager    = entity_manager    or self._entity_manager
         self._system_manager    = system_manager    or self._system_manager
+        self._identity_manager  = identity_manager  or self._identity_manager
 
     # -------------------------------------------------------------------------
     # Meta - Do you have the ___ you need?
@@ -81,6 +131,25 @@ class Meeting:
         `flag` (which can be more than one DebugFlag bit/flag).
         '''
         return self._debug.has(flag)
+
+    # -------------------------------------------------------------------------
+    # Meta - Misc Helpers.
+    # -------------------------------------------------------------------------
+
+    def dotted(self) -> str:
+        '''Veredi dotted label.'''
+        return 'veredi.game.ecs.meeting'
+
+    def get_background(self) -> Tuple[Dict[str, str], background.Ownership]:
+        '''
+        Data for the Veredi Background context.
+
+        Returns: (data, background.Ownership)
+        '''
+        bg = {
+            background.Name.DOTTED.key: self.dotted(),
+        }
+        return bg, background.Ownership.SHARE
 
     def healthy(self,
                 required_set: NullNoneOr[Set[Type['EcsManager']]]
@@ -119,6 +188,10 @@ class Meeting:
         if SystemManager in required_set and not self._system_manager:
             return (VerediHealth.UNHEALTHY
                     if self._system_manager is False else
+                    VerediHealth.PENDING)
+        if IdentityManager in required_set and not self._identity_manager:
+            return (VerediHealth.UNHEALTHY
+                    if self._identity_manager is False else
                     VerediHealth.PENDING)
 
         # Otherwise we're good.
@@ -192,6 +265,19 @@ class Meeting:
         if self._system_manager is False:
             return False
         return self._system_manager
+
+    @property
+    def identity(self) -> Union[IdentityManager, bool, Null]:
+        '''
+        Returns IdentityManager. If this returns 'False' (as opposed to
+        Null/Falsy), that is explicitly stating the explicit absense of an
+        IdentityManager.
+        '''
+        # Stupid code-wise, but I want to explicitly state that False is the
+        # explicit absense of an IdentityManager.
+        if self._identity_manager is False:
+            return False
+        return self._identity_manager
 
     # -------------------------------------------------------------------------
     # Inter-Managerial Helpers
@@ -327,6 +413,17 @@ class Meeting:
         # ------------------------------
         if not null_or_none(self._system_manager):
             function = getattr(self._system_manager,
+                               function_name,
+                               Null())
+            result = function(*args, **kwargs)
+            if isinstance(result, VerediHealth):
+                health = health.update(result)
+
+        # ------------------------------
+        # Identity Manager
+        # ------------------------------
+        if not null_or_none(self._identity_manager):
+            function = getattr(self._identity_manager,
                                function_name,
                                Null())
             result = function(*args, **kwargs)

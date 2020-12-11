@@ -61,7 +61,7 @@ from veredi.game.ecs.const               import (SystemTick,
 from veredi.game.ecs.base.system         import System
 from veredi.game.ecs.base.component      import Component
 from veredi.game.data.identity.component import IdentityComponent
-from veredi.game.data.identity.system    import IdentitySystem
+from veredi.game.data.identity.manager   import IdentityManager
 
 from ..user                              import UserPassport
 from ..output.envelope                   import Envelope
@@ -391,17 +391,6 @@ class MediatorSystem(System):
         return VerediHealth.HEALTHY
 
     # -------------------------------------------------------------------------
-    # Helpers
-    # -------------------------------------------------------------------------
-
-    @property
-    def _identity(self) -> IdentitySystem:
-        '''
-        Get the IdentitySystem.
-        '''
-        return self._manager.system.get(IdentitySystem)
-
-    # -------------------------------------------------------------------------
     # Data Flow: Game -> MediatorServer
     # -------------------------------------------------------------------------
 
@@ -427,18 +416,12 @@ class MediatorSystem(System):
         # ------------------------------
         # Get identity.
         # ------------------------------
-        id_sys = self._manager.system.get(IdentitySystem)
-        if not id_sys:
-            self._log_warning("Cannot send event; couldn't find the "
-                              "IdentitySystem: {}",
-                              id_sys)
-            return
-
+        # Assume IdentityManager exists.
         entity_id = event.id
-        user_id = id_sys.user_id(entity_id)
-        user_key = id_sys.user_key(entity_id)
+        user_id = self._manager.identity.user_id(entity_id)
+        user_key = self._manager.identity.id_sys.user_key(entity_id)
         if not user_id:
-            self._log_warning("Cannot send event; IdentitySystem didn't have "
+            self._log_warning("Cannot send event; IdentityManager didn't have "
                               "a user_id for the entity to demark receipient: "
                               "{}, {}. event: {}",
                               user_id, user_key, event)
@@ -620,7 +603,7 @@ class MediatorSystem(System):
             # a list. If there's only one, we'll assign that one. If multiple
             # ...I don't know right now. Probably push the whole list into the
             # context regardless.
-            id_list = self._identity.user_id_to_entity_ids(message.user_id)
+            id_list = self._manager.identity.user_id_to_entity_ids(message.user_id)
             context.entity_ids = id_list
 
             if id_list and len(id_list) == 1:

@@ -23,10 +23,6 @@ from veredi.game.data.component          import DataComponent
 from veredi.data.context                 import (DataGameContext,
                                                  DataLoadContext)
 
-from veredi.game.data.identity.event     import CodeIdentityRequest
-from veredi.game.data.identity.system    import IdentitySystem
-
-from veredi.interface.input.system       import InputSystem
 from veredi.interface.input.event        import CommandInputEvent
 
 from .system                             import AbilitySystem
@@ -69,7 +65,6 @@ class Test_AbilitySystem(ZestSystem):
         super().set_up()
         self.set_up_input()
         self.init_self_system(AbilitySystem)
-        self.init_one_system(IdentitySystem)
         self.test_cmd_recv = None
         self.test_cmd_ctx = None
 

@@ -10,36 +10,37 @@ Helper for unit test data.
 
 from typing import Union, Optional, Type, NewType, Tuple, Iterable, List
 
-from veredi.logger                      import log
-from .                                  import zmake, zontext
-from .zpath                             import TestType
-from .zxceptions                        import UnitTestError
+from veredi.logger                     import log
+from .                                 import zmake, zontext
+from .zpath                            import TestType
+from .zxceptions                       import UnitTestError
 
-from veredi.data                        import background
-from veredi.debug.const                 import DebugFlag
+from veredi.data                       import background
+from veredi.debug.const                import DebugFlag
 
 # Config Stuff
-from veredi.data.config.config          import Configuration
+from veredi.data.config.config         import Configuration
 
 # Meeting Stuff
-from veredi.game.ecs.base.system        import System
-from veredi.game.ecs.time               import TimeManager
-from veredi.game.ecs.event              import EventManager
-from veredi.game.ecs.component          import ComponentManager
-from veredi.game.ecs.entity             import EntityManager
-from veredi.game.ecs.system             import SystemManager
-from veredi.game.ecs.meeting            import Meeting
-from veredi.base.context                import VerediContext
-from veredi.game.ecs.base.identity      import SystemId
-from veredi.game.engine                 import Engine
+from veredi.game.ecs.base.system       import System
+from veredi.game.ecs.time              import TimeManager
+from veredi.game.ecs.event             import EventManager
+from veredi.game.ecs.component         import ComponentManager
+from veredi.game.ecs.entity            import EntityManager
+from veredi.game.ecs.system            import SystemManager
+from veredi.game.ecs.meeting           import Meeting
+from veredi.game.data.identity.manager import IdentityManager
+from veredi.base.context               import VerediContext
+from veredi.game.ecs.base.identity     import SystemId
+from veredi.game.engine                import Engine
 
 # System Stuff
-from veredi.game.data.system            import DataSystem
+from veredi.game.data.system           import DataSystem
 
 # Registry
-from veredi.data.config                 import registry as config_registry
-from veredi.data.serdes.yaml            import registry as yaml_registry
-from veredi.data.codec.encodable import EncodableRegistry
+from veredi.data.config                import registry as config_registry
+from veredi.data.serdes.yaml           import registry as yaml_registry
+from veredi.data.codec.encodable       import EncodableRegistry
 
 # Registration
 import veredi.math.d20.parser
@@ -136,6 +137,7 @@ def set_up(test_name_class:   str,
            component_manager: Optional[ComponentManager] = None,
            entity_manager:    Optional[EntityManager]    = None,
            system_manager:    Optional[SystemManager]    = None,
+           identity_manager:  Optional[IdentityManager]  = None,
            # Optional to pass in - else we'll make  if asked:
            engine:            Optional[Engine]           = None,
            ) -> Tuple[Meeting, VerediContext, List[SystemId]]:
@@ -163,6 +165,7 @@ def set_up(test_name_class:   str,
                                 component_manager,
                                 entity_manager,
                                 system_manager,
+                                identity_manager,
                                 debug_flags)
 
         engine = None
@@ -175,6 +178,7 @@ def set_up(test_name_class:   str,
                             meeting.component,
                             meeting.entity,
                             meeting.system,
+                            meeting.identity,
                             debug_flags)
 
         system_manager = meeting.system

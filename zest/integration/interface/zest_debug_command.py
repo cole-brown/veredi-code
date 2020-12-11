@@ -24,7 +24,6 @@ from veredi.debug.const               import DebugFlag
 from veredi.base.context              import UnitTestContext
 
 from veredi.interface.input.event     import CommandInputEvent
-from veredi.game.data.identity.system import IdentitySystem
 from veredi.game.ecs.const            import SystemTick
 
 # import veredi.zest.debug.debug
@@ -46,7 +45,6 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
     def set_up(self):
         self.debug_flags = DebugFlag.GAME_ALL
         super().set_up()
-        self.init_one_system(IdentitySystem)
 
     # -------------------------------------------------------------------------
     # Tests
