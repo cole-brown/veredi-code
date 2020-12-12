@@ -252,23 +252,38 @@ class EventManager(EcsManager):
     # -------------------------------------------------------------------------
     # Subscribing
     # -------------------------------------------------------------------------
-
     def subscribe(self,
                   target_class: Type[Any],
                   handler_fn:   EventNotifyFn) -> None:
         '''
         Subscribe to all events triggered for `target_class` and any of its
         sub-classes.
+
+        Raises EventError if `handler_fn` is already a subscriber to
+        `target_class`.
         '''
-        self._log_debug("Adding subscriber {} for event {}.",
-                        handler_fn, target_class)
-        subs = self._subscriptions.setdefault(target_class, set())
-        if handler_fn in subs:
+        if self.is_subscribed(target_class, handler_fn):
+            error = EventError("Subscriber is trying to re-register."
+                               "subscriber: {}, event: {}")
             raise self._log_exception(EventError,
                                       "Subscriber is trying to re-register."
                                       "subscriber: {}, event: {}",
                                       handler_fn, target_class)
+
+        self._log_debug("Adding subscriber {} for event {}.",
+                        handler_fn, target_class)
+        subs = self._subscriptions.setdefault(target_class, set())
         subs.add(handler_fn)
+
+    def is_subscribed(self,
+                      target_class: Type[Any],
+                      handler_fn:   EventNotifyFn) -> None:
+        '''
+        Returns true if `handler_fn` is already in our subscriptions for
+        `target_class`.
+        '''
+        return handler_fn in self._subscriptions.get(target_class, set())
+
 
     # -------------------------------------------------------------------------
     # Event Helpers

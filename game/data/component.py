@@ -67,6 +67,7 @@ class DataComponent(Component):
 
         if data is False:
             raise ValueError("data is False.", context, cid, data)
+
         # This calls _configure with the context.
         super().__init__(context, cid)
 

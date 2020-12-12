@@ -9,7 +9,7 @@ Logging utilities for Veredi.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, MutableMapping)
+                    Optional, Union, Any, Type, MutableMapping)
 if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
 
@@ -381,7 +381,7 @@ class Lumberjack:
                      **kwargs)
 
     def exception(self,
-                  error: Exception,
+                  error:     Union[Exception, Type[Exception]],
                   msg:       Optional[str],
                   *args:     Any,
                   context:   Optional['VerediContext'] = None,
@@ -403,13 +403,12 @@ class Lumberjack:
             raise
         '''
         kwargs = self._stack(1, **kwargs)
-        log.exception(error,
-                      msg,
-                      *args,
-                      veredi_logger=self._logger,
-                      context=context,
-                      **kwargs)
-        return error
+        return log.exception(error,
+                             msg,
+                             *args,
+                             veredi_logger=self._logger,
+                             context=context,
+                             **kwargs)
 
     def at_level(self,
                  level: log.Level,

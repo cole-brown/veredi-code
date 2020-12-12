@@ -18,7 +18,7 @@ IdentityManager for... managing... IdentityComponents, UserIds, UserKeys, etc.
 # ---
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any, Type,
-                    MutableMapping, Dict, List, Literal)
+                    MutableMapping, Dict, Set, List, Literal)
 from veredi.base.null              import Null, Nullable, NullNoneOr
 if TYPE_CHECKING:
     from veredi.base.context       import VerediContext
@@ -172,6 +172,16 @@ class IdentityManager(EcsManagerWithEvents):
         assigned the same UserKey because familiars, companions, the DM...
         '''
 
+        self._anonymous: Set[EntityId] = set()
+        '''
+        Don't want any entities to not have identities, but currently nothing
+        ensure that. So just keep a collection of the anonymous ones.
+
+        TODO: Ensure that every entity gets some sort of IdentityComponent.
+          - But do it in a way unit testing can easily manage.
+            - Maybe an off/ignore flag.
+        '''
+
     def __init__(self,
                  config:         Optional[Configuration],
                  time_manager:   TimeManager,
@@ -238,6 +248,49 @@ class IdentityManager(EcsManagerWithEvents):
         return self._ukeys.inverse.get(user_key, None)
 
     # -------------------------------------------------------------------------
+    # IdentityComponent
+    # -------------------------------------------------------------------------
+
+    def component(self, entity_id: EntityId) -> Nullable['IdentityComponent']:
+        '''
+        Try to get entity. Try to get our IdentityComponent off entity.
+
+        Return component or Null().
+        '''
+        # Not set up right.
+        if not self._component_type:
+            return Null()
+
+        # Try to get entity (receive entity or Null), then return whatever from
+        # attempt to get component (component or Null).
+        entity = self._meeting.entity.get(entity_id)
+        component = entity.get(self._component_type)
+        return component
+
+    # -------------------------------------------------------------------------
+    # Health
+    # -------------------------------------------------------------------------
+
+    def _health_ok_event(self,
+                         event: 'Event') -> bool:
+        '''Check health, log if needed, and return True if able to proceed.'''
+        if not self._healthy(self._meeting.time.engine_tick_current):
+            meter = self._health_meter_event
+            output_log, meter = self._meeting.time.metered(meter)
+            self._health_meter_event = meter
+            if output_log:
+                msg = ("Dropping event {} - IdentityManager's health "
+                       "isn't good enough to process.")
+                kwargs = self._log_stack(None)
+                self._log_warning(
+                    f"HEALTH({self.health}): " + msg,
+                    event,
+                    context=event.context,
+                    **kwargs)
+            return False
+        return True
+
+    # -------------------------------------------------------------------------
     # Events
     # -------------------------------------------------------------------------
 
@@ -246,18 +299,26 @@ class IdentityManager(EcsManagerWithEvents):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
+        # Use EventManager.is_subscribed() to make this re-entrant -
+        # EventManager.subscribe() throws exceptions for repeated
+        # subscriptions.
+
         # IdentityRequests cover:
         #   - DataIdentityRequest - IdentityComponent backed by repo data.
         #                         - Mainly game data.
         #   - CodeIdentityRequest - IdentityComponent backed by code.
         #                         - Mainly unit tests that avoid needing repo.
-        self._event.subscribe(IdentityRequest,
-                              self.event_identity_req)
+        if not self._event.is_subscribed(IdentityRequest,
+                                         self.event_identity_req):
+            self._event.subscribe(IdentityRequest,
+                                  self.event_identity_req)
 
         # EntityLifeEvent:
         #   - Entity gets created/destroyed/etc.
-        self._event.subscribe(EntityLifeEvent,
-                              self.event_entity_life)
+        if not self._event.is_subscribed(EntityLifeEvent,
+                                         self.event_entity_life):
+            self._event.subscribe(EntityLifeEvent,
+                                  self.event_entity_life)
 
         return VerediHealth.HEALTHY
 
@@ -339,18 +400,7 @@ class IdentityManager(EcsManagerWithEvents):
         Identity thingy want; make with the component plz.
         '''
         # Doctor checkup.
-        if not self._health.in_best_health:
-            meter = self._health_meter_event
-            output_log, meter = self._meeting.time.metered(meter)
-            if output_log:
-                msg = ("Dropping event {} - our system health "
-                       "isn't good enough to process.")
-                kwargs = self._log_stack(None)
-                self._log_warning(
-                    f"HEALTH({self.health}): " + msg,
-                    event,
-                    context=event.context,
-                    **kwargs)
+        if not self._health_ok_event(event):
             return
 
         entity = self._entity.get_with_log(
@@ -425,22 +475,16 @@ class IdentityManager(EcsManagerWithEvents):
 
         elif entity_cycle == EntityLifeCycle.ALIVE:
             # They are now alive. Add to dictionaries.
-            id_comp = self.get(entity_id)
-            if not id_comp:
-                # No identity; make an empty one for now.
+            id_comp = self.component(entity_id)
 
-                # ------------------------------
-                # !!!! NOTE !!!!
-                # ------------------------------
-                # This has caused some stupid/annoying unit test errors! If you
-                # get here again because of them, this is probably a bad way of
-                # doing things and we should rethink.
-                log.ultra_mega_debug("No identity component for entity! "
-                                     f"eid: {entity_id}")
-                cid = self._create_component(entity_id,
-                                             False,
-                                             event.context)
-                id_comp = self._meeting.component.get(cid)
+            if not id_comp:
+                # No identity; just store as anonymous for now...
+                log.debug("Entity {} has entered life-cycle '{}' without any "
+                          "identity_component. We have no current solution to "
+                          "this conundrum... Recording as 'anonymous'.",
+                          entity_id, entity_cycle)
+                self._anonymous.add(entity_id)
+                return
 
             # Now they have an IdentityComponent - update our dicts.
             self._user_ident_update(entity_id,
@@ -491,7 +535,7 @@ class IdentityManager(EcsManagerWithEvents):
         if not self._meeting.time.is_reduced_tick(
                 tick,
                 self._reduced_tick_rate):
-            self.health = self.health.update(health)
+            self.health = health
             return self.health
         # - - - - - - - - - - -
         # !! REDUCED Tick Rate: START !!
@@ -505,7 +549,7 @@ class IdentityManager(EcsManagerWithEvents):
         # ---
         all_with_id = set()
         for entity in self._entity.each_with(self._component_type):
-            id_comp = self.get(entity.id)
+            id_comp = self.component(entity.id)
             if not id_comp:
                 continue
 
@@ -548,5 +592,5 @@ class IdentityManager(EcsManagerWithEvents):
         # ------------------------------
         # !! REDUCED Tick Rate: END !!
         # ------------------------------
-        self.health = self.health.update(health)
+        self.health = health
         return health

@@ -16,7 +16,7 @@ lumberjack.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, MutableMapping)
+                    Optional, Union, Any, Type, MutableMapping)
 if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
 
@@ -316,7 +316,7 @@ class LogMixin:
                                   **kwargs)
 
     def _log_exception(self,
-                       error: Exception,
+                       error:     Union[Exception, Type[Exception]],
                        msg:       Optional[str],
                        *args:     Any,
                        context:   Optional['VerediContext'] = None,
@@ -337,12 +337,11 @@ class LogMixin:
             )
         '''
         kwargs = self._log_stack(**kwargs)
-        self._lumberjack.exception(error,
-                                   msg,
-                                   *args,
-                                   context=context,
-                                   **kwargs)
-        return error
+        return self._lumberjack.exception(error,
+                                          msg,
+                                          *args,
+                                          context=context,
+                                          **kwargs)
 
     def _log_at_level(self,
                       level: log.Level,

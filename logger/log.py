@@ -745,7 +745,7 @@ def error(msg:           str,
                    **log_kwargs)
 
 
-def exception(exception:     Union[Exception, Type[Exception]],
+def exception(err_or_class:  Union[Exception, Type[Exception]],
               msg:           Optional[str],
               *args:         Any,
               context:       Optional['VerediContext'] = None,
@@ -754,21 +754,21 @@ def exception(exception:     Union[Exception, Type[Exception]],
     '''
     Log the exception at ERROR level.
 
-    If `exception` is a type, this will create and return an instance by
-    constructing: `exception(log_msg_output_str)`
+    If `err_or_class` is a type, this will create and return an instance by
+    constructing: `err_or_class(log_msg_output_str)`
 
-    If `exception` is Falsy, this logs at CRITICAL level instead.
+    If `err_or_class` is Falsy, this logs at CRITICAL level instead.
 
     If no `msg` supplied, will use:
         msg = "Exception caught. type: {}, str: {}"
-        args = [type(exception), str(exception)]
+        args = [type(err_or_class), str(err_or_class)]
 
     Otherwise error info will be tacked onto end.
       msg += " (Exception type: {err_type}, str: {err_str})"
-      kwargs['err_type'] = type(exception)
-      kwargs['err_type'] = str(exception)
+      kwargs['err_type'] = type(err_or_class)
+      kwargs['err_type'] = str(err_or_class)
 
-    Finially, this returns the `exception` supplied. This way you can do
+    Finially, this returns the `err_or_class` supplied. This way you can do
     something like:
       except SomeError as error:
           other_error = OtherError(...)
@@ -783,12 +783,12 @@ def exception(exception:     Union[Exception, Type[Exception]],
     # Why would you log an exception with no exception supplied?
     # Log critically. And judge them. Critically.
     # ---
-    if not exception:
+    if not err_or_class:
         critical(msg, *args,
                  context=context,
                  veredi_logger=veredi_logger,
                  **kwargs)
-        return exception
+        return err_or_class
 
     # ---
     # Did we get an instance or a type?
@@ -796,20 +796,22 @@ def exception(exception:     Union[Exception, Type[Exception]],
     make_instance = False
     log_msg_err_type = None
     log_msg_err_str = None
-    if (not isinstance(exception, Exception)
-            and issubclass(exception, VerediError)):
+    if (not isinstance(err_or_class, Exception)
+            and issubclass(err_or_class, VerediError)):
 
         # A truthy value we can check for doing VerediError vs Python Error.
-        make_instance = exception
+        make_instance = err_or_class
 
-    elif (not isinstance(exception, Exception)
-            and issubclass(exception, Exception)):
+        log_msg_err_type = err_or_class
+
+    elif (not isinstance(err_or_class, Exception)
+            and issubclass(err_or_class, Exception)):
         make_instance = True
-        log_msg_err_type = exception
+        log_msg_err_type = err_or_class
 
     else:
-        log_msg_err_str = str(exception)
-        log_msg_err_type = type(exception)
+        log_msg_err_str = str(err_or_class)
+        log_msg_err_type = type(err_or_class)
 
     # ---
     # Create log msg.
@@ -859,22 +861,24 @@ def exception(exception:     Union[Exception, Type[Exception]],
     # ---
     # Return the Exception instance.
     # ---
+    return_exception = err_or_class
     # Can finally make it if needed now that message is resolved.
     if (not isinstance(make_instance, bool)
             and issubclass(make_instance, VerediError)):
         # Make the VerediError.
-        exception = exception(log_msg,
-                              context=context,
-                              data={
-                                  'log': 'Auto-created by log.exception',
-                              })
+        return_exception = err_or_class(
+            log_msg,
+            context=context,
+            data={
+                'log': 'Auto-created by log.exception',
+            })
 
     elif make_instance is True:
         # Make the Python Exception.
-        exception = exception(log_msg)
+        return_exception = err_or_class(log_msg)
 
     # else it's an instance already - leave as-is.
-    return exception
+    return return_exception
 
 
 def critical(msg:           str,

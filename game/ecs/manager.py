@@ -69,6 +69,35 @@ class EcsManager(LogMixin, ABC):
                                   "Subclasses should defined it themselves.")
 
     # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @property
+    def health(self) -> VerediHealth:
+        return self._health
+
+    @health.setter
+    def health(self, update_value: VerediHealth) -> None:
+        '''
+        Sets self._health to the worst of current value and `update_value`.
+        '''
+        self._health = self._health.update(update_value)
+
+    def _healthy(self, tick: SystemTick) -> bool:
+        '''
+        Are we in a healthy/runnable state?
+
+        For ticks at end of game (TICKS_END), this is just any 'runnable'
+        health.
+
+        For the rest of the ticks (namely TICKS_RUN), this is only the 'best'
+        of health.
+        '''
+        if SystemTick.TICKS_END.has(tick):
+            return self._health.in_runnable_health
+        return self._health.in_best_health
+
+    # -------------------------------------------------------------------------
     # Life-Cycle Transitions
     # -------------------------------------------------------------------------
 
