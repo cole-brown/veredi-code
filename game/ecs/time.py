@@ -543,7 +543,7 @@ class TimeManager(EcsManagerWithEvents):
         if not reduced_tick:
             return False
 
-        if self._manager.time.tick_num >= reduced_tick.next:
+        if self.tick_num >= reduced_tick.next:
             # Update our DeltaNext to the next reduced tick number.
             reduced_tick.cycle(self.tick_num)
             return True

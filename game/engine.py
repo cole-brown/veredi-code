@@ -1650,8 +1650,11 @@ class Engine(LogMixin):
         '''
         Call EventManager's and SystemManager's update() functions with
         this tick.
+
+        Currently [2020-12-11], used for everything past start-up ticks.
         '''
         self.meeting.event.update(tick, self.meeting.time)
+        self.meeting.identity.update(tick)
         health = self.meeting.system.update(tick)
         return health
 
@@ -1762,12 +1765,18 @@ class Engine(LogMixin):
             self.meeting.entity.subscribe(self.meeting.event))
         health = health.update(
             self.meeting.system.subscribe(self.meeting.event))
+        health = health.update(
+            self.meeting.identity.subscribe(self.meeting.event))
+            # ERROR THE FIRST!
+            # ERROR THE SECOND?!
 
         # ---
         # Tick systems.
         # ---
         # Let all our running systems have an INTRA_SYSTEM tick.
         health = self.meeting.system.update(SystemTick.INTRA_SYSTEM)
+        health = health.update(
+            self.meeting.identity.update(SystemTick.INTRA_SYSTEM))
         events_published = self.meeting.event.update(
             SystemTick.INTRA_SYSTEM,
             self.meeting.time)

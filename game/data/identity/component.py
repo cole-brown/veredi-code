@@ -137,6 +137,7 @@ class IdentityComponent(DataComponent):
           - DataRestrictedError (VerediError)
           - NotImplementedError - temporarily
         '''
+
         # If no data, allow an empty identity, otherwise require valid data.
         if data is False:
             return
@@ -149,6 +150,7 @@ class IdentityComponent(DataComponent):
         '''
         Configure our data into whatever it needs to be for runtime.
         '''
+
         actual_data = data['identity']
         super()._from_data(actual_data)
 
@@ -187,7 +189,6 @@ class IdentityComponent(DataComponent):
         Set 'primary entity' flag for this entity/user.
         '''
         self._entity_prime = value
-        print(f"user.entity_prime setter: self._entity_prime <- {value}")
 
     # -------------------------------------------------------------------------
     # Properties: General Entity Names

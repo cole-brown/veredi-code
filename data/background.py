@@ -1152,7 +1152,7 @@ class command:
         entry = {
             'source': source_name,
             'name': command_name,
-            'time': system.manager.time.machine.stamp_to_str(),
+            'time': manager.time.machine.stamp_to_str(),
         }
         infos.append(entry)
 
