@@ -419,7 +419,7 @@ class MediatorSystem(System):
         # Assume IdentityManager exists.
         entity_id = event.id
         user_id = self._manager.identity.user_id(entity_id)
-        user_key = self._manager.identity.id_sys.user_key(entity_id)
+        user_key = self._manager.identity.user_key(entity_id)
         if not user_id:
             self._log_warning("Cannot send event; IdentityManager didn't have "
                               "a user_id for the entity to demark receipient: "
