@@ -246,7 +246,7 @@ class System(LogMixin, ABC):
 
         e.g. if we want every 10th SystemTick.CREATION for checking that some
         data is in sync, set:
-          self._set_reduced_tick_rate(SystemTick.CREATION, 10)
+          TimeManager.set_reduced_tick_rate(SystemTick.CREATION, 10)
         '''
 
     def __init__(self,
@@ -862,30 +862,6 @@ class System(LogMixin, ABC):
     # -------------------------------------------------------------------------
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
-
-    def _set_reduced_tick_rate(self, tick: SystemTick, rate: int) -> None:
-        '''
-        Set an entry into our reduced tick rate dict. This does nothing on its
-        own. System must use self._is_reduced_tick() to check for if/when they
-        want to do their reduced processing.
-        '''
-        self._reduced_tick_rate[tick] = DeltaNext(rate,
-                                                  self._manager.time.tick_num)
-
-    def _is_reduced_tick(self, tick: SystemTick) -> bool:
-        '''
-        Checks to see if this tick is the reduced-tick-rate tick.
-        '''
-        red_tick = self._reduced_tick_rate.get(tick, None)
-        if not red_tick:
-            return False
-
-        if self._manager.time.tick_num >= red_tick.next:
-            # Update our DeltaNext to the next reduced tick number.
-            red_tick.cycle(self._manager.time.tick_num)
-            return True
-
-        return False
 
     def wants_update_tick(self,
                           tick: SystemTick) -> bool:
