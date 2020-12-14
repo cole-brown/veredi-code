@@ -315,8 +315,10 @@ class InputSystem(System):
         if not self._health_ok_event(event):
             return
 
-        entity = self._log_get_entity(event.id,
-                                      event=event)
+        entity = self._manager.entity.get_with_log(
+            f'{self.__class__.__name__}',
+            event.id,
+            event=event)
         if not entity:
             # Entity disappeared, and that's ok.
             return
@@ -332,8 +334,10 @@ class InputSystem(System):
         if not self._health_ok_event(event):
             return
 
-        entity = self._log_get_entity(event.id,
-                                      event=event)
+        entity = self._manager.entity.get_with_log(
+            f'{self.__class__.__name__}',
+            event.id,
+            event=event)
         if not entity:
             # Entity disappeared, and that's ok.
             return

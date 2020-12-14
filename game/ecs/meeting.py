@@ -10,7 +10,8 @@ Manager interface for ECS managers.
 
 from typing import (TYPE_CHECKING,
                     Union, Optional, Type, Any, Set, Tuple, Dict)
-from veredi.base.null import NullNoneOr, NullFalseOr, Null, null_or_none
+from veredi.base.null import (NullNoneOr, NullFalseOr, Nullable,
+                              Null, null_or_none)
 if TYPE_CHECKING:
     from .manager            import EcsManager
     from veredi.base.context import VerediContext
@@ -306,6 +307,38 @@ class Meeting:
         self.entity.attach(entity_id, retval)
 
         return retval
+
+    def get_with_log(self,
+                     caller: str,
+                     entity_id: 'EntityId',
+                     comp_type: Type['Component'],
+                     event:     NullNoneOr['Event']         = None,
+                     context:   NullNoneOr['VerediContext'] = None,
+                     preface:   Optional[str]               = None
+                     ) -> Tuple[Nullable['Entity'], Nullable['Component']]:
+        '''
+        Checks to see if entity exists and has a component of the correct type.
+
+        Returns a tuple of (entity, component) if so.
+        Logs at INFO level and returns Null() for non-existant pieces, so:
+            (Null(), Null())
+          or
+            (entity, Null())
+        '''
+        # Just `get` entity... `ComponentManager.get_with_log()` will call
+        # `EntityManager.get_with_log()`, and that will give us both logs if
+        # needed.
+        entity = self.entity.get(entity_id)
+        component = self.component.get_with_log(caller,
+                                                entity_id,
+                                                comp_type,
+                                                event=event,
+                                                context=context,
+                                                preface=preface)
+        # entity or Null(), and
+        # component or Null(), so...
+        return (entity, component)
+
 
     # -------------------------------------------------------------------------
     # Life-Cycle Management

@@ -135,9 +135,11 @@ class D20RulesSystem(System):
         '''
         # We'll use Null(). Callers should do checks/logs if they want more
         # info about missing ent/comp.
-        entity, component = self._log_get_both(entity_id,
-                                               self._component_type,
-                                               context=context)
+        entity, component = self._manager.get_with_log(
+            f'{self.__class__.__name__}._query',
+            entity_id,
+            self._component_type,
+            context=context)
         if not entity or not component:
             return Null()
 

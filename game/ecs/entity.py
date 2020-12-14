@@ -286,8 +286,8 @@ class EntityManager(EcsManagerWithEvents):
                 if not context:
                     context = event.context
             # Entity disappeared, and that's ok.
-            self._log_info("{}No entity for its id: {}",
-                           preface, entity_id,
+            self._log_info("{}: {}No entity for its id: {}",
+                           caller, preface, entity_id,
                            context=context)
             return Null()
 
