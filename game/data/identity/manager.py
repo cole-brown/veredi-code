@@ -125,7 +125,7 @@ class IdentityManager(EcsManagerWithEvents):
 
         e.g. if we want every 10th SystemTick.CREATION for checking that some
         data is in sync, set:
-          self._set_reduced_tick_rate(SystemTick.CREATION, 10)
+          TimeManager.set_reduced_tick_rate(SystemTick.CREATION, 10)
         '''
 
         # ------------------------------
