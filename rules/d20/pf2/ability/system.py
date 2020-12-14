@@ -211,7 +211,8 @@ class AbilitySystem(D20RulesSystem):
             return CommandStatus.system_health(context)
 
         eid = InputContext.source_id(context)
-        entity, component = self._log_get_both(
+        entity, component = self._manager.get_with_log(
+            f'{self.__class__.__name__}.command_ability',
             eid,
             self._component_type,
             context=context,
@@ -245,9 +246,11 @@ class AbilitySystem(D20RulesSystem):
         if not self._health_ok_event(event):
             return
 
-        entity, component = self._log_get_both(event.id,
-                                               self._component_type,
-                                               event=event)
+        entity, component = self._manager.get_with_log(
+            f'{self.__class__.__name__}.command_ability',
+            event.id,
+            self._component_type,
+            event=event)
         if not entity or not component:
             # Entity or component disappeared, and that's ok.
             return

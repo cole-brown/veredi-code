@@ -26,15 +26,17 @@ Inspired by:
 from typing import (TYPE_CHECKING,
                     Optional, Union, Type, Any, NewType,
                     Iterable, Set, List, Dict)
+from veredi.base.null import NullNoneOr, Nullable, Null
 if TYPE_CHECKING:
     from .time import TimeManager
     from veredi.base.identity import MonotonicIdGenerator
+
 
 from veredi.logger             import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
-from veredi.base.null                import Null
+from veredi.data               import background
 
 from .base.exceptions          import EcsComponentError
 from .base.identity            import ComponentId
@@ -221,6 +223,57 @@ class ComponentManager(EcsManagerWithEvents):
         Returns the Component object or the Null() singleton object.
         '''
         return self._component_by_id.get(component_id, Null())
+
+    def get_with_log(self,
+                     caller: str,
+                     entity_id: 'EntityId',
+                     comp_type: Type['Component'],
+                     event:     NullNoneOr['Event']         = None,
+                     context:   NullNoneOr['VerediContext'] = None,
+                     preface:   Optional[str]               = None
+                     ) -> Nullable['Component']:
+        '''
+        Checks to see if entity exists and has a component of the correct type.
+
+        Returns the entity's component if so.
+        Logs at INFO level and returns Null if not.
+
+        Automatically creates preface for events: 'Dropping event {event} - '
+        But if `preface` is not None, it will use that. So for commands, e.g.:
+          'Dropping command {command_name} - '
+        could be a good preface. Note the trailing space.
+
+        Prepends `caller` to log.
+          f'{self.__class__.__name__}.<insert_method_name_here>'
+        Is a decent string to pass.
+        '''
+        # entity or Null(), so... No need to check.
+        entity = background.manager.entity.get_with_log(caller,
+                                                        entity_id,
+                                                        event=event,
+                                                        context=context,
+                                                        preface=preface)
+
+        # Now we can (try to) get the component, with logging if None/Null.
+        component = entity.get(comp_type)
+        if not component:
+            preface = preface or ''
+            if event:
+                preface = preface or f"Dropping event {event} - "
+                if not context:
+                    context = event.context
+            # Component disappeared, and that's ok.
+            self._log_info("{}: {}No '{}' on entity: {}",
+                           caller,
+                           preface,
+                           component.__class__.__name__,
+                           entity,
+                           context=context)
+            # TODO [2020-06-04]: a health thing? e.g.
+            # self._health_update(ComponentDNE)
+            return Null()
+
+        return component
 
     def _create_by_registry(self,
                             cid: ComponentId,

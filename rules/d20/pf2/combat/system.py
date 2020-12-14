@@ -194,7 +194,8 @@ class CombatSystem(D20RulesSystem):
             return CommandStatus.system_health(context)
 
         eid = InputContext.source_id(context)
-        entity, component = self._log_get_both(
+        entity, component = self._manager.get_with_log(
+            f'{self.__class__.__name__}.command_attack',
             eid,
             self._component_type,
             context=context,

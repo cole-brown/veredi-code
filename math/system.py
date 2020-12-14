@@ -233,9 +233,11 @@ class MathSystem(System):
     #             context=event.context)
     #         return
 
-    #     entity, component = self._log_get_both(event.id,
-    #                                            SkillComponent,
-    #                                            event=event)
+    #     entity, component = background.manager.meeting.get_with_log(
+    #         f'{self.__class__.__name__}.event_skill_req'
+    #         event.id,
+    #         SkillComponent,
+    #         event=event)
     #     if not entity or not component:
     #         # Entity or component disappeared, and that's ok.
     #         return
