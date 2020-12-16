@@ -9,29 +9,37 @@ Base class for game tick time.
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Union
+from veredi.base.null import Null, Nullable, NullNoneOr
+
+from abc import ABC, abstractmethod
 
 import decimal
 from decimal import Decimal
 
-from veredi.math import mathing
+from veredi.base import numbers
+from veredi.data.config.config import Configuration
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-# We will convert any of these into Decimal
-TickTypes = Union[Decimal, int, float, str]
-
 
 # -----------------------------------------------------------------------------
 # Game Time
 # -----------------------------------------------------------------------------
 
-class TickBase:
+class TickBase(ABC):
     '''
-    Keep a game tick clock.
+    Keep a game tick clock. Base class is quite generic to allow subclasses
+    like:
+      - Round/Turn-based Ticking
+      - Fixed-Time (Real-Time) Ticking
     '''
+
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
 
     _PRECISION = 6
     '''
@@ -39,18 +47,33 @@ class TickBase:
     See Python docs for `decimal.getcontext().prec`.
     '''
 
-    def __init__(self,
-                 tick_amount: TickTypes,
-                 curr_secs: Optional[TickTypes] = None) -> None:
-        '''
-        New TickBase class that advances time `tick_amount` each tick and
-        starts off time at `curr_secs`.
-        '''
-        curr_secs = curr_secs or 0
-        self._seconds = Decimal(curr_secs)
-        self._tick_amt = Decimal(tick_amount)
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
-        self._num_ticks = 0
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+
+        self._current_seconds: Decimal = 0
+        '''
+        Current Game/Tick time in seconds.
+        '''
+
+        self._ticks: Decimal = 0
+        '''
+        Just some counter for keeping track of delta ticks. This starts at zero
+        each game session.
+        '''
+
+    def __init__(self) -> None:
+        '''
+        New TickBase. Will get its current_seconds from repository eventually
+        once repo and config are both ready (i.e. when `TickBase.config()` is
+        called).
+        '''
+        self._define_vars()
 
         # ---
         # Decimal Context Set-Up (Not VeredicContexts)
@@ -71,44 +94,85 @@ class TickBase:
 
         # And leave that context set, as we want that one usually.
 
+    @abstractmethod
+    def configure(self,
+                  config: NullNoneOr[Configuration]) -> None:
+        '''
+        Get current-seconds from repository, and whatever else sub-class needs
+        from repo, config, etc.
+        '''
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented in base class. "
+                                  "Subclasses should implement it.")
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
     @property
-    def seconds(self) -> Decimal:
+    def current_seconds(self) -> Decimal:
         return self._seconds
 
-    @seconds.setter
-    def seconds(self, value: TickTypes) -> None:
+    @current_seconds.setter
+    def current_seconds(self, value: numbers.DecimalTypes) -> None:
         decimal.setcontext(self._context_extended)
         self._seconds = Decimal(value)
         decimal.setcontext(self._context_basic)
 
-    @property
-    def tick_amt(self) -> Decimal:
-        return self._tick_amt
+    # -------------------------------------------------------------------------
+    # Identification
+    # -------------------------------------------------------------------------
 
-    @tick_amt.setter
-    def tick_amt(self, value: TickTypes) -> None:
-        decimal.setcontext(self._context_extended)
-        self._tick_amt = Decimal(value)
-        decimal.setcontext(self._context_basic)
+    @classmethod
+    @abstractmethod
+    def dotted(klass: 'System') -> str:
+        """
+        The dotted name this system has. If the system uses '@register', you
+        still have to implement dotted, but you get klass._DOTTED for free
+        (the @register decorator sets it).
 
-    def step(self) -> Decimal:
+        E.g.
+          @register('veredi', 'jeff', 'system')
+        would be:
+          klass._DOTTED = 'veredi.jeff.system'
+
+        So just implement like this:
+
+            @classmethod
+            def dotted(klass: 'JeffSystem') -> str:
+                '''
+                Returns our dotted name.
+                '''
+                # klass._DOTTED magically provided by @register
+                return klass._DOTTED
+        """
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented in base class. "
+                                  "Subclasses should get it defined via "
+                                  "@register, or else define it themselves.")
+
+    # -------------------------------------------------------------------------
+    # Ticking
+    # -------------------------------------------------------------------------
+    #
+    # `TickBase.delta()` is the function to tick every SystemTick.TIME. This
+    # "advances" time by one "delta" - a time amount that has no meaning here
+    # (subclasses must decide its meaning).
+
+    @abstractmethod
+    def delta(self) -> Decimal:
         '''
-        Add `self._tick_amt` seconds to the Tick counter.
-        Positive, negative, whatever.
+        This is the function to tick every SystemTick.TIME. This "advances"
+        time by one "delta" - a time amount that has no meaning here
+        (subclasses must decide its meaning).
 
-        Adds -1, 0, or 1 to `self._num_ticks`, depending on what self._tick_amt
-        is.
+        NOTE: Subclasses can/should adjust this as needed. E.g. to add a fixed
+        amount of time to self._seconds if on a fixed time tick.
 
-        Returns self.seconds after this time step.
+        Get ready for this game run ticks cycle. Increment tick,
+        current_seconds, or whatever by one delta amount.
+
+        Returns self._ticks after this time step.
         '''
-        self._seconds += self._tick_amt
-        self._num_ticks += mathing.sign(self._tick_amt)
-        return self._seconds
-
-    @property
-    def tick_num(self) -> int:
-        return self._num_ticks
-
-    @tick_num.setter
-    def tick_num(self, value: int) -> None:
-        self._num_ticks = value
+        self._ticks += 1
+        return self._ticks

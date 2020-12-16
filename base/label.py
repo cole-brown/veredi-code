@@ -11,6 +11,8 @@ Helpers for names.
 from typing import Optional, Union, Any, Mapping, List, Tuple
 from .null import Nullable, Null
 
+import collections
+
 import pathlib
 
 # CANNOT IMPORT LOG. Circular import.
@@ -79,23 +81,106 @@ def split(dotted: str) -> List[str]:
     return dotted.split('.')
 
 
-def to_path(*args: str) -> Nullable[pathlib.Path]:
+def normalize(*dotted: Union[str, List[str]],
+              to_str:  bool = False) -> Union[str, List[str]]:
     '''
-    Takes either iterable of strings or dotted string.
-    Converts to iterable of strings if needed via dotted().
-    Returns a path of the args.
+    Normalize input `dotted` strings and/or lists of strings into one list of
+    strings (or one dotted string if `to_str` is True).
+
+    Defaults to returning a list of strings.
+      - Returns a dotted string if `to_str` keyword arg is True.
+    '''
+    # (Shallow) copy the list; we'll be flattening it as we go.
+    flatten = list(dotted)
+
+    # Loop over the list and flatten as we go.
+    i = 0
+    while i < len(flatten):
+        # Loop over element if it's a sub-list.
+        while (not isinstance(flatten[i], (str, bytes))
+               and isinstance(flatten[i], collections.abc.Sequence)):
+            # Nothing in this sub-list? Get rid of it.
+            if not flatten[i]:
+                flatten.pop(i)
+                i -= 1
+
+            # Something in the sub-list: stitch it into primary list,
+            # flattening one level.
+            # Example:        v-----(i=2)-----v
+            #    list: [1, 2, [3, [...m], ...n], ...o]
+            #      ->  [1, 2, 3, [...m], ...n, ...o]
+            else:
+                flatten[i:i + 1] = flatten[i]
+
+        # Dropped out of our list-stitching, or this index isn't a list...
+        # Either way - just increment and continue
+        i += 1
+
+    # Done walking the list. It is flat.
+    return flatten
+
+
+def normalize(*dotted: Union[str, List[str]],
+              to_str:  bool = False) -> Nullable[Union[str, List[str]]]:
+    '''
+    Normalize input `dotted` strings and/or lists of strings into one list of
+    strings or dotted string.
+
+    Returns:
+      Defaults to returning a list of strings.
+        - Returns a dotted string if `to_str` keyword arg is True.
+      Can return Null()
+    '''
+    if not dotted:
+        return Null()
+
+    # Copy the list, since we'll be tearing it up as we go.
+    input_list = list(dotted)
+    flattened = []
+    i = 0
+    # Loop over the input.
+    while i < len(input_list):
+        # Loop over element if it's a list.
+        while isinstance(input_list[i], collections.abc.Sequence):
+            # Nothing in this sub-list? Get rid of it.
+            if not input_list[i]:
+                input_list.pop(i)
+                i -= 1
+
+            # Something in the sub-list: stitch it into the next thing.
+            else:
+                input_list[i:i + 1] = input_list[i]
+
+        # Dropped out of our list-stitching. Have a thing to put in the output?
+        i += 1
+
+    if not flattened:
+        return Null()
+    return flattened
+
+
+def to_path(*args: Union[str, List[str]]) -> Nullable[pathlib.Path]:
+    '''
+    Takes `args` (either iterable of strings or dotted string), `normalize()`
+    it/them, and returns a pathlib.Path made from them.
 
     e.g.:
       'veredi.jeff.system'         -> pathlib.Path('veredi/jeff/system')
       ['veredi', 'jeff', 'system'] -> pathlib.Path('veredi/jeff/system')
+      ['veredi', 'jeff.system']    -> pathlib.Path('veredi/jeff/system')
+
+    Returns Path or Null()
     '''
     if not args:
         return Null()
 
-    if len(args) == 1:
-        args = split(args[0])
-
-    return pathlib.Path(*args)
+    # Normalize the args to split whatever they are into a list of strings,
+    # then build a Path to return from that.
+    norm = normalize(*args)
+    if not norm:
+        # Turns out args weren't anything?
+        return Null()
+    return pathlib.Path(*norm)
 
 
 def from_path(path: Union[str, pathlib.Path, Null]) -> Optional[str]:

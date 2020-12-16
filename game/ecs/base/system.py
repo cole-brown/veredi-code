@@ -285,7 +285,7 @@ class System(LogMixin, ABC):
     @classmethod
     @abstractmethod
     def dotted(klass: 'System') -> str:
-        '''
+        """
         The dotted name this system has. If the system uses '@register', you
         still have to implement dotted, but you get klass._DOTTED for free
         (the @register decorator sets it).
@@ -299,9 +299,12 @@ class System(LogMixin, ABC):
 
             @classmethod
             def dotted(klass: 'JeffSystem') -> str:
+                '''
+                Returns our dotted name.
+                '''
                 # klass._DOTTED magically provided by @register
                 return klass._DOTTED
-        '''
+        """
         raise NotImplementedError(f"{klass.__name__}.dotted() "
                                   "is not implemented in base class. "
                                   "Subclasses should get it defined via "

@@ -1,0 +1,22 @@
+--- !metadata
+record-type: veredi.save.game.record
+version: 2020-12-14
+
+source: veredi.game.dossier
+authors:
+  - name: Cole Brown
+    date: 2020-12-14
+    note: Initial.
+
+system: d20.pf2
+name: veredi.rules.d20.pf2.game
+display-name: Veredi d20 PF2 Saved Game Data
+
+
+--- !game.record
+
+# meta:
+#   registry: veredi.rules.d20.pf2.game
+
+time:
+  round: 6 seconds
