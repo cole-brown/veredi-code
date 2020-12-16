@@ -25,9 +25,19 @@ NullFalseOr = Union[NType, 'Null', Literal[False]]
 # Null Helpers
 # -----------------------------------------------------------------------------
 
+def is_null(check):
+    '''
+    Helper to see if `check` is Null.
+
+    "check is Null()" works just as well, but I've forgotten that at least 4
+    times.
+    '''
+    return check is Null()
+
+
 def null_or_none(check):
     '''
-    Makes sure `check` is neither Null nor None.
+    Helper to see if `check` is Null nor None.
     '''
     return (check is Null()
             or check is None)
@@ -35,7 +45,7 @@ def null_or_none(check):
 
 def null_to_none(check):
     '''
-    Converts `check` to `None` if it is `Null`.
+    Helper to convert `check` to `None` if it is `Null`.
     Returns `check` otherwise.
     '''
     return (None if check is Null() else check)

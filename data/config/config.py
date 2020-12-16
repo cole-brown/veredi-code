@@ -9,7 +9,7 @@ Configuration file reader/writer for Veredi games.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, Mapping)
+                    Optional, Any, Mapping, Tuple)
 from veredi.base.null import Nullable, Null
 if TYPE_CHECKING:
     from veredi.base.context         import VerediContext
@@ -20,7 +20,7 @@ import pathlib
 
 from veredi.logger          import log
 from veredi.base.exceptions import VerediError
-from veredi.data.context    import DataBareContext
+from veredi.data.context    import DataBareContext, DataLoadContext
 from ..                     import background
 from veredi.base.const      import VerediHealth
 
@@ -102,6 +102,19 @@ class Configuration:
 
         self._load()
         self._set_up()
+
+    # -------------------------------------------------------------------------
+    # TODO: TEMP FUNC
+    # -------------------------------------------------------------------------
+    # TODO: Move to correct place?
+    # TODO: Get this data from.... where?
+
+    def campaign(self) -> str:
+        '''
+        Repo key for the campaign (game save data).
+        '''
+        # TODO: implement
+        return 'unit-test'
 
     # -------------------------------------------------------------------------
     # Context Properties/Methods
@@ -409,6 +422,21 @@ class Configuration:
                 type(document),
                 str(document))
 
+    def _repo_serdes(self) -> Tuple[BaseRepository, BaseSerdes]:
+        '''
+        Gets background Repository and Serdes.
+        '''
+        repo = background.manager.data.repository
+        serdes = background.manager.data.serdes
+        if not repo or not serdes:
+            raise log.exception(
+                exceptions.ConfigError,
+                "No repostiory or serdes in background data. "
+                "repo: {}, serdes: {}",
+                str(repo),
+                str(serdes))
+        return repo, serdes
+
     def definition(self,
                    dotted_name: str,
                    context: 'VerediContext') -> Nullable[Mapping[str, Any]]:
@@ -420,19 +448,33 @@ class Configuration:
         For out-of-band loading like during system init/set_up phases where
         timing and consistent ticking aren't critical.
         '''
-        def_repo = background.manager.data.repository
-        def_serdes = background.manager.data.serdes
-        if not def_repo or not def_serdes:
-            raise log.exception(
-                exceptions.ConfigError,
-                "Cannot load definition for {}! "
-                "No repostiory or serdes. repo: {}, serdes: {}",
-                dotted_name,
-                str(def_repo),
-                str(def_serdes))
+        repo, serdes = self._repo_serdes()
+        loaded = repo.definition(dotted_name, context)
+        decoded = serdes.deserialize_all(loaded, context)
+        return decoded
 
-        loaded = def_repo.definition(dotted_name, context)
-        decoded = def_serdes.deserialize_all(loaded, context)
+    def game(self) -> Nullable[Mapping[str, Any]]:
+        '''
+        Loads the game's saved (meta-)data from the game data repository.
+
+        Saves it to the background.
+        Returns it.
+        '''
+        repo, serdes = self._repo_serdes()
+
+        # Create a load context for the game's data.
+        load_context = DataLoadContext(self.dotted(),
+                                       DataLoadContext.DataType.GAME,
+                                       self.campaign())
+        load_context.game_load_request()
+
+        # Get game's saved (meta-)data from repo.
+        loaded = repo.game(load_context)
+        decoded = serdes.deserialize_all(loaded, load_context)
+
+        # Save to background and return.
+        background.data.link_set(background.data.Link.GAME_SAVED,
+                                 decoded)
         return decoded
 
     # -------------------------------------------------------------------------

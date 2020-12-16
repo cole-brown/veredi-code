@@ -1,17 +1,23 @@
 --- !metadata
 record-type: veredi.definition.system
-version: 2020-05-26
+version: 2020-12-14
 
-source: veredi.system
-author: Cole Brown
-date:   2020-06-30
+source: veredi.rules
+authors:
+  - name: Cole Brown
+    date: 2020-12-14
+    note: Updated metadata.
+
+  - name: Cole Brown
+    date: 2020-06-30
+    note: Initial.
 
 system: d20.pf2
 name: veredi.rules.d20.pf2.ability.config
 display-name: Veredi d20 PF2 Abilities Configuration
 
 
---- !system.definition
+--- !definition.system
 
 meta:
   registry: veredi.rules.d20.pf2.ability.system

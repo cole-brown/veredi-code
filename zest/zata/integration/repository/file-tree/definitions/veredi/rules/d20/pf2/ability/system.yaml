@@ -11,7 +11,7 @@ name: veredi.rules.d20.pf2.ability.config
 display-name: Veredi D20 PF2 Abilities Configuration
 
 
---- !system.definition
+--- !definition.system
 
 meta:
   registry: veredi.rules.d20.pf2.ability.system

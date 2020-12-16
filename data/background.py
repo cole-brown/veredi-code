@@ -440,17 +440,21 @@ class config(metaclass=ConfigMeta):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def exception(klass:     Type['config'],
-                  context:   'VerediContext',
-                  msg:       Optional[str],
-                  *args:     Any,
-                  **kwargs:  Any) -> None:
+    def exception(klass:      Type['config'],
+                  context:    'VerediContext',
+                  msg:        Optional[str],
+                  *args:      Any,
+                  error_data: Optional[Dict[Any, Any]] = None,
+                  **kwargs:   Any) -> None:
         '''
         Calls log.exception() to raise a ConfigError with message built from
         msg, args, kwargs and with supplied context.
 
         Sets stack level one more than usual so that caller of this should be
         the stacktrace of the exception.
+
+        If optional `error_data` is not None, it will be supplied to the
+        created ConfigError as the `data` parameter in the constructor.
         '''
         kwargs = log.incr_stack_level(**kwargs)
         # If we raised instead of returned, we could add an extra stacklevel to
@@ -461,6 +465,7 @@ class config(metaclass=ConfigMeta):
         return log.exception(
             ConfigError,
             msg, *args, **kwargs,
+            error_data=error_data,
             context=context)
 
     # -------------------------------------------------------------------------

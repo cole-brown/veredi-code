@@ -28,7 +28,8 @@ from veredi.data                 import background
 
 from veredi.base                 import label
 from veredi.data.context         import (DataBareContext,
-                                         DataGameContext)
+                                         DataGameContext,
+                                         DataLoadContext)
 from veredi.data.config.context  import ConfigContext
 
 from ..                          import exceptions
@@ -177,9 +178,9 @@ class FileBareRepository(base.BaseRepository):
         log.debug("root is: {}", self._root)
         return self._root
 
-    def _definiton_path(self,
-                        dotted_name: str,
-                        context: 'VerediContext') -> pathlib.Path:
+    def _definition_path(self,
+                         dotted_name: str,
+                         context: 'VerediContext') -> pathlib.Path:
         '''
         Turns a dotted name into a path.
         '''
@@ -198,9 +199,19 @@ class FileBareRepository(base.BaseRepository):
 
         return self._load(load_path, context)
 
+    def game(self,
+             campaign: str,
+             context: 'DataLoadContext') -> 'TextIOBase':
+        '''
+        Load the game's record(s) from the repository.
+        '''
+        raise NotImplementedError(f"{self.__class__.__name__}.game() "
+                                  "is not implemented. "
+                                  "This class cannot load game data.")
+
     def definition(self,
                    dotted_name: str,
-                   context: 'VerediContext') -> TextIOBase:
+                   context: 'DataLoadContext') -> TextIOBase:
         '''
         Load a definition file by splitting `dotted_name` and looking there for
         a file matching a glob we create.
@@ -208,13 +219,13 @@ class FileBareRepository(base.BaseRepository):
         e.g. if `dotted_name` is 'veredi.rules.d20.skill.system', this will
         look in self.root for "veredi/rules/d20/skill/system.*".
         '''
-        defpath = self._definiton_path(dotted_name, context)
+        defpath = self._definition_path(dotted_name, context)
 
         return self._load(defpath, context)
 
     def _context_load_data(self,
-                           context: 'VerediContext',
-                           load_path: pathlib.Path) -> 'VerediContext':
+                           context: 'DataLoadContext',
+                           load_path: pathlib.Path) -> 'DataLoadContext':
         '''
         Inject our repository data and our load data into the context.
         In the case of file repositories, include the file path.
@@ -228,7 +239,7 @@ class FileBareRepository(base.BaseRepository):
 
     def _load(self,
               load_path: pathlib.Path,
-              context: 'VerediContext') -> TextIOBase:
+              context: 'DataLoadContext') -> TextIOBase:
         '''
         Looks for file at load_path. If it exists, loads that file.
         '''
@@ -405,16 +416,6 @@ class FileTreeRepository(base.BaseRepository):
         log.debug("root is: {}", self._root)
         return self._root
 
-    def _definiton_path(self,
-                        dotted_name: str,
-                        context: 'VerediContext') -> pathlib.Path:
-        '''
-        Turns a dotted name into a path.
-        '''
-        path = label.to_path(dotted_name)
-        return self.rooted_path(self.Category.DEFINITIONS,
-                                self._ext_glob(path))
-
     def load(self,
              context: DataGameContext) -> TextIOBase:
         '''
@@ -427,9 +428,20 @@ class FileTreeRepository(base.BaseRepository):
         pattern_path = self._id_to_path(ids, context)
         return self._load(pattern_path, context)
 
+    def game(self,
+             campaign: str,
+             context: 'DataLoadContext') -> 'TextIOBase':
+        '''
+        Load the game's record(s) from the repository.
+        '''
+        defpath = self._dotted_to_path(self.Category.GAME,
+                                       ['game', campaign, 'game', 'record'],
+                                       context)
+        return self._load(defpath, context)
+
     def definition(self,
                    dotted_name: str,
-                   context: 'VerediContext') -> TextIOBase:
+                   context: 'DataLoadContext') -> TextIOBase:
         '''
         Load a definition file by splitting `dotted_name` and looking there for
         a file matching a glob we create.
@@ -437,12 +449,14 @@ class FileTreeRepository(base.BaseRepository):
         e.g. if `dotted_name` is 'veredi.rules.d20.skill.system', this will
         look in self.root for "veredi/rules/d20/skill/system.*".
         '''
-        defpath = self._definiton_path(dotted_name, context)
+        defpath = self._dotted_to_path(self.Category.DEFINITION,
+                                       dotted_name,
+                                       context)
         return self._load(defpath, context)
 
     def _context_load_data(self,
-                           context: 'VerediContext',
-                           load_path: pathlib.Path) -> 'VerediContext':
+                           context: 'DataLoadContext',
+                           load_path: pathlib.Path) -> 'DataLoadContext':
         '''
         Inject our repository data and our load data into the context.
         In the case of file repositories, include the file path.
@@ -456,7 +470,7 @@ class FileTreeRepository(base.BaseRepository):
 
     def _load(self,
               pattern_path: pathlib.Path,
-              context: 'VerediContext') -> TextIOBase:
+              context: 'DataLoadContext') -> TextIOBase:
         '''
         Looks for a match to pattern_path by splitting into parent dir and
         glob/file name. If only one match, loads that file.
@@ -584,25 +598,9 @@ class FileTreeRepository(base.BaseRepository):
                       ids)
         return ids
 
-    def _id_to_path(self,
-                    ids:     List[PathType],
-                    context: DataGameContext) -> pathlib.Path:
-        '''
-        Turn identity stuff into filepath components.
-        '''
-        return self.rooted_path(self.Category.GAME,
-                                *self._ext_glob_list(ids))
-
     # -------------------------------------------------------------------------
     # Paths In General
     # -------------------------------------------------------------------------
-
-    def rooted_path(self, category: Category, *args: PathType) -> pathlib.Path:
-        '''
-        Assumes args are already safe, joins them all to `self.root` and
-        returns the pathlib.Path.
-        '''
-        return self.root.joinpath(category.value, *args)
 
     def _ext_glob_list(self, elements: List[PathType]) -> List[PathType]:
         '''Concatenates extensions glob onto last path element is list.'''
@@ -623,6 +621,33 @@ class FileTreeRepository(base.BaseRepository):
             element = element + ".*"
 
         return element
+
+    def _dotted_to_path(self,
+                        category: Category,
+                        dotted:   Union[str, List[str]],
+                        context:  'VerediContext') -> pathlib.Path:
+        '''
+        Turns a dotted name into a path.
+        '''
+        path = label.to_path(dotted_name)
+        return self.rooted_path(category,
+                                self._ext_glob(path))
+
+    def _id_to_path(self,
+                    ids:     List[PathType],
+                    context: DataGameContext) -> pathlib.Path:
+        '''
+        Turn identity stuff into filepath components.
+        '''
+        return self.rooted_path(self.Category.GAME,
+                                *self._ext_glob_list(ids))
+
+    def rooted_path(self, category: Category, *args: PathType) -> pathlib.Path:
+        '''
+        Assumes args are already safe, joins them all to `self.root` and
+        returns the pathlib.Path.
+        '''
+        return self.root.joinpath(category.value, *args)
 
     # -------------------------------------------------------------------------
     # Path Safing

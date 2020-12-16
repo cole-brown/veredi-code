@@ -14,7 +14,7 @@ from typing import (TYPE_CHECKING,
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
     from veredi.data.config.context import ConfigContext
-    from veredi.data.context import BaseDataContext
+    from veredi.data.context import BaseDataContext, DataLoadContext
     from io import TextIOBase
 
 from abc import ABC, abstractmethod
@@ -100,9 +100,19 @@ class BaseRepository(ABC):
         ...
 
     @abstractmethod
+    def game(self,
+             campaign: str,
+             context: 'DataLoadContext') -> 'TextIOBase':
+        '''
+        Load the game's record(s) from the repository.
+        '''
+        raise NotImplementedError(f"{self.__class__.__name__}.definition() "
+                                  "is not implemented.")
+
+    @abstractmethod
     def definition(self,
                    dotted_name: str,
-                   context: 'VerediContext') -> 'TextIOBase':
+                   context: 'DataLoadContext') -> 'TextIOBase':
         '''
         Load a definition data from repository based on `dotted_name`.
         '''

@@ -1053,12 +1053,16 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
               *args:         Any,
               context:       Optional['VerediContext'] = None,
               veredi_logger: NullNoneOr[logging.Logger] = None,
+              error_data:    Optional[Dict[Any, Any]] = None,
               **kwargs:      Any) -> None:
     '''
     Log the exception at ERROR level.
 
     If `err_or_class` is a type, this will create and return an instance by
     constructing: `err_or_class(log_msg_output_str)`
+      - If optional `error_data` is not None, it will be supplied to the
+        created error as the `data` parameter in the constructor.
+        - It will be ignored if `err_or_class` is an instance already.
 
     If `err_or_class` is Falsy, this logs at CRITICAL level instead.
 
@@ -1132,13 +1136,22 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
     if (not isinstance(make_instance, bool)
             and (issubclass(make_instance, VerediError)
                  or make_instance is VerediError)):
+        # Get the error's extra data ready with something about how we
+        # ctor'd this here.
+        data = None
+        if error_data:
+            data = error_data
+            data['log'] = 'Instantiated by log.exception'
+        else:
+            data = {
+                'log': 'Auto-created by log.exception',
+            }
+
         # Make the VerediError.
         return_exception = err_or_class(
             log_message,
             context=context,
-            data={
-                'log': 'Auto-created by log.exception',
-            })
+            data=data)
 
     elif make_instance is True:
         # Make the Python Exception.

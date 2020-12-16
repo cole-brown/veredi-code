@@ -18,23 +18,23 @@ if TYPE_CHECKING:
 from abc import abstractmethod
 
 
-from veredi.logger                      import log
-from veredi.base.const                  import VerediHealth
-from veredi.base                        import label
-from veredi.data                        import background
-from veredi.data.serdes.adapter         import definition
-from veredi.data.milieu                 import ValueMilieu
-from veredi.data.config.config          import Configuration
+from veredi.logger                         import log
+from veredi.base.const                     import VerediHealth
+from veredi.base                           import label
+from veredi.data                           import background
+from veredi.data.serdes.adapter.definition import Definition, DocType
+from veredi.data.milieu                    import ValueMilieu
+from veredi.data.config.config             import Configuration
 
 # Game / ECS Stuff
-from veredi.game.ecs.event              import EventManager
+from veredi.game.ecs.event                 import EventManager
 
-from veredi.game.ecs.base.identity      import EntityId, SystemId
-from veredi.game.ecs.base.system        import System
-from veredi.game.ecs.base.component     import Component
+from veredi.game.ecs.base.identity         import EntityId, SystemId
+from veredi.game.ecs.base.system           import System
+from veredi.game.ecs.base.component        import Component
 
 # Commands
-from veredi.interface.input.command.reg import CommandRegistrationBroadcast
+from veredi.interface.input.command.reg    import CommandRegistrationBroadcast
 
 
 # -----------------------------------------------------------------------------
@@ -87,8 +87,8 @@ class D20RulesSystem(System):
         '''
         # Ask config for our definition to be deserialized and given to us
         # right now.
-        self._rule_defs = definition.Definition(
-            definition.DocType.DEF_SYSTEM,
+        self._rule_defs = Definition(
+            DocType.system.definition,
             config.definition(self.dotted(), context))
         self._rule_defs.configure(primary_key)
         if not self._rule_defs:
