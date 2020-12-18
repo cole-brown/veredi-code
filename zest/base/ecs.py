@@ -14,22 +14,24 @@ from typing import Optional, Union, Any, Type, List, Iterable, Dict
 from veredi.logger                       import log
 from .unit                               import ZestBase
 from ..                                  import zload
+from ..zxceptions                        import UnitTestError
 from ..zpath                             import TestType
 from veredi.base.context                 import VerediContext, UnitTestContext
+from veredi.debug.const                  import DebugFlag
 
 from veredi.base.null                    import Null
 from veredi.data.config.config           import Configuration
 
 from veredi.game.ecs.base.system         import System
 from veredi.game.ecs.base.entity         import (Entity,
-                                                   EntityLifeCycle)
+                                                 EntityLifeCycle)
 from veredi.game.ecs.base.identity       import EntityId
 from veredi.game.ecs.base.component      import (Component,
-                                                   ComponentLifeCycle)
+                                                 ComponentLifeCycle)
 from veredi.game.ecs.event               import Event
 from veredi.game.data.event              import DataLoadedEvent
 from veredi.game.data.identity.event     import (IdentityRequest,
-                                                   CodeIdentityRequest)
+                                                 CodeIdentityRequest)
 from veredi.game.data.identity.component import IdentityComponent
 
 
@@ -87,12 +89,17 @@ class ZestEcs(ZestBase):
         # Events
         # ------------------------------
 
-        self.events:         List[Event]   = []
+        self.events: List[Event] = []
         '''
         Simple queue for receiving events.
         '''
 
-        self.reg_open:       CommandRegistrationBroadcast = None
+        self._event_debug_counter: int = 0
+        '''
+        Counter that is used for debugging Events.
+        '''
+
+        self.reg_open: CommandRegistrationBroadcast = None
         '''
         Separate variable for holding a received command registration
         broadcast event.
@@ -102,19 +109,19 @@ class ZestEcs(ZestBase):
         # ECS
         # ------------------------------
 
-        self.manager:        Meeting       = None
+        self.manager: Meeting = None
         '''
         If class uses ECS, the Meeting of ECS Managers should go here.
         zload.set_up() can provide this.
         '''
 
-        self.context:        VerediContext = None
+        self.context: VerediContext = None
         '''
         If class uses a set-up/config context, it should go here.
         zload.set_up() can provide this.
         '''
 
-        self.config:         Configuration = None
+        self.config: Configuration = None
         '''
         If class uses a special config, it should be saved here so set-up(s)
         can use it.
@@ -124,7 +131,7 @@ class ZestEcs(ZestBase):
         # Engine
         # ------------------------------
 
-        self.engine:         Engine        = None
+        self.engine: Engine = None
         '''
         The ECS Game Engine.
         zload.set_up() can provide this.
@@ -338,6 +345,126 @@ class ZestEcs(ZestBase):
         return self.manager.system.get(sid)
 
     # -------------------------------------------------------------------------
+    # Debugging
+    # -------------------------------------------------------------------------
+
+    def _debug_on(self,
+                  debug_flags:      DebugFlag,
+                  set_this_test:    bool = False,
+                  set_all_systems:  bool = False,
+                  set_all_managers: bool = False,
+                  set_engine:       bool = False) -> None:
+        '''
+        Turn on these debug flags.
+        '''
+        # If all flags false, why you do that even?
+        if not (set_this_test or set_all_systems
+                or set_all_managers or set_engine):
+            msg = ("Cannot turn DebugFlag on for nothing. "
+                   "All `set` bools are False.")
+            error = UnitTestError(msg,
+                                  data={
+                                      'debug_flags_on': debug_flags,
+                                      'set_this_test': set_this_test,
+                                      'set_all_systems': set_all_systems,
+                                      'set_all_managers': set_all_managers,
+                                      'set_engine': set_engine,
+                                  })
+            raise log.exception(error, msg)
+
+        # ---
+        # Set stuff.
+        # ---
+        if set_this_test:
+            self.debug_flags = self.debug_flags.set(debug_flags)
+
+        if set_all_systems:
+            # As of now [2020-12-18], the systems use the Meeting's DebugFlag.
+            self.manager._debug = self.manager._debug.set(debug_flags)
+
+            # If the systems get their own flags, we could do this:
+            # for system in self.manager.system._ut_each_system():
+            #    ...
+
+        if set_all_managers:
+            # Set Meeting's? Managers don't use, but we're setting all
+            # managers' debug flags, so it makes sense.
+            self.manager._debug = self.manager._debug.set(debug_flags)
+
+            for manager in self.manager._each_existing():
+                manager._debug = manager._debug.set(debug_flags)
+
+        if set_engine:
+            # Engine doesn't always exist in ZestEcs, so check first.
+            if self.engine:
+                self.engine._debug = self.engine._debug.set(debug_flags)
+
+    def _debug_off(self,
+                   debug_flags:      DebugFlag,
+                   set_this_test:    bool = False,
+                   set_all_systems:  bool = False,
+                   set_all_managers: bool = False,
+                   set_engine:       bool = False) -> None:
+        '''
+        Turn off these debug flags.
+        '''
+        # If all flags false, why you do that even?
+        if not (set_this_test or set_all_systems
+                or set_all_managers or set_engine):
+            msg = ("Cannot turn DebugFlag off for nothing. "
+                   "All `set` bools are False.")
+            error = UnitTestError(msg,
+                                  data={
+                                      'debug_flags_on': debug_flags,
+                                      'set_this_test': set_this_test,
+                                      'set_all_systems': set_all_systems,
+                                      'set_all_managers': set_all_managers,
+                                      'set_engine': set_engine,
+                                  })
+            raise log.exception(msg, error)
+
+        # ---
+        # Set stuff.
+        # ---
+        if set_this_test:
+            self.debug_flags = self.debug_flags.unset(debug_flags)
+
+        if set_all_systems:
+            # As of now [2020-12-18], the systems use the Meeting's DebugFlag.
+            self._manager._debug = self._manager._debug.unset(debug_flags)
+
+            # If the systems get their own flags, we could do this:
+            # for system in self.manager.system._ut_each_system():
+            #    etc...
+
+        if set_all_managers:
+            # Unset Meeting's? Managers don't use, but we're setting all
+            # managers' debug flags, so it makes sense.
+            self._manager._debug = self._manager._debug.unset(debug_flags)
+
+            for manager in self._manager._each_existing():
+                manager._debug = manager._debug.unset(debug_flags)
+
+        if set_engine:
+            # Engine doesn't always exist in ZestEcs, so check first.
+            if self.engine:
+                self.engine._debug = self.engine._debug.unset(debug_flags)
+
+    def _event_debugging(self,
+                         event: Event,
+                         title: str) -> None:
+        '''
+        Increments `self._event_debug_counter` by one.
+
+        Logs something about an event if our event debugging flag is on.
+        '''
+        print('title is, uh...', title)
+        self._event_debug_counter += 1
+        if self.manager.event._debug.has(DebugFlag.EVENTS):
+            log.ultra_hyper_debug(event,
+                                  title=title)
+
+    # -------------------------------------------------------------------------
     # Event Helpers
     # -------------------------------------------------------------------------
 
@@ -416,14 +543,6 @@ class ZestEcs(ZestBase):
         self.assertEqual(len(self.events), expected_events,
                          event_msg)
 
-    def _event_debugging(self, event: Event) -> None:
-        '''
-        Print something about an event if our event debugging flag is on.
-        '''
-        log.ultra_hyper_debug("TODO")
-        # if self.manager.event.debug_flag.has(foo):
-        #     bar
-
     def _eventsub_generic_append(self, event: Event) -> None:
         '''
         Receiver for any event where you just want to append event to
@@ -433,7 +552,10 @@ class ZestEcs(ZestBase):
           self.manager.event.subscribe(SomeEvent,
                                        self._eventsub_generic_append)
         '''
-        self._event_debugging(event)
+        self._event_debugging(event,
+                              (f'{self.__class__.__name__}.'
+                               '_eventsub_generic_append('
+                               f'{type(event)}, class-id:{id(event)})'))
         self.events.append(event)
 
     def _eventsub_loaded(self, event: Event) -> None:

@@ -216,6 +216,8 @@ class LogMixin:
     def _log_ultra_hyper_debug(self,
                                msg:      str,
                                *args:    Any,
+                               title:    Optional[str]             = None,
+                               add_type: Optional[bool]            = False,
                                context:  Optional['VerediContext'] = None,
                                **kwargs: Any) -> None:
         '''
@@ -242,6 +244,8 @@ class LogMixin:
         kwargs = self._log_stack(**kwargs)
         self._lumberjack.ultra_hyper_debug(msg,
                                            *args,
+                                           title=title,
+                                           add_type=add_type,
                                            context=context,
                                            **kwargs)
 

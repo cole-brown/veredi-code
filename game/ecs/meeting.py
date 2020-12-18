@@ -403,9 +403,9 @@ class Meeting:
         Updates self._health with result of life-cycle function. Returnns
         result of life-cycle function (not necessarily what self._health is).
         '''
-        health = self._each_existing('life_cycle',
-                                     cycle_from, cycle_to,
-                                     tick_from, tick_to)
+        health = self._each_existing_health('life_cycle',
+                                            cycle_from, cycle_to,
+                                            tick_from, tick_to)
         return health
 
     # -------------------------------------------------------------------------
@@ -459,10 +459,10 @@ class Meeting:
                                 })
             raise self._log_exception(error, msg)
 
-    def _each_existing(self,
-                       function_name: str,
-                       *args: Any,
-                       **kwargs: Any) -> VerediHealth:
+    def _each_existing_health(self,
+                              function_name: str,
+                              *args: Any,
+                              **kwargs: Any) -> VerediHealth:
         '''
         Gets function attribute from each non-None/Null manager. Runs
         "manager.`function`(*`args`, **`kwargs`)" if attribute is found.
@@ -540,3 +540,31 @@ class Meeting:
         # Return Value Manager
         # ---
         return health
+
+    def _each_existing(self) -> VerediHealth:
+        '''
+        Generator that yields each existing manager.
+        '''
+        if self._time_manager:
+            yield self._time_manager
+
+        if self._event_manager:
+            yield self._event_manager
+
+        if self._component_manager:
+            yield self._component_manager
+
+        if self._entity_manager:
+            yield self._entity_manager
+
+        if self._system_manager:
+            yield self._system_manager
+
+        if self._data_manager:
+            yield self._data_manager
+
+        if self._identity_manager:
+            yield self._identity_manager
+
+        if self._time_manager:
+            yield self._time_manager

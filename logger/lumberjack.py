@@ -261,6 +261,8 @@ class Lumberjack:
     def ultra_hyper_debug(self,
                           msg:      str,
                           *args:    Any,
+                          title:    Optional[str]             = None,
+                          add_type: Optional[bool]            = False,
                           context:  Optional['VerediContext'] = None,
                           **kwargs: Any) -> None:
         '''
@@ -301,6 +303,8 @@ class Lumberjack:
         # ------------------------------
         log.ultra_hyper_debug(msg,
                               *args,
+                              title=title,
+                              add_type=add_type,
                               veredi_logger=self._hyper,
                               context=context,
                               **kwargs)

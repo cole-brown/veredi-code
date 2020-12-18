@@ -185,9 +185,6 @@ class EventManager(EcsManager):
         self._events:        List[Event]                      = []
         '''FIFO queue of events that came in, if saving up.'''
 
-        self._debug: DebugFlag = None
-        '''Debugging flags.'''
-
     def __init__(self,
                  config:      Optional[Configuration],
                  debug_flags: NullNoneOr[DebugFlag]) -> None:

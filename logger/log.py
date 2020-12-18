@@ -599,7 +599,7 @@ def ultra_hyper_debug(msg:           str,
                       *args:         Any,
                       format_str:    bool                       = True,
                       add_type:      bool                       = False,
-                      add_title:     Optional[str]              = None,
+                      title:         Optional[str]              = None,
                       veredi_logger: NullNoneOr[logging.Logger] = None,
                       context:       'VerediContext' = None,
                       **kwargs:      Any) -> None:
@@ -663,8 +663,8 @@ def ultra_hyper_debug(msg:           str,
                        + pretty.indented(context))
 
     # And one more thing: if they want us to add a title, we will do that:
-    if add_title:
-        output = (pretty.indented(f"title: {add_title}")
+    if title:
+        output = (pretty.indented(f"title: {title}")
                   + "\n\n"
                   + output)
 

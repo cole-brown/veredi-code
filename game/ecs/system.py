@@ -722,3 +722,15 @@ class SystemManager(EcsManagerWithEvents):
 
         self._reschedule = True
         return VerediHealth.HEALTHY
+
+    # -------------------------------------------------------------------------
+    # Unit Testing
+    # -------------------------------------------------------------------------
+
+    def _ut_each_system(self) -> None:
+        '''
+        Generator that will return each existing system regardless of
+        life-cycle.
+        '''
+        for system in self._schedule:
+            yield system
