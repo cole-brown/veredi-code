@@ -487,17 +487,17 @@ class Test_DataManager_Actual(BaseTest_DataManager):
             load_ctx.type,
             load_ctx)
         self.assertFalse(self.events)
-        self._debug_on(DebugFlag.EVENTS,
-                       set_this_test=True,
-                       set_all_systems=True,
-                       set_all_managers=True,
-                       set_engine=False)  # Don't have an engine in the test.
+        # self._debug_on(DebugFlag.EVENTS,
+        #                set_this_test=True,
+        #                set_all_systems=True,
+        #                set_all_managers=True,
+        #                set_engine=False)  # No engine in this test suite.
         self.trigger_events(event)
-        self._debug_off(DebugFlag.EVENTS,
-                        set_this_test=True,
-                        set_all_systems=True,
-                        set_all_managers=True,
-                        set_engine=False)  # Don't have an engine in the test.
+        # self._debug_off(DebugFlag.EVENTS,
+        #                 set_this_test=True,
+        #                 set_all_systems=True,
+        #                 set_all_managers=True,
+        #                 set_engine=False)  # No engine in this test suite.
 
         # Expect a DataLoadedEvent with output from deserializing.
         self.assertEqual(len(self.events), 1)

@@ -31,42 +31,42 @@ from ..ecs.event import Event
 #   External Events:
 #    - Start with "Data"
 #    - "Input" Events:
-#      - DataSystem expect these from game systems to initiate a save/load.
+#      - DataManager expect these from game systems to initiate a save/load.
 #      - DataLoadRequest
 #      - DataSaveRequest
 #    - "Output" Events:
-#      - DataSystem publishes these once a save/load is completed.
+#      - DataManager publishes these once a save/load is completed.
 #      - DataLoadedEvent
 #      - DataSavedEvent
 #
 #   Internal Events:
 #     - Start with "_Data"
-#     - Don't generally get publish - just internal to DataSystem.
+#     - Don't generally get publish - just internal to DataManager.
 #
 # ---
 # Data Event Flow:
 # ---
 # ┐
 # └┬ Data Load Request         - Some game system or something publishes.
-#  │                           - DataSystem receives.
+#  │                           - DataManager receives.
 #  │
 #  └─┬ Loaded Event            - (internal)
 #    │
 #    └─┬ Deserialized Event    - (internal)
 #      │
-#      ├── Data Loaded Event   - DataSystem publishes.
+#      ├── Data Loaded Event   - DataManager publishes.
 #      │                       - Any system can receive.
 #      │
 #      ├── ...                 - Game Stuff Happens Here.
 #      │
 #      └── Data Save Request   - Some game system or something publishes.
-#           │                  - DataSystem receives.
+#           │                  - DataManager receives.
 #        ┌──┘
 #        Serialized Event      - (internal)
 #      ┌─┘
 #      Saved Event             - (internal)
 #    ┌─┘
-#    Data Saved Event          - DataSystem publishes.
+#    Data Saved Event          - DataManager publishes.
 # ───┘                         - Any system can receive.
 # -----------------------------------------------------------------------------
 
