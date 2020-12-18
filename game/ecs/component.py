@@ -37,6 +37,7 @@ from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
 from veredi.data               import background
+from veredi.debug.const        import DebugFlag
 
 from .base.exceptions          import EcsComponentError
 from .base.identity            import ComponentId
@@ -125,21 +126,18 @@ class ComponentManager(EcsManagerWithEvents):
         '''Existing Components indexed by Type (a list for each type).'''
 
         # TODO [2020-10-02]: Remove this or no?
-        self._event_manager:     EventManager         = None
-        '''The Event Manager.'''
-
-        # TODO [2020-10-02]: Remove this or no?
         self._config:            Configuration        = None
         '''The Configuration.'''
 
     def __init__(self,
                  config:        Optional[Configuration],
-                 event_manager: Optional[EventManager]) -> None:
+                 event_manager: Optional[EventManager],
+                 debug_flags:   NullNoneOr[DebugFlag]) -> None:
         '''Initializes this thing.'''
-        super().__init__()
+        super().__init__(debug_flags)
 
-        self._event_manager = event_manager
-        self._config        = config
+        self._event  = event_manager
+        self._config = config
 
     # -------------------------------------------------------------------------
     # Properties

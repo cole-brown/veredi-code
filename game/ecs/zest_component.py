@@ -87,7 +87,7 @@ class Test_ComponentManager(ZestBase):
         self.events_recv.setdefault(type(event), []).append(event)
 
     def do_events(self):
-        return bool(self.comp_mgr._event_manager)
+        return bool(self.comp_mgr._event)
 
     def test_init(self):
         self.assertTrue(self.comp_mgr)

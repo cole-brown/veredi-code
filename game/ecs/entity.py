@@ -36,7 +36,7 @@ from veredi.logger             import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration
-from veredi.base.null          import Null
+from veredi.debug.const        import DebugFlag
 
 from .base.exceptions          import EcsEntityError
 from .base.identity            import ComponentId, EntityId
@@ -116,9 +116,6 @@ class EntityManager(EcsManagerWithEvents):
     def _define_vars(self) -> None:
         super()._define_vars()
 
-        self._event_manager:     EventManager           = None
-        '''TODO: remove this from interface and here.'''
-
         self._component_manager: ComponentManager       = None
         '''
         Handle to the ComponentManager so we can do common things for entities
@@ -146,11 +143,12 @@ class EntityManager(EcsManagerWithEvents):
     def __init__(self,
                  config:            Optional[Configuration],
                  event_manager:     Optional[EventManager],
-                 component_manager: ComponentManager) -> None:
-        super().__init__()
+                 component_manager: ComponentManager,
+                 debug_flags:       NullNoneOr[DebugFlag]) -> None:
+        super().__init__(debug_flags)
 
         self._config            = config
-        self._event_manager     = event_manager
+        self._event             = event_manager
         self._component_manager = component_manager
 
     # -------------------------------------------------------------------------

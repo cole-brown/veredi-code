@@ -38,6 +38,7 @@ from veredi.game.ecs.event               import EventManager
 from veredi.game.ecs.component           import ComponentManager
 from veredi.game.ecs.entity              import EntityManager
 from veredi.game.ecs.system              import SystemManager
+from veredi.game.data.manager            import DataManager
 from veredi.game.data.identity.manager   import IdentityManager
 from veredi.game.engine                  import Engine
 from veredi.game.ecs.meeting             import Meeting
@@ -156,6 +157,7 @@ class ZestEcs(ZestBase):
                     component_manager: Optional[ComponentManager]    = None,
                     entity_manager:    Optional[EntityManager]       = None,
                     system_manager:    Optional[SystemManager]       = None,
+                    data_manager:      Optional[DataManager]         = None,
                     identity_manager:  Optional[IdentityManager]     = None,
                     # Optional to pass in - else we'll make  if asked:
                     engine:            Optional[Engine]              = None
@@ -189,6 +191,7 @@ class ZestEcs(ZestBase):
                                          component_manager=component_manager,
                                          entity_manager=entity_manager,
                                          system_manager=system_manager,
+                                         data_manager=data_manager,
                                          identity_manager=identity_manager,
                                          engine=engine)
 
@@ -281,6 +284,9 @@ class ZestEcs(ZestBase):
 
             if self.manager.system:
                 self.manager.system.subscribe(self.manager.event)
+
+            if self.manager.data:
+                self.manager.data.subscribe(self.manager.event)
 
             if self.manager.identity:
                 self.manager.identity.subscribe(self.manager.event)
@@ -410,6 +416,14 @@ class ZestEcs(ZestBase):
         self.assertEqual(len(self.events), expected_events,
                          event_msg)
 
+    def _event_debugging(self, event: Event) -> None:
+        '''
+        Print something about an event if our event debugging flag is on.
+        '''
+        log.ultra_hyper_debug("TODO")
+        # if self.manager.event.debug_flag.has(foo):
+        #     bar
+
     def _eventsub_generic_append(self, event: Event) -> None:
         '''
         Receiver for any event where you just want to append event to
@@ -419,6 +433,7 @@ class ZestEcs(ZestBase):
           self.manager.event.subscribe(SomeEvent,
                                        self._eventsub_generic_append)
         '''
+        self._event_debugging(event)
         self.events.append(event)
 
     def _eventsub_loaded(self, event: Event) -> None:

@@ -30,3 +30,10 @@ class EventError(VerediError):
     Some sort of basic eventing error.
     '''
     ...
+
+
+class EcsManagerError(VerediError):
+    '''
+    Some sort of ECS Manager error.
+    '''
+    ...

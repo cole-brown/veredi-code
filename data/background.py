@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from veredi.game.ecs.component         import ComponentManager
     from veredi.game.ecs.entity            import EntityManager
     from veredi.game.ecs.system            import SystemManager
+    from veredi.game.data.manager          import DataManager
     from veredi.game.data.identity.manager import IdentityManager
 
     from veredi.game.ecs.base.system       import System, SystemLifeCycle
@@ -597,6 +598,13 @@ class ManagerMeta(type):
         return klass.meeting.system
 
     @property
+    def data(klass: Type['manager']) -> Nullable['DataManager']:
+        '''
+        Helper for getting at Meeting's DataManager directly.
+        '''
+        return klass.meeting.data
+
+    @property
     def identity(klass: Type['manager']) -> Nullable['IdentityManager']:
         '''
         Helper for getting at Meeting's IdentityManager directly.
@@ -788,25 +796,9 @@ class data(metaclass=DataMeta):
         return klass._get()[link]
 
     # Provided by DataMeta:
-    # @classmethod
-    # def path(klass: Type['data']) -> Nullable[pathlib.Path]:
-    #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.PATH, Null())
-    #     return retval
-
-    # Provided by DataMeta:
-    # @classmethod
-    # def repository(klass: Type['data']) -> Nullable['BaseRepository']:
-    #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.REPO, Null())
-    #     return retval
-
-    # Provided by DataMeta:
-    # @classmethod
-    # def serdes(klass: Type['data']) -> Nullable['BaseSerdes']:
-    #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.SERDES, Null())
-    #     return retval
+    #   def path(klass: Type['data']) -> Nullable[pathlib.Path]:
+    #   def repository(klass: Type['data']) -> Nullable['BaseRepository']:
+    #   def serdes(klass: Type['data']) -> Nullable['BaseSerdes']:
 
 
 # -------------------------------------------------------------------------

@@ -13,20 +13,24 @@ from typing import (TYPE_CHECKING,
 from veredi.base.null import (NullNoneOr, NullFalseOr, Nullable,
                               Null, null_or_none)
 if TYPE_CHECKING:
-    from .manager            import EcsManager
     from veredi.base.context import VerediContext
+    from .base.entity        import Entity
     from .base.component     import Component
 
 
 from veredi.base.const       import VerediHealth
+from veredi.base.exceptions  import HealthError
 from veredi.debug.const      import DebugFlag
 from veredi.data             import background
 
+from .manager                import EcsManager
+
 from .time                   import TimeManager
-from .event                  import EventManager
+from .event                  import EventManager, Event
 from .component              import ComponentManager
 from .entity                 import EntityManager
 from .system                 import SystemManager
+from ..data.manager          import DataManager
 from ..data.identity.manager import IdentityManager
 
 from .const                  import SystemTick
@@ -53,19 +57,19 @@ class Meeting:
         '''
         Instance variable definitions, type hinting, doc strings, etc.
         '''
-        self._debug:             NullFalseOr[DebugFlag]        = Null()
+        self._debug: NullFalseOr[DebugFlag] = Null()
         '''
         Debug flags for managers.
         '''
 
-        self._time_manager:      NullFalseOr[TimeManager]      = Null()
+        self._time_manager: NullFalseOr[TimeManager] = Null()
         '''
         "Singleton" for TimeManager.
           - `False` indicates it explicitly does not exist.
           - `Null` indates it should but does not exist.
         '''
 
-        self._event_manager:     NullFalseOr[EventManager]     = Null()
+        self._event_manager: NullFalseOr[EventManager] = Null()
         '''
         "Singleton" for EventManager.
           - `False` indicates it explicitly does not exist.
@@ -79,21 +83,28 @@ class Meeting:
           - `Null` indates it should but does not exist.
         '''
 
-        self._entity_manager:    NullFalseOr[EntityManager]    = Null()
+        self._entity_manager: NullFalseOr[EntityManager] = Null()
         '''
         "Singleton" for EntityManager.
           - `False` indicates it explicitly does not exist.
           - `Null` indates it should but does not exist.
         '''
 
-        self._system_manager:    NullFalseOr[SystemManager]    = Null()
+        self._system_manager: NullFalseOr[SystemManager] = Null()
         '''
         "Singleton" for SystemManager.
           - `False` indicates it explicitly does not exist.
           - `Null` indates it should but does not exist.
         '''
 
-        self._identity_manager:  NullFalseOr[IdentityManager]  = Null()
+        self._data_manager: NullFalseOr[DataManager] = Null()
+        '''
+        "Singleton" for DataManager.
+          - `False` indicates it explicitly does not exist.
+          - `Null` indates it should but does not exist.
+        '''
+
+        self._identity_manager: NullFalseOr[IdentityManager] = Null()
         '''
         "Singleton" for IdentityManager.
           - `False` indicates it explicitly does not exist.
@@ -106,6 +117,7 @@ class Meeting:
                  component_manager: NullFalseOr[ComponentManager],
                  entity_manager:    NullFalseOr[EntityManager],
                  system_manager:    NullFalseOr[SystemManager],
+                 data_manager:      NullFalseOr[DataManager],
                  identity_manager:  NullFalseOr[IdentityManager],
                  debug_flags:       NullFalseOr[DebugFlag]) -> None:
         '''
@@ -120,6 +132,7 @@ class Meeting:
         self._component_manager = component_manager or self._component_manager
         self._entity_manager    = entity_manager    or self._entity_manager
         self._system_manager    = system_manager    or self._system_manager
+        self._data_manager      = data_manager      or self._data_manager
         self._identity_manager  = identity_manager  or self._identity_manager
 
     # -------------------------------------------------------------------------
@@ -189,6 +202,10 @@ class Meeting:
         if SystemManager in required_set and not self._system_manager:
             return (VerediHealth.UNHEALTHY
                     if self._system_manager is False else
+                    VerediHealth.PENDING)
+        if DataManager in required_set and not self._data_manager:
+            return (VerediHealth.UNHEALTHY
+                    if self._data_manager is False else
                     VerediHealth.PENDING)
         if IdentityManager in required_set and not self._identity_manager:
             return (VerediHealth.UNHEALTHY
@@ -268,6 +285,19 @@ class Meeting:
         return self._system_manager
 
     @property
+    def data(self) -> Union[DataManager, bool, Null]:
+        '''
+        Returns DataManager. If this returns 'False' (as opposed to
+        Null/Falsy), that is explicitly stating the explicit absense of an
+        DataManager.
+        '''
+        # Stupid code-wise, but I want to explicitly state that False is the
+        # explicit absense of an DataManager.
+        if self._data_manager is False:
+            return False
+        return self._data_manager
+
+    @property
     def identity(self) -> Union[IdentityManager, bool, Null]:
         '''
         Returns IdentityManager. If this returns 'False' (as opposed to
@@ -339,7 +369,6 @@ class Meeting:
         # component or Null(), so...
         return (entity, component)
 
-
     # -------------------------------------------------------------------------
     # Life-Cycle Management
     # -------------------------------------------------------------------------
@@ -383,6 +412,53 @@ class Meeting:
     # Life-Cycle Management
     # -------------------------------------------------------------------------
 
+    def _call_if_exists(self,
+                        manager: EcsManager,
+                        health:  VerediHealth,
+                        function_name: str,
+                        *args: Any,
+                        **kwargs: Any) -> VerediHealth:
+        '''
+        If `manager` is Null or None, do nothing and return `health`.
+
+        Else, try to get `function_name` from manager, try to call it with
+        `*args` and `**kwargs`.
+
+        Update `health` with the function call result and return updated
+        health.
+        '''
+        if null_or_none(manager):
+            return health
+
+        # Have a manager, at least. Use 'Null()' as fallback so we can just
+        # fail for a bit and recover at the end.
+        function = getattr(manager,
+                           function_name,
+                           Null())
+        result = function(*args, **kwargs)
+
+        # Sanity check.
+        if isinstance(result, VerediHealth):
+            return health.update(result)
+
+        # Recover from Null here; works also for functions that returned an
+        # incorrect type. We just fail if we got not-a-health result.
+        else:
+            msg = (f"Attempt to call `{function_name}` gave unexpected result "
+                   "(expected a VerediHealth value). Function does not exist "
+                   "or returned incorrect result.")
+            error = HealthError(VerediHealth.FATAL,
+                                health,
+                                msg,
+                                data={
+                                    'manager':       manager,
+                                    'prev_health':   health,
+                                    'function_name': function_name,
+                                    'function':      function,
+                                    'result':        result,
+                                })
+            raise self._log_exception(error, msg)
+
     def _each_existing(self,
                        function_name: str,
                        *args: Any,
@@ -400,67 +476,67 @@ class Meeting:
         # ------------------------------
         # Time Manager
         # ------------------------------
-        if not null_or_none(self._time_manager):
-            function = getattr(self._time_manager,
-                               function_name,
-                               Null())
-            result = function(*args, **kwargs)
-            if isinstance(result, VerediHealth):
-                health = health.update(result)
+        health.update(self._call_if_exists(self._time_manager,
+                                           health,
+                                           function_name,
+                                           *args,
+                                           **kwargs))
 
         # ------------------------------
         # Event Manager
         # ------------------------------
-        if not null_or_none(self._event_manager):
-            function = getattr(self._event_manager,
-                               function_name,
-                               Null())
-            result = function(*args, **kwargs)
-            if isinstance(result, VerediHealth):
-                health = health.update(result)
+        health.update(self._call_if_exists(self._event_manager,
+                                           health,
+                                           function_name,
+                                           *args,
+                                           **kwargs))
 
         # ------------------------------
         # Component Manager
         # ------------------------------
-        if not null_or_none(self._component_manager):
-            function = getattr(self._component_manager,
-                               function_name,
-                               Null())
-            result = function(*args, **kwargs)
-            if isinstance(result, VerediHealth):
-                health = health.update(result)
+        health.update(self._call_if_exists(self._component_manager,
+                                           health,
+                                           function_name,
+                                           *args,
+                                           **kwargs))
 
         # ------------------------------
         # Entity Manager
         # ------------------------------
-        if not null_or_none(self._entity_manager):
-            function = getattr(self._entity_manager,
-                               function_name,
-                               Null())
-            result = function(*args, **kwargs)
-            if isinstance(result, VerediHealth):
-                health = health.update(result)
+        health.update(self._call_if_exists(self._entity_manager,
+                                           health,
+                                           function_name,
+                                           *args,
+                                           **kwargs))
 
         # ------------------------------
         # System Manager
         # ------------------------------
-        if not null_or_none(self._system_manager):
-            function = getattr(self._system_manager,
-                               function_name,
-                               Null())
-            result = function(*args, **kwargs)
-            if isinstance(result, VerediHealth):
-                health = health.update(result)
+        health.update(self._call_if_exists(self._system_manager,
+                                           health,
+                                           function_name,
+                                           *args,
+                                           **kwargs))
+
+        # ------------------------------
+        # Data Manager
+        # ------------------------------
+        health.update(self._call_if_exists(self._data_manager,
+                                           health,
+                                           function_name,
+                                           *args,
+                                           **kwargs))
 
         # ------------------------------
         # Identity Manager
         # ------------------------------
-        if not null_or_none(self._identity_manager):
-            function = getattr(self._identity_manager,
-                               function_name,
-                               Null())
-            result = function(*args, **kwargs)
-            if isinstance(result, VerediHealth):
-                health = health.update(result)
+        health.update(self._call_if_exists(self._identity_manager,
+                                           health,
+                                           function_name,
+                                           *args,
+                                           **kwargs))
 
+        # ---
+        # Return Value Manager
+        # ---
         return health

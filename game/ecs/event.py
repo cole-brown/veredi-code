@@ -44,14 +44,24 @@ EventNotifyFn = NewType('EventNotifyFn', Callable[['Event'], None])
 # -----------------------------------------------------------------------------
 
 class EcsManagerWithEvents(EcsManager):
-    # TODO: init that pulls in event_manager to self._event_manager?
+
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        super()._define_vars()
+
+        self._event: EventManager = None
+        '''
+        Link to the EventManager
+        '''
 
     def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
-        self._event_manager = event_manager
+        self._event = event_manager
 
         return VerediHealth.HEALTHY
 
@@ -62,26 +72,26 @@ class EcsManagerWithEvents(EcsManager):
                       context:                    Optional[VerediContext],
                       requires_immediate_publish: bool) -> None:
         '''
-        Calls self._event_manager.create() if self._event_manager is not none.
+        Calls EventManager.create() if we have an EventManager.
         '''
-        if not self._event_manager:
+        if not self._event:
             return
-        self._event_manager.create(event_class,
-                                   owner_id,
-                                   type,
-                                   context,
-                                   requires_immediate_publish)
+        self._event.create(event_class,
+                           owner_id,
+                           type,
+                           context,
+                           requires_immediate_publish)
 
     def _event_notify(self,
                       event:                      'Event',
                       requires_immediate_publish: bool) -> None:
         '''
-        Calls self._event_manager.notify() if self._event_manager is not none.
+        Calls EventManager.notify() if we have an EventManager.
         '''
-        if not self._event_manager:
+        if not self._event:
             return
-        self._event_manager.notify(event,
-                                   requires_immediate_publish)
+        self._event.notify(event,
+                           requires_immediate_publish)
 
 
 # -----------------------------------------------------------------------------
@@ -181,9 +191,7 @@ class EventManager(EcsManager):
     def __init__(self,
                  config:      Optional[Configuration],
                  debug_flags: NullNoneOr[DebugFlag]) -> None:
-        super().__init__()
-
-        self._debug = debug_flags
+        super().__init__(debug_flags)
 
         # Pool for event objects?
 

@@ -224,8 +224,6 @@ class MediatorSystem(System):
         # ---
         # Ticking Stuff
         # ---
-        self._components: Optional[Set[Type[Component]]] = None
-
         # Just the post-setup; pre-game-loop tick for now for set-up.
         self._ticks: SystemTick = (
             # ---
