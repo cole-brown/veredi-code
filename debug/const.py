@@ -10,7 +10,7 @@ Debugging related consts.
 
 import enum
 
-from veredi.base.enum import FlagCheckMixin
+from veredi.base.enum import FlagCheckMixin, FlagSetMixin
 
 
 # -----------------------------------------------------------------------------
@@ -18,7 +18,7 @@ from veredi.base.enum import FlagCheckMixin
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class DebugFlag(FlagCheckMixin, enum.Flag):
+class DebugFlag(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
     has() and any() provided by FlagCheckMixin.
     '''
@@ -27,14 +27,14 @@ class DebugFlag(FlagCheckMixin, enum.Flag):
     # General Flags
     # ------------------------------
 
-    LOG_SKIP     = enum.auto()
+    LOG_SKIP = enum.auto()
     '''Enabled when certain logs should be skipped if unit testing.'''
 
     # ------------------------------
     # veredi.game
     # ------------------------------
 
-    LOG_TICK     = enum.auto()
+    LOG_TICK = enum.auto()
     '''Output a log message each tick at debug level.'''
 
     RAISE_ERRORS = enum.auto()
@@ -59,10 +59,6 @@ class DebugFlag(FlagCheckMixin, enum.Flag):
     Debug stuff about events.
     '''
 
-    GAME_ALL = (LOG_TICK | RAISE_ERRORS | RAISE_HEALTH
-                | SYSTEM_DEBUG | MANUAL_ENGINE_TICK | EVENTS)
-    '''All the game debugging flags.'''
-
     # ------------------------------
     # veredi.interface
     # ------------------------------
@@ -76,12 +72,19 @@ class DebugFlag(FlagCheckMixin, enum.Flag):
     MEDIATOR_CLIENT = enum.auto()
     '''Extra debugging output on mediator client-side.'''
 
-    MEDIATOR_ALL = MEDIATOR_BASE | MEDIATOR_SERVER | MEDIATOR_CLIENT
-    '''Extra debugging output on all mediator code.'''
-
     # ------------------------------
     # veredi.zest
     # ------------------------------
+
+    # TODO: Change what gets set as default debug flags? To make them more
+    # useful so they can spam when turned on?
+    GAME_ALL = (LOG_TICK | RAISE_ERRORS | RAISE_HEALTH
+                | SYSTEM_DEBUG | MANUAL_ENGINE_TICK)
+    # | EVENTS)
+    '''All the game debugging flags.'''
+
+    MEDIATOR_ALL = MEDIATOR_BASE | MEDIATOR_SERVER | MEDIATOR_CLIENT
+    '''Extra debugging output on all mediator code.'''
 
     SPAM = GAME_ALL | MEDIATOR_ALL
     '''Go loud. Turn it all up.'''

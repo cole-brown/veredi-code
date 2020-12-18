@@ -11,21 +11,21 @@ Tests for the DataManager class.
 from io import StringIO
 
 
-from veredi.zest.base.ecs               import ZestEcs
+from veredi.zest.base.ecs                  import ZestEcs
 from veredi.zest                           import zload
+from veredi.debug.const                    import DebugFlag
 from veredi.base.context                   import UnitTestContext
 from veredi.logger                         import log
 
 from veredi.data.context                   import (DataLoadContext,
                                                    # DataSaveContext,
                                                    DataGameContext)
-from veredi.data.exceptions import LoadError
+from veredi.data.exceptions                import LoadError
 
 from ..ecs.base.identity                   import ComponentId
 from .component                            import DataComponent
 from veredi.rules.d20.pf2.health.component import HealthComponent
 
-from .manager                              import DataManager
 
 # ---
 # Data Events
@@ -487,7 +487,17 @@ class Test_DataManager_Actual(BaseTest_DataManager):
             load_ctx.type,
             load_ctx)
         self.assertFalse(self.events)
+        self._debug_on(DebugFlag.EVENTS,
+                       set_this_test=True,
+                       set_all_systems=True,
+                       set_all_managers=True,
+                       set_engine=False)  # Don't have an engine in the test.
         self.trigger_events(event)
+        self._debug_off(DebugFlag.EVENTS,
+                        set_this_test=True,
+                        set_all_systems=True,
+                        set_all_managers=True,
+                        set_engine=False)  # Don't have an engine in the test.
 
         # Expect a DataLoadedEvent with output from deserializing.
         self.assertEqual(len(self.events), 1)
