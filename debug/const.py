@@ -54,8 +54,13 @@ class DebugFlag(FlagCheckMixin, enum.Flag):
     Makes the engine only do one tick at a time, instead of infinitely looping.
     '''
 
+    EVENTS = enum.auto()
+    '''
+    Debug stuff about events.
+    '''
+
     GAME_ALL = (LOG_TICK | RAISE_ERRORS | RAISE_HEALTH
-                | SYSTEM_DEBUG | MANUAL_ENGINE_TICK)
+                | SYSTEM_DEBUG | MANUAL_ENGINE_TICK | EVENTS)
     '''All the game debugging flags.'''
 
     # ------------------------------

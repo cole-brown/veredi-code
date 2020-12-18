@@ -113,8 +113,6 @@ class InputSystem(System):
         # ---
         # Ticking Stuff
         # ---
-        self._components: Optional[Set[Type[Component]]] = None
-
         # Just the post-setup; pre-game-loop tick for now.
         # We'll do our CommandRegistrationBroadcast here and that's it.
         self._ticks: SystemTick = SystemTick.INTRA_SYSTEM

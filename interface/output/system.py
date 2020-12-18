@@ -144,8 +144,6 @@ class OutputSystem(System):
         # ---
         # Ticking Stuff
         # ---
-        self._components: Optional[Set[Type[Component]]] = None
-
         # Just POST tick? For catching any output that became ready in the
         # STANDARD tick?
         self._ticks: SystemTick = SystemTick.POST

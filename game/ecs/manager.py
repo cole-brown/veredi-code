@@ -9,12 +9,18 @@ Manager interface for ECS managers.
 # -----------------------------------------------------------------------------
 
 from typing import TYPE_CHECKING
+from veredi.base.null import NullNoneOr, Null
 if TYPE_CHECKING:
     from .event import EventManager
+
+
 from abc import ABC, abstractmethod
+
 
 from veredi.base.const   import VerediHealth
 from veredi.logger.mixin import LogMixin
+from veredi.debug.const        import DebugFlag
+
 from .const              import SystemTick
 
 
@@ -33,11 +39,20 @@ class EcsManager(LogMixin, ABC):
     '''
 
     def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
         self._health: VerediHealth = VerediHealth.HEALTHY
         '''Overall Health of Manager.'''
 
-    def __init__(self) -> None:
+        self._debug: DebugFlag = None
+        '''Debugging flags.'''
+
+    def __init__(self,
+                 debug_flags: NullNoneOr[DebugFlag]) -> None:
+
         self._define_vars()
+        self._debug = debug_flags or Null()
 
         # ---
         # Logger!

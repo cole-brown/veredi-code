@@ -9,17 +9,18 @@ Timing info for game.
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Union, NewType, Tuple, Dict
+from veredi.base.null import NullNoneOr
+
 import numbers
-
 from datetime import datetime
-
 from decimal import Decimal
 
+from veredi.logger           import log
 from veredi.base.assortments import CurrentNext, DeltaNext
 from veredi.data             import background
 from veredi.data.exceptions  import ConfigError
-from veredi.logger           import log
 from veredi.base.const       import VerediHealth
+from veredi.debug.const      import DebugFlag
 
 from .const                  import SystemTick
 from .event                  import EcsManagerWithEvents
@@ -127,8 +128,10 @@ class TimeManager(EcsManagerWithEvents):
         Name of the default timer.
         '''
 
-    def __init__(self, tick_amount: Optional[TickTypes] = None) -> None:
-        super().__init__()
+    def __init__(self,
+                 tick_amount: Optional[TickTypes] = None,
+                 debug_flags: NullNoneOr[DebugFlag] = None) -> None:
+        super().__init__(debug_flags)
 
         # TODO: Get our clocks, ticks, etc from config data?
 

@@ -69,9 +69,6 @@ class SystemManager(EcsManagerWithEvents):
     def _define_vars(self) -> None:
         super()._define_vars()
 
-        self._debug: Nullable[DebugFlag] = Null()
-        '''Debug Flags.'''
-
         # Need to keep EventManager in self._event_manager to conform
         # to EcsManagerWithEvents interface.
         # TODO [2020-10-03]: Remove EventManager or keep in the interface?
@@ -124,9 +121,8 @@ class SystemManager(EcsManagerWithEvents):
                  entity_manager:    NullNoneOr[EntityManager],
                  debug_flags:       NullNoneOr[DebugFlag]) -> None:
 
-        super().__init__()
+        super().__init__(debug_flags)
 
-        self._debug = debug_flags or Null()
         self._event_manager = event_manager or Null()
 
     @classmethod

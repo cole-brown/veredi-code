@@ -200,7 +200,7 @@ class Test_SystemManager(ZestBase):
         self.events_recv.setdefault(type(event), []).append(event)
 
     def do_events(self):
-        return bool(self.comp_mgr._event_manager)
+        return bool(self.comp_mgr._event)
 
     def create_entities(self):
         comps_1_2_x = set([CompOne(0), CompTwo(1)])

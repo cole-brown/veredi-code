@@ -29,6 +29,7 @@ from veredi.game.ecs.component         import ComponentManager
 from veredi.game.ecs.entity            import EntityManager
 from veredi.game.ecs.system            import SystemManager
 from veredi.game.ecs.meeting           import Meeting
+from veredi.game.data.manager          import DataManager
 from veredi.game.data.identity.manager import IdentityManager
 from veredi.base.context               import VerediContext
 from veredi.game.ecs.base.identity     import SystemId
@@ -137,6 +138,7 @@ def set_up(test_name_class:   str,
            component_manager: Optional[ComponentManager] = None,
            entity_manager:    Optional[EntityManager]    = None,
            system_manager:    Optional[SystemManager]    = None,
+           data_manager:      Optional[DataManager]      = None,
            identity_manager:  Optional[IdentityManager]  = None,
            # Optional to pass in - else we'll make  if asked:
            engine:            Optional[Engine]           = None,
@@ -165,6 +167,7 @@ def set_up(test_name_class:   str,
                                 component_manager,
                                 entity_manager,
                                 system_manager,
+                                data_manager,
                                 identity_manager,
                                 debug_flags)
 
@@ -178,6 +181,7 @@ def set_up(test_name_class:   str,
                             meeting.component,
                             meeting.entity,
                             meeting.system,
+                            meeting.data,
                             meeting.identity,
                             debug_flags)
 

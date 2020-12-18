@@ -28,6 +28,7 @@ from veredi.game.ecs.component         import ComponentManager
 from veredi.game.ecs.entity            import EntityManager
 from veredi.game.ecs.system            import SystemManager
 from veredi.game.ecs.meeting           import Meeting
+from veredi.game.data.manager          import DataManager
 from veredi.game.data.identity.manager import IdentityManager
 
 
@@ -102,7 +103,8 @@ def meeting(
         event_manager:     Optional[EventManager]     = None,
         component_manager: Optional[ComponentManager] = None,
         entity_manager:    Optional[EntityManager]    = None,
-        system_manager:    Optional[EntityManager]    = None,
+        system_manager:    Optional[SystemManager]    = None,
+        data_manager:      Optional[DataManager]      = None,
         identity_manager:  Optional[IdentityManager]  = None,
         debug_flags:       Optional[DebugFlag]        = None) -> None:
     '''
@@ -116,20 +118,27 @@ def meeting(
     configuration = configuration     or config(test_type)
 
     # Create any managers that weren't passed in.
-    time          = time_manager      or TimeManager()
+    time          = time_manager      or TimeManager(debug_flags=debug_flags)
     event         = event_manager     or EventManager(configuration,
                                                       debug_flags)
     component     = component_manager or ComponentManager(configuration,
-                                                          event)
+                                                          event,
+                                                          debug_flags)
     entity        = entity_manager    or EntityManager(configuration,
                                                        event,
-                                                       component)
+                                                       component,
+                                                       debug_flags)
     system        = system_manager    or SystemManager(configuration,
                                                        time,
                                                        event,
                                                        component,
                                                        entity,
                                                        debug_flags)
+    data          = data_manager      or DataManager(configuration,
+                                                     time,
+                                                     event,
+                                                     component,
+                                                     debug_flags)
     identity      = identity_manager  or IdentityManager(configuration,
                                                          time,
                                                          event,
@@ -142,6 +151,7 @@ def meeting(
                       component,
                       entity,
                       system,
+                      data,
                       identity,
                       debug_flags)
 

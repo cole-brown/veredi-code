@@ -46,7 +46,8 @@ from .ecs.entity                        import EntityManager
 from .ecs.system                        import SystemManager
 from .ecs.meeting                       import Meeting
 
-# Identity Manager
+# Other Managers
+from .data.manager                      import DataManager
 from .data.identity.manager             import IdentityManager
 
 # ECS Minions
@@ -301,6 +302,7 @@ class Engine(LogMixin):
                  component_manager: NullNoneOr[ComponentManager] = None,
                  entity_manager:    NullNoneOr[EntityManager]    = None,
                  system_manager:    NullNoneOr[SystemManager]    = None,
+                 data_manager:      NullNoneOr[DataManager]      = None,
                  identity_manager:  NullNoneOr[IdentityManager]  = None,
                  debug:             NullNoneOr[DebugFlag]        = None
                  ) -> None:
@@ -350,6 +352,11 @@ class Engine(LogMixin):
                                                        component,
                                                        entity,
                                                        self._debug)
+        data      = data_manager      or DataManager(configuration,
+                                                     time,
+                                                     event,
+                                                     entity,
+                                                     self._debug)
         identity  = identity_manager  or IdentityManager(configuration,
                                                          time,
                                                          event,
@@ -362,6 +369,7 @@ class Engine(LogMixin):
             component,
             entity,
             system,
+            data,
             identity,
             self._debug)
         mtg_bg_data, mtg_bg_owner = self.meeting.get_background()
@@ -1766,9 +1774,9 @@ class Engine(LogMixin):
         health = health.update(
             self.meeting.system.subscribe(self.meeting.event))
         health = health.update(
+            self.meeting.data.subscribe(self.meeting.event))
+        health = health.update(
             self.meeting.identity.subscribe(self.meeting.event))
-            # ERROR THE FIRST!
-            # ERROR THE SECOND?!
 
         # ---
         # Tick systems.

@@ -89,6 +89,10 @@ class IdentityManager(EcsManagerWithEvents):
     Do the reduced tick every this many ticks.
     '''
 
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def _define_vars(self):
         '''
         Instance variable definitions, type hinting, doc strings, etc.
@@ -152,11 +156,6 @@ class IdentityManager(EcsManagerWithEvents):
         The ECS Entity Manager.
         '''
 
-        self._event: EventManager = None
-        '''
-        The ECS Event Manager.
-        '''
-
         # ------------------------------
         # Quick Lookups
         # ------------------------------
@@ -191,9 +190,7 @@ class IdentityManager(EcsManagerWithEvents):
         '''
         Make our stuff from context/config data.
         '''
-        super().__init__()
-
-        self._debug = debug_flags
+        super().__init__(debug_flags)
 
         self._ticks = SystemTick.PRE  # Just PRE so far.
         time_manager.set_reduced_tick_rate(SystemTick.PRE,
@@ -271,22 +268,72 @@ class IdentityManager(EcsManagerWithEvents):
     # Health
     # -------------------------------------------------------------------------
 
+    # TODO: Move health helpers from IdentityManager, DataManager, base.System
+    # into a mixin class.
+
+    def _health_log(self,
+                    log_meter: 'Decimal',
+                    log_level: log.Level,
+                    msg:       str,
+                    *args:     Any,
+                    **kwargs:  Any):
+        '''
+        Do a metered health log if meter allows. Will log out at `log_level`.
+
+        WARNING is a good default. Not using an optional param so args/kwargs
+        are more explicitly separated.
+        '''
+        output_log, maybe_updated_meter = self._manager.time.metered(log_meter)
+        if output_log:
+            kwargs = self._log_stack(**kwargs)
+            self._log_at_level(
+                log_level,
+                f"HEALTH({self.health}): " + msg,
+                args, kwargs)
+        return maybe_updated_meter
+
     def _health_ok_event(self,
                          event: 'Event') -> bool:
-        '''Check health, log if needed, and return True if able to proceed.'''
-        if not self._healthy(self._meeting.time.engine_tick_current):
-            meter = self._health_meter_event
-            output_log, meter = self._meeting.time.metered(meter)
-            self._health_meter_event = meter
-            if output_log:
-                msg = ("Dropping event {} - IdentityManager's health "
-                       "isn't good enough to process.")
-                kwargs = self._log_stack(None)
-                self._log_warning(
-                    f"HEALTH({self.health}): " + msg,
-                    event,
-                    context=event.context,
-                    **kwargs)
+        '''
+        Check health, log if needed, and return True if able to proceed.
+        '''
+        if self._healthy(self._meeting.time.engine_tick_current):
+            return True
+
+        # Unhealthy? Log (maybe) and return False.
+        meter = self._health_meter_event
+        output_log, meter = self._meeting.time.metered(meter)
+        self._health_meter_event = meter
+        if output_log:
+            msg = ("Dropping event {} - IdentityManager's health "
+                   "isn't good enough to process.")
+            kwargs = self._log_stack(None)
+            self._health_meter_event = self._health_log(
+                self._health_meter_event,
+                log.Level.WARNING,
+                msg,
+                event,
+                context=event.context,
+                **kwargs)
+        return False
+
+    def _health_ok_tick(self,
+                        tick: 'SystemTick',
+                        context:  NullNoneOr['VerediContext'] = None) -> bool:
+        '''
+        Check health, log if needed, and return True if able to proceed.
+        '''
+        if not self._healthy(tick):
+            msg = ("Skipping tick {} - IdentityManager health "
+                   "isn't good enough to process.")
+            kwargs = self._log_stack(None)
+            self._health_meter_update = self._health_log(
+                self._health_meter_update,
+                log.Level.WARNING,
+                msg,
+                tick,
+                context=context,
+                **kwargs)
             return False
         return True
 
@@ -299,6 +346,8 @@ class IdentityManager(EcsManagerWithEvents):
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
         '''
+        super().subscribe(event_manager)
+
         # Use EventManager.is_subscribed() to make this re-entrant -
         # EventManager.subscribe() throws exceptions for repeated
         # subscriptions.
@@ -309,16 +358,16 @@ class IdentityManager(EcsManagerWithEvents):
         #   - CodeIdentityRequest - IdentityComponent backed by code.
         #                         - Mainly unit tests that avoid needing repo.
         if not self._event.is_subscribed(IdentityRequest,
-                                         self.event_identity_req):
+                                         self._event_identity_req):
             self._event.subscribe(IdentityRequest,
-                                  self.event_identity_req)
+                                  self._event_identity_req)
 
         # EntityLifeEvent:
         #   - Entity gets created/destroyed/etc.
         if not self._event.is_subscribed(EntityLifeEvent,
-                                         self.event_entity_life):
+                                         self._event_entity_life):
             self._event.subscribe(EntityLifeEvent,
-                                  self.event_entity_life)
+                                  self._event_entity_life)
 
         return VerediHealth.HEALTHY
 
@@ -370,8 +419,8 @@ class IdentityManager(EcsManagerWithEvents):
                                              data=component_data)
         return retval
 
-    def request_creation(self,
-                         event: IdentityRequest) -> ComponentId:
+    def _request_creation(self,
+                          event: IdentityRequest) -> ComponentId:
         '''
         Asks ComponentManager to create the IdentityComponent from this event.
 
@@ -395,7 +444,7 @@ class IdentityManager(EcsManagerWithEvents):
                                       data,
                                       event.context)
 
-    def event_identity_req(self, event: IdentityRequest) -> None:
+    def _event_identity_req(self, event: IdentityRequest) -> None:
         '''
         Identity thingy want; make with the component plz.
         '''
@@ -411,7 +460,7 @@ class IdentityManager(EcsManagerWithEvents):
             # Entity disappeared, and that's ok.
             return
 
-        cid = self.request_creation(event)
+        cid = self._request_creation(event)
 
         # Have EventManager create and fire off event for whoever wants the
         # next step.
@@ -447,7 +496,7 @@ class IdentityManager(EcsManagerWithEvents):
         self._uids[entity_id] = user_id
         self._ukeys[entity_id] = user_key
 
-    def event_entity_life(self, event: EntityLifeEvent) -> None:
+    def _event_entity_life(self, event: EntityLifeEvent) -> None:
         '''
         Entity Life-cycle has changed enough that EntityManager has produced an
         event for it. See if we should add/remove from our dictionaries.
@@ -514,18 +563,23 @@ class IdentityManager(EcsManagerWithEvents):
         before actual tick.
         '''
         # ------------------------------
-        # Ignored Tick?
+        # Short-cuts
         # ------------------------------
+
+        # Ignored Tick?
         if not self._ticks or not self._ticks.has(tick):
             # Don't even care about my health since we don't even want
             # this tick.
             return VerediHealth.HEALTHY
 
-        health = VerediHealth.HEALTHY
+        # Doctor checkup.
+        if not self._health_ok_tick(SystemTick.STANDARD):
+            return self.health
 
         # ------------------------------
         # Full Tick Rate: Start
         # ------------------------------
+        health = VerediHealth.HEALTHY
 
         # Nothing, at the moment.
 
