@@ -750,13 +750,13 @@ class data(metaclass=DataMeta):
         REPO = enum.auto()
         '''
         A Repository for the Game Data. Should not be used - the
-        DataSystem/RepositorySystem/etc should be used instead.
+        DataManager should be used instead.
         '''
 
         SERDES = enum.auto()
         '''
         A Serdes for the Game Data. Should not be used - the
-        DataSystem/SerdesSystem/etc should be used instead.
+        DataManager should be used instead.
         '''
 
     @classmethod

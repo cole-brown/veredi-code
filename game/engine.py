@@ -53,11 +53,6 @@ from .data.identity.manager             import IdentityManager
 # ECS Minions
 from .ecs.base.entity                   import Entity
 
-# ---
-# Required Systems
-# ---
-from veredi.game.data.system            import DataSystem
-
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -227,9 +222,20 @@ class Engine(LogMixin):
     one time-step loop (currently).
     '''
 
-    SYSTEMS_REQUIRED = frozenset((DataSystem, ))
+    # SYSTEMS_REQUIRED = frozenset((OneSystem,
+    #                               TwoSystem,
+    #                               RedSystem,
+    #                               BlueSystem,
+    # ))
+    SYSTEMS_REQUIRED = ()
+    '''
+    The systems that this engine cannot run without.
+    '''
 
     DOTTED = 'veredi.game.engine'
+    '''
+    The Engine's Dotted Label.
+    '''
 
     _METER_LOG_AMT = 10  # seconds
     '''

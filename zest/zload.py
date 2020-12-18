@@ -35,9 +35,6 @@ from veredi.base.context               import VerediContext
 from veredi.game.ecs.base.identity     import SystemId
 from veredi.game.engine                import Engine
 
-# System Stuff
-from veredi.game.data.system           import DataSystem
-
 # Registry
 from veredi.data.config                import registry as config_registry
 from veredi.data.serdes.yaml           import registry as yaml_registry
@@ -148,8 +145,8 @@ def set_up(test_name_class:   str,
     Creates a managers' meeting (via zmake.meeting).
     Creates a real context (via zontext.real_contfig).
     Creates supplied Systems (using our zload.create_systems).
-      - If none supplied, creates default of: DataSystem.
-      - These are (currently) the min required to get from disk to component.
+      - If none supplied, creates default of: (nothing)
+        - These are (currently) the min required to get from disk to component.
 
     Returns:
       Tuple[Meeting, VerediContext, SystemManager, List[SystemId]]
@@ -197,8 +194,10 @@ def set_up(test_name_class:   str,
             sids = create_systems(system_manager, context,
                                   *desired_systems)
         elif not require_engine:
-            sids = create_systems(system_manager, context,
-                                  DataSystem)  # , NextSystem, etc)
+            sids = create_systems(system_manager, context)
+            # If you have required systems:
+            # sids = create_systems(system_manager, context,
+            #                       OneSys, TwoSys, RedSys, BlueSys)
         # Else: our engine creates the requried stuff and we don't want to
         # double-create.
 

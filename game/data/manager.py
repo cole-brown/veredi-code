@@ -282,7 +282,7 @@ class DataManager(EcsManagerWithEvents):
         WARNING is a good default. Not using an optional param so args/kwargs
         are more explicitly separated.
         '''
-        output_log, maybe_updated_meter = self._manager.time.metered(log_meter)
+        output_log, maybe_updated_meter = self._time.metered(log_meter)
         if output_log:
             kwargs = self._log_stack(**kwargs)
             self._log_at_level(

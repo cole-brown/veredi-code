@@ -5,8 +5,7 @@ Integration Test for input -> ..?.. -> output.
 
 Start with the data "saved" and "in the repository" (i.e. a file on disk).
 Create a DataLoadedEvent and kick it off, then sit back and wait for our
-DataSystem, Repository, Serdes, DataEvents, etc. to do Stuff and make Things
-happen.
+DataManager to do Stuff and make Things happen.
 
 Do the CommandRegistrationBroadcast, let AbilitySystem register its command(s).
 

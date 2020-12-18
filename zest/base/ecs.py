@@ -306,9 +306,6 @@ class ZestEcs(ZestBase):
         '''
         Initializes several systems you need but don't need to hang on to
         directly for your test.
-
-        NOTE: Already created RepositorySystem, SerdesSystem, DataSystem in
-        set_up_ecs() if your test called that.
         '''
         sids = zload.create_systems(self.manager.system,
                                     self.context,
@@ -431,7 +428,7 @@ class ZestEcs(ZestBase):
 
         if set_all_systems:
             # As of now [2020-12-18], the systems use the Meeting's DebugFlag.
-            self._manager._debug = self._manager._debug.unset(debug_flags)
+            self.manager._debug = self.manager._debug.unset(debug_flags)
 
             # If the systems get their own flags, we could do this:
             # for system in self.manager.system._ut_each_system():
@@ -440,9 +437,9 @@ class ZestEcs(ZestBase):
         if set_all_managers:
             # Unset Meeting's? Managers don't use, but we're setting all
             # managers' debug flags, so it makes sense.
-            self._manager._debug = self._manager._debug.unset(debug_flags)
+            self.manager._debug = self.manager._debug.unset(debug_flags)
 
-            for manager in self._manager._each_existing():
+            for manager in self.manager._each_existing():
                 manager._debug = manager._debug.unset(debug_flags)
 
         if set_engine:
@@ -458,7 +455,6 @@ class ZestEcs(ZestBase):
 
         Logs something about an event if our event debugging flag is on.
         '''
-        print('title is, uh...', title)
         self._event_debug_counter += 1
         if self.manager.event._debug.has(DebugFlag.EVENTS):
             log.ultra_hyper_debug(event,
