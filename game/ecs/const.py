@@ -13,9 +13,11 @@ import enum
 
 from veredi.base.enum import FlagCheckMixin
 
+from veredi.base.const import VerediHealth
+
 
 # -----------------------------------------------------------------------------
-# Systems
+# Ticking
 # -----------------------------------------------------------------------------
 
 @enum.unique
@@ -181,6 +183,10 @@ def game_loop_end() -> bool:
     return _GAME_LOOP_SEQUENCE[-1][0]
 
 
+# -----------------------------------------------------------------------------
+# Tick Ordering
+# -----------------------------------------------------------------------------
+
 class SystemPriority(enum.IntEnum):
     '''
     Low priority systems go last, so that a standard (non-reversed) sort will
@@ -207,5 +213,93 @@ class SystemPriority(enum.IntEnum):
 
 
 # -----------------------------------------------------------------------------
-# Other?
+# Tick -> Health
 # -----------------------------------------------------------------------------
+
+def tick_health_init(tick: 'SystemTick') -> VerediHealth:
+    '''
+    Returns a starting, good health for a tick type.
+
+    Good Starting Healths are, for ticks in:
+      - TICKS_START - HEALTHY
+      - TICKS_RUN   - HEALTHY
+      - TICKS_END
+        - APOPTOSIS  - APOPTOSIS (in progress)
+        - APOCALYPSE - APOCALYPSE (in progress)
+        - THE_END    - THE_END (good kind of dead)
+    '''
+    # ---
+    # Start
+    # ---
+    if tick in SystemTick.TICKS_START:
+        # HEALTHY will be downgraded by PENDING, etc.
+        return VerediHealth.HEALTHY
+
+    # ---
+    # RUN!
+    # ---
+    elif tick in SystemTick.TICKS_RUN:
+        return VerediHealth.HEALTHY
+
+    # ---
+    # Done.
+    # ---
+    elif tick in SystemTick.TICKS_END:
+        if tick is SystemTick.APOPTOSIS:
+            # Success will be downgraded by in-progress or failure.
+            return VerediHealth.APOPTOSIS_SUCCESSFUL
+
+        if tick is SystemTick.APOCALYPSE:
+            # Done will be downgraded by in-progress.
+            return VerediHealth.APOCALYPSE_DONE
+
+        if tick is SystemTick.THE_END:
+            # This is the only THE_END-specific value right now...
+            return VerediHealth.THE_END
+
+        # Shouldn't be ticked; no good health to start with.
+        # if tick is SystemTick.FUNERAL:
+        #     return zombie viral outbreak?
+
+    # ---
+    # Errors or Funerals
+    # ---
+    # We don't know what to do for this tick, right now...
+    return VerediHealth.FATAL
+
+
+def tick_healthy(tick: 'SystemTick', health: VerediHealth) -> bool:
+    '''
+    Checks that `health` is a "good enough" value for the tick.
+
+    Examples:
+      - "PENDING" is good enough for GENESIS, but bad in the TICKS_RUN.
+      - "HEALTHY" is good for TICKS_RUN, but /bad/ in TICKS_END.
+        - Means some TICKS_RUN logic got mixed in, usually.
+    '''
+    # ---
+    # Start
+    # ---
+    if tick in SystemTick.TICKS_START:
+        # Limbo is also ok for START.
+        return health.in_best_health or health.limbo
+
+    # ---
+    # RUN!
+    # ---
+    elif tick in SystemTick.TICKS_RUN:
+        # Only best health is ok.
+        return health.in_best_health
+
+    # ---
+    # Done.
+    # ---
+    elif tick in SystemTick.TICKS_END:
+        # Anything above 'real bad' is good.
+        return health.in_runnable_health
+
+    # ---
+    # Errors or Funerals
+    # ---
+    # We don't know what to do for this tick, right now...
+    return VerediHealth.FATAL

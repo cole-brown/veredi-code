@@ -23,9 +23,6 @@ from typing import Optional, Any, Set, Type, Mapping
 from veredi.base.null import NullNoneOr
 
 
-from decimal import Decimal
-
-
 # ---
 # Veredi Stuff
 # ---
@@ -53,7 +50,7 @@ from ..ecs.event                 import (EventManager,
 from ..ecs.time                  import TimeManager
 from ..ecs.component             import ComponentManager
 
-from ..ecs.const                 import SystemTick
+from ..ecs.const                 import SystemTick, tick_health_init
 from ..ecs.exceptions            import EventError, EcsManagerError
 
 from ..ecs.base.identity         import ComponentId
@@ -125,13 +122,13 @@ class DataManager(EcsManagerWithEvents):
         # Health
         # ------------------------------
 
-        self._health_meter_event:   Optional['Decimal'] = None
+        self._health_meter_event:   Optional[int] = None
         '''
         Store timing information for our timed/metered 'system isn't healthy'
         messages that fire off during event things.
         '''
 
-        self._health_meter_update:  Optional['Decimal'] = None
+        self._health_meter_update:  Optional[int] = None
         '''
         Stores timing information for our timed/metered 'system isn't healthy'
         messages that fire off during system tick things.
@@ -143,15 +140,13 @@ class DataManager(EcsManagerWithEvents):
 
         # Experimental: Keep data processing out of the standard tick?
         # Just let everyone else go at it.
-
-        self._ticks: Optional[SystemTick] = (SystemTick.TICKS_RUN
-                                             & ~SystemTick.STANDARD)
+        self._ticks: Optional[SystemTick] = (SystemTick.TICKS_START
+                                             # All but standard...
+                                             | (SystemTick.TICKS_RUN
+                                                & ~SystemTick.STANDARD)
+                                             | SystemTick.TICKS_END)
         '''
-        The ticks we desire to run in.
-
-        Systems will always get the TICKS_START and TICKS_END ticks. The
-        default _cycle_<tick> and _update_<tick> for those ticks should be
-        acceptable if the system doesn't care.
+        The ticks we desire to run in. Just for our own checking...
         '''
 
         # Apoptosis will be our end-of-game saving.
@@ -271,7 +266,7 @@ class DataManager(EcsManagerWithEvents):
     # -------------------------------------------------------------------------
 
     def _health_log(self,
-                    log_meter: 'Decimal',
+                    log_meter: int,
                     log_level: log.Level,
                     msg:       str,
                     *args:     Any,
@@ -287,9 +282,36 @@ class DataManager(EcsManagerWithEvents):
             kwargs = self._log_stack(**kwargs)
             self._log_at_level(
                 log_level,
-                f"HEALTH({self.health}): " + msg,
+                f"HEALTH({str(self.health)}): " + msg,
                 args, kwargs)
         return maybe_updated_meter
+
+    def _meter_log(self,
+                   meter:     int,
+                   msg:       str,
+                   *args:     Any,
+                   log_level: log.Level = log.Level.WARNING,
+                   **kwargs:  Any) -> int:
+        '''
+        Log a metered log. Or ignore if the output log meter says no
+        logging right now.
+
+        Returns the updated `meter`, which caller should assign back:
+          self._a_meter = self._meter_log(self._a_meter,
+                                          "Hello there.")
+        '''
+        output_log, meter = self.time.metered(meter)
+        if output_log:
+            kwargs = self._log_stack(**kwargs)
+            self._health_meter_event = self._health_log(
+                self._health_meter_event,
+                log.Level.WARNING,
+                msg,
+                *args,
+                **kwargs)
+
+        # Caller should update the meter they used to call us.
+        return meter
 
     def _health_ok_event(self,
                          event: 'Event') -> bool:
@@ -306,7 +328,7 @@ class DataManager(EcsManagerWithEvents):
         if output_log:
             msg = ("Dropping event {} - DataManager's health "
                    "isn't good enough to process.")
-            kwargs = self._log_stack(None)
+            kwargs = self._log_stack()
             self._health_meter_event = self._health_log(
                 self._health_meter_event,
                 log.Level.WARNING,
@@ -328,7 +350,7 @@ class DataManager(EcsManagerWithEvents):
         # Unhealthy? Log (maybe) and return False.
         msg = ("Skipping tick {} - DataManager's health "
                "isn't good enough to process.")
-        kwargs = self._log_stack(None)
+        kwargs = self._log_stack()
         self._health_meter_update = self._health_log(
             self._health_meter_update,
             log.Level.WARNING,
@@ -674,25 +696,80 @@ class DataManager(EcsManagerWithEvents):
         # ------------------------------
         # Short-cuts
         # ------------------------------
-
         # Ignored Tick?
         if not self._ticks or not self._ticks.has(tick):
             # Don't even care about my health since we don't even want
             # this tick.
-            return VerediHealth.HEALTHY
+            return VerediHealth.IGNORE
 
         # Doctor checkup.
-        if not self._health_ok_tick(SystemTick.STANDARD):
+        if not self._health_ok_tick(tick):
             return self.health
+
+        # ------------------------------
+        # Tick Types
+        # ------------------------------
+        # Run the specific tick cycle.
+        if tick in SystemTick.TICKS_START:
+            self.health = self._update_start(tick)
+            return self.health
+
+        elif tick in SystemTick.TICKS_RUN:
+            self.health = self._update_run(tick)
+            return self.health
+
+        elif tick in SystemTick.TICKS_END:
+            health = self._update_end(tick)
+            self.health = health
+            return self.health
+
+        # ------------------------------
+        # Error!
+        # ------------------------------
+        # ...else... What tick is this tick even?
+        self._health_meter_update = self._meter_log(
+            self._health_meter_update,
+            f"Unknown tick {tick}?! Setting health to FATAL!")
+        health = VerediHealth.FATAL
+        self.health = health
+        return health
+
+    def _update_start(self, tick: SystemTick) -> VerediHealth:
+        '''
+        Tick processing specific to SystemTick.TICKS_START
+        '''
+        if tick not in SystemTick.TICKS_START:
+            self._health_meter_update = self._meter_log(
+                self._health_meter_update,
+                f"Tick {tick} is not in SystemTick.TICKS_START. Why are we "
+                "in this function then?! Setting health to FATAL!")
+            health = VerediHealth.FATAL
+            self.health = health
+            return health
+
+        # Do Tick Things Here.
+        health = tick_health_init(tick)
+        self.health = health
+        return health
+
+    def _update_run(self, tick: SystemTick) -> VerediHealth:
+        '''
+        Tick processing specific to SystemTick.TICKS_RUN
+        '''
+        health = tick_health_init(tick)
+
+        if tick not in SystemTick.TICKS_RUN:
+            self._health_meter_update = self._meter_log(
+                self._health_meter_update,
+                f"Tick {tick} is not in SystemTick.TICKS_RUN. Why are we "
+                "in this function then?! Setting health to FATAL!")
+            health = VerediHealth.FATAL
+            self.health = health
+            return health
 
         # ------------------------------
         # Full Tick Rate: Start
         # ------------------------------
-        health = VerediHealth.HEALTHY
-
-        # Doctor checkup.
-        if not self._health_ok_tick(tick):
-            return self.health.update(health)
 
         # TODO [2020-12-01]: Make a 'max requests per tick'. Use as the max for
         # both this and events combined?
@@ -719,4 +796,40 @@ class DataManager(EcsManagerWithEvents):
         # !! REDUCED Tick Rate: START !!
         # ------------------------------
 
-        return self.health.update(health)
+        self.health = health
+        return health
+
+    def _update_end(self, tick: SystemTick) -> VerediHealth:
+        '''
+        Tick processing specific to SystemTick.TICKS_END
+        '''
+        # Specific end ticks:
+        if tick is SystemTick.APOPTOSIS:
+            # Do Tick Things Here.
+
+            # Check for events; return VerediHealth.APOPTOSIS,
+            # VerediHealth.APOPTOSIS_SUCCESSFUL based on if processed any?
+            health = VerediHealth.APOPTOSIS_SUCCESSFUL
+            self.health = health
+            return health
+
+        elif tick is SystemTick.APOCALYPSE:
+            # If apocalypse is still in progress, return
+            # VerediHealth.APOCALYPSE.
+            health = VerediHealth.APOCALYPSE_DONE
+            self.health = health
+            return health
+
+        elif tick is SystemTick.THE_END:
+            health = VerediHealth.THE_END
+            self.health = health
+            return health
+
+        # Uh... What tick then? Already checked.
+        self._health_meter_update = self._meter_log(
+            self._health_meter_update,
+            f"Tick {tick} is not in SystemTick.TICKS_END. Why are we "
+            "in this function then?! Setting health to FATAL!")
+        health = VerediHealth.FATAL
+        self.health = VerediHealth.health
+        return health

@@ -163,20 +163,22 @@ class Test_SystemManager(ZestBase):
         self.config     = zmake.config()
         self.time_mgr   = TimeManager()
         self.comp_mgr   = ComponentManager(self.config,
-                                           self.event_mgr)
+                                           self.event_mgr,
+                                           self.debug_flags)
         self.entity_mgr = EntityManager(self.config,
                                         self.event_mgr,
-                                        self.comp_mgr)
+                                        self.comp_mgr,
+                                        self.debug_flags)
         self.system_mgr = SystemManager(self.config,
                                         self.time_mgr,
                                         self.event_mgr,
                                         self.comp_mgr,
                                         self.entity_mgr,
-                                        DebugFlag.GAME_ALL)
+                                        self.debug_flags)
 
         self.events_recv = {}
 
-    def tearDown(self):
+    def tear_down(self):
         self.config      = None
         self.time_mgr    = None
         self.event_mgr   = None

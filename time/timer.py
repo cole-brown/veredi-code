@@ -26,7 +26,19 @@ class MonotonicTimer:
     '''
 
     TIME_FMT = '%H:%M:%S'
-    ELAPSED_STR_FMT = '{time_fmt}.{fractional}'
+    '''
+    Time format string for output.
+    '''
+
+    ELAPSED_STR_SEC_PRECISION = 10 ** 3
+    '''
+    Fractional seconds precision for string output.
+    '''
+
+    ELAPSED_STR_FMT = '{time_fmt}.{fractional:d}'
+    '''
+    Full string format for stirng output.
+    '''
 
     def __init__(self) -> None:
         self.reset()
@@ -83,7 +95,12 @@ class MonotonicTimer:
         Returns `self.elapsed`, formatted as HH:MM:SS.fff...
         '''
         elapsed = self.elapsed
-        fraction = elapsed % 1
+        # Multiply by precision to get our relevant fractional second:
+        #       from:    0.123456789
+        #         to: 1234.56789
+        #   truncate: 1234
+        fraction = int((elapsed % 1)
+                       * self.ELAPSED_STR_SEC_PRECISION)
         return self.ELAPSED_STR_FMT.format(
             time_fmt=py_time.strftime(self.TIME_FMT, py_time.gmtime(elapsed)),
             fractional=fraction)

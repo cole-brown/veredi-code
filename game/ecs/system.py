@@ -31,7 +31,7 @@ from .base.system              import (System,
 from veredi.base.exceptions    import VerediError, HealthError
 from .base.exceptions          import EcsSystemError
 
-from .const                    import SystemTick
+from .const                    import SystemTick, tick_health_init
 from .time                     import TimeManager
 from .event                    import EcsManagerWithEvents, EventManager, Event
 from .component                import ComponentManager
@@ -419,7 +419,9 @@ class SystemManager(EcsManagerWithEvents):
 
         time = background.manager.time
 
-        worst_health = VerediHealth.HEALTHY
+        # Start off with a good health in case there are no systems.
+        worst_health = tick_health_init(tick)
+
         # TODO: self._schedule[tick] is a priority/topographical tree or
         # something that doesn't pop off members each loop?
         for system in self._schedule:

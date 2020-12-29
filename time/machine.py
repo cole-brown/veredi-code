@@ -72,12 +72,14 @@ class MachineTime:
 
     SEC_TO_NS = 1_000_000_000
 
-    def sec_to_ns(self, seconds: Union[int, float, Decimal]) -> int:
+    @classmethod
+    def sec_to_ns(klass:  'MachineTime',
+                  seconds: Union[int, float, Decimal]) -> int:
         '''
         Convert seconds to a nanoseconds value compatible with
         self.monotonic_ns.
         '''
-        nano = seconds * self.SEC_TO_NS
+        nano = seconds * klass.SEC_TO_NS
         # Our monotonic_ns property returns an int, and we don't care about any
         # precision below nanoseconds anyways.
         return int(nano)

@@ -445,7 +445,6 @@ class Lumberjack:
 
         log_fn(msg,
                *args,
-               veredi_logger=self._logger,
                context=context,
                **kwargs)
 

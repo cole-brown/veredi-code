@@ -56,21 +56,23 @@ class CompThree(Component):
 class Test_EntityManager(ZestBase):
     _TYPE_DONT_CARE = 1
 
-    def setUp(self):
+    def set_up(self):
         self.config    = zmake.config()
         self.event_mgr = None
-        self.finish_setUp()
+        self.finish_set_up()
 
-    def finish_setUp(self):
+    def finish_set_up(self):
         self.comp_mgr   = ComponentManager(self.config,
-                                           self.event_mgr)
+                                           self.event_mgr,
+                                           self.debug_flags)
         self.entity_mgr = EntityManager(self.config,
                                         self.event_mgr,
-                                        self.comp_mgr)
+                                        self.comp_mgr,
+                                        self.debug_flags)
 
         self.events_recv = {}
 
-    def tearDown(self):
+    def tear_down(self):
         self.config      = None
         self.event_mgr   = None
         self.comp_mgr    = None
@@ -389,12 +391,12 @@ class Test_EntityManager(ZestBase):
 
 
 class Test_EntityManager_Events(Test_EntityManager):
-    def setUp(self):
+    def set_up(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.
         self.config    = zmake.config()
         self.event_mgr = EventManager(self.config, None)
-        self.finish_setUp()
+        self.finish_set_up()
         self.register_events()
 
 
