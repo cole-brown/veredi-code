@@ -61,7 +61,9 @@ class Test_ComponentManager(ZestBase):
         self.finish_set_up()
 
     def finish_set_up(self):
-        self.comp_mgr = ComponentManager(self.config, self.event_mgr)
+        self.comp_mgr = ComponentManager(self.config,
+                                         self.event_mgr,
+                                         self.debug_flags)
 
         self.events_recv = {}
 

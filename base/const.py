@@ -28,21 +28,38 @@ class VerediHealth(enum.IntEnum):
     # -------------------------------------------------------------------------
 
     # ------------------------------
-    # Limbo: == 0
+    # Special/Neutral: [0, 10)*
     # ------------------------------
+    # *NOTE:
+    #   - limbo() is [0, 20)
+    #   - But [10, 20] are in the 'Good' range and used for things like
+    #     PENDING.
+    #   - So Special/Neutral is [0, 10) or [0, 20), depending.
+
     INVALID   = 0
     '''A state to indicate a state hasn't been set but should/should have.'''
+
+    IGNORE    = 1
+    '''
+    A state to indicate that this health value should just be ignored.
+
+    E.g.: A manager that gets called for all tick types but doesn't care about
+    one can return VerediHealth.IGNORE to indicate it should be ignored.
+    '''
 
     # ------------------------------
     # The Good Death: [-10, -20)
     # ------------------------------
+    # Must have the "good/done" values above the "ok/in-progress" for
+    # `update()` et al to function correctly.
+
     # Apoptosis is the good kind of dying, but it still means we're killing
     # this thing.
-    APOPTOSIS = -10
-    '''In Progress: System is dying in a healthy manner.'''
-
-    APOPTOSIS_SUCCESSFUL = -11
+    APOPTOSIS_SUCCESSFUL = -10
     '''Done: Successfully died in a healthy manner.'''
+
+    APOPTOSIS = -11
+    '''In Progress: System is dying in a healthy manner.'''
 
     APOPTOSIS_FAILURE = -12
     '''
@@ -50,11 +67,11 @@ class VerediHealth(enum.IntEnum):
     it...
     '''
 
-    APOCALYPSE = -15
-    '''System's/Engine's Apocalypse is in progress.'''
-
     APOCALYPSE_DONE = -16
     '''System/Engine is done with the apocalypse.'''
+
+    APOCALYPSE = -15
+    '''System's/Engine's Apocalypse is in progress.'''
 
     THE_END = -18
     '''System/Engine is done with everything and is the good kind of dead.'''
@@ -133,7 +150,8 @@ class VerediHealth(enum.IntEnum):
 
         This is generally for the TICKS_RUN (game loop) phase of living.
         '''
-        return self.value > VerediHealth._GOOD_HEALTH_MIN.value
+        return (self.value > VerediHealth._GOOD_HEALTH_MIN.value
+                or self is VerediHealth.IGNORE)
 
     @property
     def in_runnable_health(self) -> bool:
@@ -144,14 +162,23 @@ class VerediHealth(enum.IntEnum):
         This is generally for the TICKS_END (structured shutdown) phase of
         the engine.
         '''
-        return self.value > VerediHealth._RUN_OK_HEALTH_MIN.value
+        return (self.value > VerediHealth._RUN_OK_HEALTH_MIN.value
+                or self is VerediHealth.IGNORE)
 
     @staticmethod
     def worse(a: 'VerediHealth',
               b: 'VerediHealth') -> 'VerediHealth':
         '''
         Given `a` and `b`, returns the worse health of the two.
+
+        Ignores IGNORE if possible.
         '''
+        # (Try to) ignore the IGNORE value (but if both are IGNORE... *shrug*).
+        if a is VerediHealth.IGNORE:
+            return b
+        if b is VerediHealth.IGNORE:
+            return a
+
         # We've set up the enum values so that the worse off your health is,
         # the lower the number it's assigned.
         return (a if a.value < b.value else b)
@@ -161,14 +188,28 @@ class VerediHealth(enum.IntEnum):
             b: 'VerediHealth') -> 'VerediHealth':
         '''
         Given `a` and `b`, returns the worse health of the two. This will (try
-        to) ignore INVALID. If both are invalid, though, it will be forced to
-        still return INVALID.
-        '''
-        if a is VerediHealth.INVALID:
-            return b
-        if b is VerediHealth.INVALID:
-            return a
+        to) ignore INVALID/IGNORE. If both are invalid/ignore, though, it will
+        be forced to still return INVALID/IGNORE. Attempts to prefer INVALID
+        over IGNORE.
 
+        Ignores IGNORE if possible.
+        '''
+        # ---
+        # Try for (optimal) invalidity check.
+        # ---
+        # Split invalid/ignore checks so we can try to prefer returning INVALID
+        # over IGNORE.
+        if a is VerediHealth.INVALID and b is not VerediHealth.IGNORE:
+            return b
+        if b is VerediHealth.INVALID and a is not VerediHealth.IGNORE:
+            return a
+        # INVALID/IGNORE fallback is same as the normal case. Prefer INVALID
+        # over IGNORE (and we've set up the values of those two the correct way
+        # for this check).
+
+        # ---
+        # Normal check.
+        # ---
         # We've set up the enum values so that the worse off your health is,
         # the lower the number it's assigned.
         return (a if a.value < b.value else b)
@@ -186,7 +227,7 @@ class VerediHealth(enum.IntEnum):
         for value in health_update:
             health = VerediHealth.set(self, value)
 
-        return VerediHealth.set(self, health)
+        return health
 
     def __str__(self) -> str:
         '''

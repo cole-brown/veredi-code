@@ -60,7 +60,7 @@ class TimeManager(EcsManagerWithEvents):
     _DEFAULT_TIMEOUT_SEC = 10
     _SHORT_TIMEOUT_SEC = 1
 
-    _METER_TIMEOUT_SEC = _DEFAULT_TICK_STEP * 4
+    _METER_TIMEOUT_NS = MachineTime.sec_to_ns(_DEFAULT_TICK_STEP * 4)
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -499,7 +499,7 @@ class TimeManager(EcsManagerWithEvents):
     # Logging Despamifier Help
     # ---
 
-    def metered(self, meter: Optional[Decimal]) -> Tuple[bool, Decimal]:
+    def metered(self, meter: Optional[int]) -> Tuple[bool, int]:
         '''
         Takes in a `metered` value from last call.
         Returns a tuple of:
@@ -512,11 +512,13 @@ class TimeManager(EcsManagerWithEvents):
                      if do_the_thing:
                          self.the_thing()
         '''
+        # Zero or None? Allow log and init to "now".
         if not meter:
-            return True, self.seconds
+            return True, self.machine.monotonic_ns
 
-        now = self.seconds
-        if now > meter + self._METER_TIMEOUT_SEC:
+        # Do the math; return true/future or false/past.
+        now = self.machine.monotonic_ns
+        if now > meter + self._METER_TIMEOUT_NS:
             return True, now
         return False, meter
 

@@ -12,7 +12,6 @@ from typing import (TYPE_CHECKING,
                     Optional, Union, Type, Any, Iterable, Set, Dict)
 from veredi.base.null import NullNoneOr, Nullable, Null
 if TYPE_CHECKING:
-    from decimal                    import Decimal
     from ..meeting                  import Meeting
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
@@ -35,7 +34,7 @@ from veredi.base.assortments  import DeltaNext
 from .identity                import EntityId, SystemId
 from .exceptions              import EcsSystemError
 
-from ..const                  import SystemTick, SystemPriority
+from ..const                  import SystemTick, SystemPriority, tick_healthy
 from ..exceptions             import TickError
 
 from ..manager                import EcsManager
@@ -227,13 +226,13 @@ class System(LogMixin, ABC):
         '''
 
         # Most systems have these, so we'll just define 'em in the base.
-        self._health_meter_event:   Optional['Decimal'] = None
+        self._health_meter_event:   Optional[int] = None
         '''
         Store timing information for our timed/metered 'system isn't healthy'
         messages that fire off during event things.
         '''
 
-        self._health_meter_update:  Optional['Decimal'] = None
+        self._health_meter_update:  Optional[int] = None
         '''
         Stores timing information for our timed/metered 'system isn't healthy'
         messages that fire off during system tick things.
@@ -551,9 +550,7 @@ class System(LogMixin, ABC):
         For the rest of the ticks (namely TICKS_RUN), this is only the 'best'
         of health.
         '''
-        if SystemTick.TICKS_END.has(tick):
-            return self._health.in_runnable_health
-        return self._health.in_best_health
+        return tick_healthy(tick, self._health)
 
     def _health_check(self,
                       tick: SystemTick,
@@ -606,7 +603,7 @@ class System(LogMixin, ABC):
         return self.health
 
     def _health_log(self,
-                    log_meter: 'Decimal',
+                    log_meter: int,
                     log_level: log.Level,
                     msg:       str,
                     *args:     Any,
@@ -622,7 +619,7 @@ class System(LogMixin, ABC):
             kwargs = self._log_stack(**kwargs)
             self._log_at_level(
                 log_level,
-                f"HEALTH({self.health}): " + msg,
+                f"HEALTH({str(self.health)}): " + msg,
                 args, kwargs)
         return maybe_updated_meter
 
@@ -652,7 +649,7 @@ class System(LogMixin, ABC):
         if not self._healthy(tick):
             msg = ("Dropping event {} - our system health "
                    "isn't good enough to process.")
-            kwargs = self._log_stack(None)
+            kwargs = self._log_stack()
             self._health_meter_event = self._health_log(
                 self._health_meter_event,
                 log.Level.WARNING,
@@ -670,7 +667,7 @@ class System(LogMixin, ABC):
         if not self._healthy(tick):
             msg = ("Skipping tick {} - our system health "
                    "isn't good enough to process.")
-            kwargs = self._log_stack(None)
+            kwargs = self._log_stack()
             self._health_meter_update = self._health_log(
                 self._health_meter_update,
                 log.Level.WARNING,

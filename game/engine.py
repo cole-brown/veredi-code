@@ -38,7 +38,8 @@ from .ecs.const                         import (SystemTick,
                                                 game_loop_start,
                                                 game_loop_end,
                                                 game_loop_next,
-                                                _GAME_LOOP_SEQUENCE)
+                                                _GAME_LOOP_SEQUENCE,
+                                                tick_health_init)
 from .ecs.time                          import TimeManager
 from .ecs.event                         import EventManager
 from .ecs.component                     import ComponentManager
@@ -227,7 +228,7 @@ class Engine(LogMixin):
     #                               RedSystem,
     #                               BlueSystem,
     # ))
-    SYSTEMS_REQUIRED = ()
+    SYSTEMS_REQUIRED = frozenset()
     '''
     The systems that this engine cannot run without.
     '''
@@ -1300,9 +1301,10 @@ class Engine(LogMixin):
                 self.log_tick(self.tick,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
-                              "and timed out! (took {})",
+                              "and timed out! (health: {}, took: {})",
                               self.__class__.__name__,
                               self.tick,
+                              str(health),
                               self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
@@ -1332,9 +1334,10 @@ class Engine(LogMixin):
                 self.log_tick(self.tick,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
-                              "and timed out! (took {})",
+                              "and timed out! (health: {}, took: {})",
                               self.__class__.__name__,
                               self.tick,
+                              str(health),
                               self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
@@ -1453,9 +1456,7 @@ class Engine(LogMixin):
         finish.
 
         Returns:
-          - VerediHealth.PENDING if TICKS_END life-cycle is still in progress
-          - VerediHealth.HEALTHY if we are done.
-          - Some other health if we or our systems are going wrong.
+          - A VerediHealth value.
         '''
         # ------------------------------
         # First tick: APOPTOSIS
@@ -1476,9 +1477,10 @@ class Engine(LogMixin):
                 self.log_tick(self.tick,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
-                              "and timed out! (took {})",
+                              "and timed out! (health: {}, took: {})",
                               self.__class__.__name__,
                               self.tick,
+                              str(health),
                               self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
@@ -1510,9 +1512,10 @@ class Engine(LogMixin):
                 self.log_tick(self.tick,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
-                              "and timed out! (took {})",
+                              "and timed out! (health: {}, took: {})",
                               self.__class__.__name__,
                               self.tick,
+                              str(self.health),
                               self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
@@ -1667,9 +1670,15 @@ class Engine(LogMixin):
 
         Currently [2020-12-11], used for everything past start-up ticks.
         '''
+        health = VerediHealth.HEALTHY
+
+        # Process our events.
         self.meeting.event.update(tick, self.meeting.time)
-        self.meeting.identity.update(tick)
-        health = self.meeting.system.update(tick)
+
+        # Let managers, systems do tick processing.
+        health = health.update(self.meeting.identity.update(tick),
+                               self.meeting.data.update(tick),
+                               self.meeting.system.update(tick))
         return health
 
     # -------------------------------------------------------------------------
@@ -1741,9 +1750,11 @@ class Engine(LogMixin):
         # ---
         # Let any systems that exist now have a GENESIS tick.
         health = self.meeting.system.update(SystemTick.GENESIS)
-
         self._dbg_tick("Tick: {}, Tick health: {}",
                        self.tick, health)
+
+        # Tick DataManager after systems here for responses to data requests.
+        health = health.update(self.meeting.data.update(SystemTick.GENESIS))
 
         events_dont_care = True
         if (self._ticks_start_in_progress(events_dont_care, health)
@@ -1766,7 +1777,7 @@ class Engine(LogMixin):
           - tick health
         '''
         self._update_init()
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.INTRA_SYSTEM)
 
         # ---
         # Subscribe systems.
@@ -1791,6 +1802,8 @@ class Engine(LogMixin):
         health = self.meeting.system.update(SystemTick.INTRA_SYSTEM)
         health = health.update(
             self.meeting.identity.update(SystemTick.INTRA_SYSTEM))
+        health = health.update(
+            self.meeting.data.update(SystemTick.INTRA_SYSTEM))
         events_published = self.meeting.event.update(
             SystemTick.INTRA_SYSTEM,
             self.meeting.time)
@@ -1926,7 +1939,8 @@ class Engine(LogMixin):
         # the time.
         self.meeting.time.step()
 
-        health = VerediHealth.INVALID
+        # Data next?
+        health = self.meeting.data.update(SystemTick.TIME)
 
         # Create systems now.
         health = health.update(
@@ -1945,7 +1959,7 @@ class Engine(LogMixin):
         Main game loop's final update function - birth/creation of
         components & entities.
         '''
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.CREATION)
 
         health = health.update(
             self.meeting.system.creation(self.meeting.time))
@@ -1965,7 +1979,7 @@ class Engine(LogMixin):
         Main game loop's set-up update function - anything that has to happen
         before SystemTick.STANDARD.
         '''
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.PRE)
 
         health = health.update(
             self._do_tick(SystemTick.PRE))
@@ -1977,7 +1991,7 @@ class Engine(LogMixin):
         '''
         Main game loop's main update tick function.
         '''
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.STANDARD)
 
         health = health.update(
             self._do_tick(SystemTick.STANDARD))
@@ -1990,7 +2004,7 @@ class Engine(LogMixin):
         Main game loop's clean-up update function - anything that has to happen
         after SystemTick.STANDARD.
         '''
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.POST)
 
         health = health.update(
             self._do_tick(SystemTick.POST))
@@ -2002,7 +2016,7 @@ class Engine(LogMixin):
         Main game loop's final update function - death/deletion of
         components & entities.
         '''
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.DESTRUCTION)
         health = health.update(
             self.meeting.component.destruction(self.meeting.time))
         health = health.update(
@@ -2033,7 +2047,7 @@ class Engine(LogMixin):
         says it's APOPTOSIS time.
         '''
         self._update_init()
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.APOPTOSIS)
 
         health = health.update(
             self._do_tick(SystemTick.APOPTOSIS))
@@ -2049,7 +2063,7 @@ class Engine(LogMixin):
         possible - perhaps Null, None, or logs is enough?
         '''
         self._update_init()
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.APOCALYPSE)
 
         health = health.update(
             self._do_tick(SystemTick.APOCALYPSE))
@@ -2066,7 +2080,7 @@ class Engine(LogMixin):
         This should only be called /ONCE/.
         '''
         self._update_init()
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.THE_END)
 
         health = health.update(
             self._do_tick(SystemTick.THE_END))
@@ -2081,7 +2095,7 @@ class Engine(LogMixin):
         This should only be called /ONCE/.
         '''
         self._update_init()
-        health = VerediHealth.INVALID
+        health = tick_health_init(SystemTick.FUNERAL)
 
         health = health.update(
             self._do_tick(SystemTick.FUNERAL))

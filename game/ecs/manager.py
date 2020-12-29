@@ -21,7 +21,7 @@ from veredi.base.const   import VerediHealth
 from veredi.logger.mixin import LogMixin
 from veredi.debug.const        import DebugFlag
 
-from .const              import SystemTick
+from .const              import SystemTick, tick_healthy
 
 
 # -----------------------------------------------------------------------------
@@ -108,9 +108,7 @@ class EcsManager(LogMixin, ABC):
         For the rest of the ticks (namely TICKS_RUN), this is only the 'best'
         of health.
         '''
-        if SystemTick.TICKS_END.has(tick):
-            return self._health.in_runnable_health
-        return self._health.in_best_health
+        return tick_healthy(tick, self._health)
 
     # -------------------------------------------------------------------------
     # Life-Cycle Transitions

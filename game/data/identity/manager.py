@@ -28,8 +28,6 @@ if TYPE_CHECKING:
 # ---
 # Code
 # ---
-from decimal                       import Decimal
-
 from veredi.logger                 import log
 from veredi.base.const             import VerediHealth
 from veredi.base.dicts             import BidirectionalDict
@@ -46,7 +44,7 @@ from veredi.game.ecs.time          import TimeManager
 from veredi.game.ecs.component     import ComponentManager
 from veredi.game.ecs.entity        import EntityManager, EntityLifeEvent
 
-from veredi.game.ecs.const         import SystemTick
+from veredi.game.ecs.const         import SystemTick, tick_health_init
 
 from veredi.game.ecs.base.identity import EntityId, ComponentId
 from veredi.game.ecs.base.entity   import EntityLifeCycle
@@ -136,13 +134,13 @@ class IdentityManager(EcsManagerWithEvents):
         # Health
         # ------------------------------
 
-        self._health_meter_event:   Optional['Decimal'] = None
+        self._health_meter_event:   Optional[int] = None
         '''
         Store timing information for our timed/metered 'system isn't healthy'
         messages that fire off during event things.
         '''
 
-        self._health_meter_update:  Optional['Decimal'] = None
+        self._health_meter_update:  Optional[int] = None
         '''
         Stores timing information for our timed/metered 'system isn't healthy'
         messages that fire off during system tick things.
@@ -272,7 +270,7 @@ class IdentityManager(EcsManagerWithEvents):
     # into a mixin class.
 
     def _health_log(self,
-                    log_meter: 'Decimal',
+                    log_meter: int,
                     log_level: log.Level,
                     msg:       str,
                     *args:     Any,
@@ -288,7 +286,7 @@ class IdentityManager(EcsManagerWithEvents):
             kwargs = self._log_stack(**kwargs)
             self._log_at_level(
                 log_level,
-                f"HEALTH({self.health}): " + msg,
+                f"HEALTH({str(self.health)}): " + msg,
                 args, kwargs)
         return maybe_updated_meter
 
@@ -307,7 +305,7 @@ class IdentityManager(EcsManagerWithEvents):
         if output_log:
             msg = ("Dropping event {} - IdentityManager's health "
                    "isn't good enough to process.")
-            kwargs = self._log_stack(None)
+            kwargs = self._log_stack()
             self._health_meter_event = self._health_log(
                 self._health_meter_event,
                 log.Level.WARNING,
@@ -326,7 +324,7 @@ class IdentityManager(EcsManagerWithEvents):
         if not self._healthy(tick):
             msg = ("Skipping tick {} - IdentityManager health "
                    "isn't good enough to process.")
-            kwargs = self._log_stack(None)
+            kwargs = self._log_stack()
             self._health_meter_update = self._health_log(
                 self._health_meter_update,
                 log.Level.WARNING,
@@ -570,7 +568,7 @@ class IdentityManager(EcsManagerWithEvents):
         if not self._ticks or not self._ticks.has(tick):
             # Don't even care about my health since we don't even want
             # this tick.
-            return VerediHealth.HEALTHY
+            return VerediHealth.IGNORE
 
         # Doctor checkup.
         if not self._health_ok_tick(SystemTick.STANDARD):
@@ -579,7 +577,7 @@ class IdentityManager(EcsManagerWithEvents):
         # ------------------------------
         # Full Tick Rate: Start
         # ------------------------------
-        health = VerediHealth.HEALTHY
+        health = tick_health_init(tick)
 
         # Nothing, at the moment.
 
