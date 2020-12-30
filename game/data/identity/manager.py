@@ -111,13 +111,14 @@ class IdentityManager(EcsManagerWithEvents):
         # Ticking
         # ------------------------------
 
-        self._ticks: Optional[SystemTick] = None
+        # Don't (yet) need START/END.
+        # self._ticks: Optional[SystemTick] = (SystemTick.TICKS_START
+        #                                      # Just PRE so far.
+        #                                      | SystemTick.PRE
+        #                                      | SystemTick.TICKS_END)
+        self._ticks: Optional[SystemTick] = SystemTick.PRE
         '''
         The ticks we desire to run in.
-
-        Systems will always get the TICKS_START and TICKS_END ticks. The
-        default _cycle_<tick> and _update_<tick> for those ticks should be
-        acceptable if the system doesn't care.
         '''
 
         self._reduced_tick_rate: Optional[Dict[SystemTick, DeltaNext]] = {}
@@ -190,7 +191,6 @@ class IdentityManager(EcsManagerWithEvents):
         '''
         super().__init__(debug_flags)
 
-        self._ticks = SystemTick.PRE  # Just PRE so far.
         time_manager.set_reduced_tick_rate(SystemTick.PRE,
                                            self._SYNC_ENTITIES_REDUCED_TICK,
                                            self._reduced_tick_rate)
@@ -341,14 +341,16 @@ class IdentityManager(EcsManagerWithEvents):
 
     def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
-        Subscribe to any life-long event subscriptions here. Can hold on to
-        event_manager if need to sub/unsub more dynamically.
+        Idempotently subscribe to any life-long event subscriptions here. Can
+        hold on to event_manager if need to sub/unsub more dynamically.
         '''
+        # ---
+        # MUST BE IDEMPOTENT!
+        # ---
+        # That is... This must be callable multiple times with it doing the
+        # correct thing once and only once.
+        # ---
         super().subscribe(event_manager)
-
-        # Use EventManager.is_subscribed() to make this re-entrant -
-        # EventManager.subscribe() throws exceptions for repeated
-        # subscriptions.
 
         # IdentityRequests cover:
         #   - DataIdentityRequest - IdentityComponent backed by repo data.

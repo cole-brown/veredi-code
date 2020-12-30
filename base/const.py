@@ -199,10 +199,19 @@ class VerediHealth(enum.IntEnum):
         # ---
         # Split invalid/ignore checks so we can try to prefer returning INVALID
         # over IGNORE.
+
+        # One INVALID but no IGNORE?
         if a is VerediHealth.INVALID and b is not VerediHealth.IGNORE:
             return b
         if b is VerediHealth.INVALID and a is not VerediHealth.IGNORE:
             return a
+
+        # One IGNORE but no INVALID?
+        if a is VerediHealth.IGNORE and b is not VerediHealth.INVALID:
+            return b
+        if b is VerediHealth.IGNORE and a is not VerediHealth.INVALID:
+            return a
+
         # INVALID/IGNORE fallback is same as the normal case. Prefer INVALID
         # over IGNORE (and we've set up the values of those two the correct way
         # for this check).

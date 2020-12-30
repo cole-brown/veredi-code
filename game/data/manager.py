@@ -300,7 +300,7 @@ class DataManager(EcsManagerWithEvents):
           self._a_meter = self._meter_log(self._a_meter,
                                           "Hello there.")
         '''
-        output_log, meter = self.time.metered(meter)
+        output_log, meter = self._time.metered(meter)
         if output_log:
             kwargs = self._log_stack(**kwargs)
             self._health_meter_event = self._health_log(
@@ -323,7 +323,7 @@ class DataManager(EcsManagerWithEvents):
 
         # Unhealthy? Log (maybe) and return False.
         meter = self._health_meter_event
-        output_log, meter = self.time.metered(meter)
+        output_log, meter = self._time.metered(meter)
         self._health_meter_event = meter
         if output_log:
             msg = ("Dropping event {} - DataManager's health "
@@ -366,13 +366,19 @@ class DataManager(EcsManagerWithEvents):
 
     def subscribe(self, event_manager: EventManager) -> VerediHealth:
         '''
-        Subscribe to DataManager's events.
+        Idempotently subscribe to DataManager's events.
 
         In the general case, only DataLoadRequest and DataSaveRequest will be
         subscribed to, but tests and such may do something special and trigger
         intermediate/internal events, so we are able to subscribe to all if set
         up to.
         '''
+        # ---
+        # MUST BE IDEMPOTENT!
+        # ---
+        # That is... This must be callable multiple times with it doing the
+        # correct thing once and only once.
+        # ---
         super().subscribe(event_manager)
 
         # ------------------------------
@@ -382,14 +388,18 @@ class DataManager(EcsManagerWithEvents):
         # - DataLoadRequest
         #   The data needs to be fetched and loaded.
         #   - Repository creates a _LoadedEvent once it has done this.
-        self._event.subscribe(DataLoadRequest,
-                              self._event_data_load_request)
+        if not self._event.is_subscribed(DataLoadRequest,
+                                         self._event_data_load_request):
+            self._event.subscribe(DataLoadRequest,
+                                  self._event_data_load_request)
 
         # - DataSaveRequest
         #   Data needs to be serialized before it can be saved.
         #   - Serdes creates an _SerializedEvent once it has done this.
-        self._event.subscribe(DataSaveRequest,
-                              self._event_data_save_request)
+        if not self._event.is_subscribed(DataSaveRequest,
+                                         self._event_data_save_request):
+            self._event.subscribe(DataSaveRequest,
+                                  self._event_data_save_request)
 
         # ------------------------------
         # Normal Path: Done
@@ -407,14 +417,18 @@ class DataManager(EcsManagerWithEvents):
         #   be stuffed into a component or something and attached to an entity
         #   or something.
         #   - We create a DataLoadedEvent once this is done.
-        self._event.subscribe(_DeserializedEvent,
-                              self._event_deserialized)
+        if not self._event.is_subscribed(_DeserializedEvent,
+                                         self._event_deserialized):
+            self._event.subscribe(_DeserializedEvent,
+                                  self._event_deserialized)
 
         # - _SerializedEvent
         #   Once data is serialized, it needs to be saved to repo.
         #   - Repository creates an _SavedEvent once it has done this.
-        self._event.subscribe(_SerializedEvent,
-                              self._event_serialized)
+        if not self._event.is_subscribed(_SerializedEvent,
+                                         self._event_serialized):
+            self._event.subscribe(_SerializedEvent,
+                                  self._event_serialized)
 
         # ------------------------------
         # Internal: Load / Save from Repository
@@ -423,14 +437,18 @@ class DataManager(EcsManagerWithEvents):
         # - _SavedEvent
         #   Once data is saved to repo, we want to say it's been saved.
         #   - We'll creates a DataSavedEvent to do this.
-        self._event.subscribe(_SavedEvent,
-                              self._event_saved)
+        if not self._event.is_subscribed(_SavedEvent,
+                                         self._event_saved):
+            self._event.subscribe(_SavedEvent,
+                                  self._event_saved)
 
         # - _LoadedEvent
         #   Loaded Data needs to be deserialized so it can be used in game.
         #   - Serdes creates a _DeserializedEvent once it has done this.
-        self._event.subscribe(_LoadedEvent,
-                              self._event_loaded)
+        if not self._event.is_subscribed(_LoadedEvent,
+                                         self._event_loaded):
+            self._event.subscribe(_LoadedEvent,
+                                  self._event_loaded)
 
         return VerediHealth.HEALTHY
 
@@ -787,7 +805,7 @@ class DataManager(EcsManagerWithEvents):
         # ------------------------------
         # Full Tick Rate: End
         # - - - - - - - - - - -
-        # if not self.time.is_reduced_tick(
+        # if not self._time.is_reduced_tick(
         #         tick,
         #         self._reduced_tick_rate):
         #     self.health = health
@@ -831,5 +849,5 @@ class DataManager(EcsManagerWithEvents):
             f"Tick {tick} is not in SystemTick.TICKS_END. Why are we "
             "in this function then?! Setting health to FATAL!")
         health = VerediHealth.FATAL
-        self.health = VerediHealth.health
+        self.health = health
         return health

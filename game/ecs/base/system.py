@@ -695,9 +695,15 @@ class System(LogMixin, ABC):
 
     def subscribe(self, event_manager: EventManager) -> VerediHealth:
         '''
-        Subscribe to any life-long event subscriptions here. Can hold on to
-        event_manager if need to sub/unsub more dynamically.
+        Idempotently subscribe to any life-long event subscriptions here. Can
+        hold on to event_manager if need to sub/unsub more dynamically.
         '''
+        # ---
+        # MUST BE IDEMPOTENT!
+        # ---
+        # That is... This must be callable multiple times with it doing the
+        # correct thing once and only once.
+
         # Prevent reregistration.
         if self._subscribed:
             return VerediHealth.HEALTHY

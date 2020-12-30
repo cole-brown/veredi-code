@@ -363,6 +363,9 @@ class SystemManager(EcsManagerWithEvents):
         '''
         Subscribe to any life-long event subscriptions here. Can hold on to
         event_manager if need to sub/unsub more dynamically.
+
+        NOTE: Can/will be called multiple times. Systems must account for this
+        and not re-subscribe for any of their events.
         '''
         health = VerediHealth.INVALID
         for sid in self._system.id:

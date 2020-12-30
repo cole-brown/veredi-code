@@ -39,7 +39,8 @@ from .ecs.const                         import (SystemTick,
                                                 game_loop_end,
                                                 game_loop_next,
                                                 _GAME_LOOP_SEQUENCE,
-                                                tick_health_init)
+                                                tick_health_init,
+                                                tick_healthy)
 from .ecs.time                          import TimeManager
 from .ecs.event                         import EventManager
 from .ecs.component                     import ComponentManager
@@ -548,24 +549,36 @@ class Engine(LogMixin):
         kwargs = self._log_stack(**kwargs)
         self._log_debug(msg, *args, **kwargs)
 
-    def _dbg_health(self,
-                    tick:        SystemTick,
-                    curr_health: VerediHealth,
-                    prev_health: VerediHealth,
-                    info:        str,
-                    *args:       Any,
-                    **kwargs:    Any) -> None:
+    def _raise_health(self,
+                      tick:        SystemTick,
+                      curr_health: VerediHealth,
+                      prev_health: VerediHealth,
+                      info:        str,
+                      *args:       Any,
+                      never_raise: bool = False,
+                      **kwargs:    Any) -> None:
         '''
         Raises an error if health is less than the minimum for runnable engine.
+        This gets downgraded to a debug message if `never_raise` is True.
 
         Adds:
           "Engine's health became unrunnable: {prev} -> {curr}."
           to info/args/kwargs for log message.
         '''
+        # If we're fine, ignore.
         if (not self.debug_flagged(DebugFlag.RAISE_HEALTH)
-                or curr_health.in_runnable_health):
+                or tick_healthy(tick, curr_health)):
             return
 
+        # If we're ok with weird 'current tick' to 'current health' tuples,
+        # just debug log them.
+        if never_raise:
+            self._log_debug(f"Engine's health became unrunnable during "
+                            f"{tick}: {str(prev_health)} -> "
+                            f"{str(curr_health)}.")
+            return
+
+        # Else raise the health exception.
         msg = (f"Engine's health became unrunnable during {tick}: "
                f"{str(prev_health)} -> {str(curr_health)}. ")
         error = HealthError(curr_health, prev_health, msg, None)
@@ -683,12 +696,15 @@ class Engine(LogMixin):
         prev_engine = self.engine_health
         self.set_engine_health(value, forced, never_raise=True)
         self.set_tick_health(value, forced, never_raise=True)
-        self._dbg_health(self.tick,
-                         value,
-                         VerediHealth.set(prev_tick, prev_engine),
-                         (f"set_all_health "
-                          f"{'forcing' if forced else 'setting'} "
-                          f"to poor value: {value}."))
+        # Only raise health exception if DebugFlag is set AND if we are not
+        # forcing it. If we are forcing it, it'll only log.
+        self._raise_health(self.tick,
+                           value,
+                           VerediHealth.set(prev_tick, prev_engine),
+                           (f"set_all_health "
+                            f"{'forcing' if forced else 'setting'} "
+                            f"to poor value: {value}."),
+                           never_raise=forced)
 
     @property
     def engine_health(self) -> VerediHealth:
@@ -740,12 +756,12 @@ class Engine(LogMixin):
         # Raise if flagged to do so.
         # ---
         if not never_raise and not self._engine_health_.in_runnable_health:
-            self._dbg_health(self.tick,
-                             self.engine_health,
-                             prev_health,
-                             (f"set_all_health "
-                              f"{'forcing' if forced else 'setting'} "
-                              f"to poor value: {value}."))
+            self._raise_health(self.tick,
+                               self.engine_health,
+                               prev_health,
+                               (f"set_all_health "
+                                f"{'forcing' if forced else 'setting'} "
+                                f"to poor value: {value}."))
 
     @property
     def tick_health(self) -> VerediHealth:
@@ -799,12 +815,12 @@ class Engine(LogMixin):
         # Raise if flagged to do so.
         # ---
         if not never_raise and not self._tick_health_.in_runnable_health:
-            self._dbg_health(self.tick,
-                             self.engine_health,
-                             prev_health,
-                             (f"set_all_health "
-                              f"{'forcing' if forced else 'setting'} "
-                              f"to poor value: {value}."))
+            self._raise_health(self.tick,
+                               self.engine_health,
+                               prev_health,
+                               (f"set_all_health "
+                                f"{'forcing' if forced else 'setting'} "
+                                f"to poor value: {value}."))
 
     # -------------------------------------------------------------------------
     # Life / Tick
@@ -1413,11 +1429,11 @@ class Engine(LogMixin):
             health = self._update_game_loop()
 
             # Debug Health if flagged.
-            self._dbg_health(self.tick,
-                             health,
-                             cycle_health,
-                             ("_run_cycle_run's tick health became "
-                              f"too poor: {str(health)}."))
+            self._raise_health(self.tick,
+                               health,
+                               cycle_health,
+                               ("_run_cycle_run's tick health became "
+                                f"too poor: {str(health)}."))
             cycle_health = cycle_health.update(health)
 
         # ---
@@ -1648,9 +1664,11 @@ class Engine(LogMixin):
         # ---
         # Stop it!
         # ---
-        self.set_all_health(VerediHealth.APOPTOSIS, True)
+        # `set_all_health()` complains if health and tick mismatch, so change
+        # tick/life-cycle first.
         self._tick.next = SystemTick.APOPTOSIS
         self._life_cycle.next = SystemTick.TICKS_END
+        self.set_all_health(VerediHealth.APOPTOSIS, True)
 
     # -------------------------------------------------------------------------
     # Tick Helpers
@@ -1783,26 +1801,20 @@ class Engine(LogMixin):
         # Subscribe systems.
         # ---
         health = health.update(
-            self.meeting.time.subscribe(self.meeting.event))
-        health = health.update(
-            self.meeting.component.subscribe(self.meeting.event))
-        health = health.update(
-            self.meeting.entity.subscribe(self.meeting.event))
-        health = health.update(
-            self.meeting.system.subscribe(self.meeting.event))
-        health = health.update(
-            self.meeting.data.subscribe(self.meeting.event))
-        health = health.update(
+            self.meeting.time.subscribe(self.meeting.event),
+            self.meeting.component.subscribe(self.meeting.event),
+            self.meeting.entity.subscribe(self.meeting.event),
+            self.meeting.system.subscribe(self.meeting.event),
+            self.meeting.data.subscribe(self.meeting.event),
             self.meeting.identity.subscribe(self.meeting.event))
 
         # ---
         # Tick systems.
         # ---
         # Let all our running systems have an INTRA_SYSTEM tick.
-        health = self.meeting.system.update(SystemTick.INTRA_SYSTEM)
         health = health.update(
-            self.meeting.identity.update(SystemTick.INTRA_SYSTEM))
-        health = health.update(
+            self.meeting.system.update(SystemTick.INTRA_SYSTEM),
+            self.meeting.identity.update(SystemTick.INTRA_SYSTEM),
             self.meeting.data.update(SystemTick.INTRA_SYSTEM))
         events_published = self.meeting.event.update(
             SystemTick.INTRA_SYSTEM,
@@ -2097,8 +2109,9 @@ class Engine(LogMixin):
         self._update_init()
         health = tick_health_init(SystemTick.FUNERAL)
 
-        health = health.update(
-            self._do_tick(SystemTick.FUNERAL))
+        # The funeral (currently) is only for the engine.
+        # health = health.update(
+        #     self._do_tick(SystemTick.FUNERAL))
 
         # We're done and shouldn't get another tick. Park tick and life-cycle
         # now so we can test them.
