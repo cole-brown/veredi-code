@@ -257,12 +257,11 @@ def tick_health_init(tick: 'SystemTick') -> VerediHealth:
             # This is the only THE_END-specific value right now...
             return VerediHealth.THE_END
 
-        # Shouldn't be ticked; no good health to start with.
-        # if tick is SystemTick.FUNERAL:
-        #     return zombie viral outbreak?
+        if tick is SystemTick.FUNERAL:
+            return VerediHealth.THE_END
 
     # ---
-    # Errors or Funerals
+    # Errors
     # ---
     # We don't know what to do for this tick, right now...
     return VerediHealth.FATAL
@@ -295,6 +294,10 @@ def tick_healthy(tick: 'SystemTick', health: VerediHealth) -> bool:
     # Done.
     # ---
     elif tick in SystemTick.TICKS_END:
+        # For the funeral, we expect specifically THE_END.
+        if tick is SystemTick.FUNERAL:
+            return health == VerediHealth.THE_END
+
         # Anything above 'real bad' is good.
         return health.in_runnable_health
 
