@@ -189,14 +189,13 @@ class IdentityManager(EcsManagerWithEvents):
         '''
         Make our stuff from context/config data.
         '''
-        super().__init__(debug_flags)
+        super().__init__(event_manager, debug_flags)
 
         time_manager.set_reduced_tick_rate(SystemTick.PRE,
                                            self._SYNC_ENTITIES_REDUCED_TICK,
                                            self._reduced_tick_rate)
 
         self._entity = entity_manager
-        self._event = event_manager
 
     @classmethod
     def dotted(klass: 'IdentityManager') -> str:

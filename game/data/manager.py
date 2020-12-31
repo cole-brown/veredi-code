@@ -196,13 +196,12 @@ class DataManager(EcsManagerWithEvents):
         '''
         Make our stuff from context/config data.
         '''
-        super().__init__(debug_flags)
+        super().__init__(event_manager, debug_flags)
 
         # ---
         # Required Other Managers
         # ---
         self._time = time_manager
-        self._event = event_manager
         self._component = component_manager
 
         # ---

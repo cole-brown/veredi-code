@@ -125,7 +125,7 @@ class Test_IdentityManager(ZestEcs):
         # Would rather know that nothing I need was created...
         self.assertEqual(len(self.events), 0)
         # ...and nothing anyone else needs is dangling.
-        self.assertFalse(self.manager.event.has_queued())
+        self.assertFalse(self.manager.event.has_queued)
 
         # ---
         # Request an IdentityComponent be created from our data.

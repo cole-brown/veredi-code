@@ -69,12 +69,6 @@ class SystemManager(EcsManagerWithEvents):
     def _define_vars(self) -> None:
         super()._define_vars()
 
-        # Need to keep EventManager in self._event_manager to conform
-        # to EcsManagerWithEvents interface.
-        # TODO [2020-10-03]: Remove EventManager or keep in the interface?
-        self._event_manager: NullNoneOr[EventManager] = Null()
-        '''ECS Event Manager.'''
-
         self._system_id:      'MonotonicIdGenerator' = SystemId.generator()
         '''
         SystemId generator for during system creation.
@@ -112,18 +106,6 @@ class SystemManager(EcsManagerWithEvents):
         apoptosis) to let systems time how long it's been since the start of
         that cycle.
         '''
-
-    def __init__(self,
-                 config:            NullNoneOr[Configuration],
-                 time_manager:      NullNoneOr[TimeManager],
-                 event_manager:     NullNoneOr[EventManager],
-                 component_manager: NullNoneOr[ComponentManager],
-                 entity_manager:    NullNoneOr[EntityManager],
-                 debug_flags:       NullNoneOr[DebugFlag]) -> None:
-
-        super().__init__(debug_flags)
-
-        self._event_manager = event_manager or Null()
 
     @classmethod
     def dotted(klass: 'SystemManager') -> str:

@@ -169,11 +169,7 @@ class Test_SystemManager(ZestBase):
                                         self.event_mgr,
                                         self.comp_mgr,
                                         self.debug_flags)
-        self.system_mgr = SystemManager(self.config,
-                                        self.time_mgr,
-                                        self.event_mgr,
-                                        self.comp_mgr,
-                                        self.entity_mgr,
+        self.system_mgr = SystemManager(self.event_mgr,
                                         self.debug_flags)
 
         self.events_recv = {}
@@ -202,7 +198,11 @@ class Test_SystemManager(ZestBase):
         self.events_recv.setdefault(type(event), []).append(event)
 
     def do_events(self):
-        return bool(self.comp_mgr._event)
+        '''
+        We're "doing events" if the SystemManager being tested knows about an
+        EventManager.
+        '''
+        return bool(self.system_mgr._event)
 
     def create_entities(self):
         comps_1_2_x = set([CompOne(0), CompTwo(1)])
@@ -261,18 +261,22 @@ class Test_SystemManager(ZestBase):
         self.assertEqual(len(self.system_mgr._system), 1)
 
         if self.do_events():
+            # We should not have event yet (not published), but the
+            # EventManager should have (they were created/queued).
             num_events = 0
             for ev_type in (self.events_recv or ()):
                 num_events += len(self.events_recv[ev_type])
             self.assertEqual(num_events, 0)
-            self.assertTrue(len(self.event_mgr._events) > 0)
+            self.assertTrue(self.event_mgr.has_queued)
 
+            # Publish in order to get our events.
             self.event_mgr.publish()
             num_events = 0
             for ev_type in (self.events_recv or ()):
                 num_events += len(self.events_recv[ev_type])
             self.assertEqual(num_events, 1)
 
+            # Verify it.
             event = self.events_recv[SystemLifeEvent][0]
             self.assertIsNotNone(event)
             self.assertEqual(event.id, sid)

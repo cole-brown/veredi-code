@@ -280,9 +280,6 @@ class ZestEcs(ZestBase):
         # Let all our ECS pieces set up their subs.
         # Extra if checks in case a test only uses part of ECS.
         with log.LoggingManager.on_or_off(self.debugging):
-            if self.manager.time:
-                self.manager.time.subscribe(self.manager.event)
-
             if self.manager.component:
                 self.manager.component.subscribe(self.manager.event)
 
