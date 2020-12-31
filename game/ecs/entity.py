@@ -145,10 +145,9 @@ class EntityManager(EcsManagerWithEvents):
                  event_manager:     Optional[EventManager],
                  component_manager: ComponentManager,
                  debug_flags:       NullNoneOr[DebugFlag]) -> None:
-        super().__init__(debug_flags)
+        super().__init__(event_manager, debug_flags)
 
         self._config            = config
-        self._event             = event_manager
         self._component_manager = component_manager
 
     # -------------------------------------------------------------------------

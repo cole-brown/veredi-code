@@ -134,9 +134,8 @@ class ComponentManager(EcsManagerWithEvents):
                  event_manager: Optional[EventManager],
                  debug_flags:   NullNoneOr[DebugFlag]) -> None:
         '''Initializes this thing.'''
-        super().__init__(debug_flags)
+        super().__init__(event_manager, debug_flags)
 
-        self._event  = event_manager
         self._config = config
 
     # -------------------------------------------------------------------------

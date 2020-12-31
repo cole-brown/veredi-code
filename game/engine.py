@@ -354,11 +354,7 @@ class Engine(LogMixin):
         entity    = entity_manager    or EntityManager(configuration,
                                                        event,
                                                        component)
-        system    = system_manager    or SystemManager(configuration,
-                                                       time,
-                                                       event,
-                                                       component,
-                                                       entity,
+        system    = system_manager    or SystemManager(event,
                                                        self._debug)
         data      = data_manager      or DataManager(configuration,
                                                      time,
@@ -1801,7 +1797,6 @@ class Engine(LogMixin):
         # Subscribe systems.
         # ---
         health = health.update(
-            self.meeting.time.subscribe(self.meeting.event),
             self.meeting.component.subscribe(self.meeting.event),
             self.meeting.entity.subscribe(self.meeting.event),
             self.meeting.system.subscribe(self.meeting.event),

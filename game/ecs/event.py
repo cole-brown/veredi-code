@@ -13,7 +13,7 @@ from typing import (TYPE_CHECKING,
 if TYPE_CHECKING:
     from .time import TimeManager
 
-from veredi.base.null import NullNoneOr
+from veredi.base.null import Null, NullNoneOr
 
 
 import enum
@@ -55,6 +55,13 @@ class EcsManagerWithEvents(EcsManager):
         '''
         Link to the EventManager
         '''
+
+    def __init__(self,
+                 event_manager: NullNoneOr['EventManager'],
+                 debug_flags:   NullNoneOr[DebugFlag]) -> None:
+        super().__init__(debug_flags)
+
+        self._event = event_manager or Null()
 
     def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
         '''
@@ -289,7 +296,6 @@ class EventManager(EcsManager):
         '''
         return handler_fn in self._subscriptions.get(target_class, set())
 
-
     # -------------------------------------------------------------------------
     # Event Helpers
     # -------------------------------------------------------------------------
@@ -316,6 +322,7 @@ class EventManager(EcsManager):
     # Event Publishing / Notification
     # -------------------------------------------------------------------------
 
+    @property
     def has_queued(self) -> bool:
         '''
         Returns True if our events queue has anything in it, False otherwise.

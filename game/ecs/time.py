@@ -23,7 +23,7 @@ from veredi.base.const       import VerediHealth
 from veredi.debug.const      import DebugFlag
 
 from .const                  import SystemTick
-from .event                  import EcsManagerWithEvents
+from .manager                import EcsManager
 from .base.exceptions        import EcsSystemError
 
 from veredi.time.machine     import MachineTime
@@ -46,7 +46,7 @@ TimeoutInput = NewType('TimeoutInput', Union[str, float, int, None])
 # --                               Dr. Time?                                 --
 # ------------------------------"Just the Time."-------------------------------
 
-class TimeManager(EcsManagerWithEvents):
+class TimeManager(EcsManager):
     '''
     This class has the potential to be saved to data fields. Let it control its
     timezones. Convert to user-friendly elsewhere.

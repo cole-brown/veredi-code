@@ -128,11 +128,7 @@ def meeting(
                                                        event,
                                                        component,
                                                        debug_flags)
-    system        = system_manager    or SystemManager(configuration,
-                                                       time,
-                                                       event,
-                                                       component,
-                                                       entity,
+    system        = system_manager    or SystemManager(event,
                                                        debug_flags)
     data          = data_manager      or DataManager(configuration,
                                                      time,

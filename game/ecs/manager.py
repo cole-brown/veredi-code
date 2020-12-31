@@ -60,15 +60,6 @@ class EcsManager(LogMixin, ABC):
         # Set up ASAP so that we have self._log_*() working... ASAP? Yeah.
         self._log_config(self.dotted())
 
-    @abstractmethod
-    def subscribe(self, event_manager: 'EventManager') -> VerediHealth:
-        '''
-        Subscribe to any life-long event subscriptions here. Can hold on to
-        event_manager if need to sub/unsub more dynamically.
-        '''
-        raise NotImplementedError(f"{self.__class__.__name__}.subscribe() "
-                                  "is not implemented.")
-
     # -------------------------------------------------------------------------
     # Properties
     # -------------------------------------------------------------------------
