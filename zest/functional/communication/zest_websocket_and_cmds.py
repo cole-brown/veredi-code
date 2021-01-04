@@ -746,6 +746,14 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
 
         self.assertEqual(recv.payload.value, 34)
 
+        # Server should get an ACK...
+        mediator_system = self.manager.system.get(MediatorSystem)
+        self.assertTrue(mediator_system.server.has_data())
+        server_recv, server_ctx = mediator_system.server.recv()
+        self.assertTrue(server_recv)
+        self.assertTrue(server_ctx)
+        self.assertEqual(server_recv.type, MsgType.ACK_ID)
+
         # Make sure we don't have anything in the queues.
         self.assert_empty_pipes()
 

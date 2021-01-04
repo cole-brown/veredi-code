@@ -992,7 +992,8 @@ class System(LogMixin, ABC):
         return (
             f"{self.__class__.__name__}"
             f"[{self.id}, "
-            f"{str(self.life_cycle)}]"
+            f"{str(self.life_cycle)}], "
+            f"{str(self.health)}]"
         )
 
     def __repr__(self):
@@ -1000,7 +1001,8 @@ class System(LogMixin, ABC):
             '<v.sys:'
             f"{self.__class__.__name__}"
             f"[{self.id}, "
-            f"{repr(self.life_cycle)}]>"
+            f"{repr(self.life_cycle)}], "
+            f"{repr(self.health)}]>"
         )
 
 
