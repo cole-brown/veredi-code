@@ -22,13 +22,12 @@ MediatorServer.
 # Typing
 # ---
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Type, Awaitable, Iterable,
-                    Set, Tuple, Literal)
+                    Optional, Union, Any, Type, Awaitable, Callable,
+                    Iterable, Set, Tuple, Literal)
 from veredi.base.null import Null, null_to_none
 if TYPE_CHECKING:
     from decimal                   import Decimal
 
-    from veredi.base.context       import VerediContext
     from veredi.game.ecs.component import ComponentManager
     from veredi.game.ecs.entity    import EntityManager
     from veredi.game.ecs.manager   import EcsManager
@@ -40,8 +39,10 @@ if TYPE_CHECKING:
 
 # Basic Stuff
 from veredi.data                         import background
+from veredi.base.context                 import VerediContext
 
 from veredi.logger                       import log, log_client
+from veredi.debug.const                  import DebugFlag
 
 from veredi.base.const                   import VerediHealth
 from veredi.data.config.registry         import register
@@ -56,7 +57,8 @@ from veredi.game.ecs.event               import EventManager
 from veredi.game.ecs.time                import TimeManager, MonotonicTimer
 
 from veredi.game.ecs.const               import (SystemTick,
-                                                 SystemPriority)
+                                                 SystemPriority,
+                                                 tick_health_init)
 
 from veredi.game.ecs.base.system         import System
 from veredi.game.ecs.base.component      import Component
@@ -92,7 +94,7 @@ import veredi.zest.debug.registration
 
 
 def _start_server(comms: multiproc.SubToProcComm,
-                  context: 'VerediContext') -> None:
+                  context: VerediContext) -> None:
     '''
     Entry function for our mediator server.
 
@@ -185,6 +187,27 @@ class MediatorSystem(System):
     these types.
     '''
 
+    MSG_TYPE_IGNORE_WHILE_DYING = frozenset({
+        # Testing / Non-Standard
+        MsgType.IGNORE,
+        MsgType.PING,
+        MsgType.ECHO,
+        MsgType.ECHO_ECHO,
+        MsgType.LOGGING,
+
+        # Connections
+        MsgType.CONNECT,
+        MsgType.DISCONNECT,
+
+        # ACKs
+        MsgType.ACK_CONNECT,
+        MsgType.ACK_ID,
+    })
+    '''
+    Messages of these types from client to server will be ignored from
+    SystemTick.APOPTOSIS onwards.
+    '''
+
     TIME_TICKS_END_SEC = 10.0
     '''
     We request this many seconds to let apoptosis run. We can only request it,
@@ -197,7 +220,7 @@ class MediatorSystem(System):
     it, not assume we'll get it all.
     '''
 
-    def _configure(self, context: 'VerediContext') -> None:
+    def _configure(self, context: VerediContext) -> None:
         '''
         Make our stuff from context/config data.
         '''
@@ -465,92 +488,6 @@ class MediatorSystem(System):
     # Data Flow: MediatorServer -> Game
     # -------------------------------------------------------------------------
 
-    def _error_check_msg(self,
-                         message: Message,
-                         context: MessageContext) -> bool:
-        '''
-        Make sure we have a MsgType we care about.
-
-        TODO [2020-09-22]: Should MediatorServer be responsible for converting
-        and we just pass it on?
-        '''
-
-        if message.type in self.MSG_TYPE_GAME:
-            return True
-
-        elif message.type in self.MSG_TYPE_SELF:
-            return True
-
-        # Other MsgTypes are invalid for the Game so we error on them.
-
-        # Frozen set gets printed as: "frozenset({...", which messes up
-        # log's bracket formatter at the moment [2020-10-24], so I guess
-        # format the message twice.
-        msg = "Invalid MsgType. Can only support: {} Got: {}."
-        raise self._log_exception(
-            ValueError(msg.format(self.MSG_TYPE_SUPPORTED,
-                                  message.type)),
-            msg,
-            self.MSG_TYPE_SUPPORTED,
-            message.type,
-            context=context)
-
-    def _get_payload(self,
-                     message: Message,
-                     context: MessageContext) -> Any:
-        '''
-        Returns payload from message.
-
-        Currently super simple. Maybe more complex when/if more payloads like
-        LogPayload show up.
-        '''
-        return message.payload
-
-    def _deliver_message(self,
-                         message: Message,
-                         context: MessageContext) -> None:
-        '''
-        Take `message` and `context` from MediatorServer, decides if it is for
-        us or the game, then forwards to the proper message processing
-        function.
-        '''
-        if not self._error_check_msg(message, context):
-            return
-
-        if message.type in self.MSG_TYPE_SELF:
-            self._message_internal(message, context)
-            return
-
-        elif message.type in self.MSG_TYPE_GAME:
-            self._message_to_event(message, context)
-            return
-
-        # Else it's somehow valid but we don't know how...
-        msg = ("Valid MsgType but no message processor for it. "
-               f"MsgType: {message.type}.")
-        raise self._log_exception(
-            ValueError(msg),
-            msg,
-            context=context)
-
-    def _message_internal(self,
-                          message: Message,
-                          context: MessageContext) -> None:
-        '''
-        Take `message` and `context` from MediatorServer and deal with their
-        contents ourselves.
-        '''
-        if message.msg_id == Message.SpecialId.CONNECT:
-            self._message_connect(message, context)
-            return
-
-        # Else it's somehow valid but we don't know how...
-        msg = f"Don't know how to process message: {message}"
-        raise self._log_exception(
-            ValueError(msg),
-            msg,
-            context=context)
-
     def _message_connect(self,
                          message: ConnectionMessage,
                          context: MessageContext) -> None:
@@ -666,14 +603,108 @@ class MediatorSystem(System):
         return VerediHealth.PENDING
 
     # -------------------------------------------------------------------------
-    # Game Loop Tick Functions
+    # Server Message Helpers
     # -------------------------------------------------------------------------
 
-    def _get_external_messages(self,
-                               max_messages: Optional[int] = None) -> None:
+    def _error_check_msg(self,
+                         message:    Message,
+                         context:    MessageContext) -> bool:
+        '''
+        Make sure we have a MsgType we care about.
+
+        TODO [2020-09-22]: Should MediatorServer be responsible for converting
+        and we just pass it on?
+        '''
+        if message.type in self.MSG_TYPE_GAME:
+            return True
+
+        elif message.type in self.MSG_TYPE_SELF:
+            return True
+
+        # Other MsgTypes are invalid for the Game so we error on them.
+
+        # Frozen set gets printed as: "frozenset({...", which messes up
+        # log's bracket formatter at the moment [2020-10-24], so I guess
+        # format the message twice.
+        msg = "Invalid MsgType '{}'. Can only support: {}"
+        raise self._log_exception(
+            ValueError(msg.format(message.type,
+                                  self.MSG_TYPE_SUPPORTED),
+                       message),
+            msg,
+            message.type,
+            self.MSG_TYPE_SUPPORTED,
+            context=context)
+
+    def _get_payload(self,
+                     message: Message,
+                     context: MessageContext) -> Any:
+        '''
+        Returns payload from message.
+
+        Currently super simple. Maybe more complex when/if more payloads like
+        LogPayload show up.
+        '''
+        return message.payload
+
+    def _deliver_message(self,
+                         message: Message,
+                         context: MessageContext) -> None:
+        '''
+        Take `message` and `context` from MediatorServer, decides if it is for
+        us or the game, then forwards to the proper message processing
+        function.
+        '''
+        if not self._error_check_msg(message, context):
+            return
+
+        if message.type in self.MSG_TYPE_SELF:
+            self._message_internal(message, context)
+            return
+
+        elif message.type in self.MSG_TYPE_GAME:
+            self._message_to_event(message, context)
+            return
+
+        # Else it's somehow valid but we don't know how...
+        msg = ("Valid MsgType but no message processor for it. "
+               f"MsgType: {message.type}.")
+        raise self._log_exception(
+            ValueError(msg),
+            msg,
+            context=context)
+
+    def _message_internal(self,
+                          message: Message,
+                          context: MessageContext) -> None:
+        '''
+        Take `message` and `context` from MediatorServer and deal with their
+        contents ourselves.
+        '''
+        if message.msg_id == Message.SpecialId.CONNECT:
+            self._message_connect(message, context)
+            return
+
+        # Else it's somehow valid but we don't know how...
+        msg = f"Don't know how to process message: {message}"
+        raise self._log_exception(
+            ValueError(msg),
+            msg,
+            context=context)
+
+    def _get_external_messages(
+            self,
+            message_fn:   Callable[[Message, VerediContext], bool] = None,
+            max_messages: Optional[int]                                 = None
+    ) -> None:
         '''
         Read messages from MediatorServer, process them into events for game,
         and notify to EventManager.
+
+        If `message_fn` is supplied and a message exists, this calls
+        `message_fn(message, context)` and expects a return of:
+            True  - deliver message
+            False - drop message
 
         If `max_messages` is not supplied, will default to
         `self._msg_max_per_update`.
@@ -687,7 +718,13 @@ class MediatorSystem(System):
 
             # Get message, context and process it.
             message, context = self.server.recv()
-            self._deliver_message(message, context)
+            # Delivery can be vetoed by message_fn.
+            if not message_fn or message_fn(message, context):
+                self._deliver_message(message, context)
+
+    # -------------------------------------------------------------------------
+    # Game Loop Tick Functions
+    # -------------------------------------------------------------------------
 
     def _update_pre(self) -> VerediHealth:
         '''
@@ -761,11 +798,18 @@ class MediatorSystem(System):
         Does not shut down MediatorServer. That is saved for the APOCALYPSE.
         '''
         super()._cycle_apoptosis()
-        self._health = self._health.update(VerediHealth.APOPTOSIS)
+        self.health = VerediHealth.APOPTOSIS
 
-        # TODO: Just return APOPTOSIS even if our health is different?
-        # Not sure...
+        # Just return APOPTOSIS even if our health is different?
         return VerediHealth.APOPTOSIS
+
+    def _apoptosis_msg_filter(self,
+                              message: Message,
+                              context: VerediContext) -> VerediHealth:
+        '''
+        Checks server->game pipe's message. Drops it if we don't care about it.
+        '''
+        return message.type not in self.MSG_TYPE_IGNORE_WHILE_DYING
 
     def _update_apoptosis(self) -> VerediHealth:
         '''
@@ -778,14 +822,38 @@ class MediatorSystem(System):
         #
         # TODO [2020-10-08]: Flag or something for MediatorServer /
         # ProcToSubComm&SubToProcComm to indicate idle/busy status.
-        if self.server.has_data() or self.server._ut_has_data():
-            self._health = self._health.update(VerediHealth.APOPTOSIS)
-            return VerediHealth.APOPTOSIS
 
-        # Otherwise update our health with an apoptosis done value, and return
+        health = tick_health_init(SystemTick.APOPTOSIS)
+
+        if self.server.has_data():
+            # (Try to) Process messages, with our apoptosis ignore-messages
+            # filter.
+            self._get_external_messages(
+                message_fn=self._apoptosis_msg_filter)
+            health = health.update(VerediHealth.APOPTOSIS)
+
+        if self.server._ut_has_data():
+            if DebugFlag.SYSTEM_DEBUG in self.debug_flags:
+                msg, ctx = self.server._ut_recv()
+                self._log_debug("Server received UNIT TEST data during "
+                                "apoptosis: {}",
+                                msg,
+                                context=ctx)
+                # log.ultra_hyper_debug(
+                #     msg,
+                #     title=(f"{self.__class__.__name__}._update_apoptosis: "
+                #            "server _test_ msg:"))
+                # log.ultra_hyper_debug(
+                #     ctx,
+                #     title=((f"{self.__class__.__name__}._update_apoptosis: "
+                #             "server _test_ ctx:"))
+
+            health = health.update(VerediHealth.APOPTOSIS_FAILURE)
+
+        # Otherwise update our health with the resultant helth, and return
         # that specific value.
-        self._health = self._health.update(VerediHealth.APOPTOSIS_SUCCESSFUL)
-        return VerediHealth.APOPTOSIS_SUCCESSFUL
+        self._health = health
+        return health
 
     # -------------------------------------------------------------------------
     # Apocalypse Functions
@@ -841,7 +909,6 @@ class MediatorSystem(System):
         timed_out = self._manager.time.is_timed_out(
                 None,
                 self.timeout_desired(SystemTick.APOCALYPSE))
-
 
         # Set to failure state if over time.
         if self._manager.time.is_timed_out(

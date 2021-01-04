@@ -440,7 +440,7 @@ class SystemManager(EcsManagerWithEvents):
                 # Only do this if we /really/ want logs.
                 if self.debug_flagged(DebugFlag.SYSTEM_DEBUG):
                     self._log_tick("SystemManager.update: {} {} {}",
-                                   tick, system, worst_health)
+                                   tick, system, str(worst_health))
 
             except VerediError as error:
                 # TODO: health thingy
