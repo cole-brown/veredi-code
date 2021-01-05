@@ -43,8 +43,6 @@ if TYPE_CHECKING:
     from veredi.data.identity              import UserId, UserKey
     from veredi.interface.mediator.context import UserConnToken
     from veredi.interface.user             import UserPassport
-    from veredi.data.repository.base       import BaseRepository
-    from veredi.data.serdes.base           import BaseSerdes
 
 import enum
 import pathlib
@@ -121,10 +119,6 @@ here.
 _SYS_VITALS = 'vitals'
 '''A list of dicts of info about a system's vital records: creation, etc...'''
 
-_DATA = 'data'
-'''Game data like character saves, system definitions, character definitions,
-etc.'''
-
 
 # ------------------------------
 # Interface Stuff (IO)
@@ -191,7 +185,6 @@ _CONTEXT_LAYOUT = {
             _SYSTEM: {
                 _SYS_VITALS: [],
             },
-            _DATA: {},
         },
         _INTERFACE: {
             _USERS: {
@@ -711,94 +704,6 @@ class system:
             'health': health.name,
         }
         vital_records.append(entry)
-
-
-# -----------------------------------------------------------------------------
-# DATA!
-# -----------------------------------------------------------------------------
-
-class DataMeta(type):
-    '''
-    Metaclass shenanigans to make some read-only /class/ property.
-    '''
-    @property
-    def path(klass: Type['data']) -> Nullable[pathlib.Path]:
-        ctx = klass._get()
-        retval = ctx.get(klass.Link.PATH, Null())
-        return retval
-
-    @property
-    def repository(klass: Type['data']) -> Nullable['BaseRepository']:
-        ctx = klass._get()
-        retval = ctx.get(klass.Link.REPO, Null())
-        return retval
-
-    @property
-    def serdes(klass: Type['data']) -> Nullable['BaseSerdes']:
-        ctx = klass._get()
-        retval = ctx.get(klass.Link.SERDES, Null())
-        return retval
-
-
-class data(metaclass=DataMeta):
-
-    @enum.unique
-    class Link(enum.Enum):
-        PATH = enum.auto()
-        '''A pathlib.Path to somewhere.'''
-
-        REPO = enum.auto()
-        '''
-        A Repository for the Game Data. Should not be used - the
-        DataManager should be used instead.
-        '''
-
-        SERDES = enum.auto()
-        '''
-        A Serdes for the Game Data. Should not be used - the
-        DataManager should be used instead.
-        '''
-
-    @classmethod
-    def _get(klass: Type['data']):
-        '''
-        Get data's sub-context from background context.
-        '''
-        global _DATA
-        return game.get().get(_DATA, Null())
-
-    @classmethod
-    def set(klass: Type['data'],
-            name:      Name,
-            data:      ContextMap,
-            ownership: Ownership) -> None:
-        '''
-        Someone wants to add to background's data context.
-
-        Makes a deep copy of inputs if ownership wants.
-        '''
-        context = klass._get()
-        # Save the path off if there is one.
-        if (name is Name.SYS
-                and Name.REPO.key in data
-                and Name.PATH.key in data[Name.REPO.key]):
-            context[klass.Link.PATH] = data[Name.REPO.key][Name.PATH.key]
-
-        # Set the rest of the background context into place.
-        _set(context, str(name), data, ownership)
-
-    @classmethod
-    def link_set(klass: Type['data'], link: Link, entry: Any) -> None:
-        klass._get()[link] = entry
-
-    @classmethod
-    def link(klass: Type['data'], link: Link) -> None:
-        return klass._get()[link]
-
-    # Provided by DataMeta:
-    #   def path(klass: Type['data']) -> Nullable[pathlib.Path]:
-    #   def repository(klass: Type['data']) -> Nullable['BaseRepository']:
-    #   def serdes(klass: Type['data']) -> Nullable['BaseSerdes']:
 
 
 # -------------------------------------------------------------------------

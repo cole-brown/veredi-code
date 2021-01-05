@@ -415,14 +415,13 @@ class Configuration:
         '''
         Load a definition for the given dotted name.
 
-        Expects a game data repo and serdes to have been linked into
-        background.data.
+        Expects an ECS Meeting to have been linked into background.manager.
 
         For out-of-band loading like during system init/set_up phases where
         timing and consistent ticking aren't critical.
         '''
-        def_repo = background.data.repository
-        def_serdes = background.data.serdes
+        def_repo = background.manager.data.repository
+        def_serdes = background.manager.data.serdes
         if not def_repo or not def_serdes:
             raise log.exception(
                 exceptions.ConfigError,

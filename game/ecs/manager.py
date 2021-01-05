@@ -19,7 +19,8 @@ from abc import ABC, abstractmethod
 
 from veredi.base.const   import VerediHealth
 from veredi.logger.mixin import LogMixin
-from veredi.debug.const        import DebugFlag
+from veredi.debug.const  import DebugFlag
+from veredi.data         import background
 
 from .const              import SystemTick, tick_healthy
 
@@ -71,6 +72,16 @@ class EcsManager(LogMixin, ABC):
         The dotted name this Manager has. E.g. 'veredi.game.ecs.manager.entity'
         '''
         raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented in base class. "
+                                  "Subclasses should defined it themselves.")
+
+    @abstractmethod
+    def get_background(self):
+        '''
+        Data for the Veredi Background context.
+        '''
+        raise NotImplementedError(f"{self.__class__.__name__}."
+                                  "get_background() "
                                   "is not implemented in base class. "
                                   "Subclasses should defined it themselves.")
 

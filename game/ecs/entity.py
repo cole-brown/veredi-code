@@ -35,6 +35,7 @@ import enum
 from veredi.logger             import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
+from veredi.data               import background
 from veredi.data.config.config import Configuration
 from veredi.debug.const        import DebugFlag
 
@@ -160,6 +161,14 @@ class EntityManager(EcsManagerWithEvents):
         The dotted name this Manager has.
         '''
         return 'veredi.game.ecs.manager.entity'
+
+    def get_background(self):
+        '''
+        Data for the Veredi Background context.
+        '''
+        return {
+            background.Name.DOTTED.key: self.dotted(),
+        }
 
     # -------------------------------------------------------------------------
     # Internal Functions

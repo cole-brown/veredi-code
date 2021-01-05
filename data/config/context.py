@@ -96,14 +96,14 @@ class ConfigContext(EphemerealContext):
         '''
         Checks for a PATH link in config's spot in this context.
 
-        If none, returns PATH from background.data.
+        If none, returns PATH from background.manager.data.
         '''
         # Get context dict, then try to get the config sub-context, then we can
         # check for PATH link.
         config_ctx = context._get().get(klass.KEY, {})
         path = config_ctx.get(klass.Link.PATH, Null())
         if not path:
-            path = background.data.path()
+            path = background.manager.data.path
         return path
 
     @classmethod
