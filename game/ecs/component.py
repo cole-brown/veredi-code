@@ -149,6 +149,14 @@ class ComponentManager(EcsManagerWithEvents):
         '''
         return 'veredi.game.ecs.manager.component'
 
+    def get_background(self):
+        '''
+        Data for the Veredi Background context.
+        '''
+        return {
+            background.Name.DOTTED.key: self.dotted(),
+        }
+
     # -------------------------------------------------------------------------
     # Internal Helpers
     # -------------------------------------------------------------------------

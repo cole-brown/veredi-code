@@ -197,6 +197,14 @@ class IdentityManager(EcsManagerWithEvents):
 
         self._entity = entity_manager
 
+    def get_background(self):
+        '''
+        Data for the Veredi Background context.
+        '''
+        return {
+            background.Name.DOTTED.key: self.dotted(),
+        }
+
     @classmethod
     def dotted(klass: 'IdentityManager') -> str:
         '''

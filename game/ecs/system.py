@@ -107,6 +107,14 @@ class SystemManager(EcsManagerWithEvents):
         that cycle.
         '''
 
+    def get_background(self):
+        '''
+        Data for the Veredi Background context.
+        '''
+        return {
+            background.Name.DOTTED.key: self.dotted(),
+        }
+
     @classmethod
     def dotted(klass: 'SystemManager') -> str:
         return klass.DOTTED

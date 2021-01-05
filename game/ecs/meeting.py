@@ -156,12 +156,19 @@ class Meeting:
 
     def get_background(self) -> Tuple[Dict[str, str], background.Ownership]:
         '''
-        Data for the Veredi Background context.
+        Data about all our managers for the Veredi Background context.
 
         Returns: (data, background.Ownership)
         '''
         bg = {
             background.Name.DOTTED.key: self.dotted(),
+            'time': self.time.get_background(),
+            'event': self.event.get_background(),
+            'component': self.component.get_background(),
+            'entity': self.entity.get_background(),
+            'system': self.system.get_background(),
+            'data': self.data.get_background(),
+            'identity': self.identity.get_background(),
         }
         return bg, background.Ownership.SHARE
 

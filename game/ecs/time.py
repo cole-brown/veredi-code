@@ -194,6 +194,14 @@ class TimeManager(EcsManager):
         '''
         return 'veredi.game.ecs.manager.time'
 
+    def get_background(self):
+        '''
+        Data for the Veredi Background context.
+        '''
+        return {
+            background.Name.DOTTED.key: self.dotted(),
+        }
+
     # ---
     # Engine's Ticks / Life-Cycles
     # ---

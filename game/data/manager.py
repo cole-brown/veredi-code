@@ -20,7 +20,9 @@ to go for accessing Game Config/Save (as opposed to Entity/Component) data.
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Any, Set, Type, Mapping
-from veredi.base.null import NullNoneOr
+from veredi.base.null import Null, Nullable, NullNoneOr
+
+import pathlib
 
 
 # ---
@@ -226,39 +228,66 @@ class DataManager(EcsManagerWithEvents):
                    f"{config.get(key_repo)}")
             raise background.config.exception(context, msg)
 
-        # ---
-        # Background Stuff
-        # ---
-        bg_data, bg_owner = self._make_background()
-        background.data.set(background.Name.SYS,
-                            bg_data,
-                            bg_owner)
-        background.data.link_set(background.data.Link.SERDES,
-                                 self._serdes)
-        background.data.link_set(background.data.Link.REPO,
-                                 self._repository)
-
-    def _make_background(self):
+    def get_background(self):
         '''
         Data for the Veredi Background context.
-
-        Returns: (data, background.Ownership)
         '''
         serdes_data, serdes_owner = self._serdes.background
         repo_data, repo_owner = self._repository.background
 
-        return (
-            {
-                background.Name.DOTTED.key: self.dotted(),
-                background.Name.SERDES.key: serdes_data,
-                background.Name.REPO.key:   repo_data,
-            },
-            background.Ownership.SHARE
-        )
+        return {
+            background.Name.DOTTED.key: self.dotted(),
+            background.Name.SERDES.key: serdes_data,
+            background.Name.REPO.key:   repo_data,
+        }
 
     @classmethod
     def dotted(klass: 'DataManager') -> str:
         return 'veredi.game.data.manager'
+
+    # -------------------------------------------------------------------------
+    # Out-Of-Band Data Processing
+    # -------------------------------------------------------------------------
+
+    @property
+    def serdes(self) -> Optional[BaseSerdes]:
+        '''
+        NOTE: DO NOT USE YOURSELF! Configuration can use this.
+        TODO: Refactor so this is not needed?
+
+        Our Serializer/Deserializer for saving/loading data.
+        '''
+        return self._serdes
+
+    @property
+    def repository(self) -> Optional[BaseRepository]:
+        '''
+        NOTE: DO NOT USE YOURSELF! Configuration can use this.
+        TODO: Refactor so this is not needed?
+
+        Our Repository for storing data.
+        '''
+        return self._repository
+
+    @property
+    def path(self) -> Nullable[pathlib.Path]:
+        '''
+        NOTE: DO NOT USE YOURSELF! Configuration can use this.
+        TODO: Refactor so this is not needed?
+
+        Our Repository's path for storing data, if it's that type of repo.
+        '''
+        path = Null()
+        if self._repository:
+            try:
+                path = self._repository.root
+            except AttributeError:
+                # Repo doesn't have a path; return Null.
+                self._log_debug("_path requested for repository, but no "
+                                "`root` attribute exists - not a file-system "
+                                "type repository? {}",
+                                self._repository)
+        return path
 
     # -------------------------------------------------------------------------
     # Health
