@@ -418,7 +418,8 @@ class OutputSystem(System):
           - Recipient.INVALID on failure.
         '''
         if not self._pdp.allowed(envelope.context):
-            self._log_security(f"Cannot address envelope to '{recipient}' "
+            self._log_security(self.dotted(),
+                               f"Cannot address envelope to '{recipient}' "
                                f"at '{security_subject}': "
                                "Security has denied the action.")
             # Recipient was not allowed by security - failure return.

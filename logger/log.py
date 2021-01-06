@@ -44,30 +44,119 @@ from . import pretty
 LogLvlConversion = NewType('', NullNoneOr[Union['Level', int]])
 
 
-FMT_DATETIME = '%Y-%m-%d %H:%M:%S.{msecs:03d}%z'  # Yeah, this is fun.
+_FMT_DATETIME = '%Y-%m-%d %H:%M:%S.{msecs:03d}%z'  # Yeah, this is fun.
 
 # Could use logging.Formatter and set like so:
-# FMT_DATETIME = '%Y-%m-%d %H:%M:%S'
-# FMT_MSEC = '%s.%03d'
+# _FMT_DATETIME = '%Y-%m-%d %H:%M:%S'
+# _FMT_MSEC = '%s.%03d'
 #     ...
-#     formatter = logging.Formatter(fmt=FMT_LINE_HUMAN,
-#                             datefmt=FMT_DATETIME,
-#                             style=STYLE)
-#     formatter.default_time_format = FMT_DATETIME
-#     formatter.default_msec_format = FMT_MSEC
+#     formatter = logging.Formatter(fmt=_FMT_LINE_HUMAN,
+#                             datefmt=_FMT_DATETIME,
+#                             style=_STYLE)
+#     formatter.default_time_format = _FMT_DATETIME
+#     formatter.default_msec_format = _FMT_MSEC
 #     ...
 # But that would miss out on being able to stuff our msecs inside of the
 # datetime str like I want...
 
-STYLE = '{'
+
+_STYLE = '{'
+
 
 # https://docs.python.org/3/library/logging.html#logrecord-attributes
-FMT_LINE_HUMAN = (
+_FMT_LINE_HUMAN = (
     '{asctime:s} - {name:s} - {levelname:8s} - '
-    '{module:s}.{funcName:s}: {message:s}'
+    '{module:s}.{funcName:s}{message:s}'
 )
+'''
+Having no space between Python logging variables and `message` will allow
+for nicer formatting of e.g. GROUP logging.
+'''
+
+
+@enum.unique
+class MessageType(enum.Enum):
+    DEFAULT = enum.auto()
+    GROUP = enum.auto()
+
+
+_FMT_MESSAGE_HUMAN  = {
+    MessageType.DEFAULT: ': {message:s}',
+    MessageType.GROUP:   ' - GROUP[{group:s}, {dotted:s}]: {message:s}',
+}
+'''
+Formatting options for `message` in `_FMT_LINE_HUMAN`.
+'''
+
+
+@enum.unique
+class SuccessType(enum.Enum):
+    '''
+    Success/failure into easier/more consistent strings to see in logs.
+    '''
+    # ------------------------------
+    # Values
+    # ------------------------------
+
+    IGNORE = None
+    '''Becomes the empty string.'''
+
+    # ---
+    # Standard
+    # ---
+    BLANK = '    '
+
+    FAILURE = 'FAIL'
+
+    SUCCESS = 'OK'
+
+    NEUTRAL = '----'
+
+    # ---
+    # Dry Run?
+    # ---
+    _DRY_BLANK   = '____'
+    '''Use `BLANK` and `resolve()` to this, please.'''
+
+    _DRY_NEUTRAL = '_--_'  # (*shrug*)
+    '''Use `NEUTRAL` and `resolve()` to this, please.'''
+
+    _DRY_FAILURE = '_F__'  # F(ail)
+    '''Use `FAILURE` and `resolve()` to this, please.'''
+
+    _DRY_SUCCESS = '__K_'  # (O)k
+    '''Use `SUCCESS` and `resolve()` to this, please.'''
+
+    # ------------------------------
+    # Functions
+    # ------------------------------
+
+    def resolve(self, dry_run: bool) -> 'SuccessType':
+        '''
+        Converts a standard value to Dry-Run if `is_dry_run`.
+        '''
+        if (self is SuccessType.IGNORE
+                or not dry_run):
+            return self
+
+        # Expect the naming scheme to always hold true.
+        return SuccessType['_DRY_' + self.name]
+
+    def __str__(self) -> str:
+        '''
+        Returns value string of enum formatted into e.g.:
+          [ OK ]
+          [_F__]
+        '''
+        return '[{:^4s}]'.format(self.value)
+
+
+_FMT_SUCCESS_HUMAN = '{success:s}: {message:s}'
+'''Format for combining string'd success and log message.'''
+
 
 _CONTEXT_INDENT_AMT = 4
+
 
 _ULTRA_MEGA_DEBUG_BT = '!~'
 _ULTRA_MEGA_DEBUG_TB = '~!'
@@ -180,7 +269,7 @@ DEFAULT_LEVEL = Level.INFO
 # ------------------------------
 
 @enum.unique
-class Group(enum.IntEnum):
+class Group(enum.Enum):
     '''
     A logging group is for relating certain logs to a log.Level indirectly.
 
@@ -189,14 +278,32 @@ class Group(enum.IntEnum):
     the current level for the group.
     '''
 
-    SECURITY = enum.auto()
+    # ------------------------------
+    # Values
+    # ------------------------------
+
+    START_UP = 'start-up'
+    '''Logs related to start up of Veredi, the game, etc.'''
+
+    SECURITY = 'security'
     '''veredi.security.* logs, and related logs.'''
 
     # TODO: more groups?
 
+    # ------------------------------
+    # Functions
+    # ------------------------------
+
+    def __str__(self) -> str:
+        '''
+        Returns value string of enum.
+        '''
+        return self.value
+
 
 _GROUP_LEVELS: Dict[Group, Level] = {
     Group.SECURITY: Level.WARNING,
+    Group.START_UP: Level.DEBUG,
 }
 
 
@@ -320,9 +427,9 @@ def init(level:        LogLvlConversion            = DEFAULT_LEVEL,
         # the event as an unformatted pickle."
         #   - https://docs.python.org/3/howto/logging-cookbook.html#network-logging
         #   - [2020-07-19]
-        formatter = BestTimeFmt(fmt=FMT_LINE_HUMAN,
-                                datefmt=FMT_DATETIME,
-                                style=STYLE)
+        formatter = BestTimeFmt(fmt=_FMT_LINE_HUMAN,
+                                datefmt=_FMT_DATETIME,
+                                style=_STYLE)
         handler.setFormatter(formatter)
 
     # Now set it in our collection and on the logger.
@@ -475,29 +582,71 @@ class BestTimeFmt(logging.Formatter):
         return string
 
 
-def brace_message(fmt:      str,
-                  *args:    Any,
-                  context:  Optional['VerediContext'] = None,
-                  **kwargs: Mapping[str, Any]) -> str:
+def brace_message(fmt_msg:      str,
+                  *args:        Any,
+                  context:      Optional['VerediContext'] = None,
+                  log_fmt_type: Optional[MessageType]     = None,
+                  log_group:    Optional[Group]           = None,
+                  log_dotted:   Optional[str]             = None,
+                  log_success:  Optional[SuccessType]     = None,
+                  log_dry_run:  Optional[bool]            = False,
+                  **kwargs:     Mapping[str, Any]) -> str:
     '''
-    Pass-through `fmt` if no args/kwargs.
+    `fmt_msg` is the user's message, which may have brace formatting to act on.
+    Can handle case where no formatting needs be done (no args/kwargs
+    supplied).
 
-    Otherwise use '.format()' brace formatting on `fmt` string.
+    Otherwise use '.format()' brace formatting on `fmt_msg` string.
 
     If `context` exists, it will be formatted by `pretty.indented()`, then
     appended to the log as such:
       <log_line(s)>
       context:
           <indented, formatted context>
+
+    If `log_success` enum is supplied, will prefix formatted user's message
+    with the `log_success` formatted to string. `log_dry_run` will be used to
+    resolve `log_success` into actual vs dry-run strings.
+
+    `log_fmt_type` will be applied to the final result just before returning.
+    It is expected for things like group logging. If None supplied, uses
+    MessageType.DEFAULT.
+
+    `log_group` is only necessary for MessageType.GROUP.
+    `log_dotted` is only necessary for MessageType.GROUP (currently).
     '''
+    # ---
+    # Apply `context`.
+    # ---
     ctx_msg = ''
     if context:
         ctx_formatted = pretty.indented(context,
                                         indent_amount=_CONTEXT_INDENT_AMT)
         ctx_msg = '\ncontext:\n' + ctx_formatted
-    if not args and not kwargs:
-        return fmt + ctx_msg
-    return fmt.format(*args, **kwargs) + ctx_msg
+
+    # ---
+    # Apply formatting for user.
+    # ---
+    if args or kwargs:
+        output_msg = fmt_msg.format(*args, **kwargs) + ctx_msg
+    else:
+        output_msg = fmt_msg + ctx_msg
+
+    if log_success:
+        output_msg = _FMT_SUCCESS_HUMAN.format(
+            # Resolve success into dry_run vs actual.
+            success=str(log_success.resolve(bool(log_dry_run))),
+            message=output_msg
+        )
+
+    # ---
+    # Apply formatting for log line.
+    # ---
+    log_fmt_type = log_fmt_type or MessageType.DEFAULT
+    log_fmt = _FMT_MESSAGE_HUMAN[log_fmt_type]
+    return log_fmt.format(message=output_msg,
+                          group=log_group,
+                          dotted=log_dotted)
 
 
 # -----------------------------------------------------------------------------
@@ -933,21 +1082,73 @@ def at_level(level:         'Level',
 # -----------------------------------------------------------------------------
 
 def group(group:         'Group',
+          dotted:        str,
           msg:           str,
           *args:         Any,
           veredi_logger: NullNoneOr[logging.Logger] = None,
           context:       'VerediContext' = None,
+          log_success:   Optional[SuccessType] = None,
+          log_dry_run:   Optional[bool] = False,
           **kwargs:      Any) -> None:
     '''
     Log at `group` log.Level, whatever it's set to right now.
+
+    If `log_success` is supplied, will become a SuccessType string prepending
+    log message. `log_dry_run` will be used to resolve `log_success` into
+    actual vs dry-run strings.
     '''
+
+    # ------------------------------
+    # Get level from group.
+    # ------------------------------
     level = _GROUP_LEVELS[group]
-    kwargs = incr_stack_level(kwargs)
-    at_level(level, msg,
-             *args,
-             veredi_logger=veredi_logger,
-             context=context,
-             **kwargs)
+
+    # ------------------------------
+    # Prep log output w/ group info.
+    # ------------------------------
+    log_kwargs = pop_log_kwargs(kwargs)
+
+    # Format, with group options
+    output = brace_message(msg,
+                           *args,
+                           context=context,
+                           log_fmt_type=MessageType.GROUP,
+                           log_group=group,
+                           log_dotted=dotted,
+                           log_success=log_success,
+                           log_dry_run=log_dry_run,
+                           **kwargs)
+    # Is a unit test eating this log?
+    if ut_call(level, output):
+        return
+
+    # ------------------------------
+    # Translate level to logging function.
+    # ------------------------------
+    logger = _logger(veredi_logger)
+    log_fn = None
+    if level == Level.NOTSET:
+        exception(ValueError("Cannot group log at NOTSET level.",
+                             msg, args, kwargs),
+                  msg,
+                  args,
+                  kwargs)
+    elif level == Level.DEBUG:
+        log_fn = logger.debug
+    elif level == Level.INFO:
+        log_fn = logger.info
+    elif level == Level.WARNING:
+        log_fn = logger.warning
+    elif level == Level.ERROR:
+        log_fn = logger.error
+    elif level == Level.CRITICAL:
+        log_fn = logger.critical
+
+    # ------------------------------
+    # And log out w/ correct logger at correct level.
+    # ------------------------------
+    log_fn(output,
+           **log_kwargs)
 
 
 def set_group_level(group: 'Group',
@@ -959,21 +1160,58 @@ def set_group_level(group: 'Group',
     _GROUP_LEVELS[group] = level
 
 
-def security(msg:           str,
+def security(dotted:        str,
+             msg:           str,
              *args:         Any,
              veredi_logger: NullNoneOr[logging.Logger] = None,
-             context:       'VerediContext' = None,
+             context:       'VerediContext'            = None,
+             log_success:   Optional[SuccessType]      = None,
+             log_dry_run:   Optional[bool] = False,
              **kwargs:      Any) -> None:
     '''
     Log at Group.SECURITY log.Level, whatever it's set to right now.
+
+    If `log_success` is supplied, will become a SuccessType string prepending
+    log message. `log_dry_run` will be used to resolve `log_success` into
+    actual vs dry-run strings.
     '''
-    level = _GROUP_LEVELS[Group.SECURITY]
     kwargs = incr_stack_level(kwargs)
-    at_level(level, msg,
-             *args,
-             veredi_logger=veredi_logger,
-             context=context,
-             **kwargs)
+    group(Group.SECURITY,
+          dotted,
+          msg,
+          *args,
+          veredi_logger=veredi_logger,
+          context=context,
+          log_success=log_success,
+          log_dry_run=log_dry_run,
+          **kwargs)
+
+
+def start_up(dotted:        str,
+             msg:           str,
+             *args:         Any,
+             veredi_logger: NullNoneOr[logging.Logger] = None,
+             context:       'VerediContext'            = None,
+             log_success:   Optional[SuccessType]      = None,
+             log_dry_run:   Optional[bool] = False,
+             **kwargs:      Any) -> None:
+    '''
+    Log at Group.START_UP log.Level, whatever it's set to right now.
+
+    If `success` is supplied, will become a SuccessType string prepending log
+    message. `log_dry_run` will be used to resolve `log_success` into
+    actual vs dry-run strings.
+    '''
+    kwargs = incr_stack_level(kwargs)
+    group(Group.SECURITY,
+          dotted,
+          msg,
+          *args,
+          veredi_logger=veredi_logger,
+          context=context,
+          log_success=log_success,
+          log_dry_run=log_dry_run,
+          **kwargs)
 
 
 # -----------------------------------------------------------------------------

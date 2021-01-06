@@ -137,6 +137,7 @@ class LogMixin:
 
     def _log_group(self,
                    group:         'log.Group',
+                   dotted:        str,
                    msg:           str,
                    *args:         Any,
                    **kwargs:      Any) -> None:
@@ -144,11 +145,12 @@ class LogMixin:
         Log at `group` log.Level, whatever it's set to right now.
         '''
         kwargs = self._log_stack(**kwargs)
-        self._lumberjack.group(group, msg,
+        self._lumberjack.group(group, dotted, msg,
                                *args,
                                **kwargs)
 
     def _log_security(self,
+                      dotted:   str,
                       msg:      str,
                       *args:    Any,
                       context:  Optional['VerediContext'] = None,
@@ -163,7 +165,28 @@ class LogMixin:
         changes).
         '''
         kwargs = self._log_stack(**kwargs)
-        self._lumberjack.security(msg,
+        self._lumberjack.security(dotted, msg,
+                                  *args,
+                                  context=context,
+                                  **kwargs)
+
+    def _log_start_up(self,
+                      dotted:   str,
+                      msg:      str,
+                      *args:    Any,
+                      context:  Optional['VerediContext'] = None,
+                      **kwargs: Any) -> None:
+        '''
+        Log a start-up-related message via our logger.
+
+        NOTE: this is not a "log at this level" function. Rather, it is a "log
+        this start_up-related log" function. The logging level this uses can
+        change at any time. This just allows all start_up logs to stay grouped
+        at the same level easily (and keep them there if/when the level
+        changes).
+        '''
+        kwargs = self._log_stack(**kwargs)
+        self._lumberjack.start_up(dotted, msg,
                                   *args,
                                   context=context,
                                   **kwargs)

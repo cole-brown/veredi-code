@@ -139,7 +139,7 @@ def set_up(test_name_class:   str,
            identity_manager:  Optional[IdentityManager]  = None,
            # Optional to pass in - else we'll make  if asked:
            engine:            Optional[Engine]           = None,
-           ) -> Tuple[Meeting, VerediContext, List[SystemId]]:
+           ) -> Tuple[Meeting, Engine, VerediContext, List[SystemId]]:
     '''
     Creates config, managers, if not supplied (via zmake.meeting).
     Creates a managers' meeting (via zmake.meeting).

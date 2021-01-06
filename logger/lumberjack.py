@@ -152,22 +152,27 @@ class Lumberjack:
 
     def group(self,
               group:         'log.Group',
+              dotted:        str,
               msg:           str,
               *args:         Any,
+              success:       Optional[log.SuccessType] = None,
               **kwargs:      Any) -> None:
         '''
         Log at `group` log.Level, whatever it's set to right now.
         '''
         kwargs = self._stack(1, **kwargs)
-        log.group(group, msg,
+        log.group(group, dotted, msg,
                   *args,
                   veredi_logger=self._logger,
+                  success=success,
                   **kwargs)
 
     def security(self,
+                 dotted:   str,
                  msg:      str,
                  *args:    Any,
                  context:  Optional['VerediContext'] = None,
+                 success:  Optional[log.SuccessType] = None,
                  **kwargs: Any) -> None:
         '''
         Log a security-related message via our logger.
@@ -179,10 +184,35 @@ class Lumberjack:
         changes).
         '''
         kwargs = self._stack(1, **kwargs)
-        log.security(msg,
+        log.security(dotted, msg,
                      *args,
                      veredi_logger=self._logger,
                      context=context,
+                     success=success,
+                     **kwargs)
+
+    def start_up(self,
+                 dotted:   str,
+                 msg:      str,
+                 *args:    Any,
+                 context:  Optional['VerediContext'] = None,
+                 success:  Optional[log.SuccessType] = None,
+                 **kwargs: Any) -> None:
+        '''
+        Log a start_up-related message via our logger.
+
+        NOTE: this is not a "log at this level" function. Rather, it is a "log
+        this start-up-related log" function. The logging level this uses can
+        change at any time. This just allows all start_up logs to stay grouped
+        at the same level easily (and keep them there if/when the level
+        changes).
+        '''
+        kwargs = self._stack(1, **kwargs)
+        log.start_up(dotted, msg,
+                     *args,
+                     veredi_logger=self._logger,
+                     context=context,
+                     success=success,
                      **kwargs)
 
     # -------------------------------------------------------------------------
