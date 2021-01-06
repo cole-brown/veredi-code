@@ -29,7 +29,7 @@ from .base.exceptions        import EcsSystemError
 from veredi.time.machine     import MachineTime
 from veredi.time.timer       import MonotonicTimer
 from ..time.clock            import Clock
-from ..time.tick.round       import TickRounds, TickTypes
+from ..time.tick.round       import TickBase
 
 
 # -----------------------------------------------------------------------------
@@ -56,11 +56,8 @@ class TimeManager(EcsManager):
     # Constants
     # -------------------------------------------------------------------------
 
-    _DEFAULT_TICK_STEP = Decimal(6)
     _DEFAULT_TIMEOUT_SEC = 10
     _SHORT_TIMEOUT_SEC = 1
-
-    _METER_TIMEOUT_NS = MachineTime.sec_to_ns(_DEFAULT_TICK_STEP * 4)
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -68,6 +65,8 @@ class TimeManager(EcsManager):
 
     def _define_vars(self) -> None:
         super()._define_vars()
+
+        # TODO: Reorder? Underscores first?
 
         self.clock: Clock = Clock()
         '''
@@ -79,7 +78,7 @@ class TimeManager(EcsManager):
         Defaults to midnight (00:00:00.0000) of current UTC date.
         '''
 
-        self.tick: TickRounds = None
+        self.tick: TickBase = None
         '''
         'Game Tick' timer. Keeps track of number of ticks, 'game time' per
         tick, etc.
@@ -129,24 +128,35 @@ class TimeManager(EcsManager):
         '''
 
     def __init__(self,
-                 tick_amount: Optional[TickTypes] = None,
                  debug_flags: NullNoneOr[DebugFlag] = None) -> None:
         super().__init__(debug_flags)
 
-        # TODO: Get our clocks, ticks, etc from config data?
-
-        # defaults to zero start time, _DEFAULT_TICK_STEP tick step
-        # zero is not an allowed tick amount so...
-        tick_amount = tick_amount or self._DEFAULT_TICK_STEP
-        if tick_amount <= 0:
-            self.log_error("tick_amount should be `None` or a "
-                           "non-zero, positive amount.")
-            raise EcsSystemError("tick_amount should be `None` or a "
-                                 "non-zero, positive amount.",
-                                 None, None)
-        self.tick  = TickRounds(tick_amount)
-
         self.machine = MachineTime()
+
+        # ---
+        # Get our clocks, ticks, etc from config data.
+        # ---
+
+        self._configure()
+
+    def _configure(self) -> None:
+        '''
+        Make our stuff from context/config data.
+        '''
+
+        # ---
+        # Config Stuff
+        # ---
+        config = background.config.config
+        if not config:
+            raise background.config.exception(
+                None,
+                "Cannot configure {} without a Configuration in the "
+                "background context.",
+                self.__class__.__name__)
+
+        # TODO: Where is game rules loaded so we can get our ticker?
+        self.tick  = TickRounds(tick_amount)
 
     def engine_init(self,
                     cn_ticks:     CurrentNext[SystemTick],

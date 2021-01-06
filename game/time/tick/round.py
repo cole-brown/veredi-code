@@ -21,7 +21,7 @@ from veredi.data.context         import DataLoadContext
 
 from veredi.math                 import mathing
 
-from .base                       import TickBase, TickTypes
+from .base                       import TickBase
 from ...ecs.base.identity        import EntityId
 
 
