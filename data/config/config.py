@@ -81,6 +81,8 @@ class Configuration:
             background.config.init(self._path,
                                    self)
 
+            # TODO: Remove these; get them from config file.
+
             # Avoid a circular import
             self._repo = config_repo
             if not self._repo:

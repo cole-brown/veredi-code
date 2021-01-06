@@ -444,7 +444,7 @@ class config(metaclass=ConfigMeta):
                   context:    'VerediContext',
                   msg:        Optional[str],
                   *args:      Any,
-                  error_data: Optional[Dict[Any, Any]] = None,
+                  error_data: Optional[Mapping[Any, Any]] = None,
                   **kwargs:   Any) -> None:
         '''
         Calls log.exception() to raise a ConfigError with message built from

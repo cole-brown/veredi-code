@@ -78,6 +78,7 @@ class D20RulesSystem(System):
                 "supplied context.",
                 self.__class__.__name__)
 
+    # TODO: call this somewhere?
     def _config_rules_def(self,
                           context:     'VerediContext',
                           config:      Configuration,

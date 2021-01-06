@@ -21,6 +21,7 @@ from abc import abstractmethod
 from veredi.logger                         import log
 from veredi.base.const                     import VerediHealth
 from veredi.base                           import label
+from veredi.debug.const                    import DebugFlag
 from veredi.data                           import background
 from veredi.data.serdes.adapter.definition import Definition
 from veredi.data.serdes.adapter.record     import Record
@@ -65,9 +66,6 @@ class D20RulesGame:
         '''
         Initializes the D20 Game Rules from config/context/repo data.
         '''
-
-        self._rules_doc: str = 'game.definition'
-        '''Doc type for our game rules.'''
 
         self._definition: Definition = None
         '''Game's Definition data for our D20 Rules-based game.'''
@@ -115,8 +113,17 @@ class D20RulesGame:
         # ---
         # Get game saved data?
         # ---
-        self._data = Record('game.record',  # TODO: get from somewhere else?
+        self._data = Record('game.record',  # TODO: get str from somewhere else?
                             config.game())
+
+        # Complain if we don't have the saved game data, unless DebugFlagged to
+        # be quiet.
+        if (not self._definition
+                and not background.manager.flagged(DebugFlag.NO_SAVE_FILES)):
+            raise background.config.exception(
+                context,
+                "Cannot configure {} without its game saved data.",
+                self.__class__.__name__)
 
     # -------------------------------------------------------------------------
     # Properties

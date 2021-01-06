@@ -64,6 +64,11 @@ class DebugFlag(FlagCheckMixin, FlagSetMixin, enum.Flag):
     Debug stuff about events.
     '''
 
+    NO_SAVE_FILES = enum.auto()
+    '''
+    Skip/mute check for saved game file.
+    '''
+
     # ------------------------------
     # veredi.interface
     # ------------------------------

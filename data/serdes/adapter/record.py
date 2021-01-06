@@ -10,7 +10,7 @@ A Record Class can have multiple documents, like 'metadata' and 'game.record'.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Any, NewType, Iterable, Mapping, Dict, List
+from typing import Union, Any, NewType, Iterable, Mapping, Dict, List, Tuple
 from veredi.base.null import Null, Nullable, is_null
 
 
@@ -35,6 +35,8 @@ class DocType:
     '''
     Record document type strings, so they don't have to exist in multiple
     places.
+
+    A collection of enums and helper methods.
     '''
 
     # ------------------------------
@@ -75,12 +77,15 @@ class DocType:
     @classmethod
     def types(klass: 'DocType') -> Tuple[enum.Enum]:
         '''
-        Returns all of DocType's enum types.
+        Returns all of DocType's enum types in a tuple.
         '''
-        return (general, definition, record)
+        return (klass.general,
+                klass.definition,
+                klass.record)
 
     @classmethod
-    def verify_and_get(klass: 'DocType', doc_type: Union[str, Enum]) -> str:
+    def verify_and_get(klass:    'DocType',
+                       doc_type: Union[str, enum.Enum]) -> str:
         '''
         Normalizes string, verifies that it is one of our DocTypes, and returns
         the validated, normalized string.
