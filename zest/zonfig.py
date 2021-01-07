@@ -10,13 +10,14 @@ Configuration file reader/writer for Veredi games.
 
 from typing import Any, MutableMapping
 
-from veredi.logger          import log
+
+from veredi.logger                import log
 
 from veredi.data                  import background
 from veredi.data.config.config    import Configuration
 from veredi.data.config.hierarchy import Document
 
-from .zxceptions import UnitTestError
+from .zxceptions                  import UnitTestError
 
 
 # -----------------------------------------------------------------------------
