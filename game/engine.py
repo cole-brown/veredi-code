@@ -302,17 +302,11 @@ class Engine(LogMixin):
         '''Metered logging for things that could be spammy, like tick logs.'''
 
     def __init__(self,
-                 owner:             Entity,
-                 campaign_id:       int,
-                 configuration:     Configuration,
-                 event_manager:     NullNoneOr[EventManager]     = None,
-                 time_manager:      NullNoneOr[TimeManager]      = None,
-                 component_manager: NullNoneOr[ComponentManager] = None,
-                 entity_manager:    NullNoneOr[EntityManager]    = None,
-                 system_manager:    NullNoneOr[SystemManager]    = None,
-                 data_manager:      NullNoneOr[DataManager]      = None,
-                 identity_manager:  NullNoneOr[IdentityManager]  = None,
-                 debug:             NullNoneOr[DebugFlag]        = None
+                 owner:         Entity,
+                 campaign_id:   int,
+                 configuration: Configuration,
+                 managers:      Meeting,
+                 debug:         NullNoneOr[DebugFlag] = None
                  ) -> None:
         # ---
         # Define Our Vars.
@@ -339,48 +333,14 @@ class Engine(LogMixin):
         #   - or is that a second init step?
 
         # ---
-        # Debugging
+        # Debugging...
         # ---
         self._debug = debug
 
         # ---
-        # Make the Managers go to their Meeting.
+        # Managers' Meeting...
         # ---
-        event     = event_manager     or EventManager(configuration,
-                                                      self._debug)
-        time      = time_manager      or TimeManager()
-        component = component_manager or ComponentManager(configuration,
-                                                          event)
-        entity    = entity_manager    or EntityManager(configuration,
-                                                       event,
-                                                       component)
-        system    = system_manager    or SystemManager(event,
-                                                       self._debug)
-        data      = data_manager      or DataManager(configuration,
-                                                     time,
-                                                     event,
-                                                     entity,
-                                                     self._debug)
-        identity  = identity_manager  or IdentityManager(configuration,
-                                                         time,
-                                                         event,
-                                                         entity,
-                                                         self._debug)
-
-        self.meeting = Meeting(
-            time,
-            event,
-            component,
-            entity,
-            system,
-            data,
-            identity,
-            self._debug)
-        mtg_bg_data, mtg_bg_owner = self.meeting.get_background()
-        background.manager.set(self.meeting.dotted(),
-                               self.meeting,
-                               mtg_bg_data,
-                               mtg_bg_owner)
+        self.meeting = managers
 
         # ---
         # Time & Timer Set-Up
@@ -388,27 +348,27 @@ class Engine(LogMixin):
         # Init Timer starts timing here and then just runs, so this is all we
         # really need to do with it.
         timer_run_name = self.dotted() + '.time.run'
-        self._timer_run = time.make_timer(timer_run_name)
+        self._timer_run = self.meeting.time.make_timer(timer_run_name)
 
         # Life Timer times specific life-cycles (or specific parts of them).
         # We'll reset it in transition places.
         timer_life_name = self.dotted() + '.time.life_cycle'
-        self._timer_life = time.make_timer(timer_life_name)
+        self._timer_life = self.meeting.time.make_timer(timer_life_name)
 
         # Init TimeManager with our tick objects and our timers.
-        time.engine_init(self._tick, self._life_cycle,
-                         timers={
-                             timer_run_name: self._timer_run,
-                             timer_life_name: self._timer_life,
-                         },
-                         default_name=timer_life_name)
+        self.meeting.time.engine_init(self._tick, self._life_cycle,
+                                      timers={
+                                          timer_run_name: self._timer_run,
+                                          timer_life_name: self._timer_life,
+                                      },
+                                      default_name=timer_life_name)
 
         # ---
         # Metered Logging
         # ---
         self._metered_log = MeteredLog(self.dotted(),
                                        log.Level.NOTSET,
-                                       time.machine,
+                                       self.meeting.time.machine,
                                        fingerprint=True)
         # Tick Life-Cycles
         self._metered_log.meter(SystemTick.TICKS_START,  self._METER_LOG_AMT)

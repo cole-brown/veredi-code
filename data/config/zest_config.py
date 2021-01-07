@@ -33,9 +33,7 @@ class Test_Configuration(ZestBase):
     def set_up(self):
         self.path = zpath.config('test-target.yaml')
         self.config = zmake.config(zpath.TestType.UNIT,
-                                   config_path=self.path,
-                                   config_repo=None,
-                                   config_serdes=None)
+                                   config_path=self.path)
 
     def tearDown(self):
         self.path = None

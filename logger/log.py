@@ -142,13 +142,28 @@ class SuccessType(enum.Enum):
         # Expect the naming scheme to always hold true.
         return SuccessType['_DRY_' + self.name]
 
+    def __format__(self, format_spec: str) -> str:
+        '''
+        Check for our None value, then have string formatted.
+        '''
+        # Center ourself on a 6 char wide string:
+        #    1: '['
+        #  2-5: self.value
+        #    6: ']'
+        # Or, if value is None, just make a 6 char wide string (no brackets).
+        value = '{:^6s}'.format(
+            self.value
+            if self.value is not None else
+            '')
+        return value.__format__(format_spec)
+
     def __str__(self) -> str:
         '''
         Returns value string of enum formatted into e.g.:
           [ OK ]
           [_F__]
         '''
-        return '[{:^4s}]'.format(self.value)
+        return '{:^6s}'.format(self)
 
 
 _FMT_SUCCESS_HUMAN = '{success:s}: {message:s}'
@@ -288,7 +303,7 @@ class Group(enum.Enum):
     SECURITY = 'security'
     '''veredi.security.* logs, and related logs.'''
 
-    # TODO: more groups?
+    # TODO: more groups
 
     # ------------------------------
     # Functions
@@ -1203,7 +1218,7 @@ def start_up(dotted:        str,
     actual vs dry-run strings.
     '''
     kwargs = incr_stack_level(kwargs)
-    group(Group.SECURITY,
+    group(Group.START_UP,
           dotted,
           msg,
           *args,

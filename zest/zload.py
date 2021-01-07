@@ -15,6 +15,8 @@ from .                                 import zmake, zontext
 from .zpath                            import TestType
 from .zxceptions                       import UnitTestError
 
+from veredi                            import run
+
 from veredi.data                       import background
 from veredi.debug.const                import DebugFlag
 
@@ -152,43 +154,50 @@ def set_up(test_name_class:   str,
       Tuple[Meeting, VerediContext, SystemManager, List[SystemId]]
     '''
     with log.LoggingManager.on_or_off(enable_debug_logs):
+        # ---
+        # Configuration
+        # ---
         if not configuration:
             log.debug("zload.loader creating Configuration...")
             configuration = configuration or zmake.config(test_type)
 
+        # ---
+        # ECS Managers
+        # ---
         log.debug("zload.loader creating Meeting...")
-        meeting = zmake.meeting(test_type,
-                                configuration,
-                                time_manager,
-                                event_manager,
-                                component_manager,
-                                entity_manager,
-                                system_manager,
-                                data_manager,
-                                identity_manager,
-                                debug_flags)
+        meeting = run.managers(configuration,
+                               time_manager=time_manager,
+                               event_manager=event_manager,
+                               component_manager=component_manager,
+                               entity_manager=entity_manager,
+                               system_manager=system_manager,
+                               data_manager=data_manager,
+                               identity_manager=identity_manager,
+                               debug_flags=debug_flags)
 
+        # ---
+        # Engine
+        # ---
         engine = None
         if require_engine:
             log.debug("zload.loader creating Engine...")
-            engine = Engine(None, None,
-                            configuration,
-                            meeting.event,
-                            meeting.time,
-                            meeting.component,
-                            meeting.entity,
-                            meeting.system,
-                            meeting.data,
-                            meeting.identity,
-                            debug_flags)
+            engine = run.engine(configuration,
+                                meeting,
+                                debug_flags=debug_flags)
 
-        system_manager = meeting.system
-
+        # ---
+        # Config Context
+        # ---
         log.debug("zload.loader creating Context...")
         context = zontext.real_config(test_name_class,
                                       test_name_func,
                                       config=configuration)
+
+        # ---
+        # Additional Systems?
+        # ---
         log.debug("zload.loader creating systems...")
+        system_manager = meeting.system
         sids = []
         if desired_systems:
             sids = create_systems(system_manager, context,
