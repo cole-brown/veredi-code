@@ -12,6 +12,8 @@ from typing import Union, Optional
 import pathlib
 
 from .                                 import zpath
+from veredi                            import run
+
 from veredi.data                       import background
 from veredi.debug.const                import DebugFlag
 
@@ -42,120 +44,17 @@ from veredi.game.data.identity.manager import IdentityManager
 # -----------------------------------------------------------------------------
 
 def config(test_type:     zpath.TestType                 = zpath.TestType.UNIT,
-           config_path:   Union[pathlib.Path, str, None] = None,
-           config_repo:   Optional[BaseRepository]       = None,
-           config_serdes: Optional[BaseSerdes]           = None,
-           repo_dotted:   Optional[str]                  = None,
-           repo_path:     Union[pathlib.Path, str, None] = None,
-           repo_clean:    Optional[str]                  = None,
+           config_path:   Union[pathlib.Path, str, None] = None
            ) -> Configuration:
     '''
-    Creates a configuration with the requested config file path.
-    If name is Falsy, uses 'zest/config/config.testing.yaml'.
-
-    `repo_dotted` will be injected into config as the game repo registry name.
-    `repo_path` will be injected into config as the game repo path.
-    `repo_clean` will be injected into config as the game repo sanitize fn.
+    Creates a configuration with the requested `config_path` config file path.
+    If the `config_path` is Falsy, uses 'zest/config/config.testing.yaml'.
     '''
     path = config_path
     if not path:
         path = pathlib.Path('config.testing.yaml')
 
     path = zpath.config(path, test_type)
-    config = Configuration(path, config_repo, config_serdes)
-
-    # Inject specific serdes for unit test.
-    if repo_dotted:
-        config.ut_inject(repo_dotted,
-                         Document.CONFIG,
-                         'data',
-                         'game',
-                         'repository',
-                         'type')
-
-    if repo_path:
-        config.ut_inject(str(repo_path),
-                         Document.CONFIG,
-                         'data',
-                         'game',
-                         'repository',
-                         'directory')
-
-    if repo_clean:
-        config.ut_inject(repo_clean,
-                         Document.CONFIG,
-                         'data',
-                         'game',
-                         'repository',
-                         'sanitize')
+    config = run.configuration(path)
 
     return config
-
-
-# -----------------------------------------------------------------------------
-# Meeting of Managers
-# -----------------------------------------------------------------------------
-
-def meeting(
-        test_type:         zpath.TestType             = zpath.TestType.UNIT,
-        configuration:     Optional[Configuration]    = None,
-        time_manager:      Optional[TimeManager]      = None,
-        event_manager:     Optional[EventManager]     = None,
-        component_manager: Optional[ComponentManager] = None,
-        entity_manager:    Optional[EntityManager]    = None,
-        system_manager:    Optional[SystemManager]    = None,
-        data_manager:      Optional[DataManager]      = None,
-        identity_manager:  Optional[IdentityManager]  = None,
-        debug_flags:       Optional[DebugFlag]        = None) -> None:
-    '''
-    Creates a Meeting of EcsManagers using inputs, or creating defaults for
-    things that aren't provided.
-
-    If no configuration, uses zmake.config(test_type)
-    '''
-
-    # Get a config of some sort... Managers need it.
-    configuration = configuration     or config(test_type)
-
-    # Create any managers that weren't passed in.
-    time          = time_manager      or TimeManager(debug_flags=debug_flags)
-    event         = event_manager     or EventManager(configuration,
-                                                      debug_flags)
-    component     = component_manager or ComponentManager(configuration,
-                                                          event,
-                                                          debug_flags)
-    entity        = entity_manager    or EntityManager(configuration,
-                                                       event,
-                                                       component,
-                                                       debug_flags)
-    system        = system_manager    or SystemManager(event,
-                                                       debug_flags)
-    data          = data_manager      or DataManager(configuration,
-                                                     time,
-                                                     event,
-                                                     component,
-                                                     debug_flags)
-    identity      = identity_manager  or IdentityManager(configuration,
-                                                         time,
-                                                         event,
-                                                         entity,
-                                                         debug_flags)
-
-    # And now we can create the meeting itself.
-    meeting = Meeting(time,
-                      event,
-                      component,
-                      entity,
-                      system,
-                      data,
-                      identity,
-                      debug_flags)
-
-    # Save to background and return.
-    mtg_bg_data, mtg_bg_owner = meeting.get_background()
-    background.manager.set(meeting.dotted(),
-                           meeting,
-                           mtg_bg_data,
-                           mtg_bg_owner)
-
-    return meeting
