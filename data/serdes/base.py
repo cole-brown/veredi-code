@@ -135,8 +135,8 @@ class BaseSerdes(ABC):
 
     @abstractmethod
     def deserialize(self,
-               stream: Union[TextIO, str],
-               context: 'VerediContext') -> DeserializeTypes:
+                    stream: Union[TextIO, str],
+                    context: 'VerediContext') -> DeserializeTypes:
         '''Read and deserializes a single document from the data stream.
 
         Raises:
@@ -148,8 +148,8 @@ class BaseSerdes(ABC):
 
     @abstractmethod
     def deserialize_all(self,
-                   stream: Union[TextIO, str],
-                   context: 'VerediContext') -> DeserializeTypes:
+                        stream: Union[TextIO, str],
+                        context: 'VerediContext') -> DeserializeTypes:
         '''Read and deserializes all documents from the data stream.
 
         Raises:

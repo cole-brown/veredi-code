@@ -8,10 +8,10 @@ Generic collection-type or pair-ish or (named) tuple-ish things.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (Optional, Union, Type, Any,
-                    TypeVar, Generic)
+from typing import Optional, Union, TypeVar, Generic
 
-import collections.abc
+
+from veredi.logger import log
 
 
 # -----------------------------------------------------------------------------
@@ -28,8 +28,9 @@ class CurrentNext(Generic[CurrNextT]):
     '''
 
     def __init__(self, current, next) -> None:
-        self._current: CurrNextT = current
-        self._next:    CurrNextT = next
+        self._current:      CurrNextT = current
+        self._next:         CurrNextT = next
+        self._freeze_next:  bool      = False
 
     # ------------------------------
     # Properties
@@ -61,11 +62,31 @@ class CurrentNext(Generic[CurrNextT]):
         '''
         Sets next value.
         '''
+        if self._freeze_next:
+            kwargs = log.incr_stack_level(None)
+            log.info(f"Currently next is frozen at {self._next}; "
+                     f"cannot set next value to {value}.",
+                     **kwargs)
+            return
         self._next = value
 
     # ------------------------------
     # Helpers
     # ------------------------------
+
+    def freeze(self, freeze_next: Union[bool, CurrNextT]) -> None:
+        '''
+        Freeze or unfreeze `self._next`.
+
+        If `freeze_next` is a `CurrNextT` type, sets `next` to `freeze_next`
+        for convenient "freeze to this value". This does not change `current`.
+
+        If `freeze_next` is True or a Truthy CurrNextT, disables `next` setter.
+        If `freeze_next` is False or a Falsy CurrNextT, enables `next` setter.
+        '''
+        if isinstance(freeze_next, type(self.next)):
+            self.next = freeze_next
+        self._freeze_next = bool(freeze_next)
 
     def set_if_invalids(self,
                         invalid: CurrNextT,
@@ -80,15 +101,21 @@ class CurrentNext(Generic[CurrNextT]):
 
     def cycle(self, set_next_to: Optional[CurrNextT] = None) -> CurrNextT:
         '''
-        Moves self.next value to self.current, (optionally) sets self.next to
-        `set_next_to`, and then returns the new self.current value.
+        Moves `self.next` value to `self.current`, (optionally) sets
+        `self.next` to `set_next_to`, and then returns the new self.current
+        value.
 
-        If `set_next_to` is None, this leaves next at its current value (so
-        next == current in that case).
+        If `set_next_to` is None, this leaves `next` at its current value (so
+        `next` == `current` in that case).
+
+        If `self._freeze_next` is True, this ignores `set_next_to` entirely and
+        leaves `next` unchanged.
         '''
         self.current = self.next
         if set_next_to:
+            # 'freeze' is taken care of by this setter property.
             self.next = set_next_to
+
         return self.current
 
 

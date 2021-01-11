@@ -46,6 +46,11 @@ class DebugFlag(FlagCheckMixin, FlagSetMixin, enum.Flag):
     health goes bad...
     '''
 
+    RAISE_LOGS = enum.auto()
+    '''
+    Raise an error if a log is above a certain level.
+    '''
+
     SYSTEM_DEBUG = enum.auto()
     '''Output extra SystemManager/System logs at debug level.'''
 
@@ -78,7 +83,7 @@ class DebugFlag(FlagCheckMixin, FlagSetMixin, enum.Flag):
 
     # TODO: Change what gets set as default debug flags? To make them more
     # useful so they can spam when turned on?
-    GAME_ALL = (LOG_TICK | RAISE_ERRORS | RAISE_HEALTH
+    GAME_ALL = (LOG_TICK | RAISE_ERRORS | RAISE_HEALTH | RAISE_LOGS
                 | SYSTEM_DEBUG | MANUAL_ENGINE_TICK)
     # | EVENTS)
     '''All the game debugging flags.'''

@@ -8,17 +8,17 @@ Set up the game engine.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Optional
+from typing import Optional
 
 
-from veredi.logger                             import log
-from veredi.base import label
+from veredi.logger                     import log
+from veredi.base                       import label
 from veredi.data                       import background
 from veredi.debug.const                import DebugFlag
 
 # Configuration Stuff
-from veredi.data.config.config                 import Configuration
-from veredi.data.exceptions                    import ConfigError
+from veredi.data.config.config         import Configuration
+from veredi.data.exceptions            import ConfigError
 
 # Meeting Stuff
 from veredi.game.ecs.time              import TimeManager

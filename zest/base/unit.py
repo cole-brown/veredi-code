@@ -18,19 +18,10 @@ from typing import Optional, List, Tuple, Dict
 import sys
 import unittest
 
-# Veredi has time too, so three 'time' modules to deal with...
-# Veredi's gets to reserve 'time' so actual tests can do as they please.
-# Python's time gets 'py_time' and datetime.time gets 'py_dttime'.
-import time as py_time
-from datetime import (datetime,
-                      timezone,
-                      tzinfo,
-                      timedelta,
-                      time as py_dttime)
-
 from veredi.logger                      import log
-from veredi.zest.zpath                  import TestType
 from veredi.zest                        import zload
+from veredi.zest.zpath                  import TestType
+from veredi.zest.timing                 import ZestTiming
 from veredi.debug.const                 import DebugFlag
 from veredi.base                        import label
 
@@ -38,142 +29,6 @@ from veredi.base                        import label
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# TODOs:
-#   - Name functions based on what should be called by actual unit tests.
-#     -  [a-z_][a-zA-Z_]*: called by subclasses for actual unit tests.
-#     - _[a-z_][a-zA-Z_]*: Just used by this internally, most likely.
-
-
-# -----------------------------------------------------------------------------
-# Time/Timing Info Helper Class
-# -----------------------------------------------------------------------------
-
-class ZestTiming:
-    '''
-    A timing info class for test runs. Holds start, end time (w/ timezone),
-    elapsed time. Helpers for printing this out if wanted for info or
-    debugging.
-    '''
-
-    DEFAULT_ELAPSED_FMT = '%H:%M:%S.%f'
-
-    def __init__(self,
-                 timezone:        tzinfo = None,
-                 elapsed_str_fmt: str    = None) -> None:
-        '''
-        Creates the timing info class for a test run and saves the current
-        time as the start time for the test.
-
-        `_elapsed_str_fmt` will be set to `ZestTiming.DEFAULT_ELAPSED_FMT`
-        if left as default/None.
-        '''
-        self._tz:              tzinfo    = timezone
-        self._start:           datetime  = datetime.now(tz=self._tz)
-        self._end:             datetime  = None
-        self._td_elapsed:      timedelta = None
-        self._dt_elapsed:      py_dttime = None
-        self._elapsed_str_fmt: str       = (elapsed_str_fmt
-                                            or ZestTiming.DEFAULT_ELAPSED_FMT)
-
-    # ------------------------------
-    # Properties / Setters
-    # ------------------------------
-
-    @property
-    def timezone(self) -> Optional[tzinfo]:
-        '''Returns timezone (tzinfo object).'''
-        return self._tz
-
-    @timezone.setter
-    def timezone(self, value: tzinfo) -> None:
-        '''
-        Setter for timezone. Only sets self var; doesn't change other vars to
-        be based on new tz.
-        '''
-        self._tz = value
-
-    @property
-    def start_dt(self) -> Optional[datetime]:
-        '''Returns start time (datetime object).'''
-        return self._start
-
-    @start_dt.setter
-    def start_dt(self, value: datetime) -> Optional[datetime]:
-        '''Setter for start time (datetime object).'''
-        self._start = value
-
-    @property
-    def start_str(self,
-                  sep=' ',
-                  timespec='seconds') -> Optional[str]:
-        '''
-        `sep` and `timespec` are fed into datetime.isoformat().
-
-        Returns start time as formatted string.
-        '''
-        return self._start.isoformat(sep=' ', timespec='seconds')
-
-    @property
-    def end_dt(self) -> Optional[datetime]:
-        '''Returns end time (datetime object).'''
-        return self._end
-
-    @end_dt.setter
-    def end_dt(self, value: datetime) -> Optional[datetime]:
-        '''Setter for end time (datetime object).'''
-        self._end = value
-
-    @property
-    def end_str(self,
-                sep=' ',
-                timespec='seconds') -> Optional[str]:
-        '''
-        `sep` and `timespec` are fed into datetime.isoformat().
-
-        Returns end time as formatted string.
-        '''
-        return self._end.isoformat(sep=' ', timespec='seconds')
-
-    # ------------------------------
-    # Funcs
-    # ------------------------------
-
-    def test_start(self) -> None:
-        '''
-        Sets start time. Start is already set when instance is created, so this
-        is just if a different start is desired.
-        '''
-        self._start = datetime.now(tz=self._tz)
-
-    def test_end(self) -> None:
-        '''
-        Sets end time, elapsed time of test.
-        '''
-        self._end = datetime.now(tz=self._tz)
-
-        self._td_elapsed = self._end - self._start
-        self._dt_elapsed = py_dttime(second=self._td_elapsed.seconds,
-                                     microsecond=self._td_elapsed.microseconds)
-
-    # ------------------------------
-    # Elapsed Time Getters
-    # ------------------------------
-
-    @property
-    def elapsed_td(self) -> Optional[timedelta]:
-        '''Returns elapsed timedelta.'''
-        return self._td_elapsed
-
-    @property
-    def elapsed_dt(self) -> Optional[datetime]:
-        '''Returns elapsed timedelta as a datetime.'''
-        return self._dt_elapsed
-
-    @property
-    def elapsed_str(self) -> Optional[datetime]:
-        '''Returns elapsed timedelta as a formatted string.'''
-        return self._dt_elapsed.strftime(self._elapsed_str_fmt)
 
 
 # -----------------------------------------------------------------------------
@@ -275,8 +130,7 @@ class ZestBase(unittest.TestCase):
         # ------------------------------
         # Time (logging/debug help)
         # ------------------------------
-        testing_timezone = timezone(timedelta(hours=-7))
-        self._timing: ZestTiming = ZestTiming(testing_timezone)
+        self._timing: ZestTiming = ZestTiming(tz=True)  # True -> local tz
         '''
         Timing info helper. Auto-starts timer when created, or can restart with
         self._timing.test_start(). Call self._timing.test_end() and check it

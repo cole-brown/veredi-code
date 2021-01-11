@@ -523,6 +523,34 @@ class SystemManager(EcsManagerWithEvents):
 
         return Null()
 
+    def _creating(self, system_id: SystemId, system: System) -> None:
+        '''
+        Insert a newly-created system into our collections and trigger its
+        CREATING event.
+        '''
+        self._system.set(system_id, system.__class__, system)
+        self._system_create.add(system_id)
+        self._life_cycle_set(system, SystemLifeCycle.CREATING)
+
+        self._event_create(SystemLifeEvent,
+                           system_id,
+                           SystemLifeCycle.CREATING,
+                           None, False)
+
+    def add(self, system: System) -> SystemId:
+        '''
+        Take a system already created outside of Veredi and add it into our
+        systems.
+
+        Returns the SystemId assigned to the system.
+        '''
+        # Make a SystemId for it...
+        sid = self._system_id.next()
+        system._system_id = sid
+        # ...and add it to our systems.
+        self._creating(sid, system)
+        return sid
+
     def create(self,
                sys_class: Type[System],
                context:   Optional[VerediContext]) -> SystemId:
@@ -542,22 +570,13 @@ class SystemManager(EcsManagerWithEvents):
                     "There is already one running: {}",
                     str(sys_class), str(system))
 
+        # Create the system...
         sid = self._system_id.next()
-
-        # Stuff event, component managers into kwargs in case system wants them
-        # on init.
-
         system = sys_class(context,
                            sid,
                            background.manager.meeting)
-        self._system.set(sid, sys_class, system)
-        self._system_create.add(sid)
-        self._life_cycle_set(system, SystemLifeCycle.CREATING)
-
-        self._event_create(SystemLifeEvent,
-                           sid,
-                           SystemLifeCycle.CREATING,
-                           None, False)
+        # ...and add it to our systems.
+        self._creating(sid, system)
 
         return sid
 
