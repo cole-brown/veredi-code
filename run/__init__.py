@@ -8,9 +8,21 @@ Helpers for getting a game of Veredi running.
 # Imports
 # -----------------------------------------------------------------------------
 
-from .options import configuration
-from .engine import managers, engine
-from .server import server
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from veredi.game.engine import Engine
+
+
+# Functions
+from .options  import configuration
+from .engine   import managers, engine
+from .registry import registries
+
+# Namespaced
+from .         import system
+
+from .server   import server
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -21,6 +33,12 @@ from .server import server
 # Code
 # -----------------------------------------------------------------------------
 
+def start(engine: 'Engine') -> None:
+    '''
+    Starts engine, runs until game is completed or stopped.
+    '''
+    return engine.run()
+
 
 # -----------------------------------------------------------------------------
 # Exports
@@ -30,6 +48,7 @@ __all__ = [
     # ------------------------------
     # File-Local
     # ------------------------------
+    'start',
 
     # ------------------------------
     # Functions
@@ -37,5 +56,15 @@ __all__ = [
     'configuration',
     'managers',
     'engine',
+    'registries',
+
+    # ------------------------------
+    # Functions
+    # ------------------------------
+    'system',
+
+    # ------------------------------
+    # Overall Setup?
+    # ------------------------------
     'server',
 ]

@@ -35,7 +35,7 @@ from .context               import ConfigContext
 # -----------------------------------------------------------------------------
 
 THIS_DIR = pathlib.Path(__file__).resolve().parent
-DEFAULT_NAME = "default.yaml"
+DEFAULT_NAME = 'config.veredi.yaml'
 
 
 # -----------------------------------------------------------------------------

@@ -125,7 +125,7 @@ class DataLoadedEvent(DataEvent):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
-    def __repr_name__(self):
+    def _repr_name(self):
         return "LoadEvent"
 
 
@@ -139,7 +139,7 @@ class DataSavedEvent(DataEvent):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
-    def __repr_name__(self):
+    def _repr_name(self):
         return "SavedEvent"
 
 
@@ -241,17 +241,17 @@ class _LoadedEvent(DataEvent):
         return (f"{self._str_name()}: data: {self._str_data()}, "
                 f"context: {str(self._context)}")
 
-    def __repr_name__(self):
+    def _repr_name(self):
         return "_LdEvent"
 
     def __repr__(self):
-        return (f"<{self._str_name(self.__repr_name__())}: "
+        return (f"<{self._str_name(self._repr_name())}: "
                 f"data: {self._repr_data()}, "
                 f"context: {str(self._context)}>")
 
 
 class _SavedEvent(DataEvent):
-    def __repr_name__(self):
+    def _repr_name(self):
         return "_SvdEvent"
 
 
@@ -304,15 +304,15 @@ class _DeserializedEvent(DataEvent):
         return (f"{self._str_name()}: data: {self._str_data()}, "
                 f"context: {str(self._context)}")
 
-    def __repr_name__(self):
+    def _repr_name(self):
         return "_DesEvent"
 
     def __repr__(self):
-        return (f"<{self._str_name(self.__repr_name__())}: "
+        return (f"<{self._str_name(self._repr_name())}: "
                 f"data: {self._repr_data()}, "
                 f"context: {str(self._context)}>")
 
 
 class _SerializedEvent(DataEvent):
-    def __repr_name__(self):
+    def _repr_name(self):
         return "_SerEvent"

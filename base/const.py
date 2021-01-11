@@ -122,6 +122,10 @@ class VerediHealth(enum.IntEnum):
     HEALTHY = 111
     '''Valid, healthly system.'''
 
+    # -------------------------------------------------------------------------
+    # Helper Functions
+    # -------------------------------------------------------------------------
+
     @property
     def should_die(self) -> bool:
         '''
@@ -164,6 +168,10 @@ class VerediHealth(enum.IntEnum):
         '''
         return (self.value > VerediHealth._RUN_OK_HEALTH_MIN.value
                 or self is VerediHealth.IGNORE)
+
+    # -------------------------------------------------------------------------
+    # Set Value Helpers
+    # -------------------------------------------------------------------------
 
     @staticmethod
     def worse(a: 'VerediHealth',
@@ -237,6 +245,10 @@ class VerediHealth(enum.IntEnum):
             health = VerediHealth.set(self, value)
 
         return health
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
 
     def __str__(self) -> str:
         '''

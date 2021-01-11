@@ -24,6 +24,7 @@ from veredi.logger.metered              import MeteredLog
 from veredi.logger.mixin                import LogMixin
 from veredi.base.exceptions             import VerediError, HealthError
 from .ecs.exceptions                    import TickError
+from .exceptions                        import EngineError
 
 # Other More Basic Stuff
 from veredi.data                        import background
@@ -41,16 +42,8 @@ from .ecs.const                         import (SystemTick,
                                                 _GAME_LOOP_SEQUENCE,
                                                 tick_health_init,
                                                 tick_healthy)
-from .ecs.time                          import TimeManager
-from .ecs.event                         import EventManager
-from .ecs.component                     import ComponentManager
-from .ecs.entity                        import EntityManager
-from .ecs.system                        import SystemManager
 from .ecs.meeting                       import Meeting
-
-# Other Managers
-from .data.manager                      import DataManager
-from .data.identity.manager             import IdentityManager
+from .event                             import EngineStopRequest
 
 # ECS Minions
 from .ecs.base.entity                   import Entity
@@ -218,6 +211,10 @@ from .ecs.base.entity                   import Entity
 # TODO [2020-09-27]: Check function names. Only used-externally should
 # start with a letter. All internal-onyl should be "_blank".
 
+# TODO: log.Groups: Do we switch all? Some?
+# Do we make ours in their own ENGINE_* groups? Use more general groups?
+
+
 class Engine(LogMixin):
     '''
     Implements an ECS-powered game engine with just
@@ -371,23 +368,24 @@ class Engine(LogMixin):
                                        self.meeting.time.machine,
                                        fingerprint=True)
         # Tick Life-Cycles
-        self._metered_log.meter(SystemTick.TICKS_START,  self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.TICKS_RUN,    self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.TICKS_END,    self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TICKS_START,   self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TICKS_RUN,     self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TICKS_END,     self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.AFTER_THE_END, self._METER_LOG_AMT)
 
         # Ticks
-        self._metered_log.meter(SystemTick.GENESIS,      self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.INTRA_SYSTEM, self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.TIME,         self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.CREATION,     self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.PRE,          self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.STANDARD,     self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.POST,         self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.DESTRUCTION,  self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.APOPTOSIS,    self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.APOCALYPSE,   self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.THE_END,      self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.FUNERAL,      self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.GENESIS,       self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.INTRA_SYSTEM,  self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TIME,          self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.CREATION,      self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.PRE,           self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.STANDARD,      self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.POST,          self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.DESTRUCTION,   self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.APOPTOSIS,     self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.APOCALYPSE,    self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.THE_END,       self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.FUNERAL,       self._METER_LOG_AMT)
 
         # ---
         # Systems
@@ -565,20 +563,41 @@ class Engine(LogMixin):
         '''
         kwargs = kwargs or {}
         kwargs = self._log_stack(**kwargs)
-        return self._metered_log.log(tick,
-                                     level,
-                                     msg,
-                                     *args,
-                                     **kwargs)
+        logged = self._metered_log.log(tick,
+                                       level,
+                                       msg,
+                                       *args,
+                                       **kwargs)
 
-    def log_tick_maybe_raise(self,
-                             tick:         SystemTick,
-                             error:        Exception,
-                             msg:          Optional[str],
-                             *args:        Any,
-                             context:      Optional['VerediContext'] = None,
-                             always_raise: bool                      = False,
-                             **kwargs:     Any):
+        # Raise **IF WE LOGGED** and if we are flagged to raise on logging.
+        #   - Could be convinced to ignore that "if we logged"...
+        if logged and self.debug_flagged(DebugFlag.RAISE_LOGS):
+            msg = (f"Engine's logged at {level} with {DebugFlag.RAISE_LOGS}. "
+                   "Raising this error. "
+
+                   f"Tick: {self.tick} at "
+                   f"{self.meeting.time.error_game_time}.")
+            error = TickError(msg,
+                              data={
+                                  'tick': tick,
+                                  'log_level': level,
+                                  'log_msg': msg,
+                                  'log_msg_args': args,
+                                  'log_msg_kwargs': kwargs,
+                              })
+            raise error
+
+        # Return whether it was logged or not.
+        return logged
+
+    def log_tick_error(self,
+                       tick:         SystemTick,
+                       error:        Exception,
+                       msg:          Optional[str],
+                       *args:        Any,
+                       context:      Optional['VerediContext'] = None,
+                       always_raise: bool                      = False,
+                       **kwargs:     Any):
         '''
         Log a tick-related error via log_tick().
 
@@ -609,34 +628,6 @@ class Engine(LogMixin):
     # -------------------------------------------------------------------------
     # Engine Overall Health
     # -------------------------------------------------------------------------
-
-    def _runnable(self, health: VerediHealth) -> bool:
-        '''
-        Returns true if `health` is not null/none, and is a health over the min
-        for running.
-        '''
-        # ---
-        # Bad Value? -> not runnable (False)
-        # ---
-        # If the health is None/Null, straight up fail.
-        if null_or_none(health):
-            return False
-
-        # ---
-        # Good Health? -> runnable (True)
-        # ---
-        return health.in_runnable_health
-
-    def running(self, *args: VerediHealth) -> bool:
-        '''
-        Returns true if our engine health, our tick health, and all `args`
-        health are good enough to run a tick.
-        '''
-        valid_healths = (self._runnable(self.engine_health)
-                         or self._runnable(self.tick_health))
-        for each in args:
-            valid_healths = valid_healths or self._runnable(each)
-        return valid_healths
 
     def set_all_health(self,
                        value: VerediHealth,
@@ -815,7 +806,7 @@ class Engine(LogMixin):
             return True
 
         healthy = True
-        if not self._runnable(self.engine_health):
+        if self._stopped_health(self.engine_health):
             self.log_tick(self.life_cycle,
                           log.Level.CRITICAL,
                           "Engine overall health is bad - "
@@ -823,7 +814,7 @@ class Engine(LogMixin):
                           self.tick, str(self.engine_health))
             healthy = False
 
-        if not self._runnable(self.tick_health):
+        if self._stopped_health(self.tick_health):
             self.log_tick(self.life_cycle,
                           log.Level.CRITICAL,
                           "Engine tick health is bad - "
@@ -835,11 +826,10 @@ class Engine(LogMixin):
 
     def run(self) -> None:
         '''
-        Infinite loop of 'self.run_tick()' until stopped.
+        Loop of `self.run_tick()` until `self.stopped()` is True.
         '''
-        # TODO [2020-09-28]: Implement this.
-        raise NotImplementedError(f"{self.__class__.__name__}.run() is "
-                                  "not implemented.")
+        while not self.stopped(log_stopped=True):
+            self.run_tick()
 
     def run_tick(self) -> Optional[VerediHealth]:
         '''
@@ -871,11 +861,11 @@ class Engine(LogMixin):
                           str(self._life_cycle.next))
             bail_out_now = True
 
-        if self._should_stop():
+        if self._should_stop_health():
             self.log_tick(self.life_cycle,
                           log.Level.CRITICAL,
                           "Engine.run() ignored due to engine being in "
-                          "incorrect state for running. _should_stop() "
+                          "incorrect state for running. _should_stop_health() "
                           "returned True. Health is {} {}. ",
                           "Life-Cycle: {} -> {}",
                           str(self.engine_health),
@@ -898,6 +888,12 @@ class Engine(LogMixin):
             # Promote next cycle & tick to current.
             # ---
             cycle = self._run_transition()
+
+            # ---
+            # Did we just cycle into fully dead?
+            # ---
+            if self._stopped_afterlife():
+                return self.engine_health
 
             # ---
             # Run the cycle asked for!
@@ -952,8 +948,7 @@ class Engine(LogMixin):
         #
         # It can be called during non-transitions - it will figure out if a
         # transition is happening that it cares about.
-        self._run_trans_to(cycle_from, cycle_to,
-                           self._tick.current, self._tick.next)
+        self._run_trans_to(cycle_from, cycle_to)
 
         # ------------------------------
         # Pull next into current for the upcomming run.
@@ -966,9 +961,7 @@ class Engine(LogMixin):
 
     def _run_trans_to(self,
                       cycle_from: SystemTick,
-                      cycle_to:   SystemTick,
-                      tick_from:  SystemTick,
-                      tick_to:    SystemTick) -> VerediHealth:
+                      cycle_to:   SystemTick) -> VerediHealth:
         '''
         Calls any once-only, enter/exit engine life-cycle functions. For
         TICKS_START and TICKS_END life-cycles, this calls specific tick cycle
@@ -982,6 +975,8 @@ class Engine(LogMixin):
         health).
         '''
         health = VerediHealth.HEALTHY
+        tick_from = self._tick.current
+        tick_to = self._tick.next
 
         # ------------------------------
         # Life-Cycle: TICKS_START
@@ -1032,6 +1027,18 @@ class Engine(LogMixin):
         # Life-Cycle: TICKS_END
         # ------------------------------
         elif cycle_to == SystemTick.TICKS_END:
+            # ===
+            # Life-Cycled into TICKS_END; ticks still set-up for TICKS_RUN.
+            # ===
+            if (tick_to == game_loop_start()
+                    and tick_from == game_loop_end()):
+                # Fix the tick(s) first so we can just have one check.
+                self._tick.next = tick_to = SystemTick.APOPTOSIS
+                # And unfreeze our life-cycle.
+                self._life_cycle.freeze(False)
+
+                # Now we can go on to do the normal tick-cycle checks:
+
             # ---
             # Not a Tick-Cycle: No-op.
             # ---
@@ -1194,7 +1201,7 @@ class Engine(LogMixin):
         error = ValueError(msg)
         kwargs = {}
         kwargs = self._log_stack(**kwargs)
-        self.log_tick_maybe_raise(cycle_from, error, msg, **kwargs)
+        self.log_tick_error(cycle_from, error, msg, **kwargs)
         self.set_tick_health(VerediHealth.FATAL, True)
         return SystemTick.ERROR
 
@@ -1219,13 +1226,20 @@ class Engine(LogMixin):
             run_health = self._run_cycle_end()
 
         else:
-            self.log_tick_maybe_raise(
+            error = EngineError(
+                f"{self.__class__.__name__}._run_cycle() "
+                f"received an un-runnable SystemTick cycle: {cycle}",
+                data={
+                    'cycle': cycle,
+                })
+            self.log_tick_error(
                 cycle,
-                VerediError,
+                error,
                 "{}._run_cycle({}) received an un-runnable SystemTick: {}. "
-                "Valid options are: ",
+                "Valid options are: {}",
                 self.__class__.__name__,
-                cycle, cycle,
+                cycle,
+                cycle,
                 (SystemTick.TICKS_START,
                  SystemTick.TICKS_RUN,
                  SystemTick.TICKS_END))
@@ -1367,7 +1381,7 @@ class Engine(LogMixin):
             msg = (f"_run_cycle_run must start in "
                    f"{str(valid_start)}, not {str(self.tick)}.")
             error = ValueError(msg)
-            self.log_tick_maybe_raise(self.tick, error, msg)
+            self.log_tick_error(self.tick, error, msg)
             health = VerediHealth.UNHEALTHY
             self.set_all_health(health)
             return health
@@ -1400,7 +1414,7 @@ class Engine(LogMixin):
             msg = (f"_run_cycle_run must end at "
                    f"{str(valid_end)}, not {str(self.tick)}.")
             error = ValueError(msg)
-            self.log_tick_maybe_raise(self.tick, error, msg)
+            self.log_tick_error(self.tick, error, msg)
             health = VerediHealth.UNHEALTHY
             self.set_all_health(health)
             return health
@@ -1571,8 +1585,9 @@ class Engine(LogMixin):
         self.log_tick(self.tick,
                       log.Level.ERROR,
                       "FATAL: {} is in {} but not in any "
-                      "tear-down/end ticks? {}",
+                      "tear-down/end ticks? tick: {}, timer-life: {}",
                       self.__class__.__name__,
+                      self.life_cycle,
                       self.tick,
                       self._timer_life.elapsed_str)
         self.set_all_health(VerediHealth.FATAL, True)
@@ -1582,8 +1597,228 @@ class Engine(LogMixin):
     # Game Stopping
     # -------------------------------------------------------------------------
 
-    def _should_stop(self):
+    def _should_stop_health(self):
         return self.engine_health.should_die
+
+    def _event_request_stop(self, event: EngineStopRequest) -> None:
+        '''
+        Someone requested we kick into TICKS_END.
+        '''
+        # TODO: log.Group.EVENTS
+        self.stop()
+
+    def stopped(self,
+                log_stopped:     Optional[str] = None,
+                log_not_stopped: Optional[str] = None) -> bool:
+        '''
+        Returns True if engine will not run.
+
+        If `log_not_stopped` is a string, this will log when engine isn't in a
+        'stopped' state at ERROR level with `log_not_stopped` as first part
+        of the log, followed by " - it is not stopped.".
+
+        If `log_stopped` is a string, this will log when engine /is/ in a
+        'stopped' state at ERROR level with `log_stopped` as first part
+        of the log, followed by " - it is stopped/stopped.".
+        '''
+        # TODO: log.Group.SHUT_DOWN
+
+        # ---
+        # Is the health in a runnable state?
+        # ---
+        health_stop = self._stopped_healths()
+        if health_stop and log_stopped:
+            self._log_info(f"Engine is stopped due to unrunnable health. "
+                           f"life-cycle: {self.life_cycle}, "
+                           f"tick: {self.tick}, "
+                           f"tick health: {str(self.tick_health)}, "
+                           f"engine health: {str(self.engine_health)} ")
+
+        # ---
+        # Is the life-cycle in a runnable state?
+        # ---
+        life_cycle_stop = self._stopped_life_cycle()
+        if life_cycle_stop and log_stopped:
+            self._log_info(f"Engine is stopped due to its life-cycle. "
+                           f"life-cycle: {self.life_cycle}, "
+                           f"tick: {self.tick}, "
+                           f"tick health: {str(self.tick_health)}, "
+                           f"engine health: {str(self.engine_health)} ")
+
+        # ---
+        # Put it together.
+        # ---
+        engine_stop = (health_stop or life_cycle_stop)
+
+        # ---
+        # Should we log that we're /NOT/ stopped? We haven't yet.
+        # ---
+        if log_not_stopped and not engine_stop:
+            self._log_info(f"Engine is /NOT/ stopped! "
+                           f"life-cycle [OK]: {self.life_cycle}, "
+                           f"tick [OK]: {self.tick}, "
+                           f"tick health [OK]: {str(self.tick_health)}, "
+                           f"engine health [OK]: {str(self.engine_health)} ")
+
+        # ---
+        # Done.
+        # ---
+        return engine_stop
+
+    def _stopped_health(self, health: VerediHealth) -> bool:
+        '''
+        Returns True if `health` is null/none, or is a health under the min
+        for running healthfully.
+        '''
+        # ---
+        # Bad value always means not runnable. -> True
+        # ---
+        if null_or_none(health):
+            return True
+
+        # ---
+        # Good Health means not stopped (from health). -> False
+        # ---
+        return not health.in_runnable_health
+
+    def _stopped_healths(self, *args: VerediHealth) -> bool:
+        '''
+        Returns True if any of these are unrunnable (determined by
+        `self._stopped_health()`):
+          - engine health
+          - tick health
+          - any of the `args`
+
+        Returns False if all healths are runnable.
+        '''
+        stopped = (self._stopped_health(self.engine_health)
+                   or self._stopped_health(self.tick_health))
+        for each in args:
+            stopped = stopped or self._stopped_health(each)
+        return stopped
+
+    def _stopped_afterlife(self) -> bool:
+        '''
+        Returns True if Engine's Life-Cycle is in the afterlife.
+
+        Always logs.
+        '''
+        # TODO: log.Group.SHUT_DOWN
+
+        # This is our stopped life-cycle.
+        if self.life_cycle == SystemTick.AFTER_THE_END:
+            self.log_tick(self.life_cycle,
+                          log.Level.INFO,
+                          f"{self.__class__.__name__} is stopped and "
+                          "in the afterlife. Current life-cycle: {}, tick: {}",
+                          str(self.life_cycle), str(self.tick))
+            return True
+        return False
+
+    def _stopped_life_cycle(self,
+                            log_stopped:     Optional[str] = None,
+                            log_not_stopped: Optional[str] = None) -> bool:
+        '''
+        Returns True if Engine's Life-Cycle is in a stopped state.
+
+        If `log_not_stopped` is a string, this will log when engine isn't in a
+        'stopped' state at ERROR level with `log_not_stopped` as first part
+        of the log, followed by " - it is not stopped.".
+
+        If `log_stopped` is a string, this will log when engine /is/ in a
+        'stopped' state at ERROR level with `log_stopped` as first part
+        of the log, followed by " - it is stopped/stopped.".
+        '''
+        # TODO: log.Group.SHUT_DOWN
+
+        # This is our stopped life-cycle.
+        if self.life_cycle == SystemTick.AFTER_THE_END:
+            if log_stopped:
+                self.log_tick(self.life_cycle,
+                              log.Level.ERROR,
+                              "{} - it is stopped. "
+                              "Current life-cycle: {}, tick: {}",
+                              str(self.life_cycle), str(self.tick))
+            return True
+
+        # These life-cycles are not stopped.
+        if self.life_cycle in (SystemTick.INVALID,
+                               SystemTick.TICKS_START,
+                               SystemTick.TICKS_RUN,
+                               SystemTick.TICKS_END):
+            if log_not_stopped:
+                self.log_tick(self.life_cycle,
+                              log.Level.ERROR,
+                              " - it is not stopped. "
+                              "Current life-cycle: {}, tick: {}",
+                              str(self.life_cycle), str(self.tick))
+            return False
+
+        # Should this raise or log?
+        self.log_tick(self.life_cycle,
+                      log.Level.ERROR,
+                      "Engine stop/run unknown - it is in an unknown "
+                      "state. Current life-cycle: {}, tick: {}",
+                      str(self.life_cycle), str(self.tick))
+
+        return False
+
+    def stopping(self,
+                 log_stopping:     Optional[str] = None,
+                 log_not_stopping: Optional[str] = None) -> bool:
+        '''
+        Returns True if Engine's Life-Cycle is in a stopping state.
+        Ignores any unrunnable healths.
+
+        If `log_not_stopping` is a string, this will log when engine isn't in a
+        'stopping' state at ERROR level with `log_not_stopping` as first part
+        of the log, followed by " - it is not stopping.".
+
+        If `log_stopping` is a string, this will log when engine /is/ in a
+        'stopping' state at ERROR level with `log_stopping` as first part
+        of the log, followed by " - it is stopping/stopped.".
+        '''
+        # TODO: log.Group.SHUT_DOWN
+
+        # Definitely not stopping when we're in these life-cycles.
+        if self.life_cycle in (SystemTick.INVALID,
+                               SystemTick.TICKS_START,
+                               SystemTick.TICKS_RUN):
+            if log_not_stopping:
+                self.log_tick(self.life_cycle,
+                              log.Level.ERROR,
+                              " - it is not stopping. "
+                              "Current life-cycle: {}, tick: {}",
+                              str(self.life_cycle), str(self.tick))
+            return False
+
+        # Might be stopping when we're in these life-cycles?
+        if self.life_cycle == SystemTick.TICKS_END:
+            if log_stopping:
+                self.log_tick(self.life_cycle,
+                              log.Level.ERROR,
+                              "{} - it is stopping. "
+                              "Current life-cycle: {}, tick: {}",
+                              str(self.life_cycle), str(self.tick))
+            return True
+
+        if self.life_cycle == SystemTick.AFTER_THE_END:
+            if log_stopping:
+                self.log_tick(self.life_cycle,
+                              log.Level.ERROR,
+                              "{} - it is stopped. "
+                              "Current life-cycle: {}, tick: {}",
+                              str(self.life_cycle), str(self.tick))
+            return True
+
+        # Should this raise or log?
+        self.log_tick(self.life_cycle,
+                      log.Level.ERROR,
+                      "Engine stop/run unknown - it is in an unknown "
+                      "state. Current life-cycle: {}, tick: {}",
+                      str(self.life_cycle), str(self.tick))
+
+        return False
 
     def stop(self):
         '''
@@ -1592,39 +1827,21 @@ class Engine(LogMixin):
         end-of-life ticks.
         '''
         # ---
-        # Can't Stop - Log and Leave.
+        # Can't Stop (already stopping/stopped) - Log and Leave.
         # ---
-        if (self.life_cycle != SystemTick.INVALID
-                and self.life_cycle != SystemTick.TICKS_START
-                and self.life_cycle != SystemTick.TICKS_RUN):
-            if self.life_cycle == SystemTick.TICKS_END:
-                self.log_tick(self.life_cycle,
-                              log.Level.ERROR,
-                              "Cannot stop engine - it is stopping already. "
-                              "Current life-cycle: {}, tick: {}",
-                              str(self.life_cycle), str(self.tick))
-            elif self.life_cycle == SystemTick.AFTER_THE_END:
-                self.log_tick(self.life_cycle,
-                              log.Level.ERROR,
-                              "Cannot stop engine - it is stopped already. "
-                              "Current life-cycle: {}, tick: {}",
-                              str(self.life_cycle), str(self.tick))
-            else:
-                self.log_tick(self.life_cycle,
-                              log.Level.ERROR,
-                              "Cannot stop engine - it is in an unknown "
-                              "state. Current life-cycle: {}, tick: {}",
-                              str(self.life_cycle), str(self.tick))
+        # TODO: log.Group.SHUT_DOWN
+        if self.stopping(log_stopping="Cannot stop engine"):
             return
 
         # ---
         # Stop it!
         # ---
-        # `set_all_health()` complains if health and tick mismatch, so change
-        # tick/life-cycle first.
-        self._tick.next = SystemTick.APOPTOSIS
-        self._life_cycle.next = SystemTick.TICKS_END
-        self.set_all_health(VerediHealth.APOPTOSIS, True)
+        self._life_cycle.freeze(SystemTick.TICKS_END)
+
+        # # `set_all_health()` complains if health and tick mismatch, so change
+        # # tick/life-cycle first.
+        # self._tick.next = SystemTick.APOPTOSIS
+        # self.set_all_health(VerediHealth.APOPTOSIS, True)
 
     # -------------------------------------------------------------------------
     # Tick Helpers
@@ -1739,6 +1956,18 @@ class Engine(LogMixin):
         self.set_tick_health(health, False)
         return health
 
+    def _subscribe(self) -> VerediHealth:
+        '''
+        Subscribe to the Engine's events.
+        '''
+        # Request to transition the engine into TICKS_END for (eventual) stop.
+        if not self.meeting.event.is_subscribed(EngineStopRequest,
+                                                self._event_request_stop):
+            self.meeting.event.subscribe(EngineStopRequest,
+                                         self._event_request_stop)
+
+        return VerediHealth.HEALTHY
+
     def _update_intrasystem(self) -> None:
         '''
         EventManager will now start processing events. Systems should start
@@ -1751,12 +1980,14 @@ class Engine(LogMixin):
           - tick health
         '''
         self._update_init()
-        health = tick_health_init(SystemTick.INTRA_SYSTEM)
+        health = tick_health_init(SystemTick.INTRA_SYSTEM,
+                                  invalid_ok=True)
 
         # ---
         # Subscribe systems.
         # ---
         health = health.update(
+            self._subscribe(),
             self.meeting.component.subscribe(self.meeting.event),
             self.meeting.entity.subscribe(self.meeting.event),
             self.meeting.system.subscribe(self.meeting.event),
@@ -1837,7 +2068,7 @@ class Engine(LogMixin):
         except VerediError as error:
             # TODO: health thingy
             # Plow on ahead anyways or raise due to debug flags.
-            self.log_tick_maybe_raise(
+            self.log_tick_error(
                 self.tick,
                 error,
                 "Engine's tick() received an error of type '{}' "
@@ -1849,7 +2080,7 @@ class Engine(LogMixin):
         except Exception as error:
             # TODO: health thingy
             # Plow on ahead anyways or raise due to debug flags.
-            self.log_tick_maybe_raise(
+            self.log_tick_error(
                 self.tick,
                 error,
                 "Engine's tick() received an unknown exception "
@@ -1889,8 +2120,8 @@ class Engine(LogMixin):
                f"handle. Tick: {self.tick} at "
                f"{self.meeting.time.error_game_time}.")
         error = TickError(msg, None)
-        self.log_tick_maybe_raise(self.tick, error, msg,
-                                  always_raise=True)
+        self.log_tick_error(self.tick, error, msg,
+                            always_raise=True)
         return self.tick_health
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

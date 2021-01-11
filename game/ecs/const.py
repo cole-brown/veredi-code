@@ -121,15 +121,19 @@ class SystemTick(FlagCheckMixin, enum.Flag):
     # Ticks Collected into start/run/end.
     # ---
 
+    # TICKS_BIRTH?
     TICKS_START = GENESIS | INTRA_SYSTEM
     '''All ticks considered part of start-up.'''
 
+    # TICKS_LIFE?
     TICKS_RUN = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
     '''All ticks considered part of the standard game loop.'''
 
+    # TICKS_DEATH?
     TICKS_END = APOPTOSIS | APOCALYPSE | THE_END | FUNERAL
     '''The game will die now.'''
 
+    # TODO: TICKS_AFTERLIFE
     AFTER_THE_END = FUNERAL | THE_END
     '''The game has finished running TICKS_END.'''
 
@@ -216,11 +220,16 @@ class SystemPriority(enum.IntEnum):
 # Tick -> Health
 # -----------------------------------------------------------------------------
 
-def tick_health_init(tick: 'SystemTick') -> VerediHealth:
+def tick_health_init(tick:       'SystemTick',
+                     invalid_ok: bool = False) -> VerediHealth:
     '''
     Returns a starting, good health for a tick type.
 
+    If `invalid_ok` is True, SystemTick.INVALID will return
+    VerediHealth.HEALTHY. Otherwise it will return the error/default health.
+
     Good Starting Healths are, for ticks in:
+      - INVALID     - HEALTHY
       - TICKS_START - HEALTHY
       - TICKS_RUN   - HEALTHY
       - TICKS_END
@@ -231,6 +240,10 @@ def tick_health_init(tick: 'SystemTick') -> VerediHealth:
     # ---
     # Start
     # ---
+    if tick is SystemTick.INVALID:
+        # HEALTHY will be downgraded by PENDING, etc.
+        return VerediHealth.HEALTHY
+
     if tick in SystemTick.TICKS_START:
         # HEALTHY will be downgraded by PENDING, etc.
         return VerediHealth.HEALTHY
