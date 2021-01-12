@@ -572,12 +572,11 @@ class Engine(LogMixin):
         # Raise **IF WE LOGGED** and if we are flagged to raise on logging.
         #   - Could be convinced to ignore that "if we logged"...
         if logged and self.debug_flagged(DebugFlag.RAISE_LOGS):
-            msg = (f"Engine's logged at {level} with {DebugFlag.RAISE_LOGS}. "
-                   "Raising this error. "
-
-                   f"Tick: {self.tick} at "
-                   f"{self.meeting.time.error_game_time}.")
-            error = TickError(msg,
+            raise_log_msg = (f"Engine's {DebugFlag.RAISE_LOGS} promoted "
+                             "this log to an exception. Raising an error. "
+                             f"Tick: {self.tick} at "
+                             f"{self.meeting.time.error_game_time}.")
+            error = TickError(raise_log_msg,
                               data={
                                   'tick': tick,
                                   'log_level': level,
@@ -1028,13 +1027,14 @@ class Engine(LogMixin):
         # ------------------------------
         elif cycle_to == SystemTick.TICKS_END:
             # ===
-            # Life-Cycled into TICKS_END; ticks still set-up for TICKS_RUN.
+            # Life-Cycled into TICKS_END; tick could still be set up for
+            # something else.
             # ===
-            if (tick_to == game_loop_start()
-                    and tick_from == game_loop_end()):
+            if tick_to not in SystemTick.TICKS_END:
                 # Fix the tick(s) first so we can just have one check.
                 self._tick.next = tick_to = SystemTick.APOPTOSIS
-                # And unfreeze our life-cycle.
+                # And unfreeze our life-cycle if it was frozen by e.g.
+                # `self.stop()`.
                 self._life_cycle.freeze(False)
 
                 # Now we can go on to do the normal tick-cycle checks:
@@ -1612,6 +1612,8 @@ class Engine(LogMixin):
                 log_not_stopped: Optional[str] = None) -> bool:
         '''
         Returns True if engine will not run.
+
+        This checks the engine's health and its life-cycle.
 
         If `log_not_stopped` is a string, this will log when engine isn't in a
         'stopped' state at ERROR level with `log_not_stopped` as first part
