@@ -319,13 +319,47 @@ class ZestEngine(ZestEcs):
         '''
         tick = self.engine.tick
         if self._in_shutdown:
-            self.assertTrue(self.engine.running(),
+            # Check for good health through shutdown specifically. Some bugs
+            # have happened about this.
+            self.assertFalse(self.engine._stopped_healths(),
                             ("ZestEngine thinks engine is in shutdown, but "
-                             "Engine is not running() (anymore?). "
-                             f"Tick is: {self.engine.tick}, engine health is: "
+                             "Engine's health has failed? "
+                             f"Life-Cycle is: {self.engine.life_cycle}, "
+                             f"Tick is: {self.engine.tick}, "
+                             f"engine health is: "
                              f"{str(self.engine.engine_health)} "
                              "tick health is: "
                              f"{str(self.engine.tick_health)}"))
+
+            # Check for whether the engine thinks it is stopped for whatever
+            # reasons it has. Currently [2021-01-12] it's health and
+            # life-cycle.
+            self.assertFalse(self.engine.stopped(),
+                            ("ZestEngine thinks engine is in shutdown, but "
+                             "Engine is stopped()? "
+                             f"Life-Cycle is: {self.engine.life_cycle}, "
+                             f"Tick is: {self.engine.tick}, "
+                             f"engine health is: "
+                             f"{str(self.engine.engine_health)} "
+                             "tick health is: "
+                             f"{str(self.engine.tick_health)}"))
+
+            # ---
+            # Can't check that it's always in "stopping()" if our
+            # `_in_shutdown` is True. For example, Engine will finish off a
+            # TICKS_RUN cycle before transitioning into TICKS_END when asked to
+            # stop.
+            # ---
+            # self.assertTrue(self.engine.stopping(),
+            #                 ("ZestEngine thinks engine is in shutdown, but "
+            #                  "Engine is not stopping(). "
+            #                  f"Life-Cycle is: {self.engine.life_cycle}, "
+            #                  f"Tick is: {self.engine.tick}, "
+            #                  "engine health is: "
+            #                  f"{str(self.engine.engine_health)} "
+            #                  "tick health is: "
+            #                  f"{str(self.engine.tick_health)}"))
+            # ---
 
         emergency_stop = False
         for i in range(amount):
@@ -334,7 +368,7 @@ class ZestEngine(ZestEcs):
             # a bad state. If we are in shutdown, no point doing emergency
             # stop. But otherwise, try to have the engine do it's TICKS_END so
             # things have a chance to clean up.
-            if not self.engine.running():
+            if self.engine._stopped_healths(health):
                 # Do emergency stop if not already stopping...
                 emergency_stop = not self._in_shutdown
                 break

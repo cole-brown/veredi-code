@@ -212,12 +212,20 @@ _ULTRA_HYPER_DEBUG_FMT = (
 
 @enum.unique
 class Level(enum.IntEnum):
+    '''
+    Log level enum. Values are python's logging module log level ints.
+    '''
+
     NOTSET   = logging.NOTSET
     DEBUG    = logging.DEBUG
     INFO     = logging.INFO
     WARNING  = logging.WARNING
     ERROR    = logging.ERROR
     CRITICAL = logging.CRITICAL
+
+    # -------------------------------------------------------------------------
+    # Helpers
+    # -------------------------------------------------------------------------
 
     @staticmethod
     def valid(lvl: Union['Level', int]) -> bool:
@@ -275,8 +283,25 @@ class Level(enum.IntEnum):
         lvl = min(lvl_a, lvl_b)
         return lvl
 
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+
+    def __str__(self) -> str:
+        '''
+        Python 'to string' function.
+        '''
+        return self.__class__.__name__ + '.' + self.name
+
+    def __repr__(self) -> str:
+        '''
+        Python 'to repr' function.
+        '''
+        return self.__class__.__name__ + '.' + self.name
+
 
 DEFAULT_LEVEL = Level.INFO
+'''Veredi's default logging level.'''
 
 
 # ------------------------------
