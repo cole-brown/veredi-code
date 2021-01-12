@@ -52,7 +52,7 @@ into the system's `__init__()`.
 # Code
 # -----------------------------------------------------------------------------
 
-def create(config:      Configuration,
+def create(config:      Optional[Configuration],
            context:     VerediContext,
            system_type: Type[System],
            debug_flags: Optional[DebugFlag] = None) -> SystemId:
@@ -94,7 +94,7 @@ def add(system: System) -> SystemId:
 
 
 def _create_or_add(log_dotted:      str,
-                   config:          Configuration,
+                   config:          Optional[Configuration],
                    context:         VerediContext,
                    system_or_type:  Union[System, Type[System]],
                    debug_flags:     DebugFlag,
@@ -155,7 +155,7 @@ def _create_or_add(log_dotted:      str,
     return sid
 
 
-def many(config:      Configuration,
+def many(config:      Optional[Configuration],
          context:     VerediContext,
          *args:       SysCreateType,
          debug_flags: Optional[DebugFlag] = None) -> List[SystemId]:

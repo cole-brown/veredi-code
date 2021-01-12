@@ -9,13 +9,19 @@ ZestEngine. No one currently uses this directly [2020-08-24].
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Type, List, Iterable, Dict
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Any, Type, List, Iterable, Dict)
+if TYPE_CHECKING:
+    from veredi.run.system               import SysCreateType
 
 from veredi.logger                       import log
+
+from veredi                              import run
 from .unit                               import ZestBase
 from ..                                  import zload
 from ..zxceptions                        import UnitTestError
 from ..zpath                             import TestType
+
 from veredi.base.context                 import VerediContext, UnitTestContext
 from veredi.debug.const                  import DebugFlag
 
@@ -153,21 +159,21 @@ class ZestEcs(ZestBase):
 
     def _set_up_ecs(self,
                     # Will be class._TEST_TYPE if None:
-                    test_type:         Optional[TestType]            = None,
+                    test_type:         Optional[TestType]         = None,
                     # Optional ECS:
-                    require_engine:    Optional[bool]                = None,
-                    desired_systems:   Iterable[zload.SysCreateType] = None,
+                    require_engine:    Optional[bool]             = None,
+                    desired_systems:   Iterable['SysCreateType']  = None,
                     # Optional to pass in - else we'll make:
-                    configuration:     Optional[Configuration]       = None,
-                    time_manager:      Optional[TimeManager]         = None,
-                    event_manager:     Optional[EventManager]        = None,
-                    component_manager: Optional[ComponentManager]    = None,
-                    entity_manager:    Optional[EntityManager]       = None,
-                    system_manager:    Optional[SystemManager]       = None,
-                    data_manager:      Optional[DataManager]         = None,
-                    identity_manager:  Optional[IdentityManager]     = None,
+                    configuration:     Optional[Configuration]    = None,
+                    time_manager:      Optional[TimeManager]      = None,
+                    event_manager:     Optional[EventManager]     = None,
+                    component_manager: Optional[ComponentManager] = None,
+                    entity_manager:    Optional[EntityManager]    = None,
+                    system_manager:    Optional[SystemManager]    = None,
+                    data_manager:      Optional[DataManager]      = None,
+                    identity_manager:  Optional[IdentityManager]  = None,
                     # Optional to pass in - else we'll make  if asked:
-                    engine:            Optional[Engine]              = None
+                    engine:            Optional[Engine]           = None
                     ) -> None:
         '''
         Calls zload.set_up to create Meeting of EcsManagers, and a context from
@@ -304,7 +310,7 @@ class ZestEcs(ZestBase):
         Initializes several systems you need but don't need to hang on to
         directly for your test.
         '''
-        sids = zload.create_systems(self.manager.system,
+        sids = zload.create_systems(None,
                                     self.context,
                                     *sys_types)
         return sids

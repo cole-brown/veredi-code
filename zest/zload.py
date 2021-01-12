@@ -8,7 +8,11 @@ Helper for unit test data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Optional, Type, NewType, Tuple, Iterable, List
+from typing import (TYPE_CHECKING,
+                    Optional, Type, Tuple, Iterable, List)
+if TYPE_CHECKING:
+    from veredi.run.system             import SysCreateType
+
 
 from veredi.logger                     import log
 from .                                 import zmake, zontext
@@ -16,6 +20,7 @@ from .zpath                            import TestType
 from .zxceptions                       import UnitTestError
 
 from veredi                            import run
+
 
 from veredi.data                       import background
 from veredi.debug.const                import DebugFlag
@@ -53,67 +58,61 @@ import veredi.math.d20.parser
 # Constants
 # -----------------------------------------------------------------------------
 
-SysCreateType = NewType('SysCreateType',
-                        Union[Type[System],
-                              Tuple[Type[System], VerediContext]])
-
 
 # -----------------------------------------------------------------------------
 # Helpers for loader()
 # -----------------------------------------------------------------------------
 
-def create_system(system_manager: SystemManager,
-                  context: VerediContext,
-                  sys_type: Type[System],
+def add_system(system: System) -> SystemId:
+    '''
+    Helper to add an already created system (e.g. one with a complex set-up).
+    Returns the SystemId assigned to the system.
+
+    e.g.:
+      add_system(someSystemInstance)
+    '''
+    sid = run.system.add(system)
+    return sid
+
+
+def create_system(config:      Optional[Configuration],
+                  context:     VerediContext,
+                  sys_type:    Type[System],
                   debug_flags: Optional[DebugFlag] = None) -> SystemId:
     '''
-    Helper to create a system. Returns a list of SystemIds.
+    Helper to create a system.
+    Returns the SystemId assigned to the system.
 
     e.g.:
       create_system(self._manager.system, self.context, SomeSystem)
       create_system(self._manager.system, special_context, SomeSystem)
     '''
-    # sub = context.sub
-    # if kwargs:
-    #     sub['system'] = kwargs
-    # else:
-    #     sub.pop('system', None)
-
-    sid = system_manager.create(sys_type,
-                                context)
-
-    # sub.pop('system', None)
+    sid = run.system.create(config, context, sys_type,
+                            debug_flags=debug_flags)
     return sid
 
 
-def create_systems(system_manager: SystemManager,
-                   context: VerediContext,
-                   *args: SysCreateType,
+def create_systems(config:      Optional[Configuration],
+                   context:     VerediContext,
+                   *args:       'SysCreateType',
                    debug_flags: Optional[DebugFlag] = None) -> List[SystemId]:
     '''
-    Helper to create systems. Takes in either types or tuples of
-    (type, context). Returns a list of SystemIds.
-    If tuple, will use tuple's context, else uses the `context` arg.
+    Helper to create systems. Takes in either: system types, system instances,
+    tuples of (type/instance, create-context). Returns a list of SystemIds
+    created. If tuple, will use tuple's context for creation, else uses the
+    `context` arg.
 
     e.g.:
-      create_systems(self._manager.system, self.context, SomeSystem)
-      create_systems(self._manager.system, self.context,
+      create_systems(config, self.context, SomeSystem)
+      create_systems(config, self.context,
                      (SomeSystem, different_context)) # ignores self.context
-      create_systems(self._manager.system, self.context,
+      create_systems(None, self.context,
                      (SomeSystem, context_for_SomeSystem),
                      TwoSystem) # TwoSystem uses self.context
     '''
-    sids = []
-    for each in args:
-        if isinstance(each, tuple):
-            # Have context in tuple - ignore the "default" `context` arg.
-            sids.append(create_system(system_manager, each[1],
-                                      each[0]))
-        else:
-            # Use `context` arg.
-            sids.append(create_system(system_manager, context,
-                                      each))
-
+    sids = run.system.many(config, context,
+                           *args,
+                           debug_flags=debug_flags)
     return sids
 
 
@@ -129,7 +128,7 @@ def set_up(test_name_class:   str,
            debug_flags:       Optional[DebugFlag]        = None,
            # Optional ECS:
            require_engine:    Optional[bool]             = False,
-           desired_systems:   Iterable[SysCreateType]    = None,
+           desired_systems:   Iterable['SysCreateType']  = None,
            # Optional to pass in - else we'll make:
            configuration:     Optional[Configuration]    = None,
            time_manager:      Optional[TimeManager]      = None,
@@ -200,13 +199,14 @@ def set_up(test_name_class:   str,
         system_manager = meeting.system
         sids = []
         if desired_systems:
-            sids = create_systems(system_manager, context,
-                                  *desired_systems)
+            sids = run.system.many(system_manager, context,
+                                   *desired_systems)
         elif not require_engine:
-            sids = create_systems(system_manager, context)
-            # If you have required systems:
-            # sids = create_systems(system_manager, context,
-            #                       OneSys, TwoSys, RedSys, BlueSys)
+            sids = run.system.many(system_manager, context)
+            # If you have required systems, see `run.system.many` docstr for
+            # details but:
+            # sids = run.system.many(system_manager, context,
+            #                        OneSys, TwoSys, RedSys, BlueSys)
         # Else: our engine creates the requried stuff and we don't want to
         # double-create.
 
