@@ -10,20 +10,15 @@ Record can have multiple documents, like 'metadata' and 'system.definition'.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Any, Iterable, Mapping, Dict, List
+from typing import Union, List
 from veredi.base.null import Null, Nullable
 
-from collections import abc
-import enum
 
 from veredi.logger import log
+from veredi.base   import label
 
-from veredi.base import vstring
-from veredi.base                    import label
-from veredi.data.config.hierarchy import Hierarchy
-
-from .record import Record, DocType
-from .dict import DataDict, DDKey
+from .record       import Record
+from .dict         import DataDict
 
 
 # -----------------------------------------------------------------------------
@@ -46,7 +41,6 @@ class Definition(Record):
     ALIAS = 'alias'
 
     # -------------------------------------------------------------------------
-
     # System's Set-Up
     # -------------------------------------------------------------------------
 

@@ -151,17 +151,21 @@ class Record(abc.MutableMapping):
         All our record's documents.
         '''
 
-        self._main_name: str = None
+        self._primary_doc: str = None
         '''
-        Name string of our main document. E.g. 'game.record' for a game record.
+        Name string of our main document. E.g. 'game.definition' for a game
+        definition.
         '''
 
     def __init__(self,
-                 main_name: 'AnyDocType',
+                 primary_doc: 'AnyDocType',
                  documents: Iterable[Mapping[DDKey, Any]] = []) -> None:
-
+        '''
+        `primary_doc`: The record's primary DocType.
+        `documents`:   The deserialized record data.
+        '''
         # Sanity check and set main name.
-        self._main_name = DocType.verify_and_get(main_name)
+        self._primary_doc = DocType.verify_and_get(primary_doc)
 
         # Check and insert all the documents.
         for doc in documents:
@@ -170,8 +174,8 @@ class Record(abc.MutableMapping):
                        f"'{Hierarchy.VKEY_DOC_TYPE}' is not in document.")
                 raise log.exception(KeyError(msg, doc), msg)
 
-        doc_type = doc[Hierarchy.VKEY_DOC_TYPE]
-        self._add_document(doc_type, doc)
+            doc_type = doc[Hierarchy.VKEY_DOC_TYPE]
+            self._add_document(doc_type, doc)
 
     def _add_document(self,
                       unverified_type: 'AnyDocType',
@@ -211,7 +215,7 @@ class Record(abc.MutableMapping):
         '''
         Returns our 'main' document - the definitions.
         '''
-        return self._documents[self._main_name]
+        return self._documents[self._primary_doc]
 
     def get(self,
             path: Union[str, List[str]]) -> Nullable[Any]:
@@ -352,6 +356,6 @@ class Record(abc.MutableMapping):
                 log.warning("{} has data of some sort, but no "
                             "main document data (nothing under "
                             "key '{}').",
-                            str(self), str(self._main_name))
+                            str(self), str(self._primary_doc))
 
         return anything_exists and main_exists

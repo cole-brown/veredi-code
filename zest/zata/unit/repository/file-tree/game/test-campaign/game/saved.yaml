@@ -1,5 +1,5 @@
 --- !metadata
-record-type: veredi.save.game.record
+record-type: veredi.record.game.save
 version: 2020-12-14
 
 source: veredi.game.dossier
@@ -13,7 +13,7 @@ name: veredi.rules.d20.pf2.game
 display-name: Veredi d20 PF2 Saved Game Data
 
 
---- !game.record
+--- !game.saved
 
 # meta:
 #   registry: veredi.rules.d20.pf2.game
