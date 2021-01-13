@@ -1,5 +1,5 @@
 --- !metadata
-record-type: veredi.definition.game
+record-type: veredi.record.game.definition
 version: 2020-12-14
 
 source: veredi.rules
