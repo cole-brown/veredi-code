@@ -22,7 +22,7 @@ from veredi.logger                         import log
 from veredi.base.const                     import VerediHealth
 from veredi.base                           import label
 from veredi.data                           import background
-from veredi.data.serdes.adapter.definition import Definition, DocType
+from veredi.data.records                   import DocType, Definition, Saved
 from veredi.data.milieu                    import ValueMilieu
 from veredi.data.config.config             import Configuration
 

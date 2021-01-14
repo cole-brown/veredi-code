@@ -428,31 +428,31 @@ class FileTreeRepository(base.BaseRepository):
         pattern_path = self._id_to_path(ids, context)
         return self._load(pattern_path, context)
 
-    def game(self,
-             campaign: str,
-             context: 'DataLoadContext') -> 'TextIOBase':
-        '''
-        Load the game's record(s) from the repository.
-        '''
-        defpath = self._dotted_to_path(self.Category.GAME,
-                                       ['game', campaign, 'game', 'record'],
-                                       context)
-        return self._load(defpath, context)
+    # def game(self,
+    #          campaign: str,
+    #          context: 'DataLoadContext') -> 'TextIOBase':
+    #     '''
+    #     Load the game's record(s) from the repository.
+    #     '''
+    #     defpath = self._dotted_to_path(self.Category.GAME,
+    #                                    ['game', campaign, 'game', 'record'],
+    #                                    context)
+    #     return self._load(defpath, context)
 
-    def definition(self,
-                   dotted_name: str,
-                   context: 'DataLoadContext') -> TextIOBase:
-        '''
-        Load a definition file by splitting `dotted_name` and looking there for
-        a file matching a glob we create.
+    # def definition(self,
+    #                dotted_name: str,
+    #                context: 'DataLoadContext') -> TextIOBase:
+    #     '''
+    #     Load a definition file by splitting `dotted_name` and looking there for
+    #     a file matching a glob we create.
 
-        e.g. if `dotted_name` is 'veredi.rules.d20.skill.system', this will
-        look in self.root for "veredi/rules/d20/skill/system.*".
-        '''
-        defpath = self._dotted_to_path(self.Category.DEFINITION,
-                                       dotted_name,
-                                       context)
-        return self._load(defpath, context)
+    #     e.g. if `dotted_name` is 'veredi.rules.d20.skill.system', this will
+    #     look in self.root for "veredi/rules/d20/skill/system.*".
+    #     '''
+    #     defpath = self._dotted_to_path(self.Category.DEFINITION,
+    #                                    dotted_name,
+    #                                    context)
+    #     return self._load(defpath, context)
 
     def _context_load_data(self,
                            context: 'DataLoadContext',
@@ -589,7 +589,7 @@ class FileTreeRepository(base.BaseRepository):
         the data. Keys are safe and ready to go.
         '''
         ids = []
-        self._id_accum(context.campaign, ids)
+        self._id_accum(context.id, ids)
         self._id_type(type,
                       context,
                       ids)

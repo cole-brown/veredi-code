@@ -16,7 +16,7 @@ Import record stuff and things.
 # ------------------------------
 # TYpes & Enums
 # ------------------------------
-from .record     import DocType
+from .record     import DataType, DocType
 
 
 # ------------------------------
@@ -53,6 +53,7 @@ __all__ = [
     # ------------------------------
     # Types & Enums
     # ------------------------------
+    'DataType',
     'DocType',
 
     # ------------------------------

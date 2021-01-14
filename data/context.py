@@ -8,22 +8,17 @@ Helper classes for managing data contexts for events, error messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, List, Dict
-import enum
+from typing import Optional, Any, List
+from veredi.base.null    import Null
 
 from veredi.logger       import log
 
 from veredi.base.context import EphemerealContext
-from .exceptions         import LoadError
+from .repository.taxon   import Taxon
 
 
 # -----------------------------------------------------------------------------
-# Constants
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-# Data Context
+# Bare Data Context
 # -----------------------------------------------------------------------------
 
 class BaseDataContext(EphemerealContext):
@@ -33,14 +28,14 @@ class BaseDataContext(EphemerealContext):
 
 class DataBareContext(BaseDataContext):
     def __init__(self,
-                 name: str,
-                 key:  str,
+                 dotted: str,
+                 ctx_name:  str,
                  load: Any) -> None:
         '''
-        Initialize DataBareContext with name, key, and something called 'load'.
-        Right now just a file name to load for config's data...
+        Initialize DataBareContext with dotted, ctx_name, and something called
+        'load'. Right now just a file name to load for config's data...
         '''
-        super().__init__(name, key)
+        super().__init__(dotted, ctx_name)
         self._load = load
 
     @property
@@ -51,120 +46,54 @@ class DataBareContext(BaseDataContext):
         return 'DBareCtx'
 
 
+# -----------------------------------------------------------------------------
+# Game Data Context
+# -----------------------------------------------------------------------------
+
 class DataGameContext(BaseDataContext):
 
-    @enum.unique
-    class DataType(enum.Enum):
+    _REQUEST_LOAD = 'load-request'
+    _REQUEST_SAVE = 'save-request'
+    _TAXON = 'taxon'
 
-        # ---
-        # Entities
-        # ---
-        PLAYER  = 'player'
-        MONSTER = 'monster'
-        NPC     = 'npc'
-        ITEM    = 'item'
-
-        # ---
-        # Misc/Etc...
-        # ---
-        GAME = 'game'
-
-        def __str__(self):
-            return str(self.value).lower()
-
-    REQUEST_LOAD = 'load-request'
-    REQUEST_SAVE = 'save-request'
-
-    REQUEST_TYPE = 'type'
-    REQUEST_CAMPAIGN = 'campaign'
-    REQUEST_KEYS = {
-        # ---
-        # Entities
-        # ---
-        DataType.PLAYER:  [ 'user',     'player'  ],
-        DataType.MONSTER: [ 'family',   'monster' ],
-        DataType.NPC:     [ 'family',   'npc'     ],
-        DataType.ITEM:    [ 'category', 'item'    ],
-
-        # ---
-        # Misc/Etc...
-        # ---
-    }
-    '''
-    Requests for a specific entity or other saved thing that there can be many
-    of.
-    '''
-
-    _REQUEST_CONSTS = {
-        DataType.GAME: [ 'game', 'record' ],
-    }
-    '''
-    Requests for some saved data that exists as a singleton.
-    '''
-
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
     def __init__(self,
-                 name:     str,
-                 key:      str,
-                 type:     'DataGameContext.DataType',
-                 campaign: str) -> None:
+                 dotted:   str,
+                 ctx_name: str,
+                 *taxonomy: Any) -> None:
         '''
-        Initialize DataGameContext with name, key, and type.
-        '''
-        super().__init__(name, key)
-        self._type = type
+        Initialize DataGameContext with dotted, ctx_name, and the load taxonomy
+        information (a series of general to specific identifiers of some sort).
 
-        # Save our request type, request keys into our context.
+        `taxonomy` can be one single Taxon instance, or a list of things to
+        create a Taxon from.
+        '''
+        super().__init__(dotted, ctx_name)
+
+        # Save our taxonomy data into our context.
         ctx = self.sub
-        for key in self.data_keys:
-            ctx[key] = None
-
-        ctx[self.REQUEST_TYPE] = str(type)
-        ctx[self.REQUEST_CAMPAIGN] = campaign
-
-    @property
-    def type(self) -> 'DataGameContext.DataType':
-        return self._type
+        if len(taxonomy) == 1 and isinstance(taxonomy[0], Taxon):
+            ctx[self._TAXON] = taxonomy[0]
+        else:
+            ctx[self._TAXON] = Taxon(*taxonomy)
 
     @property
-    def campaign(self) -> str:
-        return self.sub[self.REQUEST_CAMPAIGN]
-
-    @property
-    def data_keys(self) -> List[str]:
+    def uid(self) -> Optional[List[Any]]:
         '''
-        Get the keys that should exist in our data.
+        Get the list of unique ids for this requested data.
+
+        Returns a list or None.
         '''
-        # Is it the usual?
-        try:
-            return self.REQUEST_KEYS[self.type]
-
-        except KeyError:
-            # Hopefully it's a const then.
-            return self._REQUEST_CONSTS[self.type]
-
-        # Can't get to me here.
-
-    @property
-    def data_values(self) -> List[str]:
-        return [self.sub.get(key, None) for key in self.data_keys]
+        ctx = self.sub
+        data = ctx.get(self._TAXON, Null())
+        return data.taxon or None
 
 
 class DataLoadContext(DataGameContext):
-
-    # -------------------------------------------------------------------------
-    # Initialization
-    # -------------------------------------------------------------------------
-
-    _LOAD_REQUEST_CONSTS = {
-        # Just zip the keys list together with itself for these constants so
-        # that normal load code path works with changes.
-        DataGameContext.DataType.GAME: dict(zip(
-            DataGameContext._REQUEST_CONSTS[DataGameContext.DataType.GAME],
-            DataGameContext._REQUEST_CONSTS[DataGameContext.DataType.GAME]
-        )),
-    }
     '''
-    Requests for some saved data that exists as a singleton.
+    Context for loading data from a repository.
     '''
 
     # -------------------------------------------------------------------------
@@ -172,39 +101,9 @@ class DataLoadContext(DataGameContext):
     # -------------------------------------------------------------------------
 
     def __init__(self,
-                 name:        str,
-                 type:        'DataGameContext.DataType',
-                 campaign:    str) -> None:
-        super().__init__(name, self.REQUEST_LOAD, type, campaign)
-
-    # -------------------------------------------------------------------------
-    # Load Requests
-    # -------------------------------------------------------------------------
-
-    # ------------------------------
-    # Generic
-    # ------------------------------
-
-    def set_load_request(self,
-                         load_data: Dict[str, str]) -> None:
-        '''
-        Set our sub-context up for a specific load.
-        '''
-        for key in load_data:
-            # Add load_data[key] into sub-context[key] if possible (don't
-            # overwrite pre-existing).
-            self.sub_add(key, key, load_data[key])
-
-    # ------------------------------
-    # Generic
-    # ------------------------------
-
-    def game_load_request(self) -> None:
-        '''
-        Set our sub-context up for loading the game's saved (meta-)data.
-        '''
-        self.set_load_request(
-            self._LOAD_REQUEST_CONSTS[DataGameContext.DataType.GAME])
+                 dotted:   str,
+                 *taxonomy: Any) -> None:
+        super().__init__(dotted, self._REQUEST_LOAD, *taxonomy)
 
     # -------------------------------------------------------------------------
     # Python Funcs (& related)
@@ -215,11 +114,22 @@ class DataLoadContext(DataGameContext):
 
 
 class DataSaveContext(DataGameContext):
+    '''
+    Context for saving data to a repository.
+    '''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self,
-                 name:    str,
-                 type:    'DataGameContext.DataType',
-                 campaign: str) -> None:
-        super().__init__(name, self.REQUEST_SAVE, type, campaign)
+                 dotted:   str,
+                 *taxonomy: Any) -> None:
+        super().__init__(dotted, self._REQUEST_SAVE, *taxonomy)
+
+    # -------------------------------------------------------------------------
+    # Python Funcs (& related)
+    # -------------------------------------------------------------------------
 
     def __repr_name__(self):
         return 'DSCtx'

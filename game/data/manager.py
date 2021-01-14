@@ -28,38 +28,47 @@ import pathlib
 # ---
 # Veredi Stuff
 # ---
-from veredi.logger               import log
+from veredi.logger                         import log
 
-from veredi.base                 import label
-from veredi.base.const           import VerediHealth
-from veredi.base.exceptions      import VerediError
-from veredi.base.context         import VerediContext
+from veredi.base                           import label
+from veredi.base.const                     import VerediHealth
+from veredi.base.exceptions                import VerediError
+from veredi.base.context                   import VerediContext
 
-from veredi.debug.const          import DebugFlag
+from veredi.debug.const                    import DebugFlag
 
-from veredi.data                 import background
-from veredi.data.config.config   import Configuration
-from veredi.data.repository.base import BaseRepository
-from veredi.data.serdes.base     import BaseSerdes
+# ---
+# Game Data
+# ---
+from veredi.data                           import background
+from veredi.data.records                   import (DataType,
+                                                   DocType,
+                                                   Definition,
+                                                   Saved)
+from veredi.data.config.config             import Configuration
+from veredi.data.repository.base           import BaseRepository
+from veredi.data.repository.taxon          import LabelTaxon, SavedTaxon
+from veredi.data.serdes.base               import BaseSerdes, DeserializeTypes
 
+from veredi.rules.game                     import RulesGame
 
 # ---
 # Game / ECS Stuff
 # ---
-from ..ecs.event                 import (EventManager,
-                                         EcsManagerWithEvents,
-                                         Event)
-from ..ecs.time                  import TimeManager
-from ..ecs.component             import ComponentManager
+from ..ecs.event                           import (EventManager,
+                                                   EcsManagerWithEvents,
+                                                   Event)
+from ..ecs.time                            import TimeManager
+from ..ecs.component                       import ComponentManager
 
-from ..ecs.const                 import SystemTick, tick_health_init
-from ..ecs.exceptions            import EventError, EcsManagerError
+from ..ecs.const                           import SystemTick, tick_health_init
+from ..ecs.exceptions                      import EventError, EcsManagerError
 
-from ..ecs.base.identity         import ComponentId
-from ..ecs.base.component        import Component
+from ..ecs.base.identity                   import ComponentId
+from ..ecs.base.component                  import Component
 
 # ---
-# Data Events
+# Our Stuff
 # ---
 from .event import (
     # Should be all of them, but call them each out.
@@ -81,8 +90,8 @@ from .event import (
     _SavedEvent
 )
 
-# Our friendly component.
 from .component import DataComponent
+from .context import DataLoadContext
 
 
 # -----------------------------------------------------------------------------
@@ -118,6 +127,14 @@ class DataManager(EcsManagerWithEvents):
         self._repository: Optional[BaseRepository] = None
         '''
         Our Repository for storing data.
+        '''
+
+        # ------------------------------
+        # Special Data
+        # ------------------------------
+        self._game: Optional[RulesGame] = None
+        '''
+        Game definition and saved data from our repository.
         '''
 
         # ------------------------------
@@ -228,6 +245,12 @@ class DataManager(EcsManagerWithEvents):
                    f"{config.get(key_repo)}")
             raise background.config.exception(context, msg)
 
+        # ---
+        # Load Data
+        # ---
+        self._game = config.rules(None)
+        self._load(config)
+
     def get_background(self):
         '''
         Data for the Veredi Background context.
@@ -246,48 +269,103 @@ class DataManager(EcsManagerWithEvents):
         return 'veredi.game.data.manager'
 
     # -------------------------------------------------------------------------
-    # Out-Of-Band Data Processing
+    # Loading...
+    # -------------------------------------------------------------------------
+
+    def _load(self, context: DataLoadContext) -> Nullable[DeserializeTypes]:
+        '''
+        Use the context to load something from the repo and deserialize it via
+        the serdes.
+
+        Returns the deserialized result or Null.
+        '''
+        loaded = self._repository.load(context)
+        decoded = self._serdes.deserialize_all(loaded, context)
+        return decoded
+
+    def _init_load(self) -> None:
+        '''
+        Load everything needed from the very start.
+        '''
+        self._load_game()
+
+    def _load_game(self) -> None:
+        '''
+        Load game definition and saved data from repository.
+        '''
+        # ---
+        # Load Game Definition...
+        # ---
+        definition = self.load_definition(self.dotted(),
+                                          self._game.taxon_definition())
+
+        # ---
+        # Load Game Save...
+        # ---
+        saved = self.load_saved(self.dotted(),
+                                self._game.taxon_saved())
+
+        # ---
+        # Tell our RulesGame object about 'em.
+        # ---
+        self._game.loaded(definition, saved)
+
+    def load_definition(self, dotted: str, taxon: LabelTaxon) -> Definition:
+        '''
+        Out-of-band data load for a Definition record.
+
+        Systems and such may use this during their initialization and/or during
+        TICKS_START.
+
+        NOTE: DO NOT USE DURING NORMAL OPERATION.
+        '''
+        context_definition = DataLoadContext(dotted, taxon)
+        definition = self._load(context_definition)
+        return definition
+
+    def load_saved(self, dotted: str, taxon: SavedTaxon) -> Saved:
+        '''
+        Out-of-band data load for a Saved record.
+
+        Systems and such may use this during their initialization and/or during
+        TICKS_START.
+
+        NOTE: DO NOT USE DURING NORMAL OPERATION.
+        '''
+        context_saved = DataLoadContext(dotted, taxon)
+        saved = self._load(context_saved)
+        return saved
+
+    # -------------------------------------------------------------------------
+    # Saving...
+    # -------------------------------------------------------------------------
+
+    # TODO
+
+    # -------------------------------------------------------------------------
+    # Special Data
     # -------------------------------------------------------------------------
 
     @property
-    def serdes(self) -> Optional[BaseSerdes]:
+    def game(self) -> Optional[RulesGame]:
         '''
-        NOTE: DO NOT USE YOURSELF! Configuration can use this.
-        TODO: Refactor so this is not needed?
-
-        Our Serializer/Deserializer for saving/loading data.
+        Returns our RulesGame object.
         '''
-        return self._serdes
+        return self._game
 
     @property
-    def repository(self) -> Optional[BaseRepository]:
+    def game_definition(self) -> Optional[Definition]:
         '''
-        NOTE: DO NOT USE YOURSELF! Configuration can use this.
-        TODO: Refactor so this is not needed?
-
-        Our Repository for storing data.
+        Returns our RulesGame's Definition data.
         '''
-        return self._repository
+        return self._game.definition
 
     @property
-    def path(self) -> Nullable[pathlib.Path]:
+    def game_saved(self) -> Optional[Saved]:
         '''
-        NOTE: DO NOT USE YOURSELF! Configuration can use this.
-        TODO: Refactor so this is not needed?
-
-        Our Repository's path for storing data, if it's that type of repo.
+        Returns our RulesGame's Saved data.
         '''
-        path = Null()
-        if self._repository:
-            try:
-                path = self._repository.root
-            except AttributeError:
-                # Repo doesn't have a path; return Null.
-                self._log_debug("_path requested for repository, but no "
-                                "`root` attribute exists - not a file-system "
-                                "type repository? {}",
-                                self._repository)
-        return path
+        return self._game.saved
 
     # -------------------------------------------------------------------------
     # Health
