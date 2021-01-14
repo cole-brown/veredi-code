@@ -28,7 +28,35 @@ from .dict                        import DataDict, DDKey
 
 
 # -----------------------------------------------------------------------------
-# Constants
+# Data Types
+# -----------------------------------------------------------------------------
+
+@enum.unique
+class DataType(enum.Enum):
+    '''
+    For use when you want to differentiate between, e.g. a game's Saved data
+    and its Definition data.
+    '''
+
+    SAVED = enum.auto()
+    '''
+    Saved Data: Expected to change as a game progresses.
+
+    Example: How many hitpoints the boss had in the middle of the boss fight
+    when the save was triggered.
+    '''
+
+    DEFINITION = enum.auto()
+    '''
+    Definition Data: Expected to remain constant as a game progresses.
+
+    Example: What a system should do with a command input to get dice rolled
+    and a number output.
+    '''
+
+
+# -----------------------------------------------------------------------------
+# Document Types
 # -----------------------------------------------------------------------------
 
 class DocType:
@@ -60,15 +88,15 @@ class DocType:
         game   = 'definition.game'
 
     # ------------------------------
-    # Record Document Types
+    # Saved Document Types
     # ------------------------------
     @enum.unique
-    class record(enum.Enum):
+    class saved(enum.Enum):
         '''
         These are for records of saved data about the current state of the
         game, an entity, or whatever.
         '''
-        game = 'record.game'
+        game = 'saved.game'
 
     # -------------------------------------------------------------------------
     # Methods
@@ -81,7 +109,7 @@ class DocType:
         '''
         return (klass.general,
                 klass.definition,
-                klass.record)
+                klass.saved)
 
     @classmethod
     def verify_and_get(klass:    'DocType',
@@ -118,7 +146,7 @@ AnyDocType = NewType('AnyDocType',
                      Union[str,
                            DocType.general,
                            DocType.definition,
-                           DocType.record])
+                           DocType.saved])
 '''
 Since `DocType` is a class/namespace of enums of strings, the valid
 DocTypes are: strings and DocType's actual enum types.
@@ -126,15 +154,15 @@ DocTypes are: strings and DocType's actual enum types.
 
 
 # -----------------------------------------------------------------------------
-# Record Class
+# Record Base Class
 # -----------------------------------------------------------------------------
 
 class Record(abc.MutableMapping):
     '''
-    Collection of documents, of which the definition one is the 'main' one.
+    Collection of documents, of which the definition one is the 'primary' one.
 
-    The dictionary interface we follow is for interacting with this 'main'
-    definitions doc.
+    The dictionary interface we follow is for interacting with this 'primary'
+    document.
     '''
 
     # -------------------------------------------------------------------------

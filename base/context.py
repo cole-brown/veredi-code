@@ -9,6 +9,7 @@ Helper classes for managing contexts for events, error messages, etc.
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Union, Any, Type, MutableMapping, Dict, Literal
+from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
 import enum
 import uuid
 
@@ -56,12 +57,45 @@ class VerediContext:
         - Or a subclass of one of these.
     '''
 
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
+
     _KEY_DOTTED = 'dotted'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+
+        self.data: Dict[Any, Any] = {}
+        '''
+        The data that makes up this context. Since it means so much but in a
+        context-sensitive way (it /is/ the context, essentially), we'll leave
+        it 'public' (sans underscore(s)).
+        '''
+
+        self._dotted: str = None
+        '''
+        The veredi dotted label for use with this context.
+        Use for stuff like loading/making something via the Configuration.
+        '''
+
+        self._key: str = None
+        '''
+        The context's main sub-context's name string.
+
+        E.g. a ConfigContext uses 'configuration' as its key and
+        `self._data['configuration']` holds its config-specific context data.
+        '''
 
     def __init__(self,
                  dotted: str,
                  key: str) -> None:
-        self.data  = {}
         self._dotted = dotted
         self._key  = key
 
@@ -141,13 +175,15 @@ class VerediContext:
 
     def add(self,
             key: Any,
-            value: Any) -> None:
+            value: Any) -> bool:
         '''
         Adds to /our/ sub-context.
 
         That is, this is a shortcut for:
           self.sub[key] = value
         with added checks.
+
+        Returns success/failure bool.
         '''
         sub = self.sub
         if key in sub:
@@ -156,51 +192,52 @@ class VerediContext:
                       "subcontext: {}",
                       key, value, sub[key],
                       sub)
-            return
+            return False
         sub[key] = value
+        return True
 
-    def sub_add(self,
-                ctx_key: Any,
-                sub_key: Any,
-                value: Any) -> None:
-        '''
-        Adds to the `ctx_key` sub-context.
+    # TODO: sub_add() and add() are the same thing? Pick one. Or make add() be
+    # (optionally) top-level?
+    # def sub_add(self,
+    #             sub_key: Any,
+    #             value: Any) -> bool:
+    #     '''
+    #     Adds to /our/ `ctx_key` sub-context, creating it if it doesn't exist.
 
-        That is, this is a shortcut for:
-          context[ctx_key][sub_key] = value
-        with added checks.
-        '''
-        ctx = self._get()
-        if ctx_key not in ctx:
-            log.error("Skipping sub_add for keys '{}', '{}' to context - "
-                      "the key '{}' does not exists in the context. "
-                      "desired value: {}. context: {}",
-                      ctx_key, sub_key, ctx_key, value, ctx)
-            return
+    #     That is, this is a shortcut for:
+    #       context[ctx_key][sub_key] = value
+    #     or:
+    #       context.sub[sub_key] = value
+    #     with added checks.
 
-        sub = ctx[ctx_key]
-        if sub_key in sub:
-            log.error("Skipping add key '{}' to the '{}' sub-context - "
-                      "the key already exists. desired value: {}, "
-                      "current value: {}, subcontext: {}",
-                      sub_key, ctx_key, value, sub[sub_key], sub)
-            return
+    #     Returns success/failure bool.
+    #     '''
+    #     sub = self.sub
+    #     if sub_key in sub:
+    #         log.error("Skipping add key '{}' to the '{}' sub-context - "
+    #                   "the key already exists. desired value: {}, "
+    #                   "current value: {}, subcontext: {}",
+    #                   sub_key, self.key, value, sub[sub_key], sub)
+    #         return False
 
-        sub[sub_key] = value
+    #     sub[sub_key] = value
+    #     return True
 
     def sub_get(self,
-                field: Union[str, enum.Enum]) -> Optional[Any]:
+                field:   Union[str, enum.Enum],
+                default: NullNoneOr[Any] = Null()) -> Nullable[Any]:
         '''
         Gets this context's sub-context, then gets and returns value
         of `field`.
 
-        Returns None if sub-context or field does not exist in this context.
+        Returns Null if sub-context or field does not exist in this
+        context, unless a `default` is provided.
         '''
-        return self._sub_get(self.key, field)
+        return self._sub_get(self.key, field, default)
 
     def sub_set(self,
                 field: Union[str, enum.Enum],
-                value: Optional[Any]) -> None:
+                value: NullNoneOr[Any]) -> None:
         '''
         Gets this context's sub-context, then sets `field` to `value`. Pops
         `field` out of sub-context if `value` is None.
@@ -210,19 +247,25 @@ class VerediContext:
         '''
         return self._sub_set(self.key, field, value)
 
+    # TODO: delete and just use sub_get()?
     def _sub_get(self,
                  ctx_key: str,
-                 field: Union[str, enum.Enum]) -> Optional[Any]:
+                 field: Union[str, enum.Enum],
+                 default: NullNoneOr[Any] = Null()) -> Nullable[Any]:
         '''
         Gets `ctx_key` sub-context, then gets and returns value of `field`.
-        Returns None if ctx_key or field does not exist in this context.
+
+        Returns Null if ctx_key or field does not exist in this context, unless
+        a `default` is provided.
         '''
+        default = default or Null()
+
         full_ctx = self._get(False)
         if full_ctx:
             sub_ctx = full_ctx.get(ctx_key, None)
             if sub_ctx:
                 return sub_ctx.get(field, None)
-        return None
+        return default
 
     def _sub_set(self,
                  ctx_key: str,
@@ -336,7 +379,7 @@ class VerediContext:
         Returns `other`.
         '''
         if not isinstance(resolution, Conflict):
-            raise TypeError("nope.")
+            raise TypeError(resolution, "Unknown conflict resolution type.")
         self._merge(self, other, resolution, 'push', 'to')
         return other
 

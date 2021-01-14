@@ -9,7 +9,7 @@ Configuration file reader/writer for Veredi games.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, Mapping, Tuple)
+                    Optional, Any, Mapping, Dict, Tuple)
 from veredi.base.null import Nullable, Null
 if TYPE_CHECKING:
     from veredi.base.context         import VerediContext
@@ -21,9 +21,10 @@ import pathlib
 from veredi.logger          import log
 from veredi.base.exceptions import VerediError
 from veredi.data.context    import DataBareContext, DataLoadContext
-from ..                     import background
 from veredi.base.const      import VerediHealth
+from veredi.rules.game      import RulesGame
 
+from ..                     import background
 from ..                     import exceptions
 from .                      import registry
 from .hierarchy             import Document, Hierarchy
@@ -65,15 +66,72 @@ class Configuration:
     _CTX_KEY  = 'configuration'
     _CTX_NAME = 'configuration'
 
-    def __init__(self,
-                 config_path:   Optional[pathlib.Path]     = None,
-                 config_repo:   Optional['BaseRepository'] = None,
-                 config_serdes: Optional['BaseSerdes']     = None) -> None:
-        '''Raises LoadError and ConfigError'''
-        self._path = config_path or default_path()
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
-        # Our storage of the config data itself.
-        self._config = {}
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+
+        self._path: pathlib.Path = None
+        '''
+        Path to our config file.
+        '''
+
+        self._config: Dict[Any, Any] = {}
+        '''
+        Our storage of the config data itself.
+        '''
+
+        self._repo: 'BaseRepository' = None
+        '''
+        The repository for the game's saved data.
+        '''
+
+        self._serdes: 'BaseSerdes' = None
+        '''
+        The serializer/deserializer for the game's saved data.
+        '''
+
+        self._rules: str = None
+        '''
+        The game's dotted label for the rules.
+        '''
+
+        self._id: str = None
+        '''
+        The game's repository id/key/record-name string.
+        '''
+
+    def __init__(self,
+                 rules_dotted:  str,
+                 game_id:       str,
+                 config_repo:   Optional['BaseRepository'] = None,
+                 config_serdes: Optional['BaseSerdes']     = None,
+                 config_path:   Optional[pathlib.Path]     = None) -> None:
+        '''
+        Create a Configuration object for the game's set-up.
+
+        `rules_dotted` is the veredi dotted label of the game's rules type.
+          example: 'veredi.rules.d20.pf2.game'
+
+        `game_id` is the Repository id/key/record-name for the game's Saved
+        records.
+
+        `config_repo` and `config_serdes` are the repository and serdes to use
+        for the games' Definitions and Saved records.
+
+        `config_path` is an optional override of the default_path() used to
+        find the general Veredi configuration data.
+
+        Raises LoadError and ConfigError
+        '''
+        self._rules = rules_dotted
+        self._id = game_id
+
+        self._path = config_path or default_path()
 
         try:
             # Setup our context, import repo & serdes's.
@@ -81,14 +139,14 @@ class Configuration:
             background.config.init(self._path,
                                    self)
 
-            # TODO: Remove these; get them from config file.
-
+            # TODO: Always get this from config file.
             # Avoid a circular import
             self._repo = config_repo
             if not self._repo:
                 from ..repository.file import FileBareRepository
                 self._repo = FileBareRepository(Null())
 
+            # TODO: Always get this from config file.
             # Avoid a circular import
             self._serdes = config_serdes
             if not self._serdes:
@@ -106,25 +164,12 @@ class Configuration:
         self._set_up()
 
     # -------------------------------------------------------------------------
-    # TODO: TEMP FUNC
-    # -------------------------------------------------------------------------
-    # TODO: Move to correct place?
-    # TODO: Get this data from.... where?
-
-    def campaign(self) -> str:
-        '''
-        Repo key for the campaign (game save data).
-        '''
-        # TODO: implement
-        return 'unit-test'
-
-    # -------------------------------------------------------------------------
     # Context Properties/Methods
     # -------------------------------------------------------------------------
 
     def make_config_context(self):
         '''
-        Returns a config context.
+        Returns a generic config context.
         '''
         context = ConfigContext(self._path,
                                 self._DOTTED_NAME)
@@ -250,8 +295,7 @@ class Configuration:
             return Null()
 
         if not context:
-            context = ConfigContext(self._path,
-                                    self._DOTTED_NAME)
+            context = self.make_config_context()
 
         context.add(ConfigContext.Link.KEYCHAIN, list(keychain[:-1]))
         log.debug("Make requested for: {}. context: {}",
@@ -280,18 +324,6 @@ class Configuration:
         Returns None if couldn't find a key in our config data.
         '''
         return self.get('data',
-                        *keychain)
-
-    def get_rules(self,
-                  *keychain: str) -> Nullable[Any]:
-        '''
-        Get a configuration thingy from us given some keychain use to walk into
-        our config data in 'rules' entry.
-
-        Returns data found at end keychain.
-        Returns None if couldn't find a key in our config data.
-        '''
-        return self.get('rules',
                         *keychain)
 
     def get(self,
@@ -336,6 +368,8 @@ class Configuration:
                 return Null()
 
         return data
+
+    # TODO: move _set_up() and _load() (and more?) up to init section
 
     # -------------------------------------------------------------------------
     # Load Config Stuff
@@ -424,60 +458,39 @@ class Configuration:
                 type(document),
                 str(document))
 
-    def _repo_serdes(self) -> Tuple[BaseRepository, BaseSerdes]:
+    def rules(self, context: 'VerediContext') -> Nullable[RulesGame]:
         '''
-        Gets background Repository and Serdes.
+        Creates and returns the proper RulesGame object for this specific game
+        with its game definition and saved data.
+
+        Raises a ConfigError if no rules label or game id.
         '''
-        repo = background.manager.data.repository
-        serdes = background.manager.data.serdes
-        if not repo or not serdes:
+        # ---
+        # Sanity
+        # ---
+        if not self._rules or not self._id:
             raise log.exception(
                 exceptions.ConfigError,
-                "No repostiory or serdes in background data. "
-                "repo: {}, serdes: {}",
-                str(repo),
-                str(serdes))
-        return repo, serdes
+                "No rules label or id for game; cannot create the "
+                "RulesGame object. rules: {}, id: {}",
+                self._rules, self._id)
 
-    def definition(self,
-                   dotted_name: str,
-                   context: 'VerediContext') -> Nullable[Mapping[str, Any]]:
-        '''
-        Load a definition for the given dotted name.
+        # ---
+        # Context
+        # ---
+        # Allow something else if the caller wants, but...
+        if not context:
+            # ...this default w/ rules/id should be good in most cases.
+            context = ConfigContext(self._path,
+                                    self._DOTTED_NAME,
+                                    key=self._rules,
+                                    id=self._id)
 
-        Expects an ECS Meeting to have been linked into background.manager.
-
-        For out-of-band loading like during system init/set_up phases where
-        timing and consistent ticking aren't critical.
-        '''
-        repo, serdes = self._repo_serdes()
-        loaded = repo.definition(dotted_name, context)
-        decoded = serdes.deserialize_all(loaded, context)
-        return decoded
-
-    def game(self) -> Nullable[Mapping[str, Any]]:
-        '''
-        Loads the game's saved (meta-)data from the game data repository.
-
-        Saves it to the background.
-        Returns it.
-        '''
-        repo, serdes = self._repo_serdes()
-
-        # Create a load context for the game's data.
-        load_context = DataLoadContext(self.dotted(),
-                                       DataLoadContext.DataType.GAME,
-                                       self.campaign())
-        load_context.game_load_request()
-
-        # Get game's saved (meta-)data from repo.
-        loaded = repo.game(load_context)
-        decoded = serdes.deserialize_all(loaded, load_context)
-
-        # Save to background and return.
-        background.data.link_set(background.data.Link.GAME_SAVED,
-                                 decoded)
-        return decoded
+        # ---
+        # Create the rules.
+        # ---
+        rules = self.make(context, self._rules)
+        return rules
 
     # -------------------------------------------------------------------------
     # Unit Testing

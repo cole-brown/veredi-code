@@ -40,6 +40,10 @@ class ConfigContext(EphemerealContext):
     EphemerealContext used by Configuration to make regestered objects.
     '''
 
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
+
     NAME = 'configuration'
     KEY  = 'configuration'
 
@@ -51,9 +55,16 @@ class ConfigContext(EphemerealContext):
         important to the receiver of a context, probably.
         '''
 
+        ID = enum.auto()
+        '''
+        Some sort of ID. Perhaps a record id/key for loading from a repository.
+        '''
+
         PATH = enum.auto()
-        '''A pathlib.Path to somewhere. Can look in background.data if none
-        supplied.'''
+        '''
+        A pathlib.Path to somewhere. Can look in background.data if none
+        supplied.
+        '''
 
         LOG_LEVEL = enum.auto()
         '''
@@ -74,12 +85,21 @@ class ConfigContext(EphemerealContext):
         A SubToProcComm object to hold on to for a sub-process.
         '''
 
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self,
                  path:        pathlib.Path,
                  dotted:      str,
-                 key:         Optional[str] = None) -> None:
+                 key:         Optional[str] = None,
+                 id:          Optional[Any] = None) -> None:
         key = key or self.KEY
         super().__init__(dotted, key)
+
+        # Add path to the context data if given.
+        if id:
+            self.add(self.Link.ID, id)
 
         # Make sure the path is a directory.
         if path:
@@ -91,6 +111,21 @@ class ConfigContext(EphemerealContext):
     # -------------------------------------------------------------------------
 
     @classmethod
+    def id(klass: Type['ConfigContext'],
+           context: VerediContext) -> Nullable[Any]:
+        '''
+        Checks for an ID link in config's spot in this context.
+
+        If none, returns Null().
+        '''
+        id = context.sub_get(klass.KEY, klass.Link.ID)
+        if not id:
+            log.debug("No id in context! context.id: {}, ",
+                      id,
+                      context=context)
+        return id
+
+    @classmethod
     def path(klass: Type['ConfigContext'],
              context: VerediContext) -> Nullable[pathlib.Path]:
         '''
@@ -98,11 +133,14 @@ class ConfigContext(EphemerealContext):
 
         If none, returns PATH from background.manager.data.
         '''
-        # Get context dict, then try to get the config sub-context, then we can
-        # check for PATH link.
-        config_ctx = context._get().get(klass.KEY, {})
-        path = config_ctx.get(klass.Link.PATH, Null())
+        path = context.sub_get(klass.KEY, klass.Link.PATH)
         if not path:
+            log.debug("No path in context; using background's. "
+                      "context.path: {}, ",
+                      "bg.path: {}",
+                      path,
+                      background.manager.data.path,
+                      context=context)
             path = background.manager.data.path
         return path
 
@@ -121,10 +159,8 @@ class ConfigContext(EphemerealContext):
         '''
         Checks for a KEYCHAIN link in config's spot in this context.
         '''
-        # Get context dict, then try to get the config sub-context, then we can
-        # check for KEYCHAIN link.
-        config_ctx = context._get().get(klass.KEY, {})
-        keychain = config_ctx.get(klass.Link.KEYCHAIN, Null())
+        keychain = context.sub_get(klass.KEY,
+                                   klass.Link.KEYCHAIN)
         return keychain
 
     @classmethod

@@ -21,7 +21,7 @@ systems created, etc.
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any,
                     Type, NewType,
-                    Mapping, MutableMapping, List, Set)
+                    Mapping, MutableMapping, List)
 if TYPE_CHECKING:
     from veredi.base.const                 import VerediHealth
     from veredi.base.context               import VerediContext
@@ -441,7 +441,7 @@ class config(metaclass=ConfigMeta):
 
     @classmethod
     def exception(klass:      Type['config'],
-                  context:    'VerediContext',
+                  context:    Optional['VerediContext'],
                   msg:        Optional[str],
                   *args:      Any,
                   error_data: Optional[Mapping[Any, Any]] = None,
@@ -449,6 +449,9 @@ class config(metaclass=ConfigMeta):
         '''
         Calls log.exception() to raise a ConfigError with message built from
         msg, args, kwargs and with supplied context.
+
+        NOTE: If no context is supplied, WILL NOT LOG ANY! Provide
+        config.make_config_context() if you are using it as your default!
 
         Sets stack level one more than usual so that caller of this should be
         the stacktrace of the exception.

@@ -8,129 +8,130 @@ A D20 Game Rules Base Class.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (TYPE_CHECKING,
-                    Optional, Type, Union, Tuple)
-from veredi.base.null import Null, Nullable
-if TYPE_CHECKING:
-    from veredi.base.context import VerediContext
-    from ..meeting           import Meeting
+from veredi.data.repository.taxon import SavedTaxon
 
-from abc import abstractmethod
+import enum
 
-
-from veredi.logger                         import log
-from veredi.base.const                     import VerediHealth
-from veredi.base                           import label
-from veredi.debug.const                    import DebugFlag
-from veredi.data                           import background
-from veredi.data.serdes.adapter.definition import Definition
-from veredi.data.serdes.adapter.record     import Record
-from veredi.data.milieu                    import ValueMilieu
-from veredi.data.config.config             import Configuration
-
-# Game / ECS Stuff
-from veredi.game.ecs.event                 import EventManager
-
-from veredi.game.ecs.base.identity         import EntityId, SystemId
-from veredi.game.ecs.base.system           import System
-from veredi.game.ecs.base.component        import Component
-
-# Commands
-from veredi.interface.input.command.reg    import CommandRegistrationBroadcast
+from ..game import RulesGame
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
+class D20SavedTaxon(SavedTaxon):
+    '''
+    A helpful class for figuring out what game things go where in our taxonomy.
+    '''
 
-# -----------------------------------------------------------------------------
-# Code
-# -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
 
-# Should eventually derive from veredi.rules.game.RulesGame or something...
-class D20RulesGame:
+    # Nothing above family, currently...
+
+    @enum.unique
+    class Family(enum.Enum):
+        '''
+        What kind of thing is our thing...
+        '''
+        # ------------------------------
+        # Enum Members
+        # ------------------------------
+
+        GAME = 'game'
+        ITEM = 'item'
+        MONSTER = 'monster'
+        NPC = 'npc'
+        PLAYER = 'player'
+
+        # ------------------------------
+        # Python Functions
+        # ------------------------------
+
+        def __str__(self) -> str:
+            '''
+            Python 'to string' function.
+            '''
+            return self.__class__.__name__ + '.' + self.name
+
+        def __repr__(self) -> str:
+            '''
+            Python 'to repr' function.
+            '''
+            return self.__class__.__name__ + '.' + self.name
+
+    # Cannot specify most here - depends on data that campaign/rule-set has:
+    #   - genus
+    #   - species
+    # Can specify for the game data though.
+
+    GENUS_GAME = 'game'
+    SPECIES_GAME = 'saved'
 
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
 
-    def _define_vars(self) -> None:
-        '''
-        Instance variable definitions, type hinting, doc strings, etc.
-        '''
-
     def __init__(self,
-                 context:  Optional['VerediContext'],
-                 managers: 'Meeting') -> None:
+                 family:  Family,
+                 genus:   str,
+                 species: str) -> None:
+        super().__init__(family, genus, species)
+
+    @classmethod
+    def game(self) -> 'D20SavedTaxon':
         '''
-        Initializes the D20 Game Rules from config/context/repo data.
+        Create and return a D20SavedTaxon for the game saved data.
         '''
+        return D20SavedTaxon(Family.GAME, 'game', 'saved')
 
-        self._definition: Definition = None
-        '''Game's Definition data for our D20 Rules-based game.'''
 
-        self._data: Record = None
-        '''Game's saved data Record.'''
+# -----------------------------------------------------------------------------
+# Game Definition, Saved Data
+# -----------------------------------------------------------------------------
 
-        self._configure(context)
+class D20RulesGame(RulesGame):
 
-    def _configure(self,
-                   context: 'VerediContext') -> None:
-        '''
-        Get rules definition file and configure it for use.
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
-        Set ourself into the background for anything that needs us.
-        '''
-        # ---
-        # Sanity
-        # ---
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                None,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
-
-        # ---
-        # Get game definition data.
-        # ---
-
-        # Ask config for our definition to be deserialized and given to us
-        # right now.
-        self._definition = Definition(
-            'game',
-            config.definition(self.dotted(), context))
-
-        if not self._definition:
-            raise background.config.exception(
-                context,
-                "Cannot configure {} without its game definition data.",
-                self.__class__.__name__)
-
-        # ---
-        # Get game saved data?
-        # ---
-        self._data = Record('game.record',  # TODO: get str from somewhere else?
-                            config.game())
-
-        # Complain if we don't have the saved game data, unless DebugFlagged to
-        # be quiet.
-        if (not self._definition
-                and not background.manager.flagged(DebugFlag.NO_SAVE_FILES)):
-            raise background.config.exception(
-                context,
-                "Cannot configure {} without its game saved data.",
-                self.__class__.__name__)
+    # def _define_vars(self) -> None:
+    #     '''
+    #     Instance variable definitions, type hinting, doc strings, etc.
+    #     '''
+    #     super()._define_vars()
 
     # -------------------------------------------------------------------------
     # Properties
     # -------------------------------------------------------------------------
 
-    def dotted(self) -> str:
+    @classmethod
+    def dotted(klass: 'D20RulesGame') -> str:
         '''
         Veredi dotted label string.
         '''
         return 'veredi.rules.d20.pf2.game'
+
+    # -------------------------------------------------------------------------
+    # Loading...
+    # -------------------------------------------------------------------------
+
+    def taxon_saved(self) -> 'D20SavedTaxon':
+        '''
+        Create and return a D20SavedTaxon for the game saved data.
+        '''
+        return D20SavedTaxon.game()
+
+    # -------------------------------------------------------------------------
+    # Saved
+    # -------------------------------------------------------------------------
+
+    # Anything?
+
+    # -------------------------------------------------------------------------
+    # Definition
+    # -------------------------------------------------------------------------
+
+    # Anything?
