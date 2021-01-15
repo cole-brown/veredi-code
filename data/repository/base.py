@@ -10,18 +10,21 @@ various backend implementations (db, file, etc).
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional)
+                    Optional, Union, Any, Type)
 if TYPE_CHECKING:
-    from veredi.base.context import VerediContext
     from veredi.data.config.context import ConfigContext
-    from veredi.data.context import BaseDataContext, DataLoadContext
-    from io import TextIOBase
+
+    from io                         import TextIOBase
+
 
 from abc import ABC, abstractmethod
 
 
-from veredi.data import background
-
+from veredi.logger.mixin    import LogMixin
+from veredi.base.exceptions import VerediError
+from veredi.data            import background
+from veredi.data.context    import BaseDataContext, DataAction
+from ..exceptions           import LoadError, SaveError
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -32,7 +35,14 @@ from veredi.data import background
 # Code
 # -----------------------------------------------------------------------------
 
-class BaseRepository(ABC):
+class BaseRepository(LogMixin, ABC):
+
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        self._name: str = None
+        '''The name of the repository.'''
 
     def __init__(self,
                  repo_name:         str,
@@ -43,6 +53,9 @@ class BaseRepository(ABC):
 
         `config_context` is the context being used to create us.
         '''
+        self._define_vars()
+        self._log_define_vars()
+
         self._name = repo_name.lower()
         self._configure(config_context)
 
@@ -100,23 +113,12 @@ class BaseRepository(ABC):
         ...
 
     @abstractmethod
-    def game(self,
-             campaign: str,
-             context: 'DataLoadContext') -> 'TextIOBase':
+    def _key(self,
+             context: 'BaseDataContext') -> Any:
         '''
-        Load the game's record(s) from the repository.
+        Give the DataContext, return the data's repository key.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.definition() "
-                                  "is not implemented.")
-
-    @abstractmethod
-    def definition(self,
-                   dotted_name: str,
-                   context: 'DataLoadContext') -> 'TextIOBase':
-        '''
-        Load a definition data from repository based on `dotted_name`.
-        '''
-        raise NotImplementedError(f"{self.__class__.__name__}.definition() "
+        raise NotImplementedError(f"{self.__class__.__name__}.load() "
                                   "is not implemented.")
 
     @abstractmethod
@@ -129,3 +131,86 @@ class BaseRepository(ABC):
         '''
         raise NotImplementedError(f"{self.__class__.__name__}.load() "
                                   "is not implemented.")
+
+    # -------------------------------------------------------------------------
+    # Load and/or Save Methods
+    # -------------------------------------------------------------------------
+
+    def _load_or_save(self,
+                      loading:        Union[bool, BaseDataContext],
+                      return_load:    Any,
+                      return_save:    Any,
+                      return_unknown: Any) -> Any:
+        '''
+        Returns either `return_load` or `return_save`, based on `loading`.
+
+        If it can't determine which to return: logs at error level, and returns
+        `return_unknown`.
+        '''
+        # ------------------------------
+        # DataGameContext -> Load/SaveError
+        # ------------------------------
+        if isinstance(loading, BaseDataContext):
+            # ---
+            # Load vs Save comes from the action the context has.
+            # ---
+            if loading.action == DataAction.LOAD:
+                return return_load
+
+            elif loading.action == DataAction.SAVE:
+                return return_save
+
+            else:
+                self._log_error("Unknown action: '{}'. Cannot determine "
+                                "load/save! Returning the unknown value: {}",
+                                loading, return_unknown)
+                return return_unknown
+
+        # ------------------------------
+        # Sanity Check...
+        # ------------------------------
+        elif isinstance(loading, BaseDataContext):
+            self._log_error("Unknown BaseDataContext sub-class: '{}'. Cannot "
+                            "determine proper exception type! Returning "
+                            "generic VerediError!",
+                            loading)
+            return return_unknown
+
+        # ------------------------------
+        # bool -> Load/SaveError
+        # ------------------------------
+        else:
+            # And the default: loading is bool for "I want LoadError"/"I want
+            # the other one".
+            return return_load if loading else return_save
+
+    @property
+    def _error_name(self,
+                    loading:    Any,
+                    suffix_ing: bool,
+                    ) -> str:
+        '''
+        Returns either "load"/"loading" or "save"/"saving", based on
+        `is_loading` and `suffix_ing`.
+        '''
+        if suffix_ing:
+            return self._load_or_save(loading,
+                                      "loading",
+                                      "saving",
+                                      "loading/saving/munging")
+        return self._load_or_save(loading,
+                                  "load",
+                                  "save",
+                                  "load/save/munge")
+
+    @property
+    def _error_type(self,
+                    loading: Any
+                    ) -> Type[VerediError]:
+        '''
+        Returns either LoadError or SaveError, depending on `loading`.
+        '''
+        return self._load_or_save(loading,
+                                  LoadError,
+                                  SaveError,
+                                  VerediError)

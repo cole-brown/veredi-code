@@ -9,17 +9,14 @@ various backend implementations (db, file, etc).
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (TYPE_CHECKING,
-                    NewType, Union, Optional, List)
-if TYPE_CHECKING:
-    from veredi.base.context import VerediContext
+from typing import Optional, Union, Any, Type, NewType, List
 
 
 import pathlib
 import re
 import hashlib
-from io import StringIO, TextIOBase
 import enum
+from io import StringIO, TextIOBase
 
 
 from veredi.logger               import log
@@ -27,13 +24,17 @@ from veredi.data.config.registry import register
 from veredi.data                 import background
 
 from veredi.base                 import label
-from veredi.data.context         import (DataBareContext,
+from veredi.base.exceptions      import VerediError
+from veredi.data.context         import (BaseDataContext,
+                                         DataBareContext,
                                          DataGameContext,
-                                         DataLoadContext)
+                                         DataLoadContext,
+                                         DataSaveContext)
 from veredi.data.config.context  import ConfigContext
 
 from ..                          import exceptions
 from .                           import base
+from .taxon                      import Taxon, LabelTaxon, SavedTaxon
 
 
 # -----------------------------------------------------------------------------
@@ -98,17 +99,25 @@ class FileBareRepository(base.BaseRepository):
 
     _REPO_NAME = 'file-bare'
 
-    def __init__(self,
-                 config_context: Optional['ConfigContext'] = None) -> None:
-        # Bare context doesn't have a root until it loads something from
-        # somewhere. Then that directory is its root.
-        self._root = None
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
-        super().__init__(self._REPO_NAME,
-                         config_context)
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        super()._define_vars()
+
+        self._root: pathlib.Path = None
+        '''Aboslute path to the root of this file repository.'''
+
+    def __init__(self,
+                 config_context: Optional[ConfigContext] = None) -> None:
+        super().__init__(self._REPO_NAME, config_context)
 
     def _configure(self,
-                   context: Optional['ConfigContext']) -> None:
+                   context: Optional[ConfigContext]) -> None:
         '''
         Allows repos to grab anything from the config data that they need to
         set up themselves.
@@ -178,15 +187,6 @@ class FileBareRepository(base.BaseRepository):
         log.debug("root is: {}", self._root)
         return self._root
 
-    def _definition_path(self,
-                         dotted_name: str,
-                         context: 'VerediContext') -> pathlib.Path:
-        '''
-        Turns a dotted name into a path.
-        '''
-        path = label.to_path(dotted_name)
-        return self.root / self._ext_glob(path)
-
     def load(self,
              context: DataBareContext) -> TextIOBase:
         '''
@@ -194,38 +194,12 @@ class FileBareRepository(base.BaseRepository):
 
         Returns io stream.
         '''
-        load_id = self._id(context)
-        load_path = self._id_to_path(load_id, context)
-
-        return self._load(load_path, context)
-
-    def game(self,
-             campaign: str,
-             context: 'DataLoadContext') -> 'TextIOBase':
-        '''
-        Load the game's record(s) from the repository.
-        '''
-        raise NotImplementedError(f"{self.__class__.__name__}.game() "
-                                  "is not implemented. "
-                                  "This class cannot load game data.")
-
-    def definition(self,
-                   dotted_name: str,
-                   context: 'DataLoadContext') -> TextIOBase:
-        '''
-        Load a definition file by splitting `dotted_name` and looking there for
-        a file matching a glob we create.
-
-        e.g. if `dotted_name` is 'veredi.rules.d20.skill.system', this will
-        look in self.root for "veredi/rules/d20/skill/system.*".
-        '''
-        defpath = self._definition_path(dotted_name, context)
-
-        return self._load(defpath, context)
+        key = self._key(context)
+        return self._load(key, context)
 
     def _context_load_data(self,
-                           context: 'DataLoadContext',
-                           load_path: pathlib.Path) -> 'DataLoadContext':
+                           context: DataLoadContext,
+                           load_path: pathlib.Path) -> DataLoadContext:
         '''
         Inject our repository data and our load data into the context.
         In the case of file repositories, include the file path.
@@ -239,7 +213,7 @@ class FileBareRepository(base.BaseRepository):
 
     def _load(self,
               load_path: pathlib.Path,
-              context: 'DataLoadContext') -> TextIOBase:
+              context: DataLoadContext) -> TextIOBase:
         '''
         Looks for file at load_path. If it exists, loads that file.
         '''
@@ -248,7 +222,7 @@ class FileBareRepository(base.BaseRepository):
         # load_path should be exact - no globbing.
         if not load_path.exists():
             raise log.exception(
-                exceptions.LoadError,
+                self._error_type(context),
                 "Cannot load file. Path/file does not exist: {}",
                 str(load_path),
                 context=context)
@@ -271,7 +245,7 @@ class FileBareRepository(base.BaseRepository):
                     data_stream.close()
                 data_stream = None
                 raise log.exception(
-                    exceptions.LoadError,
+                    self._error_type(context),
                     "Error loading data from file. context: {}",
                     context=context) from error
 
@@ -281,23 +255,18 @@ class FileBareRepository(base.BaseRepository):
     # Identification ("Leeloo Dallas, Multi-Pass")
     # -------------------------------------------------------------------------
 
-    def _id(self,
-            context: DataGameContext) -> pathlib.Path:
+    def _key(self,
+             context: DataBareContext) -> pathlib.Path:
         '''
-        Turns data repo keys in the context into an id we can use to retrieve
-        the data. Keys are safe and ready to go.
+        Turns load data in the context into a key we can use to retrieve
+        the data.
         '''
         self._root = context.load.parent
+        # We are a FileBareRepo, and now we know our root (for the time
+        # being...). Put it in our bg data.
         self._bg['path'] = self._root
-        return context.load
-
-    def _id_to_path(self,
-                    load_id: PathType,
-                    context: DataGameContext) -> None:
-        '''
-        Turn identity stuff into filepath components.
-        '''
-        return pathlib_cast(load_id)
+        # And make sure our 'key' (path) is safe to use.
+        return self._safe_path(context.load, context)
 
     # -------------------------------------------------------------------------
     # Path Safing
@@ -310,7 +279,7 @@ class FileBareRepository(base.BaseRepository):
 
         if not self.fn_path_safing:
             raise log.exception(
-                exceptions.LoadError,
+                self._error_type(context),
                 "No path safing function set! Cannot create file paths. ",
                 context=context)
 
@@ -323,6 +292,10 @@ class FileBareRepository(base.BaseRepository):
 
 @register('veredi', 'repository', 'file-tree')
 class FileTreeRepository(base.BaseRepository):
+
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
 
     _DOTTED_NAME = 'veredi.repository.file-tree'
     _REPO_NAME   = 'file-tree'
@@ -347,15 +320,25 @@ class FileTreeRepository(base.BaseRepository):
     _HUMAN_SAFE = re.compile(r'[^\w\d-]')
     _REPLACEMENT = '_'
 
-    def __init__(self,
-                 context: Optional['VerediContext'] = None) -> None:
-        self._root = None
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
-        super().__init__(self._REPO_NAME,
-                         context)
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        super()._define_vars()
+
+        self._root: pathlib.Path = None
+        '''Aboslute path to the root of this file repository.'''
+
+    def __init__(self,
+                 config_context: Optional[ConfigContext] = None) -> None:
+        super().__init__(self._REPO_NAME, config_context)
 
     def _configure(self,
-                   context: Optional['ConfigContext']) -> None:
+                   context: Optional[ConfigContext]) -> None:
         '''
         Allows repos to grab anything from the config data that they need to
         set up themselves.
@@ -370,11 +353,11 @@ class FileTreeRepository(base.BaseRepository):
 
         # Start at ConfigContext's path...
         self._root = ConfigContext.path(context)
-        # ...add config's repo path on top of it
-        # (in case it's a relative path).
+        # ...add config's repo path on top of it (in case it's a relative path
+        # (pathlib is smart enough to correctly handle when it's not)).
         self._root = self._root / pathlib_cast(
             config.get_data(*self._PATH_KEYCHAIN))
-        # Resolve to turn into absolute path and remove ".."s and stuff.
+        # Resolve it to turn into absolute path and remove ".."s and stuff.
         self._root = self._root.resolve()
 
         path_safing_fn = None
@@ -423,40 +406,12 @@ class FileTreeRepository(base.BaseRepository):
 
         Returns io stream.
         '''
-        ids = self._id(context.type,
-                       context)
-        pattern_path = self._id_to_path(ids, context)
-        return self._load(pattern_path, context)
-
-    # def game(self,
-    #          campaign: str,
-    #          context: 'DataLoadContext') -> 'TextIOBase':
-    #     '''
-    #     Load the game's record(s) from the repository.
-    #     '''
-    #     defpath = self._dotted_to_path(self.Category.GAME,
-    #                                    ['game', campaign, 'game', 'record'],
-    #                                    context)
-    #     return self._load(defpath, context)
-
-    # def definition(self,
-    #                dotted_name: str,
-    #                context: 'DataLoadContext') -> TextIOBase:
-    #     '''
-    #     Load a definition file by splitting `dotted_name` and looking there for
-    #     a file matching a glob we create.
-
-    #     e.g. if `dotted_name` is 'veredi.rules.d20.skill.system', this will
-    #     look in self.root for "veredi/rules/d20/skill/system.*".
-    #     '''
-    #     defpath = self._dotted_to_path(self.Category.DEFINITION,
-    #                                    dotted_name,
-    #                                    context)
-    #     return self._load(defpath, context)
+        key = self._key(context)
+        return self._load(key, context)
 
     def _context_load_data(self,
-                           context: 'DataLoadContext',
-                           load_path: pathlib.Path) -> 'DataLoadContext':
+                           context: DataLoadContext,
+                           load_path: pathlib.Path) -> DataLoadContext:
         '''
         Inject our repository data and our load data into the context.
         In the case of file repositories, include the file path.
@@ -469,46 +424,56 @@ class FileTreeRepository(base.BaseRepository):
         return context
 
     def _load(self,
-              pattern_path: pathlib.Path,
-              context: 'DataLoadContext') -> TextIOBase:
+              path:    pathlib.Path,
+              context: DataLoadContext) -> TextIOBase:
         '''
-        Looks for a match to pattern_path by splitting into parent dir and
+        Looks for a match to `path` by splitting into parent dir and
         glob/file name. If only one match, loads that file.
         '''
-        # Use path to find a file match.
-        directory = pattern_path.parent
-        glob = pattern_path.name
-        file_path = None
-        # print(f"\n\nmatches for glob: {directory}/{glob}:")
-        # print(f"  {list(directory.glob(glob))}")
+        # ------------------------------
+        # Search...
+        # ------------------------------
+        # Use path to find all file matchs...
+        directory = path.parent
+        glob = path.name
+        matches = []
         for match in directory.glob(glob):
-            if file_path is not None:
-                # Throw all matches into context for error.
-                self._context_load_data(context,
-                                        list(directory.glob(glob)))
-                raise exceptions.LoadError(
-                    f"Too many matches for loading file by id: "
-                    f"directory: {directory}, glob: {glob}, "
-                    f"matches: {sorted(directory.glob(glob))}",
-                    None,
-                    context)
-            file_path = match
+            matches.append(match)
 
-        self._context_load_data(context, file_path)
-
-        if file_path is None:
-            raise exceptions.LoadError(
-                f"Zero matches for loading file by id: "
+        # ------------------------------
+        # Sanity
+        # ------------------------------
+        # Error if we found more than one match.
+        if not matches:
+            # We found nothing.
+            self._context_load_data(context, matches)
+            raise log.exception(
+                self._error_type(context),
+                f"No matches for loading file: "
                 f"directory: {directory}, glob: {glob}, "
-                f"matches: {sorted(directory.glob(glob))}",
-                None,
-                context)
+                f"matches: {matches}",
+                context=context)
+        elif len(matches) > 1:
+            # Throw all matches into context for error.
+            self._context_load_data(context, matches)
+            raise log.exception(
+                self._error_type(context),
+                f"Too many matches for loading file: "
+                f"directory: {directory}, glob: {glob}, "
+                f"matches: {sorted(matches)}",
+                context=context)
 
-        # with file_path.open('r') as xxx:
-        #     print(xxx.read(None))
+        # ------------------------------
+        # Set-Up...
+        # ------------------------------
+        path = match[0]
+        self._context_load_data(context, path)
 
+        # ------------------------------
+        # Load!
+        # ------------------------------
         data_stream = None
-        with file_path.open('r') as file_stream:
+        with path.open('r') as file_stream:
             # Can raise an error - we'll let it.
             try:
                 # print("\n\nfile tell:", file_stream.tell())
@@ -517,12 +482,14 @@ class FileTreeRepository(base.BaseRepository):
                 # print("\ndata_stream:")
                 # print(data_stream.read(None))
                 # print("\n")
+
             except exceptions.LoadError:
                 # Let this one bubble up as-is.
                 if data_stream and not data_stream.closed:
                     data_stream.close()
                 data_stream = None
                 raise
+
             except Exception as error:
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up.
@@ -530,86 +497,61 @@ class FileTreeRepository(base.BaseRepository):
                     data_stream.close()
                 data_stream = None
                 raise log.exception(
-                    exceptions.LoadError,
+                    self._error_type(context),
                     "Error loading data from file. context: {}",
                     context=context) from error
 
+        # ------------------------------
+        # Done.
+        # ------------------------------
         return data_stream
 
     # -------------------------------------------------------------------------
     # Identification ("Leeloo Dallas, Multi-Pass")
     # -------------------------------------------------------------------------
 
-    def _id_accum(self, path: PathType, accum: List[PathType]) -> None:
-        accum.append(self._safe_path(path.lower()))
+    def _category(self,
+                  context: DataGameContext) -> 'FileTreeRepository.Category':
+        '''
+        Returns a Category based on context's load data.
+        '''
+        taxon = context.taxon
+        if not taxon:
+            raise log.exception(
+                self._error_type(context),
+                "Cannot determine Category from context; no Taxon present: {}",
+                taxon,
+                context=context)
 
-    def _id_type(self,
-                 load_type: DataGameContext.DataType,
-                 context:   DataGameContext,
-                 out_ids:   List[PathType]) -> None:
-        '''
-        Convert the DataGameContext.DataType enum into part of the id usable
-        for getting data from this repo.
+        if isinstance(taxon, LabelTaxon):
+            return self.Category.DEFINITIONS
+        return self.Category.GAME
 
-        Appends the conversion to the `out_ids` list.
+    def _key(self,
+             context:     DataGameContext) -> List[PathType]:
         '''
-        if load_type == DataGameContext.DataType.PLAYER:
-            self._id_accum('players', out_ids)
-        elif load_type == DataGameContext.DataType.MONSTER:
-            self._id_accum('monsters', out_ids)
-        elif load_type == DataGameContext.DataType.NPC:
-            self._id_accum('npcs', out_ids)
-        elif load_type == DataGameContext.DataType.ITEM:
-            self._id_accum('items', out_ids)
-        else:
-            raise exceptions.LoadError(
-                "No DataGameContext.DataType to ID conversion for: "
-                f"{load_type}",
-                None,
-                context)
+        Give the DataContext, return the data's repository key.
+        '''
+        # Get the taxon from the context.
+        taxon = context.taxon
+        if not taxon:
+            raise log.exception(
+                self._error_type(context),
+                "Cannot {} data; no Taxon present: {}",
+                self._error_name(context, False),
+                taxon,
+                context=context)
 
-    def _id_keys(self,
-                 load_type: DataGameContext.DataType,
-                 context:   DataGameContext,
-                 out_ids:   List[PathType]) -> None:
-        '''
-        Turns each context.data_values element into part of the id for getting
-        a datum from this repo.
+        # Get our category (game saves vs definitions)...
+        category = self._category(context)
 
-        Appends the conversions to the `out_ids` list.
-        '''
-        for id_element in context.data_values:
-            self._id_accum(id_element, out_ids)
-
-    def _id(self,
-            type:        DataGameContext.DataType,
-            context:     DataGameContext) -> List[PathType]:
-        '''
-        Turns data repo keys in the context into an id we can use to retrieve
-        the data. Keys are safe and ready to go.
-        '''
-        ids = []
-        self._id_accum(context.id, ids)
-        self._id_type(type,
-                      context,
-                      ids)
-        self._id_keys(type,
-                      context,
-                      ids)
-        return ids
+        # And our key is the rooted path based on category and taxon data.
+        path = self._path(category, taxon.taxon, glob=True)
+        return path
 
     # -------------------------------------------------------------------------
     # Paths In General
     # -------------------------------------------------------------------------
-
-    def _ext_glob_list(self, elements: List[PathType]) -> List[PathType]:
-        '''Concatenates extensions glob onto last path element is list.'''
-        if not elements:
-            return elements
-
-        # Update last element in list with its glob.
-        elements[-1] = self._ext_glob(elements[-1])
-        return elements
 
     def _ext_glob(self, element: PathType) -> PathType:
         '''Concatenates extensions glob onto pathlib.Path/str.'''
@@ -622,49 +564,57 @@ class FileTreeRepository(base.BaseRepository):
 
         return element
 
-    def _dotted_to_path(self,
-                        category: Category,
-                        dotted:   Union[str, List[str]],
-                        context:  'VerediContext') -> pathlib.Path:
+    def _path(self,
+              category: Category,
+              *args:    PathType,
+              glob:     bool            = False,
+              context:  DataGameContext = None) -> pathlib.Path:
         '''
-        Turns a dotted name into a path.
-        '''
-        path = label.to_path(dotted_name)
-        return self.rooted_path(category,
-                                self._ext_glob(path))
+        Returns a path based on the Repository's root, `category`, and `args`.
 
-    def _id_to_path(self,
-                    ids:     List[PathType],
-                    context: DataGameContext) -> pathlib.Path:
-        '''
-        Turn identity stuff into filepath components.
-        '''
-        return self.rooted_path(self.Category.GAME,
-                                *self._ext_glob_list(ids))
+        If `glob` is True, adds `_ext_glob()` to the end of the returned path.
 
-    def rooted_path(self, category: Category, *args: PathType) -> pathlib.Path:
+        `context` is used indirectly - probably for errors - and can be None.
+
+        Returned path is safe according to `_safe_path()`.
         '''
-        Assumes args are already safe, joins them all to `self.root` and
-        returns the pathlib.Path.
-        '''
-        return self.root.joinpath(category.value, *args)
+        path = self.root.joinpath(self._safe_path(category.value, *args))
+        if glob:
+            path = self._ext_glob(path)
+        return path
 
     # -------------------------------------------------------------------------
     # Path Safing
     # -------------------------------------------------------------------------
 
     def _safe_path(self,
-                   unsafe: PathType,
-                   context: Optional[DataGameContext] = None) -> pathlib.Path:
-        '''Makes `unsafe` safe with self.fn_path_safing. '''
+                   *unsafe: PathType,
+                   context: Optional[DataGameContext] = None
+                   ) -> pathlib.Path:
+        '''
+        Makes `unsafe` safe with self.fn_path_safing.
 
+        Combines all unsafe together and returns as one Path object.
+
+        `context` used for Load/SaveError if no `self.fn_path_safing`.
+        '''
         if not self.fn_path_safing:
             raise log.exception(
-                exceptions.LoadError,
+                self._error_type(context),
                 "No path safing function set! Cannot create file paths.",
                 context=context)
 
-        return self.fn_path_safing(unsafe)
+        path = None
+        for entry in unsafe:
+            # Sanitize the path...
+            safe_entry = self.fn_path_safing(unsafe)
+            # And accumulate it.
+            if not path:
+                path = safe_entry
+            else:
+                path = path / safe_entry
+
+        return path
 
 
 # ----------------------------File Tree Templates------------------------------
