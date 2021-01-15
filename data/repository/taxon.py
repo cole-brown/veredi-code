@@ -65,6 +65,15 @@ class Taxon:
     # Python Functions
     # -------------------------------------------------------------------------
 
+    def __iter__(self):
+        '''
+        Iterate over the taxon ranks:
+          taxon = Taxon(...)
+          for rank in taxon:
+            print(rank)
+        '''
+        return iter(self._taxon)
+
     def __str__(self) -> str:
         '''
         Python 'to string' function.
