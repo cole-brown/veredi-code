@@ -122,7 +122,7 @@ import veredi.data.codec.provide
 # -----------------------------------------------------------------------------
 
 LOG_LEVEL = log.Level.INFO  # DEBUG
-'''Test should set this to desired during setUp()'''
+'''Test should set this to desired during set_up()'''
 
 
 # -----------------------------------------------------------------------------

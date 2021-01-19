@@ -271,11 +271,11 @@ class FileBareRepository(base.BaseRepository):
         log.debug("Set my root to: {}", self.root)
         log.debug("Set my path-safing to: {}", self.fn_path_safing)
 
-    def _make_background(self, safing_ds: str) -> None:
+    def _make_background(self, safing_dotted: str) -> None:
         self._bg = super()._make_background(self._DOTTED_NAME)
 
         self._bg[background.Name.PATH.key] = self.root
-        self._bg['path-safing'] = safing_ds
+        self._bg['path-safing'] = safing_dotted
 
     @property
     def background(self):
@@ -506,11 +506,11 @@ class FileTreeRepository(base.BaseRepository):
         log.debug("Set my root to: {}", self.root)
         log.debug("Set my path-safing to: {}", self.fn_path_safing)
 
-    def _make_background(self, safing_ds: str) -> None:
+    def _make_background(self, safing_dotted: str) -> None:
         self._bg = super()._make_background(self._DOTTED_NAME)
 
         self._bg['path'] = self.root
-        self._bg['path-safing'] = safing_ds
+        self._bg['path-safing'] = safing_dotted
 
     @property
     def background(self):

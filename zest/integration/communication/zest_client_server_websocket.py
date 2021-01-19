@@ -62,7 +62,7 @@ from veredi.interface.mediator.payload.bare     import BarePayload
 # -----------------------------------------------------------------------------
 
 LOG_LEVEL = log.Level.INFO  # DEBUG
-'''Test should set this to desired during setUp()'''
+'''Test should set this to desired during set_up()'''
 
 
 # -----------------------------------------------------------------------------

@@ -24,14 +24,14 @@ from . import time
 
 class Test_Time(ZestBase):
 
-    def setUp(self):
+    def set_up(self):
         self.time = time.TimeManager()
         self.midnight_utc = datetime.now(timezone.utc).replace(hour=0,
                                                                minute=0,
                                                                second=0,
                                                                microsecond=0)
 
-    def tearDown(self):
+    def tear_down(self):
         self.time = None
 
     def test_init(self):

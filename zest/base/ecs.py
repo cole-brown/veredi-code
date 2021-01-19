@@ -76,7 +76,7 @@ class ZestEcs(ZestBase):
 
     LOG_LEVEL = log.Level.INFO
     '''
-    Test should set this to desired during setUp().
+    Test should set this to desired during set_up().
 
     TODO: Start using this in base classes?
     '''
