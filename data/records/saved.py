@@ -1,4 +1,4 @@
-o# coding: utf-8
+# coding: utf-8
 
 '''
 A class for loading a saved data record.

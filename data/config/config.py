@@ -19,8 +19,9 @@ if TYPE_CHECKING:
 import pathlib
 
 from veredi.logger          import log
+from veredi.base            import label
 from veredi.base.exceptions import VerediError
-from veredi.data.context    import DataBareContext, DataLoadContext
+from veredi.data.context    import DataAction, DataBareContext
 from veredi.base.const      import VerediHealth
 from veredi.rules.game      import RulesGame
 
@@ -95,7 +96,7 @@ class Configuration:
         The serializer/deserializer for the game's saved data.
         '''
 
-        self._rules: str = None
+        self._rules: label.Dotted = None
         '''
         The game's dotted label for the rules.
         '''
@@ -106,11 +107,11 @@ class Configuration:
         '''
 
     def __init__(self,
-                 rules_dotted:  str,
-                 game_id:       str,
+                 rules:         label.Label,
+                 game_id:       Any,
+                 config_path:   Optional[pathlib.Path]     = None,
                  config_repo:   Optional['BaseRepository'] = None,
-                 config_serdes: Optional['BaseSerdes']     = None,
-                 config_path:   Optional[pathlib.Path]     = None) -> None:
+                 config_serdes: Optional['BaseSerdes']     = None) -> None:
         '''
         Create a Configuration object for the game's set-up.
 
@@ -128,7 +129,9 @@ class Configuration:
 
         Raises LoadError and ConfigError
         '''
-        self._rules = rules_dotted
+        self._define_vars()
+
+        self._rules = label.normalize(rules)
         self._id = game_id
 
         self._path = config_path or default_path()
@@ -172,7 +175,8 @@ class Configuration:
         Returns a generic config context.
         '''
         context = ConfigContext(self._path,
-                                self._DOTTED_NAME)
+                                self._DOTTED_NAME,
+                                id=self._id)
         return context
 
     def _set_background(self):
@@ -407,7 +411,8 @@ class Configuration:
         # something based on that.
         ctx = DataBareContext(self._DOTTED_NAME,
                               ConfigContext.KEY,
-                              self._path)
+                              self._path,
+                              DataAction.LOAD)
         with self._repo.load(ctx) as stream:
             # Decode w/ serdes.
             # Can raise an error - we'll let it.

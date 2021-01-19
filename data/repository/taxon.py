@@ -9,14 +9,9 @@ Taxonomic ranking for identifying things to be loaded by a repository.
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Any, List
-import enum
 
-from veredi.logger       import log
 
 from veredi.base import label
-
-from veredi.base.context import EphemerealContext
-from .exceptions         import LoadError
 
 
 # -----------------------------------------------------------------------------
@@ -111,7 +106,7 @@ class LabelTaxon(Taxon):
 # Saved Data Groupings
 # -----------------------------------------------------------------------------
 
-class SavedTaxon:
+class SavedTaxon(Taxon):
     '''
     An ordering of identifiers based on biology names.
       Domain
@@ -138,7 +133,7 @@ class SavedTaxon:
         Fill our grouping vars so that the least specific are left
         unset/unchanged if not enough args supplied.
         '''
-        self._taxon = list(ranks)
+        super().__init__(*ranks)
 
     # -------------------------------------------------------------------------
     # Properties/Getters

@@ -46,6 +46,7 @@ from veredi.data.records                   import (DataType,
                                                    Definition,
                                                    Saved)
 from veredi.data.config.config             import Configuration
+from veredi.data.context                   import DataLoadContext
 from veredi.data.repository.base           import BaseRepository
 from veredi.data.repository.taxon          import LabelTaxon, SavedTaxon
 from veredi.data.serdes.base               import BaseSerdes, DeserializeTypes
@@ -91,7 +92,6 @@ from .event import (
 )
 
 from .component import DataComponent
-from .context import DataLoadContext
 
 
 # -----------------------------------------------------------------------------

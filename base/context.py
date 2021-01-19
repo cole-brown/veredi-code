@@ -9,7 +9,7 @@ Helper classes for managing contexts for events, error messages, etc.
 # -----------------------------------------------------------------------------
 
 from typing import Optional, Union, Any, Type, MutableMapping, Dict, Literal
-from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
+from veredi.base.null import Null, Nullable, NullNoneOr
 import enum
 import uuid
 
@@ -71,7 +71,6 @@ class VerediContext:
         '''
         Instance variable definitions, type hinting, doc strings, etc.
         '''
-
         self.data: Dict[Any, Any] = {}
         '''
         The data that makes up this context. Since it means so much but in a
@@ -96,6 +95,8 @@ class VerediContext:
     def __init__(self,
                  dotted: str,
                  key: str) -> None:
+        self._define_vars()
+
         self._dotted = dotted
         self._key  = key
 
@@ -110,7 +111,7 @@ class VerediContext:
         '''
         if value is not False and isinstance(value, str):
             if self.data:
-                self.data.setdefault(self.key, {})[self._KEY_DOTTED] = value
+                self.data.setdefault(self._key, {})[self._KEY_DOTTED] = value
                 self._dotted = value
 
         return self._dotted
@@ -217,7 +218,7 @@ class VerediContext:
     #         log.error("Skipping add key '{}' to the '{}' sub-context - "
     #                   "the key already exists. desired value: {}, "
     #                   "current value: {}, subcontext: {}",
-    #                   sub_key, self.key, value, sub[sub_key], sub)
+    #                   sub_key, self._key, value, sub[sub_key], sub)
     #         return False
 
     #     sub[sub_key] = value
@@ -233,7 +234,7 @@ class VerediContext:
         Returns Null if sub-context or field does not exist in this
         context, unless a `default` is provided.
         '''
-        return self._sub_get(self.key, field, default)
+        return self._sub_get(self._key, field, default)
 
     def sub_set(self,
                 field: Union[str, enum.Enum],
@@ -245,9 +246,8 @@ class VerediContext:
         Pops `ctx_key` out of context if it is empty after set/pop of field is
         done.
         '''
-        return self._sub_set(self.key, field, value)
+        return self._sub_set(self._key, field, value)
 
-    # TODO: delete and just use sub_get()?
     def _sub_get(self,
                  ctx_key: str,
                  field: Union[str, enum.Enum],
@@ -259,13 +259,9 @@ class VerediContext:
         a `default` is provided.
         '''
         default = default or Null()
-
         full_ctx = self._get(False)
-        if full_ctx:
-            sub_ctx = full_ctx.get(ctx_key, None)
-            if sub_ctx:
-                return sub_ctx.get(field, None)
-        return default
+        sub_ctx = full_ctx.get(ctx_key, Null())
+        return sub_ctx.get(field, Null()) or default
 
     def _sub_set(self,
                  ctx_key: str,
@@ -318,15 +314,15 @@ class VerediContext:
         Make sure our subcontext exists (and by extension, our context).
         Returns our subcontext entry of the context dict.
 
-        if top_key is None, ensures our subcontext (self.key) exists.
+        if top_key is None, ensures our subcontext (self._key) exists.
         '''
         if not top_key:
-            top_key = self.key
+            top_key = self._key
 
         self.data = self.data or {}
         sub_context = self.data.setdefault(top_key, {})
         # Ensure our name if we're ensuring our subcontext.
-        if (top_key is self.key
+        if (top_key is self._key
                 and self._KEY_DOTTED not in sub_context):
             sub_context[self._KEY_DOTTED] = self.dotted()
         return sub_context
@@ -341,17 +337,46 @@ class VerediContext:
             self._ensure()
         return self.data
 
-    def _get_sub(self,
-                 key: Optional[str] = None,
-                 ensure_sub_existance: bool = True) -> Dict[Any, Any]:
+    def _set_sub(self,
+                 key:       str,
+                 sub_ctx:   NullNoneOr[Dict[Any, Any]] = None,
+                 overwrite: bool                       = False) -> None:
         '''
-        Returns a /specific/ sub-context dictionary.
+        Sets the /specified/ sub-context dictionary.
 
-        If `key` is None, this will return the `self.key` sub-context (/our/
-        sub-context).
+        If `sub_ctx` is Null, None, or otherwise Falsy: pop the sub out of
+        existance.
+
+        If `overwrite` is False and `key` already exists, raises a KeyError.
+        '''
+        full_ctx = self._get(False)
+
+        # Remove sub-context?
+        if not sub_ctx:
+            full_ctx.pop(key, None)
+            # Done
+            return
+
+        # Overwrite check.
+        if not overwrite and key in full_ctx:
+            msg = (f"Cannot set sub-context. Key '{key}' already exists "
+                   "in context and `overwrite` is not set.")
+            error = KeyError(key, msg, full_ctx, sub_ctx)
+            raise log.exception(error, msg)
+
+        # Set the sub-context.
+        full_ctx[key] = sub_ctx
+
+    def _get_sub(self,
+                 key: str,
+                 ensure_sub_existance: bool = True) -> Nullable[Dict[Any, Any]]:
+        '''
+        Gets the /specified/ sub-context dictionary.
 
         If `ensure_sub_existance`, make sure it exists before returning it
         (create it with our bare entry if needed).
+
+        Can return Null.
         '''
         full_ctx = None
         sub_ctx = None
@@ -361,10 +386,10 @@ class VerediContext:
         else:
             full_ctx = self._get(False)
             if not full_ctx:
-                return None
+                return Null()
 
-        key = key or self.key
-        sub_ctx = self.data.get(key, None)
+        key = key or self._key
+        sub_ctx = self.data.get(key, Null())
         return sub_ctx
 
     def push(self,
@@ -686,7 +711,7 @@ class PersistentContext(VerediContext):
                             *args,
                             **kwargs)
 
-        if other.key == self.key:
+        if other.key == self._key:
             other.pull_to_sub(self.sub, Conflict.RECEIVER_MUNGED)
             other.pull(self, Conflict.RECEIVER_MUNGED | Conflict.QUIET)
         else:

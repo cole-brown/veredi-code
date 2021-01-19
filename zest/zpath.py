@@ -8,7 +8,7 @@ Helper for unit test data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Optional
+from typing import Optional, Union, Any
 import pathlib
 import enum
 
@@ -22,6 +22,7 @@ DATA_UNIT_TEST_DIR = DATA_DIR / "unit"
 DATA_INTEGRATION_DIR = DATA_DIR / "integration"
 DATA_FUNCTIONAL_DIR = DATA_DIR / "functional"
 
+DEFAULT_CAMPAIGN = 'test-campaign'
 
 @enum.unique
 class TestType(enum.Enum):
@@ -57,7 +58,7 @@ def rooted(test_type: TestType,
 
 
 # -----------------------------------------------------------------------------
-# Serdess
+# Serdes
 # -----------------------------------------------------------------------------
 
 def serdes(test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:
@@ -100,3 +101,14 @@ def config(filepath: Union[pathlib.Path, str, None],
         return path
     path = path / filepath
     return retval(path)
+
+
+def config_id(test_type: TestType, campaign: Any) -> Any:
+    '''
+    Returns a value for Configuration's `game_id` init param.
+
+    Defaults to DEFAULT_CAMPAIGN.
+    '''
+    if campaign:
+        return campaign
+    return DEFAULT_CAMPAIGN

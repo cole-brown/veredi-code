@@ -8,12 +8,7 @@ String helper functions?
 # Imports
 # -----------------------------------------------------------------------------
 
-# Python
-# import datetime
-
-# Framework
-
-# Our Stuff
+from typing import Any
 
 
 # -----------------------------------------------------------------------------
@@ -25,10 +20,12 @@ String helper functions?
 # Code
 # -----------------------------------------------------------------------------
 
-def normalize(string: str) -> str:
+def normalize(input: Any) -> str:
     '''
-    Do the normal things to get a string in the... state we prefer.
-
-    Stripped and small.
+    Converts `input` to a string (via `str()`), does some normalization things
+    (lowercases string, trims...), and returns it.
     '''
-    return string.strip().lower()
+    string = str(input)
+    normalize = string.strip()
+    normalize = normalize.lower()
+    return normalize

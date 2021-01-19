@@ -14,11 +14,11 @@ from typing import Union, List
 from veredi.base.null import Null, Nullable
 
 
-from veredi.logger import log
-from veredi.base   import label
+from veredi.logger         import log
+from veredi.base           import label
 
-from .record       import Record
-from .dict         import DataDict
+from .record               import Record
+from ..serdes.adapter.dict import DataDict
 
 
 # -----------------------------------------------------------------------------
@@ -80,7 +80,7 @@ class Definition(Record):
 
         # If alias key exists, also check there.
         if self.ALIAS in self:
-            return super.exists(label.normalize(self.ALIAS, path))
+            return super.exists(label.regularize(self.ALIAS, path))
 
     def _append_default(self, names: List[str]) -> None:
         '''

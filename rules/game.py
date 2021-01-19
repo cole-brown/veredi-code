@@ -86,7 +86,7 @@ class RulesGame(LogMixin, ABC):
         # TODO: anything else to configure on init?
         # ---
 
-    def loaded(definition: Definition, saved: Saved) -> None:
+    def loaded(self, definition: Definition, saved: Saved) -> None:
         '''
         Set our game Definition and Saved data records.
         '''
@@ -97,8 +97,8 @@ class RulesGame(LogMixin, ABC):
     # Properties
     # -------------------------------------------------------------------------
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def dotted(klass: 'RulesGame') -> str:
         '''
         Veredi dotted label string.
@@ -237,7 +237,7 @@ class RulesGame(LogMixin, ABC):
         # TODO: THIS!!! I need the whole "saving" things side of
         # serdes/repo/etc.
         raise NotImplementedError(
-            f"{self.__class__..__name__}._save() "
+            f"{self.__class__.__name__}._save() "
             "is not implemented. "
             "I need that save side of data serialization.")
         return False

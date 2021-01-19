@@ -8,8 +8,8 @@ Helper classes for managing data contexts for events, error messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, List
-from veredi.base.null    import Null
+from typing import Optional, Any, Dict
+from veredi.base.null    import NullNoneOr
 
 import enum
 
@@ -17,7 +17,9 @@ import enum
 from veredi.logger       import log
 
 from veredi.base.context import EphemerealContext
-from .repository.taxon   import Taxon
+from veredi.data         import background
+
+from .repository.taxon   import Taxon, SavedTaxon
 
 
 # -----------------------------------------------------------------------------
@@ -50,6 +52,7 @@ class BaseDataContext(EphemerealContext):
     '''
 
     _KEY = 'key'
+    _ACTION = 'action'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -61,7 +64,7 @@ class BaseDataContext(EphemerealContext):
                  key:      Any,
                  action:   DataAction) -> None:
         '''
-        Initialize DataBareContext with `dotted`, `ctx_name`, something called
+        Initialize BaseDataContext with `dotted`, `ctx_name`, something called
         '`key`' (right now just a file name to load for config's data...),
         and `load`.
         '''
@@ -103,6 +106,29 @@ class BaseDataContext(EphemerealContext):
         Set the action in our context data.
         '''
         self.sub[self._ACTION] = action
+
+    # -------------------------------------------------------------------------
+    # Repository Helpers
+    # -------------------------------------------------------------------------
+
+    @property
+    def repo_data(self) -> Dict[str, Any]:
+        '''
+        Context data that the repostiory has inserted into this DataContext.
+        '''
+        repo_ctx = self._get_sub(str(background.Name.REPO), False)
+        return repo_ctx
+
+    @repo_data.setter
+    def repo_data(self,
+                  data: NullNoneOr[Dict[str, Any]],
+                  overwrite: bool = False) -> None:
+        '''
+        Setter for the repository to insert its context data into our context.
+        '''
+        self._set_sub(str(background.Name.REPO),
+                      data,
+                      overwrite)
 
     # -------------------------------------------------------------------------
     # String Helper
@@ -162,23 +188,27 @@ class DataGameContext(BaseDataContext):
                  action:    DataAction,
                  *taxonomy: Any) -> None:
         '''
-        Initialize DataGameContext with dotted, ctx_name, and the load taxonomy
-        information (a series of general to specific identifiers of some sort).
+        Initialize DataGameContext with caller's dotted, ctx_name, and the load
+        taxonomy information (a series of general to specific identifiers of
+        some sort).
 
         `taxonomy` can be one single Taxon instance, or a list of things to
-        create a Taxon from.
+        create a SavedTaxon from.
         '''
-        # Save our taxonomy data into our context.
-        ctx = self.sub
+        # Get our taxonomy data into a Taxon.
         taxon = None
         if len(taxonomy) == 1 and isinstance(taxonomy[0], Taxon):
             taxon = taxonomy[0]
         else:
-            taxon = Taxon(*taxonomy)
-        ctx[self._TAXON] = taxon
+            taxon = SavedTaxon(*taxonomy)
 
         # Key is just an easy context.taxon.taxon shortcut for game contexts.
         super().__init__(dotted, ctx_name, taxon.taxon, action)
+
+        # Save our taxon into our context. NOTE: Must do after
+        # super().__init__() in order to get our key assigned.
+        ctx = self.sub
+        ctx[self._TAXON] = taxon
 
     @property
     def taxon(self) -> Optional[Taxon]:
