@@ -24,7 +24,7 @@ from veredi.logger                import log
 from veredi.base                  import vstring
 from veredi.base                  import label
 from veredi.data.config.hierarchy import Hierarchy
-from .dict                        import DataDict, DDKey
+from ..serdes.adapter.dict        import DataDict, DDKey
 
 
 # -----------------------------------------------------------------------------

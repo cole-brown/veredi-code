@@ -23,7 +23,7 @@ from veredi.logger               import log
 from veredi.data.config.registry import register
 from veredi.data                 import background
 
-from veredi.base                 import label
+from veredi.base                 import label, vstring
 from veredi.base.exceptions      import VerediError
 from veredi.data.context         import (BaseDataContext,
                                          DataBareContext,
@@ -50,7 +50,7 @@ PathType = NewType('PathType', Union[str, pathlib.Path])
 # Path Safing Consts
 # ---
 
-_HUMAN_SAFE = re.compile(r'[^\w\d-]')
+_HUMAN_SAFE = re.compile(r'[^\w\d_.-]')
 _REPLACEMENT = '_'
 
 
@@ -62,8 +62,17 @@ _REPLACEMENT = '_'
 # --                            Paths In General                             --
 # -----------------------------------------------------------------------------
 
-def pathlib_cast(str_or_path: PathType) -> pathlib.Path:
-    return pathlib.Path(str_or_path)
+def pathlib_cast(*str_or_path: PathType) -> pathlib.Path:
+    '''
+    Ensure that `str_or_path` is a pathlib.Path.
+    '''
+    return pathlib.Path(*str_or_path)
+
+
+def is_root(part: pathlib.Path) -> bool:
+    '''
+    Returns true if the path is exactly the root.
+    '''
 
 
 # --------------------------------------------------------------------------
@@ -71,9 +80,68 @@ def pathlib_cast(str_or_path: PathType) -> pathlib.Path:
 #   "us?#:er" -> "us___er"
 # --------------------------------------------------------------------------
 @register('veredi', 'sanitize', 'human', 'path-safe')
-def to_human_readable(path: PathType) -> pathlib.Path:
-    return pathlib_cast(_HUMAN_SAFE.sub(_REPLACEMENT,
-                                        path))
+def to_human_readable(*part: PathType) -> pathlib.Path:
+    '''
+    Sanitize each part of the path by converting illegal characters to safe
+    characters.
+
+    "/" is illegal.
+
+    So ensure that the safe portion of the paths is split if providing a full
+    path.
+    '''
+    sanitized = []
+    try:
+        first = True
+        for each in part:
+            # First part can be a root, in which case we can't sanitize it.
+            if first:
+                check = pathlib_cast(each)
+                # Must be a path.
+                if (isinstance(check, pathlib.Path)
+                        # Must be absolute.
+                        and check.is_absolute()
+                        # Must be /only/ the root.
+                        and len(check.parts) == 1):
+                    # Ok; root can be used as-is.
+                    sanitized.append(check)
+
+                # Not a root; sanitize it.
+                else:
+                    sanitized.append(_part_to_human_readable(each))
+
+            # All non-first parts get sanitized.
+            else:
+                sanitized.append(_part_to_human_readable(each))
+            first = False
+
+    except TypeError as error:
+        log.exception(error,
+                      "to_human_readable: Cannot sanitize path: {}",
+                      part)
+        raise
+
+    return pathlib_cast(*sanitized)
+
+
+def _part_to_human_readable(part: PathType) -> str:
+    '''
+    Sanitize a single part of the path by converting illegal characters to safe
+    characters.
+
+    "/" is illegal.
+    '''
+    try:
+        # Normalize our string first.
+        normalized = vstring.normalize(part)
+        # Then ensure part is a string before doing the regex replace.
+        humanized = _HUMAN_SAFE.sub(_REPLACEMENT, normalized)
+    except TypeError as error:
+        log.exception(error,
+                      "to_human_readable: Cannot sanitize path: {}",
+                      part)
+        raise
+    return humanized
 
 
 # --------------------------------------------------------------------------
@@ -82,8 +150,59 @@ def to_human_readable(path: PathType) -> pathlib.Path:
 #     'b3b31a87f6cca2e4d8e7909395c4b4fd0a5ee73b739b54eb3aeff962697ca603'
 # --------------------------------------------------------------------------
 @register('veredi', 'sanitize', 'hashed', 'sha256')
-def to_hashed(path: PathType) -> pathlib.Path:
-    return pathlib_cast(hashlib.sha256(path.encode()).hexdigest())
+def to_hashed(*part: PathType) -> pathlib.Path:
+    '''
+    Sanitize each part of the path by converting it to a hash string.
+
+    So ensure that all directories in the path are split if providing a full
+    path.
+    '''
+    sanitized = []
+    try:
+        first = True
+        for each in part:
+            # First part can be a root, in which case we can't sanitize it.
+            if first:
+                check = pathlib_cast(each)
+                # Must be a path.
+                if (isinstance(check, pathlib.Path)
+                        # Must be absolute.
+                        and check.is_absolute()
+                        # Must be /only/ the root.
+                        and len(check.parts) == 1):
+                    # Ok; root can be used as-is.
+                    sanitized.append(check)
+
+                # Not a root; sanitize it.
+                else:
+                    sanitized.append(_part_to_hashed(each))
+
+            # All non-first parts get sanitized.
+            else:
+                sanitized.append(_part_to_hashed(each))
+
+    except TypeError as error:
+        log.exception(error,
+                      "to_hashed: Cannot sanitize path: {}",
+                      part)
+        raise
+
+    return pathlib_cast(*sanitized)
+
+
+def _part_to_hashed(part: PathType) -> str:
+    '''
+    Sanitize each part of the path by converting it to a hash.
+    '''
+    try:
+        # Ensure part is a string, encode to bytes, and hash those.
+        hashed = hashlib.sha256(str(part).encode()).hexdigest()
+    except TypeError as error:
+        log.exception(error,
+                      "_part_to_hashed: Cannot sanitize part: {}",
+                      part)
+        raise
+    return hashed
 
 
 # ----------------------------Bare File Repository-----------------------------
@@ -133,6 +252,9 @@ class FileBareRepository(base.BaseRepository):
         # Bare repo doesn't have a root until it loads something from
         # somewhere. Then that directory is its root.
         self._root = None
+
+        # Grab our primary id from the context, if it's there...
+        self._primary_id = context.id  # or config.primary_id?
 
         # Config probably isn't much set up right now. May need to
         # inject/partially-load something to see if we can get options into
@@ -205,7 +327,7 @@ class FileBareRepository(base.BaseRepository):
         In the case of file repositories, include the file path.
         '''
         meta, _ = self.background
-        context[str(background.Name.REPO)] = {
+        context.repo_data = {
             'meta': meta,
             'path': str(load_path),
         }
@@ -261,29 +383,37 @@ class FileBareRepository(base.BaseRepository):
         Turns load data in the context into a key we can use to retrieve
         the data.
         '''
-        self._root = context.load.parent
+        self._root = context.key.parent
         # We are a FileBareRepo, and now we know our root (for the time
         # being...). Put it in our bg data.
         self._bg['path'] = self._root
         # And make sure our 'key' (path) is safe to use.
-        return self._safe_path(context.load, context)
+        if isinstance(context.key, pathlib.Path):
+            return self._safe_path(*context.key.parts, context=context)
 
     # -------------------------------------------------------------------------
     # Path Safing
     # -------------------------------------------------------------------------
 
     def _safe_path(self,
-                   unsafe: PathType,
-                   context: Optional[DataGameContext] = None) -> pathlib.Path:
-        '''Makes `unsafe` safe with self.fn_path_safing. '''
+                   *unsafe: PathType,
+                   context: Optional[DataGameContext] = None
+                   ) -> pathlib.Path:
+        '''
+        Makes `unsafe` safe with self.fn_path_safing.
 
+        Combines all unsafe together and returns as one Path object.
+
+        `context` used for Load/SaveError if no `self.fn_path_safing`.
+        '''
         if not self.fn_path_safing:
             raise log.exception(
                 self._error_type(context),
-                "No path safing function set! Cannot create file paths. ",
+                "No path safing function set! Cannot create file paths.",
                 context=context)
 
-        return self.fn_path_safing(unsafe)
+        path = self.fn_path_safing(*unsafe)
+        return path
 
 
 # ----------------------------File Tree Repository-----------------------------
@@ -360,6 +490,10 @@ class FileTreeRepository(base.BaseRepository):
         # Resolve it to turn into absolute path and remove ".."s and stuff.
         self._root = self._root.resolve()
 
+        # Grab our primary id from the context too.
+        self._primary_id = ConfigContext.id(context)  # or config.primary_id?
+
+        # Set up our path safing too...
         path_safing_fn = None
         path_safing = config.get_data(*self._SANITIZE_KEYCHAIN)
         if path_safing:
@@ -390,6 +524,13 @@ class FileTreeRepository(base.BaseRepository):
     # -------------------------------------------------------------------------
     # Load Methods
     # -------------------------------------------------------------------------
+
+    @property
+    def primary_id(self) -> str:
+        '''
+        The primary id (game/campaign name, likely, for file-tree repo).
+        '''
+        return self._primary_id
 
     @property
     def root(self) -> pathlib.Path:
@@ -466,7 +607,7 @@ class FileTreeRepository(base.BaseRepository):
         # ------------------------------
         # Set-Up...
         # ------------------------------
-        path = match[0]
+        path = matches[0]
         self._context_load_data(context, path)
 
         # ------------------------------
@@ -566,7 +707,7 @@ class FileTreeRepository(base.BaseRepository):
 
     def _path(self,
               category: Category,
-              *args:    PathType,
+              args:     PathType,
               glob:     bool            = False,
               context:  DataGameContext = None) -> pathlib.Path:
         '''
@@ -578,7 +719,15 @@ class FileTreeRepository(base.BaseRepository):
 
         Returned path is safe according to `_safe_path()`.
         '''
-        path = self.root.joinpath(self._safe_path(category.value, *args))
+        # Start with load/save category and game id/name...
+        # Category first - it's 'game' (saves), 'definition' (definitions),
+        # etc.
+        unsafe = [category.value, self.primary_id]
+        # ...add the specifics...
+        unsafe.extend(args)
+        # And make it into a safe path.
+        path = self.root.joinpath(self._safe_path(*unsafe,
+                                                  context=context))
         if glob:
             path = self._ext_glob(path)
         return path
@@ -598,22 +747,16 @@ class FileTreeRepository(base.BaseRepository):
 
         `context` used for Load/SaveError if no `self.fn_path_safing`.
         '''
+
         if not self.fn_path_safing:
             raise log.exception(
                 self._error_type(context),
                 "No path safing function set! Cannot create file paths.",
                 context=context)
 
-        path = None
-        for entry in unsafe:
-            # Sanitize the path...
-            safe_entry = self.fn_path_safing(unsafe)
-            # And accumulate it.
-            if not path:
-                path = safe_entry
-            else:
-                path = path / safe_entry
-
+        path = self.fn_path_safing(*unsafe)
+        log.debug(f"Unsafe: *{unsafe} -> Safe Path: {path}",
+                  context=context)
         return path
 
 

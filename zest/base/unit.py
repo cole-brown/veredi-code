@@ -13,7 +13,7 @@ Base Veredi Class for Tests.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, List, Tuple, Dict
+from typing import List, Tuple, Dict
 
 import sys
 import unittest
@@ -61,7 +61,7 @@ class ZestBase(unittest.TestCase):
 
         Else tries to build something from `uufileuu`, which should probably
         just be:
-          __file__
+            __file__
         '''
         try:
             return self._DOTTED

@@ -241,8 +241,10 @@ class Test_From_Scratch(unittest.TestCase):
             # ---
             # Configuration from config file.
             # ---
+            rules = 'veredi.rules.d20.pf2'
+            game_id = 'test-campaign'
             path = zpath.config(None, zpath.TestType.FUNCTIONAL)
-            self.config = run.configuration(path)
+            self.config = run.configuration(rules, game_id, path)
             self.assertIsNotNone(self.config)
             self.assertIsInstance(self.config, Configuration)
 

@@ -10,8 +10,12 @@ Can come from command line, config file, or wherever.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Any
+
+
 import pathlib
 import os
+
 
 from veredi.logger             import log
 from veredi.base               import label
@@ -39,21 +43,82 @@ file name globs it will look for, in order, for the configuration file.
 # Configuration
 # -----------------------------------------------------------------------------
 
-# TODO: lots of debug or info logs. Actually, do a log group for set_up.
-def configuration(path: pathlib.Path = None) -> Configuration:
+def configuration(rules:   label.Label,
+                  game_id: Any,
+                  path:    pathlib.Path = None) -> Configuration:
     '''
     Find config file and parse into the Configuration object for this game.
+
+    `rules` is the Label for the rules type, e.g. 'veredi.rules.d20.pf2'
+
+    `game_id` is the repository identity key for the specific game.
 
     `path` can be either a directory or the config file path. If `path` is
     None, this looks in the current directory for the first file that matches
     the _CONFIG_FILE_NAME_GLOBS patterns.
     '''
     log_dotted = label.join(_DOTTED, 'configuration')
-    log_success = log.SuccessType.IGNORE
     log.start_up(log_dotted,
                  "Creating Veredi Configuration...",
-                 log_success=log_success)
+                 log_success=log.SuccessType.IGNORE)
 
+    # ------------------------------
+    # Sanity Checks?
+    # ------------------------------
+    log.start_up(
+        log_dotted,
+        "Checking Inputs...",
+        path,
+        _CONFIG_FILE_NAME_GLOBS,
+        log_success=log.SuccessType.IGNORE)
+
+    # Normalize rules to a dotted string.
+    rules = label.normalize(rules)
+
+    # game_id... dunno much about it until we get a repository for it.
+
+    # ------------------------------
+    # Figure out actual config file path from input path.
+    # ------------------------------
+    log.start_up(
+        log_dotted,
+        "Finding Config File...",
+        path,
+        _CONFIG_FILE_NAME_GLOBS,
+        log_success=log.SuccessType.IGNORE)
+    path = _config_path(log_dotted, path)
+
+    # ------------------------------
+    # Create Configuration.
+    # ------------------------------
+    log.start_up(
+        log_dotted,
+        "Creating Configuration...",
+        path,
+        _CONFIG_FILE_NAME_GLOBS,
+        log_success=log.SuccessType.IGNORE)
+    config = Configuration(rules, game_id,
+                           config_path=path)
+
+    # ------------------------------
+    # Done.
+    # ------------------------------
+    log.start_up(log_dotted,
+                 "Done creating Veredi Configuration.",
+                 log_success=log.SuccessType.SUCCESS)
+    return config
+
+
+def _config_path(log_dotted: label.Dotted,
+                 path:       pathlib.Path = None) -> pathlib.Path:
+    '''
+    Find config file from `path` and parse into the Configuration object for
+    the game.
+
+    `path` can be either a directory or the config file path. If `path` is
+    None, this looks in the current directory for the first file that matches
+    the _CONFIG_FILE_NAME_GLOBS patterns.
+    '''
     # ---
     # Default path?
     # ---
@@ -61,14 +126,14 @@ def configuration(path: pathlib.Path = None) -> Configuration:
         log.start_up(log_dotted,
                      "Looking for config in provided path: {}",
                      path,
-                     log_success=log_success)
+                     log_success=log.SuccessType.IGNORE)
 
     else:
         path = pathlib.Path(os.getcwd())
         log.start_up(log_dotted,
                      "Set config path to current working directory: {}",
                      path,
-                     log_success=log_success)
+                     log_success=log.SuccessType.IGNORE)
 
     # ---
     # Sanity checks for path.
@@ -103,10 +168,11 @@ def configuration(path: pathlib.Path = None) -> Configuration:
     # Already checked that it's either file or dir, so:
     if path.is_dir():
         log.start_up(log_dotted,
-                     "Path is a directory; look for config file by glob: {} {}",
+                     "Path is a directory; look for config file "
+                     "by glob: {} {}",
                      path,
                      _CONFIG_FILE_NAME_GLOBS,
-                     log_success=log_success)
+                     log_success=log.SuccessType.IGNORE)
 
         # Look for files matching the glob. Claim the first one and ignore any
         # others.
@@ -159,20 +225,8 @@ def configuration(path: pathlib.Path = None) -> Configuration:
                      path,
                      log_success=log.SuccessType.NEUTRAL)
 
-    # ---
-    # Create Configuration.
-    # ---
-
-    log.start_up(
-        log_dotted,
-        "Creating Configuration...",
-        path,
-        _CONFIG_FILE_NAME_GLOBS,
-        log_success=log_success)
-    config = Configuration(config_path=path)
-
-    log_success = log.SuccessType.SUCCESS
     log.start_up(log_dotted,
-                 "Done creating Veredi Configuration.",
-                 log_success=log_success)
-    return config
+                 "Final path to config file: {}",
+                 path,
+                 log_success=log.SuccessType.SUCCESS)
+    return path

@@ -8,7 +8,8 @@ Helpers for names.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Mapping, List, Tuple
+from typing import (Optional, Union, Any, Type, NewType, Callable,
+                    Mapping, List, Tuple)
 from .null import Nullable, Null
 
 import collections
@@ -17,6 +18,28 @@ import pathlib
 
 # CANNOT IMPORT LOG. Circular import.
 # from veredi.logger import log
+
+
+# -----------------------------------------------------------------------------
+# Types
+# -----------------------------------------------------------------------------
+
+Dotted = NewType('Dotted', str)
+'''
+A dotted label string.
+
+E.g.: "jeff.rules.x.y.z"
+'''
+
+Label  = NewType('Label', Union[str, List[str]])
+'''
+A label of some type - use normalize() to get a Dotted.
+
+Examples:
+  - "jeff.rules.x.y.z"
+  - ["jeff", "rules", "x", "y", "z"]
+  - ["jeff.rules", "x", "y.z"]
+'''
 
 
 # -----------------------------------------------------------------------------
@@ -30,19 +53,6 @@ Try to call your attribute/property 'dotted', for consistency.
 If you use 'register', your class will get a 'dotted' property for free.
 '''
 
-_KLASS_FUNC_NAME = _DOTTED_NAME
-'''
-If at class level, and a function instead of a property... still call it
-'dotted', for consistency.
-'''
-
-_ATTRIBUTE_PRIVATE_NAME = '_DOTTED'
-'''
-Try to call your attribute/property 'dotted', for consistency.
-
-If you use 'register', your class will get a 'dotted' property for free.
-'''
-
 _VEREDI_PREFIX = 'veredi.'
 '''
 The expected start for all dotted strings under the official veredi banner.
@@ -50,7 +60,7 @@ The expected start for all dotted strings under the official veredi banner.
 
 
 # -----------------------------------------------------------------------------
-# Code
+# Label Helper Functions
 # -----------------------------------------------------------------------------
 
 def is_veredi(dotted: str) -> bool:
@@ -81,14 +91,17 @@ def split(dotted: str) -> List[str]:
     return dotted.split('.')
 
 
-def normalize(*dotted: Union[str, List[str]],
-              to_str:  bool = False) -> Union[str, List[str]]:
+def regularize(*dotted: Union[str, List[str]]) -> List[str]:
     '''
-    Normalize input `dotted` strings and/or lists of strings into one list of
-    strings (or one dotted string if `to_str` is True).
+    ??? -> [str, str, ...]
 
-    Defaults to returning a list of strings.
-      - Returns a dotted string if `to_str` keyword arg is True.
+    Normalize input `dotted` strings and/or lists of strings into one list of
+    (non-dotted) strings.
+    Examples:
+      regularize('jeff.rules', 'system', 'etc')
+        -> ['jeff', 'rules', 'system', 'etc']
+      regularize('jeff.rules.system.etc')
+        -> ['jeff', 'rules', 'system', 'etc']
     '''
     # (Shallow) copy the list; we'll be flattening it as we go.
     flatten = list(dotted)
@@ -120,48 +133,28 @@ def normalize(*dotted: Union[str, List[str]],
     return flatten
 
 
-def normalize(*dotted: Union[str, List[str]],
-              to_str:  bool = False) -> Nullable[Union[str, List[str]]]:
+def normalize(*dotted: Union[str, List[str]]) -> Union[str, List[str]]:
     '''
     Normalize input `dotted` strings and/or lists of strings into one list of
-    strings or dotted string.
+    strings (or one dotted string if `to_str` is True).
 
-    Returns:
-      Defaults to returning a list of strings.
-        - Returns a dotted string if `to_str` keyword arg is True.
-      Can return Null()
+    ??? -> 'str.str.<...>'
+
+    Normalize input `dotted` strings and/or lists of strings into one list of
+    (non-dotted) strings.
+    Examples:
+      normalize('jeff.rules', 'system', 'etc')
+        -> 'jeff.rules.system.etc'
+      normalize(['jeff', 'rules', 'system', 'etc'])
+        -> 'jeff.rules.system.etc'
     '''
-    if not dotted:
-        return Null()
-
-    # Copy the list, since we'll be tearing it up as we go.
-    input_list = list(dotted)
-    flattened = []
-    i = 0
-    # Loop over the input.
-    while i < len(input_list):
-        # Loop over element if it's a list.
-        while isinstance(input_list[i], collections.abc.Sequence):
-            # Nothing in this sub-list? Get rid of it.
-            if not input_list[i]:
-                input_list.pop(i)
-                i -= 1
-
-            # Something in the sub-list: stitch it into the next thing.
-            else:
-                input_list[i:i + 1] = input_list[i]
-
-        # Dropped out of our list-stitching. Have a thing to put in the output?
-        i += 1
-
-    if not flattened:
-        return Null()
-    return flattened
+    # Easy - regularize and join it.
+    return join(*regularize(dotted))
 
 
 def to_path(*args: Union[str, List[str]]) -> Nullable[pathlib.Path]:
     '''
-    Takes `args` (either iterable of strings or dotted string), `normalize()`
+    Takes `args` (either iterable of strings or dotted string), `regularize()`
     it/them, and returns a pathlib.Path made from them.
 
     e.g.:
@@ -174,25 +167,30 @@ def to_path(*args: Union[str, List[str]]) -> Nullable[pathlib.Path]:
     if not args:
         return Null()
 
-    # Normalize the args to split whatever they are into a list of strings,
+    # Regularize the args to split whatever they are into a list of strings,
     # then build a Path to return from that.
-    norm = normalize(*args)
+    norm = regularize(*args)
     if not norm:
         # Turns out args weren't anything?
         return Null()
     return pathlib.Path(*norm)
 
 
-def from_path(path: Union[str, pathlib.Path, Null]) -> Optional[str]:
+def from_path(path:    Union[str, pathlib.Path, Null],
+              stop_at: str = 'veredi') -> Optional[str]:
     '''
     Builds a dotted string from the path. If something in the path ends with
     '.py', strip that out.
 
-    Builds dotted output back-to-front, stopping at first 'veredi' it
-    encounters in the path.
+    Builds dotted output back-to-front, stopping at first `stop_at` string it
+    encounters in the path (default: 'veredi').
 
-    So '/srv/veredi/veredi/jeff/system.py' becomes:
+    So '/srv/veredi/veredi/jeff/system.py' becomes (for default):
       'veredi.jeff.system'
+
+    Or '/path/to/jeff/veredi-extensions/something/system.py' becomes
+    (for 'jeff'):
+      'jeff.veredi-extensions.something.system'
 
     `file` can be __file__ for some auto-magic-ish-ness.
     '''

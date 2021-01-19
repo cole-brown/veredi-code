@@ -77,11 +77,13 @@ for nicer formatting of e.g. GROUP logging.
 @enum.unique
 class MessageType(enum.Enum):
     DEFAULT = enum.auto()
-    GROUP = enum.auto()
+    NO_FMT  = enum.auto()
+    GROUP   = enum.auto()
 
 
 _FMT_MESSAGE_HUMAN  = {
     MessageType.DEFAULT: ': {message:s}',
+    MessageType.NO_FMT:  '{message:s}',
     MessageType.GROUP:   ' - GROUP[{group:s}, {dotted:s}]: {message:s}',
 }
 '''
@@ -784,6 +786,7 @@ def ultra_mega_debug(msg:           str,
     output = brace_message(msg,
                            *args,
                            context=context,
+                           log_fmt_type=MessageType.NO_FMT,
                            **kwargs)
     if not ut_call(Level.CRITICAL, output):
         this = (veredi_logger
@@ -843,6 +846,7 @@ def ultra_hyper_debug(msg:           str,
         output = brace_message(msg,
                                # Add context to string output.
                                context=context,
+                               log_fmt_type=MessageType.NO_FMT,
                                *args, **kwargs)
 
     # Indent output message before printing.

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from .config import Configuration
     from veredi.parallel.multiproc import SubToProcComm
 
-from veredi.base.null import Nullable, Null
+from veredi.base.null import Nullable, Null, null_or_none
 
 import enum
 import pathlib
@@ -118,7 +118,7 @@ class ConfigContext(EphemerealContext):
 
         If none, returns Null().
         '''
-        id = context.sub_get(klass.KEY, klass.Link.ID)
+        id = context.sub_get(klass.Link.ID)
         if not id:
             log.debug("No id in context! context.id: {}, ",
                       id,
@@ -133,8 +133,8 @@ class ConfigContext(EphemerealContext):
 
         If none, returns PATH from background.manager.data.
         '''
-        path = context.sub_get(klass.KEY, klass.Link.PATH)
-        if not path:
+        path = context.sub_get(klass.Link.PATH)
+        if null_or_none(path):
             log.debug("No path in context; using background's. "
                       "context.path: {}, ",
                       "bg.path: {}",
@@ -159,8 +159,7 @@ class ConfigContext(EphemerealContext):
         '''
         Checks for a KEYCHAIN link in config's spot in this context.
         '''
-        keychain = context.sub_get(klass.KEY,
-                                   klass.Link.KEYCHAIN)
+        keychain = context.sub_get(klass.Link.KEYCHAIN)
         return keychain
 
     @classmethod

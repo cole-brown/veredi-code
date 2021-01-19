@@ -44,6 +44,9 @@ class BaseRepository(LogMixin, ABC):
         self._name: str = None
         '''The name of the repository.'''
 
+        self._primary_id: Any = None
+        '''The game ID we'll be loading from.'''
+
     def __init__(self,
                  repo_name:         str,
                  config_context:    Optional['ConfigContext'] = None) -> None:
@@ -184,11 +187,9 @@ class BaseRepository(LogMixin, ABC):
             # the other one".
             return return_load if loading else return_save
 
-    @property
     def _error_name(self,
                     loading:    Any,
-                    suffix_ing: bool,
-                    ) -> str:
+                    suffix_ing: bool) -> str:
         '''
         Returns either "load"/"loading" or "save"/"saving", based on
         `is_loading` and `suffix_ing`.
@@ -203,9 +204,8 @@ class BaseRepository(LogMixin, ABC):
                                   "save",
                                   "load/save/munge")
 
-    @property
     def _error_type(self,
-                    loading: Any
+                    loading: Union[bool, BaseDataContext]
                     ) -> Type[VerediError]:
         '''
         Returns either LoadError or SaveError, depending on `loading`.
