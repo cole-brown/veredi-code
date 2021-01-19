@@ -165,11 +165,8 @@ class ZestBase(unittest.TestCase):
 
     def setUp(self) -> None:
         '''
-        unittest.TestCase setUp function. Make one for your test class, and
-        call stuff like so:
-
-        super().setUp()
-        <your stuff here>
+        unittest.TestCase setUp function. Sub-classes should use `set_up()` for
+        their test set-up.
         '''
         self._define_vars()
 
@@ -221,8 +218,8 @@ class ZestBase(unittest.TestCase):
         '''
         unittest.TestCase tearDown function.
 
-        Use tear_down(). This calls tear_down() before any of the base class
-        tear-down happens.
+        Sub-classes should use `tear_down()` for their test tear-down. This
+        calls tear_down() before any of the base class tear-down happens.
         '''
 
         # ---
