@@ -13,7 +13,7 @@ name: veredi.rules.d20.pf2.game
 display-name: Veredi d20 PF2 Saved Game Data
 
 
---- !game.saved
+--- !saved.game
 
 # meta:
 #   registry: veredi.rules.d20.pf2.game

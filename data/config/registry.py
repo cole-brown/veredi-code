@@ -53,7 +53,7 @@ def register(*dotted_label: label.Label) -> Callable[..., Type[Any]]:
       def example(arg0, arg1, **kwargs):
         pass
     '''
-    registree_id = label.regularize(dotted_label)
+    registree_id = label.regularize(*dotted_label)
 
     # Now make the actual decorator...
     def register_decorator(

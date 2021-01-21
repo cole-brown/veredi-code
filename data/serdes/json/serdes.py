@@ -148,7 +148,7 @@ class JsonSerdes(BaseSerdes):
                 context=context,
                 data={
                     'data': stream,
-                    'data_stream.closed': (stream.closed()
+                    'data_stream.closed': (stream.closed
                                            if stream else
                                            None),
                     'data_stream.readable': (stream.readable()

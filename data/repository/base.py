@@ -57,9 +57,16 @@ class BaseRepository(LogMixin, ABC):
         `config_context` is the context being used to create us.
         '''
         self._define_vars()
-        self._log_define_vars()
-
         self._name = repo_name.lower()
+
+        # ---
+        # Set-Up LogMixin before _configure() so we have logging.
+        # ---
+        self._log_config(self.dotted())
+
+        # ---
+        # Configure ourselves.
+        # ---
         self._configure(config_context)
 
     # -------------------------------------------------------------------------

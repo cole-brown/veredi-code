@@ -19,7 +19,7 @@ from veredi.logger       import log
 from veredi.base.context import EphemerealContext
 from veredi.data         import background
 
-from .repository.taxon   import Taxon, SavedTaxon
+from .repository.taxon   import Taxon, LabelTaxon, SavedTaxon
 
 
 # -----------------------------------------------------------------------------
@@ -183,10 +183,10 @@ class DataGameContext(BaseDataContext):
     # Initialization
     # -------------------------------------------------------------------------
     def __init__(self,
-                 dotted:    str,
-                 ctx_name:  str,
-                 action:    DataAction,
-                 *taxonomy: Any) -> None:
+                 dotted:   str,
+                 ctx_name: str,
+                 action:   DataAction,
+                 taxon:    Taxon) -> None:
         '''
         Initialize DataGameContext with caller's dotted, ctx_name, and the load
         taxonomy information (a series of general to specific identifiers of
@@ -195,12 +195,12 @@ class DataGameContext(BaseDataContext):
         `taxonomy` can be one single Taxon instance, or a list of things to
         create a SavedTaxon from.
         '''
-        # Get our taxonomy data into a Taxon.
-        taxon = None
-        if len(taxonomy) == 1 and isinstance(taxonomy[0], Taxon):
-            taxon = taxonomy[0]
-        else:
-            taxon = SavedTaxon(*taxonomy)
+        # Sanity check...
+        if not isinstance(taxon, Taxon):
+            msg = (f"Must have a Taxon for the {self.__class__.__name__} "
+                   f"- cannot initialize with: {taxon}")
+            error = TypeError(msg, dotted, ctx_name, taxon)
+            raise log.exception(error, msg)
 
         # Key is just an easy context.taxon.taxon shortcut for game contexts.
         super().__init__(dotted, ctx_name, taxon.taxon, action)
@@ -230,12 +230,12 @@ class DataLoadContext(DataGameContext):
     # -------------------------------------------------------------------------
 
     def __init__(self,
-                 dotted:    str,
-                 *taxonomy: Any) -> None:
+                 dotted: str,
+                 taxon:  Taxon) -> None:
         super().__init__(dotted,
                          self._REQUEST_LOAD,
                          DataAction.LOAD,
-                         *taxonomy)
+                         taxon)
 
     # -------------------------------------------------------------------------
     # Python Funcs (& related)
@@ -255,12 +255,12 @@ class DataSaveContext(DataGameContext):
     # -------------------------------------------------------------------------
 
     def __init__(self,
-                 dotted:    str,
-                 *taxonomy: Any) -> None:
+                 dotted: str,
+                 taxon:  Taxon) -> None:
         super().__init__(dotted,
                          self._REQUEST_SAVE,
                          DataAction.SAVE,
-                         *taxonomy)
+                         taxon)
 
     # -------------------------------------------------------------------------
     # Python Funcs (& related)

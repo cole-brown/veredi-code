@@ -120,22 +120,24 @@ class DocType:
 
         Raises a ValueError if verification fails.
         '''
-        # Sanity check input.
-        string = None
-        if isinstance(doc_type, enum.Enum):
-            string = enum.value
+        # Sanity check / convert input to string.
+        string = doc_type
+        if isinstance(string, enum.Enum):
+            string = doc_type.value
         if not isinstance(string, str):
             msg = (f"'{doc_type}' is not valid. Must be a string or "
-                   "string-backed Enum.")
+                   "string-backed Enum. "
+                   f"Got: {type(doc_type)}, value: {string}")
             raise log.exception(ValueError(msg, doc_type), msg)
 
         # Expect whatever - normalize to lowercase.
         string = vstring.normalize(string)
 
         # Chain together all our enums so as to do a dumb search:
-        for each in itertools.chain(klass.types()):
-            if string == each.value:
-                return each.value
+        for each_type in itertools.chain(klass.types()):
+            for each in each_type:
+                if string == each.value:
+                    return each.value
 
         # Didn't find it anywhere. Error out.
         msg = f"'{string}' is not a DocType value."
@@ -192,6 +194,8 @@ class Record(abc.MutableMapping):
         `primary_doc`: The record's primary DocType.
         `documents`:   The deserialized record data.
         '''
+        self._define_vars()
+
         # Sanity check and set main name.
         self._primary_doc = DocType.verify_and_get(primary_doc)
 

@@ -3,7 +3,7 @@
 '''
 A class for loading a saved data record.
 
-Record can have multiple documents, like 'metadata' and 'system.definition'.
+Record can have multiple documents, like 'metadata' and 'definition.system'.
 '''
 
 # -----------------------------------------------------------------------------

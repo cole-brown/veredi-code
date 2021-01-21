@@ -264,8 +264,6 @@ class System(LogMixin, ABC):
         # Logger!
         # ---
         # Set up before _configure() so we have self._log_*() working ASAP.
-
-        # Config our LogMixin.
         self._log_config(self.dotted())
 
         # ---

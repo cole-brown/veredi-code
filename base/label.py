@@ -19,6 +19,8 @@ import pathlib
 # CANNOT IMPORT LOG. Circular import.
 # from veredi.logger import log
 
+from . import lists
+
 
 # -----------------------------------------------------------------------------
 # Types
@@ -103,34 +105,9 @@ def regularize(*dotted: Union[str, List[str]]) -> List[str]:
       regularize('jeff.rules.system.etc')
         -> ['jeff', 'rules', 'system', 'etc']
     '''
-    # (Shallow) copy the list; we'll be flattening it as we go.
-    flatten = list(dotted)
-
-    # Loop over the list and flatten as we go.
-    i = 0
-    while i < len(flatten):
-        # Loop over element if it's a sub-list.
-        while (not isinstance(flatten[i], (str, bytes))
-               and isinstance(flatten[i], collections.abc.Sequence)):
-            # Nothing in this sub-list? Get rid of it.
-            if not flatten[i]:
-                flatten.pop(i)
-                i -= 1
-
-            # Something in the sub-list: stitch it into primary list,
-            # flattening one level.
-            # Example:        v-----(i=2)-----v
-            #    list: [1, 2, [3, [...m], ...n], ...o]
-            #      ->  [1, 2, 3, [...m], ...n, ...o]
-            else:
-                flatten[i:i + 1] = flatten[i]
-
-        # Dropped out of our list-stitching, or this index isn't a list...
-        # Either way - just increment and continue
-        i += 1
-
-    # Done walking the list. It is flat.
-    return flatten
+    # Flatten (and split) our input string(s) into one list of one string each.
+    return lists.flatten(*dotted,
+                         function=split)
 
 
 def normalize(*dotted: Union[str, List[str]]) -> Union[str, List[str]]:

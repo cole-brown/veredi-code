@@ -10,11 +10,12 @@ YAML library subclasses for encoding/decoding system data.
 
 import yaml
 
-from ..base import VerediYamlDocument
-from ... import tags
-from ... import registry
-from ....adapter import meta
+from veredi.data.records.record import DocType
 
+from ..base                     import VerediYamlDocument
+from ...                        import tags
+from ...                        import registry
+from ....adapter                import meta
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -24,6 +25,34 @@ from ....adapter import meta
 # -----------------------------------------------------------------------------
 # Document Types
 # -----------------------------------------------------------------------------
+
+# ------------------------------
+# Game
+# ------------------------------
+
+class DocGameDefinition(VerediYamlDocument):
+    _YAML_TAG_NAME = DocType.definition.game.value
+    yaml_tag = tags.make(_YAML_TAG_NAME)
+
+
+registry.register(DocGameDefinition._YAML_TAG_NAME,
+                  DocGameDefinition,
+                  None, None)
+
+
+class DocGameSaved(VerediYamlDocument):
+    _YAML_TAG_NAME = DocType.saved.game.value
+    yaml_tag = tags.make(_YAML_TAG_NAME)
+
+
+registry.register(DocGameSaved._YAML_TAG_NAME,
+                  DocGameSaved,
+                  None, None)
+
+
+# ------------------------------
+# ECS
+# ------------------------------
 
 # class DocComponent(VerediYamlDocument):
 #     _YAML_TAG_NAME = 'system'
@@ -35,7 +64,7 @@ from ....adapter import meta
 
 
 class DocSystemDefinition(VerediYamlDocument):
-    _YAML_TAG_NAME = 'system.definition'
+    _YAML_TAG_NAME = DocType.definition.system.value
     yaml_tag = tags.make(_YAML_TAG_NAME)
 
 

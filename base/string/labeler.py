@@ -109,6 +109,7 @@ def tag_helper(caller_label: Label,
       - a `dotted(klass) -> str` function (via `_add_dotted_func()`)
     '''
     dotted = normalize(dotted_label)
+
     _add_dotted_value(cls_or_func, dotted)
     _add_dotted_func(caller_label, provider_str, cls_or_func, dotted)
 
@@ -178,7 +179,7 @@ def _add_dotted_func(
                    "    @classmethod\n"
                    "    def dotted(klass: 'YOURKLASS') -> str:\n"
                    f"        # _DOTTED magically provided by {provider_str}\n"
-                   "        return _DOTTED")
+                   "        return klass._DOTTED")
             raise log.exception(AttributeError(msg, cls_or_func),
                                 None,
                                 msg)

@@ -23,7 +23,7 @@ from veredi.logger               import log
 from veredi.data.config.registry import register
 from veredi.data                 import background
 
-from veredi.base                 import label, vstring
+from veredi.base                 import label, vstring, lists
 from veredi.base.exceptions      import VerediError
 from veredi.data.context         import (BaseDataContext,
                                          DataBareContext,
@@ -34,7 +34,7 @@ from veredi.data.config.context  import ConfigContext
 
 from ..                          import exceptions
 from .                           import base
-from .taxon                      import Taxon, LabelTaxon, SavedTaxon
+from .taxon                      import Rank, Taxon, LabelTaxon, SavedTaxon
 
 
 # -----------------------------------------------------------------------------
@@ -62,17 +62,12 @@ _REPLACEMENT = '_'
 # --                            Paths In General                             --
 # -----------------------------------------------------------------------------
 
+# TODO: move to a base/path.py file?
 def pathlib_cast(*str_or_path: PathType) -> pathlib.Path:
     '''
     Ensure that `str_or_path` is a pathlib.Path.
     '''
     return pathlib.Path(*str_or_path)
-
-
-def is_root(part: pathlib.Path) -> bool:
-    '''
-    Returns true if the path is exactly the root.
-    '''
 
 
 # --------------------------------------------------------------------------
@@ -434,17 +429,6 @@ class FileTreeRepository(base.BaseRepository):
     _PATH_KEYCHAIN = ['repository', 'directory']
 
     # ---
-    # Sub-Directories
-    # ---
-    @enum.unique
-    class Category(enum.Enum):
-        GAME = 'game'
-        '''Game data like saved characters, monsters, items, etc.'''
-
-        DEFINITIONS = 'definitions'
-        '''System/rules definitions like skills, etc.'''
-
-    # ---
     # Path Names
     # ---
     _HUMAN_SAFE = re.compile(r'[^\w\d-]')
@@ -651,23 +635,6 @@ class FileTreeRepository(base.BaseRepository):
     # Identification ("Leeloo Dallas, Multi-Pass")
     # -------------------------------------------------------------------------
 
-    def _category(self,
-                  context: DataGameContext) -> 'FileTreeRepository.Category':
-        '''
-        Returns a Category based on context's load data.
-        '''
-        taxon = context.taxon
-        if not taxon:
-            raise log.exception(
-                self._error_type(context),
-                "Cannot determine Category from context; no Taxon present: {}",
-                taxon,
-                context=context)
-
-        if isinstance(taxon, LabelTaxon):
-            return self.Category.DEFINITIONS
-        return self.Category.GAME
-
     def _key(self,
              context:     DataGameContext) -> List[PathType]:
         '''
@@ -683,11 +650,16 @@ class FileTreeRepository(base.BaseRepository):
                 taxon,
                 context=context)
 
-        # Get our category (game saves vs definitions)...
-        category = self._category(context)
+        # # Get our category (game saves vs definitions)...
+        # category = self._category(context)
 
         # And our key is the rooted path based on category and taxon data.
-        path = self._path(category, taxon.taxon, glob=True)
+        replace = {
+            Rank.Kingdom.CAMPAIGN: self.primary_id,
+        }
+        resolved = taxon.resolve(replace)
+        # path = self._path(category, resolved, glob=True)
+        path = self._path(resolved, glob=True)
         return path
 
     # -------------------------------------------------------------------------
@@ -706,12 +678,11 @@ class FileTreeRepository(base.BaseRepository):
         return element
 
     def _path(self,
-              category: Category,
-              args:     PathType,
+              unsafe:   PathType,
               glob:     bool            = False,
               context:  DataGameContext = None) -> pathlib.Path:
         '''
-        Returns a path based on the Repository's root, `category`, and `args`.
+        Returns a path based on the Repository's root and `unsafe`.
 
         If `glob` is True, adds `_ext_glob()` to the end of the returned path.
 
@@ -719,13 +690,7 @@ class FileTreeRepository(base.BaseRepository):
 
         Returned path is safe according to `_safe_path()`.
         '''
-        # Start with load/save category and game id/name...
-        # Category first - it's 'game' (saves), 'definition' (definitions),
-        # etc.
-        unsafe = [category.value, self.primary_id]
-        # ...add the specifics...
-        unsafe.extend(args)
-        # And make it into a safe path.
+        # Make it into a safe path.
         path = self.root.joinpath(self._safe_path(*unsafe,
                                                   context=context))
         if glob:
