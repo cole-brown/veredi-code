@@ -22,8 +22,6 @@ to go for accessing Game Config/Save (as opposed to Entity/Component) data.
 from typing import Optional, Any, Set, Type, Mapping
 from veredi.base.null import Null, Nullable, NullNoneOr
 
-import pathlib
-
 
 # ---
 # Veredi Stuff
@@ -46,9 +44,12 @@ from veredi.data.records                   import (DataType,
                                                    Definition,
                                                    Saved)
 from veredi.data.config.config             import Configuration
-from veredi.data.context                   import DataLoadContext
+from veredi.data.context                   import (DataAction,
+                                                   DataGameContext,
+                                                   DataLoadContext,
+                                                   DataSaveContext)
 from veredi.data.repository.base           import BaseRepository
-from veredi.data.repository.taxon          import LabelTaxon, SavedTaxon
+from veredi.data.repository.taxon          import Taxon, LabelTaxon, SavedTaxon
 from veredi.data.serdes.base               import BaseSerdes, DeserializeTypes
 
 from veredi.rules.game                     import RulesGame
@@ -226,30 +227,37 @@ class DataManager(EcsManagerWithEvents):
         # ---
         # Config Stuff
         # ---
+        # We must have a config...
+        if not config:
+            msg = ("Could not initialize. Require a Configuration and got: "
+                   f"{config}")
+            raise background.config.exception(None, msg)
+
+        # Create our serdes & repo from the config data.
         key_serdes = ('data', 'serdes')
         key_repo = ('data', 'repository', 'type')
-        if config:
-            self._serdes = config.make(None, *key_serdes)
-            self._repository = config.make(None, *key_repo)
+        self._serdes = config.make(None, *key_serdes)
+        self._repository = config.make(None, *key_repo)
 
         if not self._serdes:
-            context = config.make_config_context()
             msg = ("Could not create Serdes (serializer/Deserializer) from "
                    f"config data: {label.join(key_serdes)} "
                    f"{config.get(key_serdes)}")
+            context = config.make_config_context()
             raise background.config.exception(context, msg)
         if not self._repository:
-            context = config.make_config_context()
             msg = ("Could not create Repository from "
                    f"config data: {label.join(key_repo)} "
                    f"{config.get(key_repo)}")
+            context = config.make_config_context()
             raise background.config.exception(context, msg)
 
         # ---
         # Load Data
         # ---
         self._game = config.rules(None)
-        self._load(config)
+        # self._load()
+        self._init_load()
 
     def get_background(self):
         '''
@@ -267,6 +275,53 @@ class DataManager(EcsManagerWithEvents):
     @classmethod
     def dotted(klass: 'DataManager') -> str:
         return 'veredi.game.data.manager'
+
+    # -------------------------------------------------------------------------
+    # Loading & Saving
+    # -------------------------------------------------------------------------
+
+    def taxon(self,
+              data_type: DataType,
+              *taxonomy: Any,
+              context:   Optional['VerediContext'] = None) -> Taxon:
+        '''
+        Create and return a Taxon of the correct sub-class for the `data_type`
+        and the game rules.
+
+        `context` only (currently [2021-01-21]) used for error log.
+
+        E.g. DataType.SAVED with game rules 'veredi.rules.d20.pf2' returns a
+        PF2SavedTaxon.
+        '''
+        taxon = self._game.taxon(data_type,
+                                 *taxonomy,
+                                 context=context)
+        return taxon
+
+    # -------------------------------------------------------------------------
+    # Data Contexts
+    # -------------------------------------------------------------------------
+
+    def context_load(self,
+                     caller_dotted: label.Dotted,
+                     data_action:   DataAction,
+                     taxon:         Taxon,
+                     context:       Optional['VerediContext'] = None
+                     ) -> DataGameContext:
+        '''
+        Returns a DataLoadContext or DataSaveContext with the correct taxonomy
+        sub-class for the game rules.
+        '''
+        if data_action == DataAction.LOAD:
+            return DataLoadContext(caller_dotted, taxon)
+        elif data_action == DataAction.SAVE:
+            return DataSaveContext(caller_dotted, taxon)
+
+        msg = (f"Unknown DataType '{data_action}' - cannot create "
+               f"DataLoadContext/DataSaveContext for '{caller_dotted}' with "
+               f"taxon: {taxon}")
+        error = TypeError(msg, data_action, caller_dotted, taxon)
+        raise self._log_exception(error, msg, context=context)
 
     # -------------------------------------------------------------------------
     # Loading...
@@ -297,13 +352,13 @@ class DataManager(EcsManagerWithEvents):
         # Load Game Definition...
         # ---
         definition = self.load_definition(self.dotted(),
-                                          self._game.taxon_definition())
+                                          self._game.game_definition())
 
         # ---
         # Load Game Save...
         # ---
         saved = self.load_saved(self.dotted(),
-                                self._game.taxon_saved())
+                                self._game.game_saved())
 
         # ---
         # Tell our RulesGame object about 'em.
@@ -320,7 +375,8 @@ class DataManager(EcsManagerWithEvents):
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
         context_definition = DataLoadContext(dotted, taxon)
-        definition = self._load(context_definition)
+        data = self._load(context_definition)
+        definition = Definition(DocType.definition.game, data)
         return definition
 
     def load_saved(self, dotted: str, taxon: SavedTaxon) -> Saved:
@@ -333,7 +389,8 @@ class DataManager(EcsManagerWithEvents):
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
         context_saved = DataLoadContext(dotted, taxon)
-        saved = self._load(context_saved)
+        data = self._load(context_saved)
+        saved = Saved(DocType.saved.game, data)
         return saved
 
     # -------------------------------------------------------------------------

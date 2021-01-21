@@ -494,7 +494,10 @@ class Configuration:
         # ---
         # Create the rules.
         # ---
-        rules = self.make(context, self._rules)
+        rules = self.create_registered(
+            # '<rules-dotted>.game' is our full dotted string.
+            label.normalize(self._rules, 'game'),
+            context)
         return rules
 
     # -------------------------------------------------------------------------

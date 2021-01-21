@@ -8,10 +8,112 @@ Taxonomic ranking for identifying things to be loaded by a repository.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict
+
+
+import enum
 
 
 from veredi.base import label
+
+
+# -----------------------------------------------------------------------------
+# Named Ranks
+# -----------------------------------------------------------------------------
+
+class Rank:
+    '''
+    Namespace for named Rank enums for Taxons.
+    '''
+
+    # -------------------------------------------------------------------------
+    # Named Ranks
+    # -------------------------------------------------------------------------
+
+    @enum.unique
+    class Domain(enum.Enum):
+        '''
+        The most general rank of a taxon - what data is it.
+        '''
+        # ------------------------------
+        # Enum Members
+        # ------------------------------
+
+        INVALID = None
+        '''An invalid domain.'''
+
+        GAME = 'game'
+        '''Game data like saved characters, monsters, items, etc.'''
+
+        DEFINITIONS = 'definitions'
+        '''System/rules definitions like skills, etc.'''
+
+        # ------------------------------
+        # Python Functions
+        # ------------------------------
+
+        def __str__(self) -> str:
+            '''
+            Python 'to string' function.
+            '''
+            return self.value
+
+        def __repr__(self) -> str:
+            '''
+            Python 'to repr' function.
+            '''
+            return self.__class__.__name__ + '.' + self.name
+
+    @enum.unique
+    class Kingdom(enum.Enum):
+        '''
+        The second-most general rank of a taxon - game id lives here.
+        '''
+        # ------------------------------
+        # Enum Members
+        # ------------------------------
+
+        INVALID = None
+        '''An invalid knigdom.'''
+
+        CAMPAIGN = enum.auto()
+        '''
+        Game-instance-specific data like saved characters, monsters, items,
+        etc.
+        '''
+
+        # ------------------------------
+        # Python Functions
+        # ------------------------------
+
+        def __str__(self) -> str:
+            '''
+            Python 'to string' function.
+            '''
+            return self.__class__.__name__ + '.' + self.name
+
+        def __repr__(self) -> str:
+            '''
+            Python 'to repr' function.
+            '''
+            return self.__class__.__name__ + '.' + self.name
+
+    # -------------------------------------------------------------------------
+    # Helper Functions
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def replace(klass: 'Rank', rank: Any) -> Any:
+        '''
+        If `rank` is a Rank member enum, and we know how to do the
+        substitution, this will return the substitution.
+
+        Otherwise it returns `rank`.
+        '''
+        if isinstance(rank, klass.Domain):
+            return rank.value
+
+        return rank
 
 
 # -----------------------------------------------------------------------------
@@ -56,6 +158,20 @@ class Taxon:
         '''
         return self._taxon
 
+    def resolve(self, replacements: Dict[Any, Any]) -> List[Any]:
+        '''
+        Returns a list of taxon ranks resolved based on `replacements`.
+        Any ranks not found in `replacements` are returns as-is.
+        '''
+        resolved = []
+        for rank in self._taxon:
+            # Try provided dict first, then any default replacements.
+            replace_with = replacements.get(rank, None)
+            if not replace_with:
+                replace_with = Rank.replace(rank)
+            resolved.append(replace_with)
+        return resolved
+
     # -------------------------------------------------------------------------
     # Python Functions
     # -------------------------------------------------------------------------
@@ -74,16 +190,16 @@ class Taxon:
         Python 'to string' function.
         '''
         # Build a string based on whatever taxonomic ranks we have...
-        rank = '->'.join(self._taxon)
-        return f"{self.__class__.__name__}[{rank}]"
+        ranks = '->'.join([str(rank) for rank in self._taxon])
+        return f"{self.__class__.__name__}[{ranks}]"
 
     def __repr__(self) -> str:
         '''
         Python 'to repr' function.
         '''
         # Build a string based on whatever taxonomic ranks we have...
-        rank = ', '.join(self._taxon)
-        return f"{self.__class__.__name__}({rank})"
+        ranks = ', '.join([str(rank) for rank in self._taxon])
+        return f"{self.__class__.__name__}({ranks})"
 
 
 # -----------------------------------------------------------------------------
@@ -99,7 +215,16 @@ class LabelTaxon(Taxon):
         '''
         Initialize the LabelTaxon with the provided dotted label.
         '''
-        super().__init__(label.split(dotted))
+        super().__init__(Rank.Domain.DEFINITIONS,
+                         *label.split(dotted))
+
+    def __str__(self) -> str:
+        '''
+        Python 'to string' function.
+        '''
+        # Build a string based on whatever taxonomic ranks we have...
+        dotted = label.join(*[str(rank) for rank in self._taxon])
+        return f"{self.__class__.__name__}['{dotted}']"
 
 
 # -----------------------------------------------------------------------------
@@ -133,80 +258,8 @@ class SavedTaxon(Taxon):
         Fill our grouping vars so that the least specific are left
         unset/unchanged if not enough args supplied.
         '''
-        super().__init__(*ranks)
-
-    # -------------------------------------------------------------------------
-    # Properties/Getters
-    # -------------------------------------------------------------------------
-
-    def _get(self, negative_index) -> Optional[Any]:
-        '''
-        Get a taxonomic rank by indexing from the /end/ of the list.
-
-        Returns None if list is too short.
-        '''
-        return (self._taxon[negative_index]
-                if negative_index >= -len(self._taxon) else
-                None)
-
-    @property
-    def domain(self) -> Any:
-        '''
-        The first, general grouping for identifying the thing we want to load.
-        '''
-        return self._get(-8)
-
-    @property
-    def kingdom(self) -> Any:
-        '''
-        The second grouping for identifying the thing we want to
-        load.
-        '''
-        return self._get(-7)
-
-    @property
-    def phylum(self) -> Any:
-        '''
-        The third grouping for identifying the thing we want to
-        load.
-        '''
-        return self._get(-6)
-
-    @property
-    def klass(self) -> Any:
-        '''
-        The forth/middle-most grouping for identifying the thing we want to
-        load.
-        '''
-        return self._get(-5)
-
-    @property
-    def order(self) -> Any:
-        '''
-        The fifth grouping for identifying the thing we want to load.
-        '''
-        return self._get(-4)
-
-    @property
-    def family(self) -> Any:
-        '''
-        The sixth grouping for identifying the thing we want to load.
-        '''
-        return self._get(-3)
-
-    @property
-    def genus(self) -> Any:
-        '''
-        The seventh grouping for identifying the thing we want to load.
-        '''
-        return self._get(-2)
-
-    @property
-    def species(self) -> Any:
-        '''
-        The eight/last grouping for identifying the thing we want to load.
-        '''
-        return self._get(-1)
+        super().__init__(Rank.Domain.GAME,
+                         *ranks)
 
     # -------------------------------------------------------------------------
     # Python Functions
@@ -217,40 +270,13 @@ class SavedTaxon(Taxon):
         Python 'to string' function.
         '''
         # Build a string based on whatever taxonomic ranks we have...
-        rank = '->'.join(self._taxon)
+        rank = '->'.join([str(rank) for rank in self._taxon])
         return f"{self.__class__.__name__}[{rank}]"
 
     def __repr__(self) -> str:
         '''
         Python 'to repr' function.
         '''
-        # Build it up with explicitly named params.
-        ranks = []
-        name = self.domain
-        if name:
-            ranks.append('domain=' + name)
-        name = self.kingdom
-        if name:
-            ranks.append('kingdom=' + name)
-        name = self.phylum
-        if name:
-            ranks.append('phylum=' + name)
-        name = self.klass
-        if name:
-            ranks.append('klass=' + name)
-        name = self.order
-        if name:
-            ranks.append('order=' + name)
-        name = self.family
-        if name:
-            ranks.append('family=' + name)
-        name = self.genus
-        if name:
-            ranks.append('genus=' + name)
-        name = self.species
-        if name:
-            ranks.append('species=' + name)
-
-        # Combine and return our represetation.
-        rank = ', '.join(ranks)
-        return f"{self.__class__.__name__}({rank})"
+        # Build a string based on whatever taxonomic ranks we have...
+        rank = ', '.join([str(rank) for rank in self._taxon])
+        return f"{self.__class__.__name__}(*{rank})"

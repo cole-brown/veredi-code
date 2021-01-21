@@ -80,11 +80,16 @@ def registries(configuration: Configuration) -> None:
                  log_success=log.SuccessType.IGNORE)
 
     # Import some packages so they can register with their registries.
-    _import('veredi.math.d20.parser', log_dotted)
     _import('veredi.data.codec.encodable', log_dotted)
     # Does that work? Or must I do this?
     # ...Or put it in its own file, which I probably should do anyways maybe?
     # _import('veredi.data.codec.encodable', log_dotted)  # EncodableRegistry
+
+    # Let Rules register stuff.
+    _import('veredi.rules', log_dotted)
+
+    # TODO: Move the specifics to math's __init__?
+    _import('veredi.math.d20.parser', log_dotted)
 
     # ---
     # Done.

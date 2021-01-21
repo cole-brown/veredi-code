@@ -12,6 +12,7 @@ from typing import (TYPE_CHECKING,
                     Optional, Type, Any, Union, Tuple)
 from veredi.base.null import Null, Nullable
 if TYPE_CHECKING:
+    from veredi.base.context   import VerediContext
     from veredi.config.context import ConfigContext
 
 from abc import ABC, abstractmethod
@@ -23,7 +24,7 @@ from veredi.base                  import label
 from veredi.debug.const           import DebugFlag
 
 from veredi.data                  import background
-from veredi.data.repository.taxon import LabelTaxon, SavedTaxon
+from veredi.data.repository.taxon import Taxon, LabelTaxon, SavedTaxon
 from veredi.data.records          import (DataType,
                                           DocType,
                                           Definition,
@@ -60,8 +61,7 @@ class RulesGame(LogMixin, ABC):
         '''
         Initializes the Game Rules from config/context/repo data.
         '''
-        super.__init__()
-
+        self._define_vars()
         self._configure(context)
 
     def _configure(self,
@@ -83,8 +83,9 @@ class RulesGame(LogMixin, ABC):
                 self.__class__.__name__)
 
         # ---
-        # TODO: anything else to configure on init?
+        # LogMixin Set-Up; do ASAP for logging.
         # ---
+        self._log_config(self.dotted())
 
     def loaded(self, definition: Definition, saved: Saved) -> None:
         '''
@@ -125,18 +126,72 @@ class RulesGame(LogMixin, ABC):
     # Loading...
     # -------------------------------------------------------------------------
 
-    def taxon_definition(self) -> 'LabelTaxon':
+    def taxon(self,
+              data_type: DataType,
+              *taxonomy: Any,
+              context:   Optional['VerediContext'] = None) -> Taxon:
+        '''
+        Create and return a Taxon of the correct sub-class for the `data_type`
+        and the game rules.
+
+        `context` only (currently [2021-01-21]) used for error log.
+
+        E.g. DataType.SAVED with game rules 'veredi.rules.d20.pf2' returns a
+        PF2SavedTaxon.
+        '''
+        if data_type == DataType.SAVED:
+            return self._taxon_saved(*taxonomy, context=context)
+        elif data_type == DataType.DEFINITION:
+            return self._taxon_definition(*taxonomy, context=context)
+
+        msg = (f"Unknown DataType '{data_type}' - cannot create "
+               f"Taxon for: {taxonomy}")
+        error = TypeError(msg, data_type, taxonomy)
+        raise self._log_exception(error, msg, context=context)
+
+    @abstractmethod
+    def _taxon_saved(self,
+                     *taxonomy: Any,
+                     context:  Optional['VerediContext'] = None) -> Taxon:
+        '''
+        Create and return a SavedTaxon of the correct sub-class for the
+        game rules.
+
+        `context` only (currently [2021-01-21]) used for error log.
+
+        E.g. with game rules 'veredi.rules.d20.pf2', should return a
+        PF2SavedTaxon.
+        '''
+        raise NotImplementedError(f"{self.__class__.__name__}._taxon_saved() "
+                                  "is not implemented in base class. "
+                                  "Subclasses should defined it themselves.")
+
+    def _taxon_definition(self,
+                          *taxonomy: Any,
+                          context:  Optional['VerediContext'] = None) -> Taxon:
+        '''
+        Create and return a LabelTaxon of the correct sub-class for the
+        game rules.
+
+        `context` only (currently [2021-01-21]) used for error log.
+
+        Currently [2021-01-21] only one kind of taxon for definitions, so
+        always returns a LabelTaxon.
+        '''
+        return LabelTaxon(*taxonomy)
+
+    def game_definition(self) -> LabelTaxon:
         '''
         Create and return a LabelTaxon for the game definition data.
         '''
         return LabelTaxon(self.dotted())
 
     @abstractmethod
-    def taxon_saved(self) -> 'SavedTaxon':
+    def game_saved(self) -> SavedTaxon:
         '''
         Create and return a SavedTaxon for the game saved data.
         '''
-        raise NotImplementedError(f"{klass.__name__}.taxon_saved() "
+        raise NotImplementedError(f"{self.__class__.__name__}.taxon_saved() "
                                   "is not implemented in base class. "
                                   "Subclasses should defined it themselves.")
 

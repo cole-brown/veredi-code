@@ -55,7 +55,7 @@ class Test_FileTreeRepo(ZestBase):
         Enum for context_load().
         '''
 
-        PLAYER = ['players', 'u/jeff', 'Sir Jeffsmith']
+        PLAYER  = ['players', 'u/jeff', 'Sir Jeffsmith']
         MONSTER = ['monsters', 'dragon', 'aluminum dragon']
         NPC     = ['npcs', 'Townville', 'Sword Merchant']
         ITEM    = ['items', 'weapon', 'Sword, Ok']

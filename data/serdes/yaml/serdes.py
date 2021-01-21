@@ -10,7 +10,7 @@ Aka YAML Serdes.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, TextIO, Iterable, Mapping)
+                    Optional, Union, Any, TextIO, Mapping)
 from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
@@ -118,7 +118,7 @@ class YamlSerdes(BaseSerdes):
                 data={
                     'data': data,
                 })
-            raise log.exception(error, msg, context=context) from error
+            raise log.exception(error, msg, context=context)
 
         # TODO: Here is where we'd check metadata for versions and stuff?
 
@@ -156,7 +156,7 @@ class YamlSerdes(BaseSerdes):
                 data={
                     'data': data,
                 })
-            raise log.exception(error, msg, context=context) from error
+            raise log.exception(error, msg, context=context)
 
         # TODO: Here is where we'd check metadata for versions and stuff?
 
@@ -207,7 +207,7 @@ class YamlSerdes(BaseSerdes):
             # TODO [2020-07-04]: may need to evaluate this in some way to get
             # it past its lazy loading... I want to catch any yaml exceptions
             # here and not let them infect unrelated code.
-        except yaml.YAMLError as error:
+        except yaml.YAMLError as yaml_error:
             data = None
             msg = 'YAML failed while reading the data.'
             error = exceptions.ReadError(
@@ -215,7 +215,7 @@ class YamlSerdes(BaseSerdes):
                 context=context,
                 data={
                     'data': stream,
-                    'data_stream.closed': (stream.closed()
+                    'data_stream.closed': (stream.closed
                                            if stream else
                                            None),
                     'data_stream.readable': (stream.readable()
@@ -225,7 +225,7 @@ class YamlSerdes(BaseSerdes):
                                         if stream else
                                         None),
                 })
-            raise log.exception(error, msg, context=context) from error
+            raise log.exception(error, msg, context=context) from yaml_error
         return data
 
     def _read_all(self,
@@ -251,7 +251,7 @@ class YamlSerdes(BaseSerdes):
         try:
             data = yaml.safe_load_all(stream)
             data = self._finish_read(data)
-        except yaml.YAMLError as error:
+        except yaml.YAMLError as yaml_error:
             data = None
             msg = 'YAML failed while reading all the data.'
             error = exceptions.ReadError(
@@ -259,7 +259,7 @@ class YamlSerdes(BaseSerdes):
                 context=context,
                 data={
                     'data': stream,
-                    'data_stream.closed': (stream.closed()
+                    'data_stream.closed': (stream.closed
                                            if stream else
                                            None),
                     'data_stream.readable': (stream.readable()
@@ -269,7 +269,7 @@ class YamlSerdes(BaseSerdes):
                                         if stream else
                                         None),
                 })
-            raise log.exception(error, msg, context=context) from error
+            raise log.exception(error, msg, context=context) from yaml_error
 
         return data
 
@@ -337,7 +337,7 @@ class YamlSerdes(BaseSerdes):
                                       })
         raise log.exception(error,
                             msg,  # + f" data: {data}",
-                            context=context) from error
+                            context=context)
 
     def serialize(self,
                   data: SerializeTypes,
@@ -361,7 +361,7 @@ class YamlSerdes(BaseSerdes):
                                           data={
                                               'data': data,
                                           })
-            raise log.exception(error, msg, context=context) from error
+            raise log.exception(error, msg, context=context)
         return output
 
     def serialize_all(self,
@@ -386,7 +386,7 @@ class YamlSerdes(BaseSerdes):
                                           data={
                                               'data': data,
                                           })
-            raise log.exception(error, msg, context=context) from error
+            raise log.exception(error, msg, context=context)
 
         # TODO: Here is where we'd check for sanity and stuff?
 
@@ -418,7 +418,7 @@ class YamlSerdes(BaseSerdes):
             # TODO [2020-07-04]: may need to evaluate this in some way to get
             # it past its lazy writeing... I want to catch any yaml exceptions
             # here and not let them infect unrelated code.
-        except yaml.YAMLError as error:
+        except yaml.YAMLError as yaml_error:
             serialized = None
             msg = 'YAML failed while writing the data.'
             error = exceptions.WriteError(msg,
@@ -426,7 +426,7 @@ class YamlSerdes(BaseSerdes):
                                           data={
                                               'data': data,
                                           })
-            raise log.exception(error, msg, context=context) from error
+            raise log.exception(error, msg, context=context) from yaml_error
 
         return serialized
 
@@ -454,7 +454,7 @@ class YamlSerdes(BaseSerdes):
             yaml.safe_dump_all(data,
                                default_flow_style=None,
                                stream=serialized)
-        except yaml.YAMLError as error:
+        except yaml.YAMLError as yaml_error:
             serialized = None
             msg = 'YAML failed while writing all the data.'
             error = exceptions.WriteError(msg,
@@ -462,6 +462,6 @@ class YamlSerdes(BaseSerdes):
                                           data={
                                               'data': data,
                                           })
-            raise log.exception(error, msg, context=context) from error
+            raise log.exception(error, msg, context=context) from yaml_error
 
         return serialized

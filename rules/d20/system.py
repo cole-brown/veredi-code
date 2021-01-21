@@ -89,7 +89,7 @@ class D20RulesSystem(System):
         # Ask config for our definition to be deserialized and given to us
         # right now.
         self._rule_defs = Definition(
-            DocType.system.definition,
+            DocType.definition.system,
             config.definition(self.dotted(), context))
         self._rule_defs.configure(primary_key)
         if not self._rule_defs:

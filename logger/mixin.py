@@ -72,7 +72,7 @@ class LogMixin:
         '''
         Intentially no init. Save it all for _log_config().
         '''
-        self._log_define_vars()
+        pass
 
     def _log_config(self,
                     dotted:              str,
@@ -83,6 +83,7 @@ class LogMixin:
         '''
         Configure / set-up / init / whatever the Lumberjack for LogMixin.
         '''
+        self._log_define_vars()
 
         # ------------------------------
         # Set-Up

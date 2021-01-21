@@ -8,6 +8,10 @@ Tests for the DataManager class.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional
+
+
+import enum
 from io import StringIO
 
 
@@ -17,14 +21,22 @@ from veredi.debug.const                    import DebugFlag
 from veredi.base.context                   import UnitTestContext
 from veredi.logger                         import log
 
-from veredi.data.context                   import (DataLoadContext,
+from veredi.data.context                   import (DataAction,
+                                                   DataLoadContext)
                                                    # DataSaveContext,
-                                                   DataGameContext)
+                                                   # DataGameContext)
+from veredi.data.records                   import (DataType,
+                                                   # DocType,
+                                                   Definition,
+                                                   Saved)
 from veredi.data.exceptions                import LoadError
 
 from ..ecs.base.identity                   import ComponentId
 from .component                            import DataComponent
+from veredi.rules.d20.pf2.game             import PF2Rank
 from veredi.rules.d20.pf2.health.component import HealthComponent
+
+from veredi.data.repository.file           import pathlib_cast
 
 
 # ---
@@ -146,9 +158,24 @@ class BaseTest_DataManager(ZestEcs):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
-    # ------------------------------
-    # Set-Up & Tear-Down
-    # ------------------------------
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
+
+    @enum.unique
+    class TestLoad(enum.Enum):
+        '''
+        Enum for context_load().
+        '''
+
+        PLAYER  = [PF2Rank.Phylum.PLAYER,  ['u/jeff', 'Sir Jeffsmith']]
+        MONSTER = [PF2Rank.Phylum.MONSTER, ['dragon', 'aluminum dragon']]
+        NPC     = [PF2Rank.Phylum.NPC,     ['Townville', 'Sword Merchant']]
+        ITEM    = [PF2Rank.Phylum.ITEM,    ['weapon', 'Sword, Ok']]
+
+    # -------------------------------------------------------------------------
+    # Set-Up
+    # -------------------------------------------------------------------------
 
     def set_up(self):
         super().set_up()
@@ -167,59 +194,50 @@ class BaseTest_DataManager(ZestEcs):
                                          debug_flags=self.debug_flags,
                                          require_engine=False)
 
-    def tear_down(self):
-        super().tear_down()
-        self.path   = None
-
     def set_all_events_external(self, all_events_external: bool) -> None:
         self._all_events_external = all_events_external
         self.manager.data._ut_all_events_external = self._all_events_external
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
+    # Tear-Down
+    # -------------------------------------------------------------------------
+
+    def tear_down(self):
+        super().tear_down()
+        self.path   = None
+
+    # -------------------------------------------------------------------------
     # Helpers
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
-    def context_load(self, type):
-        ctx = DataLoadContext('unit-testing',
-                              type,
-                              'test-campaign')
-        path = self.path / 'game' / 'test-campaign'
+    def context_load(
+            self,
+            load: Optional['BaseTest_DataManager.TestLoad'] = None
+    ) -> DataLoadContext:
+        '''
+        Create a DataLoadContext given `taxonomy` OR `by_enum`.
+        '''
+        # ------------------------------
+        # Get values from `load` enum.
+        # ------------------------------
+        phylum = load.value[0]
+        taxonomy = load.value[1]
 
-        if type == DataGameContext.DataType.PLAYER:
-            ctx.sub['user'] = 'u/jeff'
-            ctx.sub['player'] = 'Sir Jeffsmith'
-            # hand-craft the expected escaped/safed path
-            path = path / 'players' / 'u_jeff' / 'sir_jeffsmith.yaml'
+        # ------------------------------
+        # Create the context.
+        # ------------------------------
+        context = None
+        with log.LoggingManager.on_or_off(self.debugging):
+            taxon = self.manager.data.taxon(DataType.SAVED, phylum, *taxonomy)
+            context = self.manager.data.context_load(self.dotted(__file__),
+                                                     DataAction.LOAD,
+                                                     taxon)
 
-        elif type == DataGameContext.DataType.MONSTER:
-            ctx.sub['family'] = 'dragon'
-            ctx.sub['monster'] = 'aluminum dragon'
-            # hand-craft the expected escaped/safed path
-            path = path / 'monsters' / 'dragon' / 'aluminum_dragon.yaml'
+        return context
 
-        elif type == DataGameContext.DataType.NPC:
-            ctx.sub['family'] = 'Townville'
-            ctx.sub['npc'] = 'Sword Merchant'
-            # hand-craft the expected escaped/safed path
-            path = path / 'npcs' / 'townville' / 'sword_merchant.yaml'
-
-        elif type == DataGameContext.DataType.ITEM:
-            ctx.sub['category'] = 'weapon'
-            ctx.sub['item'] = 'Sword, Ok'
-            # hand-craft the expected escaped/safed path
-            path = path / 'items' / 'weapon' / 'sword__ok.yaml'
-
-        else:
-            raise LoadError(
-                f"No DataGameContext.DataType to ID conversion for: {type}",
-                None,
-                ctx)
-
-        return ctx, path
-
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def _sub_data_loaded(self) -> None:
         '''
@@ -242,22 +260,33 @@ class Test_DataManager_Repo(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def sub_events(self):
         self.manager.event.subscribe(_LoadedEvent,
                                      self._eventsub_generic_append)
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Tests
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def test_init(self):
         self.assertTrue(self.manager.event)
-        self.assertTrue(self.manager.data)
-        self.assertTrue(self.manager.data._repository)
+
+        # ---
+        # DataManager Asserts
+        # ---
+        data = self.manager.data
+        self.assertTrue(data)
+        self.assertTrue(data._repository)
+
+        self.assertTrue(data._game)
+        self.assertTrue(data._game.definition)
+        self.assertIsInstance(data._game.definition, Definition)
+        self.assertTrue(data._game.saved)
+        self.assertIsInstance(data._game.saved, Saved)
 
     def test_subscribe(self):
         self.assertFalse(self.manager.event._subscriptions)
@@ -268,20 +297,33 @@ class Test_DataManager_Repo(BaseTest_DataManager):
         self.set_all_events_external(True)
         self.set_up_events(clear_self=True, clear_manager=True)
 
-        load_ctx, load_path = self.context_load(
-            DataGameContext.DataType.PLAYER)
-        load_ctx.sub['user'] = 'u/jeff'
-        load_ctx.sub['player'] = 'Sir Jeffsmith'
-
+        # Create our load request.
+        load_ctx = self.context_load(self.TestLoad.PLAYER)
+        # Any old id and type...
         event = DataLoadRequest(
             42,
-            load_ctx.type,
+            43,
             load_ctx)
         self.assertFalse(self.events)
+
+        # Shouldn't have repo context yet - haven't given it to repo yet.
+        repo_ctx = load_ctx.repo_data
+        self.assertFalse(repo_ctx)
+
+        # Trigger the load...
         self.trigger_events(event)
 
         self.assertEqual(len(self.events), 1)
         self.assertIsInstance(self.events[0], _LoadedEvent)
+
+        # And now the repo context should be there.
+        repo_ctx = load_ctx.repo_data
+        self.assertTrue(repo_ctx)
+        self.assertTrue(repo_ctx['meta'])
+        self.assertTrue(repo_ctx['path'])
+        load_path = pathlib_cast(repo_ctx['path'])
+        self.assertTrue(load_path)
+        self.assertTrue(load_path.exists())
 
         # read file directly, assert contents are same.
         with load_path.open(mode='r') as file_stream:
@@ -304,17 +346,17 @@ class BaseTest_DataManager_Serdes(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def sub_events(self):
         self.manager.event.subscribe(_DeserializedEvent,
                                      self._eventsub_generic_append)
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Tests
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def test_init(self):
         self.assertTrue(self.manager.data)
@@ -389,17 +431,17 @@ class Test_DataManager_ToGame(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def sub_events(self):
         self.manager.event.subscribe(DataLoadedEvent,
                                      self._eventsub_generic_append)
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Tests
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def test_init(self):
         self.assertTrue(self.manager.event)
@@ -457,17 +499,17 @@ class Test_DataManager_Actual(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Events
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def sub_events(self):
         self.manager.event.subscribe(DataLoadedEvent,
                                      self._eventsub_generic_append)
 
-    # ------------------------------
+    # -------------------------------------------------------------------------
     # Tests
-    # ------------------------------
+    # -------------------------------------------------------------------------
 
     def test_init(self):
         self.assertTrue(self.manager.event)
@@ -477,14 +519,14 @@ class Test_DataManager_Actual(BaseTest_DataManager):
         self.set_up_events(clear_self=True, clear_manager=True)
 
         # Make a DataLoadRequest for repo to load something.
-        load_ctx, load_path = self.context_load(
-            DataGameContext.DataType.PLAYER)
-        load_ctx.sub['user'] = 'u/jeff'
-        load_ctx.sub['player'] = 'Sir Jeffsmith'
+        load_ctx = self.context_load(self.TestLoad.PLAYER)
+        # load_ctx.sub['user'] = 'u/jeff'
+        # load_ctx.sub['player'] = 'Sir Jeffsmith'
 
+        # Any old id and type...
         event = DataLoadRequest(
             42,
-            load_ctx.type,
+            43,
             load_ctx)
         self.assertFalse(self.events)
         # self._debug_on(DebugFlag.EVENTS,
@@ -529,7 +571,7 @@ class Test_DataManager_Actual(BaseTest_DataManager):
 # -----------------------------------------------------------------------------
 
 # Can't just run file from here... Do:
-#   doc-veredi python -m veredi.game.data.zest_manager
+#   doc-veredi run game/data/zest_manager.py
 
 if __name__ == '__main__':
     import unittest
