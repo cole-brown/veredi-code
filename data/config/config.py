@@ -26,7 +26,7 @@ from veredi.base.const      import VerediHealth
 from veredi.rules.game      import RulesGame
 
 from ..                     import background
-from ..                     import exceptions
+from ..exceptions           import ConfigError, LoadError
 from .                      import registry
 from .hierarchy             import Document, Hierarchy
 from .context               import ConfigContext
@@ -129,14 +129,26 @@ class Configuration:
 
         Raises LoadError and ConfigError
         '''
+        log.start_up(self._DOTTED_NAME,
+                     "Creating Configuration...")
         self._define_vars()
 
         self._rules = label.normalize(rules)
         self._id = game_id
+        log.start_up(self._DOTTED_NAME,
+                     "Creating Configuration for: "
+                     f"rules: '{self._rules}', game-id: '{self._id}'...")
 
         self._path = config_path or default_path()
+        log.start_up(self._DOTTED_NAME,
+                     "Configuration path (using {}): {}",
+                     ('provided' if config_path else 'default'),
+                     self._path)
 
         try:
+            log.start_up(self._DOTTED_NAME,
+                         "Setting Configuration into background data...")
+
             # Setup our context, import repo & serdes's.
             # Also includes a handy back-link to this Configuration.
             background.config.init(self._path,
@@ -148,6 +160,9 @@ class Configuration:
             if not self._repo:
                 from ..repository.file import FileBareRepository
                 self._repo = FileBareRepository(Null())
+            log.start_up(self._DOTTED_NAME,
+                         "  Created config's repo: '{}'",
+                         self._repo.dotted())
 
             # TODO: Always get this from config file.
             # Avoid a circular import
@@ -155,16 +170,188 @@ class Configuration:
             if not self._serdes:
                 from ..serdes.yaml import serdes
                 self._serdes = serdes.YamlSerdes(Null())
+                log.start_up(self._DOTTED_NAME,
+                             "  Created config's serdes: '{}'",
+                             self._serdes.dotted())
 
             self._set_background()
+            log.start_up(self._DOTTED_NAME,
+                         "Configuration set into background data.")
 
         except Exception as err:
-            raise log.exception(exceptions.ConfigError,
+            log.start_up(self._DOTTED_NAME,
+                         "Configuration failed to initialize... Erroring out.",
+                         log_success=False)
+            raise log.exception(ConfigError,
                                 "Found an exception when creating config."
                                 ) from err
 
+        log.start_up(self._DOTTED_NAME,
+                     "Configuration final load, set-up...")
         self._load()
         self._set_up()
+
+        log.start_up(self._DOTTED_NAME,
+                     "Done initializing Configuration.",
+                     log_success=True)
+
+    # -------------------------------------------------------------------------
+    # Load Config Stuff
+    # -------------------------------------------------------------------------
+
+    def _load(self) -> VerediHealth:
+        '''
+        Load our configuration data from its file.
+
+        Raises LoadError
+        '''
+        log_groups = [log.Group.START_UP, log.Group.DATA_PROCESSING]
+        log.group_multi(log_groups,
+                        self._DOTTED_NAME,
+                        "Configuration load...")
+
+        # Spawn a context from what we know, and ask the config repo to load
+        # something based on that.
+        ctx = DataBareContext(self._DOTTED_NAME,
+                              ConfigContext.KEY,
+                              self._path,
+                              DataAction.LOAD)
+        log.group_multi(log_groups,
+                        self._DOTTED_NAME,
+                        "Configuration loading from repo...")
+        with self._repo.load(ctx) as stream:
+            # Decode w/ serdes.
+            # Can raise an error - we'll let it.
+            try:
+                log.group_multi(log_groups,
+                                self._DOTTED_NAME,
+                                "Configuration deserializing with serdes...")
+                log.debug("Config Load Context: {}, "
+                          "Confgig Repo: {}, "
+                          "Confgig Serdes: {}",
+                          ctx, self._repo, self._serdes)
+                for each in self._serdes.deserialize_all(stream, ctx):
+                    log.debug("Config Loading Doc: {}", each)
+                    self._load_doc(each)
+
+            except LoadError as error:
+                log.group_multi(log_groups,
+                                self._DOTTED_NAME,
+                                "Configuration load/deserialization failed "
+                                "with a LoadError. Erroring out.",
+                                log_success=False)
+                # Log exception and let bubble up as-is.
+                raise log.exception(
+                    error,
+                    "Configuration init load/deserialization failed "
+                    "with a LoadError:  type: {}, str: {}",
+                    type(error), str(error))
+
+            except Exception as error:
+                log.group_multi(log_groups,
+                                self._DOTTED_NAME,
+                                "Configuration load/deserialization failed "
+                                "with an error of type {}. Erroring out.",
+                                type(error),
+                                log_success=False)
+                # Complain that we found an exception we don't handle.
+                # ...then let it bubble up as-is.
+                raise log.exception(
+                    LoadError,
+                    "Unhandled exception! type: {}, str: {}",
+                    type(error), str(error)) from error
+
+        return VerediHealth.HEALTHY
+
+    def _load_doc(self, document: 'DeserializeTypes') -> None:
+        '''
+        Load each document from our config file int our config data.
+
+        Raises LoadError
+        '''
+        log_groups = [log.Group.START_UP, log.Group.DATA_PROCESSING]
+        log.group_multi(log_groups,
+                        self._DOTTED_NAME,
+                        "Configuration loading document...")
+
+        if isinstance(document, list):
+            log.group_multi(log_groups,
+                            self._DOTTED_NAME,
+                            "Configuration loaded a list instead of a dict?! "
+                            "Erroring out.",
+                            log_success=False)
+            raise log.exception(
+                LoadError,
+                "TODO: How do we deal with list document? {}: {}",
+                type(document),
+                str(document))
+
+        elif (isinstance(document, dict)
+              and Hierarchy.VKEY_DOC_TYPE in document):
+            # Save these to our config dict under their doc-type key.
+            doc_type_str = document[Hierarchy.VKEY_DOC_TYPE]
+            doc_type = Document.get(doc_type_str)
+            log.group_multi(log_groups,
+                            self._DOTTED_NAME,
+                            "Configuration loaded doc_type: {}",
+                            doc_type_str)
+            self._config[doc_type] = document
+
+        else:
+            log.group_multi(log_groups,
+                            self._DOTTED_NAME,
+                            "Configuration cannot load unknow document. "
+                            "Erroring out.",
+                            log_success=False)
+            raise log.exception(
+                LoadError,
+                "Unknown document while loading! "
+                "Does it have a '{}' field? "
+                "{}: {}",
+                Hierarchy.VKEY_DOC_TYPE,
+                type(document),
+                str(document))
+
+    def _set_up(self) -> VerediHealth:
+        '''
+        Sanity checks before loading, and any additional set-up required after
+        initialization.
+
+        Raises ConfigError
+        '''
+        # TODO: Move creation of our repo/serdes here?
+
+        log.start_up(self._DOTTED_NAME,
+                     "Configuration set-up...")
+        if not self._path:
+            log.start_up(self._DOTTED_NAME,
+                         "Configuration set-up: No path! Erroring out...",
+                         log_success=False)
+            raise log.exception(
+                ConfigError,
+                "No path for config data after loading!")
+
+        if not self._serdes:
+            log.start_up(self._DOTTED_NAME,
+                         "Configuration set-up: No Serdes! Erroring out...",
+                         log_success=False)
+            raise log.exception(
+                ConfigError,
+                "No serdes for config data after loading!")
+
+        if not self._repo:
+            log.start_up(self._DOTTED_NAME,
+                         "Configuration set-up: No Repository! "
+                         "Erroring out...",
+                         log_success=False)
+            raise log.exception(
+                ConfigError,
+                "No repository for config data after loading!")
+
+        log.start_up(self._DOTTED_NAME,
+                     "Done setting up Configuration.",
+                     log_success=True)
+        return VerediHealth.HEALTHY
 
     # -------------------------------------------------------------------------
     # Context Properties/Methods
@@ -220,11 +407,12 @@ class Configuration:
 
         Context is not required - will be included in errors/exceptions.
 
-        Catches all exceptions and rewraps outside errors in a VerediError.
+        Catches all exceptions and reraises all (non-VerediErrors wrapped as
+        `ConfigError from error`).
         '''
         if not dotted_str:
             raise log.exception(
-                exceptions.ConfigError,
+                ConfigError,
                 "Need a dotted_str in order to get anything from registry. "
                 "dotted_str: {}, args: {}, kwargs: {}, context: {}",
                 dotted_str, args, kwargs, context
@@ -240,7 +428,7 @@ class Configuration:
             raise
         except Exception as error:
             raise log.exception(
-                exceptions.ConfigError,
+                ConfigError,
                 "Configuration could not get '{}'. "
                 "args: {}, kwargs: {}, context: {}",
                 dotted_str, args, kwargs, context
@@ -272,7 +460,7 @@ class Configuration:
             raise
         except Exception as error:
             raise log.exception(
-                exceptions.ConfigError,
+                ConfigError,
                 "Configuration could not create '{}'. "
                 "args: {}, kwargs: {}, context: {}",
                 dotted_str, args, kwargs, context
@@ -327,8 +515,14 @@ class Configuration:
         Returns data found at end keychain.
         Returns None if couldn't find a key in our config data.
         '''
-        return self.get('data',
-                        *keychain)
+        data = self.get('data', *keychain)
+
+        log.data_processing(self._DOTTED_NAME,
+                            'get_data: keychain: {} -> data: {}',
+                            keychain, data,
+                            log_minimum=log.Level.DEBUG)
+
+        return data
 
     def get(self,
             *keychain: str) -> Nullable[Any]:
@@ -339,17 +533,34 @@ class Configuration:
         Returns data found at end keychain.
         Returns None if couldn't find a key in our config data.
         '''
-        return self.get_by_doc(Document.CONFIG,
+        data = self.get_by_doc(Document.CONFIG,
                                *keychain)
+
+        log.data_processing(self._DOTTED_NAME,
+                            'get: doc: {}, keychain: {} -> data: {}',
+                            Document.CONFIG, keychain, data,
+                            log_minimum=log.Level.DEBUG)
+
+        return data
 
     def get_by_doc(self,
                    doc_type:  Document,
                    *keychain: str) -> Nullable[Any]:
 
+        log.data_processing(self._DOTTED_NAME,
+                            'get_by_doc: Getting doc: {}, keychain: {}...',
+                            doc_type, keychain,
+                            log_minimum=log.Level.DEBUG)
+
         hierarchy = Document.hierarchy(doc_type)
         if not hierarchy.valid(*keychain):
+            log.data_processing(self._DOTTED_NAME,
+                                "get_by_doc: invalid document hierarchy for "
+                                "doc: {}, keychain: {}...",
+                                doc_type, keychain,
+                                log_minimum=log.Level.DEBUG)
             raise log.exception(
-                exceptions.ConfigError,
+                ConfigError,
                 "Invalid keychain '{}' for {} document type. See its "
                 "Hierarchy class for proper layout.",
                 keychain, doc_type)
@@ -358,110 +569,34 @@ class Configuration:
         doc_data = self._config.get(doc_type, None)
         data = doc_data
         if data is None:
-            log.debug("No doc_type {} in our config data {}.",
-                      doc_type, self._config)
+            log.data_processing(self._DOTTED_NAME,
+                                "get_by_doc: No document type '{}' in "
+                                "our config data: {}",
+                                doc_type, self._config,
+                                log_minimum=log.Level.DEBUG,
+                                log_success=False)
             return Null()
 
         # Now hunt for the keychain they wanted...
         for key in keychain:
             data = data.get(key, None)
             if data is None:
-                log.debug("No data for key {} in keychain {} "
-                          "in our config data {}.",
-                          key, keychain, doc_data)
+                log.data_processing(self._DOTTED_NAME,
+                                    "get_by_doc: No data for key '{}' in "
+                                    "keychain {} in our config "
+                                    "document data: {}",
+                                    key, keychain, doc_data,
+                                    log_minimum=log.Level.DEBUG,
+                                    log_success=False)
                 return Null()
 
+        log.data_processing(self._DOTTED_NAME,
+                            "get_by_doc: Got data for {} in "
+                            "keychain {}. Data: {}",
+                            doc_type, keychain, data,
+                            log_minimum=log.Level.DEBUG,
+                            log_success=True)
         return data
-
-    # TODO: move _set_up() and _load() (and more?) up to init section
-
-    # -------------------------------------------------------------------------
-    # Load Config Stuff
-    # -------------------------------------------------------------------------
-
-    # TODO [2020-05-06]: Change data into stuff we can use.
-    # Classes and suchlike...
-    def _set_up(self) -> VerediHealth:
-        '''Raises ConfigError'''
-
-        if not self._path:
-            raise log.exception(
-                exceptions.ConfigError,
-                "No path for config data after loading!")
-
-        if not self._serdes:
-            raise log.exception(
-                exceptions.ConfigError,
-                "No serdes for config data after loading!")
-
-        if not self._repo:
-            raise log.exception(
-                exceptions.ConfigError,
-                "No repository for config data after loading!")
-
-        return VerediHealth.HEALTHY
-
-    def _load(self) -> VerediHealth:
-        '''
-        Load our context data so we know what the ever to do.
-
-        Raises LoadError
-        '''
-        # Spawn a context from what we know, and ask the config repo to load
-        # something based on that.
-        ctx = DataBareContext(self._DOTTED_NAME,
-                              ConfigContext.KEY,
-                              self._path,
-                              DataAction.LOAD)
-        with self._repo.load(ctx) as stream:
-            # Decode w/ serdes.
-            # Can raise an error - we'll let it.
-            try:
-                log.debug("Config Load Context: {}, "
-                          "Confgig Repo: {}, "
-                          "Confgig Serdes: {}",
-                          ctx, self._repo, self._serdes)
-                for each in self._serdes.deserialize_all(stream, ctx):
-                    log.debug("Config Loading Doc: {}", each)
-                    self._load_doc(each)
-
-            except exceptions.LoadError:
-                # Let this one bubble up as-is.
-                raise
-            except Exception as error:
-                # Complain that we found an exception we don't handle.
-                # ...then let it bubble up as-is.
-                raise log.exception(
-                    VerediError,
-                    "Unhandled exception! type: {}, str: {}",
-                    type(error), str(error)) from error
-
-        return VerediHealth.HEALTHY
-
-    def _load_doc(self, document: 'DeserializeTypes') -> None:
-        if isinstance(document, list):
-            raise log.exception(
-                exceptions.LoadError,
-                "TODO: How do we deal with list document? {}: {}",
-                type(document),
-                str(document))
-
-        elif (isinstance(document, dict)
-              and Hierarchy.VKEY_DOC_TYPE in document):
-            # Save these to our config dict under their doc-type key.
-            doc_type_str = document[Hierarchy.VKEY_DOC_TYPE]
-            doc_type = Document.get(doc_type_str)
-            self._config[doc_type] = document
-
-        else:
-            raise log.exception(
-                exceptions.LoadError,
-                "Unknown document while loading! "
-                "Does it have a '{}' field? "
-                "{}: {}",
-                Hierarchy.VKEY_DOC_TYPE,
-                type(document),
-                str(document))
 
     def rules(self, context: 'VerediContext') -> Nullable[RulesGame]:
         '''
@@ -470,12 +605,25 @@ class Configuration:
 
         Raises a ConfigError if no rules label or game id.
         '''
+        log_groups = [log.Group.START_UP, log.Group.DATA_PROCESSING]
+        log.group_multi(log_groups,
+                        self._DOTTED_NAME,
+                        "rules: Creating game rules object "
+                        "from rules: {}, id: {}",
+                        self._rules, self._id)
+
         # ---
         # Sanity
         # ---
         if not self._rules or not self._id:
+            log.group_multi(log_groups,
+                            self._DOTTED_NAME,
+                            "rules: Failed to create game rules... missing "
+                            "our rules or id: rules {}, id: {}",
+                            self._rules, self._id,
+                            log_success=False)
             raise log.exception(
-                exceptions.ConfigError,
+                ConfigError,
                 "No rules label or id for game; cannot create the "
                 "RulesGame object. rules: {}, id: {}",
                 self._rules, self._id)
@@ -498,6 +646,10 @@ class Configuration:
             # '<rules-dotted>.game' is our full dotted string.
             label.normalize(self._rules, 'game'),
             context)
+        log.group_multi(log_groups,
+                        self._DOTTED_NAME,
+                        "rules: Created game rules.",
+                        log_success=True)
         return rules
 
     # -------------------------------------------------------------------------
