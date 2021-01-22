@@ -42,8 +42,7 @@ def registries(configuration: Configuration) -> None:
     log_dotted = label.join(_DOTTED, 'load')
     log.start_up(log_dotted,
                  "Importing and loading registries, registrars, "
-                 "and registrations...",
-                 log_success=log.SuccessType.IGNORE)
+                 "and registrations...")
 
     # ---
     # Sanity.
@@ -60,8 +59,7 @@ def registries(configuration: Configuration) -> None:
     # Load Registries.
     # ---
     log.start_up(log_dotted,
-                 "Importing Veredi Registries...",
-                 log_success=log.SuccessType.IGNORE)
+                 "Importing Veredi Registries...")
 
     # TODO: load based on what's in configuration?
 
@@ -76,8 +74,7 @@ def registries(configuration: Configuration) -> None:
     # Registration
     # ---
     log.start_up(log_dotted,
-                 "Registering Veredi Classes to their Registries...",
-                 log_success=log.SuccessType.IGNORE)
+                 "Registering Veredi Classes to their Registries...")
 
     # Import some packages so they can register with their registries.
     _import('veredi.data.codec.encodable', log_dotted)
@@ -110,8 +107,7 @@ def _import(module: str, log_dotted: str) -> ModuleType:
     '''
     try:
         log.start_up(log_dotted,
-                     f"Importing {module}...",
-                     log_success=log.SuccessType.IGNORE)
+                     f"Importing {module}...")
         imported = importlib.import_module(module)
         log.start_up(log_dotted,
                      f"Imported {module}: {imported}",

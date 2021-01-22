@@ -59,8 +59,7 @@ def configuration(rules:   label.Label,
     '''
     log_dotted = label.join(_DOTTED, 'configuration')
     log.start_up(log_dotted,
-                 "Creating Veredi Configuration...",
-                 log_success=log.SuccessType.IGNORE)
+                 "Creating Veredi Configuration...")
 
     # ------------------------------
     # Sanity Checks?
@@ -69,8 +68,7 @@ def configuration(rules:   label.Label,
         log_dotted,
         "Checking Inputs...",
         path,
-        _CONFIG_FILE_NAME_GLOBS,
-        log_success=log.SuccessType.IGNORE)
+        _CONFIG_FILE_NAME_GLOBS)
 
     # Normalize rules to a dotted string.
     rules = label.normalize(rules)
@@ -84,8 +82,7 @@ def configuration(rules:   label.Label,
         log_dotted,
         "Finding Config File...",
         path,
-        _CONFIG_FILE_NAME_GLOBS,
-        log_success=log.SuccessType.IGNORE)
+        _CONFIG_FILE_NAME_GLOBS)
     path = _config_path(log_dotted, path)
 
     # ------------------------------
@@ -95,8 +92,7 @@ def configuration(rules:   label.Label,
         log_dotted,
         "Creating Configuration...",
         path,
-        _CONFIG_FILE_NAME_GLOBS,
-        log_success=log.SuccessType.IGNORE)
+        _CONFIG_FILE_NAME_GLOBS)
     config = Configuration(rules, game_id,
                            config_path=path)
 
@@ -125,15 +121,13 @@ def _config_path(log_dotted: label.Dotted,
     if path:
         log.start_up(log_dotted,
                      "Looking for config in provided path: {}",
-                     path,
-                     log_success=log.SuccessType.IGNORE)
+                     path)
 
     else:
         path = pathlib.Path(os.getcwd())
         log.start_up(log_dotted,
                      "Set config path to current working directory: {}",
-                     path,
-                     log_success=log.SuccessType.IGNORE)
+                     path)
 
     # ---
     # Sanity checks for path.
@@ -171,8 +165,7 @@ def _config_path(log_dotted: label.Dotted,
                      "Path is a directory; look for config file "
                      "by glob: {} {}",
                      path,
-                     _CONFIG_FILE_NAME_GLOBS,
-                     log_success=log.SuccessType.IGNORE)
+                     _CONFIG_FILE_NAME_GLOBS)
 
         # Look for files matching the glob. Claim the first one and ignore any
         # others.

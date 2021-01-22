@@ -41,7 +41,16 @@ from . import pretty
 # Constants
 # -----------------------------------------------------------------------------
 
-LogLvlConversion = NewType('', NullNoneOr[Union['Level', int]])
+LogLvlConversion = NewType('LogLvlConversion', NullNoneOr[Union['Level', int]])
+'''
+These input types can be converted to a log.Level.
+'''
+
+
+LoggerInput = NewType('LoggerInput', NullNoneOr[logging.Logger])
+'''
+Optional logger can be: Null, None, or a Python logging.Logger.
+'''
 
 
 _FMT_DATETIME = '%Y-%m-%d %H:%M:%S.{msecs:03d}%z'  # Yeah, this is fun.
@@ -153,20 +162,32 @@ class SuccessType(enum.Enum):
         #  2-5: self.value
         #    6: ']'
         # Or, if value is None, just make a 6 char wide string (no brackets).
-        value = '{:^6s}'.format(
-            self.value
-            if self.value is not None else
-            '')
+        value = ('[{:^4s}]'.format(self.value)
+                 if self.value is not None else
+                 (' ' * 6))
         return value.__format__(format_spec)
 
     def __str__(self) -> str:
         '''
         Returns value string of enum formatted into e.g.:
-          [ OK ]
-          [_F__]
+          '[ OK ]'
+          '[_F__]'
+          '[    ]'
+          '      '
         '''
         return '{:^6s}'.format(self)
 
+
+LogSuccessInput = NewType('LogSuccessInput', Union[SuccessType, bool, None])
+'''
+The 'success' input param for Log Groups logging can be a:
+  - SuccessType enum value
+  - True/False
+    - True  -> SuccessType.SUCCESS
+    - False -> SuccessType.FAILURE
+  - None
+    - None -> Normal log format instead of _FMT_SUCCESS_HUMAN.
+'''
 
 _FMT_SUCCESS_HUMAN = '{success:s}: {message:s}'
 '''Format for combining string'd success and log message.'''
@@ -247,6 +268,18 @@ class Level(enum.IntEnum):
         if null_or_none(lvl):
             return Level.NOTSET
         return Level(lvl)
+
+    def verbose_enough(self, minimum: Union['Level', int, None]) -> bool:
+        '''
+        Returns True if self is a verbose enough level for 'minimum'.
+
+        This could be called "greater than or equal to", except verbosity
+        values go down as verbosity levels go up...
+        '''
+        min_level = Level.to_logging(minimum)
+        # Verbose enough if match or are more verbose.
+        return ((self == min_level)
+                or self.most_verbose(self, min_level) == self)
 
     @staticmethod
     def most_verbose(lvl_a: Union['Level', int, None],
@@ -330,6 +363,9 @@ class Group(enum.Enum):
     SECURITY = 'security'
     '''veredi.security.* logs, and related logs.'''
 
+    DATA_PROCESSING = 'data-processing'
+    '''Logs related to loading, processing, and saving data.'''
+
     # TODO: more groups
 
     # ------------------------------
@@ -344,9 +380,83 @@ class Group(enum.Enum):
 
 
 _GROUP_LEVELS: Dict[Group, Level] = {
-    Group.SECURITY: Level.WARNING,
-    Group.START_UP: Level.DEBUG,
+    Group.SECURITY:        Level.WARNING,
+    Group.START_UP:        Level.DEBUG,
+    Group.DATA_PROCESSING: Level.DEBUG,
 }
+
+
+@enum.unique
+class GroupResolve(enum.Enum):
+    '''
+    For logging using multiple groups.
+
+    Should it log at highest log.Level indicated by groups? Log out to each
+    group in turn? etc.
+    '''
+
+    # ------------------------------
+    # Values
+    # ------------------------------
+
+    HIGHEST = enum.auto()
+    '''
+    Group Log resolves to be the Group and Level of the highest log Level. If
+    there is a tie, the first in the collection is used.
+    '''
+
+    EACH = enum.auto()
+    '''
+    Group Log resolves to be logged to each group provided in the collection in
+    the collection's order.
+    '''
+
+    # ------------------------------
+    # Helpers
+    # ------------------------------
+
+    def resolve(self, groups: Iterable[Group]) -> Iterable[Group]:
+        '''
+        Resolves the input `groups` into an iterable of groups to use to log
+        out to given our GroupResolve value.
+        '''
+        out_groups = []
+
+        # Resolve to just highest level.
+        if self is GroupResolve.HIGHEST:
+            highest_group = None
+            highest_level = None
+            for group in groups:
+                group_level = _GROUP_LEVELS[group]
+                most_verbose = Level.most_verbose(group_level, highest_level)
+                # Just set if this is first time.
+                if not highest_group:
+                    highest_group = group
+                    highest_level = group_level
+
+                # Else set if we have a more verbose group.
+                elif (most_verbose == group_level
+                      and group_level != highest_level):
+                    highest_group = group
+                    highest_level = group_level
+
+                # Else, ignore and continue.
+
+            # And only provide the highest group found.
+            out_groups.append(highest_group)
+
+        # Resolve to all groups? Just give them their thing back.
+        elif self is GroupResolve.EACH:
+            out_groups = groups
+
+        # Resolve to "a programmer must fix this".
+        else:
+            msg = f"Cannot resolve {self} - not implemented currently."
+            error = TypeError(msg, self, groups)
+            # Don't log.exception()... We're in the log module and used by it.
+            raise error
+
+        return out_groups
 
 
 # ------------------------------
@@ -482,7 +592,7 @@ def init(level:        LogLvlConversion            = DEFAULT_LEVEL,
 def init_logger(logger_name: str,
                 level:       LogLvlConversion            = DEFAULT_LEVEL,
                 formatter:   Optional[logging.Formatter] = None
-                ) -> logging.Logger:
+                ) -> PyLogType:
     '''
     Initializes and returns a logger with the supplied name.
     '''
@@ -499,8 +609,8 @@ def init_logger(logger_name: str,
 # -----------------------------------------------------------------------------
 
 def remove_handler(handler:     logging.Handler,
-                   logger:      Optional[logging.Logger] = None,
-                   logger_name: Optional[str]            = None) -> None:
+                   logger:      Optional[PyLogType] = None,
+                   logger_name: Optional[str]       = None) -> None:
     '''
     Look in log.__handlers for `handler`. If it finds a match, removes it from
     log.__handlers.
@@ -519,7 +629,7 @@ def remove_handler(handler:     logging.Handler,
 
 def get_logger(*names:        str,
                min_log_level: LogLvlConversion = None
-               ) -> logging.Logger:
+               ) -> PyLogType:
     '''
     Get a logger by name. Names should be module name, or module and
     class name. ...Or dotted name? Not sure.
@@ -551,8 +661,7 @@ def get_logger(*names:        str,
     return named_logger
 
 
-def _logger(veredi_logger: NullNoneOr[logging.Logger] = None
-            ) -> logging.Logger:
+def _logger(veredi_logger: LoggerInput = None) -> PyLogType:
     '''
     Returns `veredi_logger` if it is Truthy.
     Returns the default veredi logger if not.
@@ -566,15 +675,15 @@ def _logger(veredi_logger: NullNoneOr[logging.Logger] = None
 # Log Output Levels
 # -----------------------------------------------------------------------------
 
-def get_level(veredi_logger: NullNoneOr[logging.Logger] = None) -> Level:
+def get_level(veredi_logger: LoggerInput = None) -> Level:
     '''Returns current log level of logger, translated into Level enum.'''
     this = _logger(veredi_logger)
     level = Level(this.level)
     return level
 
 
-def set_level(level:         LogLvlConversion           = DEFAULT_LEVEL,
-              veredi_logger: NullNoneOr[logging.Logger] = None) -> None:
+def set_level(level:         LogLvlConversion = DEFAULT_LEVEL,
+              veredi_logger: LoggerInput      = None) -> None:
     '''Change logger's log level. Options are:
       - log.CRITICAL
       - log.ERROR
@@ -594,7 +703,7 @@ def set_level(level:         LogLvlConversion           = DEFAULT_LEVEL,
 
 
 def will_output(level:         LogLvlConversion,
-                veredi_logger: NullNoneOr[logging.Logger] = None) -> bool:
+                veredi_logger: LoggerInput = None) -> bool:
     '''
     Returns true if supplied `level` is high enough to output a log.
     '''
@@ -629,8 +738,8 @@ def brace_message(fmt_msg:      str,
                   context:      Optional['VerediContext'] = None,
                   log_fmt_type: Optional[MessageType]     = None,
                   log_group:    Optional[Group]           = None,
-                  log_dotted:   Optional[str]             = None,
-                  log_success:  Optional[SuccessType]     = None,
+                  log_dotted:   Optional[label.Dotted]    = None,
+                  log_success:  LogSuccessInput           = None,
                   log_dry_run:  Optional[bool]            = False,
                   **kwargs:     Mapping[str, Any]) -> str:
     '''
@@ -750,7 +859,7 @@ def pop_log_kwargs(kwargs: Mapping[str, Any]) -> int:
 
 def ultra_mega_debug(msg:           str,
                      *args:         Any,
-                     veredi_logger: NullNoneOr[logging.Logger] = None,
+                     veredi_logger: LoggerInput     = None,
                      context:       'VerediContext' = None,
                      **kwargs:      Any) -> None:
     '''
@@ -798,10 +907,10 @@ def ultra_mega_debug(msg:           str,
 
 def ultra_hyper_debug(msg:           str,
                       *args:         Any,
-                      format_str:    bool                       = True,
-                      add_type:      bool                       = False,
-                      title:         Optional[str]              = None,
-                      veredi_logger: NullNoneOr[logging.Logger] = None,
+                      format_str:    bool            = True,
+                      add_type:      bool            = False,
+                      title:         Optional[str]   = None,
+                      veredi_logger: LoggerInput     = None,
                       context:       'VerediContext' = None,
                       **kwargs:      Any) -> None:
     '''
@@ -885,7 +994,7 @@ def ultra_hyper_debug(msg:           str,
 
 def debug(msg:           str,
           *args:         Any,
-          veredi_logger: NullNoneOr[logging.Logger] = None,
+          veredi_logger: LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -901,7 +1010,7 @@ def debug(msg:           str,
 
 def info(msg:           str,
          *args:         Any,
-         veredi_logger: NullNoneOr[logging.Logger] = None,
+         veredi_logger: LoggerInput     = None,
          context:       'VerediContext' = None,
          **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -917,7 +1026,7 @@ def info(msg:           str,
 
 def warning(msg:           str,
             *args:         Any,
-            veredi_logger: NullNoneOr[logging.Logger] = None,
+            veredi_logger: LoggerInput     = None,
             context:       'VerediContext' = None,
             **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -933,7 +1042,7 @@ def warning(msg:           str,
 
 def error(msg:           str,
           *args:         Any,
-          veredi_logger: NullNoneOr[logging.Logger] = None,
+          veredi_logger: LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -1056,8 +1165,8 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
               msg:           Optional[str],
               *args:         Any,
               context:       Optional['VerediContext'] = None,
-              veredi_logger: NullNoneOr[logging.Logger] = None,
-              error_data:    Optional[Dict[Any, Any]] = None,
+              veredi_logger: LoggerInput               = None,
+              error_data:    Optional[Dict[Any, Any]]  = None,
               **kwargs:      Any) -> None:
     '''
     Log the exception at ERROR level.
@@ -1167,7 +1276,7 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
 
 def critical(msg:           str,
              *args:         Any,
-             veredi_logger: NullNoneOr[logging.Logger] = None,
+             veredi_logger: LoggerInput     = None,
              context:       'VerediContext' = None,
              **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -1184,7 +1293,7 @@ def critical(msg:           str,
 def at_level(level:         'Level',
              msg:           str,
              *args:         Any,
-             veredi_logger: NullNoneOr[logging.Logger] = None,
+             veredi_logger: LoggerInput     = None,
              context:       'VerediContext' = None,
              **kwargs:      Any) -> None:
     kwargs = incr_stack_level(kwargs)
@@ -1217,31 +1326,48 @@ def at_level(level:         'Level',
 # -----------------------------------------------------------------------------
 
 def group(group:         'Group',
-          dotted:        str,
+          dotted:        label.Dotted,
           msg:           str,
           *args:         Any,
-          veredi_logger: NullNoneOr[logging.Logger] = None,
+          veredi_logger: LoggerInput     = None,
           context:       'VerediContext' = None,
-          log_success:   Optional[SuccessType] = None,
-          log_dry_run:   Optional[bool] = False,
+          log_minimum:   Level           = None,
+          log_success:   LogSuccessInput = SuccessType.IGNORE,
+          log_dry_run:   Optional[bool]  = False,
           **kwargs:      Any) -> None:
     '''
-    Log at `group` log.Level, whatever it's set to right now.
+    Log at `group` log.Level, whatever it's set to right now, as long as it's
+    above `log_minimum` or `log_minimum` is None.
 
     If `log_success` is supplied, will become a SuccessType string prepending
     log message. `log_dry_run` will be used to resolve `log_success` into
     actual vs dry-run strings.
+
+    If `log_success` is a bool:
+      - True  -> SuccessType.SUCCESS
+      - False -> SuccessType.FAILURE
     '''
 
     # ------------------------------
     # Get level from group.
     # ------------------------------
     level = _GROUP_LEVELS[group]
+    if (not level.verbose_enough(log_minimum)
+            or not will_output(level, veredi_logger)):
+        # If the group is below the min required by this specific group (or min
+        # required to output at all), do not log it.
+        return
 
     # ------------------------------
     # Prep log output w/ group info.
     # ------------------------------
     log_kwargs = pop_log_kwargs(kwargs)
+
+    # Translate bools of lazy typing into full SuccessTypes.
+    if log_success is True:
+        log_success = SuccessType.SUCCESS
+    elif log_success is False:
+        log_success = SuccessType.FAILURE
 
     # Format, with group options
     output = brace_message(msg,
@@ -1295,13 +1421,52 @@ def set_group_level(group: 'Group',
     _GROUP_LEVELS[group] = level
 
 
-def security(dotted:        str,
+def group_multi(groups:        Iterable['Group'],
+                dotted:        label.Dotted,
+                msg:           str,
+                *args:         Any,
+                group_resolve: Optional[GroupResolve] = GroupResolve.HIGHEST,
+                veredi_logger: LoggerInput            = None,
+                context:       'VerediContext'        = None,
+                log_minimum:   Level                  = None,
+                log_success:   LogSuccessInput        = SuccessType.IGNORE,
+                log_dry_run:   Optional[bool]         = False,
+                **kwargs:      Any) -> None:
+    '''
+    Log at `group` log.Level, whatever it's set to right now.
+
+    If `log_success` is supplied, will become a SuccessType string prepending
+    log message. `log_dry_run` will be used to resolve `log_success` into
+    actual vs dry-run strings.
+
+    If `log_success` is a bool:
+      - True  -> SuccessType.SUCCESS
+      - False -> SuccessType.FAILURE
+    '''
+    # Resolve the groups based on resolution type, then log to whatever
+    # group(s) that is.
+    final_groups = group_resolve.resolve(groups)
+    for log_group in final_groups:
+        group(log_group,
+              dotted,
+              msg,
+              *args,
+              veredi_logger=veredi_logger,
+              context=context,
+              log_minimum=log_minimum,
+              log_success=log_success,
+              log_dry_run=log_dry_run,
+              **kwargs)
+
+
+def security(dotted:        label.Dotted,
              msg:           str,
              *args:         Any,
-             veredi_logger: NullNoneOr[logging.Logger] = None,
-             context:       'VerediContext'            = None,
-             log_success:   Optional[SuccessType]      = None,
-             log_dry_run:   Optional[bool] = False,
+             veredi_logger: LoggerInput     = None,
+             context:       'VerediContext' = None,
+             log_minimum:   Level           = None,
+             log_success:   LogSuccessInput = SuccessType.IGNORE,
+             log_dry_run:   Optional[bool]  = False,
              **kwargs:      Any) -> None:
     '''
     Log at Group.SECURITY log.Level, whatever it's set to right now.
@@ -1309,6 +1474,10 @@ def security(dotted:        str,
     If `log_success` is supplied, will become a SuccessType string prepending
     log message. `log_dry_run` will be used to resolve `log_success` into
     actual vs dry-run strings.
+
+    If `log_success` is a bool:
+      - True  -> SuccessType.SUCCESS
+      - False -> SuccessType.FAILURE
     '''
     kwargs = incr_stack_level(kwargs)
     group(Group.SECURITY,
@@ -1317,18 +1486,20 @@ def security(dotted:        str,
           *args,
           veredi_logger=veredi_logger,
           context=context,
+          log_minimum=log_minimum,
           log_success=log_success,
           log_dry_run=log_dry_run,
           **kwargs)
 
 
-def start_up(dotted:        str,
+def start_up(dotted:        label.Dotted,
              msg:           str,
              *args:         Any,
-             veredi_logger: NullNoneOr[logging.Logger] = None,
-             context:       'VerediContext'            = None,
-             log_success:   Optional[SuccessType]      = None,
-             log_dry_run:   Optional[bool] = False,
+             veredi_logger: LoggerInput     = None,
+             context:       'VerediContext' = None,
+             log_minimum:   Level           = None,
+             log_success:   LogSuccessInput = SuccessType.IGNORE,
+             log_dry_run:   Optional[bool]  = False,
              **kwargs:      Any) -> None:
     '''
     Log at Group.START_UP log.Level, whatever it's set to right now.
@@ -1336,6 +1507,10 @@ def start_up(dotted:        str,
     If `success` is supplied, will become a SuccessType string prepending log
     message. `log_dry_run` will be used to resolve `log_success` into
     actual vs dry-run strings.
+
+    If `log_success` is a bool:
+      - True  -> SuccessType.SUCCESS
+      - False -> SuccessType.FAILURE
     '''
     kwargs = incr_stack_level(kwargs)
     group(Group.START_UP,
@@ -1344,6 +1519,40 @@ def start_up(dotted:        str,
           *args,
           veredi_logger=veredi_logger,
           context=context,
+          log_minimum=log_minimum,
+          log_success=log_success,
+          log_dry_run=log_dry_run,
+          **kwargs)
+
+
+def data_processing(dotted:        label.Dotted,
+                    msg:           str,
+                    *args:         Any,
+                    veredi_logger: LoggerInput     = None,
+                    context:       'VerediContext' = None,
+                    log_minimum:   Level           = None,
+                    log_success:   LogSuccessInput = SuccessType.IGNORE,
+                    log_dry_run:   Optional[bool]  = False,
+                    **kwargs:      Any) -> None:
+    '''
+    Log at Group.DATA_PROCESSING log.Level, whatever it's set to right now.
+
+    If `success` is supplied, will become a SuccessType string prepending log
+    message. `log_dry_run` will be used to resolve `log_success` into
+    actual vs dry-run strings.
+
+    If `log_success` is a bool:
+      - True  -> SuccessType.SUCCESS
+      - False -> SuccessType.FAILURE
+    '''
+    kwargs = incr_stack_level(kwargs)
+    group(Group.DATA_PROCESSING,
+          dotted,
+          msg,
+          *args,
+          veredi_logger=veredi_logger,
+          context=context,
+          log_minimum=log_minimum,
           log_success=log_success,
           log_dry_run=log_dry_run,
           **kwargs)

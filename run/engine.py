@@ -62,10 +62,8 @@ def managers(configuration:     Configuration,
     provided.
     '''
     log_dotted = label.join(_DOTTED, 'managers')
-    log_success = log.SuccessType.IGNORE
     log.start_up(log_dotted,
-                 "Creating Meeting of EcsManagers...",
-                 log_success=log_success)
+                 "Creating Meeting of EcsManagers...")
 
     # ---
     # Sanity.
@@ -85,35 +83,30 @@ def managers(configuration:     Configuration,
 
     # Time
     time          = time_manager      or TimeManager(debug_flags=debug_flags)
-    log.start_up(log_dotted, "Created TimeManager.",
-                 log_success=log_success)
+    log.start_up(log_dotted, "Created TimeManager.")
 
     # Event
     event         = event_manager     or EventManager(configuration,
                                                       debug_flags)
-    log.start_up(log_dotted, "Created EventManager.",
-                 log_success=log_success)
+    log.start_up(log_dotted, "Created EventManager.")
 
     # Component
     component     = component_manager or ComponentManager(configuration,
                                                           event,
                                                           debug_flags)
-    log.start_up(log_dotted, "Created ComponentManager.",
-                 log_success=log_success)
+    log.start_up(log_dotted, "Created ComponentManager.")
 
     # Entity
     entity        = entity_manager    or EntityManager(configuration,
                                                        event,
                                                        component,
                                                        debug_flags)
-    log.start_up(log_dotted, "Created EntityManager.",
-                 log_success=log_success)
+    log.start_up(log_dotted, "Created EntityManager.")
 
     # System
     system        = system_manager    or SystemManager(event,
                                                        debug_flags)
-    log.start_up(log_dotted, "Created SystemManager.",
-                 log_success=log_success)
+    log.start_up(log_dotted, "Created SystemManager.")
 
     # Data
     data          = data_manager      or DataManager(configuration,
@@ -121,8 +114,7 @@ def managers(configuration:     Configuration,
                                                      event,
                                                      component,
                                                      debug_flags)
-    log.start_up(log_dotted, "Created DataManager.",
-                 log_success=log_success)
+    log.start_up(log_dotted, "Created DataManager.")
 
     # Identity
     identity      = identity_manager  or IdentityManager(configuration,
@@ -130,8 +122,7 @@ def managers(configuration:     Configuration,
                                                          event,
                                                          entity,
                                                          debug_flags)
-    log.start_up(log_dotted, "Created IdentityManager.",
-                 log_success=log_success)
+    log.start_up(log_dotted, "Created IdentityManager.")
 
     # ---
     # Finish up.
@@ -147,8 +138,7 @@ def managers(configuration:     Configuration,
                       identity,
                       debug_flags)
     log.start_up(log_dotted,
-                 "Created Meeting of Managers.",
-                 log_success=log_success)
+                 "Created Meeting of Managers.")
 
     # Save to background and return.
     mtg_bg_data, mtg_bg_owner = meeting.get_background()
@@ -157,13 +147,11 @@ def managers(configuration:     Configuration,
                            mtg_bg_data,
                            mtg_bg_owner)
     log.start_up(log_dotted,
-                 "Set managers into background context.",
-                 log_success=log_success)
+                 "Set managers into background context.")
 
-    log_success = log.SuccessType.SUCCESS
     log.start_up(log_dotted,
                  "Done Creating Meeting of EcsManagers.",
-                 log_success=log_success)
+                 log_success=log.SuccessType.SUCCESS)
     return meeting
 
 
@@ -176,10 +164,8 @@ def engine(configuration: Configuration,
     Create and configure a game engine using the other supplied parameters.
     '''
     log_dotted = label.join(_DOTTED, 'engine')
-    log_success = log.SuccessType.IGNORE
     log.start_up(log_dotted,
-                 "Building the Engine...",
-                 log_success=log_success)
+                 "Building the Engine...")
 
     # ---
     # Sanity.
@@ -207,8 +193,7 @@ def engine(configuration: Configuration,
     # Create engine.
     # ---
     log.start_up(log_dotted,
-                 "Initializing the Engine...",
-                 log_success=log_success)
+                 "Initializing the Engine...")
     owner = None
     campaign_id = None
     engine = Engine(owner,
@@ -217,8 +202,7 @@ def engine(configuration: Configuration,
                     meeting,
                     debug_flags)
 
-    log_success = log.SuccessType.SUCCESS
     log.start_up(log_dotted,
                  "Done building the Engine.",
-                 log_success=log_success)
+                 log_success=log.SuccessType.SUCCESS)
     return engine

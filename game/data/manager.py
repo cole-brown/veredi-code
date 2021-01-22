@@ -19,7 +19,7 @@ to go for accessing Game Config/Save (as opposed to Entity/Component) data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Set, Type, Mapping
+from typing import Optional, Any, Set, Type, Mapping, List
 from veredi.base.null import Null, Nullable, NullNoneOr
 
 
@@ -195,6 +195,18 @@ class DataManager(EcsManagerWithEvents):
         '''
 
         # ------------------------------
+        # Logging
+        # ------------------------------
+
+        self._log_groups: List[log.Group] = [
+            log.Group.START_UP,
+            log.Group.DATA_PROCESSING
+        ]
+        '''
+        Group of logs we use a lot for log.group_multi().
+        '''
+
+        # ------------------------------
         # Unit Testing
         # ------------------------------
 
@@ -216,6 +228,8 @@ class DataManager(EcsManagerWithEvents):
         '''
         Make our stuff from context/config data.
         '''
+        log.start_up(self.dotted(),
+                     "Creating DataManager...")
         super().__init__(event_manager, debug_flags)
 
         # ---
@@ -229,8 +243,12 @@ class DataManager(EcsManagerWithEvents):
         # ---
         # We must have a config...
         if not config:
-            msg = ("Could not initialize. Require a Configuration and got: "
-                   f"{config}")
+            msg = ("DataManager could not initialize. Require a Configuration "
+                   f"and got: {config}")
+            log.group_multi(self._log_groups,
+                            self.dotted(),
+                            msg,
+                            log_success=False)
             raise background.config.exception(None, msg)
 
         # Create our serdes & repo from the config data.
@@ -240,24 +258,39 @@ class DataManager(EcsManagerWithEvents):
         self._repository = config.make(None, *key_repo)
 
         if not self._serdes:
-            msg = ("Could not create Serdes (serializer/Deserializer) from "
+            msg = ("DataManager could not create Serdes "
+                   "(Serializer/Deserializer) from "
                    f"config data: {label.join(key_serdes)} "
                    f"{config.get(key_serdes)}")
+            log.group_multi(self._log_groups,
+                            self.dotted(),
+                            msg,
+                            log_success=False)
             context = config.make_config_context()
             raise background.config.exception(context, msg)
         if not self._repository:
-            msg = ("Could not create Repository from "
+            msg = ("DataManager could not create Repository from "
                    f"config data: {label.join(key_repo)} "
                    f"{config.get(key_repo)}")
+            log.group_multi(self._log_groups,
+                            self.dotted(),
+                            msg,
+                            log_success=False)
             context = config.make_config_context()
             raise background.config.exception(context, msg)
 
         # ---
         # Load Data
         # ---
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager loading initial data...")
         self._game = config.rules(None)
-        # self._load()
         self._init_load()
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager done.",
+                        log_success=True)
 
     def get_background(self):
         '''
@@ -296,6 +329,10 @@ class DataManager(EcsManagerWithEvents):
         taxon = self._game.taxon(data_type,
                                  *taxonomy,
                                  context=context)
+        log.data_processing(self.dotted(),
+                            "DataManager created taxon: {}",
+                            taxon,
+                            log_minimum=log.Level.DEBUG)
         return taxon
 
     # -------------------------------------------------------------------------
@@ -342,28 +379,55 @@ class DataManager(EcsManagerWithEvents):
         '''
         Load everything needed from the very start.
         '''
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager initial loading...",
+                        log_minimum=log.Level.DEBUG)
         self._load_game()
 
     def _load_game(self) -> None:
         '''
         Load game definition and saved data from repository.
         '''
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager initial game loading...",
+                        log_minimum=log.Level.DEBUG)
+
         # ---
         # Load Game Definition...
         # ---
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager loading definition...",
+                        log_minimum=log.Level.DEBUG)
         definition = self.load_definition(self.dotted(),
                                           self._game.game_definition())
 
         # ---
         # Load Game Save...
         # ---
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager loading saved...",
+                        log_minimum=log.Level.DEBUG)
         saved = self.load_saved(self.dotted(),
                                 self._game.game_saved())
 
         # ---
         # Tell our RulesGame object about 'em.
         # ---
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager finalizing game rules...",
+                        log_minimum=log.Level.DEBUG)
         self._game.loaded(definition, saved)
+
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager initial game loading complete.",
+                        log_minimum=log.Level.DEBUG,
+                        log_success=True)
 
     def load_definition(self, dotted: str, taxon: LabelTaxon) -> Definition:
         '''
@@ -374,9 +438,18 @@ class DataManager(EcsManagerWithEvents):
 
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager load Definition...",
+                        log_minimum=log.Level.DEBUG)
         context_definition = DataLoadContext(dotted, taxon)
         data = self._load(context_definition)
         definition = Definition(DocType.definition.game, data)
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager load Definition complete.",
+                        log_minimum=log.Level.DEBUG,
+                        log_success=True)
         return definition
 
     def load_saved(self, dotted: str, taxon: SavedTaxon) -> Saved:
@@ -388,9 +461,18 @@ class DataManager(EcsManagerWithEvents):
 
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager load Saved...",
+                        log_minimum=log.Level.DEBUG)
         context_saved = DataLoadContext(dotted, taxon)
         data = self._load(context_saved)
         saved = Saved(DocType.saved.game, data)
+        log.group_multi(self._log_groups,
+                        self.dotted(),
+                        "DataManager load Saved complete.",
+                        log_minimum=log.Level.DEBUG,
+                        log_success=True)
         return saved
 
     # -------------------------------------------------------------------------
@@ -536,6 +618,9 @@ class DataManager(EcsManagerWithEvents):
         intermediate/internal events, so we are able to subscribe to all if set
         up to.
         '''
+        log.start_up(self.dotted(),
+                     "DataManager.subscribe()...",
+                     log_minimum=log.Level.DEBUG)
         # ---
         # MUST BE IDEMPOTENT!
         # ---
@@ -553,6 +638,8 @@ class DataManager(EcsManagerWithEvents):
         #   - Repository creates a _LoadedEvent once it has done this.
         if not self._event.is_subscribed(DataLoadRequest,
                                          self._event_data_load_request):
+            log.start_up(self.dotted(),
+                         "DataManager subscribing to DataLoadRequest...")
             self._event.subscribe(DataLoadRequest,
                                   self._event_data_load_request)
 
@@ -561,6 +648,8 @@ class DataManager(EcsManagerWithEvents):
         #   - Serdes creates an _SerializedEvent once it has done this.
         if not self._event.is_subscribed(DataSaveRequest,
                                          self._event_data_save_request):
+            log.start_up(self.dotted(),
+                         "DataManager subscribing to DataSaveRequest...")
             self._event.subscribe(DataSaveRequest,
                                   self._event_data_save_request)
 
@@ -568,8 +657,16 @@ class DataManager(EcsManagerWithEvents):
         # Normal Path: Done
         # ------------------------------
         if not self._ut_all_events_external:
+            log.start_up(self.dotted(),
+                         "DataManager subscribed to all standard events.",
+                         log_success=True)
             return VerediHealth.HEALTHY
         # Unit Testing? Subscribe to the internal events too.
+
+        log.start_up(self.dotted(),
+                     "DataManager.subscribe() is subscribing to all its "
+                     "internal events as well (unit testing?).",
+                     log_minimum=log.Level.INFO)
 
         # ------------------------------
         # Internal: Serialize / Deserialize with Serdes
@@ -582,6 +679,8 @@ class DataManager(EcsManagerWithEvents):
         #   - We create a DataLoadedEvent once this is done.
         if not self._event.is_subscribed(_DeserializedEvent,
                                          self._event_deserialized):
+            log.start_up(self.dotted(),
+                         "DataManager subscribing to _DeserializedEvent...")
             self._event.subscribe(_DeserializedEvent,
                                   self._event_deserialized)
 
@@ -590,6 +689,8 @@ class DataManager(EcsManagerWithEvents):
         #   - Repository creates an _SavedEvent once it has done this.
         if not self._event.is_subscribed(_SerializedEvent,
                                          self._event_serialized):
+            log.start_up(self.dotted(),
+                         "DataManager subscribing to _SerializedEvent...")
             self._event.subscribe(_SerializedEvent,
                                   self._event_serialized)
 
@@ -602,6 +703,8 @@ class DataManager(EcsManagerWithEvents):
         #   - We'll creates a DataSavedEvent to do this.
         if not self._event.is_subscribed(_SavedEvent,
                                          self._event_saved):
+            log.start_up(self.dotted(),
+                         "DataManager subscribing to _SavedEvent...")
             self._event.subscribe(_SavedEvent,
                                   self._event_saved)
 
@@ -610,9 +713,15 @@ class DataManager(EcsManagerWithEvents):
         #   - Serdes creates a _DeserializedEvent once it has done this.
         if not self._event.is_subscribed(_LoadedEvent,
                                          self._event_loaded):
+            log.start_up(self.dotted(),
+                         "DataManager subscribing to _LoadedEvent...")
             self._event.subscribe(_LoadedEvent,
                                   self._event_loaded)
 
+        log.start_up(self.dotted(),
+                     "DataManager subscribed to all standard & "
+                     "internal events.",
+                     log_success=True)
         return VerediHealth.HEALTHY
 
     # -------------------------------------------------------------------------
@@ -624,16 +733,31 @@ class DataManager(EcsManagerWithEvents):
         Request for data to be loaded. We must ask the repo for it and pack it
         into a _LoadedEvent.
         '''
+        # TODO: group_multi w/ EVENTS group?
+        log.data_processing(self.dotted(),
+                            "DataManager event handling: DataLoadRequest...")
+
         # Doctor checkup.
         if not self._health_ok_event(event):
+            log.data_processing(self.dotted(),
+                                "DataManager[DataLoadRequest] failed "
+                                "health check...",
+                                log_success=False)
             return
 
         context = event.context
+
+        log.data_processing(self.dotted(),
+                            "DataManager[DataLoadRequest] loading...")
 
         # Ask my repository for this data.
         # Load data info is in the request context.
         loaded = self._repository.load(context)
         # Get back loaded data stream.
+
+        log.data_processing(self.dotted(),
+                            "DataManager[DataLoadRequest] creating "
+                            "result _LoadedEvent...")
 
         # Take our repository load result and set into _LoadedEvent. Then
         # have EventManager fire off event for whoever wants the next step.
@@ -642,21 +766,42 @@ class DataManager(EcsManagerWithEvents):
 
         # Special Shenanigans: Publish this event, wait for it to come back.
         if self._ut_all_events_external:
+            log.data_processing(self.dotted(),
+                                "DataManager[DataLoadRequest] publishing "
+                                "result _LoadedEvent...")
             self._event_notify(event, False)
 
         # Normal Case: Pass on to process loaded data
         else:
+            log.data_processing(self.dotted(),
+                                "DataManager[DataLoadRequest] handling "
+                                "result _LoadedEvent internally...")
             self._event_loaded(event)
+
+        log.data_processing(self.dotted(),
+                            "DataManager[DataLoadRequest] done.",
+                            log_success=True)
 
     def _event_data_save_request(self, event: DataSaveRequest) -> None:
         '''
         Data wants saved. It must be serialized first.
         '''
+        # TODO: group_multi w/ EVENTS group?
+        log.data_processing(self.dotted(),
+                            "DataManager event handling: DataSaveRequest...")
+
         # Doctor checkup.
         if not self._health_ok_event(event):
+            log.data_processing(self.dotted(),
+                                "DataManager[DataSaveRequest] failed "
+                                "health check...",
+                                log_success=False)
             return
 
         context = self._serdes.context.push(event.context)
+
+        log.data_processing(self.dotted(),
+                            "DataManager[DataSaveRequest] saving...")
 
         # TODO [2020-05-22]: Serialize it...
         raise NotImplementedError(
@@ -664,6 +809,10 @@ class DataManager(EcsManagerWithEvents):
             "is not yet implemented...")
 
         serialized = None
+
+        log.data_processing(self.dotted(),
+                            "DataManager[DataSaveRequest] creating "
+                            "result _SavedEvent...")
 
         # Done; fire off event for whoever wants the next step.
         event = _SerializedEvent(event.id,
@@ -673,11 +822,21 @@ class DataManager(EcsManagerWithEvents):
 
         # Special Shenanigans: Publish this event, wait for it to come back.
         if self._ut_all_events_external:
+            log.data_processing(self.dotted(),
+                                "DataManager[DataSaveRequest] publishing "
+                                "result _SavedEvent...")
             self._event_notify(event, False)
 
         # Normal Case: Pass on to process deserialized data.
         else:
+            log.data_processing(self.dotted(),
+                                "DataManager[DataSaveRequest] handling "
+                                "result _SavedEvent internally...")
             self._event_serialized(event)
+
+        log.data_processing(self.dotted(),
+                            "DataManager[DataSaveRequest] done.",
+                            log_success=True)
 
     # -------------------------------------------------------------------------
     # Events: Serialize / Deserialize with Serdes

@@ -61,8 +61,7 @@ def create(config:      Optional[Configuration],
     '''
     log_dotted = label.join(_DOTTED, 'create')
     log.start_up(log_dotted,
-                 f"Creating system '{str(system_type.__name__)}'...",
-                 log_success=log.SuccessType.IGNORE)
+                 f"Creating system '{str(system_type.__name__)}'...")
 
     sid = background.manager.system.create(system_type,
                                            context)
@@ -81,8 +80,7 @@ def add(system: System) -> SystemId:
     '''
     log_dotted = label.join(_DOTTED, 'add')
     log.start_up(log_dotted,
-                 f"Adding system '{str(system.__class__.__name__)}'...",
-                 log_success=log.SuccessType.IGNORE)
+                 f"Adding system '{str(system.__class__.__name__)}'...")
 
     sid = background.manager.system.add(system)
 
@@ -112,8 +110,7 @@ def _create_or_add(log_dotted:      str,
         log.start_up(
             log_dotted,
             f"Creating system '{str(system_or_type.__name__)}' "
-            f"with {ctx_str} {str(context)}...",
-            log_success=log.SuccessType.IGNORE)
+            f"with {ctx_str} {str(context)}...")
         sid = create(config,
                      context,
                      system_or_type,
@@ -128,8 +125,7 @@ def _create_or_add(log_dotted:      str,
         log.start_up(
             log_dotted,
             f"Adding system '{str(system_or_type.__name__)}' "
-            f"with {ctx_str} {str(context)}...",
-            log_success=log.SuccessType.IGNORE)
+            f"with {ctx_str} {str(context)}...")
         sid = create(config,
                      context,
                      system_or_type,
@@ -178,8 +174,7 @@ def many(config:      Optional[Configuration],
     '''
     log_dotted = label.join(_DOTTED, 'many')
     log.start_up(log_dotted,
-                 f"Creating {len(args)} systems...",
-                 log_success=log.SuccessType.IGNORE)
+                 f"Creating {len(args)} systems...")
 
     sids = []
     for each in args:
@@ -203,8 +198,7 @@ def many(config:      Optional[Configuration],
 
         log.start_up(log_dotted,
                      f"Processing system '{str(system_or_type.__name__)}' for"
-                     f"adding/creating...",
-                     log_success=log.SuccessType.IGNORE)
+                     f"adding/creating...")
 
         # Alrighty - do the thing with the system.
         sid = _create_or_add(log_dotted,

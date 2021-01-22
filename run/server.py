@@ -45,33 +45,28 @@ def server(path:        pathlib.Path = None,
     Returns the configuration and the engine in a tuple.
     '''
     log_dotted = label.join(_DOTTED, 'server')
-    log_success = log.SuccessType.IGNORE
     log.start_up(log_dotted,
-                 "Creating Veredi Server...",
-                 log_success=log_success)
+                 "Creating Veredi Server...")
 
     # ---
     # Find & parse config file.
     # ---
     log.start_up(log_dotted,
-                 "Creating Configuration...",
-                 log_success=log_success)
+                 "Creating Configuration...")
     config = configuration(path)
 
     # ---
     # Set up ECS.
     # ---
     log.start_up(log_dotted,
-                 "Creating Managers...",
-                 log_success=log_success)
+                 "Creating Managers...")
     meeting = managers(config, debug_flags=debug_flags)
 
     # ---
     # Set game.
     # ---
     log.start_up(log_dotted,
-                 "Creating Game...",
-                 log_success=log_success)
+                 "Creating Game...")
     game_engine = engine(config, meeting, debug_flags)
 
     # ---
@@ -84,8 +79,7 @@ def server(path:        pathlib.Path = None,
     # ---
     # Done.
     # ---
-    log_success = log.SuccessType.SUCCESS
     log.start_up(log_dotted,
                  "Done Creating Veredi Server.",
-                 log_success=log_success)
+                 log_success=log.SuccessType.SUCCESS)
     return config, game_engine
