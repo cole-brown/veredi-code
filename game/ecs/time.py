@@ -8,14 +8,14 @@ Timing info for game.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, NewType, Tuple, Dict
+from typing import TYPE_CHECKING, Optional, Union, NewType, Tuple, Dict
 from veredi.base.null import NullNoneOr
+if TYPE_CHECKING:
+    from ..data.manager      import DataManager
 
 import numbers
-from datetime import datetime
 from decimal import Decimal
 
-from veredi.logger           import log
 from veredi.base.assortments import CurrentNext, DeltaNext
 from veredi.data             import background
 from veredi.data.exceptions  import ConfigError
@@ -24,7 +24,6 @@ from veredi.debug.const      import DebugFlag
 
 from .const                  import SystemTick
 from .manager                import EcsManager
-from .base.exceptions        import EcsSystemError
 
 from veredi.time.machine     import MachineTime
 from veredi.time.timer       import MonotonicTimer
@@ -133,20 +132,28 @@ class TimeManager(EcsManager):
 
         self.machine = MachineTime()
 
+    def finalize_init(self, data_manager: 'DataManager') -> None:
+        '''
+        Complete any init/config that relies on other Managers.
+        '''
         # ---
-        # Get our clocks, ticks, etc from config data.
+        # Get our clocks, ticks, etc from config/definitions/saves.
         # ---
+        # Have to wait on this one due to needing definitions/saves, which
+        # DataManager is in charge of.
+        self._configure(data_manager)
 
-        self._configure()
-
-    def _configure(self) -> None:
+    def _configure(self, data_manager: 'DataManager') -> None:
         '''
         Make our stuff from context/config data.
+
+        NOTE: REQUIRES DataManager to be initialized!
+        NOTE: DataManager may not be in background yet!
         '''
 
-        # ---
+        # ------------------------------
         # Config Stuff
-        # ---
+        # ------------------------------
         config = background.config.config
         if not config:
             raise background.config.exception(
@@ -155,8 +162,21 @@ class TimeManager(EcsManager):
                 "background context.",
                 self.__class__.__name__)
 
-        # TODO: Where is game rules loaded so we can get our ticker?
-        self.tick  = TickRounds(tick_amount)
+        # ------------------------------
+        # Grab Game Rules from DataManager.
+        # ------------------------------
+        # Game Rules has the game's definition data, which we need to know what
+        # tick to use.
+        rules = data_manager.game
+        key_ticker = ('time', 'tick')  # definition.game -> time.tick
+        ticker_dotted = rules.definition.get(*key_ticker)
+        self.tick = config.create_from_label(ticker_dotted)
+        if not self.tick:
+            raise background.config.exception(
+                None,
+                "Failed to create our Tick object from the game rules "
+                "Definition data: key: {}, value: {}, tick: {}",
+                key_ticker, ticker_dotted, self.tick)
 
     def engine_init(self,
                     cn_ticks:     CurrentNext[SystemTick],
@@ -467,36 +487,25 @@ class TimeManager(EcsManager):
     # Ticking Time
     # ---
 
-    def step(self) -> Decimal:
-        return self.tick.step()
+    def delta(self) -> Decimal:
+        '''
+        Ticks our tick object one delta.
+        '''
+        return self.tick.delta()
+
+    def count(self) -> int:
+        '''
+        Returns the number of delta ticks since the engine started ticking us.
+        Returns negative if we haven't started doing anything yet or if we
+        don't even have our tick object yet.
+        '''
+        return (self.tick.count
+                if self.tick else
+                -1)
 
     # ---
     # Getters & Setters - Game Time
     # ---
-
-    @property
-    def seconds(self) -> Decimal:
-        return self.tick.seconds
-
-    @seconds.setter
-    def seconds(self, value: TickTypes) -> None:
-        self.tick.seconds = value
-
-    @property
-    def tick_num(self) -> int:
-        return self.tick.tick_num
-
-    @tick_num.setter
-    def tick_num(self, value: int) -> None:
-        self.tick.tick_num = value
-
-    @property
-    def datetime(self) -> datetime:
-        return self.clock.datetime
-
-    @datetime.setter
-    def datetime(self, value: datetime) -> None:
-        self.clock.datetime = value
 
     @property
     def error_game_time(self) -> str:
@@ -554,7 +563,7 @@ class TimeManager(EcsManager):
         for if/when they want to do their reduced processing.
         '''
         reduced[tick] = DeltaNext(rate,
-                                  self.tick_num)
+                                  self.count)
 
     def is_reduced_tick(self,
                         tick:    SystemTick,
@@ -566,9 +575,9 @@ class TimeManager(EcsManager):
         if not reduced_tick:
             return False
 
-        if self.tick_num >= reduced_tick.next:
+        if self.count >= reduced_tick.next:
             # Update our DeltaNext to the next reduced tick number.
-            reduced_tick.cycle(self.tick_num)
+            reduced_tick.cycle(self.count)
             return True
 
         return False

@@ -250,17 +250,14 @@ class Record(abc.MutableMapping):
         return self._documents[self._primary_doc]
 
     def get(self,
-            path: Union[str, List[str]]) -> Nullable[Any]:
+            *path: label.Label) -> Nullable[Any]:
         '''
-        If `path` is a str:
-          - Converts it to a list using `label.split()`.
-          - Else, uses list provided.
+        Regularizes `path` to a dotted list:
 
         Returns value in main document under (converted) `path`.
           - Returns Null() if `path` does not exist.
         '''
-        if isinstance(path, str):
-            path = label.split(path)
+        path = label.regularize(path)
 
         # Find out if there's anything at the end of the path.
         place = self._main()

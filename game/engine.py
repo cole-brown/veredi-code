@@ -901,7 +901,8 @@ class Engine(LogMixin):
             # This has updated the engine health based on cycle health results.
 
         finally:
-            self.meeting.time.step
+            # Increment tick time by a delta tick.
+            self.meeting.time.delta()
 
         # We're going to return the actual run's health instead of the engine's
         # health since the caller can always get the latter themselves.

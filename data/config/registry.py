@@ -126,7 +126,7 @@ def get(dotted_keys_str: str,
     for key in split_keys:
         if registration is None:
             break
-        # This can throw the KeyError...
+        # This can throw the KeyError if nothing registered...
         try:
             registration = registration[key]
         except KeyError as error:

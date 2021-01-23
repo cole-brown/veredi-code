@@ -74,11 +74,10 @@ class Mather:
                 context,
                 'Mather requires a configuration to configure itself.')
 
-        self._parser: MathParser = config.make(None,
-                                               'server',
-                                               'input',
-                                               'parser',
-                                               'math')
+        self._parser: MathParser = config.create_from_config('server',
+                                                             'input',
+                                                             'parser',
+                                                             'math')
 
     def parse(self, string: str, milieu: Optional[str] = None) -> MathTree:
         '''

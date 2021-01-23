@@ -128,10 +128,9 @@ class WebSocketMediator(Mediator):
         self._name = species
 
         # Grab our data from the config...
-        self._serdes = config.make(None,
-                                  self._name,
-                                  'mediator',
-                                  'serdes')
+        self._serdes = config.create_from_config(self._name,
+                                                 'mediator',
+                                                 'serdes')
 
         self._host = config.get(self._name,
                                 'mediator',

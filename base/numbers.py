@@ -71,7 +71,7 @@ def from_str(string: str) -> NumberTypes:
     '''
     Converts a string into either an int or a Decimal.
     '''
-    number = to_number(string)
+    number = to_decimal(string)
 
     # Try to make it an int...
     with decimal.localcontext(ctx=_DECIMAL_CONTEXT) as ctx:
@@ -94,14 +94,14 @@ def is_number(input: Any) -> bool:
 # Decimals
 # -----------------------------------------------------------------------------
 
-def to_number(string: str) -> Decimal:
+def to_decimal(input: DecimalTypes) -> Decimal:
     '''
     Converts the string to a Decimal and returns it.
     '''
     with decimal.localcontext(ctx=_DECIMAL_CONTEXT):
-        number = Decimal(string).quantize(_DEFAULT_ROUNDING)
+        number = Decimal(input).quantize(_DEFAULT_ROUNDING)
         return number
 
-    msg = f"Could not convert string to Decimal: '{string}'"
-    error = ValueError(msg, string)
+    msg = f"Could not convert input to Decimal: {type(input)} '{input}'"
+    error = ValueError(msg, input)
     raise log.exception(error, msg)

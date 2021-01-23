@@ -176,12 +176,13 @@ class BaseRegistrar(ABC):
     @classmethod
     def register(klass:       'BaseRegistrar',
                  cls_or_func: 'RegisterType',
-                 *args:       str) -> None:
+                 *args:       label.Label) -> None:
         '''
         This function does the actual registration.
         '''
         # Do any initial steps.
-        if not klass._init_register(cls_or_func, args):
+        dotted_list = label.normalize(*args)
+        if not klass._init_register(cls_or_func, dotted_list):
             # Totally ignore if not successful. _init_register() should do
             # all the erroring itself.
             return
@@ -254,7 +255,7 @@ class BaseRegistrar(ABC):
                    "the incorrect type? Expected something that can deal "
                    f"with 'in' operator. Have: {type(registration)} -> "
                    f"{registration}. Trying to register {cls_or_func} at "
-                   f"'{label.join(*args)}'. "
+                   f"'{label.normalize(dotted_list)}'. "
                    "Registry: \n{}")
             from veredi.logger import pretty
             log.exception(error, msg,
@@ -281,8 +282,8 @@ class BaseRegistrar(ABC):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def get_dotted(klass: 'BaseRegistrar',
-                   dotted_keys_str: str,
+    def get_dotted(klass:   'BaseRegistrar',
+                   dotted:  label.Label,
                    context: Optional[VerediContext]) -> 'RegisterType':
         '''
         Get by dotted name.
@@ -296,7 +297,7 @@ class BaseRegistrar(ABC):
           KeyError - dotted string not found in our registry.
         '''
         registration = klass._get()
-        split_keys = label.split(dotted_keys_str)
+        split_keys = label.regularize(dotted)
 
         # ---
         # Walk into our registry using the keys for our path.
@@ -324,7 +325,7 @@ class BaseRegistrar(ABC):
                 RegistryError,
                 "Registry for '{}' is not at a leaf - "
                 "still has entries to go: {}",
-                dotted_keys_str,
+                label.normalize(dotted),
                 registration)
 
         # Good; return the leaf value (a RegisterType).

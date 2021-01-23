@@ -8,16 +8,22 @@ Tick class for Round-&-Turn-Based games.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Iterable, List
-from veredi.base.null import Null, Nullable, NullNoneOr
+from typing import Iterable, List
+from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
 
 
 from decimal import Decimal
 
 
+from veredi.logger               import log
+
+from veredi.base                 import label
+from veredi.base                 import numbers
+
+from veredi.data                 import background
 from veredi.data.config.registry import register
-from veredi.data.config.config   import Configuration
-from veredi.data.context         import DataLoadContext
+
+from veredi.time.parse           import to_decimal
 
 from veredi.math                 import mathing
 
@@ -38,7 +44,8 @@ from ...ecs.base.identity        import EntityId
 class TickRounds(TickBase):
     '''
     Keep a game tick clock for Round/Turn-Based games, where entities are
-    assigned a turn order in a round and cannot act until it is their turn.
+    assigned a turn order in a round and cannot act (generally) until it is
+    their turn.
 
     Time is ticked by "deltas" - meaningless time amounts that have no bearing
     on turn or round or in-game time. It just keeps ticking deltas so that
@@ -59,6 +66,16 @@ class TickRounds(TickBase):
         self._seconds_per_round: Decimal = None
         '''
         How long in seconds that a round takes.
+
+        It is definition data.
+        '''
+
+        self._current_round: int = -1
+        '''
+        The number of the current round. Multiply by `self._seconds_per_round`
+        to get `self._current_seconds`.
+
+        It is saved data.
         '''
 
         self._turn_order: Nullable[List[EntityId]] = Null()
@@ -71,43 +88,76 @@ class TickRounds(TickBase):
         Where in the current round's turn order we are.
         '''
 
-    def configure(self,
-                  config: NullNoneOr[Configuration]) -> None:
+    def _configure(self) -> None:
         '''
         Get rounds-per-tick and current-seconds from repository.
         '''
-        # ---
-        # Round Time
-        # ---
-        # Round Time will be stored in game systems/rules definition.
 
-        # TODO: get this from game definition, not from config itself!
-        key_round_time = ('engine', 'time', 'tick', 'round')
-        round_time = config.get(*key_round_time)
-        if not round_time or not isinstance(round_time, numbers.DecimalTypes):
-            msg = ("Could not get Round Time from config data: "
-                   f"config data: {label.join(key_round_time)} "
+        # ------------------------------
+        # Grab our config from DataManager's Game Rules.
+        # ------------------------------
+        # Game Rules has both the game definition and the game saved records.
+        rules = background.manager.data.game
+
+        # ------------------------------
+        # Definitions
+        # ------------------------------
+        # Round Time will be stored in game rules definition data.
+
+        # Get round time duration.
+        key_round_time = ('time', 'round')  # definition.game -> time.round
+        round_time =  rules.definition.get(*key_round_time)
+        if null_or_none(round_time):
+            msg = ("Could not get Round Time from RulesGame's Definition "
+                   f"data: {label.normalize(*key_round_time)} "
                    f"{round_time}")
-            raise background.config.exception(context, msg)
-        self._seconds_per_round = game_data.get('time', 'round')
+            raise background.config.exception(None, msg)
+        self._seconds_per_round = to_decimal(round_time)
 
-        # ---
-        # Current Seconds
-        # ---
-        # Current Time will be stored in game save.
+        # ------------------------------
+        # Saved Data
+        # ------------------------------
+        # Current Time will be stored in game rules saved data.
 
-        game_data = background.data.game
-        if not game_data:
-            msg = ("Could not get game's saved current time. "
-                   "Game's saved data does not exist?")
-            raise background.config.exception(context, msg,
-                                              error_data={
-                                                  'game_data': game_data,
-                                              })
-        self._current_seconds = game_data.get('time', 'round')
+        # Get current round number.
+        key_round_number = ('time', 'round')  # saved.game -> time.round
+        round_num = rules.saved.get(*key_round_number)
+        if null_or_none(round_num) or not numbers.is_number(round_num):
+            msg = ("Could not get Current Round (or it is not a number) "
+                   "from RulesGame's Saved data: "
+                   f"{label.normalize(key_round_number)} "
+                   f"{round_num}")
+            raise background.config.exception(None, msg)
+        self._current_round = numbers.to_decimal(round_num)
 
     # -------------------------------------------------------------------------
-    # Getters / Setters
+    # Round Functions
+    # -------------------------------------------------------------------------
+
+    @property
+    def current_seconds(self) -> Decimal:
+        '''
+        Get the /round's/ current seconds.
+
+        For the turn's current seconds, use `exact_seconds()`.
+        '''
+        return self._current_round * self._seconds_per_round
+
+    @current_seconds.setter
+    def current_seconds(self, value: numbers.DecimalTypes) -> None:
+        '''
+        Set the /round's/ current seconds.
+
+        This will also update `exact_seconds()` as it is based on
+        current_seconds().
+        '''
+        # Determine our updated round number. Do not allow fractional rounds
+        # (use floordiv (int div) not truediv (float/Decimal div).
+        self._current_round = (
+            numbers.to_decimal(value) // self._seconds_per_round)
+
+    # -------------------------------------------------------------------------
+    # Turn Functions
     # -------------------------------------------------------------------------
 
     @property
@@ -138,11 +188,11 @@ class TickRounds(TickBase):
         if preserve_turn and self._turn_order and turn_order:
             curr_ent = self.turn
             if (curr_ent != EntityId.INVALID
-                    and curr_ent not in turn_order):
+                    and curr_ent in turn_order):
                 # Save their spot in the new list.
                 new_index = turn_order.index(curr_ent)
 
-        self._turn_order = entities or Null()
+        self._turn_order = turn_order or Null()
         self._turn_index = new_index
 
     @property
@@ -178,14 +228,14 @@ class TickRounds(TickBase):
         if not self._turn_order:
             return curr_time
 
-        # Index being zero based helps us out here. We need zero based anyways
-        # because we want what the exact time is at the start of this entity's
-        # turn. So that the 5th of 5 entities has an 'exact_seconds' in this
-        # round instead of at the start of next round.
+        # Index being zero based helps us out here. We want what the exact time
+        # is, at the start of this entity's turn. So that the 5th of 5 entities
+        # has an 'exact_seconds' in _this_ round instead of at the start of
+        # _next_ round.
         num_actors = len(self._turn_order)
         curr_actor = self._turn_index
 
-        return curr_time + (curr_actor / num_actors * self.)
+        return curr_time + (curr_actor / num_actors * self._seconds_per_round)
 
     # -------------------------------------------------------------------------
     # Identification
@@ -209,13 +259,12 @@ class TickRounds(TickBase):
     # be processed while the entity whose turn it is figures out their
     # action(s).
 
-    def delta(self) -> Decimal:
+    def _delta(self) -> None:
         '''
-        Increment delta tick by one, actual round time by none, and get ready
-        for this tick.
+        Called by `delta()` after `self._ticks` is updated.
         '''
-        self._ticks += 1
-        return self._ticks
+        # Don't need to do anything, currently.
+        pass
 
     def acted(self, entity_id) -> Decimal:
         '''

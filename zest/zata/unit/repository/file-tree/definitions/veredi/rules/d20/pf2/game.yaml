@@ -21,4 +21,4 @@ display-name: Veredi d20 PF2 Game Configuration
 
 time:
   tick: veredi.game.time.tick.round
-  round: 6 seconds
+  round: !duration 6 seconds

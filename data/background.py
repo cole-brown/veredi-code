@@ -459,7 +459,7 @@ class config(metaclass=ConfigMeta):
         If optional `error_data` is not None, it will be supplied to the
         created ConfigError as the `data` parameter in the constructor.
         '''
-        kwargs = log.incr_stack_level(**kwargs)
+        kwargs = log.incr_stack_level(kwargs)
         # If we raised instead of returned, we could add an extra stacklevel to
         # get the log back to whoever called us...
         #                             amount=2)

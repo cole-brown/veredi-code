@@ -135,14 +135,12 @@ class InputSystem(System):
         # ---
         # Our Sub-System Stuff
         # ---
-        self._commander: Commander = config.make(None,
-                                                 'server',
-                                                 'input',
-                                                 'command')
-        self._historian: Historian = config.make(None,
-                                                 'server',
-                                                 'input',
-                                                 'history')
+        self._commander: Commander = config.create_from_config('server',
+                                                               'input',
+                                                               'command')
+        self._historian: Historian = config.create_from_config('server',
+                                                               'input',
+                                                               'history')
 
         # ---
         # More Context Stuff

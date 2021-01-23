@@ -99,10 +99,9 @@ class Test_Configuration(ZestBase):
         self.assertTrue(self.config._config)
 
         with log.LoggingManager.on_or_off(debugging):
-            repo = self.config.make(None,
-                                    'data',
-                                    'repository',
-                                    'type')
+            repo = self.config.create_from_config('data',
+                                                  'repository',
+                                                  'type')
 
         self.assertTrue(repo)
         self.assertIsInstance(repo, FileTreeRepository)

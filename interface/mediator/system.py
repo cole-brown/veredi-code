@@ -144,10 +144,10 @@ def _start_server(comms: multiproc.SubToProcComm,
     log.debug(f"MediatorSystem's _start_server for {comms.name} "
               "starting MediatorServer...",
               veredi_logger=lumberjack)
-    mediator = config.make(context,
-                           'server',
-                           'mediator',
-                           'type')
+    mediator = config.create_from_config('server',
+                                         'mediator',
+                                         'type',
+                                         context=context)
     mediator.start()
     log.debug(f"MediatorSystem's _start_server for {comms.name} done.",
               veredi_logger=lumberjack)
