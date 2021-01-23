@@ -65,7 +65,7 @@ The expected start for all dotted strings under the official veredi banner.
 # Label Helper Functions
 # -----------------------------------------------------------------------------
 
-def is_veredi(dotted: str) -> bool:
+def is_veredi(dotted: Dotted) -> bool:
     '''
     Returns true if the `dotted` string is formatted correctly to be considered
     an 'official' veredi dotted string.
@@ -77,13 +77,18 @@ def join(*names: str) -> str:
     '''
     Turns iterable of `names` strings into one dotted string.
 
+    !! NOTE: A bit fragile - use normalize() for a robust `join()` !!
+
     e.g.:
-      dotted('veredi', 'jeff', 'system') -> 'veredi.jeff.system'
+      dotted(    'veredi', 'jeff', 'system') -> 'veredi.jeff.system'
+      dotted(   ('veredi', 'jeff'))          -> __!!!__ERROR__!!!__
+      normalize( 'veredi', 'jeff', 'system') -> 'veredi.jeff.system'
+      normalize(('veredi', 'jeff'))          -> 'veredi.jeff.system'
     '''
     return '.'.join(names)
 
 
-def split(dotted: str) -> List[str]:
+def split(dotted: Dotted) -> List[str]:
     '''
     Turns iterable of `names` strings into one dotted string.
 

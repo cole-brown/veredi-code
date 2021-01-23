@@ -19,4 +19,8 @@ display-name: Veredi d20 PF2 Saved Game Data
 #   registry: veredi.rules.d20.pf2.game
 
 time:
-  round: 6 seconds
+  # The round number it is.
+  round: 6
+  # Initiative should be an ordered list of tuples of
+  # entities/initiative-numbers. The first tuple is the entity whose turn it is.
+  initiative: null

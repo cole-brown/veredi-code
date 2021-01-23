@@ -8,16 +8,19 @@ Base class for game tick time.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union
-from veredi.base.null import Null, Nullable, NullNoneOr
+from typing import TYPE_CHECKING, Optional
+from veredi.base.null import NullNoneOr
+if TYPE_CHECKING:
+    from veredi.ecs.base     import System
+    from veredi.base.context import VerediContext
+
 
 from abc import ABC, abstractmethod
 
-import decimal
 from decimal import Decimal
 
-from veredi.base import numbers
-from veredi.data.config.config import Configuration
+
+from veredi.base               import numbers
 
 
 # -----------------------------------------------------------------------------
@@ -41,12 +44,6 @@ class TickBase(ABC):
     # Constants
     # -------------------------------------------------------------------------
 
-    _PRECISION = 6
-    '''
-    Precision for our Decimals.
-    See Python docs for `decimal.getcontext().prec`.
-    '''
-
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
@@ -56,18 +53,14 @@ class TickBase(ABC):
         Instance variable definitions, type hinting, doc strings, etc.
         '''
 
-        self._current_seconds: Decimal = 0
-        '''
-        Current Game/Tick time in seconds.
-        '''
-
-        self._ticks: Decimal = 0
+        self._ticks: int = -1
         '''
         Just some counter for keeping track of delta ticks. This starts at zero
-        each game session.
+        at the beginning of each TICKS_START engine life-cycle and
+        monotonically increases by one each time `delta()` is called.
         '''
 
-    def __init__(self) -> None:
+    def __init__(self, context: Optional['VerediContext']) -> None:
         '''
         New TickBase. Will get its current_seconds from repository eventually
         once repo and config are both ready (i.e. when `TickBase.config()` is
@@ -75,33 +68,15 @@ class TickBase(ABC):
         '''
         self._define_vars()
 
-        # ---
-        # Decimal Context Set-Up (Not VeredicContexts)
-        # ---
-
-        # ExtendedContext is more forgiving.
-        decimal.setcontext(decimal.ExtendedContext)
-        # Tune it to millisecond precision
-        decimal.getcontext().prec = self._PRECISION
-        self._context_extended = decimal.getcontext()
-
-        # BasicContext is better for debugging...
-        # has more signal traps enabled.
-        decimal.setcontext(decimal.BasicContext)
-        # Tune it to millisecond precision
-        decimal.getcontext().prec = self._PRECISION
-        self._context_basic = decimal.getcontext()
-
-        # And leave that context set, as we want that one usually.
+        self._configure()
 
     @abstractmethod
-    def configure(self,
-                  config: NullNoneOr[Configuration]) -> None:
+    def _configure(self) -> None:
         '''
         Get current-seconds from repository, and whatever else sub-class needs
         from repo, config, etc.
         '''
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
+        raise NotImplementedError(f"{self.__class__.__name__}.configure() "
                                   "is not implemented in base class. "
                                   "Subclasses should implement it.")
 
@@ -110,14 +85,44 @@ class TickBase(ABC):
     # -------------------------------------------------------------------------
 
     @property
+    def count(self) -> int:
+        '''
+        Current tick number / count of the times we have been told
+        to `delta()`.
+
+        For keeping track of delta ticks. This starts at zero
+        at the beginning of each TICKS_START engine life-cycle and
+        monotonically increases by one each time `delta()` is called.
+        '''
+        return self._ticks
+
+    @property
+    @abstractmethod
     def current_seconds(self) -> Decimal:
-        return self._seconds
+        '''
+        Get current seconds. Can be a generic definition of "current", for
+        example if a round-and-turn-based ticker, this could be the round's
+        current_seconds.
+        '''
+        raise NotImplementedError(f"{self.__class__.__name__}.current_seconds "
+                                  "getter property is not implemented in base "
+                                  "class. Subclasses should get it defined "
+                                  "via @register, or else define "
+                                  "it themselves.")
 
     @current_seconds.setter
+    @abstractmethod
     def current_seconds(self, value: numbers.DecimalTypes) -> None:
-        decimal.setcontext(self._context_extended)
-        self._seconds = Decimal(value)
-        decimal.setcontext(self._context_basic)
+        '''
+        Set current seconds. Can be a generic definition of "current", for
+        example if a round-and-turn-based ticker, this could be the round's
+        current_seconds.
+        '''
+        raise NotImplementedError(f"{self.__class__.__name__}.current_seconds "
+                                  "getter property is not implemented in base "
+                                  "class. Subclasses should get it defined "
+                                  "via @register, or else define "
+                                  "it themselves.")
 
     # -------------------------------------------------------------------------
     # Identification
@@ -159,7 +164,6 @@ class TickBase(ABC):
     # "advances" time by one "delta" - a time amount that has no meaning here
     # (subclasses must decide its meaning).
 
-    @abstractmethod
     def delta(self) -> Decimal:
         '''
         This is the function to tick every SystemTick.TIME. This "advances"
@@ -167,7 +171,7 @@ class TickBase(ABC):
         (subclasses must decide its meaning).
 
         NOTE: Subclasses can/should adjust this as needed. E.g. to add a fixed
-        amount of time to self._seconds if on a fixed time tick.
+        amount of time to self._current_seconds if on a fixed time tick.
 
         Get ready for this game run ticks cycle. Increment tick,
         current_seconds, or whatever by one delta amount.
@@ -175,4 +179,26 @@ class TickBase(ABC):
         Returns self._ticks after this time step.
         '''
         self._ticks += 1
+        self._delta()
         return self._ticks
+
+    @abstractmethod
+    def _delta(self) -> None:
+        '''
+        Called by `delta()` after `self._ticks` is updated.
+
+        Subclasses should implement as needed, or just `pass`. E.g. to add a
+        fixed amount of time to self._current_seconds if on a fixed time tick.
+        '''
+        raise NotImplementedError(f"{self.__class__.__name__}._delta() "
+                                  "is not implemented in base class. "
+                                  "Subclasses should define it themselves.")
+
+    @property
+    def error_tick_info(self) -> str:
+        '''
+        Returns tick, tick num, machine time.
+        '''
+        return (f"{self.__class__.__name__}: {self.seconds} tick seconds, "
+                f"{self.tick_num} tick number, "
+                f"{self.machine.stamp_to_str()}")

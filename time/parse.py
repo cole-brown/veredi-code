@@ -8,11 +8,15 @@ Parse strings into timestamps or durations, and possibly vice versa.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+from typing import Optional, Any
 
 import re
+from decimal import Decimal
 
 from datetime import timedelta
+
+
+from veredi.base import numbers
 
 
 # -----------------------------------------------------------------------------
@@ -61,7 +65,7 @@ Regex for parsing durations.
 
 
 # -----------------------------------------------------------------------------
-# Code
+# Parsing
 # -----------------------------------------------------------------------------
 
 def duration(duration_str: str) -> Optional[timedelta]:
@@ -86,3 +90,23 @@ def duration(duration_str: str) -> Optional[timedelta]:
             duration_params[name] = int(param)
 
     return timedelta(**duration_params)
+
+
+# -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
+
+def is_duration(duration: Any) -> bool:
+    '''
+    Returns True if `duration` is of the expected type (e.g. what
+    parse.duration() returns).
+    '''
+    return isinstance(duration, timedelta)
+
+
+def to_decimal(duration: timedelta) -> Decimal:
+    '''
+    Converts the time duration to a Decimal of seconds and returns it.
+    '''
+    # Get the duration as fractional seconds...
+    return numbers.to_decimal(duration.total_seconds())

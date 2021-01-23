@@ -150,6 +150,15 @@ def managers(configuration:     Configuration,
                  "Set managers into background context.")
 
     log.start_up(log_dotted,
+                 "Finalize TimeManager's initialization after "
+                 "Meeting creation...")
+    # TimeManager has to delay some initialization until after other managers
+    # are created.
+    time.finalize_init(data)
+    log.start_up(log_dotted,
+                 "TimeManager fully initialized.")
+
+    log.start_up(log_dotted,
                  "Done Creating Meeting of EcsManagers.",
                  log_success=log.SuccessType.SUCCESS)
     return meeting

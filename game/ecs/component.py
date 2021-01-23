@@ -297,10 +297,10 @@ class ComponentManager(EcsManagerWithEvents):
         '''
         component = None
         try:
-            component = self._config.create_registered(dotted_str,
-                                                       context,
+            component = self._config.create_from_label(dotted_str,
                                                        cid,
                                                        *args,
+                                                       context=context,
                                                        **kwargs)
         except Exception as error:
             raise self._log_exception(

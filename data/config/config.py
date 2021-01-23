@@ -396,9 +396,9 @@ class Configuration:
     # -------------------------------------------------------------------------
     def get_registered(self,
                        dotted_str: str,
-                       *args: Any,
-                       context: Optional['VerediContext'] = None,
-                       **kwargs: Any) -> Any:
+                       *args:      Any,
+                       context:    Optional['VerediContext'] = None,
+                       **kwargs:   Any) -> Any:
         '''
         Mediator between any systems that don't care about any deep knowledge
         of veredi basics. Pass in a 'dotted' registration string, like:
@@ -436,12 +436,12 @@ class Configuration:
 
         return retval
 
-    def create_registered(self,
-                          dotted_str: str,
+    def create_from_label(self,
+                          dotted_str: label.Dotted,
                           # Leave (k)args for people who are not me...
-                          context: Optional['VerediContext'],
-                          *args: Any,
-                          **kwargs: Any) -> Any:
+                          *args:      Any,
+                          context:    Optional['VerediContext'] = None,
+                          **kwargs:   Any) -> Any:
         '''
         Mediator between any game systems that don't care about any deep
         knowledge of veredi basics. Pass in a 'dotted' registration string,
@@ -462,28 +462,42 @@ class Configuration:
             raise log.exception(
                 ConfigError,
                 "Configuration could not create '{}'. "
-                "args: {}, kwargs: {}, context: {}",
-                dotted_str, args, kwargs, context
+                "args: {}, kwargs: {}",
+                dotted_str, args, kwargs,
+                context=context
             ) from error
 
         return retval
 
-    def make(self,
-             context:   Optional['VerediContext'],
-             *keychain: str) -> Nullable[Any]:
+    def create_from_config(self,
+                           *keychain: label.Label,
+                           context:   Optional['VerediContext'] = None,
+                           ) -> Nullable[Any]:
         '''
         Gets value from these keychain in our config data, then tries to have
         our registry create that value.
 
-        e.g. config.make('data', 'game', 'repository')
+        e.g. config.create_from_config('data', 'game', 'repository')
+           -> from config file: 'veredi.repository.file-tree'
+              -> from create_from_label('veredi.repository.file-tree', ...)
+                 -> FileTreeRepository object
+
+        Will use provided context, or create a ConfigContext to use via
+        `make_config_context()` if none provided.
 
         Returns thing created using keychain or None.
         '''
+        # Ensure the keychain is in good shape from whatever was passed in.
+        keychain = label.regularize(*keychain)
         config_val = self.get(*keychain)
-        if config_val is None:
-            log.debug("Make requested for: {}. But we have no config "
-                      "value for that. context: {}",
-                      keychain, context)
+        if not isinstance(config_val, str):
+            error_info = ("no config value"
+                          if not config_val else
+                          "incorrect config value of type "
+                          f"'{type(config_val)}' (need str)")
+            log.debug("Make requested for: {}. But we have {} "
+                      "for that. context: {}",
+                      error_info, keychain, context)
             return Null()
 
         if not context:
@@ -497,8 +511,8 @@ class Configuration:
         # e.g. if we're making the thing under keychain (GAME, REPO, TYPE),
         # then the repository we're making will want (GAME, REPO) as its
         # root so it can get, say, DIRECTORY.
-        ret_val = self.create_registered(config_val,
-                                         context)
+        ret_val = self.create_from_label(config_val,
+                                         context=context)
         log.debug("Made: {} from {}. context: {}", ret_val, keychain, context)
         return ret_val
 
@@ -507,7 +521,7 @@ class Configuration:
     # -------------------------------------------------------------------------
 
     def get_data(self,
-                 *keychain: str) -> Nullable[Any]:
+                 *keychain: label.Label) -> Nullable[Any]:
         '''
         Get a configuration thingy from us given some keychain use to walk into
         our config data in 'data' entry.
@@ -515,6 +529,9 @@ class Configuration:
         Returns data found at end keychain.
         Returns None if couldn't find a key in our config data.
         '''
+        # Ensure the keychain is in good shape from whatever was passed in.
+        keychain = label.regularize(*keychain)
+
         data = self.get('data', *keychain)
 
         log.data_processing(self._DOTTED_NAME,
@@ -525,7 +542,7 @@ class Configuration:
         return data
 
     def get(self,
-            *keychain: str) -> Nullable[Any]:
+            *keychain: label.Label) -> Nullable[Any]:
         '''
         Get a configuration thingy from us given some keychain use to walk into
         our config data.
@@ -533,6 +550,9 @@ class Configuration:
         Returns data found at end keychain.
         Returns None if couldn't find a key in our config data.
         '''
+        # Ensure the keychain is in good shape from whatever was passed in.
+        keychain = label.regularize(*keychain)
+
         data = self.get_by_doc(Document.CONFIG,
                                *keychain)
 
@@ -545,7 +565,9 @@ class Configuration:
 
     def get_by_doc(self,
                    doc_type:  Document,
-                   *keychain: str) -> Nullable[Any]:
+                   *keychain: label.Label) -> Nullable[Any]:
+        # Ensure the keychain is in good shape from whatever was passed in.
+        keychain = label.regularize(*keychain)
 
         log.data_processing(self._DOTTED_NAME,
                             'get_by_doc: Getting doc: {}, keychain: {}...',
@@ -642,10 +664,10 @@ class Configuration:
         # ---
         # Create the rules.
         # ---
-        rules = self.create_registered(
+        rules = self.create_from_label(
             # '<rules-dotted>.game' is our full dotted string.
             label.normalize(self._rules, 'game'),
-            context)
+            context=context)
         log.group_multi(log_groups,
                         self._DOTTED_NAME,
                         "rules: Created game rules.",
@@ -659,7 +681,10 @@ class Configuration:
     def ut_inject(self,
                   value:     Any,
                   doc_type:  Document,
-                  *keychain: str) -> None:
+                  *keychain: label.Label) -> None:
+        # Ensure the keychain is in good shape from whatever was passed in.
+        keychain = label.regularize(*keychain)
+
         # Get document type data first.
         doc_data = self._config.get(doc_type, None)
         data = doc_data

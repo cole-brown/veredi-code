@@ -254,8 +254,8 @@ class DataManager(EcsManagerWithEvents):
         # Create our serdes & repo from the config data.
         key_serdes = ('data', 'serdes')
         key_repo = ('data', 'repository', 'type')
-        self._serdes = config.make(None, *key_serdes)
-        self._repository = config.make(None, *key_repo)
+        self._serdes = config.create_from_config(*key_serdes)
+        self._repository = config.create_from_config(*key_repo)
 
         if not self._serdes:
             msg = ("DataManager could not create Serdes "

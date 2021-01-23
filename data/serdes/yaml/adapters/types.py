@@ -40,13 +40,20 @@ class TimeDuration(base.VerediYamlTag):
     @classmethod
     def from_yaml(cls, loader, node):
         # print(FnHas.yaml_tag, "from_yaml", str(cls), str(loader), str(node))
-        return cls(node.value)
+        # TODO: Do I want to return the TimeDuration, or just the timedelta?
+        return cls(node.value).timedelta()
 
     def __float__(self):
         '''
         Convert the duration to a float of the total (micro)seconds.
         '''
         return self.duration / timedelta(microseconds=1)
+
+    def timedelta(self):
+        '''
+        Get this duration as a timedelta.
+        '''
+        return self.duration
 
 
 # TODO [2020-10-07]: implicit_rx is bugged, somehow. '5 seconds' doesn't
