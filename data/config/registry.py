@@ -121,7 +121,7 @@ def get(dotted_keys: label.LabelInput,
     Context just used for errors/exceptions.
     '''
     registration = _REGISTRY
-    split_keys = label.registration(dotted_keys)
+    split_keys = label.regularize(dotted_keys)
     i = 0
     for key in split_keys:
         if registration is None:

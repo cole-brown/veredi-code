@@ -68,10 +68,10 @@ class TickBase(ABC):
         '''
         self._define_vars()
 
-        self._configure()
+        self._configure(context)
 
     @abstractmethod
-    def _configure(self) -> None:
+    def _configure(self, context: Optional['VerediContext']) -> None:
         '''
         Get current-seconds from repository, and whatever else sub-class needs
         from repo, config, etc.

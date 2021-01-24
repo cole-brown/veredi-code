@@ -16,7 +16,9 @@ if TYPE_CHECKING:
 import numbers
 from decimal import Decimal
 
+
 from veredi.base.assortments import CurrentNext, DeltaNext
+from veredi.base.context     import UnitTestContext
 from veredi.data             import background
 from veredi.data.exceptions  import ConfigError
 from veredi.base.const       import VerediHealth
@@ -27,6 +29,7 @@ from .manager                import EcsManager
 
 from veredi.time.machine     import MachineTime
 from veredi.time.timer       import MonotonicTimer
+from veredi                  import time
 from ..time.clock            import Clock
 from ..time.tick.round       import TickBase
 
@@ -132,7 +135,10 @@ class TimeManager(EcsManager):
 
         self.machine = MachineTime()
 
-    def finalize_init(self, data_manager: 'DataManager') -> None:
+    def finalize_init(self,
+                      data_manager: 'DataManager',
+                      _unit_test:   Optional['UnitTestContext'] = None
+                      ) -> None:
         '''
         Complete any init/config that relies on other Managers.
         '''
@@ -141,26 +147,32 @@ class TimeManager(EcsManager):
         # ---
         # Have to wait on this one due to needing definitions/saves, which
         # DataManager is in charge of.
-        self._configure(data_manager)
+        self._configure(data_manager, _unit_test)
 
-    def _configure(self, data_manager: 'DataManager') -> None:
+    def _configure(self,
+                   data_manager: 'DataManager',
+                   _ut_context:   Optional['UnitTestContext'] = None
+                   ) -> None:
         '''
         Make our stuff from context/config data.
 
         NOTE: REQUIRES DataManager to be initialized!
         NOTE: DataManager may not be in background yet!
         '''
+        # ------------------------------
+        # UNIT-TEST HACKS
+        # ------------------------------
+        if isinstance(_ut_context, UnitTestContext):
+            # If constructed specifically with a UnitTestContext, don't do
+            # _configure() as we have no DataManager.
+            ctx = _ut_context.sub_get(self.dotted())
+            self.tick = ctx['tick']
+            return
 
         # ------------------------------
         # Config Stuff
         # ------------------------------
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                None,
-                "Cannot configure {} without a Configuration in the "
-                "background context.",
-                self.__class__.__name__)
+        # No config stuff at the moment.
 
         # ------------------------------
         # Grab Game Rules from DataManager.
@@ -512,7 +524,7 @@ class TimeManager(EcsManager):
         '''
         Returns tick, tick num, machine time.
         '''
-        return (f"Time: {self.seconds} tick seconds, "
+        return (f"Time: {self.tick.current_seconds} tick seconds, "
                 f"{self.tick_num} tick number, "
                 f"{self.machine.stamp_to_str()}")
 

@@ -211,7 +211,7 @@ class LabelTaxon(Taxon):
     An ordering of identifiers based on veredi dotted labels.
     '''
 
-    def __init__(self, dotted: label.Label) -> None:
+    def __init__(self, dotted: label.LabelInput) -> None:
         '''
         Initialize the LabelTaxon with the provided dotted label.
         '''

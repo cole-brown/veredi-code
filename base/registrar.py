@@ -191,15 +191,15 @@ class BaseRegistrar(ABC):
         # dictionaries.
         name = str(cls_or_func)
         try:
-            leaf_key = args[-1]
+            leaf_key = dotted_list[-1]
             '''Final key where the registration will actually be stored.'''
         except IndexError as error:
             kwargs = log.incr_stack_level(None)
             raise log.exception(
                 RegistryError,
                 "Need to know what to register this ({}) as. "
-                "E.g. @register('jeff', 'geoff'). Got no args: {}",
-                name, args,
+                "E.g. @register('jeff', 'geoff'). Got no dotted_list: {}",
+                name, dotted_list,
                 **kwargs) from error
 
         registration = klass._get()
@@ -212,14 +212,14 @@ class BaseRegistrar(ABC):
         # Get reg dicts to the leaf.
         # ------------------------------
 
-        length = len(args)
-        # -1 as we've got our config name already from that final args
-        # entry.
+        length = len(dotted_list)
+        # -1 as we've got our config name already from that final
+        # dotted_list entry.
         for i in range(length - 1):
             # Walk down into both dicts, making new empty sub-entries as
             # necessary.
-            registration = registration.setdefault(args[i], {})
-            reggie_jr = reggie_jr.setdefault(args[i], {})
+            registration = registration.setdefault(dotted_list[i], {})
+            reggie_jr = reggie_jr.setdefault(dotted_list[i], {})
 
         # ------------------------------
         # Register (warn if occupied).
@@ -231,9 +231,9 @@ class BaseRegistrar(ABC):
                 if background.testing.get_unit_testing():
                     log.ultra_hyper_debug(klass._get())
                     msg = ("Something was already registered under this "
-                           f"registration key... keys: {args}, replacing "
-                           f"{str(registration[leaf_key])}' with this "
-                           f" '{name}'.")
+                           f"registration key... keys: {dotted_list}, "
+                           f"replacing {str(registration[leaf_key])}' with "
+                           f"this '{name}'.")
                     error = KeyError(leaf_key, msg, cls_or_func)
                     log.exception(error, None, msg,
                                   stacklevel=3)
@@ -241,13 +241,13 @@ class BaseRegistrar(ABC):
                     log.warning("Something was already registered under this "
                                 "registration key... keys: {}, replacing "
                                 "'{}' with this '{}'",
-                                args,
+                                dotted_list,
                                 str(registration[leaf_key]),
                                 name,
                                 stacklevel=3)
             else:
                 log.debug("Registered: keys: {}, value '{}'",
-                          args,
+                          dotted_list,
                           name,
                           stacklevel=3)
         except TypeError as error:
@@ -266,7 +266,7 @@ class BaseRegistrar(ABC):
         # Register cls/func to our registry, save some info to our
         # background registry.
         klass._register(cls_or_func,
-                        args,
+                        dotted_list,
                         leaf_key,
                         registration,
                         reggie_jr)
@@ -274,7 +274,7 @@ class BaseRegistrar(ABC):
         # ------------------------------
         # Finalize (if desired).
         # ------------------------------
-        klass._finalize_register(cls_or_func, args,
+        klass._finalize_register(cls_or_func, dotted_list,
                                  registration, reggie_jr)
 
     # -------------------------------------------------------------------------
