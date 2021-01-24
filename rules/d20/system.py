@@ -171,7 +171,7 @@ class D20RulesSystem(System):
             return self._query_this(component, *entry)
 
         entry = self._rule_defs.canonical(entry, None)
-        return self._query_split(component, *label.split(entry))
+        return self._query_split(component, *label.regularize(entry))
 
     def _query_this(self,
                     component: Component,
@@ -215,4 +215,4 @@ class D20RulesSystem(System):
             -> (20, 'strength.score')
         '''
         return ValueMilieu(component.query(*entry),
-                           label.join(*entry))
+                           label.normalize(*entry))

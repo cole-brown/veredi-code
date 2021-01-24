@@ -59,7 +59,7 @@ def create(config:      Optional[Configuration],
     '''
     Helper to create a system. Returns the created system's SystemId.
     '''
-    log_dotted = label.join(_DOTTED, 'create')
+    log_dotted = label.normalize(_DOTTED, 'create')
     log.start_up(log_dotted,
                  f"Creating system '{str(system_type.__name__)}'...")
 
@@ -78,7 +78,7 @@ def add(system: System) -> SystemId:
     Helper to take an already created system, and add it into the
     SystemManager's systems. Returns the SystemId assigned by SystemManager.
     '''
-    log_dotted = label.join(_DOTTED, 'add')
+    log_dotted = label.normalize(_DOTTED, 'add')
     log.start_up(log_dotted,
                  f"Adding system '{str(system.__class__.__name__)}'...")
 
@@ -172,7 +172,7 @@ def many(config:      Optional[Configuration],
               (SomeSystem, context_for_SomeSystem), # ignores `context`
               TwoSystem) # uses `context`
     '''
-    log_dotted = label.join(_DOTTED, 'many')
+    log_dotted = label.normalize(_DOTTED, 'many')
     log.start_up(log_dotted,
                  f"Creating {len(args)} systems...")
 

@@ -9,13 +9,12 @@ various backend implementations (db, file, etc).
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Type, NewType, List
+from typing import Optional, List
 
 
 import pathlib
 import re
 import hashlib
-import enum
 from io import StringIO, TextIOBase
 
 
@@ -23,10 +22,8 @@ from veredi.logger               import log
 from veredi.data.config.registry import register
 from veredi.data                 import background
 
-from veredi.base                 import label, vstring, lists
-from veredi.base.exceptions      import VerediError
-from veredi.data.context         import (BaseDataContext,
-                                         DataBareContext,
+from veredi.base                 import vstring, paths
+from veredi.data.context         import (DataBareContext,
                                          DataGameContext,
                                          DataLoadContext,
                                          DataSaveContext)
@@ -34,14 +31,13 @@ from veredi.data.config.context  import ConfigContext
 
 from ..                          import exceptions
 from .                           import base
-from .taxon                      import Rank, Taxon, LabelTaxon, SavedTaxon
+from .taxon                      import Rank
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-PathType = NewType('PathType', Union[str, pathlib.Path])
 
 # TODO [2020-05-23]: other file repos...
 #   FileTreeDiffRepository - for saving history for players
@@ -58,24 +54,13 @@ _REPLACEMENT = '_'
 # Code
 # -----------------------------------------------------------------------------
 
-# -------------------------------Just Functions.-------------------------------
-# --                            Paths In General                             --
-# -----------------------------------------------------------------------------
-
-# TODO: move to a base/path.py file?
-def pathlib_cast(*str_or_path: PathType) -> pathlib.Path:
-    '''
-    Ensure that `str_or_path` is a pathlib.Path.
-    '''
-    return pathlib.Path(*str_or_path)
-
 
 # --------------------------------------------------------------------------
 # Path Safing Option:
 #   "us?#:er" -> "us___er"
 # --------------------------------------------------------------------------
 @register('veredi', 'sanitize', 'human', 'path-safe')
-def to_human_readable(*part: PathType) -> pathlib.Path:
+def to_human_readable(*part: paths.PathType) -> paths.Path:
     '''
     Sanitize each part of the path by converting illegal characters to safe
     characters.
@@ -91,7 +76,7 @@ def to_human_readable(*part: PathType) -> pathlib.Path:
         for each in part:
             # First part can be a root, in which case we can't sanitize it.
             if first:
-                check = pathlib_cast(each)
+                check = paths.cast(each)
                 # Must be a path.
                 if (isinstance(check, pathlib.Path)
                         # Must be absolute.
@@ -116,10 +101,10 @@ def to_human_readable(*part: PathType) -> pathlib.Path:
                       part)
         raise
 
-    return pathlib_cast(*sanitized)
+    return paths.cast(*sanitized)
 
 
-def _part_to_human_readable(part: PathType) -> str:
+def _part_to_human_readable(part: paths.PathType) -> str:
     '''
     Sanitize a single part of the path by converting illegal characters to safe
     characters.
@@ -145,7 +130,7 @@ def _part_to_human_readable(part: PathType) -> str:
 #     'b3b31a87f6cca2e4d8e7909395c4b4fd0a5ee73b739b54eb3aeff962697ca603'
 # --------------------------------------------------------------------------
 @register('veredi', 'sanitize', 'hashed', 'sha256')
-def to_hashed(*part: PathType) -> pathlib.Path:
+def to_hashed(*part: paths.PathType) -> paths.Path:
     '''
     Sanitize each part of the path by converting it to a hash string.
 
@@ -158,7 +143,7 @@ def to_hashed(*part: PathType) -> pathlib.Path:
         for each in part:
             # First part can be a root, in which case we can't sanitize it.
             if first:
-                check = pathlib_cast(each)
+                check = paths.cast(each)
                 # Must be a path.
                 if (isinstance(check, pathlib.Path)
                         # Must be absolute.
@@ -182,10 +167,10 @@ def to_hashed(*part: PathType) -> pathlib.Path:
                       part)
         raise
 
-    return pathlib_cast(*sanitized)
+    return paths.cast(*sanitized)
 
 
-def _part_to_hashed(part: PathType) -> str:
+def _part_to_hashed(part: paths.PathType) -> str:
     '''
     Sanitize each part of the path by converting it to a hash.
     '''
@@ -263,8 +248,8 @@ class FileBareRepository(base.BaseRepository):
 
         self._make_background(path_safing)
 
-        log.debug("Set my root to: {}", self.root)
-        log.debug("Set my path-safing to: {}", self.fn_path_safing)
+        self._log_debug("Set my root to: {}", self.root)
+        self._log_debug("Set my path-safing to: {}", self.fn_path_safing)
 
     def _make_background(self, safing_dotted: str) -> None:
         self._bg = super()._make_background(self._DOTTED_NAME)
@@ -285,23 +270,18 @@ class FileBareRepository(base.BaseRepository):
     # Load Methods
     # -------------------------------------------------------------------------
 
-    def _ext_glob(self, element: PathType) -> PathType:
+    def _ext_glob(self, element: paths.PathType) -> paths.Path:
         '''Concatenates extensions glob onto pathlib.Path/str.'''
-        try:
-            # pathlib.Path?
-            element = element.with_suffix(".*")
-        except AttributeError:
-            # str then?
-            element = element + ".*"
-
-        return element
+        # Convert to a path, then adjust suffix.
+        path = paths.cast(element)
+        return path.with_suffix(".*")
 
     @property
     def root(self) -> pathlib.Path:
         '''
         Returns the root of the repository.
         '''
-        log.debug("root is: {}", self._root)
+        self._log_debug("root is: {}", self._root)
         return self._root
 
     def load(self,
@@ -338,7 +318,7 @@ class FileBareRepository(base.BaseRepository):
 
         # load_path should be exact - no globbing.
         if not load_path.exists():
-            raise log.exception(
+            raise self._log_exception(
                 self._error_type(context),
                 "Cannot load file. Path/file does not exist: {}",
                 str(load_path),
@@ -361,7 +341,7 @@ class FileBareRepository(base.BaseRepository):
                 if data_stream and not data_stream.closed:
                     data_stream.close()
                 data_stream = None
-                raise log.exception(
+                raise self._log_exception(
                     self._error_type(context),
                     "Error loading data from file. context: {}",
                     context=context) from error
@@ -391,7 +371,7 @@ class FileBareRepository(base.BaseRepository):
     # -------------------------------------------------------------------------
 
     def _safe_path(self,
-                   *unsafe: PathType,
+                   *unsafe: paths.PathType,
                    context: Optional[DataGameContext] = None
                    ) -> pathlib.Path:
         '''
@@ -402,7 +382,7 @@ class FileBareRepository(base.BaseRepository):
         `context` used for Load/SaveError if no `self.fn_path_safing`.
         '''
         if not self.fn_path_safing:
-            raise log.exception(
+            raise self._log_exception(
                 self._error_type(context),
                 "No path safing function set! Cannot create file paths.",
                 context=context)
@@ -469,7 +449,7 @@ class FileTreeRepository(base.BaseRepository):
         self._root = ConfigContext.path(context)
         # ...add config's repo path on top of it (in case it's a relative path
         # (pathlib is smart enough to correctly handle when it's not)).
-        self._root = self._root / pathlib_cast(
+        self._root = self._root / paths.cast(
             config.get_data(*self._PATH_KEYCHAIN))
         # Resolve it to turn into absolute path and remove ".."s and stuff.
         self._root = self._root.resolve()
@@ -487,8 +467,8 @@ class FileTreeRepository(base.BaseRepository):
 
         self._make_background(path_safing)
 
-        log.debug("Set my root to: {}", self.root)
-        log.debug("Set my path-safing to: {}", self.fn_path_safing)
+        self._log_debug("Set my root to: {}", self.root)
+        self._log_debug("Set my path-safing to: {}", self.fn_path_safing)
 
     def _make_background(self, safing_dotted: str) -> None:
         self._bg = super()._make_background(self._DOTTED_NAME)
@@ -521,7 +501,7 @@ class FileTreeRepository(base.BaseRepository):
         '''
         Returns the root of the repository.
         '''
-        log.debug("root is: {}", self._root)
+        self._log_debug("root is: {}", self._root)
         return self._root
 
     def load(self,
@@ -572,7 +552,7 @@ class FileTreeRepository(base.BaseRepository):
         if not matches:
             # We found nothing.
             self._context_load_data(context, matches)
-            raise log.exception(
+            raise self._log_exception(
                 self._error_type(context),
                 f"No matches for loading file: "
                 f"directory: {directory}, glob: {glob}, "
@@ -581,7 +561,7 @@ class FileTreeRepository(base.BaseRepository):
         elif len(matches) > 1:
             # Throw all matches into context for error.
             self._context_load_data(context, matches)
-            raise log.exception(
+            raise self._log_exception(
                 self._error_type(context),
                 f"Too many matches for loading file: "
                 f"directory: {directory}, glob: {glob}, "
@@ -621,7 +601,7 @@ class FileTreeRepository(base.BaseRepository):
                 if data_stream and not data_stream.closed:
                     data_stream.close()
                 data_stream = None
-                raise log.exception(
+                raise self._log_exception(
                     self._error_type(context),
                     "Error loading data from file. context: {}",
                     context=context) from error
@@ -636,14 +616,14 @@ class FileTreeRepository(base.BaseRepository):
     # -------------------------------------------------------------------------
 
     def _key(self,
-             context:     DataGameContext) -> List[PathType]:
+             context: DataGameContext) -> List[paths.PathType]:
         '''
         Give the DataContext, return the data's repository key.
         '''
         # Get the taxon from the context.
         taxon = context.taxon
         if not taxon:
-            raise log.exception(
+            raise self._log_exception(
                 self._error_type(context),
                 "Cannot {} data; no Taxon present: {}",
                 self._error_name(context, False),
@@ -666,19 +646,14 @@ class FileTreeRepository(base.BaseRepository):
     # Paths In General
     # -------------------------------------------------------------------------
 
-    def _ext_glob(self, element: PathType) -> PathType:
+    def _ext_glob(self, element: paths.PathType) -> paths.PathType:
         '''Concatenates extensions glob onto pathlib.Path/str.'''
-        try:
-            # pathlib.Path?
-            element = element.with_suffix(".*")
-        except AttributeError:
-            # str then?
-            element = element + ".*"
-
-        return element
+        # Convert to a path, then adjust suffix.
+        path = paths.cast(element)
+        return path.with_suffix(".*")
 
     def _path(self,
-              unsafe:   PathType,
+              unsafe:   paths.PathType,
               glob:     bool            = False,
               context:  DataGameContext = None) -> pathlib.Path:
         '''
@@ -702,7 +677,7 @@ class FileTreeRepository(base.BaseRepository):
     # -------------------------------------------------------------------------
 
     def _safe_path(self,
-                   *unsafe: PathType,
+                   *unsafe: paths.PathType,
                    context: Optional[DataGameContext] = None
                    ) -> pathlib.Path:
         '''
@@ -714,14 +689,14 @@ class FileTreeRepository(base.BaseRepository):
         '''
 
         if not self.fn_path_safing:
-            raise log.exception(
+            raise self._log_exception(
                 self._error_type(context),
                 "No path safing function set! Cannot create file paths.",
                 context=context)
 
         path = self.fn_path_safing(*unsafe)
-        log.debug(f"Unsafe: *{unsafe} -> Safe Path: {path}",
-                  context=context)
+        self._log_debug(f"Unsafe: *{unsafe} -> Safe Path: {path}",
+                        context=context)
         return path
 
 

@@ -102,10 +102,10 @@ class CommandInputEvent(UserInputEvent):
         return "CmdEvent"
 
     def __str__(self) -> str:
-        return (f"{self._str_name()}: cmd-len:{len(self.string_unsafe)} :: "
+        return (f"{self.__str_name__()}: cmd-len:{len(self.string_unsafe)} :: "
                 f"context: {str(self._context)}")
 
     def __repr__(self) -> str:
-        return (f"<{self._str_name(self.__repr_name__())}: "
+        return (f"<{self.__str_name__(self.__repr_name__())}: "
                 "{len(self.string_unsafe)} :: {repr(self._context)}>")
 

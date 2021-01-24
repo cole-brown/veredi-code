@@ -43,7 +43,7 @@ file name globs it will look for, in order, for the configuration file.
 # Configuration
 # -----------------------------------------------------------------------------
 
-def configuration(rules:   label.Label,
+def configuration(rules:   label.LabelInput,
                   game_id: Any,
                   path:    pathlib.Path = None) -> Configuration:
     '''
@@ -57,7 +57,7 @@ def configuration(rules:   label.Label,
     None, this looks in the current directory for the first file that matches
     the _CONFIG_FILE_NAME_GLOBS patterns.
     '''
-    log_dotted = label.join(_DOTTED, 'configuration')
+    log_dotted = label.normalize(_DOTTED, 'configuration')
     log.start_up(log_dotted,
                  "Creating Veredi Configuration...")
 
@@ -105,7 +105,7 @@ def configuration(rules:   label.Label,
     return config
 
 
-def _config_path(log_dotted: label.Dotted,
+def _config_path(log_dotted: label.DotStr,
                  path:       pathlib.Path = None) -> pathlib.Path:
     '''
     Find config file from `path` and parse into the Configuration object for

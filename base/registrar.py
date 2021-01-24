@@ -131,7 +131,7 @@ class BaseRegistrar(ABC):
     @classmethod
     def _register(klass:       'BaseRegistrar',
                   registeree:  'RegisterType',
-                  reg_args:     Iterable[str],
+                  reg_label:    Iterable[str],
                   leaf_key:     str,
                   reg_ours:     Dict,
                   reg_bg:       Dict) -> None:
@@ -174,14 +174,14 @@ class BaseRegistrar(ABC):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def register(klass:       'BaseRegistrar',
-                 cls_or_func: 'RegisterType',
-                 *args:       label.Label) -> None:
+    def register(klass:         'BaseRegistrar',
+                 cls_or_func:   'RegisterType',
+                 *dotted_label: label.LabelInput) -> None:
         '''
         This function does the actual registration.
         '''
         # Do any initial steps.
-        dotted_list = label.normalize(*args)
+        dotted_list = label.regularize(*dotted_label)
         if not klass._init_register(cls_or_func, dotted_list):
             # Totally ignore if not successful. _init_register() should do
             # all the erroring itself.
@@ -283,7 +283,7 @@ class BaseRegistrar(ABC):
 
     @classmethod
     def get_dotted(klass:   'BaseRegistrar',
-                   dotted:  label.Label,
+                   dotted:  label.LabelInput,
                    context: Optional[VerediContext]) -> 'RegisterType':
         '''
         Get by dotted name.
@@ -426,7 +426,7 @@ class DottedRegistrar(BaseRegistrar):
     @classmethod
     def _register(klass:       'BaseRegistrar',
                   registeree:  'RegisterType',
-                  reg_args:     Iterable[str],
+                  reg_label:    label.LabelInput,
                   leaf_key:     str,
                   reg_ours:     Dict,
                   reg_bg:       Dict) -> None:
@@ -440,7 +440,7 @@ class DottedRegistrar(BaseRegistrar):
           - _DOTTED class variable
         '''
         super()._register(registeree,
-                          reg_args,
+                          reg_label,
                           leaf_key,
                           reg_ours,
                           reg_bg)
@@ -448,7 +448,7 @@ class DottedRegistrar(BaseRegistrar):
         # ---
         # Set the attribute with the class's dotted name value.
         # ---
-        dotted_name = label.join(reg_args)
+        dotted_name = label.normalize(reg_label)
         setattr(registeree,
                 label._ATTRIBUTE_PRIVATE_NAME,
                 dotted_name)

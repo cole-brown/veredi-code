@@ -96,7 +96,7 @@ class Configuration:
         The serializer/deserializer for the game's saved data.
         '''
 
-        self._rules: label.Dotted = None
+        self._rules: label.DotStr = None
         '''
         The game's dotted label for the rules.
         '''
@@ -107,7 +107,7 @@ class Configuration:
         '''
 
     def __init__(self,
-                 rules:         label.Label,
+                 rules:         label.LabelInput,
                  game_id:       Any,
                  config_path:   Optional[pathlib.Path]     = None,
                  config_repo:   Optional['BaseRepository'] = None,
@@ -437,7 +437,7 @@ class Configuration:
         return retval
 
     def create_from_label(self,
-                          dotted_str: label.Dotted,
+                          dotted_str: label.DotStr,
                           # Leave (k)args for people who are not me...
                           *args:      Any,
                           context:    Optional['VerediContext'] = None,
@@ -470,7 +470,7 @@ class Configuration:
         return retval
 
     def create_from_config(self,
-                           *keychain: label.Label,
+                           *keychain: label.LabelInput,
                            context:   Optional['VerediContext'] = None,
                            ) -> Nullable[Any]:
         '''
@@ -521,7 +521,7 @@ class Configuration:
     # -------------------------------------------------------------------------
 
     def get_data(self,
-                 *keychain: label.Label) -> Nullable[Any]:
+                 *keychain: label.LabelInput) -> Nullable[Any]:
         '''
         Get a configuration thingy from us given some keychain use to walk into
         our config data in 'data' entry.
@@ -542,7 +542,7 @@ class Configuration:
         return data
 
     def get(self,
-            *keychain: label.Label) -> Nullable[Any]:
+            *keychain: label.LabelInput) -> Nullable[Any]:
         '''
         Get a configuration thingy from us given some keychain use to walk into
         our config data.
@@ -565,7 +565,7 @@ class Configuration:
 
     def get_by_doc(self,
                    doc_type:  Document,
-                   *keychain: label.Label) -> Nullable[Any]:
+                   *keychain: label.LabelInput) -> Nullable[Any]:
         # Ensure the keychain is in good shape from whatever was passed in.
         keychain = label.regularize(*keychain)
 
@@ -681,7 +681,7 @@ class Configuration:
     def ut_inject(self,
                   value:     Any,
                   doc_type:  Document,
-                  *keychain: label.Label) -> None:
+                  *keychain: label.LabelInput) -> None:
         # Ensure the keychain is in good shape from whatever was passed in.
         keychain = label.regularize(*keychain)
 

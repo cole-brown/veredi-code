@@ -232,9 +232,9 @@ class TimeManager(EcsManager):
             background.Name.DOTTED.key: self.dotted(),
         }
 
-    # ---
+    # -------------------------------------------------------------------------
     # Engine's Ticks / Life-Cycles
-    # ---
+    # -------------------------------------------------------------------------
 
     @property
     def engine_tick_current(self) -> SystemTick:
@@ -264,9 +264,9 @@ class TimeManager(EcsManager):
     #     '''Get engine's next life-cycle. This is hardly ever valid.'''
     #     return self._engine_tick.current
 
-    # ---
+    # -------------------------------------------------------------------------
     # Timer
-    # ---
+    # -------------------------------------------------------------------------
 
     def make_timer(self,
                    save_name:  Optional[str]  = None,
@@ -483,9 +483,9 @@ class TimeManager(EcsManager):
         timed_out = timer.timed_out(timeout)
         return timed_out
 
-    # ---
+    # -------------------------------------------------------------------------
     # Ticking Time
-    # ---
+    # -------------------------------------------------------------------------
 
     def delta(self) -> Decimal:
         '''
@@ -503,9 +503,9 @@ class TimeManager(EcsManager):
                 if self.tick else
                 -1)
 
-    # ---
-    # Getters & Setters - Game Time
-    # ---
+    # -------------------------------------------------------------------------
+    # Error Helper
+    # -------------------------------------------------------------------------
 
     @property
     def error_game_time(self) -> str:
@@ -516,15 +516,15 @@ class TimeManager(EcsManager):
                 f"{self.tick_num} tick number, "
                 f"{self.machine.stamp_to_str()}")
 
-    # ---
-    # Getters - System Time
-    # ---
+    # -------------------------------------------------------------------------
+    # System Time
+    # -------------------------------------------------------------------------
 
     # Use self.machine.jeff()
 
-    # ---
+    # -------------------------------------------------------------------------
     # Logging Despamifier Help
-    # ---
+    # -------------------------------------------------------------------------
 
     def metered(self, meter: Optional[int]) -> Tuple[bool, int]:
         '''

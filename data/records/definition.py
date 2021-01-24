@@ -67,7 +67,8 @@ class Definition(Record):
                path:  Union[str, List[str]]) -> bool:
         '''
         If `path` is a str:
-          - Expects dotted string - converts to a list using `label.split()`.
+          - Expects dotted string - converts to a list using
+            `label.regularize()`.
         Else, uses list provided.
 
         Then checks for a value in the main document at the end of the
@@ -153,7 +154,7 @@ class Definition(Record):
         if not isinstance(bookmark, (str, int, float)):
             self._append_default(canon)
 
-        return label.join(*canon)
+        return label.normalize(*canon)
 
     def _canon_this(self,
                     canon: List[str],

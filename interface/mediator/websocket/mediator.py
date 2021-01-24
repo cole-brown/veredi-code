@@ -168,7 +168,7 @@ class WebSocketMediator(Mediator):
         '''
         self._bg = {
             'dotted': self.dotted(),
-            'type': label.join('websocket', self._name),
+            'type': label.normalize('websocket', self._name),
             'serdes': self._serdes.dotted(),
         }
         return self._bg, background.Ownership.SHARE

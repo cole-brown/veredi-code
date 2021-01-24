@@ -465,12 +465,12 @@ class GroupResolve(enum.Enum):
 
 @enum.unique
 class LogName(enum.Enum):
-    ROOT = label.join('veredi')
+    ROOT = label.normalize('veredi')
     '''
     The default/root veredi logger.
     '''
 
-    MULTIPROC = label.join(ROOT, 'multiproc')
+    MULTIPROC = label.normalize(ROOT, 'multiproc')
     '''
     multiproc's logger for setting up/tearing down sub-processes.
     '''
@@ -483,7 +483,7 @@ class LogName(enum.Enum):
 
         Should use `rooted()` unless you're special.
         '''
-        return label.join(*name)
+        return label.normalize(*name)
 
     def rooted(self, *name: str) -> str:
         '''
@@ -494,7 +494,7 @@ class LogName(enum.Enum):
           LogName.MULTIPROC.rooted('server', 'jeff')
             -> 'veredi.multiproc.server.jeff'
         '''
-        return label.join(str(self), *name)
+        return label.normalize(str(self), *name)
 
     def __str__(self) -> str:
         '''
@@ -738,7 +738,7 @@ def brace_message(fmt_msg:      str,
                   context:      Optional['VerediContext'] = None,
                   log_fmt_type: Optional[MessageType]     = None,
                   log_group:    Optional[Group]           = None,
-                  log_dotted:   Optional[label.Dotted]    = None,
+                  log_dotted:   Optional[label.DotStr]    = None,
                   log_success:  LogSuccessInput           = None,
                   log_dry_run:  Optional[bool]            = False,
                   **kwargs:     Mapping[str, Any]) -> str:
@@ -1326,7 +1326,7 @@ def at_level(level:         'Level',
 # -----------------------------------------------------------------------------
 
 def group(group:         'Group',
-          dotted:        label.Dotted,
+          dotted:        label.DotStr,
           msg:           str,
           *args:         Any,
           veredi_logger: LoggerInput     = None,
@@ -1422,7 +1422,7 @@ def set_group_level(group: 'Group',
 
 
 def group_multi(groups:        Iterable['Group'],
-                dotted:        label.Dotted,
+                dotted:        label.DotStr,
                 msg:           str,
                 *args:         Any,
                 group_resolve: Optional[GroupResolve] = GroupResolve.HIGHEST,
@@ -1459,7 +1459,7 @@ def group_multi(groups:        Iterable['Group'],
               **kwargs)
 
 
-def security(dotted:        label.Dotted,
+def security(dotted:        label.DotStr,
              msg:           str,
              *args:         Any,
              veredi_logger: LoggerInput     = None,
@@ -1492,7 +1492,7 @@ def security(dotted:        label.Dotted,
           **kwargs)
 
 
-def start_up(dotted:        label.Dotted,
+def start_up(dotted:        label.DotStr,
              msg:           str,
              *args:         Any,
              veredi_logger: LoggerInput     = None,
@@ -1525,7 +1525,7 @@ def start_up(dotted:        label.Dotted,
           **kwargs)
 
 
-def data_processing(dotted:        label.Dotted,
+def data_processing(dotted:        label.DotStr,
                     msg:           str,
                     *args:         Any,
                     veredi_logger: LoggerInput     = None,

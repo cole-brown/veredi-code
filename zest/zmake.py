@@ -27,7 +27,7 @@ from veredi.data.config.config import Configuration
 # -----------------------------------------------------------------------------
 
 def config(test_type:     zpath.TestType                 = zpath.TestType.UNIT,
-           rules:         Optional[label.Label]          = None,
+           rules:         Optional[label.LabelInput]     = None,
            game_id:       Optional[Any]                  = None,
            config_path:   Union[pathlib.Path, str, None] = None
            ) -> Configuration:

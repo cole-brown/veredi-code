@@ -219,6 +219,19 @@ def register(name:        str,
     # ---
     # Register to YAML
     # ---
+    # They can also optionally have an implicit resolver...
+    # e.g. !duration can implicity resolve "6 seconds", "5h2s", etc... So these
+    # are equivalent:
+    #   - round: 6 seconds
+    #   - round: !duration 6 seconds
+    if implicit_rx:
+        # This is for dump and load.
+        yaml.add_implicit_resolver(tag, implicit_rx,
+                                   # bug until yaml 5.2: Must specify Loader.
+                                   # https://github.com/yaml/pyyaml/issues/294
+                                   # https://github.com/yaml/pyyaml/pull/305
+                                   Loader=yaml.SafeLoader)
+
     if deserialize_fn and serialize_fn:
         yaml.add_constructor(tag,
                              deserialize_fn,
@@ -259,11 +272,6 @@ def register(name:        str,
                                   'implicit_rx': implicit_rx,
                               })
         raise log.exception(error, msg)
-
-    # They can also optionally have an implicit resolver...
-    if implicit_rx:
-        # This is for dump and load.
-        yaml.add_implicit_resolver(tag, implicit_rx)
 
     log.debug(f"YAML Registry added: {name}, {klass}")
 

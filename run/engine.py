@@ -61,7 +61,7 @@ def managers(configuration:     Configuration,
     provided, one will be created using the `configuration`, which must be
     provided.
     '''
-    log_dotted = label.join(_DOTTED, 'managers')
+    log_dotted = label.normalize(_DOTTED, 'managers')
     log.start_up(log_dotted,
                  "Creating Meeting of EcsManagers...")
 
@@ -172,7 +172,7 @@ def engine(configuration: Configuration,
     '''
     Create and configure a game engine using the other supplied parameters.
     '''
-    log_dotted = label.join(_DOTTED, 'engine')
+    log_dotted = label.normalize(_DOTTED, 'engine')
     log.start_up(log_dotted,
                  "Building the Engine...")
 

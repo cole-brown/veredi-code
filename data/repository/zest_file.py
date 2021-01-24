@@ -21,6 +21,7 @@ from veredi.zest.base.unit        import ZestBase
 
 
 from veredi.logger                import log
+from veredi.base                  import paths
 
 from veredi.data.exceptions       import LoadError
 from veredi.data.config.hierarchy import Document
@@ -30,8 +31,8 @@ from veredi.data.context          import (DataAction,
                                           DataSaveContext)
 
 
-from .file                        import FileTreeRepository, pathlib_cast
-from .taxon                       import Taxon, LabelTaxon, SavedTaxon
+from .file                        import FileTreeRepository
+from .taxon                       import Taxon, SavedTaxon
 
 
 # -----------------------------------------------------------------------------
@@ -193,7 +194,7 @@ class Test_FileTreeRepo(ZestBase):
         self.assertTrue(repo_ctx)
         self.assertTrue(repo_ctx['meta'])
         self.assertTrue(repo_ctx['path'])
-        path = pathlib_cast(repo_ctx['path'])
+        path = paths.cast(repo_ctx['path'])
         self.assertTrue(path)
 
         # read file directly, assert contents are same.

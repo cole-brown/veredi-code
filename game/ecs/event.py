@@ -154,23 +154,23 @@ class Event:
     # To String
     # -------------------------------------------------------------------------
 
-    def _str_name(self, name: Optional[str] = None):
+    def __str_name__(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type}]"
 
     def _pretty(self):
         from veredi.logger import pretty
-        return (f"{self._str_name()}:\n  context:\n" +
+        return (f"{self.__str_name__()}:\n  context:\n" +
                 pretty.indented(self._context._pretty(), indent=4))
 
     def __str__(self):
-        return f"{self._str_name()}: {str(self._context)}"
+        return f"{self.__str_name__()}: {str(self._context)}"
 
     def __repr_name__(self):
         return self.__class__.__name__
 
     def __repr__(self):
-        return (f"<{self._str_name(self.__repr_name__())}: "
+        return (f"<{self.__str_name__(self.__repr_name__())}: "
                 f"{repr(self._context)}>")
 
 
