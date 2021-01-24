@@ -171,7 +171,7 @@ class DataComponent(Component):
     # Generic Data Query API
     # -------------------------------------------------------------------------
 
-    def query(self, *dot_path: label.Label) -> Nullable[Any]:
+    def query(self, *dot_path: label.LabelInput) -> Nullable[Any]:
         '''
         Query this component's data for something on either:
           - a dotted string path.

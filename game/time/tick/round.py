@@ -8,7 +8,7 @@ Tick class for Round-&-Turn-Based games.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Iterable, List
+from typing import TYPE_CHECKING, Optional, Iterable, List
 from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
 
 
@@ -17,13 +17,14 @@ from decimal import Decimal
 
 from veredi.logger               import log
 
+from veredi.base.context         import VerediContext, UnitTestContext
 from veredi.base                 import label
 from veredi.base                 import numbers
 
 from veredi.data                 import background
 from veredi.data.config.registry import register
 
-from veredi.time.parse           import to_decimal
+from veredi                      import time
 
 from veredi.math                 import mathing
 
@@ -88,10 +89,20 @@ class TickRounds(TickBase):
         Where in the current round's turn order we are.
         '''
 
-    def _configure(self) -> None:
+    def _configure(self, context: Optional['VerediContext']) -> None:
         '''
         Get rounds-per-tick and current-seconds from repository.
         '''
+        # ------------------------------
+        # UNIT-TEST HACKS
+        # ------------------------------
+        if isinstance(context, UnitTestContext):
+            # If constructed specifically with a UnitTestContext, don't do
+            # _configure() as we have no DataManager.
+            ctx = context.sub_get(self.dotted())
+            self._seconds_per_round = time.to_decimal(ctx['seconds-per-round'])
+            self._current_round = numbers.to_decimal(ctx['current-round'])
+            return
 
         # ------------------------------
         # Grab our config from DataManager's Game Rules.
@@ -112,7 +123,7 @@ class TickRounds(TickBase):
                    f"data: {label.normalize(*key_round_time)} "
                    f"{round_time}")
             raise background.config.exception(None, msg)
-        self._seconds_per_round = to_decimal(round_time)
+        self._seconds_per_round = time.to_decimal(round_time)
 
         # ------------------------------
         # Saved Data

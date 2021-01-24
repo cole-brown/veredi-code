@@ -12,7 +12,7 @@ from typing import (Optional, Union, Any, Type, Callable)
 
 from veredi.logger import log
 
-from ..label import _DOTTED_NAME, Label, normalize
+from ..label import _DOTTED_NAME, LabelInput, normalize
 
 
 # -------------------------------------------------------------------------
@@ -47,7 +47,7 @@ Set of classes/functions to ignore if asked to make 'dotted' functions for.
 # -------------------------------------------------------------------------
 
 # A lil' decorator factory to take our args and make the decorator...
-def tag(*dotted_label: Label) -> Callable[..., Type[Any]]:
+def tag(*dotted_label: LabelInput) -> Callable[..., Type[Any]]:
     '''
     Property for adding a `dotted()` function and/or `_DOTTED` attribute to a
     class.
@@ -94,10 +94,10 @@ def ignore(parent_class: Type) -> None:
     _DOTTED_FUNC_IGNORE.add(parent_class)
 
 
-def tag_helper(caller_label: Label,
+def tag_helper(caller_label: LabelInput,
                provider_str: str,
                cls_or_func:  Union[Type[Any], Callable[..., Type[Any]]],
-               dotted_label: Label) -> Type[Any]:
+               dotted_label: LabelInput) -> Type[Any]:
     '''
     Tag `cls_or_func` with a dotted `label`.
 
@@ -116,7 +116,7 @@ def tag_helper(caller_label: Label,
 
 def _add_dotted_value(
         cls_or_func:  Union[Type[Any], Callable[..., Type[Any]]],
-        dotted_label: Label) -> None:
+        dotted_label: LabelInput) -> None:
     '''
     Add an attribute for the `dotted_label` of the `cls_or_func`.
 
@@ -132,10 +132,10 @@ def _add_dotted_value(
 
 
 def _add_dotted_func(
-        caller_label: Label,
+        caller_label: LabelInput,
         provider_str: str,
         cls_or_func:  Union[Type[Any], Callable[..., Type[Any]]],
-        add_label:    Label) -> None:
+        add_label:    LabelInput) -> None:
     '''
     Add a getter for the dotted name of registering classes. Getter returns
     Optional[str].

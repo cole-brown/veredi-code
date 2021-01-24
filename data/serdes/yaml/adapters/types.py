@@ -40,13 +40,11 @@ class TimeDuration(base.VerediYamlTag):
     def __init__(self, value):
         super().__init__(value)
         self.duration = parse.duration(value)
-        print(f"TimeDuration: value {value} -> duration: {self.duration}")
 
     @classmethod
     def from_yaml(cls, loader, node):
-        # print(FnHas.yaml_tag, "from_yaml", str(cls), str(loader), str(node))
-        # TODO: Do I want to return the TimeDuration, or just the timedelta?
-        print(f"TimeDuration.from_yaml: node {node} -> duration: {cls(node.value).timedelta()}")
+        # Do I want to return the TimeDuration, or just the timedelta?
+        # I think timedelta.
         return cls(node.value).timedelta()
 
     def __float__(self):

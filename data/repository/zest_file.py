@@ -29,10 +29,12 @@ from veredi.data.config.context   import ConfigContext
 from veredi.data.context          import (DataAction,
                                           DataLoadContext,
                                           DataSaveContext)
+from veredi.data.records          import DataType
 
 
 from .file                        import FileTreeRepository
 from .taxon                       import Taxon, SavedTaxon
+from veredi.rules.d20.pf2.game    import PF2Rank
 
 
 # -----------------------------------------------------------------------------
@@ -56,10 +58,10 @@ class Test_FileTreeRepo(ZestBase):
         Enum for context_load().
         '''
 
-        PLAYER  = ['players', 'u/jeff', 'Sir Jeffsmith']
-        MONSTER = ['monsters', 'dragon', 'aluminum dragon']
-        NPC     = ['npcs', 'Townville', 'Sword Merchant']
-        ITEM    = ['items', 'weapon', 'Sword, Ok']
+        PLAYER  = [PF2Rank.Phylum.PLAYER,  ['u/jeff', 'Sir Jeffsmith']]
+        MONSTER = [PF2Rank.Phylum.MONSTER, ['dragon', 'aluminum dragon']]
+        NPC     = [PF2Rank.Phylum.NPC,     ['Townville', 'Sword Merchant']]
+        ITEM    = [PF2Rank.Phylum.ITEM,    ['weapon', 'Sword, Ok']]
 
     # -------------------------------------------------------------------------
     # Set-Up
@@ -103,49 +105,26 @@ class Test_FileTreeRepo(ZestBase):
     # -------------------------------------------------------------------------
 
     def context_load(self,
-                     *taxonomy: str,
-                     by_enum:   Optional['Test_FileTreeRepo.TestLoad'] = None
+                     load:   Optional['Test_FileTreeRepo.TestLoad'] = None
                      ) -> DataLoadContext:
         '''
         Create a DataLoadContext given `taxonomy` OR `by_enum`.
         '''
         # ------------------------------
-        # Check inputs, assign final taxonomy.
+        # Get values from `load` enum.
         # ------------------------------
-        if taxonomy and by_enum:
-            msg = ("Use only `taxonomy` OR `by_enum`, not both. "
-                   f"taxonomy: '{taxonomy}', by_enum: '{by_enum}'")
-            error = LoadError(msg,
-                              data={
-                                  'taxonomy': taxonomy,
-                                  'by_enum': by_enum,
-                              })
-            raise log.exception(error, msg)
-
-        elif by_enum:
-            taxonomy = by_enum.value
-
-        elif taxonomy:
-            # Ok; use as-is.
-            pass
-
-        else:
-            msg = ("Cannot create a DataLoadContext with no load data."
-                   "Provide a `taxonomy` or `by_enum` (but not both). "
-                   f"taxonomy: '{taxonomy}', by_enum: '{by_enum}'")
-            error = LoadError(msg,
-                              data={
-                                  'taxonomy': taxonomy,
-                                  'by_enum': by_enum,
-                              })
-            raise log.exception(error, msg)
+        phylum = load.value[0]
+        taxonomy = load.value[1]
 
         # ------------------------------
         # Create the context.
         # ------------------------------
         context = None
         with log.LoggingManager.on_or_off(self.debugging):
-            context = DataLoadContext(self.dotted(__file__), *taxonomy)
+            taxon = self.manager.data.taxon(DataType.SAVED, phylum, *taxonomy)
+            context = self.manager.data.context_load(self.dotted(__file__),
+                                                     DataAction.LOAD,
+                                                     taxon)
 
         return context
 
