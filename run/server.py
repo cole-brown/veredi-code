@@ -44,7 +44,7 @@ def server(path:        pathlib.Path = None,
 
     Returns the configuration and the engine in a tuple.
     '''
-    log_dotted = label.join(_DOTTED, 'server')
+    log_dotted = label.normalize(_DOTTED, 'server')
     log.start_up(log_dotted,
                  "Creating Veredi Server...")
 

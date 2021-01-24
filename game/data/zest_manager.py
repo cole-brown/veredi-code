@@ -17,26 +17,24 @@ from io import StringIO
 
 from veredi.zest.base.ecs                  import ZestEcs
 from veredi.zest                           import zload
-from veredi.debug.const                    import DebugFlag
+from veredi.base                           import paths
 from veredi.base.context                   import UnitTestContext
 from veredi.logger                         import log
 
 from veredi.data.context                   import (DataAction,
-                                                   DataLoadContext)
+                                                   DataLoadContext,
                                                    # DataSaveContext,
                                                    # DataGameContext)
+                                                   )
 from veredi.data.records                   import (DataType,
                                                    # DocType,
                                                    Definition,
                                                    Saved)
-from veredi.data.exceptions                import LoadError
 
 from ..ecs.base.identity                   import ComponentId
 from .component                            import DataComponent
 from veredi.rules.d20.pf2.game             import PF2Rank
 from veredi.rules.d20.pf2.health.component import HealthComponent
-
-from veredi.data.repository.file           import pathlib_cast
 
 
 # ---
@@ -321,7 +319,7 @@ class Test_DataManager_Repo(BaseTest_DataManager):
         self.assertTrue(repo_ctx)
         self.assertTrue(repo_ctx['meta'])
         self.assertTrue(repo_ctx['path'])
-        load_path = pathlib_cast(repo_ctx['path'])
+        load_path = paths.cast(repo_ctx['path'])
         self.assertTrue(load_path)
         self.assertTrue(load_path.exists())
 

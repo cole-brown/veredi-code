@@ -171,7 +171,7 @@ class DataComponent(Component):
     # Generic Data Query API
     # -------------------------------------------------------------------------
 
-    def query(self, *dot_path: str) -> Nullable[Any]:
+    def query(self, *dot_path: label.Label) -> Nullable[Any]:
         '''
         Query this component's data for something on either:
           - a dotted string path.
@@ -201,9 +201,8 @@ class DataComponent(Component):
         | 'strength', 'score'    |                 10 |
         |------------------------+--------------------|
         '''
-        if len(dot_path) == 1:
-            # replace, probably, ['strength.score'] with ['strength', 'score']
-            dot_path = label.split(dot_path[0])
+        # Get our input sorted out.
+        dot_path = label.regularize(*dot_path)
 
         data = self.persistent
         for each in dot_path:

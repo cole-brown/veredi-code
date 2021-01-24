@@ -82,12 +82,12 @@ class MathEvent(Event):
         return "MathEvent"
 
     def __str__(self):
-        return (f"{self._str_name()}: "
+        return (f"{self.__str_name__()}: "
                 f"math: {self.root}, "
                 f"context: {str(self._context)}")
 
     def __repr__(self):
-        return (f"<{self._str_name(self.__repr_name__())}: "
+        return (f"<{self.__str_name__(self.__repr_name__())}: "
                 f"math: {repr(self.root)}, "
                 f"context: {repr(self._context)}"
                 ">")
@@ -261,13 +261,13 @@ class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
         return "MathOutEvent"
 
     def __str__(self):
-        return (f"{self._str_name()}: "
+        return (f"{self.__str_name__()}: "
                 f"total: {self.total}, "
                 f"math: {self.output}, "
                 f"context: {str(self._context)}")
 
     def __repr__(self):
-        return (f"<{self._str_name(self.__repr_name__())}: "
+        return (f"<{self.__str_name__(self.__repr_name__())}: "
                 f"total: {self.total}, "
                 f"math: {repr(self.output)}, "
                 f"context: {repr(self._context)}"

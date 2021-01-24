@@ -121,11 +121,11 @@ class DataLoadedEvent(DataEvent):
     # To String
     # -------------------------------------------------------------------------
 
-    def _str_name(self, name: Optional[str] = None):
+    def __str_name__(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
-    def _repr_name(self):
+    def __repr_name__(self):
         return "LoadEvent"
 
 
@@ -135,11 +135,11 @@ class DataSavedEvent(DataEvent):
     # To String
     # -------------------------------------------------------------------------
 
-    def _str_name(self, name: Optional[str] = None):
+    def __str_name__(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
-    def _repr_name(self):
+    def __repr_name__(self):
         return "SavedEvent"
 
 
@@ -232,26 +232,26 @@ class _LoadedEvent(DataEvent):
 
     def _pretty(self):
         from veredi.logger import pretty
-        return (f"{self._str_name()}:\n"
+        return (f"{self.__str_name__()}:\n"
                 + f"  data:  {self._str_data()}\n"
                 + "  context:\n"
                 + pretty.indented(self._context._pretty(), indent=4))
 
     def __str__(self):
-        return (f"{self._str_name()}: data: {self._str_data()}, "
+        return (f"{self.__str_name__()}: data: {self._str_data()}, "
                 f"context: {str(self._context)}")
 
-    def _repr_name(self):
+    def __repr_name__(self):
         return "_LdEvent"
 
     def __repr__(self):
-        return (f"<{self._str_name(self._repr_name())}: "
+        return (f"<{self.__str_name__(self.__repr_name__())}: "
                 f"data: {self._repr_data()}, "
                 f"context: {str(self._context)}>")
 
 
 class _SavedEvent(DataEvent):
-    def _repr_name(self):
+    def __repr_name__(self):
         return "_SvdEvent"
 
 
@@ -295,24 +295,24 @@ class _DeserializedEvent(DataEvent):
 
     def _pretty(self):
         from veredi.logger import pretty
-        return (f"{self._str_name()}:\n"
+        return (f"{self.__str_name__()}:\n"
                 + f"  data:  {self._str_data()}\n"
                 + "  context:\n"
                 + pretty.indented(self._context._pretty(), indent=4))
 
     def __str__(self):
-        return (f"{self._str_name()}: data: {self._str_data()}, "
+        return (f"{self.__str_name__()}: data: {self._str_data()}, "
                 f"context: {str(self._context)}")
 
-    def _repr_name(self):
+    def __repr_name__(self):
         return "_DesEvent"
 
     def __repr__(self):
-        return (f"<{self._str_name(self._repr_name())}: "
+        return (f"<{self.__str_name__(self.__repr_name__())}: "
                 f"data: {self._repr_data()}, "
                 f"context: {str(self._context)}>")
 
 
 class _SerializedEvent(DataEvent):
-    def _repr_name(self):
+    def __repr_name__(self):
         return "_SerEvent"

@@ -39,7 +39,7 @@ _DOTTED_FUNC_IGNORE = set()
 # that by importing things in their folder's __init__.py.
 
 # First, a lil' decorator factory to take our args and make the decorator...
-def register(*dotted_label: label.Label) -> Callable[..., Type[Any]]:
+def register(*dotted_label: label.LabelInput) -> Callable[..., Type[Any]]:
     '''
     Property for registering a class or function with the registry.
 
@@ -109,11 +109,11 @@ def register(*dotted_label: label.Label) -> Callable[..., Type[Any]]:
     return register_decorator
 
 
-def get(dotted_keys_str: str,
-        context: Optional[VerediContext],
+def get(dotted_keys: label.LabelInput,
+        context:     Optional[VerediContext],
         # Leave (k)args for others.
-        *args: Any,
-        **kwargs: Any) -> Union[Type, Callable]:
+        *args:       Any,
+        **kwargs:    Any) -> Union[Type, Callable]:
     '''
     Returns a registered class/func from the dot-separated keys (e.g.
     "repository.player.file-tree"), passing it args and kwargs.
@@ -121,7 +121,7 @@ def get(dotted_keys_str: str,
     Context just used for errors/exceptions.
     '''
     registration = _REGISTRY
-    split_keys = label.split(dotted_keys_str)
+    split_keys = label.registration(dotted_keys)
     i = 0
     for key in split_keys:
         if registration is None:

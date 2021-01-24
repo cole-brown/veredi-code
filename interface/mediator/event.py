@@ -58,7 +58,7 @@ class MediatorEvent(Event):
     # To String
     # -------------------------------------------------------------------------
 
-    def _str_name(self, name: Optional[str] = None):
+    def __str_name__(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
         return f"{name}[eid:{self.id},t:{self.type}]: {self.payload}"
 

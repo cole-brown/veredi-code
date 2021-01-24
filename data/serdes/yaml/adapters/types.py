@@ -10,6 +10,9 @@ Functions in YAML.
 
 from datetime import timedelta
 
+import yaml
+
+
 from . import base
 from .. import tags
 from .. import registry
@@ -32,15 +35,18 @@ class TimeDuration(base.VerediYamlTag):
     # ---
     _YAML_TAG_NAME = 'duration'
     yaml_tag = tags.make(_YAML_TAG_NAME)
+    yaml_loader = yaml.SafeLoader
 
     def __init__(self, value):
         super().__init__(value)
         self.duration = parse.duration(value)
+        print(f"TimeDuration: value {value} -> duration: {self.duration}")
 
     @classmethod
     def from_yaml(cls, loader, node):
         # print(FnHas.yaml_tag, "from_yaml", str(cls), str(loader), str(node))
         # TODO: Do I want to return the TimeDuration, or just the timedelta?
+        print(f"TimeDuration.from_yaml: node {node} -> duration: {cls(node.value).timedelta()}")
         return cls(node.value).timedelta()
 
     def __float__(self):

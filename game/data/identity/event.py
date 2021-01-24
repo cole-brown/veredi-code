@@ -73,7 +73,7 @@ class IdentityResult(IdentityEvent):
     # To String
     # -------------------------------------------------------------------------
 
-    def _str_name(self, name: Optional[str] = None):
+    def __str_name__(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
@@ -114,7 +114,7 @@ class CodeIdentityRequest(IdentityRequest):
     # To String
     # -------------------------------------------------------------------------
 
-    def _str_name(self, name: Optional[str] = None):
+    def __str_name__(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type}]: {self.data}"
 
@@ -153,7 +153,7 @@ class DataIdentityRequest(IdentityRequest):
     # To String
     # -------------------------------------------------------------------------
 
-    def _str_name(self, name: Optional[str] = None):
+    def __str_name__(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type}]: {self.data}"
 

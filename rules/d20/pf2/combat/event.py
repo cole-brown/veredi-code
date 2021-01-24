@@ -55,7 +55,7 @@ class CombatEvent(Event):
     # To String
     # -------------------------------------------------------------------------
 
-    def _str_name(self, name: Optional[str] = None):
+    def __str_name__(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type},src:{self.target}]"
 

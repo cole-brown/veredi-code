@@ -255,8 +255,8 @@ class Encodable:
                   f"{klass.dotted()}")
 
     @classmethod
-    def _register(klass: 'Encodable',
-                  dotted:   Optional[str] = None) -> None:
+    def _register(klass:  'Encodable',
+                  dotted: Optional[label.LabelInput] = None) -> None:
         '''
         Register the `klass` with the `dotted` string to our registry.
         '''
@@ -281,7 +281,7 @@ class Encodable:
         # ---
         # Register
         # ---
-        dotted_args = label.split(dotted)
+        dotted_args = label.regularize(dotted)
         EncodableRegistry.register(klass, *dotted_args)
 
     @classmethod
@@ -1263,7 +1263,7 @@ class EncodableRegistry(CallRegistrar):
             name = encodable._type_field()
         except NotImplementedError as error:
             msg = (f"{klass.__name__}._register: '{type(encodable)}' "
-                   f"(\"{label.join(*reg_args)}\") needs to "
+                   f"(\"{label.regularize(*reg_args)}\") needs to "
                    "implement _type_field() function.")
             log.exception(error, msg)
             # Let error through. Just want more info.
@@ -1375,7 +1375,7 @@ class EncodableRegistry(CallRegistrar):
     @classmethod
     def _search(klass:     'EncodableRegistry',
                 place:     Dict[str, Any],
-                dotted:    str,
+                dotted:    label.DotStr,
                 data:      EncodedEither,
                 data_type: Type['Encodable']) -> Optional['Encodable']:
         '''
@@ -1402,8 +1402,8 @@ class EncodableRegistry(CallRegistrar):
         # Provided with a dotted key. Use that for explicit search.
         # ---
         # More like 'get' than search...
-        if dotted and isinstance(dotted, str):
-            keys = label.split(dotted)
+        if label.is_dotstr(dotted):
+            keys = label.regularize(dotted)
             # Path shouldn't be long. Just let Null-pattern pretend to be a
             # dict if we hit a 'Does Not Exist'.
             for key in keys:

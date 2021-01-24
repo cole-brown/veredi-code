@@ -39,7 +39,7 @@ def registries(configuration: Configuration) -> None:
     Make sure Veredi's required registries exist and have Veredi's required
     registered classes/functions/etc in them.
     '''
-    log_dotted = label.join(_DOTTED, 'load')
+    log_dotted = label.normalize(_DOTTED, 'load')
     log.start_up(log_dotted,
                  "Importing and loading registries, registrars, "
                  "and registrations...")

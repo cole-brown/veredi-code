@@ -26,21 +26,29 @@ from . import lists
 # Types
 # -----------------------------------------------------------------------------
 
-Dotted = NewType('Dotted', str)
+LabelInput  = NewType('LabelInput', Union[str, List[str]])
 '''
-A dotted label string.
-
-E.g.: "jeff.rules.x.y.z"
-'''
-
-Label  = NewType('Label', Union[str, List[str]])
-'''
-A label of some type - use normalize() to get a Dotted.
+A label of some type - use normalize() to get a Dotted or regularize() to get
+a DotList.
 
 Examples:
   - "jeff.rules.x.y.z"
   - ["jeff", "rules", "x", "y", "z"]
   - ["jeff.rules", "x", "y.z"]
+'''
+
+DotStr = NewType('DotStr', str)
+'''
+A dotted label as a string.
+
+E.g.: "jeff.rules.x.y.z"
+'''
+
+DotList = NewType('DotList', List[str])
+'''
+A dotted label as a list of strings, split on the dots.
+
+E.g.: ["jeff", "rules", "x", "y", "z"]
 '''
 
 
@@ -62,22 +70,45 @@ The expected start for all dotted strings under the official veredi banner.
 
 
 # -----------------------------------------------------------------------------
-# Label Helper Functions
+# Predicates
 # -----------------------------------------------------------------------------
 
-def is_veredi(dotted: Dotted) -> bool:
+def is_veredi(dotted: DotStr) -> bool:
     '''
     Returns true if the `dotted` string is formatted correctly to be considered
-    an 'official' veredi dotted string.
+    an 'official' veredi dotted string ('official' meaning does it starts with
+    the 'veredi' namespace).
     '''
     return dotted.startswith(_VEREDI_PREFIX)
 
 
-def join(*names: str) -> str:
+def is_dotstr(input: Any) -> bool:
+    '''
+    Returns true if the `dotted` string is formatted correctly to be considered
+    a Veredi Label Dotted String (aka label.DotStr).
+    '''
+    # Must exist.
+    if not input:
+        return False
+    # Must be a string.
+    if not isinstance(input, str):
+        return False
+    # Must have at least one dot.
+    if '.' not in input:
+        return False
+
+    return True
+
+
+# -----------------------------------------------------------------------------
+# Label Helper Functions
+# -----------------------------------------------------------------------------
+
+def _join(*names: str) -> DotStr:
     '''
     Turns iterable of `names` strings into one dotted string.
 
-    !! NOTE: A bit fragile - use normalize() for a robust `join()` !!
+    !! NOTE: A bit fragile - use normalize() for a robust `_join()` !!
 
     e.g.:
       dotted(    'veredi', 'jeff', 'system') -> 'veredi.jeff.system'
@@ -88,9 +119,11 @@ def join(*names: str) -> str:
     return '.'.join(names)
 
 
-def split(dotted: Dotted) -> List[str]:
+def _split(dotted: DotStr) -> DotList:
     '''
     Turns iterable of `names` strings into one dotted string.
+
+    !! NOTE: A bit fragile - use regularize() for a robust `_split()` !!
 
     e.g.:
       'veredi.jeff.system' -> ['veredi', 'jeff', 'system']
@@ -98,7 +131,7 @@ def split(dotted: Dotted) -> List[str]:
     return dotted.split('.')
 
 
-def regularize(*dotted: Union[str, List[str]]) -> List[str]:
+def regularize(*dotted: LabelInput) -> DotList:
     '''
     ??? -> [str, str, ...]
 
@@ -112,10 +145,10 @@ def regularize(*dotted: Union[str, List[str]]) -> List[str]:
     '''
     # Flatten (and split) our input string(s) into one list of one string each.
     return lists.flatten(*dotted,
-                         function=split)
+                         function=_split)
 
 
-def normalize(*dotted: Union[str, List[str]]) -> Union[str, List[str]]:
+def normalize(*dotted: LabelInput) -> DotStr:
     '''
     Normalize input `dotted` strings and/or lists of strings into one list of
     strings (or one dotted string if `to_str` is True).
@@ -131,10 +164,10 @@ def normalize(*dotted: Union[str, List[str]]) -> Union[str, List[str]]:
         -> 'jeff.rules.system.etc'
     '''
     # Easy - regularize and join it.
-    return join(*regularize(dotted))
+    return _join(*regularize(dotted))
 
 
-def to_path(*args: Union[str, List[str]]) -> Nullable[pathlib.Path]:
+def to_path(*args: LabelInput) -> Nullable[pathlib.Path]:
     '''
     Takes `args` (either iterable of strings or dotted string), `regularize()`
     it/them, and returns a pathlib.Path made from them.
@@ -196,11 +229,11 @@ def from_path(path:    Union[str, pathlib.Path, Null],
         if part == 'veredi':
             break
 
-    return join(*list(reversed(dotted_parts)))
+    return _join(*list(reversed(dotted_parts)))
 
 
 def this(find: str,
-         milieu: str) -> Tuple[Nullable[List[Union[str, List[str]]]], bool]:
+         milieu: str) -> Tuple[Nullable[DotList], bool]:
     '''
     Looks for 'this' in `find` string, then uses `milieu` to replace it. Milieu
     will be split, so if a 'this' was found, you'll get a list of strings
@@ -230,10 +263,10 @@ def this(find: str,
         return Null(), found_this
     if not milieu:
         # Just return what we got, but I guess split to obey return value?
-        return split(find), found_this
+        return _split(find), found_this
 
     result = []
-    for name in split(find):
+    for name in _split(find):
         if name != 'this':
             result.append(name)
             continue
@@ -242,7 +275,7 @@ def this(find: str,
         found_this = True
 
         # 1) Replace it with... what?
-        these = split(milieu)
+        these = _split(milieu)
 
         # 2) Replace `this` with `these`, let caller figure out what to
         #    reduce down to.
@@ -298,7 +331,7 @@ def munge_to_short(dotted: str) -> str:
     # ---
     # Sanity
     # ---
-    names = split(dotted)
+    names = _split(dotted)
     if not names:
         msg = (f"Cannot munge nothing. Got empty dotted list {names} "
                f"from input '{dotted}'.")

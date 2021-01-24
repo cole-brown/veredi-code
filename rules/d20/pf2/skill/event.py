@@ -75,11 +75,11 @@ class SkillRequest(SkillEvent):
         return "SkReq"
 
     def __str__(self):
-        return (f"{self._str_name()}: {self.skill} :: "
+        return (f"{self.__str_name__()}: {self.skill} :: "
                 f"context: {str(self._context)}")
 
     def __repr__(self):
-        return (f"<{self._str_name(self.__repr_name__())}: "
+        return (f"<{self.__str_name__(self.__repr_name__())}: "
                 "{self.skill} :: {repr(self._context)}>")
 
 
@@ -121,7 +121,7 @@ class SkillResult(SkillEvent):
     # To String
     # -------------------------------------------------------------------------
 
-    def _str_name(self, name: Optional[str] = None):
+    def __str_name__(self, name: Optional[str] = None):
         name = name or self.__class__.__name__
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
@@ -129,11 +129,11 @@ class SkillResult(SkillEvent):
         return "SkRes"
 
     def __str__(self):
-        return (f"{self._str_name()}: {self.skill} = {self.amount} "
+        return (f"{self.__str_name__()}: {self.skill} = {self.amount} "
                 f":: context: {str(self._context)}")
 
     def __repr__(self):
-        return (f"<{self._str_name(self.__repr_name__())}: "
+        return (f"<{self.__str_name__(self.__repr_name__())}: "
                 f"{self.skill}={self.amount} :: {repr(self._context)}>")
 
 

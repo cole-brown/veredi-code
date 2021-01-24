@@ -211,19 +211,19 @@ class LabelTaxon(Taxon):
     An ordering of identifiers based on veredi dotted labels.
     '''
 
-    def __init__(self, dotted: str) -> None:
+    def __init__(self, dotted: label.Label) -> None:
         '''
         Initialize the LabelTaxon with the provided dotted label.
         '''
         super().__init__(Rank.Domain.DEFINITIONS,
-                         *label.split(dotted))
+                         *label.regularize(dotted))
 
     def __str__(self) -> str:
         '''
         Python 'to string' function.
         '''
         # Build a string based on whatever taxonomic ranks we have...
-        dotted = label.join(*[str(rank) for rank in self._taxon])
+        dotted = label.normalize(*[str(rank) for rank in self._taxon])
         return f"{self.__class__.__name__}['{dotted}']"
 
 

@@ -260,7 +260,7 @@ class DataManager(EcsManagerWithEvents):
         if not self._serdes:
             msg = ("DataManager could not create Serdes "
                    "(Serializer/Deserializer) from "
-                   f"config data: {label.join(key_serdes)} "
+                   f"config data: {label.normalize(key_serdes)} "
                    f"{config.get(key_serdes)}")
             log.group_multi(self._log_groups,
                             self.dotted(),
@@ -270,7 +270,7 @@ class DataManager(EcsManagerWithEvents):
             raise background.config.exception(context, msg)
         if not self._repository:
             msg = ("DataManager could not create Repository from "
-                   f"config data: {label.join(key_repo)} "
+                   f"config data: {label.normalize(key_repo)} "
                    f"{config.get(key_repo)}")
             log.group_multi(self._log_groups,
                             self.dotted(),
@@ -340,7 +340,7 @@ class DataManager(EcsManagerWithEvents):
     # -------------------------------------------------------------------------
 
     def context_load(self,
-                     caller_dotted: label.Dotted,
+                     caller_dotted: label.DotStr,
                      data_action:   DataAction,
                      taxon:         Taxon,
                      context:       Optional['VerediContext'] = None
