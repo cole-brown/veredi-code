@@ -424,7 +424,7 @@ class SystemManager(EcsManagerWithEvents):
             self._log_tick(
                 "SystemManager.update({tick}, {time:05.6f}): {system}",
                 tick=tick,
-                time=time.seconds,
+                time=time.tick.current_seconds,
                 system=system)
 
             # Try/catch each system, so they don't kill each other with a
@@ -458,7 +458,7 @@ class SystemManager(EcsManagerWithEvents):
                     "SystemManager's {} system caught error type '{}' "
                     "during {} tick (time={}).",
                     str(system), type(error),
-                    tick, time.seconds)
+                    tick, time.tick.current_seconds)
 
             except Exception as error:
                 # TODO: health thingy
@@ -467,7 +467,7 @@ class SystemManager(EcsManagerWithEvents):
                     error,
                     "SystemManager's {} system had an unknown exception "
                     "during {} tick (time={}).",
-                    str(system), tick, time.seconds)
+                    str(system), tick, time.tick.current_seconds)
 
         if tick == SystemTick.THE_END:
             # Set all to destroy, then run destruction().

@@ -120,13 +120,10 @@ class InputSystem(System):
         # ---
         # Context Stuff
         # ---
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          context)
+
         # Our input parsers collection. Will create our interfaces (Mather)
         # which will create our ruleset parsers from the context/config data
         # (e.g. a 'D11Parser' math parser).
@@ -159,7 +156,8 @@ class InputSystem(System):
         Get background data for background.input.set().
         '''
         self._bg = {
-            'dotted': self.dotted(),
+            'dotted':    self.dotted(),
+            'parsers':   self._parsers.get_background(),
             'commander': self._commander.dotted(),
             'historian': self._historian.dotted(),
         }

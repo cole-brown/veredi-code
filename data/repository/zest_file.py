@@ -34,7 +34,7 @@ from veredi.data.records          import DataType
 
 from .file                        import FileTreeRepository
 from .taxon                       import Taxon, SavedTaxon
-from veredi.rules.d20.pf2.game    import PF2Rank
+from veredi.rules.d20.pf2.game    import PF2Rank, PF2SavedTaxon
 
 
 # -----------------------------------------------------------------------------
@@ -121,10 +121,9 @@ class Test_FileTreeRepo(ZestBase):
         # ------------------------------
         context = None
         with log.LoggingManager.on_or_off(self.debugging):
-            taxon = self.manager.data.taxon(DataType.SAVED, phylum, *taxonomy)
-            context = self.manager.data.context_load(self.dotted(__file__),
-                                                     DataAction.LOAD,
-                                                     taxon)
+            taxon = PF2SavedTaxon(phylum, *taxonomy)
+            context = DataLoadContext(self.dotted(__file__),
+                                      taxon)
 
         return context
 
@@ -138,12 +137,10 @@ class Test_FileTreeRepo(ZestBase):
         self.assertTrue(os.path.isdir(self.path))
 
     def do_load_test(self,
-                     *taxonomy: str,
-                     by_enum:   Optional['Test_FileTreeRepo.TestLoad'] = None
+                     load:   Optional['Test_FileTreeRepo.TestLoad'] = None
                      ) -> None:
         with log.LoggingManager.on_or_off(self.debugging):
-            context = self.context_load(*taxonomy,
-                                        by_enum=by_enum)
+            context = self.context_load(load)
 
         # Did we get something?
         self.assertTrue(context)
@@ -187,16 +184,16 @@ class Test_FileTreeRepo(ZestBase):
             self.assertEqual(repo_data, file_data)
 
     def test_load_player(self) -> None:
-        self.do_load_test(by_enum=self.TestLoad.PLAYER)
+        self.do_load_test(self.TestLoad.PLAYER)
 
     def test_load_monster(self) -> None:
-        self.do_load_test(by_enum=self.TestLoad.MONSTER)
+        self.do_load_test(self.TestLoad.MONSTER)
 
     def test_load_npc(self) -> None:
-        self.do_load_test(by_enum=self.TestLoad.NPC)
+        self.do_load_test(self.TestLoad.NPC)
 
     def test_load_item(self) -> None:
-        self.do_load_test(by_enum=self.TestLoad.ITEM)
+        self.do_load_test(self.TestLoad.ITEM)
 
 
 # --------------------------------Unit Testing---------------------------------

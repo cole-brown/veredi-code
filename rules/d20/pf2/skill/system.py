@@ -94,9 +94,10 @@ class SkillSystem(D20RulesSystem):
         self._component_type: Type[Component] = SkillComponent
 
         super()._configure(context)
-        self._config_rules_def(context,
-                               background.config.config,
-                               'skill')
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          context)
+        self._config_rules_def(context, config, 'skill')
 
         # ---
         # Health Stuff

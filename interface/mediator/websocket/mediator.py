@@ -122,8 +122,9 @@ class WebSocketMediator(Mediator):
         # ---
         # Configuration
         # ---
-        # Parent makes sure this exists.
-        config = background.config.config
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          context)
 
         self._name = species
 

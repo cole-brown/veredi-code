@@ -54,6 +54,7 @@ from veredi.base.null       import Null, Nullable, NullNoneOr
 from .exceptions            import ConfigError
 from veredi.base.exceptions import ContextError
 from veredi.base.dicts      import DoubleIndexDict
+from veredi.base            import label
 
 
 # TODO [2020-06-23]: methods for: contains, [], others...?
@@ -321,15 +322,6 @@ class ConfigMeta(type):
     Metaclass shenanigans to make some read-only /class/ property.
     '''
     @property
-    def config(klass: Type['config']) -> Nullable['Configuration']:
-        '''
-        Checks for a CONFIG link in config's spot in this context.
-        '''
-        ctx = klass._get()
-        retval = ctx.get(klass.Link.CONFIG, Null())
-        return retval
-
-    @property
     def path(klass: Type['config']) -> Nullable[pathlib.Path]:
         '''
         Checks for a PATH link in config's spot in this context.
@@ -388,6 +380,40 @@ class config(metaclass=ConfigMeta):
         '''
         global _CONFIG
         return veredi.get().get(_CONFIG, Null())
+
+    @classmethod
+    def config(klass:          Type['config'],
+               caller_name:    str,
+               caller_dotted:  label.DotStr,
+               caller_context: Optional['VerediContext'],
+               raises_error:   Optional[bool] = True,
+               ) -> Nullable['Configuration']:
+        '''
+        Checks for a CONFIG link in config's spot in this context. Returns it
+        if it exists.
+
+        If it doesn't exist use `raises_error` to either:
+          - Throw an error via this class's `exception()`.
+          - Just return Null().
+        '''
+        # Get it.
+        ctx = klass._get()
+        cfg_obj = ctx.get(klass.Link.CONFIG, Null())
+
+        # Error on it or return it?
+        if not cfg_obj:
+            if raises_error:
+                msg = ("No Configuration present in the background "
+                       "context; cannot get config setting for {} ({}) "
+                       "without it.")
+                raise klass.exception(
+                    caller_context,
+                    msg,
+                    caller_name, caller_dotted)
+            else:
+                # Esure it's null as opposed to Null, None, or Falsy.
+                cfg_obj = Null()
+        return cfg_obj
 
     @classmethod
     def link_set(klass: Type['config'], link: Link, entry: Any) -> None:

@@ -8,7 +8,7 @@ Base class for game tick time.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any, Dict
 from veredi.base.null import NullNoneOr
 if TYPE_CHECKING:
     from veredi.ecs.base     import System
@@ -53,6 +53,12 @@ class TickBase(ABC):
         Instance variable definitions, type hinting, doc strings, etc.
         '''
 
+        self._bg_data: Dict[Any, Any] = {}
+        '''
+        Our background context info. Store it so we can add more to it as
+        needed.
+        '''
+
         self._ticks: int = -1
         '''
         Just some counter for keeping track of delta ticks. This starts at zero
@@ -69,6 +75,7 @@ class TickBase(ABC):
         self._define_vars()
 
         self._configure(context)
+        self._init_bg_data()
 
     @abstractmethod
     def _configure(self, context: Optional['VerediContext']) -> None:
@@ -77,6 +84,42 @@ class TickBase(ABC):
         from repo, config, etc.
         '''
         raise NotImplementedError(f"{self.__class__.__name__}.configure() "
+                                  "is not implemented in base class. "
+                                  "Subclasses should implement it.")
+
+    # -------------------------------------------------------------------------
+    # Background Data
+    # -------------------------------------------------------------------------
+
+    def get_background(self) -> Dict[Any, Any]:
+        '''
+        Returns `self._bg_data`.
+        '''
+        # Might as well toss in current info...
+        self._bg_data_current()
+        # ...and return.
+        return self._bg_data
+
+    def _init_bg_data(self) -> None:
+        '''
+        Initialize our background data dict with useful info about us.
+        '''
+        self._bg_data = {
+            'dotted': self.dotted()
+        }
+
+    @abstractmethod
+    def _bg_data_current(self) -> None:
+        '''
+        Updated self._bg_data['current'] and return self._bg_data.
+        '''
+        # self._bg_data['current'] = {
+        #     'snapshot': time.machine.stamp_to_str(),
+        #     # Insert stuff here...
+        # }
+        # return self._bg_data
+        raise NotImplementedError(f"{self.__class__.__name__}"
+                                  "._bg_data_current() "
                                   "is not implemented in base class. "
                                   "Subclasses should implement it.")
 
@@ -130,7 +173,7 @@ class TickBase(ABC):
 
     @classmethod
     @abstractmethod
-    def dotted(klass: 'System') -> str:
+    def dotted(klass: 'TickBase') -> str:
         """
         The dotted name this system has. If the system uses '@register', you
         still have to implement dotted, but you get klass._DOTTED for free
@@ -199,6 +242,27 @@ class TickBase(ABC):
         '''
         Returns tick, tick num, machine time.
         '''
-        return (f"{self.__class__.__name__}: {self.seconds} tick seconds, "
-                f"{self.tick_num} tick number, "
-                f"{self.machine.stamp_to_str()}")
+        return (f"{self.dotted()}: {str(self)}")
+
+    @property
+    def error_game_data(self) -> str:
+        '''
+        Returns tick info as a dict for error info (e.g. in a VerediError.data
+        dict).
+        '''
+        # Update our background data and return that as useful error data.
+        return self._bg_data_current()
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+
+    def __str__(self) -> str:
+        return (f"<{self.__class__.__name__}:"
+                f"#{self.count:08,d},"
+                f"{self.current_seconds}>")
+
+    def __repr__(self) -> str:
+        return (f"<{self.__class__.__name__}:"
+                f"#{self.count:08,d},"
+                f"{self.current_seconds}>")

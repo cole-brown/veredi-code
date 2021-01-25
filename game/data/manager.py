@@ -40,6 +40,7 @@ from veredi.debug.const                    import DebugFlag
 # ---
 from veredi.data                           import background
 from veredi.data.records                   import (DataType,
+                                                   AnyDocTypeInput,
                                                    DocType,
                                                    Definition,
                                                    Saved)
@@ -339,12 +340,12 @@ class DataManager(EcsManagerWithEvents):
     # Data Contexts
     # -------------------------------------------------------------------------
 
-    def context_load(self,
-                     caller_dotted: label.DotStr,
-                     data_action:   DataAction,
-                     taxon:         Taxon,
-                     context:       Optional['VerediContext'] = None
-                     ) -> DataGameContext:
+    def context(self,
+                caller_dotted: label.DotStr,
+                data_action:   DataAction,
+                taxon:         Taxon,
+                context:       Optional['VerediContext'] = None
+                ) -> DataGameContext:
         '''
         Returns a DataLoadContext or DataSaveContext with the correct taxonomy
         sub-class for the game rules.
@@ -402,6 +403,7 @@ class DataManager(EcsManagerWithEvents):
                         "DataManager loading definition...",
                         log_minimum=log.Level.DEBUG)
         definition = self.load_definition(self.dotted(),
+                                          DocType.definition.game,
                                           self._game.game_definition())
 
         # ---
@@ -412,6 +414,7 @@ class DataManager(EcsManagerWithEvents):
                         "DataManager loading saved...",
                         log_minimum=log.Level.DEBUG)
         saved = self.load_saved(self.dotted(),
+                                DocType.saved.game,
                                 self._game.game_saved())
 
         # ---
@@ -429,7 +432,10 @@ class DataManager(EcsManagerWithEvents):
                         log_minimum=log.Level.DEBUG,
                         log_success=True)
 
-    def load_definition(self, dotted: str, taxon: LabelTaxon) -> Definition:
+    def load_definition(self,
+                        caller_dotted: str,
+                        doc_type:      AnyDocTypeInput,
+                        taxon:         LabelTaxon) -> Definition:
         '''
         Out-of-band data load for a Definition record.
 
@@ -440,11 +446,12 @@ class DataManager(EcsManagerWithEvents):
         '''
         log.group_multi(self._log_groups,
                         self.dotted(),
-                        "DataManager load Definition...",
+                        "DataManager load Definition for {}: {} {}...",
+                        caller_dotted, doc_type, taxon,
                         log_minimum=log.Level.DEBUG)
-        context_definition = DataLoadContext(dotted, taxon)
+        context_definition = DataLoadContext(caller_dotted, taxon)
         data = self._load(context_definition)
-        definition = Definition(DocType.definition.game, data)
+        definition = Definition(doc_type, data)
         log.group_multi(self._log_groups,
                         self.dotted(),
                         "DataManager load Definition complete.",
@@ -452,7 +459,10 @@ class DataManager(EcsManagerWithEvents):
                         log_success=True)
         return definition
 
-    def load_saved(self, dotted: str, taxon: SavedTaxon) -> Saved:
+    def load_saved(self,
+                   caller_dotted: str,
+                   doc_type:      AnyDocTypeInput,
+                   taxon:         SavedTaxon) -> Saved:
         '''
         Out-of-band data load for a Saved record.
 
@@ -463,11 +473,12 @@ class DataManager(EcsManagerWithEvents):
         '''
         log.group_multi(self._log_groups,
                         self.dotted(),
-                        "DataManager load Saved...",
+                        "DataManager load Saved for {}: {} {}...",
+                        caller_dotted, doc_type, taxon,
                         log_minimum=log.Level.DEBUG)
-        context_saved = DataLoadContext(dotted, taxon)
+        context_saved = DataLoadContext(caller_dotted, taxon)
         data = self._load(context_saved)
-        saved = Saved(DocType.saved.game, data)
+        saved = Saved(doc_type, data)
         log.group_multi(self._log_groups,
                         self.dotted(),
                         "DataManager load Saved complete.",

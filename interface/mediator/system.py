@@ -120,12 +120,10 @@ def _start_server(comms: multiproc.SubToProcComm,
             TypeError,
             "MediatorServer requires a SubToProcComm; received None.")
 
-    config = background.config.config
-    if not config:
-        raise background.config.exception(
-            context,
-            "Cannot configure a MediatorServer without a Configuration in the "
-            "background context.")
+    config = background.config.config(
+        '_start_server',
+        'veredi.interface.mediator._start_server',
+        context)
 
     # ---
     # Ignore Ctrl-C. Have parent process deal with it and us.
@@ -276,13 +274,9 @@ class MediatorSystem(System):
         # ---
         # Context Stuff
         # ---
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          context)
 
         # ---
         # Sub-Process: Mediator Server Create & Config

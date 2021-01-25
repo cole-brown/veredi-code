@@ -41,6 +41,13 @@ class Clock:
         date_time = date_time or datetime.now(self.time_zone)
         self.time_stamp = convert_fn(date_time)
 
+    @classmethod
+    def dotted(klass: 'Clock') -> str:
+        '''
+        Our Veredi Dotted Label.
+        '''
+        return 'veredi.game.time.clock'
+
     def _to_game(self, date_time):
         game_time = date_time.replace(hour=0,
                                       minute=0,

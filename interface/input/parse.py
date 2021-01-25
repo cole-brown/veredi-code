@@ -8,10 +8,11 @@ For converting user input into Veredi's math/roll syntax trees.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+from typing import Optional, Any, Dict
 
 from veredi.logger          import log
 
+from veredi.base            import label
 from veredi.data            import background
 from veredi.base.context    import VerediContext
 
@@ -38,6 +39,10 @@ class Parcel:
         Configure ourselves by getting our specific parser and transformer from
         the configuratiion.
         '''
+        self._bg_data: Dict[Any, Any] = None
+
+        # TODO: Why are Parcel and Mather using hasattr? Not the usual
+        # for Veredi __init__() functions...
         if not hasattr(self, '_math') or not self._math:
             self._math = Mather(context)
 
@@ -45,6 +50,25 @@ class Parcel:
         #  - chat
         #  - hashtag/macros?
         #  - More, I'm sure...
+
+        self.get_background()
+
+    def dotted(self) -> label.DotStr:
+        '''
+        Returns our Veredi Dotted Label.
+        '''
+        return 'veredi.interface.input.parse.mather'
+
+    def get_background(self) -> Dict[Any, Any]:
+        '''
+        Returns `self._bg_data`.
+        '''
+        if not self._bg_data:
+            self._bg_data = {
+                'dotted': self.dotted(),
+            }
+
+        return self._bg_data
 
     @property
     def math(self) -> 'Mather':
@@ -65,19 +89,40 @@ class Mather:
         Configure ourselves by getting our specific parser and transformer from
         the configuratiion.
         '''
+        self._bg_data: Dict[Any, Any] = None
+
+        # TODO: Why are Parcel and Mather using hasattr? Not the usual
+        # for Veredi __init__() functions...
         if hasattr(self, '_parser') and self._parser:
             return
 
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                'Mather requires a configuration to configure itself.')
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          context)
 
         self._parser: MathParser = config.create_from_config('server',
                                                              'input',
                                                              'parser',
                                                              'math')
+
+        self.get_background()
+
+    def dotted(self) -> label.DotStr:
+        '''
+        Returns our Veredi Dotted Label.
+        '''
+        return 'veredi.interface.input.parse.mather'
+
+    def get_background(self) -> Dict[Any, Any]:
+        '''
+        Returns `self._bg_data`.
+        '''
+        if not self._bg_data:
+            self._bg_data = {
+                'dotted': self.dotted(),
+            }
+
+        return self._bg_data
 
     def parse(self, string: str, milieu: Optional[str] = None) -> MathTree:
         '''
@@ -96,6 +141,7 @@ class UTMather(Mather):
                  context: VerediContext) -> None:
         self._parser = parser
         super().__init__(context)
+
 
 class UTParcel(Parcel):
     def __init__(self,
