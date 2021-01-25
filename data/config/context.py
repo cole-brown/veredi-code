@@ -144,14 +144,17 @@ class ConfigContext(EphemerealContext):
             path = background.manager.data.path
         return path
 
-    @classmethod
-    def config(klass: Type['ConfigContext'],
-               context: VerediContext) -> Optional['Configuration']:
-        '''
-        Helper to get config object from ConfigContext, even though it's
-        actually in the background context. We just redirect.
-        '''
-        return background.config.config
+    # @classmethod
+    # def config(klass: Type['ConfigContext'],
+    #            context: VerediContext) -> Optional['Configuration']:
+    #     '''
+    #     Helper to get config object from ConfigContext, even though it's
+    #     actually in the background context. We just redirect.
+    #     '''
+    #     config = background.config.config(self.__class__.__name__,
+    #                                       self.dotted(),
+    #                                       context)
+    #     return background.config.config
 
     @classmethod
     def keychain(klass: Type['ConfigContext'],

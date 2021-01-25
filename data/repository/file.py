@@ -221,13 +221,9 @@ class FileBareRepository(base.BaseRepository):
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          context)
 
         # Bare repo doesn't have a root until it loads something from
         # somewhere. Then that directory is its root.
@@ -437,13 +433,9 @@ class FileTreeRepository(base.BaseRepository):
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          context)
 
         # Start at ConfigContext's path...
         self._root = ConfigContext.path(context)

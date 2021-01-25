@@ -37,9 +37,10 @@ def stamp_to_str(dt_stamp: Optional[datetime] = None) -> str:
     A datetime timestamp in a format we approve of for parsing. If no `stamp`
     provided, will use `stamp` property.
     '''
-    dt_stamp = dt_stamp or stamp
+    if not dt_stamp:
+        dt_stamp = stamp()
     # Use the full percision to get a normalized string width.
-    return stamp.isoformat(timespec='microseconds')
+    return dt_stamp.isoformat(timespec='microseconds')
 
 
 def utcnow() -> datetime:
@@ -73,6 +74,13 @@ class MachineTime:
     SEC_TO_NS = 1_000_000_000
 
     @classmethod
+    def dotted(klass: 'MachineTime') -> str:
+        '''
+        Our Veredi Dotted Label.
+        '''
+        return 'veredi.time.machine'
+
+    @classmethod
     def sec_to_ns(klass:  'MachineTime',
                   seconds: Union[int, float, Decimal]) -> int:
         '''
@@ -90,12 +98,13 @@ class MachineTime:
         be serialized.'''
         return datetime.now(timezone.utc)
 
-    def stamp_to_str(self, stamp: Optional[datetime] = None) -> str:
+    def stamp_to_str(self, dt_stamp: Optional[datetime] = None) -> str:
         '''A datetime timestamp in a format we approve of for parsing. If no
         `stamp` provided, will use MachineTime.stamp property.'''
-        stamp = stamp or self.stamp
+        if not dt_stamp:
+            dt_stamp = self.stamp
         # Use the full percision to get a normalized string width.
-        return stamp.isoformat(timespec='microseconds')
+        return dt_stamp.isoformat(timespec='microseconds')
 
     @property
     def utcnow(self) -> datetime:

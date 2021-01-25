@@ -151,9 +151,9 @@ class OutputSystem(System):
         # ---
         # Config Stuff
         # ---
-        # config = background.config.config
-        # if config:
-        #     # Stuff from config.
+        # config = background.config.config(self.__class__.__name__,
+        #                                   self.dotted(),
+        #                                   context)
 
         # ---
         # Security: Access Control

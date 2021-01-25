@@ -141,6 +141,31 @@ class TickRounds(TickBase):
             raise background.config.exception(None, msg)
         self._current_round = numbers.to_decimal(round_num)
 
+    def _init_bg_data(self) -> None:
+        '''
+        Initialize our background data dict with useful info about us.
+        '''
+        super()._init_bg_data()
+        # Parent creates 'loaded' entry, so just add to it:
+        loaded = self._bg_data.setdefault('loaded', {})
+        loaded['seconds-per-round'] = self._seconds_per_round
+        loaded['current-round']     = self._current_round
+        return self._bg_data
+
+    def _bg_data_current(self) -> None:
+        '''
+        Updated self._bg_data['current'] and return self._bg_data.
+        '''
+        # Replace whatever's there with new data.
+        self._bg_data['current'] = {
+            'snapshot':        time.machine.stamp_to_str(),
+            'current-seconds': self.current_seconds,
+            'exact-seconds':   self.exact_seconds,
+            'turn-order':      self.turn_order,
+            'turn':            self.turn,
+        }
+        return self._bg_data
+
     # -------------------------------------------------------------------------
     # Round Functions
     # -------------------------------------------------------------------------

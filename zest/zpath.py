@@ -12,20 +12,61 @@ from typing import Optional, Union, Any
 import pathlib
 import enum
 
+
+from veredi.logger import log
+
+
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
 THIS_DIR = pathlib.Path(__file__).resolve().parent
+''''veredi/zest/' directory'''
+
 DATA_DIR = THIS_DIR / "zata"
+''''veredi/zest/zata' directory - parent for all testing data'''
+
 DATA_UNIT_TEST_DIR = DATA_DIR / "unit"
+'''
+'veredi/zest/zata/unit' directory - parent for all unit-test level data
+'''
+
 DATA_INTEGRATION_DIR = DATA_DIR / "integration"
+'''
+'veredi/zest/zata/unit' directory - parent for all integration-test level data
+'''
+
 DATA_FUNCTIONAL_DIR = DATA_DIR / "functional"
+'''
+'veredi/zest/zata/unit' directory - parent for all functional-test level data
+'''
 
 DEFAULT_CAMPAIGN = 'test-campaign'
+'''
+Campaign name/game id most of the tests use.
+'''
+
+DEFAULT_CONFIG_TEST = pathlib.Path('config.testing.yaml')
+'''
+Default configuration file for most tests.
+'''
+
+DEFAULT_CONFIG_NORMAL = pathlib.Path('config.veredi.yaml')
+'''
+Default configuration file name for real. Some tests prefer to use it
+(e.g. TestType.FUNCTIONAL sometimes).
+'''
+
 
 @enum.unique
 class TestType(enum.Enum):
+    '''
+    Type of testing: Unit, Integration, Functional
+
+    As of [2021-01-25], this link exists for a decent explanation:
+    https://www.softwaretestinghelp.com/the-difference-between-unit-integration-and-functional-testing/
+    '''
+
     UNIT        = DATA_UNIT_TEST_DIR
     INTEGRATION = DATA_INTEGRATION_DIR
     FUNCTIONAL  = DATA_FUNCTIONAL_DIR
@@ -39,15 +80,19 @@ class TestType(enum.Enum):
 # -----------------------------------------------------------------------------
 
 def retval(path: pathlib.Path) -> Optional[pathlib.Path]:
-    '''Returns path if it exists or None if not.'''
+    '''Returns path if it exists or raises an error if not.'''
     if not path.exists():
+        msg = f"Path does not exist: {path}"
+        error = FileNotFoundError(msg, path)
+        raise log.exception(msg, error)
         return None
     return path
 
 
 def rooted(test_type: TestType,
            *relative: Union[pathlib.Path, str]) -> Optional[pathlib.Path]:
-    '''Returns absolute path to a file given its path rooted from our
+    '''
+    Returns absolute path to a file given its path rooted from our
     testing data directory (for the test_type).
 
     Returns None if dir/file does not exist.
@@ -94,12 +139,31 @@ def repository_file_tree(test_type: TestType = TestType.UNIT
 def config(filepath: Union[pathlib.Path, str, None],
            test_type: TestType = TestType.UNIT) -> Optional[pathlib.Path]:
     '''
-    Returns pathlib.Path to config test data.
+    Returns pathlib.Path to config test data for `test_type`.
     '''
+    if test_type is TestType.FUNCTIONAL:
+        print("\n")
+        print("zpath.config: FUNCTIONAL TEST! \nINPUT VALUES:")
+        print(f"  test_type: {test_type}")
+        print(f"  filepath:  {filepath}")
     path = retval(rooted(test_type, 'config'))
+    if test_type is TestType.FUNCTIONAL:
+        print(f"  path:      {path}")
     if not filepath:
+        if test_type is TestType.FUNCTIONAL:
+            print("\n")
+            print("zpath.config: FUNCTIONAL TEST! \nFINALVALUES:")
+            print("  No filepath; using default:")
+            print(f"  path:      {path}")
         return path
+
     path = path / filepath
+    if test_type is TestType.FUNCTIONAL:
+        print("\n")
+        print("zpath.config: FUNCTIONAL TEST! \nFINALVALUES:")
+        print("  Adding filepath... returning:")
+        print(f"  path:      {path}")
+        print(f"  retval:    {retval(path)}")
     return retval(path)
 
 
@@ -112,3 +176,12 @@ def config_id(test_type: TestType, campaign: Any) -> Any:
     if campaign:
         return campaign
     return DEFAULT_CAMPAIGN
+
+
+def config_filename(test_type: TestType) -> pathlib.Path:
+    '''
+    Returns the default config filename to use for the test type.
+    '''
+    if test_type is TestType.FUNCTIONAL:
+        return DEFAULT_CONFIG_NORMAL
+    return DEFAULT_CONFIG_TEST

@@ -8,15 +8,18 @@ Configuration file reader/writer for Veredi games.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, MutableMapping
+from typing import Optional, Any, MutableMapping
 
 
 from veredi.logger                import log
+
+from veredi.base                  import label
 
 from veredi.data                  import background
 from veredi.data.config.config    import Configuration
 from veredi.data.config.hierarchy import Document
 
+from .                            import zpath
 from .zxceptions                  import UnitTestError
 
 
@@ -24,16 +27,50 @@ from .zxceptions                  import UnitTestError
 # Constants
 # -----------------------------------------------------------------------------
 
+DEFAULT_RULES = 'veredi.rules.d20.pf2'
+'''
+label.DotStr for the default ruleset for testing.
+'''
+
 
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
 
-def manual(config_data: MutableMapping[str, Any]) -> None:
+def rules(test_type: zpath.TestType,
+          rules:    Optional[label.LabelInput]) -> label.DotStr:
     '''
-    Creaty a Configuration manually (i.e. from the supplied data).
+    Returns a DotStr for the rules desired for the `test_type` and `rules`
+    inputs.
     '''
-    return NoFileConfig(config_data)
+    # Pretty simple right now...
+    if not rules:
+        rules = DEFAULT_RULES
+    return rules
+
+
+def manual(test_type:   zpath.TestType,
+           rules_label: Optional[label.LabelInput],
+           game_id:     Optional[Any],
+           config_data: MutableMapping[str, Any]) -> None:
+    '''
+    Creaty a Configuration manually (i.e. from the supplied params).
+
+    `rules` should be a Label for the ruleset's dotted name, e.g.
+    'veredi.rules.d20.pf2' (it will default to this if None provided).
+
+    `game_id` should be the game's id, e.g. 'test-campaign' (it will default to
+    zpath.config_id(test_type, None) if None provided).
+    '''
+    if not rules_label:
+        rules_label = rules(test_type, rules_label)
+
+    if not game_id:
+        game_id = zpath.config_id(test_type, game_id)
+
+    return NoFileConfig(rules_label,
+                        game_id,
+                        config_data)
 
 
 # -----------------------------------------------------------------------------
@@ -52,9 +89,14 @@ class NoFileConfig(Configuration):
     '''
 
     def __init__(self,
+                 rules:       label.LabelInput,
+                 game_id:     Any,
                  config_data: MutableMapping[str, Any]) -> None:
         '''Don't call super().__init__()... we Just do it ourselves so as to
         avoid the normal config file.'''
+
+        self._rules = label.normalize(rules)
+        self._id = game_id
 
         # Indicates that we're special...
         # TODO [2020-06-16]: Better way of saying we're special.

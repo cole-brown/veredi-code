@@ -80,9 +80,10 @@ class CombatSystem(D20RulesSystem):
         '''Set our component type for the get() helper. We have two, so...'''
 
         super()._configure(context)
-        self._config_rules_def(context,
-                               background.config.config,
-                               'combat')
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          context)
+        self._config_rules_def(context, config, 'combat')
 
         # ---
         # Health Stuff

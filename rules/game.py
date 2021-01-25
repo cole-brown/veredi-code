@@ -73,14 +73,9 @@ class RulesGame(LogMixin, ABC):
         # ---
         # Sanity
         # ---
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                None,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
+        # config = background.config.config(self.__class__.__name__,
+        #                                   self.dotted(),
+        #                                   context)
 
         # ---
         # LogMixin Set-Up; do ASAP for logging.

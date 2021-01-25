@@ -153,14 +153,10 @@ class Mediator(ABC):
                 "Cannot configure {} without SubToProcComm object in context.",
                 self.__class__.__name__)
 
-        # Get (required) config.
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
+        # # Get (required) config.
+        # config = background.config.config(self.__class__.__name__,
+        #                                   self.dotted(),
+        #                                   context)
 
         # ------------------------------
         # Grab some things from comms.

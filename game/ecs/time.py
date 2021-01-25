@@ -70,6 +70,12 @@ class TimeManager(EcsManager):
 
         # TODO: Reorder? Underscores first?
 
+        self._bg_data: Dict[Any, Any] = {}
+        '''
+        Our background context info. Store it so we can add more to it as
+        needed.
+        '''
+
         self.clock: Clock = Clock()
         '''
         'Game Time' clock. For any in-game time tracking needed.
@@ -148,6 +154,7 @@ class TimeManager(EcsManager):
         # Have to wait on this one due to needing definitions/saves, which
         # DataManager is in charge of.
         self._configure(data_manager, _unit_test)
+        self._finalize_background()
 
     def _configure(self,
                    data_manager: 'DataManager',
@@ -172,6 +179,9 @@ class TimeManager(EcsManager):
         # ------------------------------
         # Config Stuff
         # ------------------------------
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          None)
         # No config stuff at the moment.
 
         # ------------------------------
@@ -236,13 +246,34 @@ class TimeManager(EcsManager):
         '''
         return 'veredi.game.ecs.manager.time'
 
-    def get_background(self):
+    def get_background(self) -> None:
         '''
         Data for the Veredi Background context.
         '''
-        return {
-            background.Name.DOTTED.key: self.dotted(),
-        }
+        if not self._bg_data:
+            # Init our data.
+            self._bg_data = {
+                background.Name.DOTTED.key: self.dotted(),
+                'clock': {
+                    'dotted': self.clock.dotted(),
+                },
+                # 'tick': Don't add 'tick' until finalize_background().
+                'engine': {
+                    'tick': self._engine_tick,
+                    'life-cycle': self._engine_life_cycle,
+                },
+                'machine': {
+                    'dotted': self.machine.dotted(),
+                },
+            }
+
+        return self._bg_data
+
+    def _finalize_background(self) -> None:
+        '''
+        Add stuff from finalize_init() to our background data.
+        '''
+        self._bg_data['tick'] = self.tick.get_background()
 
     # -------------------------------------------------------------------------
     # Engine's Ticks / Life-Cycles
@@ -460,7 +491,10 @@ class TimeManager(EcsManager):
         # Figure out the timeout.
         # ------------------------------
         if timeout and isinstance(timeout, str):
-            config = background.config.config
+            config = background.config.config(self.__class__.__name__,
+                                              self.dotted(),
+                                              None,
+                                              raises_error=False)
             if not config:
                 self._log_info("TimeManager cannot get config for checking "
                                "timeout value of '{}'",
@@ -505,6 +539,7 @@ class TimeManager(EcsManager):
         '''
         return self.tick.delta()
 
+    @property
     def count(self) -> int:
         '''
         Returns the number of delta ticks since the engine started ticking us.
@@ -522,11 +557,20 @@ class TimeManager(EcsManager):
     @property
     def error_game_time(self) -> str:
         '''
-        Returns tick, tick num, machine time.
+        Returns tick info and machine time for error string information.
         '''
-        return (f"Time: {self.tick.current_seconds} tick seconds, "
-                f"{self.tick_num} tick number, "
+        return (f"{self.dotted()}: "
+                f"{str(self.tick)}, "
                 f"{self.machine.stamp_to_str()}")
+
+    @property
+    def error_game_data(self) -> str:
+        '''
+        Returns tick info, machine time, etc as a dict for error info (e.g. in
+        a VerediError.data dict).
+        '''
+        # Update our background data and return that as useful error data.
+        return self._bg_data_current()
 
     # -------------------------------------------------------------------------
     # System Time

@@ -10,7 +10,8 @@ A Record Class can have multiple documents, like 'metadata' and 'game.record'.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Any, NewType, Iterable, Mapping, Dict, List, Tuple
+from typing import (Union, Any, Protocol, NewType,
+                    Iterable, Mapping, Dict, List, Tuple)
 from veredi.base.null import Null, Nullable, is_null
 
 
@@ -59,6 +60,19 @@ class DataType(enum.Enum):
 # Document Types
 # -----------------------------------------------------------------------------
 
+class AnyDocType(Protocol):
+    '''
+    Type hinting for all the DocType enums.
+    '''
+
+    @property
+    def type(self) -> str:
+        '''
+        All DocType enums should be enums and already have this...
+        '''
+        ...
+
+
 class DocType:
     '''
     Record document type strings, so they don't have to exist in multiple
@@ -72,8 +86,19 @@ class DocType:
     # ------------------------------
     @enum.unique
     class general(enum.Enum):
+        # ------------------------------
+        # Values
+        # ------------------------------
         INVALID = None
         metadata = 'metadata'
+
+        @property
+        def type(self) -> str:
+            '''
+            All DocType enums should implement this in order to be considered
+            valid for AnyDocType.
+            '''
+            return self.value
 
     # ------------------------------
     # Definition Document Types
@@ -87,6 +112,14 @@ class DocType:
         system = 'definition.system'
         game   = 'definition.game'
 
+        @property
+        def type(self) -> str:
+            '''
+            All DocType enums should implement this in order to be considered
+            valid for AnyDocType.
+            '''
+            return self.value
+
     # ------------------------------
     # Saved Document Types
     # ------------------------------
@@ -97,6 +130,14 @@ class DocType:
         game, an entity, or whatever.
         '''
         game = 'saved.game'
+
+        @property
+        def type(self) -> str:
+            '''
+            All DocType enums should implement this in order to be considered
+            valid for AnyDocType.
+            '''
+            return self.value
 
     # -------------------------------------------------------------------------
     # Methods
@@ -123,7 +164,7 @@ class DocType:
         # Sanity check / convert input to string.
         string = doc_type
         if isinstance(string, enum.Enum):
-            string = doc_type.value
+            string = doc_type.type
         if not isinstance(string, str):
             msg = (f"'{doc_type}' is not valid. Must be a string or "
                    "string-backed Enum. "
@@ -136,22 +177,20 @@ class DocType:
         # Chain together all our enums so as to do a dumb search:
         for each_type in itertools.chain(klass.types()):
             for each in each_type:
-                if string == each.value:
-                    return each.value
+                if string == each.type:
+                    return each.type
 
         # Didn't find it anywhere. Error out.
         msg = f"'{string}' is not a DocType value."
         raise log.exception(ValueError(msg, string), msg)
 
 
-AnyDocType = NewType('AnyDocType',
-                     Union[str,
-                           DocType.general,
-                           DocType.definition,
-                           DocType.saved])
+AnyDocTypeInput = NewType('AnyDocTypeInput',
+                          Union[str, AnyDocType])
 '''
 Since `DocType` is a class/namespace of enums of strings, the valid
-DocTypes are: strings and DocType's actual enum types.
+DocTypes are: strings and DocType's actual enums (which must follow the
+AnyDocType protocol).
 '''
 
 
@@ -188,7 +227,7 @@ class Record(abc.MutableMapping):
         '''
 
     def __init__(self,
-                 primary_doc: 'AnyDocType',
+                 primary_doc: 'AnyDocTypeInput',
                  documents: Iterable[Mapping[DDKey, Any]] = []) -> None:
         '''
         `primary_doc`: The record's primary DocType.
@@ -210,7 +249,7 @@ class Record(abc.MutableMapping):
             self._add_document(doc_type, doc)
 
     def _add_document(self,
-                      unverified_type: 'AnyDocType',
+                      unverified_type: 'AnyDocTypeInput',
                       document:        Mapping[DDKey, Any]) -> None:
         '''
         Add `document` as `doc_type` to our documents.
@@ -352,7 +391,7 @@ class Record(abc.MutableMapping):
     # Non-'Main' Documents
     # -------------------------------------------------------------------------
 
-    def document(self, doc_type: 'AnyDocType') -> Nullable[Mapping]:
+    def document(self, doc_type: 'AnyDocTypeInput') -> Nullable[Mapping]:
         '''
         Get a non-'main' document from the definition. E.g. 'alias' part of
         AbilitySystem's def file.

@@ -23,6 +23,7 @@ from veredi.base.const                     import VerediHealth
 from veredi.base                           import label
 from veredi.data                           import background
 from veredi.data.records                   import DocType, Definition, Saved
+from veredi.data.repositiory.taxon         import LabelTaxon.
 from veredi.data.milieu                    import ValueMilieu
 from veredi.data.config.config             import Configuration
 
@@ -67,18 +68,11 @@ class D20RulesSystem(System):
         # ---
         # Config Stuff
         # ---
-        # We'll assume all subclasses need config for a system defs
-        # file at least.
-        config = background.config.config
-        if not config:
-            raise background.config.exception(
-                context,
-                None,
-                "Cannot configure {} without a Configuration in the "
-                "supplied context.",
-                self.__class__.__name__)
+        # config = background.config.config(self.__class__.__name__,
+        #                                   self.dotted(),
+        #                                   context)
+        pass
 
-    # TODO: call this somewhere?
     def _config_rules_def(self,
                           context:     'VerediContext',
                           config:      Configuration,
@@ -88,9 +82,11 @@ class D20RulesSystem(System):
         '''
         # Ask config for our definition to be deserialized and given to us
         # right now.
-        self._rule_defs = Definition(
+        self._rule_defs = self._manager.data.load_definition(
+            self.dotted(),
             DocType.definition.system,
-            config.definition(self.dotted(), context))
+            LabelTaxon(self.dotted()),
+        )
         self._rule_defs.configure(primary_key)
         if not self._rule_defs:
             raise background.config.exception(

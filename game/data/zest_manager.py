@@ -227,9 +227,9 @@ class BaseTest_DataManager(ZestEcs):
         context = None
         with log.LoggingManager.on_or_off(self.debugging):
             taxon = self.manager.data.taxon(DataType.SAVED, phylum, *taxonomy)
-            context = self.manager.data.context_load(self.dotted(__file__),
-                                                     DataAction.LOAD,
-                                                     taxon)
+            context = self.manager.data.context(self.dotted(__file__),
+                                                DataAction.LOAD,
+                                                taxon)
 
         return context
 

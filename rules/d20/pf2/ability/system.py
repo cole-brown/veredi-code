@@ -96,9 +96,10 @@ class AbilitySystem(D20RulesSystem):
         self._component_type: Type[Component] = AbilityComponent
 
         super()._configure(context)
-        self._config_rules_def(context,
-                               background.config.config,
-                               'ability')
+        config = background.config.config(self.__class__.__name__,
+                                          self.dotted(),
+                                          context)
+        self._config_rules_def(context, config, 'ability')
 
         # ---
         # Required Stuff

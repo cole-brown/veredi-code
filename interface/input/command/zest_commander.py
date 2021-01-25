@@ -45,26 +45,30 @@ class Test_Commander(ZestEcs):
 
     def set_up(self):
         super().set_up()
-        self.config = zonfig.manual({
-            Document.CONFIG: {
-                'data': {
-                    'game': None,
-                    #    # repository:
-                    #    #   type: veredi.repository.file-tree
-                    #    #   directory: ../repository/file-tree
-                    #    #   sanitize: veredi.sanitize.human.path-safe
-                    #    # serdes: veredi.serdes.yaml
-                },
-                'server': {
-                    'input': {
-                        'parser': {
-                            'math': 'veredi.math.d20.parser',
-                            'command': 'veredi.interface.input.commander',
+        self.config = zonfig.manual(
+            self._TEST_TYPE,
+            None,
+            None,
+            {
+                Document.CONFIG: {
+                    'data': {
+                        'game': None,
+                        #    # repository:
+                        #    #   type: veredi.repository.file-tree
+                        #    #   directory: ../repository/file-tree
+                        #    #   sanitize: veredi.sanitize.human.path-safe
+                        #    # serdes: veredi.serdes.yaml
+                    },
+                    'server': {
+                        'input': {
+                            'parser': {
+                                'math': 'veredi.math.d20.parser',
+                                'command': 'veredi.interface.input.commander',
+                            },
                         },
                     },
                 },
-            },
-        })
+            })
 
         self.event_manager     = EventManager(self.config, self.debug_flags)
         self.parsers           = Parcel(None)
