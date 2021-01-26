@@ -16,7 +16,7 @@ Import record stuff and things.
 # ------------------------------
 # TYpes & Enums
 # ------------------------------
-from .record     import DataType, DocType
+from .record     import DataType, DocType, AnyDocTypeInput, AnyDocType, Record
 
 
 # ------------------------------
@@ -55,10 +55,13 @@ __all__ = [
     # ------------------------------
     'DataType',
     'DocType',
+    'AnyDocTypeInput',
+    'AnyDocType',
 
     # ------------------------------
     # Classes
     # ------------------------------
+    'Record',
     'Definition',
     'Saved',
 

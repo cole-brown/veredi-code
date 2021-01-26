@@ -85,11 +85,29 @@ class DataEvent(Event):
 # Requests / Initiation
 # -----------------------------------------------------------------------------
 
-class DataLoadRequest(DataEvent):
+class DataRequestEvent(DataEvent):
+    '''
+    Parent class for requests to DataManager to deal with data.
+    e.g. load, save.
+
+    Only used for type hinting at the moment.
+    '''
     pass
 
 
-class DataSaveRequest(DataEvent):
+class DataLoadRequest(DataRequestEvent):
+    '''
+    Event for requesting that this event's context be used to load a specific
+    data record.
+    '''
+    pass
+
+
+class DataSaveRequest(DataRequestEvent):
+    '''
+    Event for requesting that this event's context be used to save a specific
+    data record.
+    '''
     pass
 
 

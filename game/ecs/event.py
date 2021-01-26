@@ -39,6 +39,16 @@ from .exceptions               import EventError
 
 EventNotifyFn = NewType('EventNotifyFn', Callable[['Event'], None])
 
+EventIdInput = NewType('EventIdInput', Union[int, MonotonicId])
+'''
+Events accept these types as their IDs.
+'''
+
+EventTypeInput = NewType('EventTypeInput', Union[int, enum.Enum])
+'''
+Events accept these types as their IDs.
+'''
+
 
 # -----------------------------------------------------------------------------
 # Manager Interface Subclass
@@ -111,14 +121,14 @@ class Event:
     '''A "Don't care" for the event.type field.'''
 
     def __init__(self,
-                 id: Union[int, MonotonicId],
-                 type: Union[int, enum.Enum],
+                 id: EventIdInput,
+                 type: EventTypeInput,
                  context: Optional[VerediContext] = None) -> None:
         self.set(id, type, context)
 
     def set(self,
-            id: Union[int, MonotonicId],
-            type: Union[int, enum.Enum],
+            id: EventIdInput,
+            type: EventTypeInput,
             context: VerediContext) -> None:
         self._id      = id
         self._type    = type
