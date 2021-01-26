@@ -178,7 +178,7 @@ class SuccessType(enum.Enum):
         return '{:^6s}'.format(self)
 
 
-LogSuccessInput = NewType('LogSuccessInput', Union[SuccessType, bool, None])
+SuccessInput = NewType('SuccessInput', Union[SuccessType, bool, None])
 '''
 The 'success' input param for Log Groups logging can be a:
   - SuccessType enum value
@@ -739,7 +739,7 @@ def brace_message(fmt_msg:      str,
                   log_fmt_type: Optional[MessageType]     = None,
                   log_group:    Optional[Group]           = None,
                   log_dotted:   Optional[label.DotStr]    = None,
-                  log_success:  LogSuccessInput           = None,
+                  log_success:  SuccessInput              = None,
                   log_dry_run:  Optional[bool]            = False,
                   **kwargs:     Mapping[str, Any]) -> str:
     '''
@@ -1329,11 +1329,11 @@ def group(group:         'Group',
           dotted:        label.DotStr,
           msg:           str,
           *args:         Any,
-          veredi_logger: LoggerInput     = None,
-          context:       'VerediContext' = None,
-          log_minimum:   Level           = None,
-          log_success:   LogSuccessInput = SuccessType.IGNORE,
-          log_dry_run:   Optional[bool]  = False,
+          veredi_logger: LoggerInput            = None,
+          context:       'VerediContext'        = None,
+          log_minimum:   Level                  = None,
+          log_success:   Optional[SuccessInput] = SuccessType.IGNORE,
+          log_dry_run:   Optional[bool]         = False,
           **kwargs:      Any) -> None:
     '''
     Log at `group` log.Level, whatever it's set to right now, as long as it's
@@ -1425,12 +1425,12 @@ def group_multi(groups:        Iterable['Group'],
                 dotted:        label.DotStr,
                 msg:           str,
                 *args:         Any,
-                group_resolve: Optional[GroupResolve] = GroupResolve.HIGHEST,
-                veredi_logger: LoggerInput            = None,
-                context:       'VerediContext'        = None,
-                log_minimum:   Level                  = None,
-                log_success:   LogSuccessInput        = SuccessType.IGNORE,
-                log_dry_run:   Optional[bool]         = False,
+                group_resolve: Optional[GroupResolve]   = GroupResolve.HIGHEST,
+                veredi_logger: LoggerInput               = None,
+                context:       'VerediContext'           = None,
+                log_minimum:   Level                     = None,
+                log_success:   Optional[SuccessInput] = SuccessType.IGNORE,
+                log_dry_run:   Optional[bool]            = False,
                 **kwargs:      Any) -> None:
     '''
     Log at `group` log.Level, whatever it's set to right now.
@@ -1443,6 +1443,9 @@ def group_multi(groups:        Iterable['Group'],
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
+    if group_resolve is None:
+        group_resolve = GroupResolve.HIGHEST
+
     # Resolve the groups based on resolution type, then log to whatever
     # group(s) that is.
     final_groups = group_resolve.resolve(groups)
@@ -1465,7 +1468,7 @@ def security(dotted:        label.DotStr,
              veredi_logger: LoggerInput     = None,
              context:       'VerediContext' = None,
              log_minimum:   Level           = None,
-             log_success:   LogSuccessInput = SuccessType.IGNORE,
+             log_success:   SuccessInput    = SuccessType.IGNORE,
              log_dry_run:   Optional[bool]  = False,
              **kwargs:      Any) -> None:
     '''
@@ -1498,7 +1501,7 @@ def start_up(dotted:        label.DotStr,
              veredi_logger: LoggerInput     = None,
              context:       'VerediContext' = None,
              log_minimum:   Level           = None,
-             log_success:   LogSuccessInput = SuccessType.IGNORE,
+             log_success:   SuccessInput    = SuccessType.IGNORE,
              log_dry_run:   Optional[bool]  = False,
              **kwargs:      Any) -> None:
     '''
@@ -1531,7 +1534,7 @@ def data_processing(dotted:        label.DotStr,
                     veredi_logger: LoggerInput     = None,
                     context:       'VerediContext' = None,
                     log_minimum:   Level           = None,
-                    log_success:   LogSuccessInput = SuccessType.IGNORE,
+                    log_success:   SuccessInput    = SuccessType.IGNORE,
                     log_dry_run:   Optional[bool]  = False,
                     **kwargs:      Any) -> None:
     '''

@@ -8,6 +8,9 @@ Tests for the Ability system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
+import random
+
+
 from veredi.zest.base.system             import ZestSystem
 
 from veredi.base.context                 import UnitTestContext
@@ -20,8 +23,11 @@ from veredi.game.ecs.base.component      import ComponentLifeCycle
 from veredi.game.data.event              import (DataLoadedEvent,
                                                  DataLoadRequest)
 from veredi.game.data.component          import DataComponent
-from veredi.data.context                 import (DataGameContext,
+from veredi.data.context                 import (DataAction,
+                                                 DataGameContext,
                                                  DataLoadContext)
+from veredi.data.records                 import DataType
+from veredi.rules.d20.pf2.game           import PF2Rank
 
 from veredi.interface.input.event        import CommandInputEvent
 
@@ -44,6 +50,12 @@ from .component                          import AbilityComponent
 class Test_AbilitySystem(ZestSystem):
     '''
     Test our AbilitySystem with some on-disk data.
+    '''
+
+    EVENT_TYPE = random.randint(0, 100)
+    '''
+    Don't have any specific need for Event.type, so just give it some random
+    number.
     '''
 
     ID_DATA = {
@@ -115,7 +127,9 @@ class Test_AbilitySystem(ZestSystem):
     def create_ability(self, entity):
         # Make the load request event for our entity.
         request = self.load_request(entity.id,
-                                    DataGameContext.DataType.MONSTER)
+                                    PF2Rank.Phylum.MONSTER,
+                                    'dragon',
+                                    'Aluminum Dragon')
         self.assertFalse(self.events)
 
         # Ask for our Ability Guy data to be loaded.
@@ -159,25 +173,18 @@ class Test_AbilitySystem(ZestSystem):
 
         return event
 
-    def load_request(self, entity_id, type):
-        ctx = DataLoadContext('unit-testing',
-                              type,
-                              'test-campaign')
-        if type == DataGameContext.DataType.MONSTER:
-            ctx.sub['family'] = 'dragon'
-            ctx.sub['monster'] = 'aluminum dragon'
-        else:
-            raise LoadError(
-                f"No DataGameContext.DataType to ID conversion for: {type}",
-                None,
-                ctx)
+    def load_request(self, entity_id, *taxonomy):
 
-        event = DataLoadRequest(
-            id,
-            ctx.type,
-            ctx)
+        taxon = self.manager.data.taxon(DataType.SAVED,
+                                        *taxonomy)
 
-        return event
+        request = self.manager.data.request(self.dotted(__file__),
+                                            entity_id,
+                                            self.EVENT_TYPE,
+                                            DataAction.LOAD,
+                                            taxon)
+
+        return request
 
     def event_ability_res(self, event):
         self.assertIsInstance(event,

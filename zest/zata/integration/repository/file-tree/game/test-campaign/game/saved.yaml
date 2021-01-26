@@ -1,0 +1,26 @@
+--- !metadata
+record-type: veredi.record.game.save
+version: 2020-12-14
+
+source: veredi.game.dossier
+authors:
+  - name: Cole Brown
+    date: 2020-12-14
+    note: Initial.
+
+system: d20.pf2
+name: veredi.rules.d20.pf2.game
+display-name: Veredi d20 PF2 Saved Game Data
+
+
+--- !saved.game
+
+# meta:
+#   registry: veredi.rules.d20.pf2.game
+
+time:
+  # The round number it is.
+  round: 6
+  # Initiative should be an ordered list of tuples of
+  # entities/initiative-numbers. The first tuple is the entity whose turn it is.
+  initiative: null

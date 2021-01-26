@@ -9,7 +9,7 @@ Logging utilities for Veredi.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Type, MutableMapping)
+                    Optional, Union, Any, Type, MutableMapping, Iterable)
 if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
 
@@ -155,7 +155,10 @@ class Lumberjack:
               dotted:        str,
               msg:           str,
               *args:         Any,
-              success:       Optional[log.SuccessType] = None,
+              context:       'VerediContext'  = None,
+              log_minimum:   log.Level        = None,
+              log_success:   log.SuccessInput = log.SuccessType.IGNORE,
+              log_dry_run:   Optional[bool]   = False,
               **kwargs:      Any) -> None:
         '''
         Log at `group` log.Level, whatever it's set to right now.
@@ -164,8 +167,38 @@ class Lumberjack:
         log.group(group, dotted, msg,
                   *args,
                   veredi_logger=self._logger,
-                  success=success,
+                  context=context,
+                  log_minimum=log_minimum,
+                  log_success=log_success,
+                  log_dry_run=log_dry_run,
                   **kwargs)
+
+    def group_multi(
+            self,
+            groups:        Iterable['log.Group'],
+            dotted:        label.DotStr,
+            msg:           str,
+            *args:         Any,
+            group_resolve: Optional[log.GroupResolve] = None,
+            context:       'VerediContext'            = None,
+            log_minimum:   log.Level                  = None,
+            log_success:   log.SuccessInput           = None,
+            log_dry_run:   Optional[bool]             = False,
+            **kwargs:      Any) -> None:
+        '''
+        Logs to one or more of the `groups`, depending on `group_resolve`.
+        Uses the log level, etc of each group logged out as.
+        '''
+        kwargs = self._stack(1, **kwargs)
+        log.group_multi(groups, dotted, msg,
+                        *args,
+                        veredi_logger=self._logger,
+                        group_resolve=group_resolve,
+                        context=context,
+                        log_minimum=log_minimum,
+                        log_success=log_success,
+                        log_dry_run=log_dry_run,
+                        **kwargs)
 
     def security(self,
                  dotted:   str,
@@ -214,6 +247,30 @@ class Lumberjack:
                      context=context,
                      success=success,
                      **kwargs)
+
+    def data_processing(self,
+                        dotted:   str,
+                        msg:      str,
+                        *args:    Any,
+                        context:  Optional['VerediContext'] = None,
+                        success:  Optional[log.SuccessType] = None,
+                        **kwargs: Any) -> None:
+        '''
+        Log a start_up-related message via our logger.
+
+        NOTE: this is not a "log at this level" function. Rather, it is a "log
+        this start-up-related log" function. The logging level this uses can
+        change at any time. This just allows all start_up logs to stay grouped
+        at the same level easily (and keep them there if/when the level
+        changes).
+        '''
+        kwargs = self._stack(1, **kwargs)
+        log.data_processing(dotted, msg,
+                            *args,
+                            veredi_logger=self._logger,
+                            context=context,
+                            success=success,
+                            **kwargs)
 
     # -------------------------------------------------------------------------
     # Logging-by-Level Functions
