@@ -301,8 +301,8 @@ class Record(abc.MutableMapping):
         # Find out if there's anything at the end of the path.
         place = self._main()
         for key in path:
-            # Nope out.
-            if key not in path:
+            # Check so we don't raise KeyError.
+            if key not in place:
                 return Null()
 
             # Update our place in the path and continue on to the next key.
@@ -318,7 +318,7 @@ class Record(abc.MutableMapping):
         return place
 
     def exists(self,
-               path:  Union[str, List[str]]) -> bool:
+               path:  label.LabelInput) -> bool:
         '''
         If `path` is a str:
           - Expects dotted string - converts to a list using

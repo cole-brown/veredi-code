@@ -23,8 +23,7 @@ That is the bardic/rougish homeworld.
 # Typing
 # ---
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type, Set, Tuple)
-from veredi.base.null import Null, Nullable
+                    Optional, Union, Type, Set)
 if TYPE_CHECKING:
     from decimal import Decimal
     from veredi.base.context     import VerediContext
@@ -38,7 +37,6 @@ from veredi.logger                      import log
 from veredi.base.const                  import VerediHealth
 from veredi.data                        import background
 from veredi.data.config.registry        import register
-from veredi.data.milieu                 import ValueMilieu
 
 # Game / ECS Stuff
 from veredi.game.ecs.event              import EventManager
@@ -49,7 +47,7 @@ from veredi.game.ecs.entity             import EntityManager
 from veredi.game.ecs.const              import (SystemTick,
                                                 SystemPriority)
 
-from veredi.game.ecs.base.identity      import ComponentId, EntityId
+from veredi.game.ecs.base.identity      import ComponentId
 from veredi.game.ecs.base.component     import Component
 from veredi.rules.d20.system            import D20RulesSystem
 
@@ -273,12 +271,12 @@ class SkillSystem(D20RulesSystem):
         if not self._health_ok_tick(SystemTick.STANDARD):
             return self.health
 
-        for entity in self._wanted_entities(tick):
+        for entity in self._wanted_entities(SystemTick.STANDARD):
             # Check if entity in turn order has a (skill) action queued up.
             # Also make sure to check if entity/component still exist.
             if not entity:
                 continue
-            component = component_mgr.get(self._component_type)
+            component = self.manager.component.get(self._component_type)
             if not component or not component.has_action:
                 continue
 
