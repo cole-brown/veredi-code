@@ -64,7 +64,7 @@ class Definition(Record):
         return self._documents[self._main]
 
     def exists(self,
-               path:  Union[str, List[str]]) -> bool:
+               path:  label.LabelInput) -> bool:
         '''
         If `path` is a str:
           - Expects dotted string - converts to a list using
@@ -76,12 +76,14 @@ class Definition(Record):
 
         Also checks for `check` in main document under 'alias' if that exists.
         '''
-        if super().exists(path):
+        # First, check under our primary key.
+        if super().exists(label.regularize(self._key_prime, path)):
             return True
 
-        # If alias key exists, also check there.
+        # Second, try the alias key, if it exists.
         if self.ALIAS in self:
-            return super.exists(label.regularize(self.ALIAS, path))
+            alias_exists = super().exists(label.regularize(self.ALIAS, path))
+            return alias_exists
 
     def _append_default(self, names: List[str]) -> None:
         '''
@@ -90,7 +92,7 @@ class Definition(Record):
         names.append(self['default']['key'])
 
     def _canon_make(self,
-                    names:        List[Union[List[str], str]],
+                    names:        label.LabelInput,
                     no_error_log: bool = False,
                     raise_error:  bool = True) -> Nullable[str]:
         '''
@@ -113,7 +115,7 @@ class Definition(Record):
             resolved = False
             if isinstance(name, str):
                 # Normal case, just look for aliases to replace.
-                standard = self.get(self.ALIAS, Null()).get(name, None)
+                standard = self.get(self.ALIAS).get(name, None)
                 if standard:
                     canon.append(standard)
                     bookmark = bookmark.get(standard, Null())

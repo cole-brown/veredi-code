@@ -937,8 +937,8 @@ class users:
         set() functionality and UserPassport.__hash__()), this will overwrite
         it.
         '''
-        super = klass._super()
-        super.set(user.id, user.connection, user)
+        super_users = klass._super()
+        super_users.set(user.id, user.connection, user)
 
     # -------------------------------------------------------------------------
     # Removing Users
@@ -980,8 +980,8 @@ class users:
         If `user` doesn't exists in the collection (as defined by Python's
         set() functionality and UserPassport.__hash__()), this does nothing.
         '''
-        super = klass._super()
-        super.discard(user)
+        super_users = klass._super()
+        super_users.discard(user)
 
 
 # -------------------------------------------------------------------------

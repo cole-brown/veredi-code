@@ -8,6 +8,9 @@ Tests for the Skill system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
+import random
+
+
 from veredi.zest.base.system import ZestSystem
 from veredi.zest import zload
 from veredi.base.context import UnitTestContext
@@ -18,7 +21,10 @@ from veredi.game.ecs.base.identity import ComponentId, EntityId
 from veredi.game.ecs.base.component import ComponentLifeCycle
 from veredi.game.data.event import DataLoadedEvent, DataLoadRequest
 from veredi.game.data.component import DataComponent
-from veredi.data.context import DataGameContext, DataLoadContext
+from veredi.data.context import DataAction, DataGameContext, DataLoadContext
+
+from veredi.data.records                 import DataType
+from veredi.rules.d20.pf2.game           import PF2Rank
 
 from .system import SkillSystem
 from .event import SkillRequest, SkillResult
@@ -39,6 +45,12 @@ class Test_SkillSystem(ZestSystem):
     Test our SkillSystem with some on-disk data.
     '''
 
+    EVENT_TYPE = random.randint(0, 100)
+    '''
+    Don't have any specific need for Event.type, so just give it some random
+    number.
+    '''
+
     def set_up(self):
         super().set_up()
         self.set_up_input()
@@ -50,30 +62,24 @@ class Test_SkillSystem(ZestSystem):
     def event_skill_res(self, event):
         self.events.append(event)
 
-    def load_request(self, entity_id, type):
-        ctx = DataLoadContext('unit-testing',
-                              type,
-                              'test-campaign')
-        if type == DataGameContext.DataType.NPC:
-            ctx.sub['family'] = 'Townville'
-            ctx.sub['npc'] = 'Skill Guy'
-        else:
-            raise LoadError(
-                f"No DataGameContext.DataType to ID conversion for: {type}",
-                None,
-                ctx)
+    def load_request(self, entity_id, *taxonomy):
 
-        event = DataLoadRequest(
-            id,
-            ctx.type,
-            ctx)
+        taxon = self.manager.data.taxon(DataType.SAVED,
+                                        *taxonomy)
 
-        return event
+        request = self.manager.data.request(self.dotted(__file__),
+                                            entity_id,
+                                            self.EVENT_TYPE,
+                                            DataAction.LOAD,
+                                            taxon)
+        return request
 
     def load(self, entity):
         # Make the load request event for our entity.
         request = self.load_request(entity.id,
-                                    DataGameContext.DataType.NPC)
+                                    PF2Rank.Phylum.NPC,
+                                    'Townville',
+                                    'Skill Guy')
         self.assertFalse(self.events)
 
         # Ask for our Skill Guy data to be loaded.
