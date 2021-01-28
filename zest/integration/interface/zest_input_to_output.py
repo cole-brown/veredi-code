@@ -56,6 +56,7 @@ from veredi.math.system                     import MathSystem
 from veredi.math.parser                     import MathTree
 from veredi.game.data.identity.component    import IdentityComponent
 from veredi.rules.d20.pf2.health.component  import HealthComponent
+from veredi.rules.d20.pf2.game              import PF2Rank
 
 
 # -----------------------------------------------------------------------------
@@ -97,26 +98,6 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
     def event_ability_res(self, event):
         self.events.append(event)
 
-    def load_request(self, entity_id, type):
-        ctx = DataLoadContext('unit-testing',
-                              type,
-                              'test-campaign')
-        if type == DataGameContext.DataType.MONSTER:
-            ctx.sub['family'] = 'dragon'
-            ctx.sub['monster'] = 'aluminum dragon'
-        else:
-            raise LoadError(
-                f"No DataGameContext.DataType to ID conversion for: {type}",
-                None,
-                ctx)
-
-        event = DataLoadRequest(
-            entity_id,
-            ctx.type,
-            ctx)
-
-        return event
-
     def recv_output(self, envelope, recipients):
         '''
         Unit testing callback for OutputSystem.
@@ -145,8 +126,10 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
         # veredi.zest.debug.background.to_log('zest_input_to_output')
 
         # Make our request event.
-        request = self.load_request(entity.id,
-                                    DataGameContext.DataType.MONSTER)
+        request = self.data_request(entity.id,
+                                    PF2Rank.Phylum.MONSTER,
+                                    'Dragon',
+                                    'Aluminum Dragon')
 
         # print("per_test_set_up")
         # from veredi.zest.debug import background

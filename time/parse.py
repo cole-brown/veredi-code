@@ -11,12 +11,13 @@ Parse strings into timestamps or durations, and possibly vice versa.
 from typing import Optional, Any
 
 import re
-from decimal import Decimal
+from decimal       import Decimal
 
-from datetime import timedelta
+from datetime      import timedelta
 
 
-from veredi.base import numbers
+from veredi.base   import numbers
+from veredi.logger import log
 
 
 # -----------------------------------------------------------------------------
@@ -96,17 +97,54 @@ def duration(duration_str: str) -> Optional[timedelta]:
 # Helpers
 # -----------------------------------------------------------------------------
 
-def is_duration(duration: Any) -> bool:
+def is_duration(check: Any) -> bool:
     '''
-    Returns True if `duration` is of the expected type (e.g. what
-    parse.duration() returns).
+    Returns True if `check` is a type usable for durations:
+      - timedelta
+      - numbers.NumberTypesTuple
+      - Something `duration()` can parse.
     '''
-    return isinstance(duration, timedelta)
+    if isinstance(check, timedelta):
+        return True
+    elif isinstance(check, numbers.NumberTypesTuple):
+        return True
+    elif isinstance(check, str):
+        try:
+            dur = duration(check)
+            return True
+        except:
+            return False
+
+    # What even is it?
+    log.warning(f"time.parse.is_duration(): Unknown type {type} for: {check}")
+    return False
 
 
-def to_decimal(duration: timedelta) -> Decimal:
+def to_decimal(duration: Any) -> Decimal:
     '''
     Converts the time duration to a Decimal of seconds and returns it.
     '''
-    # Get the duration as fractional seconds...
-    return numbers.to_decimal(duration.total_seconds())
+    if isinstance(duration, str):
+        duration = parse(duration)
+
+    if isinstance(duration, timedelta):
+        # Get the duration as fractional seconds...
+        return numbers.to_decimal(duration.total_seconds())
+
+    # Else just try to cast.
+    return numbers.to_decimal(duration)
+
+
+def to_float(duration: Any) -> float:
+    '''
+    Converts the time duration to a float of seconds and returns it.
+    '''
+    if isinstance(duration, str):
+        duration = parse(duration)
+
+    if isinstance(duration, timedelta):
+        # Get the duration as fractional seconds (already a float)...
+        return duration.total_seconds()
+
+    # Else just try to cast.
+    return float(duration)

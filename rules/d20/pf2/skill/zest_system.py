@@ -11,24 +11,22 @@ Tests for the Skill system, events, and components.
 import random
 
 
-from veredi.zest.base.system import ZestSystem
-from veredi.zest import zload
-from veredi.base.context import UnitTestContext
-from veredi.data.exceptions import LoadError
-from veredi.logger import log
+from veredi.zest.base.system        import ZestSystem
+from veredi.base.context            import UnitTestContext
+from veredi.logger                  import log
 
-from veredi.game.ecs.base.identity import ComponentId, EntityId
+from veredi.game.ecs.base.identity  import ComponentId
 from veredi.game.ecs.base.component import ComponentLifeCycle
-from veredi.game.data.event import DataLoadedEvent, DataLoadRequest
-from veredi.game.data.component import DataComponent
-from veredi.data.context import DataAction, DataGameContext, DataLoadContext
+from veredi.game.data.event         import DataLoadedEvent
+from veredi.game.data.component     import DataComponent
+from veredi.data.context            import DataAction
 
-from veredi.data.records                 import DataType
-from veredi.rules.d20.pf2.game           import PF2Rank
+from veredi.data.records            import DataType
+from veredi.rules.d20.pf2.game      import PF2Rank
 
-from .system import SkillSystem
-from .event import SkillRequest, SkillResult
-from .component import SkillComponent
+from .system                        import SkillSystem
+from .event                         import SkillRequest, SkillResult
+from .component                     import SkillComponent
 
 
 # -----------------------------------------------------------------------------
@@ -45,12 +43,6 @@ class Test_SkillSystem(ZestSystem):
     Test our SkillSystem with some on-disk data.
     '''
 
-    EVENT_TYPE = random.randint(0, 100)
-    '''
-    Don't have any specific need for Event.type, so just give it some random
-    number.
-    '''
-
     def set_up(self):
         super().set_up()
         self.set_up_input()
@@ -62,21 +54,9 @@ class Test_SkillSystem(ZestSystem):
     def event_skill_res(self, event):
         self.events.append(event)
 
-    def load_request(self, entity_id, *taxonomy):
-
-        taxon = self.manager.data.taxon(DataType.SAVED,
-                                        *taxonomy)
-
-        request = self.manager.data.request(self.dotted(__file__),
-                                            entity_id,
-                                            self.EVENT_TYPE,
-                                            DataAction.LOAD,
-                                            taxon)
-        return request
-
     def load(self, entity):
         # Make the load request event for our entity.
-        request = self.load_request(entity.id,
+        request = self.data_request(entity.id,
                                     PF2Rank.Phylum.NPC,
                                     'Townville',
                                     'Skill Guy')

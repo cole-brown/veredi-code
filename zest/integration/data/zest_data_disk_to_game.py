@@ -22,13 +22,16 @@ from veredi.zest.base.integrate import ZestIntegrateEcs
 from veredi.data.context                    import (DataGameContext,
                                                     DataLoadContext)
 from veredi.data.exceptions                 import LoadError
+from veredi.data.records                    import DataType
+from veredi.data.context                    import DataAction
 
-from veredi.game.ecs.base.identity          import ComponentId
+from veredi.game.ecs.base.identity          import ComponentId, EntityId
 from veredi.game.data.component             import DataComponent
 
 from veredi.game.data.event                 import (DataLoadRequest,
                                                     DataLoadedEvent)
 
+from veredi.rules.d20.pf2.game              import PF2Rank
 from veredi.rules.d20.pf2.health.component  import HealthComponent
 from veredi.rules.d20.pf2.ability.component import AbilityComponent
 from veredi.game.data.identity.component    import IdentityComponent
@@ -55,30 +58,6 @@ class Test_DataLoad_DiskToGame(ZestIntegrateEcs):
         super().tear_down()
         self.expected_components = None
 
-    # ---
-    # Events
-    # ---
-
-    def load_request(self, type):
-        ctx = DataLoadContext('unit-testing',
-                              type,
-                              'test-campaign')
-        if type == DataGameContext.DataType.MONSTER:
-            ctx.sub['family'] = 'dragon'
-            ctx.sub['monster'] = 'aluminum dragon'
-        else:
-            raise LoadError(
-                f"No DataGameContext.DataType to ID conversion for: {type}",
-                None,
-                ctx)
-
-        event = DataLoadRequest(
-            42,
-            ctx.type,
-            ctx)
-
-        return event
-
     # -------------------------------------------------------------------------
     # Tests
     # -------------------------------------------------------------------------
@@ -95,7 +74,10 @@ class Test_DataLoad_DiskToGame(ZestIntegrateEcs):
         self.set_up_events()
 
         # Make our request event.
-        request = self.load_request(DataGameContext.DataType.MONSTER)
+        request = self.data_request(EntityId.INVALID,
+                                    PF2Rank.Phylum.MONSTER,
+                                    'Dragon',
+                                    'Aluminum Dragon')
         self.assertFalse(self.events)
 
         # Ask for our aluminum_dragon to be loaded. Expect 1 event for

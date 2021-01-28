@@ -503,12 +503,12 @@ class TimeManager(EcsManager):
             else:
                 try:
                     timeout = config.get('engine', 'time', 'timeouts', timeout)
-                    # If it's not a number and falsy, set to default.
-                    if not isinstance(timeout, numbers.Number) and not timeout:
+                    # If it's not a duration, set to the default.
+                    if not time.is_duration(timeout) and not timeout:
                         timeout = self._DEFAULT_TIMEOUT_SEC
                     # If it's not a float, (try to) convert it to one.
                     if not isinstance(timeout, float):
-                        timeout = float(timeout)
+                        timeout = time.to_float(timeout)
                 except ConfigError:
                     self._log_info("TimeManager cannot get config "
                                    "for checking timeout value of '{}'",

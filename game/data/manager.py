@@ -756,8 +756,8 @@ class DataManager(EcsManagerWithEvents):
         up to.
         '''
         self._log_start_up(self.dotted(),
-                     "DataManager.subscribe()...",
-                     log_minimum=log.Level.DEBUG)
+                           "DataManager.subscribe()...",
+                           log_minimum=log.Level.DEBUG)
         # ---
         # MUST BE IDEMPOTENT!
         # ---
@@ -776,7 +776,7 @@ class DataManager(EcsManagerWithEvents):
         if not self._event.is_subscribed(DataLoadRequest,
                                          self._event_data_load_request):
             self._log_start_up(self.dotted(),
-                         "DataManager subscribing to DataLoadRequest...")
+                               "DataManager subscribing to DataLoadRequest...")
             self._event.subscribe(DataLoadRequest,
                                   self._event_data_load_request)
 
@@ -786,7 +786,7 @@ class DataManager(EcsManagerWithEvents):
         if not self._event.is_subscribed(DataSaveRequest,
                                          self._event_data_save_request):
             self._log_start_up(self.dotted(),
-                         "DataManager subscribing to DataSaveRequest...")
+                               "DataManager subscribing to DataSaveRequest...")
             self._event.subscribe(DataSaveRequest,
                                   self._event_data_save_request)
 
@@ -794,16 +794,17 @@ class DataManager(EcsManagerWithEvents):
         # Normal Path: Done
         # ------------------------------
         if not self._ut_all_events_external:
-            self._log_start_up(self.dotted(),
-                         "DataManager subscribed to all standard events.",
-                         log_success=True)
+            self._log_start_up(
+                self.dotted(),
+                "DataManager subscribed to all standard events.",
+                log_success=True)
             return VerediHealth.HEALTHY
         # Unit Testing? Subscribe to the internal events too.
 
         self._log_start_up(self.dotted(),
-                     "DataManager.subscribe() is subscribing to all its "
-                     "internal events as well (unit testing?).",
-                     log_minimum=log.Level.INFO)
+                           "DataManager.subscribe() is subscribing to all its "
+                           "internal events as well (unit testing?).",
+                           log_minimum=log.Level.INFO)
 
         # ------------------------------
         # Internal: Serialize / Deserialize with Serdes
@@ -816,8 +817,9 @@ class DataManager(EcsManagerWithEvents):
         #   - We create a DataLoadedEvent once this is done.
         if not self._event.is_subscribed(_DeserializedEvent,
                                          self._event_deserialized):
-            self._log_start_up(self.dotted(),
-                         "DataManager subscribing to _DeserializedEvent...")
+            self._log_start_up(
+                self.dotted(),
+                "DataManager subscribing to _DeserializedEvent...")
             self._event.subscribe(_DeserializedEvent,
                                   self._event_deserialized)
 
@@ -826,8 +828,9 @@ class DataManager(EcsManagerWithEvents):
         #   - Repository creates an _SavedEvent once it has done this.
         if not self._event.is_subscribed(_SerializedEvent,
                                          self._event_serialized):
-            self._log_start_up(self.dotted(),
-                         "DataManager subscribing to _SerializedEvent...")
+            self._log_start_up(
+                self.dotted(),
+                "DataManager subscribing to _SerializedEvent...")
             self._event.subscribe(_SerializedEvent,
                                   self._event_serialized)
 
@@ -840,8 +843,9 @@ class DataManager(EcsManagerWithEvents):
         #   - We'll creates a DataSavedEvent to do this.
         if not self._event.is_subscribed(_SavedEvent,
                                          self._event_saved):
-            self._log_start_up(self.dotted(),
-                         "DataManager subscribing to _SavedEvent...")
+            self._log_start_up(
+                self.dotted(),
+                "DataManager subscribing to _SavedEvent...")
             self._event.subscribe(_SavedEvent,
                                   self._event_saved)
 
@@ -850,15 +854,17 @@ class DataManager(EcsManagerWithEvents):
         #   - Serdes creates a _DeserializedEvent once it has done this.
         if not self._event.is_subscribed(_LoadedEvent,
                                          self._event_loaded):
-            self._log_start_up(self.dotted(),
-                         "DataManager subscribing to _LoadedEvent...")
+            self._log_start_up(
+                self.dotted(),
+                "DataManager subscribing to _LoadedEvent...")
             self._event.subscribe(_LoadedEvent,
                                   self._event_loaded)
 
-        self._log_start_up(self.dotted(),
-                     "DataManager subscribed to all standard & "
-                     "internal events.",
-                     log_success=True)
+        self._log_start_up(
+            self.dotted(),
+            "DataManager subscribed to all standard & "
+            "internal events.",
+            log_success=True)
         return VerediHealth.HEALTHY
 
     # -------------------------------------------------------------------------
@@ -871,21 +877,22 @@ class DataManager(EcsManagerWithEvents):
         into a _LoadedEvent.
         '''
         # TODO: group_multi w/ EVENTS group?
-        self._log_data_processing(self.dotted(),
-                            "DataManager event handling: DataLoadRequest...")
+        self._log_data_processing(
+            self.dotted(),
+            "DataManager event handling: DataLoadRequest...")
 
         # Doctor checkup.
         if not self._health_ok_event(event):
             self._log_data_processing(self.dotted(),
-                                "DataManager[DataLoadRequest] failed "
-                                "health check...",
-                                log_success=False)
+                                      "DataManager[DataLoadRequest] failed "
+                                      "health check...",
+                                      log_success=False)
             return
 
         context = event.context
 
         self._log_data_processing(self.dotted(),
-                            "DataManager[DataLoadRequest] loading...")
+                                  "DataManager[DataLoadRequest] loading...")
 
         # Ask my repository for this data.
         # Load data info is in the request context.
@@ -893,8 +900,8 @@ class DataManager(EcsManagerWithEvents):
         # Get back loaded data stream.
 
         self._log_data_processing(self.dotted(),
-                            "DataManager[DataLoadRequest] creating "
-                            "result _LoadedEvent...")
+                                  "DataManager[DataLoadRequest] creating "
+                                  "result _LoadedEvent...")
 
         # Take our repository load result and set into _LoadedEvent. Then
         # have EventManager fire off event for whoever wants the next step.
@@ -903,42 +910,44 @@ class DataManager(EcsManagerWithEvents):
 
         # Special Shenanigans: Publish this event, wait for it to come back.
         if self._ut_all_events_external:
-            self._log_data_processing(self.dotted(),
-                                "DataManager[DataLoadRequest] publishing "
-                                "result _LoadedEvent...")
+            self._log_data_processing(
+                self.dotted(),
+                "DataManager[DataLoadRequest] publishing "
+                "result _LoadedEvent...")
             self._event_notify(event, False)
 
         # Normal Case: Pass on to process loaded data
         else:
             self._log_data_processing(self.dotted(),
-                                "DataManager[DataLoadRequest] handling "
-                                "result _LoadedEvent internally...")
+                                      "DataManager[DataLoadRequest] handling "
+                                      "result _LoadedEvent internally...")
             self._event_loaded(event)
 
         self._log_data_processing(self.dotted(),
-                            "DataManager[DataLoadRequest] done.",
-                            log_success=True)
+                                  "DataManager[DataLoadRequest] done.",
+                                  log_success=True)
 
     def _event_data_save_request(self, event: DataSaveRequest) -> None:
         '''
         Data wants saved. It must be serialized first.
         '''
         # TODO: group_multi w/ EVENTS group?
-        self._log_data_processing(self.dotted(),
-                            "DataManager event handling: DataSaveRequest...")
+        self._log_data_processing(
+            self.dotted(),
+            "DataManager event handling: DataSaveRequest...")
 
         # Doctor checkup.
         if not self._health_ok_event(event):
             self._log_data_processing(self.dotted(),
-                                "DataManager[DataSaveRequest] failed "
-                                "health check...",
-                                log_success=False)
+                                      "DataManager[DataSaveRequest] failed "
+                                      "health check...",
+                                      log_success=False)
             return
 
         context = self._serdes.context.push(event.context)
 
         self._log_data_processing(self.dotted(),
-                            "DataManager[DataSaveRequest] saving...")
+                                  "DataManager[DataSaveRequest] saving...")
 
         # TODO [2020-05-22]: Serialize it...
         raise NotImplementedError(
@@ -948,8 +957,8 @@ class DataManager(EcsManagerWithEvents):
         serialized = None
 
         self._log_data_processing(self.dotted(),
-                            "DataManager[DataSaveRequest] creating "
-                            "result _SavedEvent...")
+                                  "DataManager[DataSaveRequest] creating "
+                                  "result _SavedEvent...")
 
         # Done; fire off event for whoever wants the next step.
         event = _SerializedEvent(event.id,
@@ -959,21 +968,22 @@ class DataManager(EcsManagerWithEvents):
 
         # Special Shenanigans: Publish this event, wait for it to come back.
         if self._ut_all_events_external:
-            self._log_data_processing(self.dotted(),
-                                "DataManager[DataSaveRequest] publishing "
-                                "result _SavedEvent...")
+            self._log_data_processing(
+                self.dotted(),
+                "DataManager[DataSaveRequest] publishing "
+                "result _SavedEvent...")
             self._event_notify(event, False)
 
         # Normal Case: Pass on to process deserialized data.
         else:
             self._log_data_processing(self.dotted(),
-                                "DataManager[DataSaveRequest] handling "
-                                "result _SavedEvent internally...")
+                                      "DataManager[DataSaveRequest] handling "
+                                      "result _SavedEvent internally...")
             self._event_serialized(event)
 
         self._log_data_processing(self.dotted(),
-                            "DataManager[DataSaveRequest] done.",
-                            log_success=True)
+                                  "DataManager[DataSaveRequest] done.",
+                                  log_success=True)
 
     # -------------------------------------------------------------------------
     # Events: Serialize / Deserialize with Serdes
@@ -1025,15 +1035,17 @@ class DataManager(EcsManagerWithEvents):
         for document in event.data:
             try:
                 if 'record-type' in document:
-                    self._log_debug("Processing event {}, rec: {}, document: {}.",
-                              event,
-                              document['record-type'],
-                              document['doc-type'])
+                    self._log_debug(
+                        "Processing event {}, rec: {}, document: {}.",
+                        event,
+                        document['record-type'],
+                        document['doc-type'])
                 else:
-                    self._log_debug("Processing event {}, rec: {}, document: {}.",
-                              event,
-                              None,
-                              document['doc-type'])
+                    self._log_debug(
+                        "Processing event {}, rec: {}, document: {}.",
+                        event,
+                        None,
+                        document['doc-type'])
                 if ('doc-type' in document
                         and document['doc-type'] == 'component'):
                     self._log_debug("Found component; requesting creation.")
