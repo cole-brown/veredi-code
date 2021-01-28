@@ -12,9 +12,9 @@ from typing import Optional, Union, Type, Any, Callable
 
 from veredi.logger import log
 from .. import background
-from .. import exceptions
+from ..exceptions import RegistryError, ConfigError
 from veredi.base import label
-from veredi.base.string.labeler import ignore, tag_helper
+from veredi.base.string.labeler import (ignore as _ignore, tag_helper)
 from veredi.base.context import VerediContext
 
 # -----------------------------------------------------------------------------
@@ -24,6 +24,7 @@ from veredi.base.context import VerediContext
 # Registry is here, but also toss the reg strs into the background context.
 _REGISTRY = {}
 _REG_DOTTED = 'veredi.data.config.registry'
+_REG_DOT_SHORT = 'config.registry'
 
 _DOTTED_FUNC_IGNORE = set()
 
@@ -31,6 +32,15 @@ _DOTTED_FUNC_IGNORE = set()
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
+
+def ignore(parent_class: Type) -> None:
+    '''
+    Add a parent class to the ignore list for log warnings about register() and
+    labeler.add_dotted_func()'s auto-magical creation of the 'dotted' func.
+
+    e.g. System base class has to do this for its children.
+    '''
+    return _ignore(parent_class)
 
 
 # Decorator way of doing factory registration. Note that we will only get
@@ -65,7 +75,7 @@ def register(*dotted_label: label.LabelInput) -> Callable[..., Type[Any]]:
             config_name = registree_id[-1]
         except IndexError as error:
             raise log.exception(
-                exceptions.RegistryError,
+                RegistryError,
                 "Need to know what to register this ({}) as. "
                 "E.g. @register('veredi', 'jeff', 'system'). "
                 "Got no label?: {}",
@@ -131,18 +141,20 @@ def get(dotted_keys: label.LabelInput,
             registration = registration[key]
         except KeyError as error:
             raise log.exception(
-                exceptions.RegistryError,
-                "Registry has nothing at: {} (full path: {})",
-                split_keys[: i + 1],
+                RegistryError,
+                "{} has nothing at: '{}' (full path: {})",
+                _REG_DOT_SHORT,
+                label.normalize(split_keys[: i + 1]),
                 split_keys) from error
 
         i += 1
 
     if isinstance(registration, dict):
         raise log.exception(
-            exceptions.RegistryError,
-            "Registry for '{}' is not at a leaf - still has entries to go: {}",
-            dotted_keys_str,
+            RegistryError,
+            "{} for '{}' is not at a leaf - still has entries to go: {}",
+            _REG_DOT_SHORT,
+            label.normalize(split_keys),
             registration)
 
     return registration
@@ -174,10 +186,11 @@ def create(dotted_keys_str: str,
         #     - This dies cuz data was set to '001', then kwargs also
         #       had a 'data'.
         raise log.exception(
-            exceptions.ConfigError,
+            ConfigError,
             # Leave (k)args for others.
-            "Registry failed creating '{}' with: args: {}, "
+            "{} failed creating '{}' with: args: {}, "
             "kwargs: {},  context: {}",
+            _REG_DOT_SHORT,
             entry, args, kwargs, context) from error
 
 

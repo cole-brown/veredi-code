@@ -105,6 +105,7 @@ from veredi.game.ecs.base.component             import ComponentLifeCycle
 
 from veredi.math.parser                         import MathTree
 from veredi.math.d20                            import tree
+from veredi.rules.d20.pf2.game                  import PF2Rank
 
 # ---
 # Registry
@@ -503,8 +504,11 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
                           entity,
                           clear_events=True) -> IdentityComponent:
         # Make the load request event for our entity.
-        request = self._load_request(entity.id,
-                                     DataGameContext.DataType.MONSTER)
+        request = self.data_request(entity.id,
+                                    PF2Rank.Phylum.MONSTER,
+                                    'Dragon',
+                                    'Aluminum Dragon')
+
         self.assertFalse(self.events)
 
         # Ask for our Ability Guy data to be loaded. Don't care about asserting
@@ -532,26 +536,6 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         if clear_events:
             self.clear_events()
         return entity_ident
-
-    def _load_request(self, entity_id, type):
-        ctx = DataLoadContext('unit-testing',
-                              type,
-                              'test-campaign')
-        if type == DataGameContext.DataType.MONSTER:
-            ctx.sub['family'] = 'dragon'
-            ctx.sub['monster'] = 'aluminum dragon'
-        else:
-            raise LoadError(
-                f"No DataGameContext.DataType to ID conversion for: {type}",
-                None,
-                ctx)
-
-        event = DataLoadRequest(
-            id,
-            ctx.type,
-            ctx)
-
-        return event
 
     def client_send_with_ack(self, client, mid, msg):
         # Send out message from client that expects ack.

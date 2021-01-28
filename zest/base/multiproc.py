@@ -9,8 +9,7 @@ mediator testing.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Callable, Generator,
+from typing import (Optional, Union, Any, Callable, Generator,
                     Tuple, List, Literal)
 
 
@@ -19,13 +18,17 @@ import time as py_time
 import enum
 
 
-from .integrate                                 import ZestIntegrateEngine
-from veredi.parallel                            import multiproc
 from veredi.zest                                import zmake, zontext
 from veredi.logger                              import log, log_server
+
+from veredi.base                                import label
 from veredi.base.enum                           import FlagCheckMixin
+
+from veredi.parallel                            import multiproc
 from veredi.time.timer                          import MonotonicTimer
 from veredi.data.identity                       import UserId, UserKey
+
+from .integrate                                 import ZestIntegrateEngine
 
 
 # -----------------------------------------------------------------------------
@@ -215,7 +218,10 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
     def set_up(self,
                config_file_name: str,
                log_level:        log.Level,
-               proc_flags:       ProcTest) -> None:
+               proc_flags:       ProcTest,
+               rules:            Optional[label.LabelInput]     = None,
+               game_id:          Optional[Any]                  = None
+               ) -> None:
         # ---
         # Print out start of new test debuging separator lines.
         # ---
@@ -240,7 +246,9 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         # Needed Before super's set_up()
         # ---
         self.config = zmake.config(self._TEST_TYPE,
-                                   config_file_name)
+                                   rules=rules,
+                                   game_id=game_id,
+                                   config_path=config_file_name)
 
         # ------------------------------
         # Let parent do stuff.

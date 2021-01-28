@@ -34,6 +34,7 @@ from veredi.game.data.event               import (DataLoadRequest,
 
 from veredi.interface.input.event         import CommandInputEvent
 
+from veredi.rules.d20.pf2.game            import PF2Rank
 from veredi.rules.d20.pf2.skill.system    import SkillSystem
 from veredi.rules.d20.pf2.skill.event     import SkillResult
 from veredi.rules.d20.pf2.skill.component import SkillComponent
@@ -60,26 +61,6 @@ class Test_InputCmd_SkillCheck(ZestIntegrateEcs):
     def event_skill_res(self, event):
         self.events.append(event)
 
-    def load_request(self, eid, type):
-        ctx = DataLoadContext('unit-testing',
-                              type,
-                              'test-campaign')
-        if type == DataGameContext.DataType.NPC:
-            ctx.sub['family'] = 'Townville'
-            ctx.sub['npc'] = 'Skill Guy'
-        else:
-            raise LoadError(
-                f"No DataGameContext.DataType to ID conversion for: {type}",
-                None,
-                ctx)
-
-        event = DataLoadRequest(
-            eid,
-            ctx.type,
-            ctx)
-
-        return event
-
     # -------------------------------------------------------------------------
     # Entity/Component Test Set-Up
     # -------------------------------------------------------------------------
@@ -89,7 +70,10 @@ class Test_InputCmd_SkillCheck(ZestIntegrateEcs):
         entity = self.create_entity()
 
         # Make our request event.
-        request = self.load_request(entity.id, DataGameContext.DataType.NPC)
+        request = self.data_request(entity.id,
+                                    PF2Rank.Phylum.NPC,
+                                    'Townville',
+                                    'Skill Guy')
         self.assertFalse(self.events)
 
         # Ask for our Skill Guy data to be loaded.

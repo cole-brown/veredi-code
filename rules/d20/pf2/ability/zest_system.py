@@ -52,12 +52,6 @@ class Test_AbilitySystem(ZestSystem):
     Test our AbilitySystem with some on-disk data.
     '''
 
-    EVENT_TYPE = random.randint(0, 100)
-    '''
-    Don't have any specific need for Event.type, so just give it some random
-    number.
-    '''
-
     ID_DATA = {
         'identity': {
             'name': 'aluminum dragon',
@@ -126,7 +120,7 @@ class Test_AbilitySystem(ZestSystem):
 
     def create_ability(self, entity):
         # Make the load request event for our entity.
-        request = self.load_request(entity.id,
+        request = self.data_request(entity.id,
                                     PF2Rank.Phylum.MONSTER,
                                     'dragon',
                                     'Aluminum Dragon')
@@ -172,19 +166,6 @@ class Test_AbilitySystem(ZestSystem):
             ability)
 
         return event
-
-    def load_request(self, entity_id, *taxonomy):
-
-        taxon = self.manager.data.taxon(DataType.SAVED,
-                                        *taxonomy)
-
-        request = self.manager.data.request(self.dotted(__file__),
-                                            entity_id,
-                                            self.EVENT_TYPE,
-                                            DataAction.LOAD,
-                                            taxon)
-
-        return request
 
     def event_ability_res(self, event):
         self.assertIsInstance(event,

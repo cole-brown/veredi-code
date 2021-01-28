@@ -96,7 +96,7 @@ def is_number(input: Any) -> bool:
 
 def to_decimal(input: DecimalTypes) -> Decimal:
     '''
-    Converts the string to a Decimal and returns it.
+    Converts the input to a Decimal and returns it.
     '''
     with decimal.localcontext(ctx=_DECIMAL_CONTEXT):
         number = Decimal(input).quantize(_DEFAULT_ROUNDING)
@@ -105,3 +105,14 @@ def to_decimal(input: DecimalTypes) -> Decimal:
     msg = f"Could not convert input to Decimal: {type(input)} '{input}'"
     error = ValueError(msg, input)
     raise log.exception(error, msg)
+
+
+# -----------------------------------------------------------------------------
+# Floats
+# -----------------------------------------------------------------------------
+
+def to_float(input: DecimalTypes) -> float:
+    '''
+    Converts the input to a Float and returns it.
+    '''
+    return float(input)

@@ -15,8 +15,8 @@ if TYPE_CHECKING:
     from veredi.run.system               import SysCreateType
 
 from veredi.logger                       import log
+from veredi.base                         import random
 
-from veredi                              import run
 from .unit                               import ZestBase
 from ..                                  import zload
 from ..zxceptions                        import UnitTestError
@@ -25,8 +25,10 @@ from ..zpath                             import TestType
 from veredi.base.context                 import VerediContext, UnitTestContext
 from veredi.debug.const                  import DebugFlag
 
-from veredi.base.null                    import Null
+from veredi.base.null                    import Null, null_or_none
 from veredi.data.config.config           import Configuration
+from veredi.data.context                 import DataAction
+from veredi.data.records                 import DataType
 
 from veredi.game.ecs.base.system         import System
 from veredi.game.ecs.base.entity         import (Entity,
@@ -34,8 +36,9 @@ from veredi.game.ecs.base.entity         import (Entity,
 from veredi.game.ecs.base.identity       import EntityId
 from veredi.game.ecs.base.component      import (Component,
                                                  ComponentLifeCycle)
-from veredi.game.ecs.event               import Event
-from veredi.game.data.event              import DataLoadedEvent
+from veredi.game.ecs.event               import Event, EventTypeInput
+from veredi.game.data.event              import (DataRequestEvent,
+                                                 DataLoadedEvent)
 from veredi.game.data.identity.event     import (IdentityRequest,
                                                  CodeIdentityRequest)
 from veredi.game.data.identity.component import IdentityComponent
@@ -467,6 +470,12 @@ class ZestEcs(ZestBase):
     # Event Helpers
     # -------------------------------------------------------------------------
 
+    def event_type_dont_care(self) -> int:
+        '''
+        Don't care about event type? Why not a random number?
+        '''
+        return random.randint(0, 100)
+
     def clear_events(self, clear_manager: bool = False) -> None:
         '''
         Clears out the `self.events` queue.
@@ -578,6 +587,36 @@ class ZestEcs(ZestBase):
         self.reg_open = event
 
         self.register_commands(self.reg_open)
+
+    # -------------------------------------------------------------------------
+    # Data Helpers
+    # -------------------------------------------------------------------------
+
+    def data_request(self,
+                     entity_id:   EntityId,
+                     *taxonomy:   Any,
+                     event_type:  Optional[EventTypeInput] = None,
+                     data_type:   DataType   = DataType.SAVED,
+                     data_action: DataAction = DataAction.LOAD
+                     ) -> DataRequestEvent:
+        '''
+        Create a DataLoadRequest or DataSavedRequest from the given taxonomy.
+
+        If an `event_type` is not supplied, `self.event_type_dont_care()`
+        will be used.
+        '''
+        taxon = self.manager.data.taxon(data_type,
+                                        *taxonomy)
+
+        if null_or_none(event_type):
+            event_type = self.event_type_dont_care()
+
+        request = self.manager.data.request(self.dotted(__file__),
+                                            entity_id,
+                                            event_type,
+                                            data_action,
+                                            taxon)
+        return request
 
     # -------------------------------------------------------------------------
     # Command Helpers
