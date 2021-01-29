@@ -11,10 +11,12 @@ Helper for unit test data.
 from typing import Optional, Union, Any
 import pathlib
 
-from .                         import zpath, zonfig
 from veredi                    import run
 from veredi.base               import label
+from veredi.logger             import log
 from veredi.data.config.config import Configuration
+
+from .                         import zpath, zonfig
 
 
 # -----------------------------------------------------------------------------
@@ -40,12 +42,11 @@ def config(test_type:     zpath.TestType                 = zpath.TestType.UNIT,
     If no `config_path`, gets a default filename via `zpath.config_filename()`.
     Uses `zpath.config()` to resolve the full config path from input/default.
     '''
-    if test_type is zpath.TestType.FUNCTIONAL:
-        print("\n")
-        print("zmake.config: FUNCTIONAL TEST! \nINPUTS:")
-        print(f"  rules:       {rules}")
-        print(f"  game_id:     {game_id}")
-        print(f"  config_path: {config_path}")
+    # TODO: group logging for: "if unit_test AND <group> will output..."
+    log.debug(("zmake.config({test_type}): INPUTS:"
+               f"rules: {rules}, "
+               f"game_id: {game_id}, "
+               f"config_path: {config_path}"))
 
     rules = zonfig.rules(test_type, rules)
 
@@ -56,13 +57,12 @@ def config(test_type:     zpath.TestType                 = zpath.TestType.UNIT,
         path = zpath.config_filename(test_type)
 
     path = zpath.config(path, test_type)
-    if test_type is zpath.TestType.FUNCTIONAL:
-        print("\n")
-        print("zmake.config: FUNCTIONAL TEST! \nFINAL VALUES:")
-        print(f"  rules:       {rules}")
-        print(f"  game_id:     {game_id}")
-        print(f"  config_id:   {config_id}")
-        print(f"  path:        {path}")
+    # TODO: group logging for: "if unit_test AND <group> will output..."
+    log.debug(("zmake.config({test_type}): FINAL VALUES: "
+               f"rules: {rules} "
+               f"game_id: {game_id} "
+               f"config_id: {config_id} "
+               f"path: {path}"))
     config = run.configuration(rules, config_id, path)
 
     return config
