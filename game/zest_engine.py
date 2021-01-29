@@ -9,18 +9,17 @@ Tests for engine.py (The Game Itself).
 # -----------------------------------------------------------------------------
 
 from veredi.zest.base.engine import ZestEngine
-from veredi.base.const   import VerediHealth
-from veredi.debug.const  import DebugFlag
+from veredi.base.const       import VerediHealth
+from veredi.debug.const      import DebugFlag
+from veredi.logger           import log
 
-from .                   import engine
+from .ecs.const              import SystemTick, SystemPriority
 
-from .ecs.const          import SystemTick, SystemPriority
-
-from .ecs.base.component import (Component,
-                                 ComponentLifeCycle)
-from .ecs.base.entity    import EntityLifeCycle
-from .ecs.base.system    import (System,
-                                 SystemLifeCycle)
+from .ecs.base.component     import (Component,
+                                     ComponentLifeCycle)
+from .ecs.base.entity        import EntityLifeCycle
+from .ecs.base.system        import (System,
+                                     SystemLifeCycle)
 
 
 # -----------------------------------------------------------------------------
@@ -179,8 +178,9 @@ class SysNoReq(SysTest):
 class Test_Engine(ZestEngine):
 
     def set_up(self):
-        self.debug_flags = DebugFlag.GAME_ALL
-        super().set_up()
+        with log.LoggingManager.on_or_off(self.debugging):
+            self.debug_flags = DebugFlag.GAME_ALL
+            super().set_up()
 
     def create_entities(self):
         def mkcmp(comp):

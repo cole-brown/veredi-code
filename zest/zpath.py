@@ -156,8 +156,8 @@ def config(filepath: Union[pathlib.Path, str, None],
     # TODO: group logging for: "if unit_test AND <group> will output..."
     log.debug(("zpath.config({test_type}): FINAL VALUES: "
                "Adding filepath... returning: "
-               f"path: {path}"
-               f"retval: {retval(path)}"))
+               f"path: {path} "
+               f"retval(): {retval(path)}"))
     return retval(path)
 
 

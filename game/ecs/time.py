@@ -9,7 +9,7 @@ Timing info for game.
 # -----------------------------------------------------------------------------
 
 from typing import TYPE_CHECKING, Optional, Union, NewType, Tuple, Dict
-from veredi.base.null import NullNoneOr
+from veredi.base.null import NullNoneOr, is_null
 if TYPE_CHECKING:
     from ..data.manager      import DataManager
 
@@ -17,6 +17,7 @@ import numbers
 from decimal import Decimal
 
 
+from veredi.base             import label
 from veredi.base.assortments import CurrentNext, DeltaNext
 from veredi.base.context     import UnitTestContext
 from veredi.data             import background
@@ -503,6 +504,14 @@ class TimeManager(EcsManager):
             else:
                 try:
                     timeout = config.get('engine', 'time', 'timeouts', timeout)
+                    if is_null(timeout):
+                        timeout_dotted = label.normalize('engine',
+                                                         'time',
+                                                         'timeouts',
+                                                         timeout)
+                        self._log_warning("TimeManager didn't find timeout "
+                                          f"for '{timeout_dotted}' in the "
+                                          "config.")
                     # If it's not a duration, set to the default.
                     if not time.is_duration(timeout) and not timeout:
                         timeout = self._DEFAULT_TIMEOUT_SEC

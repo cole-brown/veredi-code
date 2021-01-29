@@ -31,6 +31,30 @@ rules:
   movement: veredi.rules.d20.pf2.movement
 
 
+engine:
+  # systems:
+  #   # Names can be anything you want?
+  #   math: veredi.math.system
+
+  time:
+    timeouts:
+      # Duration Format Examples:
+      #   1 second
+      #   2 seconds
+      #   1 minute, 2 seconds
+      #   1 hour, 14 minutes, 2 seconds
+      #   2 hours 1 seconds
+      #   2h1m1s
+      #   1s
+      #   55m
+      #   12 # (bare numbers will be treated as seconds)
+      # Tag "!duration" is optional.
+      default: !duration 1 second
+      genesis: 5 seconds
+      intrasystem: !duration 5 seconds
+      apoptosis: !duration 5 seconds
+      apocalypse: !duration 5 seconds
+
 server:
   mediator:
     type: veredi.interface.mediator.websocket.server

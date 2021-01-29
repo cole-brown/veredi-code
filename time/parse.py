@@ -110,7 +110,7 @@ def is_duration(check: Any) -> bool:
         return True
     elif isinstance(check, str):
         try:
-            dur = duration(check)
+            duration(check)
             return True
         except:
             return False
@@ -120,31 +120,31 @@ def is_duration(check: Any) -> bool:
     return False
 
 
-def to_decimal(duration: Any) -> Decimal:
+def to_decimal(input: Any) -> Decimal:
     '''
-    Converts the time duration to a Decimal of seconds and returns it.
+    Converts the input to a Decimal of seconds and returns it.
     '''
-    if isinstance(duration, str):
-        duration = parse(duration)
+    if isinstance(input, str):
+        input = duration(input)
 
-    if isinstance(duration, timedelta):
-        # Get the duration as fractional seconds...
-        return numbers.to_decimal(duration.total_seconds())
+    if isinstance(input, timedelta):
+        # Get the input as fractional seconds...
+        return numbers.to_decimal(input.total_seconds())
 
     # Else just try to cast.
-    return numbers.to_decimal(duration)
+    return numbers.to_decimal(input)
 
 
-def to_float(duration: Any) -> float:
+def to_float(input: Any) -> float:
     '''
-    Converts the time duration to a float of seconds and returns it.
+    Converts the input to a float of seconds and returns it.
     '''
-    if isinstance(duration, str):
-        duration = parse(duration)
+    if isinstance(input, str):
+        input = duration(input)
 
-    if isinstance(duration, timedelta):
-        # Get the duration as fractional seconds (already a float)...
-        return duration.total_seconds()
+    if isinstance(input, timedelta):
+        # Get the input as fractional seconds (already a float)...
+        return input.total_seconds()
 
     # Else just try to cast.
-    return float(duration)
+    return float(input)

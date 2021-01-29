@@ -43,7 +43,7 @@ def config(test_type:     zpath.TestType                 = zpath.TestType.UNIT,
     Uses `zpath.config()` to resolve the full config path from input/default.
     '''
     # TODO: group logging for: "if unit_test AND <group> will output..."
-    log.debug(("zmake.config({test_type}): INPUTS:"
+    log.debug(("zmake.config({test_type}): INPUTS: "
                f"rules: {rules}, "
                f"game_id: {game_id}, "
                f"config_path: {config_path}"))
@@ -59,9 +59,9 @@ def config(test_type:     zpath.TestType                 = zpath.TestType.UNIT,
     path = zpath.config(path, test_type)
     # TODO: group logging for: "if unit_test AND <group> will output..."
     log.debug(("zmake.config({test_type}): FINAL VALUES: "
-               f"rules: {rules} "
-               f"game_id: {game_id} "
-               f"config_id: {config_id} "
+               f"rules: {rules}, "
+               f"game_id: {game_id}, "
+               f"config_id: {config_id}, "
                f"path: {path}"))
     config = run.configuration(rules, config_id, path)
 
