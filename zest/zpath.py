@@ -141,29 +141,23 @@ def config(filepath: Union[pathlib.Path, str, None],
     '''
     Returns pathlib.Path to config test data for `test_type`.
     '''
-    if test_type is TestType.FUNCTIONAL:
-        print("\n")
-        print("zpath.config: FUNCTIONAL TEST! \nINPUT VALUES:")
-        print(f"  test_type: {test_type}")
-        print(f"  filepath:  {filepath}")
     path = retval(rooted(test_type, 'config'))
-    if test_type is TestType.FUNCTIONAL:
-        print(f"  path:      {path}")
+    # TODO: group logging for: "if unit_test AND <group> will output..."
+    log.debug(("zpath.config({test_type}): INPUTS: "
+               f"filepath: {filepath}, "
+               f"path: {path}"))
     if not filepath:
-        if test_type is TestType.FUNCTIONAL:
-            print("\n")
-            print("zpath.config: FUNCTIONAL TEST! \nFINALVALUES:")
-            print("  No filepath; using default:")
-            print(f"  path:      {path}")
+        # TODO: group logging for: "if unit_test AND <group> will output..."
+        log.debug(("zpath.config({test_type}): FINAL VALUES: "
+                   f"No filepath; using default path: {path}"))
         return path
 
     path = path / filepath
-    if test_type is TestType.FUNCTIONAL:
-        print("\n")
-        print("zpath.config: FUNCTIONAL TEST! \nFINALVALUES:")
-        print("  Adding filepath... returning:")
-        print(f"  path:      {path}")
-        print(f"  retval:    {retval(path)}")
+    # TODO: group logging for: "if unit_test AND <group> will output..."
+    log.debug(("zpath.config({test_type}): FINAL VALUES: "
+               "Adding filepath... returning: "
+               f"path: {path}"
+               f"retval: {retval(path)}"))
     return retval(path)
 
 
