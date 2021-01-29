@@ -42,7 +42,7 @@ class Rank:
         INVALID = None
         '''An invalid domain.'''
 
-        GAME = 'game'
+        SAVED = 'saved'
         '''Game data like saved characters, monsters, items, etc.'''
 
         DEFINITIONS = 'definitions'
@@ -258,7 +258,7 @@ class SavedTaxon(Taxon):
         Fill our grouping vars so that the least specific are left
         unset/unchanged if not enough args supplied.
         '''
-        super().__init__(Rank.Domain.GAME,
+        super().__init__(Rank.Domain.SAVED,
                          *ranks)
 
     # -------------------------------------------------------------------------
