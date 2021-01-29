@@ -622,9 +622,6 @@ class FileTreeRepository(base.BaseRepository):
                 taxon,
                 context=context)
 
-        # # Get our category (game saves vs definitions)...
-        # category = self._category(context)
-
         # And our key is the rooted path based on category and taxon data.
         replace = {
             Rank.Kingdom.CAMPAIGN: self.primary_id,
