@@ -21,10 +21,42 @@ data:
   serdes: veredi.serdes.yaml
 
 
-server:
-  type: veredi.interface.server.rest.system
-  # mediator: veredi.interface.server.mediator.system
+engine:
+  # systems:
+  #   # Names can be anything you want?
+  #   math: veredi.math.system
 
+  time:
+    timeouts:
+      # Duration Format Examples:
+      #   1 second
+      #   2 seconds
+      #   1 minute, 2 seconds
+      #   1 hour, 14 minutes, 2 seconds
+      #   2 hours 1 seconds
+      #   2h1m1s
+      #   1s
+      #   55m
+      #   12 # (bare numbers will be treated as seconds)
+      # Tag "!duration" is optional.
+      default: !duration 1 second
+      genesis: 5 seconds
+      intrasystem: !duration 5 seconds
+      apoptosis: !duration 5 seconds
+      apocalypse: !duration 5 seconds
+
+
+rules:
+  type: veredi.rules.d20.pf2.info
+  skill: veredi.rules.d20.pf2.skill.system
+  combat: veredi.rules.d20.pf2.combat.system
+
+  ability: veredi.rules.d20.pf2.ability
+  health: veredi.rules.d20.pf2.health
+  movement: veredi.rules.d20.pf2.movement
+
+
+server:
   input:
     type: veredi.interface.input.system
     command: veredi.interface.input.commander

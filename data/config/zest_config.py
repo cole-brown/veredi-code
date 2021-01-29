@@ -45,7 +45,7 @@ class Test_Configuration(ZestBase):
 
     def test_config_metadata(self):
         self.assertTrue(self.config._config)
-        with log.LoggingManager.full_blast():
+        with log.LoggingManager.on_or_off(self.debugging):
             self.assertEqual(
                 self.config.get_by_doc(
                     hierarchy.Document.METADATA,
@@ -94,11 +94,9 @@ class Test_Configuration(ZestBase):
                          'veredi.serdes.yaml')
 
     def test_config_make_repo(self):
-        debugging = False
-
         self.assertTrue(self.config._config)
 
-        with log.LoggingManager.on_or_off(debugging):
+        with log.LoggingManager.on_or_off(self.debugging):
             repo = self.config.create_from_config('data',
                                                   'repository',
                                                   'type')

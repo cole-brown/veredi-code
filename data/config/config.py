@@ -566,6 +566,12 @@ class Configuration:
     def get_by_doc(self,
                    doc_type:  Document,
                    *keychain: label.LabelInput) -> Nullable[Any]:
+        '''
+        Get value of `keychain` from `doc_type`.
+
+        Raises a ConfigError if invalid `doc_type` supplied.
+        Returns Null() if `doc_type` doesn't exist or `keychain` isn't in it.
+        '''
         # Ensure the keychain is in good shape from whatever was passed in.
         keychain = label.regularize(*keychain)
 
