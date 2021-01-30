@@ -17,10 +17,10 @@ from collections import abc
 import re
 
 
-from veredi.logger import log
-from veredi.base import vstring
+from veredi.logger      import log
+from veredi.base.string import text
 
-from .meta import MetaMarker, MetaType
+from .meta              import MetaMarker, MetaType
 
 
 # -----------------------------------------------------------------------------
@@ -313,7 +313,7 @@ class KeyGroup(abc.MutableMapping, abc.Hashable):
         '''
         retval = input
         if (self.RE_FLAGS & re.IGNORECASE) == re.IGNORECASE:
-            retval = vstring.normalize(input)
+            retval = text.normalize(input)
 
         return retval
 

@@ -250,8 +250,8 @@ class ProcToSubComm:
         '''
         Returns a health value based on sub-process's status.
 
-        If `life_cycle` is SystemLifeCycle.APOPTOSIS, this will return
-        APOPTOSIS_FAILURE, APOPTOSIS_SUCCESSFUL, etc instead of FATAL, HEALTHY,
+        If `life_cycle` is SystemLifeCycle.AUTOPHAGY, this will return
+        AUTOPHAGY_FAILURE, AUTOPHAGY_SUCCESSFUL, etc instead of FATAL, HEALTHY,
         DYING, etc.
         '''
         # ------------------------------
@@ -260,8 +260,8 @@ class ProcToSubComm:
         if not self.process:
             # If trying to die and have no process... uh...
             # You should have a process.
-            if life_cycle == SystemLifeCycle.APOPTOSIS:
-                return VerediHealth.APOPTOSIS_FAILURE
+            if life_cycle == SystemLifeCycle.AUTOPHAGY:
+                return VerediHealth.AUTOPHAGY_FAILURE
 
             # No process is pretty bad for a multiprocess thing.
             return VerediHealth.FATAL
@@ -276,41 +276,41 @@ class ProcToSubComm:
         # Did we tell it to shut down?
         if self.shutdown.is_set():
             # Do we want it to shut down?
-            if life_cycle != VerediHealth.APOPTOSIS:
+            if life_cycle != VerediHealth.AUTOPHAGY:
                 # Let's indicate something that says we want to let the
                 # shutdown continue, but that it's also during the wrong
                 # SystemLifeCycle...
                 return VerediHealth.DYING
 
-            # Ok: SystemLifeCycle is apoptosis. A nice structured death.
+            # Ok: SystemLifeCycle is autophagy. A nice structured death.
             if self.process.is_alive():
-                # We're still in apoptosis?
+                # We're still in autophagy?
                 # TODO: time-out at system manager and/or game engine level.
-                return VerediHealth.APOPTOSIS
+                return VerediHealth.AUTOPHAGY
 
             # Healthy Exit Code == A Good Death
             elif self.process.exitcode == 0:
-                return VerediHealth.APOPTOSIS_SUCCESSFUL
+                return VerediHealth.AUTOPHAGY_SUCCESSFUL
 
             # Unhealthy Exit Code == Not So Good of a Death
-            return VerediHealth.APOPTOSIS_FAILURE
+            return VerediHealth.AUTOPHAGY_FAILURE
 
         # ---
         # Not Running but not Shutdown?!
         # ---
         if not self.process.is_alive():
-            if life_cycle == VerediHealth.APOPTOSIS:
+            if life_cycle == VerediHealth.AUTOPHAGY:
                 log.error("Process '{}' is in "
-                          "SystemLifeCycle.APOPTOSIS and "
+                          "SystemLifeCycle.AUTOPHAGY and "
                           "process is not alive, but shutdown flag isn't set "
                           "and it should be.",
                           self.name)
-                # Might be a successful apoptosis from the multiproc standpoint
+                # Might be a successful autophagy from the multiproc standpoint
                 # but we don't know. Someone changed the shutdown flag we want
                 # to check.
-                return VerediHealth.APOPTOSIS_FAILURE
+                return VerediHealth.AUTOPHAGY_FAILURE
 
-            # Not running and not in apoptosis life-cycle... Dunno but not
+            # Not running and not in autophagy life-cycle... Dunno but not
             # healthy.
             return VerediHealth.UNHEALTHY
 

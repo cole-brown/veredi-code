@@ -40,10 +40,10 @@ engine:
   time:
     timeouts:
       default: !duration 1 second
-      genesis: !duration 5 seconds
-      intrasystem: !duration 5 seconds
+      synthesis: !duration 5 seconds
+      mitosis: !duration 5 seconds
+      autophagy: !duration 5 seconds
       apoptosis: !duration 5 seconds
-      apocalypse: !duration 5 seconds
 
 server:
   mediator:

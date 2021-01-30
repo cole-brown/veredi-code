@@ -15,11 +15,11 @@ a DB or JSON comes along they can just implement to the same thing.
 from typing import Union, Any, NewType, Mapping, Iterable, Tuple
 from collections import abc
 
-from veredi.logger import log
-from veredi.data import exceptions
-from veredi.base import vstring
+from veredi.logger      import log
+from veredi.data        import exceptions
+from veredi.base.string import text
 
-from .group import KeyGroupMarker, KeyGroup
+from .group             import KeyGroupMarker, KeyGroup
 
 
 # -----------------------------------------------------------------------------
@@ -56,7 +56,7 @@ class DataDict(abc.MutableMapping):
         '''
         retval = input
         if isinstance(retval, str):
-            retval = vstring.normalize(input)
+            retval = text.normalize(input)
         return retval
 
     # ---

@@ -62,7 +62,7 @@ class TickBase(ABC):
         self._ticks: int = -1
         '''
         Just some counter for keeping track of delta ticks. This starts at zero
-        at the beginning of each TICKS_START engine life-cycle and
+        at the beginning of each TICKS_BIRTH engine life-cycle and
         monotonically increases by one each time `delta()` is called.
         '''
 
@@ -134,7 +134,7 @@ class TickBase(ABC):
         to `delta()`.
 
         For keeping track of delta ticks. This starts at zero
-        at the beginning of each TICKS_START engine life-cycle and
+        at the beginning of each TICKS_BIRTH engine life-cycle and
         monotonically increases by one each time `delta()` is called.
         '''
         return self._ticks

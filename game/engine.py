@@ -260,9 +260,9 @@ class Engine(LogMixin):
             SystemTick.INVALID)
         '''
         Current Life-Cycle of engine. Should be a group of ticks like:
-          SystemTick.TICKS_START
-          SystemTick.TICKS_RUN
-          SystemTick.TICKS_END
+          SystemTick.TICKS_BIRTH
+          SystemTick.TICKS_LIFE
+          SystemTick.TICKS_DEATH
         '''
 
         self._tick: CurrentNext[SystemTick] = CurrentNext(
@@ -274,13 +274,13 @@ class Engine(LogMixin):
         '''
         Timer for Engine's Life-Cycles.
 
-        TICKS_START:
+        TICKS_BIRTH:
           - Resets on each tick transition and times each start-up tick.
 
-        TICKS_RUN:
+        TICKS_LIFE:
           - Times from entrance into this life-cycle until exit.
 
-        TICKS_END:
+        TICKS_DEATH:
           - Resets on each tick transition and times each ending tick.
         '''
 
@@ -368,24 +368,25 @@ class Engine(LogMixin):
                                        self.meeting.time.machine,
                                        fingerprint=True)
         # Tick Life-Cycles
-        self._metered_log.meter(SystemTick.TICKS_START,   self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.TICKS_RUN,     self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.TICKS_END,     self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.AFTER_THE_END, self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TICKS_BIRTH, self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TICKS_LIFE,  self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TICKS_DEATH, self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TICKS_AFTERLIFE,
+                                self._METER_LOG_AMT)
 
         # Ticks
-        self._metered_log.meter(SystemTick.GENESIS,       self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.INTRA_SYSTEM,  self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.TIME,          self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.CREATION,      self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.PRE,           self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.STANDARD,      self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.POST,          self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.DESTRUCTION,   self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.APOPTOSIS,     self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.APOCALYPSE,    self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.THE_END,       self._METER_LOG_AMT)
-        self._metered_log.meter(SystemTick.FUNERAL,       self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.SYNTHESIS,   self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.MITOSIS,     self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.TIME,        self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.CREATION,    self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.PRE,         self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.STANDARD,    self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.POST,        self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.DESTRUCTION, self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.AUTOPHAGY,   self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.APOPTOSIS,   self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.NECROSIS,    self._METER_LOG_AMT)
+        self._metered_log.meter(SystemTick.FUNERAL,     self._METER_LOG_AMT)
 
         # ---
         # Systems
@@ -928,9 +929,9 @@ class Engine(LogMixin):
         # Do they need initializing?
         # ------------------------------
         self._life_cycle.set_if_invalids(SystemTick.INVALID,
-                                         SystemTick.TICKS_START)
+                                         SystemTick.TICKS_BIRTH)
         self._tick.set_if_invalids(SystemTick.INVALID,
-                                   SystemTick.GENESIS)
+                                   SystemTick.SYNTHESIS)
 
         # ------------------------------
         # Practice Safe Transitioning!
@@ -944,8 +945,8 @@ class Engine(LogMixin):
                 return SystemTick.ERROR
 
         # If we have a life-cycle transition or a tick-cycle transition for a
-        # serial/non-looping life cycle (e.g. TICKS_START: GENESIS ->
-        # INTRA_SYSTEM), this will call any transition functions.
+        # serial/non-looping life cycle (e.g. TICKS_BIRTH: SYNTHESIS ->
+        # MITOSIS), this will call any transition functions.
         #
         # It can be called during non-transitions - it will figure out if a
         # transition is happening that it cares about.
@@ -965,7 +966,7 @@ class Engine(LogMixin):
                       cycle_to:   SystemTick) -> VerediHealth:
         '''
         Calls any once-only, enter/exit engine life-cycle functions. For
-        TICKS_START and TICKS_END life-cycles, this calls specific tick cycle
+        TICKS_BIRTH and TICKS_DEATH life-cycles, this calls specific tick cycle
         transitions too.
 
         Should only be called if not an /invalid/ transition. Can be called for
@@ -980,11 +981,11 @@ class Engine(LogMixin):
         tick_to = self._tick.next
 
         # ------------------------------
-        # Life-Cycle: TICKS_START
+        # Life-Cycle: TICKS_BIRTH
         # ------------------------------
-        # TICKS_START isn't what most things care about - they want
+        # TICKS_BIRTH isn't what most things care about - they want
         # the specific start ticks...
-        if cycle_to == SystemTick.TICKS_START:
+        if cycle_to == SystemTick.TICKS_BIRTH:
             # ---
             # Not a Tick-Cycle: No-op.
             # ---
@@ -992,10 +993,10 @@ class Engine(LogMixin):
                 pass
 
             # ---
-            # Tick-Cycles: GENESIS, INTRA_SYSTEM.
+            # Tick-Cycles: SYNTHESIS, MITOSIS.
             # ---
-            elif (tick_to == SystemTick.GENESIS
-                  or tick_to == SystemTick.INTRA_SYSTEM):
+            elif (tick_to == SystemTick.SYNTHESIS
+                  or tick_to == SystemTick.MITOSIS):
                 health = health.update(self.meeting.life_cycle(cycle_from,
                                                                cycle_to,
                                                                tick_from,
@@ -1016,25 +1017,25 @@ class Engine(LogMixin):
                               tick_from, tick_to)
 
         # ------------------------------
-        # Life-Cycle: TICKS_RUN
+        # Life-Cycle: TICKS_LIFE
         # ------------------------------
-        elif cycle_to == SystemTick.TICKS_RUN and cycle_from != cycle_to:
+        elif cycle_to == SystemTick.TICKS_LIFE and cycle_from != cycle_to:
             health = health.update(self.meeting.life_cycle(cycle_from,
                                                            cycle_to,
                                                            tick_from,
                                                            tick_to))
 
         # ------------------------------
-        # Life-Cycle: TICKS_END
+        # Life-Cycle: TICKS_DEATH
         # ------------------------------
-        elif cycle_to == SystemTick.TICKS_END:
+        elif cycle_to == SystemTick.TICKS_DEATH:
             # ===
-            # Life-Cycled into TICKS_END; tick could still be set up for
+            # Life-Cycled into TICKS_DEATH; tick could still be set up for
             # something else.
             # ===
-            if tick_to not in SystemTick.TICKS_END:
+            if tick_to not in SystemTick.TICKS_DEATH:
                 # Fix the tick(s) first so we can just have one check.
-                self._tick.next = tick_to = SystemTick.APOPTOSIS
+                self._tick.next = tick_to = SystemTick.AUTOPHAGY
                 # And unfreeze our life-cycle if it was frozen by e.g.
                 # `self.stop()`.
                 self._life_cycle.freeze(False)
@@ -1048,11 +1049,11 @@ class Engine(LogMixin):
                 pass
 
             # ---
-            # Tick-Cycles: APOPTOSIS, APOCALYPSE, THE_END, FUNERAL
+            # Tick-Cycles: AUTOPHAGY, APOPTOSIS, NECROSIS, FUNERAL
             # ---
-            elif (tick_to == SystemTick.APOPTOSIS
-                  or tick_to == SystemTick.APOCALYPSE
-                  or tick_to == SystemTick.THE_END
+            elif (tick_to == SystemTick.AUTOPHAGY
+                  or tick_to == SystemTick.APOPTOSIS
+                  or tick_to == SystemTick.NECROSIS
                   or tick_to == SystemTick.FUNERAL):
                 health = health.update(self.meeting.life_cycle(cycle_from,
                                                                cycle_to,
@@ -1090,10 +1091,10 @@ class Engine(LogMixin):
               - Already ran self._run_trans_log() for logging/timer.
         '''
         # ---
-        # ----> TICKS_START
+        # ----> TICKS_BIRTH
         # ---
-        if cycle_to == SystemTick.TICKS_START:
-            # Only Valid Transition: INVALID -> TICKS_START
+        if cycle_to == SystemTick.TICKS_BIRTH:
+            # Only Valid Transition: INVALID -> TICKS_BIRTH
             if cycle_from != SystemTick.INVALID:
                 # Error on bad transition.
                 return self._run_trans_error(cycle_from, cycle_to,
@@ -1107,14 +1108,14 @@ class Engine(LogMixin):
                 return cycle_to
 
         # ---
-        # ----> TICKS_RUN
+        # ----> TICKS_LIFE
         # ---
-        elif cycle_to == SystemTick.TICKS_RUN:
-            # Only Valid Transition: TICKS_START -> TICKS_RUN
-            if cycle_from != SystemTick.TICKS_START:
+        elif cycle_to == SystemTick.TICKS_LIFE:
+            # Only Valid Transition: TICKS_BIRTH -> TICKS_LIFE
+            if cycle_from != SystemTick.TICKS_BIRTH:
                 # Error on bad transition.
                 return self._run_trans_error(cycle_from, cycle_to,
-                                             SystemTick.TICKS_START)
+                                             SystemTick.TICKS_BIRTH)
             else:
                 # Log/start timer on good transition.
                 # We have the upcoming current cycle as `cycle_to`.
@@ -1124,17 +1125,17 @@ class Engine(LogMixin):
                 return cycle_to
 
         # ---
-        # ----> TICKS_END
+        # ----> TICKS_DEATH
         # ---
-        elif cycle_to == SystemTick.TICKS_END:
-            # Valid Transitions: TICKS_START -> TICKS_END
-            #                    TICKS_RUN   -> TICKS_END
-            if (cycle_from != SystemTick.TICKS_START
-                    and cycle_from != SystemTick.TICKS_RUN):
+        elif cycle_to == SystemTick.TICKS_DEATH:
+            # Valid Transitions: TICKS_BIRTH -> TICKS_DEATH
+            #                    TICKS_LIFE  -> TICKS_DEATH
+            if (cycle_from != SystemTick.TICKS_BIRTH
+                    and cycle_from != SystemTick.TICKS_LIFE):
                 # Error on bad transition.
                 return self._run_trans_error(cycle_from, cycle_to,
-                                             (SystemTick.TICKS_RUN,
-                                              SystemTick.TICKS_START))
+                                             (SystemTick.TICKS_LIFE,
+                                              SystemTick.TICKS_BIRTH))
             else:
                 # Log/start timer on good transition.
                 # We have the upcoming current cycle as `cycle_to`.
@@ -1144,14 +1145,14 @@ class Engine(LogMixin):
                 return cycle_to
 
         # ---
-        # ----> THE_END | FUNERAL
+        # ----> NECROSIS | FUNERAL
         # ---
-        elif cycle_to == SystemTick.FUNERAL | SystemTick.THE_END:
-            # Valid Transitions: TICKS_END -> THE_END | FUNERAL
-            if (cycle_from != SystemTick.TICKS_END):
+        elif cycle_to == SystemTick.FUNERAL | SystemTick.NECROSIS:
+            # Valid Transitions: TICKS_DEATH -> NECROSIS | FUNERAL
+            if (cycle_from != SystemTick.TICKS_DEATH):
                 # Error on bad transition.
                 return self._run_trans_error(cycle_from, cycle_to,
-                                             SystemTick.TICKS_END)
+                                             SystemTick.TICKS_DEATH)
             else:
                 # Log/start timer on good transition.
                 # We have the upcoming current cycle as `cycle_to`.
@@ -1218,13 +1219,13 @@ class Engine(LogMixin):
         set_engine_health() preferring the worst health value it gets.
         '''
         run_health = VerediHealth.FATAL
-        if cycle == SystemTick.TICKS_START:
+        if cycle == SystemTick.TICKS_BIRTH:
             run_health = self._run_cycle_start()
 
-        elif cycle == SystemTick.TICKS_RUN:
+        elif cycle == SystemTick.TICKS_LIFE:
             run_health = self._run_cycle_run()
 
-        elif cycle == SystemTick.TICKS_END:
+        elif cycle == SystemTick.TICKS_DEATH:
             run_health = self._run_cycle_end()
 
         else:
@@ -1242,9 +1243,9 @@ class Engine(LogMixin):
                 self.__class__.__name__,
                 cycle,
                 cycle,
-                (SystemTick.TICKS_START,
-                 SystemTick.TICKS_RUN,
-                 SystemTick.TICKS_END))
+                (SystemTick.TICKS_BIRTH,
+                 SystemTick.TICKS_LIFE,
+                 SystemTick.TICKS_DEATH))
 
         self.set_engine_health(run_health, False)
         return run_health
@@ -1256,28 +1257,28 @@ class Engine(LogMixin):
     def _run_cycle_start(self) -> VerediHealth:
         '''
         Will run a tick of start-up per call. Start Ticks loop independently
-        until complete, then move on to the next (..., GENESIS, GENESIS, INTRA,
+        until complete, then move on to the next (..., SYNTHESIS, SYNTHESIS, INTRA,
         INTRA, ...). This function will transitions from each start tick to the
         next automatically.
 
         We will time out if any one tick takes too long to finish and move on
         to the next.
 
-        We will transition out of TICKS_START automatically when we finish
+        We will transition out of TICKS_BIRTH automatically when we finish
         successfully.
 
         Returns:
-          - VerediHealth.PENDING if TICKS_START life-cycle is still in progress
+          - VerediHealth.PENDING if TICKS_BIRTH life-cycle is still in progress
           - VerediHealth.HEALTHY if we are done.
           - Some other health if we or our systems are going wrong.
         '''
 
         # ------------------------------
-        # First tick: GENESIS
+        # First tick: SYNTHESIS
         # ------------------------------
-        if self.tick == SystemTick.GENESIS:
+        if self.tick == SystemTick.SYNTHESIS:
 
-            health = self._update_genesis()
+            health = self._update_synthesis()
             # Health in general will be checked later...
             # Just check for other things and return it.
 
@@ -1285,7 +1286,7 @@ class Engine(LogMixin):
             # pass. It's close enough, right?
             if (health != VerediHealth.HEALTHY
                     and self.meeting.time.is_timed_out(self._timer_life,
-                                                       'genesis')):
+                                                       'synthesis')):
                 self.log_tick(self.tick,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
@@ -1299,18 +1300,18 @@ class Engine(LogMixin):
 
             # HEALTHY means done. Set up for our transition.
             if health == VerediHealth.HEALTHY:
-                self._tick.next = SystemTick.INTRA_SYSTEM
+                self._tick.next = SystemTick.MITOSIS
                 # Leave life-cycle as-is.
 
-            # Did a tick of genesis; done for this time.
+            # Did a tick of synthesis; done for this time.
             return health
 
         # ------------------------------
-        # Second tick: INTRA_SYSTEM
+        # Second tick: MITOSIS
         # ------------------------------
-        elif self.tick == SystemTick.INTRA_SYSTEM:
+        elif self.tick == SystemTick.MITOSIS:
 
-            health = self._update_intrasystem()
+            health = self._update_mitosis()
             # Health in general will be checked later...
             # Just check for other things and return it.
 
@@ -1318,7 +1319,7 @@ class Engine(LogMixin):
             # pass. It's close enough, right?
             if (health != VerediHealth.HEALTHY
                     and self.meeting.time.is_timed_out(self._timer_life,
-                                                       'intrasystem')):
+                                                       'mitosis')):
                 self.log_tick(self.tick,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
@@ -1334,9 +1335,9 @@ class Engine(LogMixin):
             if health == VerediHealth.HEALTHY:
                 # Set up for entering the standard game life-cycle and ticks.
                 self._tick.next = SystemTick.TIME
-                self._life_cycle.next = SystemTick.TICKS_RUN
+                self._life_cycle.next = SystemTick.TICKS_LIFE
 
-            # Did a tick of intra-system; done for this time.
+            # Did a tick of mitosis; done for this time.
             return health
 
         # Else, um... How and why are we here? This is a bad place.
@@ -1363,9 +1364,9 @@ class Engine(LogMixin):
 
         There is currently no timeout for ticks here or for the game loop.
 
-        There is also no automatic normal transition out of the TICKS_RUN
+        There is also no automatic normal transition out of the TICKS_LIFE
         life-cycle. A system or something will need to trigger the engine's
-        apoptosis.
+        autophagy.
 
         !!NOTE!!: The returned value and self.engine_health could differ due to
         set_engine_health() preferring the worst health value it gets from
@@ -1433,8 +1434,8 @@ class Engine(LogMixin):
     def _run_cycle_end(self) -> VerediHealth:
         '''
         Will run a tick of the end cycle per call. End Ticks loop independently
-        until complete, then move on to the next (..., APOPTOSIS, APOPTOSIS,
-        APOCALYPSE, ..., etc.) . This function will transitions from each start
+        until complete, then move on to the next (..., AUTOPHAGY, AUTOPHAGY,
+        APOPTOSIS, ..., etc.) . This function will transitions from each start
         tick to the next automatically.
 
         We will time out if any one tick takes too long to finish and move on
@@ -1447,21 +1448,21 @@ class Engine(LogMixin):
           - A VerediHealth value.
         '''
         # ------------------------------
-        # First tick: APOPTOSIS
+        # First tick: AUTOPHAGY
         # ------------------------------
-        if self.tick == SystemTick.APOPTOSIS:
+        if self.tick == SystemTick.AUTOPHAGY:
             # THE END IS NIGH!
 
-            health = self._update_apoptosis()
+            health = self._update_autophagy()
             # Health in general will be checked later...
             # Just check for other things and return it.
 
             # Allow a healthy tick that technically overran the timeout to
             # pass. It's close enough, right?
-            if ((health != VerediHealth.APOPTOSIS_SUCCESSFUL
-                 or health != VerediHealth.APOPTOSIS_FAILURE)
+            if ((health != VerediHealth.AUTOPHAGY_SUCCESSFUL
+                 or health != VerediHealth.AUTOPHAGY_FAILURE)
                 and self.meeting.time.is_timed_out(self._timer_life,
-                                                   'apoptosis')):
+                                                   'autophagy')):
                 self.log_tick(self.tick,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
@@ -1474,29 +1475,29 @@ class Engine(LogMixin):
                 return self.tick_health
 
             # Are we done? Set up for our transition.
-            if (health == VerediHealth.APOPTOSIS_SUCCESSFUL
-                    or health == VerediHealth.APOPTOSIS_FAILURE):
+            if (health == VerediHealth.AUTOPHAGY_SUCCESSFUL
+                    or health == VerediHealth.AUTOPHAGY_FAILURE):
                 # THE END TIMES ARE UPON US!
-                self._tick.next = SystemTick.APOCALYPSE
+                self._tick.next = SystemTick.APOPTOSIS
                 # Leave life-cycle as-is.
 
-            # Did a tick of apoptosis; done for this time.
+            # Did a tick of autophagy; done for this time.
             return health
 
         # ------------------------------
-        # Second tick: APOCALYPSE
+        # Second tick: APOPTOSIS
         # ------------------------------
-        elif self.tick == SystemTick.APOCALYPSE:
+        elif self.tick == SystemTick.APOPTOSIS:
 
-            health = self._update_apocalypse()
+            health = self._update_apoptosis()
             # Health in general will be checked later...
             # Just check for other things and return it.
 
             # Allow a healthy tick that technically overran the timeout to
             # pass. It's close enough, right?
-            if (health != VerediHealth.APOCALYPSE_DONE
+            if (health != VerediHealth.APOPTOSIS_DONE
                     and self.meeting.time.is_timed_out(self._timer_life,
-                                                       'apocalypse')):
+                                                       'apoptosis')):
                 self.log_tick(self.tick,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
@@ -1509,28 +1510,28 @@ class Engine(LogMixin):
                 return self.tick_health
 
             # HEALTHY means done. Set up for our transition.
-            if health == VerediHealth.APOCALYPSE_DONE:
+            if health == VerediHealth.APOPTOSIS_DONE:
                 # THE END IS HERE!
-                self._tick.next = SystemTick.THE_END
+                self._tick.next = SystemTick.NECROSIS
                 # Leave life-cycle as-is.
 
-            # Did a tick of apocalypse; done for this time.
+            # Did a tick of apoptosis; done for this time.
             return health
 
         # ------------------------------
-        # Final tick: THE_END
+        # Final tick: NECROSIS
         # ------------------------------
-        elif self.tick == SystemTick.THE_END:
+        elif self.tick == SystemTick.NECROSIS:
             # There is only one pass through this tick.
 
-            health = self._update_the_end()
+            health = self._update_necrosis()
             # Health in general will be checked later...
             # Just check for other things and return it.
 
             # Do the health check for consistency with all the other ticks, but
             # really this is the end and whatever. The health is the health at
             # this point.
-            if health != VerediHealth.THE_END:
+            if health != VerediHealth.NECROSIS:
                 self.log_tick(self.tick,
                               log.Level.WARNING,
                               "{}'s {} completed with poor "
@@ -1541,7 +1542,7 @@ class Engine(LogMixin):
                 self.set_all_health(VerediHealth.FATAL, True)
                 return self.tick_health
 
-            # Stay in TICKS_END life-cycle.
+            # Stay in TICKS_DEATH life-cycle.
 
             # Don't care about anything. We're done. Good day.
             self._tick.next = SystemTick.FUNERAL
@@ -1550,7 +1551,7 @@ class Engine(LogMixin):
             return health
 
         # ------------------------------
-        # No, really. THE_END was the final tick.
+        # No, really. NECROSIS was the final tick.
         # This is just our FUNERAL tick...
         # ------------------------------
         elif self.tick == SystemTick.FUNERAL:
@@ -1561,13 +1562,13 @@ class Engine(LogMixin):
             # Just check for other things and return it.
 
             # We're done. Park tick and life-cycle.
-            self._tick.next = SystemTick.FUNERAL | SystemTick.THE_END
-            self._life_cycle.next = SystemTick.FUNERAL | SystemTick.THE_END
+            self._tick.next = SystemTick.FUNERAL | SystemTick.NECROSIS
+            self._life_cycle.next = SystemTick.FUNERAL | SystemTick.NECROSIS
 
             # Do the health check for consistency with all the other ticks, but
             # really this is the end and whatever. The health is the health at
             # this point.
-            if health != VerediHealth.THE_END:
+            if health != VerediHealth.NECROSIS:
                 self.log_tick(self.tick,
                               log.Level.WARNING,
                               "{}'s {} completed with poor "
@@ -1576,7 +1577,7 @@ class Engine(LogMixin):
                               self.__class__.__name__,
                               str(self.tick),
                               str(health),
-                              str(VerediHealth.THE_END),
+                              str(VerediHealth.NECROSIS),
                               self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
 
@@ -1604,7 +1605,7 @@ class Engine(LogMixin):
 
     def _event_request_stop(self, event: EngineStopRequest) -> None:
         '''
-        Someone requested we kick into TICKS_END.
+        Someone requested we kick into TICKS_DEATH.
         '''
         # TODO: log.Group.EVENTS
         self.stop()
@@ -1710,7 +1711,7 @@ class Engine(LogMixin):
         # TODO: log.Group.SHUT_DOWN
 
         # This is our stopped life-cycle.
-        if self.life_cycle == SystemTick.AFTER_THE_END:
+        if self.life_cycle == SystemTick.TICKS_AFTERLIFE:
             self.log_tick(self.life_cycle,
                           log.Level.INFO,
                           f"{self.__class__.__name__} is stopped and "
@@ -1736,7 +1737,7 @@ class Engine(LogMixin):
         # TODO: log.Group.SHUT_DOWN
 
         # This is our stopped life-cycle.
-        if self.life_cycle == SystemTick.AFTER_THE_END:
+        if self.life_cycle == SystemTick.TICKS_AFTERLIFE:
             if log_stopped:
                 self.log_tick(self.life_cycle,
                               log.Level.ERROR,
@@ -1747,9 +1748,9 @@ class Engine(LogMixin):
 
         # These life-cycles are not stopped.
         if self.life_cycle in (SystemTick.INVALID,
-                               SystemTick.TICKS_START,
-                               SystemTick.TICKS_RUN,
-                               SystemTick.TICKS_END):
+                               SystemTick.TICKS_BIRTH,
+                               SystemTick.TICKS_LIFE,
+                               SystemTick.TICKS_DEATH):
             if log_not_stopped:
                 self.log_tick(self.life_cycle,
                               log.Level.ERROR,
@@ -1786,8 +1787,8 @@ class Engine(LogMixin):
 
         # Definitely not stopping when we're in these life-cycles.
         if self.life_cycle in (SystemTick.INVALID,
-                               SystemTick.TICKS_START,
-                               SystemTick.TICKS_RUN):
+                               SystemTick.TICKS_BIRTH,
+                               SystemTick.TICKS_LIFE):
             if log_not_stopping:
                 self.log_tick(self.life_cycle,
                               log.Level.ERROR,
@@ -1797,7 +1798,7 @@ class Engine(LogMixin):
             return False
 
         # Might be stopping when we're in these life-cycles?
-        if self.life_cycle == SystemTick.TICKS_END:
+        if self.life_cycle == SystemTick.TICKS_DEATH:
             if log_stopping:
                 self.log_tick(self.life_cycle,
                               log.Level.ERROR,
@@ -1806,7 +1807,7 @@ class Engine(LogMixin):
                               str(self.life_cycle), str(self.tick))
             return True
 
-        if self.life_cycle == SystemTick.AFTER_THE_END:
+        if self.life_cycle == SystemTick.TICKS_AFTERLIFE:
             if log_stopping:
                 self.log_tick(self.life_cycle,
                               log.Level.ERROR,
@@ -1827,7 +1828,7 @@ class Engine(LogMixin):
     def stop(self):
         '''
         Call if you want engine to stop after the end of this tick the graceful
-        way - going into the TICKS_END life-cycle and running all the
+        way - going into the TICKS_DEATH life-cycle and running all the
         end-of-life ticks.
         '''
         # ---
@@ -1840,12 +1841,12 @@ class Engine(LogMixin):
         # ---
         # Stop it!
         # ---
-        self._life_cycle.freeze(SystemTick.TICKS_END)
+        self._life_cycle.freeze(SystemTick.TICKS_DEATH)
 
         # # `set_all_health()` complains if health and tick mismatch, so change
         # # tick/life-cycle first.
-        # self._tick.next = SystemTick.APOPTOSIS
-        # self.set_all_health(VerediHealth.APOPTOSIS, True)
+        # self._tick.next = SystemTick.AUTOPHAGY
+        # self.set_all_health(VerediHealth.AUTOPHAGY, True)
 
     # -------------------------------------------------------------------------
     # Tick Helpers
@@ -1877,10 +1878,10 @@ class Engine(LogMixin):
         return health
 
     # -------------------------------------------------------------------------
-    # Life-Cycle: TICKS_START: Pre-Game Loading
+    # Life-Cycle: TICKS_BIRTH: Pre-Game Loading
     # -------------------------------------------------------------------------
 
-    def _ticks_start_in_progress(self,
+    def _ticks_birth_in_progress(self,
                                  events_published: Union[int, bool],
                                  health:           VerediHealth) -> bool:
         '''
@@ -1919,10 +1920,10 @@ class Engine(LogMixin):
                        health)
         return False
 
-    def _update_genesis(self) -> VerediHealth:
+    def _update_synthesis(self) -> VerediHealth:
         '''
         Note: No EventManager in here as systems and such should be creating.
-        EventManager will start processing events in next (INTRA_SYSTEM) tick.
+        EventManager will start processing events in next (MITOSIS) tick.
 
         Sets (and returns) engine's tick health every tick. Make sure to check
         it.
@@ -1943,16 +1944,16 @@ class Engine(LogMixin):
         # ---
         # Tick systems.
         # ---
-        # Let any systems that exist now have a GENESIS tick.
-        health = self.meeting.system.update(SystemTick.GENESIS)
+        # Let any systems that exist now have a SYNTHESIS tick.
+        health = self.meeting.system.update(SystemTick.SYNTHESIS)
         self._dbg_tick("Tick: {}, Tick health: {}",
                        self.tick, health)
 
         # Tick DataManager after systems here for responses to data requests.
-        health = health.update(self.meeting.data.update(SystemTick.GENESIS))
+        health = health.update(self.meeting.data.update(SystemTick.SYNTHESIS))
 
         events_dont_care = True
-        if (self._ticks_start_in_progress(events_dont_care, health)
+        if (self._ticks_birth_in_progress(events_dont_care, health)
                 and health.in_best_health):
             # Set to PENDING if a healthy but not finished tick.
             health = VerediHealth.PENDING
@@ -1964,7 +1965,7 @@ class Engine(LogMixin):
         '''
         Subscribe to the Engine's events.
         '''
-        # Request to transition the engine into TICKS_END for (eventual) stop.
+        # Request to transition the engine into TICKS_DEATH for (eventual) stop.
         if not self.meeting.event.is_subscribed(EngineStopRequest,
                                                 self._event_request_stop):
             self.meeting.event.subscribe(EngineStopRequest,
@@ -1972,7 +1973,7 @@ class Engine(LogMixin):
 
         return VerediHealth.HEALTHY
 
-    def _update_intrasystem(self) -> None:
+    def _update_mitosis(self) -> None:
         '''
         EventManager will now start processing events. Systems should start
         registering for things, talking to each other, loading data, etc.
@@ -1984,7 +1985,7 @@ class Engine(LogMixin):
           - tick health
         '''
         self._update_init()
-        health = tick_health_init(SystemTick.INTRA_SYSTEM,
+        health = tick_health_init(SystemTick.MITOSIS,
                                   invalid_ok=True)
 
         # ---
@@ -2001,13 +2002,13 @@ class Engine(LogMixin):
         # ---
         # Tick systems.
         # ---
-        # Let all our running systems have an INTRA_SYSTEM tick.
+        # Let all our running systems have an MITOSIS tick.
         health = health.update(
-            self.meeting.system.update(SystemTick.INTRA_SYSTEM),
-            self.meeting.identity.update(SystemTick.INTRA_SYSTEM),
-            self.meeting.data.update(SystemTick.INTRA_SYSTEM))
+            self.meeting.system.update(SystemTick.MITOSIS),
+            self.meeting.identity.update(SystemTick.MITOSIS),
+            self.meeting.data.update(SystemTick.MITOSIS))
         events_published = self.meeting.event.update(
-            SystemTick.INTRA_SYSTEM,
+            SystemTick.MITOSIS,
             self.meeting.time)
 
         self._dbg_tick("Tick: {}, Tick health: {}, # Events: {}",
@@ -2015,7 +2016,7 @@ class Engine(LogMixin):
                        health,
                        events_published)
 
-        if (self._ticks_start_in_progress(events_published, health)
+        if (self._ticks_birth_in_progress(events_published, health)
                 and health.in_best_health):
             # Set to PENDING if a healthy but not finished tick.
             health = VerediHealth.PENDING
@@ -2024,7 +2025,7 @@ class Engine(LogMixin):
         return health
 
     # -------------------------------------------------------------------------
-    # Life-Cycle: TICKS_RUN: In-Game Loops
+    # Life-Cycle: TICKS_LIFE: In-Game Loops
     # -------------------------------------------------------------------------
     def _update_game_loop(self) -> VerediHealth:
         '''
@@ -2129,7 +2130,7 @@ class Engine(LogMixin):
         return self.tick_health
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    # Life-Cycle: TICKS_RUN: Specific Ticks
+    # Life-Cycle: TICKS_LIFE: Specific Ticks
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     def _update_time(self) -> VerediHealth:
         '''
@@ -2233,10 +2234,10 @@ class Engine(LogMixin):
         return health
 
     # -------------------------------------------------------------------------
-    # Life-Cycle: TICKS_END: End-of-Life Ticks
+    # Life-Cycle: TICKS_DEATH: End-of-Life Ticks
     # -------------------------------------------------------------------------
 
-    def _update_apoptosis(self) -> VerediHealth:
+    def _update_autophagy(self) -> VerediHealth:
         '''
         Graceful game shutdown. Will be called more than once.
 
@@ -2244,9 +2245,25 @@ class Engine(LogMixin):
         This is just for systems to prep for shut-down as orderly as possible,
         using any/all other systems to e.g. save their data.
 
-        Importantly, APOPTOSIS does not mean "die". A system must be able to
+        Importantly, AUTOPHAGY does not mean "die". A system must be able to
         process all incoming events/function calls for as long as the engine
-        says it's APOPTOSIS time.
+        says it's AUTOPHAGY time.
+        '''
+        self._update_init()
+        health = tick_health_init(SystemTick.AUTOPHAGY)
+
+        health = health.update(
+            self._do_tick(SystemTick.AUTOPHAGY))
+
+        self.set_tick_health(health, False)
+        return health
+
+    def _update_apoptosis(self) -> VerediHealth:
+        '''
+        Apoptosis! Systems can die now and stop doing their job. They should
+        allow the apoptosis tick to call them as much as it wants. They should
+        probably not throw exceptions for events or calls that still happen if
+        possible - perhaps Null, None, or logs is enough?
         '''
         self._update_init()
         health = tick_health_init(SystemTick.APOPTOSIS)
@@ -2257,23 +2274,7 @@ class Engine(LogMixin):
         self.set_tick_health(health, False)
         return health
 
-    def _update_apocalypse(self) -> VerediHealth:
-        '''
-        Apocalypse! Systems can die now and stop doing their job. They should
-        allow the apocalypse tick to call them as much as it wants. They should
-        probably not throw exceptions for events or calls that still happen if
-        possible - perhaps Null, None, or logs is enough?
-        '''
-        self._update_init()
-        health = tick_health_init(SystemTick.APOCALYPSE)
-
-        health = health.update(
-            self._do_tick(SystemTick.APOCALYPSE))
-
-        self.set_tick_health(health, False)
-        return health
-
-    def _update_the_end(self) -> VerediHealth:
+    def _update_necrosis(self) -> VerediHealth:
         '''
         It's the end of the game as we know it (and I feel fine).
 
@@ -2282,10 +2283,10 @@ class Engine(LogMixin):
         This should only be called /ONCE/.
         '''
         self._update_init()
-        health = tick_health_init(SystemTick.THE_END)
+        health = tick_health_init(SystemTick.NECROSIS)
 
         health = health.update(
-            self._do_tick(SystemTick.THE_END))
+            self._do_tick(SystemTick.NECROSIS))
 
         self.set_tick_health(health, False)
         return health
@@ -2305,12 +2306,12 @@ class Engine(LogMixin):
 
         # We're done and shouldn't get another tick. Park tick and life-cycle
         # now so we can test them.
-        self._tick.next = SystemTick.FUNERAL | SystemTick.THE_END
-        self._life_cycle.next = SystemTick.FUNERAL | SystemTick.THE_END
+        self._tick.next = SystemTick.FUNERAL | SystemTick.NECROSIS
+        self._life_cycle.next = SystemTick.FUNERAL | SystemTick.NECROSIS
 
-        # Are we HEALTHY? Whatever. Use THE_END for 'healthy dead'.
+        # Are we HEALTHY? Whatever. Use NECROSIS for 'healthy dead'.
         if health.in_best_health:
-            health = health.update(VerediHealth.THE_END)
+            health = health.update(VerediHealth.NECROSIS)
 
         self.set_tick_health(health, False)
         return health

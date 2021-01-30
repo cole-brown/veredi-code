@@ -14,7 +14,7 @@ from typing import Optional, Any, List, Dict
 import enum
 
 
-from veredi.base import label
+from veredi.base.string import label
 
 
 # -----------------------------------------------------------------------------

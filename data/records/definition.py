@@ -15,7 +15,7 @@ from veredi.base.null import Null, Nullable
 
 
 from veredi.logger         import log
-from veredi.base           import label
+from veredi.base.string    import label
 
 from .record               import Record
 from ..serdes.adapter.dict import DataDict

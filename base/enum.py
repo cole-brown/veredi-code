@@ -16,7 +16,7 @@ import re
 
 
 from veredi.logger               import log
-from veredi.base                 import label
+from veredi.base.string          import label
 from veredi.data.codec.encodable import (Encodable,
                                          EncodedComplex)
 

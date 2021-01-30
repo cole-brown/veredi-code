@@ -24,8 +24,8 @@ from contextlib import contextmanager
 # ------------------------------
 # Veredi Logging & Stuff
 # ------------------------------
-from veredi.base import label
-from .           import log
+from veredi.base.string import label
+from .                  import log
 
 
 # -----------------------------------------------------------------------------

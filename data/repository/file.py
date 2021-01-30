@@ -22,7 +22,8 @@ from veredi.logger               import log
 from veredi.data.config.registry import register
 from veredi.data                 import background
 
-from veredi.base                 import vstring, paths
+from veredi.base                 import paths
+from veredi.base.string          import text
 from veredi.data.context         import (DataBareContext,
                                          DataGameContext,
                                          DataLoadContext,
@@ -113,7 +114,7 @@ def _part_to_human_readable(part: paths.PathType) -> str:
     '''
     try:
         # Normalize our string first.
-        normalized = vstring.normalize(part)
+        normalized = text.normalize(part)
         # Then ensure part is a string before doing the regex replace.
         humanized = _HUMAN_SAFE.sub(_REPLACEMENT, normalized)
     except TypeError as error:

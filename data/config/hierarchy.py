@@ -211,10 +211,10 @@ class ConfigHierarchy(Hierarchy):
             'time': {
                 'timeouts': {
                     'default': Info.LEAF,
-                    'genesis': Info.LEAF,
-                    'intrasystem': Info.LEAF,
+                    'synthesis': Info.LEAF,
+                    'mitosis': Info.LEAF,
+                    'autophagy': Info.LEAF,
                     'apoptosis': Info.LEAF,
-                    'apocalypse': Info.LEAF,
                 },
             },
         },
