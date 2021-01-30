@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 import enum
 
 
-from veredi.base                  import label
 from veredi.data.config.registry  import register
 from veredi.data.repository.taxon import Rank, SavedTaxon
 
@@ -41,10 +40,10 @@ class PF2Rank(Rank):
         INVALID = None
 
         GAME = 'game'
-        ITEM = 'items'
-        MONSTER = 'monsters'
-        NPC = 'npcs'
-        PLAYER = 'players'
+        ITEM = 'item'
+        MONSTER = 'monster'
+        NPC = 'npc'
+        PLAYER = 'player'
 
         # ------------------------------
         # Python Functions
