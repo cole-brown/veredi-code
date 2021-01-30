@@ -90,7 +90,7 @@ class SystemManager(EcsManagerWithEvents):
 
         self._schedule:       List[System]           = []
         '''
-        Our schedule for the next/current game-loop (SystemTick.TICKS_RUN)
+        Our schedule for the next/current game-loop (SystemTick.TICKS_LIFE)
         cycle. Not rescheduled every tick - only when something bumps
         self._reschedule to True.
         '''
@@ -103,7 +103,7 @@ class SystemManager(EcsManagerWithEvents):
         self._timer: Optional[MonotonicTimer] = MonotonicTimer()
         '''
         We'll use this timer in certain life-cycles/tick-cycles (e.g.
-        apoptosis) to let systems time how long it's been since the start of
+        autophagy) to let systems time how long it's been since the start of
         that cycle.
         '''
 
@@ -239,17 +239,17 @@ class SystemManager(EcsManagerWithEvents):
     # Life-Cycle Transitions
     # -------------------------------------------------------------------------
 
-    def _cycle_genesis(self) -> VerediHealth:
+    def _cycle_synthesis(self) -> VerediHealth:
         '''
-        Entering TICKS_START life-cycle's first tick: genesis. System creation,
+        Entering TICKS_BIRTH life-cycle's first tick: synthesis. System creation,
         initializing stuff, etc.
         '''
         self._timer.start()
         return VerediHealth.HEALTHY
 
-    def _cycle_intrasystem(self) -> VerediHealth:
+    def _cycle_mitosis(self) -> VerediHealth:
         '''
-        Entering TICKS_START life-cycle's next tick - intra-system
+        Entering TICKS_BIRTH life-cycle's next tick - mitosis
         communication, loading, configuration...
         '''
         self._timer.start()
@@ -257,23 +257,46 @@ class SystemManager(EcsManagerWithEvents):
 
     def _cycle_game_loop(self) -> VerediHealth:
         '''
-        Entering TICKS_RUN life-cycle, aka the main game loop.
+        Entering TICKS_LIFE life-cycle, aka the main game loop.
 
         Prepare for the main event.
         '''
         self._timer.start()
         return VerediHealth.HEALTHY
 
-    def _cycle_apoptosis(self) -> VerediHealth:
+    def _cycle_autophagy(self) -> VerediHealth:
         '''
-        Entering TICKS_END life-cycle's first tick: apoptosis. Initial
+        Entering TICKS_DEATH life-cycle's first tick: autophagy. Initial
         structured shut-down tick cycle. Systems, managers, etc must still be
         in working order for this - saving data, unloading, final
         communications, etc.
 
         Game is ending gracefully. Call each system once to alert them of this.
         '''
-        # Set up timer, set ourself to in apoptosis phase.
+        # Set up timer, set ourself to in autophagy phase.
+        self._timer.start()
+
+        # Set each system to autophagy phase.
+        health = VerediHealth.INVALID
+        for sid in self._system.id:
+            system = self._system.id[sid]
+            if (system
+                    and not self._system_in_cycle(system,
+                                                  SystemLifeCycle.AUTOPHAGY)):
+                health = health.update(
+                    self._life_cycle_set(system, SystemLifeCycle.AUTOPHAGY))
+
+        return health
+
+    def _cycle_apoptosis(self) -> VerediHealth:
+        '''
+        Entering TICKS_DEATH life-cycle's next tick: apoptosis. Systems can now
+        become unresponsive. Managers must stay responsive.
+
+        Game is ending systems gracefully or not. Call each system once to
+        alert them of this.
+        '''
+        # Reset timer, set ourself to in apoptosis phase.
         self._timer.start()
 
         # Set each system to apoptosis phase.
@@ -288,32 +311,9 @@ class SystemManager(EcsManagerWithEvents):
 
         return health
 
-    def _cycle_apocalypse(self) -> VerediHealth:
+    def _cycle_necrosis(self) -> VerediHealth:
         '''
-        Entering TICKS_END life-cycle's next tick: apocalypse. Systems can now
-        become unresponsive. Managers must stay responsive.
-
-        Game is ending systems gracefully or not. Call each system once to
-        alert them of this.
-        '''
-        # Reset timer, set ourself to in apocalypse phase.
-        self._timer.start()
-
-        # Set each system to apocalypse phase.
-        health = VerediHealth.INVALID
-        for sid in self._system.id:
-            system = self._system.id[sid]
-            if (system
-                    and not self._system_in_cycle(system,
-                                                  SystemLifeCycle.APOCALYPSE)):
-                health = health.update(
-                    self._life_cycle_set(system, SystemLifeCycle.APOCALYPSE))
-
-        return health
-
-    def _cycle_the_end(self) -> VerediHealth:
-        '''
-        Entering TICKS_END life-cycle's final tick: the_end.
+        Entering TICKS_DEATH life-cycle's final tick: necrosis.
 
         Managers must finish the tick, so don't kill yourself here... Not quite
         yet.
@@ -322,18 +322,18 @@ class SystemManager(EcsManagerWithEvents):
         Systems will also have a chance at 'update the end'.
         Then they will all be destroyed.
         '''
-        # Reset timer, set ourself to in the_end phase.
+        # Reset timer, set ourself to in necrosis phase.
         self._timer.start()
 
-        # Set each system to the_end phase.
+        # Set each system to necrosis phase.
         health = VerediHealth.INVALID
         for sid in self._system.id:
             system = self._system.id[sid]
             if (system
                     and not self._system_in_cycle(system,
-                                                  SystemLifeCycle.THE_END)):
+                                                  SystemLifeCycle.NECROSIS)):
                 health = health.update(
-                    self._life_cycle_set(system, SystemLifeCycle.THE_END))
+                    self._life_cycle_set(system, SystemLifeCycle.NECROSIS))
 
         return health
 
@@ -343,7 +343,7 @@ class SystemManager(EcsManagerWithEvents):
 
         We may die now.
         '''
-        return VerediHealth.THE_END
+        return VerediHealth.NECROSIS
 
     # -------------------------------------------------------------------------
     # EcsManagerWithEvents Interface
@@ -469,7 +469,7 @@ class SystemManager(EcsManagerWithEvents):
                     "during {} tick (time={}).",
                     str(system), tick, time.tick.current_seconds)
 
-        if tick == SystemTick.THE_END:
+        if tick == SystemTick.NECROSIS:
             # Set all to destroy, then run destruction().
             self._destroy_all(tick, time)
 

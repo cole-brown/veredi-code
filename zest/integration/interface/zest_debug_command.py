@@ -77,7 +77,7 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
         self.engine_life_start()
 
         # Life'd, registration'd, and some commands exist now.
-        self.assertEqual(self.engine.life_cycle, SystemTick.TICKS_START)
+        self.assertEqual(self.engine.life_cycle, SystemTick.TICKS_BIRTH)
         self.assertTrue(self.reg_open)
         self.assertTrue(self.input_system._commander._commands)
 

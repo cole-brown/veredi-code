@@ -104,10 +104,10 @@ class EcsManager(LogMixin, ABC):
         '''
         Are we in a healthy/runnable state?
 
-        For ticks at end of game (TICKS_END), this is just any 'runnable'
+        For ticks at end of game (TICKS_DEATH), this is just any 'runnable'
         health.
 
-        For the rest of the ticks (namely TICKS_RUN), this is only the 'best'
+        For the rest of the ticks (namely TICKS_LIFE), this is only the 'best'
         of health.
         '''
         return tick_healthy(tick, self._health)
@@ -129,16 +129,16 @@ class EcsManager(LogMixin, ABC):
         _run_trans_validate(), but here's a summary of both life-cycle and tick
         transitions:
 
-          - INVALID -> TICKS_START:
-            - INVALID -> GENESIS
-            - GENESIS -> INTRA_SYSTEM
+          - INVALID -> TICKS_BIRTH:
+            - INVALID   -> SYNTHESIS
+            - SYNTHESIS -> MITOSIS
 
-          - TICKS_START -> TICKS_RUN
+          - TICKS_BIRTH -> TICKS_LIFE
 
-          - ??? -> TICKS_END:
-            - ???        -> APOPTOSIS
-            - APOPTOSIS  -> APOCALYPSE
-            - APOCALYPSE -> THE_END
+          - ??? -> TICKS_DEATH:
+            - ???       -> AUTOPHAGY
+            - AUTOPHAGY -> APOPTOSIS
+            - APOPTOSIS -> NECROSIS
 
         NOTE: This is only called if there is a valid life-cycle/tick-cycle of
         interest.
@@ -149,87 +149,87 @@ class EcsManager(LogMixin, ABC):
         health = VerediHealth.HEALTHY
 
         # A New Beginning.
-        if cycle_to == SystemTick.TICKS_START:
-            if tick_to == SystemTick.GENESIS:
-                health = health.update(self._cycle_genesis())
-            elif tick_to == SystemTick.INTRA_SYSTEM:
-                health = health.update(self._cycle_intrasystem())
+        if cycle_to == SystemTick.TICKS_BIRTH:
+            if tick_to == SystemTick.SYNTHESIS:
+                health = health.update(self._cycle_synthesis())
+            elif tick_to == SystemTick.MITOSIS:
+                health = health.update(self._cycle_mitosis())
 
         # A Duty To Fulfill.
-        elif cycle_to == SystemTick.TICKS_RUN:
+        elif cycle_to == SystemTick.TICKS_LIFE:
             health = health.update(self._cycle_game_loop())
 
         # A Hero's End.
-        elif cycle_to == SystemTick.TICKS_END:
-            if tick_to == SystemTick.APOPTOSIS:
+        elif cycle_to == SystemTick.TICKS_DEATH:
+            if tick_to == SystemTick.AUTOPHAGY:
+                health = health.update(self._cycle_autophagy())
+            elif tick_to == SystemTick.APOPTOSIS:
                 health = health.update(self._cycle_apoptosis())
-            elif tick_to == SystemTick.APOCALYPSE:
-                health = health.update(self._cycle_apocalypse())
-            elif tick_to == SystemTick.THE_END:
-                health = health.update(self._cycle_the_end())
+            elif tick_to == SystemTick.NECROSIS:
+                health = health.update(self._cycle_necrosis())
 
         # Death Comes for All...
-        elif (cycle_from == SystemTick.TICKS_END
+        elif (cycle_from == SystemTick.TICKS_DEATH
               and cycle_to == SystemTick.FUNERAL
-              and tick_from == SystemTick.THE_END
+              and tick_from == SystemTick.NECROSIS
               and tick_to == SystemTick.FUNERAL):
             health = health.update(self._cycle_thanatos())
 
         self._health = self._health.update(health)
         return self._health
 
-    def _cycle_genesis(self) -> VerediHealth:
+    def _cycle_synthesis(self) -> VerediHealth:
         '''
-        Entering TICKS_START life-cycle's first tick: genesis. System creation,
-        initializing stuff, etc.
+        Entering TICKS_BIRTH life-cycle's first tick: synthesis. System
+        creation, initializing stuff, etc.
         '''
         return VerediHealth.HEALTHY
 
-    def _cycle_intrasystem(self) -> VerediHealth:
+    def _cycle_mitosis(self) -> VerediHealth:
         '''
-        Entering TICKS_START life-cycle's next tick - intra-system
+        Entering TICKS_BIRTH life-cycle's next tick - mitosis
         communication, loading, configuration...
         '''
         return VerediHealth.HEALTHY
 
     def _cycle_game_loop(self) -> VerediHealth:
         '''
-        Entering TICKS_RUN life-cycle, aka the main game loop.
+        Entering TICKS_LIFE life-cycle, aka the main game loop.
 
         Prepare for the main event.
         '''
         return VerediHealth.HEALTHY
 
-    def _cycle_apoptosis(self) -> VerediHealth:
+    def _cycle_autophagy(self) -> VerediHealth:
         '''
-        Entering TICKS_END life-cycle's first tick: apoptosis. Initial
+        Entering TICKS_DEATH life-cycle's first tick: autophagy. Initial
         structured shut-down tick cycle. Systems, managers, etc must still be
         in working order for this - saving data, unloading, final
         communications, etc.
         '''
-        # We have VerediHealth values APOPTOSIS, APOPTOSIS_SUCCESSFUL, and
-        # APOPTOSIS_FAILURE. But I'm not sure the ECS Managers should use
+        # We have VerediHealth values AUTOPHAGY, AUTOPHAGY_SUCCESSFUL, and
+        # AUTOPHAGY_FAILURE. But I'm not sure the ECS Managers should use
         # those... They should still be healthy.
         return VerediHealth.HEALTHY
 
-    def _cycle_apocalypse(self) -> VerediHealth:
+    def _cycle_apoptosis(self) -> VerediHealth:
         '''
-        Entering TICKS_END life-cycle's next tick: apocalypse. Systems can now
+        Entering TICKS_DEATH life-cycle's next tick: apoptosis. Systems can now
         become unresponsive. Managers must stay responsive.
         '''
-        # We have VerediHealth values APOCALYPSE and APOCALYPSE_DONE. But I'm
+        # We have VerediHealth values APOPTOSIS and APOPTOSIS_DONE. But I'm
         # not sure the ECS Managers should use those... They should still be
         # healthy.
         return VerediHealth.HEALTHY
 
-    def _cycle_the_end(self) -> VerediHealth:
+    def _cycle_necrosis(self) -> VerediHealth:
         '''
-        Entering TICKS_END life-cycle's final tick: the_end.
+        Entering TICKS_DEATH life-cycle's final tick: necrosis.
 
         Managers must finish the tick, so don't kill yourself here... Not quite
         yet.
         '''
-        # We have VerediHealth values THE_END and FATAL, but I think save those
+        # We have VerediHealth values NECROSIS and FATAL, but I think save those
         # for the next cycle... We're not quite dead yet.
         return VerediHealth.HEALTHY
 
@@ -240,4 +240,4 @@ class EcsManager(LogMixin, ABC):
         You may die now.
         '''
         # Ok. Die well or poorly. Either way you're dead now.
-        return VerediHealth.THE_END
+        return VerediHealth.NECROSIS

@@ -21,7 +21,7 @@ import enum
 from veredi.zest                                import zmake, zontext
 from veredi.logger                              import log, log_server
 
-from veredi.base                                import label
+from veredi.base.string                         import label
 from veredi.base.enum                           import FlagCheckMixin
 
 from veredi.parallel                            import multiproc

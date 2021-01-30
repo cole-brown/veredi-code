@@ -46,7 +46,7 @@ from veredi.debug.const        import DebugFlag
 # ------------------------------
 # Veredi Misc
 # ------------------------------
-from veredi.base               import label
+from veredi.base.string        import label
 from veredi.data               import background
 
 
@@ -303,7 +303,7 @@ class Test_From_Scratch(unittest.TestCase):
 
     def tear_down(self) -> None:
         '''
-        Put engine into TICKS_END and run until it's dead.
+        Put engine into TICKS_DEATH and run until it's dead.
         '''
         # Test stopped engine. Anything else to do to tear it all down?
         pass
@@ -334,20 +334,20 @@ class Test_From_Scratch(unittest.TestCase):
         # ---
         # Make sure the ticks are sane.
         # ---
-        # - Should only be 1 of GENESIS, APOCALYPSE, and THE_END.
+        # - Should only be 1 of SYNTHESIS, APOPTOSIS, and NECROSIS.
         # - Should be 0 of FUNERAL.
         #   - Technically 1... However, FUNERAL tick doesn't call systems, so
         #     we don't get to counted it. So zero.
-        # - Should be 1 or more INTRA_SYSTEM and APOPTOSIS.
-        # - Should be `countdown` number of all TICKS_RUN ticks.
+        # - Should be 1 or more MITOSIS and AUTOPHAGY.
+        # - Should be `countdown` number of all TICKS_LIFE ticks.
         # - Should NOT have "ticked" any life-cycles.
 
-        self.assertEqual(system.ticks_seen[SystemTick.GENESIS], 1)
-        self.assertEqual(system.ticks_seen[SystemTick.APOCALYPSE], 1)
-        self.assertEqual(system.ticks_seen[SystemTick.THE_END], 1)
+        self.assertEqual(system.ticks_seen[SystemTick.SYNTHESIS], 1)
+        self.assertEqual(system.ticks_seen[SystemTick.APOPTOSIS], 1)
+        self.assertEqual(system.ticks_seen[SystemTick.NECROSIS], 1)
 
-        self.assertGreater(system.ticks_seen[SystemTick.INTRA_SYSTEM], 0)
-        self.assertGreater(system.ticks_seen[SystemTick.APOPTOSIS], 0)
+        self.assertGreater(system.ticks_seen[SystemTick.MITOSIS], 0)
+        self.assertGreater(system.ticks_seen[SystemTick.AUTOPHAGY], 0)
 
         self.assertEqual(system.ticks_seen[SystemTick.TIME], countdown)
         self.assertEqual(system.ticks_seen[SystemTick.CREATION], countdown)
@@ -360,10 +360,10 @@ class Test_From_Scratch(unittest.TestCase):
         self.assertNotIn(SystemTick.FUNERAL, system.ticks_seen)
 
         # "Ticking" the Life-Cycles is a big no-no.
-        self.assertNotIn(SystemTick.TICKS_START, system.ticks_seen)
-        self.assertNotIn(SystemTick.TICKS_RUN, system.ticks_seen)
-        self.assertNotIn(SystemTick.TICKS_END, system.ticks_seen)
-        self.assertNotIn(SystemTick.AFTER_THE_END, system.ticks_seen)
+        self.assertNotIn(SystemTick.TICKS_BIRTH, system.ticks_seen)
+        self.assertNotIn(SystemTick.TICKS_LIFE, system.ticks_seen)
+        self.assertNotIn(SystemTick.TICKS_DEATH, system.ticks_seen)
+        self.assertNotIn(SystemTick.TICKS_AFTERLIFE, system.ticks_seen)
 
 
 # --------------------------------Unit Testing---------------------------------

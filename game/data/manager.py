@@ -28,7 +28,7 @@ from veredi.base.null import Null, Nullable, NullNoneOr
 # ---
 from veredi.logger                         import log
 
-from veredi.base                           import label
+from veredi.base.string                    import label
 from veredi.base.const                     import VerediHealth
 from veredi.base.exceptions                import VerediError
 from veredi.base.context                   import VerediContext
@@ -165,16 +165,16 @@ class DataManager(EcsManagerWithEvents):
 
         # Experimental: Keep data processing out of the standard tick?
         # Just let everyone else go at it.
-        self._ticks: Optional[SystemTick] = (SystemTick.TICKS_START
+        self._ticks: Optional[SystemTick] = (SystemTick.TICKS_BIRTH
                                              # All but standard...
-                                             | (SystemTick.TICKS_RUN
+                                             | (SystemTick.TICKS_LIFE
                                                 & ~SystemTick.STANDARD)
-                                             | SystemTick.TICKS_END)
+                                             | SystemTick.TICKS_DEATH)
         '''
         The ticks we desire to run in. Just for our own checking...
         '''
 
-        # Apoptosis will be our end-of-game saving.
+        # Autophagy will be our end-of-game saving.
 
         self._components_req: Optional[Set[Type['Component']]] = [
             DataComponent
@@ -566,7 +566,7 @@ class DataManager(EcsManagerWithEvents):
         Out-of-band data load for a Definition record.
 
         Systems and such may use this during their initialization and/or during
-        TICKS_START.
+        TICKS_BIRTH.
 
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
@@ -593,7 +593,7 @@ class DataManager(EcsManagerWithEvents):
         Out-of-band data load for a Saved record.
 
         Systems and such may use this during their initialization and/or during
-        TICKS_START.
+        TICKS_BIRTH.
 
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
@@ -1199,15 +1199,15 @@ class DataManager(EcsManagerWithEvents):
         # Tick Types
         # ------------------------------
         # Run the specific tick cycle.
-        if tick in SystemTick.TICKS_START:
+        if tick in SystemTick.TICKS_BIRTH:
             self.health = self._update_start(tick)
             return self.health
 
-        elif tick in SystemTick.TICKS_RUN:
+        elif tick in SystemTick.TICKS_LIFE:
             self.health = self._update_run(tick)
             return self.health
 
-        elif tick in SystemTick.TICKS_END:
+        elif tick in SystemTick.TICKS_DEATH:
             health = self._update_end(tick)
             self.health = health
             return self.health
@@ -1225,12 +1225,12 @@ class DataManager(EcsManagerWithEvents):
 
     def _update_start(self, tick: SystemTick) -> VerediHealth:
         '''
-        Tick processing specific to SystemTick.TICKS_START
+        Tick processing specific to SystemTick.TICKS_BIRTH
         '''
-        if tick not in SystemTick.TICKS_START:
+        if tick not in SystemTick.TICKS_BIRTH:
             self._health_meter_update = self._meter_log(
                 self._health_meter_update,
-                f"Tick {tick} is not in SystemTick.TICKS_START. Why are we "
+                f"Tick {tick} is not in SystemTick.TICKS_BIRTH. Why are we "
                 "in this function then?! Setting health to FATAL!")
             health = VerediHealth.FATAL
             self.health = health
@@ -1243,14 +1243,14 @@ class DataManager(EcsManagerWithEvents):
 
     def _update_run(self, tick: SystemTick) -> VerediHealth:
         '''
-        Tick processing specific to SystemTick.TICKS_RUN
+        Tick processing specific to SystemTick.TICKS_LIFE
         '''
         health = tick_health_init(tick)
 
-        if tick not in SystemTick.TICKS_RUN:
+        if tick not in SystemTick.TICKS_LIFE:
             self._health_meter_update = self._meter_log(
                 self._health_meter_update,
-                f"Tick {tick} is not in SystemTick.TICKS_RUN. Why are we "
+                f"Tick {tick} is not in SystemTick.TICKS_LIFE. Why are we "
                 "in this function then?! Setting health to FATAL!")
             health = VerediHealth.FATAL
             self.health = health
@@ -1290,34 +1290,34 @@ class DataManager(EcsManagerWithEvents):
 
     def _update_end(self, tick: SystemTick) -> VerediHealth:
         '''
-        Tick processing specific to SystemTick.TICKS_END
+        Tick processing specific to SystemTick.TICKS_DEATH
         '''
         # Specific end ticks:
-        if tick is SystemTick.APOPTOSIS:
+        if tick is SystemTick.AUTOPHAGY:
             # Do Tick Things Here.
 
-            # Check for events; return VerediHealth.APOPTOSIS,
-            # VerediHealth.APOPTOSIS_SUCCESSFUL based on if processed any?
-            health = VerediHealth.APOPTOSIS_SUCCESSFUL
+            # Check for events; return VerediHealth.AUTOPHAGY,
+            # VerediHealth.AUTOPHAGY_SUCCESSFUL based on if processed any?
+            health = VerediHealth.AUTOPHAGY_SUCCESSFUL
             self.health = health
             return health
 
-        elif tick is SystemTick.APOCALYPSE:
-            # If apocalypse is still in progress, return
-            # VerediHealth.APOCALYPSE.
-            health = VerediHealth.APOCALYPSE_DONE
+        elif tick is SystemTick.APOPTOSIS:
+            # If apoptosis is still in progress, return
+            # VerediHealth.APOPTOSIS.
+            health = VerediHealth.APOPTOSIS_DONE
             self.health = health
             return health
 
-        elif tick is SystemTick.THE_END:
-            health = VerediHealth.THE_END
+        elif tick is SystemTick.NECROSIS:
+            health = VerediHealth.NECROSIS
             self.health = health
             return health
 
         # Uh... What tick then? Already checked.
         self._health_meter_update = self._meter_log(
             self._health_meter_update,
-            f"Tick {tick} is not in SystemTick.TICKS_END. Why are we "
+            f"Tick {tick} is not in SystemTick.TICKS_DEATH. Why are we "
             "in this function then?! Setting health to FATAL!")
         health = VerediHealth.FATAL
         self.health = health

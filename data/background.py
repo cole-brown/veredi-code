@@ -54,7 +54,7 @@ from veredi.base.null       import Null, Nullable, NullNoneOr
 from .exceptions            import ConfigError
 from veredi.base.exceptions import ContextError
 from veredi.base.dicts      import DoubleIndexDict
-from veredi.base            import label
+from veredi.base.string     import label
 
 
 # TODO [2020-06-23]: methods for: contains, [], others...?

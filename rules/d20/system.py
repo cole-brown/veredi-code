@@ -20,7 +20,7 @@ from abc import abstractmethod
 
 from veredi.logger                         import log
 from veredi.base.const                     import VerediHealth
-from veredi.base                           import label
+from veredi.base.string                    import label
 from veredi.data                           import background
 from veredi.data.records                   import DocType, Definition, Saved
 from veredi.data.repository.taxon          import LabelTaxon

@@ -53,27 +53,27 @@ class VerediHealth(enum.IntEnum):
     # Must have the "good/done" values above the "ok/in-progress" for
     # `update()` et al to function correctly.
 
-    # Apoptosis is the good kind of dying, but it still means we're killing
+    # Autophagy is the good kind of dying, but it still means we're killing
     # this thing.
-    APOPTOSIS_SUCCESSFUL = -10
+    AUTOPHAGY_SUCCESSFUL = -10
     '''Done: Successfully died in a healthy manner.'''
 
-    APOPTOSIS = -11
+    AUTOPHAGY = -11
     '''In Progress: System is dying in a healthy manner.'''
 
-    APOPTOSIS_FAILURE = -12
+    AUTOPHAGY_FAILURE = -12
     '''
     Done: Failed to die in a healthy manner, but probably can't do much about
     it...
     '''
 
-    APOCALYPSE_DONE = -16
-    '''System/Engine is done with the apocalypse.'''
+    APOPTOSIS_DONE = -16
+    '''System/Engine is done with the apoptosis.'''
 
-    APOCALYPSE = -15
-    '''System's/Engine's Apocalypse is in progress.'''
+    APOPTOSIS = -15
+    '''System's/Engine's Apoptosis is in progress.'''
 
-    THE_END = -18
+    NECROSIS = -18
     '''System/Engine is done with everything and is the good kind of dead.'''
 
     _RUN_OK_HEALTH_MIN = -19
@@ -132,8 +132,8 @@ class VerediHealth(enum.IntEnum):
         Is this a state that should trigger system death?
         '''
         return self < VerediHealth._RUN_OK_HEALTH_MIN
-        # or self == VerediHealth.APOPTOSIS_SUCCESSFUL
-        # or self == VerediHealth.APOPTOSIS_FAILURE)
+        # or self == VerediHealth.AUTOPHAGY_SUCCESSFUL
+        # or self == VerediHealth.AUTOPHAGY_FAILURE)
         # TODO: Should INVALID be a trigger as well?
         # TODO: Should FATAL require a count of N > 1 FATALS?
 
@@ -152,7 +152,7 @@ class VerediHealth(enum.IntEnum):
         Is this a health value that is at or above the minimum defined by
         VerediHealth._GOOD_HEALTH_MIN?
 
-        This is generally for the TICKS_RUN (game loop) phase of living.
+        This is generally for the TICKS_LIFE (game loop) phase of living.
         '''
         return (self.value > VerediHealth._GOOD_HEALTH_MIN.value
                 or self is VerediHealth.IGNORE)
@@ -163,7 +163,7 @@ class VerediHealth(enum.IntEnum):
         Is this a health value that is at or above the minimum defined by
         VerediHealth._RUN_OK_HEALTH_MIN?
 
-        This is generally for the TICKS_END (structured shutdown) phase of
+        This is generally for the TICKS_DEATH (structured shutdown) phase of
         the engine.
         '''
         return (self.value > VerediHealth._RUN_OK_HEALTH_MIN.value

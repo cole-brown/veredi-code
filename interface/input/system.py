@@ -115,7 +115,7 @@ class InputSystem(System):
         # ---
         # Just the post-setup; pre-game-loop tick for now.
         # We'll do our CommandRegistrationBroadcast here and that's it.
-        self._ticks: SystemTick = SystemTick.INTRA_SYSTEM
+        self._ticks: SystemTick = SystemTick.MITOSIS
 
         # ---
         # Context Stuff
@@ -343,7 +343,7 @@ class InputSystem(System):
     # Game Update Loop/Tick Functions
     # -------------------------------------------------------------------------
 
-    def _update_intra_system(self) -> VerediHealth:
+    def _update_mitosis(self) -> VerediHealth:
         '''
         Generic tick function. We do the same thing every tick state we process
         so do it all here.
@@ -351,17 +351,17 @@ class InputSystem(System):
         # Already did our broadcast - nothing more to do.
         if self._registration_broadcast:
             log.debug("CommandRegistrationBroadcast: Did our thing already.")
-            return self._health_check(SystemTick.INTRA_SYSTEM)
+            return self._health_check(SystemTick.MITOSIS)
 
         # Doctor checkup.
-        if not self._healthy(SystemTick.INTRA_SYSTEM):
+        if not self._healthy(SystemTick.MITOSIS):
             self._health_meter_update = self._health_log(
                 self._health_meter_update,
                 log.Level.WARNING,
                 "HEALTH({}): Skipping ticks - our system health "
                 "isn't good enough to process.",
                 self.health)
-            return self._health_check(SystemTick.INTRA_SYSTEM)
+            return self._health_check(SystemTick.MITOSIS)
 
         reg_broadcast = self._commander.registration(self.id,
                                                      Null())

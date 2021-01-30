@@ -12,7 +12,7 @@ from typing import (Optional, Union, Any, Type, Callable)
 
 from veredi.logger import log
 
-from ..label import _DOTTED_NAME, LabelInput, normalize
+from .label import _DOTTED_NAME, LabelInput, normalize
 
 
 # -------------------------------------------------------------------------

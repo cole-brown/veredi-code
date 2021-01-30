@@ -13,8 +13,8 @@ from typing import Optional, Union, Type, Any, Callable
 from veredi.logger import log
 from .. import background
 from ..exceptions import RegistryError, ConfigError
-from veredi.base import label
-from veredi.base.string.labeler import (ignore as _ignore, tag_helper)
+from veredi.base.string import label
+from veredi.base.string import labeler
 from veredi.base.context import VerediContext
 
 # -----------------------------------------------------------------------------
@@ -40,7 +40,7 @@ def ignore(parent_class: Type) -> None:
 
     e.g. System base class has to do this for its children.
     '''
-    return _ignore(parent_class)
+    return labeler.ignore(parent_class)
 
 
 # Decorator way of doing factory registration. Note that we will only get
@@ -111,8 +111,8 @@ def register(*dotted_label: label.LabelInput) -> Callable[..., Type[Any]]:
         reggie_jr.setdefault('.', []).append(config_name)
 
         # Finally, add the 'dotted' property if applicable.
-        tag_helper(_REG_DOTTED, '@register',
-                   cls_or_func, registree_id)
+        labeler.tag_helper(_REG_DOTTED, '@register',
+                           cls_or_func, registree_id)
 
         return cls_or_func
 

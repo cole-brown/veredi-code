@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 import pathlib
 
 from veredi.logger          import log
-from veredi.base            import label
+from veredi.base.string     import label
 from veredi.base.exceptions import VerediError
 from veredi.data.context    import DataAction, DataBareContext
 from veredi.base.const      import VerediHealth

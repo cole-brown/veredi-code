@@ -17,7 +17,7 @@ import numbers
 from decimal import Decimal
 
 
-from veredi.base             import label
+from veredi.base.string      import label
 from veredi.base.assortments import CurrentNext, DeltaNext
 from veredi.base.context     import UnitTestContext
 from veredi.data             import background
@@ -100,7 +100,7 @@ class TimeManager(EcsManager):
         tick.
 
         Should be a specific tick like:
-          SystemTick.GENESIS
+          SystemTick.SYNTHESIS
           SystemTick.STANDARD
 
         Do not ever set current/next.
@@ -113,9 +113,9 @@ class TimeManager(EcsManager):
         of a tick.
 
         Should be a group of ticks like:
-          SystemTick.TICKS_START
-          SystemTick.TICKS_RUN
-          SystemTick.TICKS_END
+          SystemTick.TICKS_BIRTH
+          SystemTick.TICKS_LIFE
+          SystemTick.TICKS_DEATH
 
         Do not ever set current/next.
         '''
@@ -651,26 +651,26 @@ class TimeManager(EcsManager):
     # Life-Cycle Transitions
     # -------------------------------------------------------------------------
 
-    def _cycle_apoptosis(self) -> VerediHealth:
+    def _cycle_autophagy(self) -> VerediHealth:
         '''
-        Game is ending gracefully. Be responsive and still alive in apoptosis.
+        Game is ending gracefully. Be responsive and still alive in autophagy.
 
         Default: do nothing and return that we're done with a successful
-        apoptosis.
+        autophagy.
         '''
-        return VerediHealth.APOPTOSIS_SUCCESSFUL
+        return VerediHealth.AUTOPHAGY_SUCCESSFUL
 
-    def _cycle_apocalypse(self) -> VerediHealth:
+    def _cycle_apoptosis(self) -> VerediHealth:
         '''
         Game is ending gracefully. Systems are now shutting down, goinging
         unresponsive, whatever. The managers should probably still be up and
         alive until the very end, though.
 
-        Default: do nothing and return that we're done with the apocalypse.
+        Default: do nothing and return that we're done with the apoptosis.
         '''
-        return VerediHealth.APOCALYPSE_DONE
+        return VerediHealth.APOPTOSIS_DONE
 
-    def _cycle_the_end(self) -> VerediHealth:
+    def _cycle_necrosis(self) -> VerediHealth:
         '''
         Game is at the end. This is called once. Managers can probably die
         out now.
@@ -678,4 +678,4 @@ class TimeManager(EcsManager):
         Default: do nothing and return that we're done with a successful
         end of the world as we know it.
         '''
-        return VerediHealth.THE_END
+        return VerediHealth.NECROSIS

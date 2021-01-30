@@ -23,7 +23,7 @@ from veredi.zest                        import zload
 from veredi.zest.zpath                  import TestType
 from veredi.zest.timing                 import ZestTiming
 from veredi.debug.const                 import DebugFlag
-from veredi.base                        import label
+from veredi.base.string                 import label
 
 
 # -----------------------------------------------------------------------------
