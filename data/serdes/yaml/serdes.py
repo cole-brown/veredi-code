@@ -416,7 +416,7 @@ class YamlSerdes(BaseSerdes):
         try:
             yaml.safe_dump(data, default_flow_style=None, stream=serialized)
             # TODO [2020-07-04]: may need to evaluate this in some way to get
-            # it past its lazy writeing... I want to catch any yaml exceptions
+            # it past its lazy writing... I want to catch any yaml exceptions
             # here and not let them infect unrelated code.
         except yaml.YAMLError as yaml_error:
             serialized = None
