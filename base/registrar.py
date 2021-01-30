@@ -15,12 +15,12 @@ from typing import (Optional, Union, Type, NewType, Any, Mapping,
 from abc import ABC, abstractmethod
 
 
-from veredi.base import label
-from veredi.logger import log
-from veredi.data import background
+from veredi.base.string     import label
+from veredi.logger          import log
+from veredi.data            import background
 from veredi.data.exceptions import RegistryError
 
-from .context import VerediContext
+from .context               import VerediContext
 
 
 # -----------------------------------------------------------------------------

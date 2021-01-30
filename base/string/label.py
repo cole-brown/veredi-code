@@ -8,18 +8,17 @@ Helpers for names.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (Optional, Union, Any, Type, NewType, Callable,
+from typing import (Optional, Union, Any, NewType,
                     Mapping, List, Tuple)
-from .null import Nullable, Null
-
-import collections
+from ..null import Nullable, Null
 
 import pathlib
+
 
 # CANNOT IMPORT LOG. Circular import.
 # from veredi.logger import log
 
-from . import lists
+from .. import lists
 
 
 # -----------------------------------------------------------------------------

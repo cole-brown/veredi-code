@@ -22,8 +22,7 @@ import itertools
 
 from veredi.logger                import log
 
-from veredi.base                  import vstring
-from veredi.base                  import label
+from veredi.base.string           import label, text
 from veredi.data.config.hierarchy import Hierarchy
 from ..serdes.adapter.dict        import DataDict, DDKey
 
@@ -172,7 +171,7 @@ class DocType:
             raise log.exception(ValueError(msg, doc_type), msg)
 
         # Expect whatever - normalize to lowercase.
-        string = vstring.normalize(string)
+        string = text.normalize(string)
 
         # Chain together all our enums so as to do a dumb search:
         for each_type in itertools.chain(klass.types()):
@@ -279,7 +278,7 @@ class Record(abc.MutableMapping):
         '''
         retval = input
         if isinstance(retval, str):
-            retval = vstring.normalize(input)
+            retval = text.normalize(input)
         return retval
 
     def _main(self) -> DataDict:

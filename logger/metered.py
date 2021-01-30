@@ -62,7 +62,7 @@ class LogMeter(Generic[MeterT]):
         '''A time object for us to use for getting current time.'''
 
         self.type: MeterT = meter_type
-        '''What we are responsible for metering. e.g. SystemTick.APOPTOSIS'''
+        '''What we are responsible for metering. e.g. SystemTick.AUTOPHAGY'''
 
         self.amount_ns: int = self.time.sec_to_ns(meter_amount_sec)
         '''How long (nanoseconds) to squelch repeated logs.'''

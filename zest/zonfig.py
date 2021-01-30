@@ -13,7 +13,7 @@ from typing import Optional, Any, MutableMapping
 
 from veredi.logger                import log
 
-from veredi.base                  import label
+from veredi.base.string           import label
 
 from veredi.data                  import background
 from veredi.data.config.config    import Configuration

@@ -47,7 +47,7 @@ class TestSystem(ecs.base.System):
 
         self._countdown: int = 100
         '''
-        Number of TICKS_RUN we want to allow the engine to do.
+        Number of TICKS_LIFE we want to allow the engine to do.
         '''
 
         self._ticks_seen: Dict[ecs.SystemTick, int] = {}
@@ -57,9 +57,9 @@ class TestSystem(ecs.base.System):
         Make our stuff from context/config data.
         '''
         super()._configure(context)
-        self._ticks: ecs.SystemTick = (ecs.SystemTick.TICKS_START
-                                       | ecs.SystemTick.TICKS_RUN
-                                       | ecs.SystemTick.TICKS_END)
+        self._ticks: ecs.SystemTick = (ecs.SystemTick.TICKS_BIRTH
+                                       | ecs.SystemTick.TICKS_LIFE
+                                       | ecs.SystemTick.TICKS_DEATH)
 
     @classmethod
     def dotted(klass: 'TestSystem') -> str:
@@ -147,7 +147,7 @@ class TestSystem(ecs.base.System):
 
         self._tick_increment(tick)
 
-        # Once per TICKS_RUN cycle, count down towards stopping the engine.
+        # Once per TICKS_LIFE cycle, count down towards stopping the engine.
         if tick is ecs.SystemTick.STANDARD:
             self._countdown -= 1
             # Only trigger event once. Want to know if it gets lost.

@@ -61,8 +61,8 @@ class SystemLifeCycle(enum.Enum):
 
     Sidetracks include:
       1) Structured death:
-         ALIVE     -> APOPTOSIS
-         APOPTOSIS -> DESTROYING
+         ALIVE     -> AUTOPHAGY
+         AUTOPHAGY -> DESTROYING
     '''
 
     INVALID    = 0
@@ -81,19 +81,19 @@ class SystemLifeCycle(enum.Enum):
     The majority of a system's life will be here.
     '''
 
-    APOPTOSIS  = enum.auto()
+    AUTOPHAGY  = enum.auto()
     '''
     Game has asked for a structured shutdown of systems. This is for systems
     to do clean up and saving and such while remaining responsive.
     '''
 
-    APOCALYPSE = enum.auto()
+    APOPTOSIS = enum.auto()
     '''
     Game has started the shutdown of systems. This is for systems
     to do final clean up. They can now become unresponsive to events, etc.
     '''
 
-    THE_END = enum.auto()
+    NECROSIS = enum.auto()
     '''
     A very transitive state. Lasts for part of a single tick. Systems will then
     be transitioned to DESTROYING and then finally DEAD.
@@ -181,7 +181,7 @@ class System(LogMixin, ABC):
         '''
         The ticks we desire to run in.
 
-        Systems will always get the TICKS_START and TICKS_END ticks. The
+        Systems will always get the TICKS_BIRTH and TICKS_DEATH ticks. The
         default _cycle_<tick> and _update_<tick> for those ticks should be
         acceptable if the system doesn't care.
         '''
@@ -208,7 +208,7 @@ class System(LogMixin, ABC):
         self._subscribed: bool = False
         '''
         Set to true once you've sent off any subscription stuff to EventManager
-        during SystemTick.INTRA_SYSTEM.
+        during SystemTick.MITOSIS.
         '''
 
         # ---
@@ -325,10 +325,10 @@ class System(LogMixin, ABC):
         SystemManager calls this to update life cycle. Will be called on:
           - INVALID    -> CREATING   : During SystemManager.create()
           - CREATING   -> ALIVE      : During SystemManager.creation()
-          - ALIVE?     -> APOPTOSIS  : During SystemManager.apoptosis()
-          - AOPTOSIS   -> APOCALYPSE : During SystemManager.apocalypse()
-          - APOCALYPSE -> THE_END    : During SystemManager.the_end()
-          - THE_END    -> DESTROYING : During SystemManager._update_the_end()
+          - ALIVE?     -> AUTOPHAGY  : During SystemManager.autophagy()
+          - AOPTOSIS   -> APOPTOSIS  : During SystemManager.apoptosis()
+          - APOPTOSIS  -> NECROSIS   : During SystemManager.necrosis()
+          - NECROSIS   -> DESTROYING : During SystemManager._update_necrosis()
           - DESTROYING -> DEAD       : During SystemManager.destruction()
         '''
         # Sanity.
@@ -357,17 +357,17 @@ class System(LogMixin, ABC):
             self._health = self._health.update(
                 self._cycle_alive())
 
+        elif new_state == SystemLifeCycle.AUTOPHAGY:
+            self._health = self._health.update(
+                self._cycle_autophagy())
+
         elif new_state == SystemLifeCycle.APOPTOSIS:
             self._health = self._health.update(
                 self._cycle_apoptosis())
 
-        elif new_state == SystemLifeCycle.APOCALYPSE:
+        elif new_state == SystemLifeCycle.NECROSIS:
             self._health = self._health.update(
-                self._cycle_apocalypse())
-
-        elif new_state == SystemLifeCycle.THE_END:
-            self._health = self._health.update(
-                self._cycle_the_end())
+                self._cycle_necrosis())
 
         elif new_state == SystemLifeCycle.DESTROYING:
             self._health = self._health.update(
@@ -406,6 +406,17 @@ class System(LogMixin, ABC):
         self._health = self._health.update(VerediHealth.HEALTHY)
         return self.health
 
+    def _cycle_autophagy(self) -> VerediHealth:
+        '''
+        System is being cycled into autophagy state from current state.
+        Current state is still set in self._life_cycle.
+        '''
+        self._life_cycle = SystemLifeCycle.AUTOPHAGY
+        # Default to just being done with autophagy?
+        self._health = self._health.update(VerediHealth.AUTOPHAGY_SUCCESSFUL)
+
+        return self.health
+
     def _cycle_apoptosis(self) -> VerediHealth:
         '''
         System is being cycled into apoptosis state from current state.
@@ -413,30 +424,19 @@ class System(LogMixin, ABC):
         '''
         self._life_cycle = SystemLifeCycle.APOPTOSIS
         # Default to just being done with apoptosis?
-        self._health = self._health.update(VerediHealth.APOPTOSIS_SUCCESSFUL)
+        self._health = self._health.update(VerediHealth.APOPTOSIS_DONE)
 
         return self.health
 
-    def _cycle_apocalypse(self) -> VerediHealth:
+    def _cycle_necrosis(self) -> VerediHealth:
         '''
-        System is being cycled into apocalypse state from current state.
+        System is being cycled into necrosis state from current state.
         Current state is still set in self._life_cycle.
         '''
-        self._life_cycle = SystemLifeCycle.APOCALYPSE
-        # Default to just being done with apocalypse?
-        self._health = self._health.update(VerediHealth.APOCALYPSE_DONE)
-
-        return self.health
-
-    def _cycle_the_end(self) -> VerediHealth:
-        '''
-        System is being cycled into the_end state from current state.
-        Current state is still set in self._life_cycle.
-        '''
-        self._life_cycle = SystemLifeCycle.THE_END
-        # Set our health to THE_END so destroying/dead know we're ending the
+        self._life_cycle = SystemLifeCycle.NECROSIS
+        # Set our health to NECROSIS so destroying/dead know we're ending the
         # expected way.
-        self._health = self._health.update(VerediHealth.THE_END)
+        self._health = self._health.update(VerediHealth.NECROSIS)
         return self.health
 
     def _cycle_destroying(self) -> VerediHealth:
@@ -445,9 +445,9 @@ class System(LogMixin, ABC):
         Current state is still set in self._life_cycle.
         '''
         self._life_cycle = SystemLifeCycle.DESTROYING
-        # If our health is THE_END, ok. We expect to be destroying/dead then.
+        # If our health is NECROSIS, ok. We expect to be destroying/dead then.
         # Otherwise set ourselves to the bad dying.
-        if self._health != VerediHealth.THE_END:
+        if self._health != VerediHealth.NECROSIS:
             self._health = self._health.update(VerediHealth.DYING)
         return self.health
 
@@ -457,9 +457,9 @@ class System(LogMixin, ABC):
         Current state is still set in self._life_cycle.
         '''
         self._life_cycle = SystemLifeCycle.DEAD
-        # If our health is THE_END, ok. We expect to be destroying/dead then.
+        # If our health is NECROSIS, ok. We expect to be destroying/dead then.
         # Otherwise set ourselves to the bad dying.
-        if self._health != VerediHealth.THE_END:
+        if self._health != VerediHealth.NECROSIS:
             self._health = self._health.update(VerediHealth.FATAL)
 
         return self.health
@@ -516,8 +516,8 @@ class System(LogMixin, ABC):
     # System Death
     # -------------------------------------------------------------------------
 
-    # TODO [2020-10-08]: Use this timeout_desired() in TICKS_START,
-    # TICKS_END to see if there's a smaller max timeout engine/sysmgr can use.
+    # TODO [2020-10-08]: Use this timeout_desired() in TICKS_BIRTH,
+    # TICKS_DEATH to see if there's a smaller max timeout engine/sysmgr can use.
     def timeout_desired(self, cycle: SystemTick) -> Optional[float]:
         '''
         If a system wants some minimum time, they can override this function.
@@ -545,10 +545,10 @@ class System(LogMixin, ABC):
         '''
         Are we in a healthy/runnable state?
 
-        For ticks at end of game (TICKS_END), this is just any 'runnable'
+        For ticks at end of game (TICKS_DEATH), this is just any 'runnable'
         health.
 
-        For the rest of the ticks (namely TICKS_RUN), this is only the 'best'
+        For the rest of the ticks (namely TICKS_LIFE), this is only the 'best'
         of health.
         '''
         return tick_healthy(tick, self._health)
@@ -686,7 +686,7 @@ class System(LogMixin, ABC):
     def _subscribe(self) -> VerediHealth:
         '''
         Implement this to subscribe to events/etc. Will only be called
-        (successfully) once in INTRA_SYSTEM tick from self.subscribe().
+        (successfully) once in MITOSIS tick from self.subscribe().
 
         Return HEALTHY if everything went well.
         Return PENDING if you want to be called again.
@@ -779,15 +779,15 @@ class System(LogMixin, ABC):
         update function.
 
         Default is:
-          Always want: APOPTOSIS, APOCALYPSE, THE_END
+          Always want: AUTOPHAGY, APOPTOSIS, NECROSIS
             - These update functions work by default so no change needed if you
               don't actually need them.
           Optional: The rest of the ticks.
             - Checks if self._ticks has `tick`.
         '''
-        if (tick == SystemTick.APOPTOSIS
-                or tick == SystemTick.APOCALYPSE
-                or tick == SystemTick.THE_END):
+        if (tick == SystemTick.AUTOPHAGY
+                or tick == SystemTick.APOPTOSIS
+                or tick == SystemTick.NECROSIS):
             return True
 
         return self._ticks is not None and self._ticks.has(tick)
@@ -830,11 +830,11 @@ class System(LogMixin, ABC):
 
         Returns VerediHealth value.
         '''
-        if tick is SystemTick.GENESIS:
-            return self._update_genesis()
+        if tick is SystemTick.SYNTHESIS:
+            return self._update_synthesis()
 
-        elif tick is SystemTick.INTRA_SYSTEM:
-            return self._update_intra_system()
+        elif tick is SystemTick.MITOSIS:
+            return self._update_mitosis()
 
         elif tick is SystemTick.TIME:
             return self._update_time()
@@ -854,14 +854,14 @@ class System(LogMixin, ABC):
         elif tick is SystemTick.DESTRUCTION:
             return self._update_destruction()
 
+        elif tick is SystemTick.AUTOPHAGY:
+            return self._update_autophagy()
+
         elif tick is SystemTick.APOPTOSIS:
             return self._update_apoptosis()
 
-        elif tick is SystemTick.APOCALYPSE:
-            return self._update_apocalypse()
-
-        elif tick is SystemTick.THE_END:
-            return self._update_the_end()
+        elif tick is SystemTick.NECROSIS:
+            return self._update_necrosis()
 
         else:
             # This, too, should be treated as a VerediHealth.FATAL...
@@ -869,7 +869,7 @@ class System(LogMixin, ABC):
                 "{} does not have an update_tick handler for {}.",
                 self.__class__.__name__, tick)
 
-    def _update_genesis(self) -> VerediHealth:
+    def _update_synthesis(self) -> VerediHealth:
         '''
         First in set-up loop. Systems should use this to load and initialize
         stuff that takes multiple cycles or is otherwise unwieldy
@@ -942,7 +942,7 @@ class System(LogMixin, ABC):
         self.health = default_return
         return self.health
 
-    def _update_apoptosis(self) -> VerediHealth:
+    def _update_autophagy(self) -> VerediHealth:
         '''
         Structured death phase. System should be responsive until it the next
         phase, but should be doing stuff for shutting down, like saving off
@@ -950,30 +950,30 @@ class System(LogMixin, ABC):
 
         Default is "do nothing and return done."
         '''
-        default_return = VerediHealth.APOPTOSIS_SUCCESSFUL
+        default_return = VerediHealth.AUTOPHAGY_SUCCESSFUL
         self.health = default_return
         return self.health
 
-    def _update_apocalypse(self) -> VerediHealth:
+    def _update_apoptosis(self) -> VerediHealth:
         '''
         "Die now" death phase. System may now go unresponsive to events,
         function calls, etc. Systems cannot expect to have done a successful
-        apoptosis.
+        autophagy.
 
         Default is "do nothing and return done."
         '''
-        default_return = VerediHealth.APOCALYPSE_DONE
+        default_return = VerediHealth.APOPTOSIS_DONE
         self.health = default_return
         return self.health
 
-    def _update_the_end(self) -> VerediHealth:
+    def _update_necrosis(self) -> VerediHealth:
         '''
         Final game update. This is only called once. Systems should most likely
         have nothing to do here.
 
         Default is "do nothing and return that we're dead now."
         '''
-        default_return = VerediHealth.THE_END
+        default_return = VerediHealth.NECROSIS
         self.health = default_return
         return self.health
 

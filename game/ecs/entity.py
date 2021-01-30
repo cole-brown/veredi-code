@@ -174,7 +174,7 @@ class EntityManager(EcsManagerWithEvents):
     # Internal Functions
     # -------------------------------------------------------------------------
 
-    def _cycle_apocalypse(self) -> VerediHealth:
+    def _cycle_apoptosis(self) -> VerediHealth:
         '''
         Game is ending gracefully. Make sure to murder everyone.
         '''
@@ -184,7 +184,7 @@ class EntityManager(EcsManagerWithEvents):
         health = self.destruction(None)
 
         health = health.update(
-            super()._cycle_apocalypse())
+            super()._cycle_apoptosis())
 
         self.health = health
         return health

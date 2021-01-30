@@ -18,12 +18,12 @@ import enum
 import re
 
 
-from veredi.logger import log, pretty
+from veredi.logger         import log, pretty
 from veredi.base.registrar import CallRegistrar, RegisterType
-from veredi.base import label
-from veredi.base import numbers
+from veredi.base.string    import label
+from veredi.base           import numbers
 
-from ..exceptions import EncodableError
+from ..exceptions          import EncodableError
 
 
 # -----------------------------------------------------------------------------

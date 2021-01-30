@@ -16,7 +16,8 @@ from typing import Tuple
 from collections import abc
 import enum
 
-from veredi.base import vstring
+from veredi.base.string import text
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -41,7 +42,7 @@ class MetaType(enum.Enum):
     @classmethod
     def from_str(klass: 'MetaType', string: str) -> 'MetaType':
         '''Either returns a valid value or throws a KeyError.'''
-        string = vstring.normalize(string)
+        string = text.normalize(string)
         retval = klass.INVALID
         if string == 'user.defined':
             retval = klass.USER_DEFINED
