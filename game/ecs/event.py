@@ -493,13 +493,13 @@ class EventManager(EcsManager):
         game systems.
         '''
         # For the starting and running ticks, just publish.
-        if SystemTick.TICKS_START.has(tick) or SystemTick.TICKS_RUN.has(tick):
+        if SystemTick.TICKS_BIRTH.has(tick) or SystemTick.TICKS_LIFE.has(tick):
             return self.publish()
 
         # For the ending ticks, bit more complicated -
         # call the function for them.
-        if SystemTick.TICKS_END.has(tick):
-            return self._update_ticks_end(tick)
+        if SystemTick.TICKS_DEATH.has(tick):
+            return self._update_ticks_death(tick)
 
         # ---
         # Error!
@@ -509,14 +509,14 @@ class EventManager(EcsManager):
         error = ValueError(msg, tick)
         raise self._log_exception(error, msg)
 
-    def _update_ticks_end(self, tick: SystemTick) -> int:
+    def _update_ticks_death(self, tick: SystemTick) -> int:
         '''
         Game is ending gracefully.
 
-        Set our health to APOPTOSIS_SUCCESSFUL on ticks we don't publish
+        Set our health to AUTOPHAGY_SUCCESSFUL on ticks we don't publish
         any events.
 
-        Set our health to APOPTOSIS (in progress) on ticks we do publish
+        Set our health to AUTOPHAGY (in progress) on ticks we do publish
         events.
 
         Return should mirror self.update().
@@ -524,28 +524,28 @@ class EventManager(EcsManager):
         Returns: Number of events published.
         '''
         published = 0
-        if tick == SystemTick.APOPTOSIS:
+        if tick == SystemTick.AUTOPHAGY:
             # If we published nothing, then systems and such are probably done?
             # So guess that we're successful.
             #
             # If stuff isn't done and it was just a lull, they will say they're
-            # not and next round of apoptosis we'll be back here again anyways.
+            # not and next round of autophagy we'll be back here again anyways.
+            health = VerediHealth.AUTOPHAGY
+            published = self.publish()
+            if published == 0:
+                health = VerediHealth.AUTOPHAGY_SUCCESSFUL
+
+        elif tick == SystemTick.APOPTOSIS:
+            # Most systems should be dead now. But we need to still do our
+            # thing because we are a manager and cannot die until NECROSIS.
             health = VerediHealth.APOPTOSIS
             published = self.publish()
             if published == 0:
-                health = VerediHealth.APOPTOSIS_SUCCESSFUL
+                health = VerediHealth.APOPTOSIS_DONE
 
-        elif tick == SystemTick.APOCALYPSE:
-            # Most systems should be dead now. But we need to still do our
-            # thing because we are a manager and cannot die until THE_END.
-            health = VerediHealth.APOCALYPSE
-            published = self.publish()
-            if published == 0:
-                health = VerediHealth.APOCALYPSE_DONE
-
-        elif tick == SystemTick.THE_END or tick == SystemTick.FUNERAL:
+        elif tick == SystemTick.NECROSIS or tick == SystemTick.FUNERAL:
             # Just drop and ignore all events we might have.
-            health = VerediHealth.THE_END
+            health = VerediHealth.NECROSIS
             self._drop_events()
 
         else:

@@ -12,7 +12,7 @@ from typing import Optional, Union, Any
 import pathlib
 
 from veredi                    import run
-from veredi.base               import label
+from veredi.base.string        import label
 from veredi.logger             import log
 from veredi.data.config.config import Configuration
 

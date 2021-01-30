@@ -31,9 +31,9 @@ import logging as py_logging
 # ------------------------------
 # Veredi Logging & Stuff
 # ------------------------------
-from veredi.base import label
-from .           import log
-from .lumberjack import Lumberjack
+from veredi.base.string import label
+from .                  import log
+from .lumberjack        import Lumberjack
 
 
 # -----------------------------------------------------------------------------

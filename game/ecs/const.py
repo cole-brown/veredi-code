@@ -48,11 +48,11 @@ class SystemTick(FlagCheckMixin, enum.Flag):
     # Pre-Game-Loop Ticks
     # ---
 
-    GENESIS      = enum.auto()
+    SYNTHESIS      = enum.auto()
     '''Tick where systems load stuff they care about from data and get all set
     up and stuff.'''
 
-    INTRA_SYSTEM = enum.auto()
+    MITOSIS = enum.auto()
     '''
     Tick where systems talk to each other about finishing set up. E.g. Command
     registration happens here.
@@ -65,6 +65,10 @@ class SystemTick(FlagCheckMixin, enum.Flag):
     # ---
     # Game-Loop Ticks
     # ---
+
+    # Deviation from the "cellular life-cycle"-inspired names of the
+    # TICKS_BIRTH and TICKS_DEATH cycles. Because we have external users who
+    # will interact with these ticks a lot and names for their usage are good.
 
     TIME        = enum.auto()
     '''Tick where game time is updated.'''
@@ -93,19 +97,19 @@ class SystemTick(FlagCheckMixin, enum.Flag):
     # Post-Game Ticks
     # ---
 
-    APOPTOSIS = enum.auto()
+    AUTOPHAGY = enum.auto()
     '''
     Structured death of the game. Systems should save off data, tell their
     loved ones goodbye, and try to die in an orderly fashion.
     '''
 
-    APOCALYPSE = enum.auto()
+    APOPTOSIS = enum.auto()
     '''
     "Terminate with extreme prejudice" death of the game. Systems should expect
     to just be murdered at any time if the aren't dead yet.
     '''
 
-    THE_END = enum.auto()
+    NECROSIS = enum.auto()
     '''
     Goodbye.
     '''
@@ -122,32 +126,32 @@ class SystemTick(FlagCheckMixin, enum.Flag):
     # ---
 
     # TICKS_BIRTH?
-    TICKS_START = GENESIS | INTRA_SYSTEM
+    TICKS_BIRTH = SYNTHESIS | MITOSIS
     '''All ticks considered part of start-up.'''
 
     # TICKS_LIFE?
-    TICKS_RUN = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
+    TICKS_LIFE = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
     '''All ticks considered part of the standard game loop.'''
 
     # TICKS_DEATH?
-    TICKS_END = APOPTOSIS | APOCALYPSE | THE_END | FUNERAL
+    TICKS_DEATH = AUTOPHAGY | APOPTOSIS | NECROSIS | FUNERAL
     '''The game will die now.'''
 
     # TODO: TICKS_AFTERLIFE
-    AFTER_THE_END = FUNERAL | THE_END
-    '''The game has finished running TICKS_END.'''
+    TICKS_AFTERLIFE = FUNERAL | NECROSIS
+    '''The game has finished running TICKS_DEATH.'''
 
     # ---
     # Masks
     # ---
 
-    RESCHEDULE_SYSTEMS = GENESIS | TIME
+    RESCHEDULE_SYSTEMS = SYNTHESIS | TIME
     '''
-    Reschedule during GENESIS as systems come on line. Check during TIME phase
+    Reschedule during SYNTHESIS as systems come on line. Check during TIME phase
     to see if anything changed to require a reschedule.
     '''
 
-    # Use: TICKS_RUN
+    # Use: TICKS_LIFE
     # ALL = TIME | CREATION | PRE | STANDARD | POST | DESTRUCTION
     # '''
     # ALL of the (standard) ticks.
@@ -230,12 +234,12 @@ def tick_health_init(tick:       'SystemTick',
 
     Good Starting Healths are, for ticks in:
       - INVALID     - HEALTHY
-      - TICKS_START - HEALTHY
-      - TICKS_RUN   - HEALTHY
-      - TICKS_END
-        - APOPTOSIS  - APOPTOSIS (in progress)
-        - APOCALYPSE - APOCALYPSE (in progress)
-        - THE_END    - THE_END (good kind of dead)
+      - TICKS_BIRTH - HEALTHY
+      - TICKS_LIFE  - HEALTHY
+      - TICKS_DEATH
+        - AUTOPHAGY - AUTOPHAGY (in progress)
+        - APOPTOSIS - APOPTOSIS (in progress)
+        - NECROSIS  - NECROSIS (good kind of dead)
     '''
     # ---
     # Start
@@ -244,34 +248,34 @@ def tick_health_init(tick:       'SystemTick',
         # HEALTHY will be downgraded by PENDING, etc.
         return VerediHealth.HEALTHY
 
-    if tick in SystemTick.TICKS_START:
+    if tick in SystemTick.TICKS_BIRTH:
         # HEALTHY will be downgraded by PENDING, etc.
         return VerediHealth.HEALTHY
 
     # ---
     # RUN!
     # ---
-    elif tick in SystemTick.TICKS_RUN:
+    elif tick in SystemTick.TICKS_LIFE:
         return VerediHealth.HEALTHY
 
     # ---
     # Done.
     # ---
-    elif tick in SystemTick.TICKS_END:
-        if tick is SystemTick.APOPTOSIS:
+    elif tick in SystemTick.TICKS_DEATH:
+        if tick is SystemTick.AUTOPHAGY:
             # Success will be downgraded by in-progress or failure.
-            return VerediHealth.APOPTOSIS_SUCCESSFUL
+            return VerediHealth.AUTOPHAGY_SUCCESSFUL
 
-        if tick is SystemTick.APOCALYPSE:
+        if tick is SystemTick.APOPTOSIS:
             # Done will be downgraded by in-progress.
-            return VerediHealth.APOCALYPSE_DONE
+            return VerediHealth.APOPTOSIS_DONE
 
-        if tick is SystemTick.THE_END:
-            # This is the only THE_END-specific value right now...
-            return VerediHealth.THE_END
+        if tick is SystemTick.NECROSIS:
+            # This is the only NECROSIS-specific value right now...
+            return VerediHealth.NECROSIS
 
         if tick is SystemTick.FUNERAL:
-            return VerediHealth.THE_END
+            return VerediHealth.NECROSIS
 
     # ---
     # Errors
@@ -285,31 +289,31 @@ def tick_healthy(tick: 'SystemTick', health: VerediHealth) -> bool:
     Checks that `health` is a "good enough" value for the tick.
 
     Examples:
-      - "PENDING" is good enough for GENESIS, but bad in the TICKS_RUN.
-      - "HEALTHY" is good for TICKS_RUN, but /bad/ in TICKS_END.
-        - Means some TICKS_RUN logic got mixed in, usually.
+      - "PENDING" is good enough for SYNTHESIS, but bad in the TICKS_LIFE.
+      - "HEALTHY" is good for TICKS_LIFE, but /bad/ in TICKS_DEATH.
+        - Means some TICKS_LIFE logic got mixed in, usually.
     '''
     # ---
     # Start
     # ---
-    if tick in SystemTick.TICKS_START:
+    if tick in SystemTick.TICKS_BIRTH:
         # Limbo is also ok for START.
         return health.in_best_health or health.limbo
 
     # ---
     # RUN!
     # ---
-    elif tick in SystemTick.TICKS_RUN:
+    elif tick in SystemTick.TICKS_LIFE:
         # Only best health is ok.
         return health.in_best_health
 
     # ---
     # Done.
     # ---
-    elif tick in SystemTick.TICKS_END:
-        # For the funeral, we expect specifically THE_END.
+    elif tick in SystemTick.TICKS_DEATH:
+        # For the funeral, we expect specifically NECROSIS.
         if tick is SystemTick.FUNERAL:
-            return health == VerediHealth.THE_END
+            return health == VerediHealth.NECROSIS
 
         # Anything above 'real bad' is good.
         return health.in_runnable_health

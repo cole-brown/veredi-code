@@ -112,10 +112,10 @@ class IdentityManager(EcsManagerWithEvents):
         # ------------------------------
 
         # Don't (yet) need START/END.
-        # self._ticks: Optional[SystemTick] = (SystemTick.TICKS_START
+        # self._ticks: Optional[SystemTick] = (SystemTick.TICKS_BIRTH
         #                                      # Just PRE so far.
         #                                      | SystemTick.PRE
-        #                                      | SystemTick.TICKS_END)
+        #                                      | SystemTick.TICKS_DEATH)
         self._ticks: Optional[SystemTick] = SystemTick.PRE
         '''
         The ticks we desire to run in.

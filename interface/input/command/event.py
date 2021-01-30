@@ -12,7 +12,7 @@ packaged up into an event or perhaps fed directly/firstly into InputSystem.
 from typing import Union, Optional, Type
 
 from veredi.logger                  import log
-from veredi.base                    import vstring
+from veredi.base.string             import text
 from veredi.game.ecs.event          import Event
 from veredi.game.ecs.base.component import Component
 
@@ -103,7 +103,7 @@ class CommandRegisterReply(CommandEvent):
     def _set_name(self, name: str, source: str) -> None:
         '''Raises a CommandError if name is invalid (e.g. starts with the
         command prefix).'''
-        self.name = vstring.normalize(name)
+        self.name = text.normalize(name)
         self.source = source
         # TODO [2020-06-14]: Regex check... also must start with letter.
         if self.name.startswith(const._TEXT_CMD_PREFIX):
@@ -212,8 +212,8 @@ class CommandRegisterReply(CommandEvent):
             will only have to deal with the one command. The InputSystem will
             translate an alias into its underlying command.
         '''
-        cmd_name = vstring.normalize(cmd_name)
-        equivalent = vstring.normalize(equivalent)
+        cmd_name = text.normalize(cmd_name)
+        equivalent = text.normalize(equivalent)
 
         if not equivalent.startswith(self.name):
             raise log.exception(

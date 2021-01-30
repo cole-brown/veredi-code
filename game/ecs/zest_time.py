@@ -11,16 +11,16 @@ Tests for the generic System class.
 from datetime import datetime, timezone
 
 
-from veredi.logger import log
+from veredi.logger         import log
 
 from veredi.zest.base.unit import ZestBase
-from veredi.base.context import UnitTestContext
+from veredi.base.context   import UnitTestContext
 
-from veredi.base import label
-from veredi      import time
+from veredi.base.string    import label
+from veredi                import time
 
-from .time import TimeManager
-from ..time.tick.round import TickRounds
+from .time                 import TimeManager
+from ..time.tick.round     import TickRounds
 
 
 # -----------------------------------------------------------------------------

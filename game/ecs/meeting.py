@@ -393,16 +393,16 @@ class Meeting:
         _run_trans_validate(), but here's a summary of both life-cycle and tick
         transitions:
 
-          - INVALID -> TICKS_START:
-            - INVALID -> GENESIS
-            - GENESIS -> INTRA_SYSTEM
+          - INVALID -> TICKS_BIRTH:
+            - INVALID   -> SYNTHESIS
+            - SYNTHESIS -> MITOSIS
 
-          - TICKS_START -> TICKS_RUN
+          - TICKS_BIRTH -> TICKS_LIFE
 
-          - ??? -> TICKS_END:
-            - ???        -> APOPTOSIS
-            - APOPTOSIS  -> APOCALYPSE
-            - APOCALYPSE -> THE_END
+          - ??? -> TICKS_DEATH:
+            - ???       -> AUTOPHAGY
+            - AUTOPHAGY -> APOPTOSIS
+            - APOPTOSIS -> NECROSIS
 
         NOTE: This is only called if there is a valid life-cycle/tick-cycle of
         interest.

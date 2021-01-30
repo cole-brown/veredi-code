@@ -50,10 +50,10 @@ engine:
       #   12 # (bare numbers will be treated as seconds)
       # Tag "!duration" is optional.
       default: !duration 1 second
-      genesis: 5 seconds
-      intrasystem: !duration 5 seconds
+      synthesis: 5 seconds
+      mitosis: !duration 5 seconds
+      autophagy: !duration 5 seconds
       apoptosis: !duration 5 seconds
-      apocalypse: !duration 5 seconds
 
 
 server:

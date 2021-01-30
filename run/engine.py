@@ -12,7 +12,7 @@ from typing import Optional
 
 
 from veredi.logger                     import log
-from veredi.base                       import label
+from veredi.base.string                import label
 from veredi.data                       import background
 from veredi.debug.const                import DebugFlag
 

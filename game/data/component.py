@@ -24,7 +24,7 @@ from ..ecs.base.identity             import ComponentId
 
 # Data Stuff
 from veredi.data.serdes.adapter.dict import DataDict
-from veredi.base                     import label
+from veredi.base.string              import label
 
 
 # -----------------------------------------------------------------------------

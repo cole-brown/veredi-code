@@ -229,7 +229,7 @@ class Test_Engine(ZestEngine):
         self.assertTrue(self.manager.entity)
         self.assertTrue(self.engine)
 
-    def test_ticks_start(self):
+    def test_ticks_birth(self):
         self.assertEqual(self.engine.life_cycle, SystemTick.INVALID)
         self.assertEqual(self.engine.tick, SystemTick.INVALID)
 
@@ -238,14 +238,14 @@ class Test_Engine(ZestEngine):
             # Life-Cycle
             # ---
             # Max ticks in start life-cycle.
-            SystemTick.TICKS_START: 10,
+            SystemTick.TICKS_BIRTH: 10,
 
             # ---
             # Ticks
             # ---
-            # Max ticks for each tick in TICKS_START.
-            SystemTick.GENESIS:      5,
-            SystemTick.INTRA_SYSTEM: 5,
+            # Max ticks for each tick in TICKS_BIRTH.
+            SystemTick.SYNTHESIS:      5,
+            SystemTick.MITOSIS: 5,
         }
 
         # - - - - - - - - - - - - - - -
@@ -253,15 +253,15 @@ class Test_Engine(ZestEngine):
         # - - - - - - - - - - - - - - -
         # This is simple because we want engine_run() to be capable of the
         # entire start life-cycle.
-        ran = self.engine_run(SystemTick.TICKS_START,
+        ran = self.engine_run(SystemTick.TICKS_BIRTH,
                               run)
 
-        max_life = run[SystemTick.TICKS_START]
-        self.assertLess(ran[SystemTick.TICKS_START],     max_life)
-        self.assertGreater(ran[SystemTick.GENESIS],      0)
-        self.assertGreater(ran[SystemTick.INTRA_SYSTEM], 0)
+        max_life = run[SystemTick.TICKS_BIRTH]
+        self.assertLess(ran[SystemTick.TICKS_BIRTH],  max_life)
+        self.assertGreater(ran[SystemTick.SYNTHESIS], 0)
+        self.assertGreater(ran[SystemTick.MITOSIS],   0)
 
-    def test_ticks_end(self):
+    def test_ticks_death(self):
         # Engine shouldn't've started yet...
         self.assertEqual(self.engine.life_cycle, SystemTick.INVALID)
         self.assertEqual(self.engine.tick, SystemTick.INVALID)
@@ -277,15 +277,15 @@ class Test_Engine(ZestEngine):
             # Life-Cycle
             # ---
             # Max ticks in end life-cycle.
-            SystemTick.TICKS_END: 20,
+            SystemTick.TICKS_DEATH: 20,
 
             # ---
             # Ticks
             # ---
-            # Max ticks for each tick in TICKS_END.
-            SystemTick.APOPTOSIS:  5,
-            SystemTick.APOCALYPSE: 5,
-            SystemTick.THE_END:    1,
+            # Max ticks for each tick in TICKS_DEATH.
+            SystemTick.AUTOPHAGY:  5,
+            SystemTick.APOPTOSIS: 5,
+            SystemTick.NECROSIS:    1,
             SystemTick.FUNERAL:    1,
         }
 
@@ -294,19 +294,19 @@ class Test_Engine(ZestEngine):
         # - - - - - - - - - - - - - - -
         # This is simple because we want engine_run() to be capable of the
         # entire end life-cycle.
-        ran = self.engine_run(SystemTick.TICKS_END,
+        ran = self.engine_run(SystemTick.TICKS_DEATH,
                               run)
 
-        max_life = run[SystemTick.TICKS_END]
-        self.assertLess(ran[SystemTick.TICKS_END],     max_life)
-        self.assertGreater(ran[SystemTick.APOPTOSIS],  0)
-        self.assertGreater(ran[SystemTick.APOCALYPSE], 0)
-        self.assertEqual(ran[SystemTick.THE_END],      1)
-        self.assertEqual(ran[SystemTick.FUNERAL],      1)
+        max_life = run[SystemTick.TICKS_DEATH]
+        self.assertLess(ran[SystemTick.TICKS_DEATH],  max_life)
+        self.assertGreater(ran[SystemTick.AUTOPHAGY], 0)
+        self.assertGreater(ran[SystemTick.APOPTOSIS], 0)
+        self.assertEqual(ran[SystemTick.NECROSIS],    1)
+        self.assertEqual(ran[SystemTick.FUNERAL],     1)
 
-        self.assertNotIn(SystemTick.FUNERAL | SystemTick.THE_END, ran)
+        self.assertNotIn(SystemTick.FUNERAL | SystemTick.NECROSIS, ran)
 
-    def test_ticks_run(self):
+    def test_ticks_life(self):
         # Engine shouldn't've started yet...
         self.assertEqual(self.engine.life_cycle, SystemTick.INVALID)
         self.assertEqual(self.engine.tick, SystemTick.INVALID)
@@ -319,7 +319,7 @@ class Test_Engine(ZestEngine):
             # Life-Cycle
             # ---
             # Run 2 to make sure it cycles properly.
-            SystemTick.TICKS_RUN: 2,
+            SystemTick.TICKS_LIFE: 2,
 
             # ---
             # Ticks
@@ -339,16 +339,16 @@ class Test_Engine(ZestEngine):
         # - - - - - - - - - - - - - - -
         # This is simple because we want engine_run() to be capable of the
         # entire running life-cycle.
-        ran = self.engine_run(SystemTick.TICKS_RUN,
+        ran = self.engine_run(SystemTick.TICKS_LIFE,
                               run)
 
-        expected = run[SystemTick.TICKS_RUN]
-        self.assertEqual(ran[SystemTick.TICKS_RUN], expected)
-        self.assertEqual(ran[SystemTick.TIME],      expected)
-        self.assertEqual(ran[SystemTick.CREATION],  expected)
-        self.assertEqual(ran[SystemTick.PRE],       expected)
-        self.assertEqual(ran[SystemTick.STANDARD],  expected)
-        self.assertEqual(ran[SystemTick.POST],      expected)
+        expected = run[SystemTick.TICKS_LIFE]
+        self.assertEqual(ran[SystemTick.TICKS_LIFE], expected)
+        self.assertEqual(ran[SystemTick.TIME],       expected)
+        self.assertEqual(ran[SystemTick.CREATION],   expected)
+        self.assertEqual(ran[SystemTick.PRE],        expected)
+        self.assertEqual(ran[SystemTick.STANDARD],   expected)
+        self.assertEqual(ran[SystemTick.POST],       expected)
 
     def test_a_full_life(self):
         # Engine shouldn't've started yet...
@@ -361,16 +361,16 @@ class Test_Engine(ZestEngine):
 
         tick_amounts = {
             # Max ticks of standard game loop.
-            SystemTick.TICKS_RUN: 10,
+            SystemTick.TICKS_LIFE: 10,
         }
-        self.engine_run(SystemTick.TICKS_RUN,
+        self.engine_run(SystemTick.TICKS_LIFE,
                         tick_amounts)
 
         self.engine_life_end()
 
     def test_set_up(self):
         # Push our systems into the engine before we start it so they go
-        # through a normal engine TICKS_START.
+        # through a normal engine TICKS_BIRTH.
         jeff_id, jill_id = self.init_many_systems(SysJeff, SysJill)
 
         # Get engine started.
@@ -413,7 +413,7 @@ class Test_Engine(ZestEngine):
 
     def test_tickless_sys(self):
         # Push our systems into the engine before we start it so they go
-        # through a normal engine TICKS_START.
+        # through a normal engine TICKS_BIRTH.
         sids = self.init_many_systems(SysNoTick)
 
         # Get engine started.
@@ -436,7 +436,7 @@ class Test_Engine(ZestEngine):
 
     def test_reqless_sys(self):
         # Push our systems into the engine before we start it so they go
-        # through a normal engine TICKS_START.
+        # through a normal engine TICKS_BIRTH.
         sids = self.init_many_systems(SysNoReq)
         chill_sys = self.manager.system.get(sids[0])
 
