@@ -25,6 +25,7 @@ from veredi.logger               import log, pretty
 from veredi.data                 import background
 from veredi.data.config.registry import register
 from veredi.data                 import exceptions
+from veredi.data.context         import DataAction
 
 from ...codec.encodable          import Encodable
 from ..base                      import (BaseSerdes,
@@ -71,15 +72,19 @@ class JsonSerdes(BaseSerdes):
         '''
         return self._bg, background.Ownership.SHARE
 
-    def _context_deserialize_data(self,
-                                  context: 'VerediContext') -> 'VerediContext':
+    def _context_data(self,
+                      context: 'VerediContext',
+                      action:  DataAction) -> 'VerediContext':
         '''
         Inject our serdes data into the context.
         '''
-        meta, _ = self.background
-        context[str(background.Name.SERDES)] = {
-            'meta': meta,
-        }
+        data, _ = self.background
+        # Push our context data into our sub-context key.
+        context[str(background.Name.SERDES)] = data
+
+        # And add any extra info.
+        context['action'] = action
+
         return context
 
     # -------------------------------------------------------------------------
@@ -99,7 +104,7 @@ class JsonSerdes(BaseSerdes):
             - Other json/stream errors?
         '''
         log.debug("json.deserialize input: {}", type(stream))
-        self._context_deserialize_data(context)
+        self._context_data(context, DataAction.LOAD)
         data = self._read(stream, context)
         if not data:
             msg = "Reading all json from stream resulted in no data."
@@ -167,15 +172,30 @@ class JsonSerdes(BaseSerdes):
                         stream: Union[TextIO, str],
                         context: 'VerediContext') -> DeserializeTypes:
         '''
-        Read and deserializes all documents from the data stream.
+        Read and deserializes all documents from the data stream. Expects a
+        valid/normal json document in the stream, since there isn't a "document
+        separator" in the json spec like in other serialized formats.
 
         Raises:
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        self._context_deserialize_data(context)
-        # TODO [2020-05-22]: deserialize_all
-        raise NotImplementedError("TODO: this")
+        log.debug("json.deserialize_all input: {}", type(stream))
+        self._context_data(context, DataAction.LOAD)
+        data = self._read_all(stream, context)
+        if not data:
+            msg = "Reading all json from stream resulted in no data."
+            error = exceptions.ReadError(
+                msg,
+                context=context,
+                data={
+                    'data': data,
+                })
+            raise log.exception(error, msg,
+                                context=context)
+
+        log.debug("json.deserialize_all output: {}", type(data))
+        return data
 
     def _read_all(self,
                   stream: Union[TextIO, str],
@@ -190,27 +210,16 @@ class JsonSerdes(BaseSerdes):
           - exceptions.ReadError
             - wrapped lib/module errors
         '''
-        # TODO [2020-05-22]: read_all
-        raise NotImplementedError("TODO: this")
+        # Just use read since json has no concept of multi-document streams.
+        return self._read(stream, context)
 
     # -------------------------------------------------------------------------
     # Serialize Methods
     # -------------------------------------------------------------------------
 
-    def _context_serialize_data(self,
-                             context: 'VerediContext') -> 'VerediContext':
-        '''
-        Inject our serdes data into the context.
-        '''
-        meta, _ = self.background
-        context[str(background.Name.SERDES)] = {
-            'meta': meta,
-        }
-        return context
-
     def serialize(self,
-               data: SerializeTypes,
-               context: 'VerediContext') -> StringIO:
+                  data: SerializeTypes,
+                  context: 'VerediContext') -> StringIO:
         '''
         Write and serializes a single document from the data stream.
 
@@ -218,7 +227,7 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        self._context_serialize_data(context)
+        self._context_data(context, DataAction.SAVE)
         to_serialize = self._serialize_prep(data, context)
         stream = self._write(to_serialize, context)
         return stream
@@ -309,21 +318,24 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        # TODO [2020-05-22]: write_all
-        raise NotImplementedError("TODO: this")
+        self._context_data(context, DataAction.SAVE)
+        to_serialize = self._serialize_prep(data, context)
+        stream = self._write(to_serialize, context)
+        return stream
 
     def _write_all(self,
                    data: SerializeTypes,
                    context: 'VerediContext') -> StringIO:
         '''
-        Write data from a single data stream.
+        Write and serializes all documents from the data stream.
 
         Returns:
-          Based on subclass.
+          The serialized data in a StringIO buffer.
 
         Raises:
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        # TODO [2020-05-22]: write_all
-        raise NotImplementedError("TODO: this")
+        # Just use _write() since json has no concept of multi-document
+        # streams.
+        return self._write(data, context)

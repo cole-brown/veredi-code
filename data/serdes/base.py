@@ -197,8 +197,8 @@ class BaseSerdes(ABC):
 
     @abstractmethod
     def serialize(self,
-               data: SerializeTypes,
-               context: 'VerediContext') -> StringIO:
+                  data: SerializeTypes,
+                  context: 'VerediContext') -> StringIO:
         '''Write and serializes a single document from the data stream.
 
         Raises:
@@ -210,8 +210,8 @@ class BaseSerdes(ABC):
 
     @abstractmethod
     def serialize_all(self,
-                   data: SerializeTypes,
-                   context: 'VerediContext') -> StringIO:
+                      data: SerializeTypes,
+                      context: 'VerediContext') -> StringIO:
         '''Write and serializes all documents from the data stream.
 
         Raises:
