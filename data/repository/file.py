@@ -9,10 +9,11 @@ various backend implementations (db, file, etc).
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, List
+from typing import Optional, Union, Iterable, List
 
 
 import pathlib
+import shutil
 import re
 import hashlib
 from io import StringIO, TextIOBase
@@ -24,11 +25,14 @@ from veredi.data                 import background
 
 from veredi.base                 import paths
 from veredi.base.string          import text
-from veredi.data.context         import (DataBareContext,
+from veredi.data.context         import (DataAction,
+                                         DataBareContext,
                                          DataGameContext,
                                          DataLoadContext,
                                          DataSaveContext)
 from veredi.data.config.context  import ConfigContext
+from veredi.zest.exceptions      import UnitTestError
+
 
 from ..                          import exceptions
 from .                           import base
@@ -264,7 +268,7 @@ class FileBareRepository(base.BaseRepository):
         return self._bg, background.Ownership.SHARE
 
     # -------------------------------------------------------------------------
-    # Load Methods
+    # Load / Save Helpers
     # -------------------------------------------------------------------------
 
     def _ext_glob(self, element: paths.PathType) -> paths.Path:
@@ -281,6 +285,43 @@ class FileBareRepository(base.BaseRepository):
         self._log_debug("root is: {}", self._root)
         return self._root
 
+    def _context_data(self,
+                      context: DataBareContext,
+                      path:    paths.PathsInput
+                      ) -> DataBareContext:
+        '''
+        Inject our repository, path, and any other desired data into the
+        context. In the case of file repositories, include the file path.
+        '''
+        key = str(background.Name.REPO)
+        meta, _ = self.background
+        context[key] = {
+            # Push our context data into here...
+            'meta': meta,
+            # And add any extra info.
+            'action': context.action,
+            'path': str(path),
+        }
+        return context
+
+    def _key(self,
+             context: DataBareContext) -> pathlib.Path:
+        '''
+        Turns load/save meta-data in the context into a key we can use to
+        retrieve the data.
+        '''
+        self._root = context.key.parent
+        # We are a FileBareRepo, and now we know our root (for the time
+        # being...). Put it in our bg data.
+        self._bg['path'] = self._root
+        # And make sure our 'key' (path) is safe to use.
+        if isinstance(context.key, pathlib.Path):
+            return self._path_safed(*context.key.parts, context=context)
+
+    # -------------------------------------------------------------------------
+    # Load Methods
+    # -------------------------------------------------------------------------
+
     def load(self,
              context: DataBareContext) -> TextIOBase:
         '''
@@ -291,27 +332,13 @@ class FileBareRepository(base.BaseRepository):
         key = self._key(context)
         return self._load(key, context)
 
-    def _context_load_data(self,
-                           context: DataLoadContext,
-                           load_path: pathlib.Path) -> DataLoadContext:
-        '''
-        Inject our repository data and our load data into the context.
-        In the case of file repositories, include the file path.
-        '''
-        meta, _ = self.background
-        context.repo_data = {
-            'meta': meta,
-            'path': str(load_path),
-        }
-        return context
-
     def _load(self,
               load_path: pathlib.Path,
               context: DataLoadContext) -> TextIOBase:
         '''
         Looks for file at load_path. If it exists, loads that file.
         '''
-        self._context_load_data(context, load_path)
+        self._context_data(context, load_path)
 
         # load_path should be exact - no globbing.
         if not load_path.exists():
@@ -346,31 +373,75 @@ class FileBareRepository(base.BaseRepository):
         return data_stream
 
     # -------------------------------------------------------------------------
-    # Identification ("Leeloo Dallas, Multi-Pass")
+    # Save Methods
     # -------------------------------------------------------------------------
 
-    def _key(self,
-             context: DataBareContext) -> pathlib.Path:
+    def save(self,
+             data:    TextIOBase,
+             context: 'DataBareContext') -> bool:
         '''
-        Turns load data in the context into a key we can use to retrieve
-        the data.
+        Saves data to the repository based on data in the `context`.
+
+        Returns success/failure of save operation.
         '''
-        self._root = context.key.parent
-        # We are a FileBareRepo, and now we know our root (for the time
-        # being...). Put it in our bg data.
-        self._bg['path'] = self._root
-        # And make sure our 'key' (path) is safe to use.
-        if isinstance(context.key, pathlib.Path):
-            return self._safe_path(*context.key.parts, context=context)
+        key = self._key(context)
+        return self._save(key, data, context)
+
+    def _save(self,
+              save_path: pathlib.Path,
+              data:      TextIOBase,
+              context:   DataBareContext) -> bool:
+        '''
+        Looks for file at save_path. If it exists, saves that file.
+        '''
+        self._context_data(context, save_path)
+
+        # We could have some check here if we don't want to overwrite...
+        # if save_path.exists():
+        #     raise self._log_exception(
+        #         self._error_type(context),
+        #         "Cannot save file without overwriting. "
+        #         "Path/file already exist: {}",
+        #         str(save_path),
+        #         context=context)
+
+        success = False
+        with save_path.open('w') as file_stream:
+            # Can raise an error - we'll let it.
+            try:
+                # Make sure we're at the beginning of the data stream...
+                data.seek(0)
+                # ...and use shutils to copy the data to disk.
+                shutil.copyfileobj(data, file_stream)
+
+                # We don't have anything to easily check to return
+                # success/failure...
+                success = True
+
+            except exceptions.SaveError:
+                # Let this one bubble up as-is.
+                # TODO: log to Group.DATA_PROCESSING
+                raise
+
+            except Exception as error:
+                # Complain that we found an exception we don't handle.
+                # ...then let it bubble up.
+                # TODO: log to Group.DATA_PROCESSING
+                raise self._log_exception(
+                    self._error_type(context),
+                    "Error saving data to file. context: {}",
+                    context=context) from error
+
+        return success
 
     # -------------------------------------------------------------------------
     # Path Safing
     # -------------------------------------------------------------------------
 
-    def _safe_path(self,
-                   *unsafe: paths.PathType,
-                   context: Optional[DataGameContext] = None
-                   ) -> pathlib.Path:
+    def _path_safed(self,
+                    *unsafe: paths.PathType,
+                    context: Optional[DataGameContext] = None
+                    ) -> pathlib.Path:
         '''
         Makes `unsafe` safe with self.fn_path_safing.
 
@@ -410,6 +481,8 @@ class FileTreeRepository(base.BaseRepository):
     # ---
     _HUMAN_SAFE = re.compile(r'[^\w\d-]')
     _REPLACEMENT = '_'
+
+    _TEMP_PATH = 'zest-temp'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -479,7 +552,7 @@ class FileTreeRepository(base.BaseRepository):
         return self._bg, background.Ownership.SHARE
 
     # -------------------------------------------------------------------------
-    # Load Methods
+    # Load / Save Helpers
     # -------------------------------------------------------------------------
 
     @property
@@ -497,6 +570,78 @@ class FileTreeRepository(base.BaseRepository):
         self._log_debug("root is: {}", self._root)
         return self._root
 
+    def _context_data(self,
+                      context: DataGameContext,
+                      paths:   paths.PathsInput) -> DataGameContext:
+        '''
+        Inject our repository, path, and any other desired data into the
+        context. In the case of file repositories, include the file path.
+        '''
+        action = context.action
+        if (action == DataAction.SAVE
+                and not isinstance(context, DataSaveContext)):
+            raise self._log_exception(
+                self._error_type(context),
+                "Cannot save data; mismatched context type and data "
+                "action for {}: {}, {}",
+                self._error_name(context, False),
+                type(context),
+                action,
+                context=context)
+        elif (action == DataAction.LOAD
+              and not isinstance(context, DataLoadContext)):
+            raise self._log_exception(
+                self._error_type(context),
+                "Cannot load data; mismatched context type and data "
+                "action for {}: {}, {}",
+                self._error_name(context, False),
+                type(context),
+                action,
+                context=context)
+
+        meta, _ = self.background
+        context[str(background.Name.REPO)] = {
+            # Push our context data into here.
+            'meta': meta,
+            # And add any extra info.
+            'action': action,
+            'paths': paths.to_str_list(paths),
+        }
+        return context
+
+    def _key(self,
+             context: DataGameContext) -> List[paths.PathType]:
+        '''
+        Give the DataContext, return the data's repository key.
+        '''
+        # Get the taxon from the context.
+        taxon = context.taxon
+        if not taxon:
+            raise self._log_exception(
+                self._error_type(context),
+                "Cannot {} data; no Taxon present: {}",
+                self._error_name(context, False),
+                taxon,
+                context=context)
+
+        # And our key is the rooted path based on category and taxon data.
+        replace = {
+            Rank.Kingdom.CAMPAIGN: self.primary_id,
+        }
+        resolved = taxon.resolve(replace)
+
+        # Should we be in the temp dir for this?
+        if context.temp:
+            # Insert our temp dir into the resolved components.
+            resolved.insert(self._TEMP_PATH, 0)
+
+        path = self._path(resolved, context, glob=False)
+        return path
+
+    # -------------------------------------------------------------------------
+    # Load Methods
+    # -------------------------------------------------------------------------
+
     def load(self,
              context: DataGameContext) -> TextIOBase:
         '''
@@ -504,25 +649,11 @@ class FileTreeRepository(base.BaseRepository):
 
         Returns io stream.
         '''
-        key = self._key(context)
+        key = self._key(context, DataAction.LOAD)
         return self._load(key, context)
 
-    def _context_load_data(self,
-                           context: DataLoadContext,
-                           load_path: pathlib.Path) -> DataLoadContext:
-        '''
-        Inject our repository data and our load data into the context.
-        In the case of file repositories, include the file path.
-        '''
-        meta, _ = self.background
-        context[str(background.Name.REPO)] = {
-            'meta': meta,
-            'path': load_path,
-        }
-        return context
-
     def _load(self,
-              path:    pathlib.Path,
+              path:    paths.PathType,
               context: DataLoadContext) -> TextIOBase:
         '''
         Looks for a match to `path` by splitting into parent dir and
@@ -544,7 +675,7 @@ class FileTreeRepository(base.BaseRepository):
         # Error if we found more than one match.
         if not matches:
             # We found nothing.
-            self._context_load_data(context, matches)
+            self._context_data(context, matches, DataAction.LOAD)
             raise self._log_exception(
                 self._error_type(context),
                 f"No matches for loading file: "
@@ -553,7 +684,7 @@ class FileTreeRepository(base.BaseRepository):
                 context=context)
         elif len(matches) > 1:
             # Throw all matches into context for error.
-            self._context_load_data(context, matches)
+            self._context_load_data(context, matches, DataAction.LOAD)
             raise self._log_exception(
                 self._error_type(context),
                 f"Too many matches for loading file: "
@@ -565,7 +696,7 @@ class FileTreeRepository(base.BaseRepository):
         # Set-Up...
         # ------------------------------
         path = matches[0]
-        self._context_load_data(context, path)
+        self._context_load_data(context, path, DataAction.LOAD)
 
         # ------------------------------
         # Load!
@@ -605,32 +736,67 @@ class FileTreeRepository(base.BaseRepository):
         return data_stream
 
     # -------------------------------------------------------------------------
-    # Identification ("Leeloo Dallas, Multi-Pass")
+    # Save Methods
     # -------------------------------------------------------------------------
 
-    def _key(self,
-             context: DataGameContext) -> List[paths.PathType]:
+    def save(self,
+             data:    TextIOBase,
+             context: 'DataBareContext') -> bool:
         '''
-        Give the DataContext, return the data's repository key.
-        '''
-        # Get the taxon from the context.
-        taxon = context.taxon
-        if not taxon:
-            raise self._log_exception(
-                self._error_type(context),
-                "Cannot {} data; no Taxon present: {}",
-                self._error_name(context, False),
-                taxon,
-                context=context)
+        Saves data to the repository based on data in the `context`.
 
-        # And our key is the rooted path based on category and taxon data.
-        replace = {
-            Rank.Kingdom.CAMPAIGN: self.primary_id,
-        }
-        resolved = taxon.resolve(replace)
-        # path = self._path(category, resolved, glob=True)
-        path = self._path(resolved, glob=True)
-        return path
+        Returns success/failure of save operation.
+        '''
+        key = self._key(context, DataAction.SAVE)
+        return self._save(key, data, context)
+
+    def _save(self,
+              save_path: paths.PathType,
+              data:      TextIOBase,
+              context:   DataBareContext) -> bool:
+        '''
+        Save `data` to `save_path`. If it already exists, overwrites that file.
+        '''
+        self._context_data(context, save_path, DataAction.SAVE)
+
+        # We could have some check here if we don't want to overwrite...
+        # if save_path.exists():
+        #     raise self._log_exception(
+        #         self._error_type(context),
+        #         "Cannot save file without overwriting. "
+        #         "Path/file already exist: {}",
+        #         str(save_path),
+        #         context=context)
+
+        success = False
+        with save_path.open('w') as file_stream:
+            # Can raise errors - we'll let it.
+            try:
+                # Make sure we're at the beginning of the data stream...
+                data.seek(0)
+                # ...and use shutils to copy the data to disk.
+                shutil.copyfileobj(data, file_stream)
+
+                # We don't have anything to easily check to return
+                # success/failure... Other than exceptions. We're here and
+                # no exceptions, so...:
+                success = True
+
+            except exceptions.SaveError:
+                # Let this one bubble up as-is.
+                # TODO: log to Group.DATA_PROCESSING
+                raise
+
+            except Exception as error:
+                # Complain that we found an exception we don't handle.
+                # ...then let it bubble up.
+                # TODO: log to Group.DATA_PROCESSING
+                raise self._log_exception(
+                    self._error_type(context),
+                    "Error saving data to file. context: {}",
+                    context=context) from error
+
+        return success
 
     # -------------------------------------------------------------------------
     # Paths In General
@@ -644,32 +810,48 @@ class FileTreeRepository(base.BaseRepository):
 
     def _path(self,
               unsafe:   paths.PathType,
-              glob:     bool            = False,
-              context:  DataGameContext = None) -> pathlib.Path:
+              context:  DataGameContext,
+              ensure:   bool = True,
+              glob:     bool = False) -> pathlib.Path:
         '''
         Returns a path based on the Repository's root and `unsafe`.
 
         If `glob` is True, adds `_ext_glob()` to the end of the returned path.
 
-        `context` is used indirectly - probably for errors - and can be None.
+        If `ensure` is False, skip (possible) parent directory creation. No
+        need to set for load vs save; that is handled automatically.
 
-        Returned path is safe according to `_safe_path()`.
+        `context` is used for `context.action` and for errors.
+
+        Returned path is safe according to `_path_safed()`.
         '''
         # Make it into a safe path.
-        path = self.root.joinpath(self._safe_path(*unsafe,
-                                                  context=context))
+        path = self.root.joinpath(self._path_safed(*unsafe,
+                                                   context=context))
         if glob:
             path = self._ext_glob(path)
+
+        # Make sure the directory exists?
+        if ensure and context.action == DataAction.SAVE:
+            self._path_ensure(path)
+
         return path
+
+    def _path_ensure(self,
+                     path: pathlib.Path) -> None:
+        '''
+        Creates path's parent path if it does not exist.
+        '''
+        path.mkdir(parents=True, exist_ok=True)
 
     # -------------------------------------------------------------------------
     # Path Safing
     # -------------------------------------------------------------------------
 
-    def _safe_path(self,
-                   *unsafe: paths.PathType,
-                   context: Optional[DataGameContext] = None
-                   ) -> pathlib.Path:
+    def _path_safed(self,
+                    *unsafe: paths.PathType,
+                    context: Optional[DataGameContext] = None
+                    ) -> pathlib.Path:
         '''
         Makes `unsafe` safe with self.fn_path_safing.
 
@@ -688,6 +870,101 @@ class FileTreeRepository(base.BaseRepository):
         self._log_debug(f"Unsafe: *{unsafe} -> Safe Path: {path}",
                         context=context)
         return path
+
+    # -------------------------------------------------------------------------
+    # Unit Testing Helpers
+    # -------------------------------------------------------------------------
+
+    def _temp_path(self) -> None:
+        '''
+        Path to our unit-testing temp dir.
+        '''
+        path = self.root.joinpath(self._TEMP_PATH)
+        return path
+
+    def _ut_set_up(self) -> None:
+        '''
+        Ensure our unit-testing dir doesn't exist, and then create it.
+        '''
+        # Make sure our root /does/ exist...
+        if not self.root.exists() or not self.root.is_dir():
+            msg = ("Invalid root directory for repo data! It must exist "
+                   "and be a directory.")
+            error = UnitTestError(msg,
+                                  data={
+                                      'meta': self._bg,
+                                      'root': paths.to_str(self.root),
+                                      'exists?': self.root.exists(),
+                                      'file?': self.root.is_file(),
+                                      'dir?': self.root.is_dir(),
+                                  })
+            raise self._log_exception(msg, error)
+
+        # Make sure temp path doesn't exist first... Don't want to accidentally
+        # use data from a previous test.
+        path = self._temp_path()
+        if path.exists():
+            msg = "Temp Dir Path for Unit-Testing already exists!"
+            error = UnitTestError(msg,
+                                  data={
+                                      'meta': self._bg,
+                                      'temp-path': paths.to_str(path),
+                                      'exists?': path.exists(),
+                                      'file?': path.is_file(),
+                                      'dir?': path.is_dir(),
+                                  })
+            raise self._log_exception(msg, error)
+
+        # And now we can create it.
+        path.mkdir(parents=True)
+
+    def _ut_tear_down(self) -> None:
+        '''
+        Deletes our temp directory and all files in it.
+        '''
+        # ---
+        # Make sure our root /does/ exist...
+        # ---
+        if not self.root.exists() or not self.root.is_dir():
+            msg = ("Invalid root directory for repo data! It must exist "
+                   "and be a directory.")
+            error = UnitTestError(msg,
+                                  data={
+                                      'meta': self._bg,
+                                      'root': paths.to_str(self.root),
+                                      'exists?': self.root.exists(),
+                                      'file?': self.root.is_file(),
+                                      'dir?': self.root.is_dir(),
+                                  })
+            raise self._log_exception(msg, error)
+
+        # ---
+        # Does temp path exist?
+        # ---
+        path = self._temp_path()
+        if path.exists():
+            # Is it a dir?
+            if path.is_dir():
+                # Yeah - ok; delete it and it's files now.
+                path = self.root.joinpath(self._TEMP_PATH)
+                shutil.rmtree(path)
+
+            # Not a dir - error.
+            else:
+                msg = "Cannot delete temp dir path - it is not a directory!"
+                error = UnitTestError(msg,
+                                      data={
+                                          'meta': self._bg,
+                                          'temp-path': paths.to_str(path),
+                                          'exists?': path.exists(),
+                                          'file?': path.is_file(),
+                                          'dir?': path.is_dir(),
+                                      })
+                raise self._log_exception(msg, error)
+
+        # ---
+        # Done.
+        # ---
 
 
 # ----------------------------File Tree Templates------------------------------

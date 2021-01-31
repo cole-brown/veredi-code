@@ -19,7 +19,7 @@ from veredi.base                         import random
 
 from .unit                               import ZestBase
 from ..                                  import zload
-from ..zxceptions                        import UnitTestError
+from ..exceptions                        import UnitTestError
 from ..zpath                             import TestType
 
 from veredi.base.context                 import VerediContext, UnitTestContext
@@ -303,6 +303,32 @@ class ZestEcs(ZestBase):
 
             if self.manager.identity:
                 self.manager.identity.subscribe(self.manager.event)
+
+    # -------------------------------------------------------------------------
+    # Tear-Down
+    # -------------------------------------------------------------------------
+
+    def tear_down(self):
+        '''
+        Override this to add your own tear-down!
+
+        Tears down the ECS (and Engine, if there is one).
+
+        <your tear-down stuff>
+        super().tear_down()
+        '''
+        self._tear_down_ecs(self)
+
+    def _tear_down_ecs(self):
+        '''
+        Calls zload.tear_down_ecs to have meeting/managers run any tear-down
+        they happen to have.
+        '''
+        zload.tear_down_ecs(self.__class__.__name__,
+                            '_tear_down_ecs',
+                            self.debugging,
+                            self.manager,
+                            engine=self.engine)
 
     # -------------------------------------------------------------------------
     # System Creation Helpers

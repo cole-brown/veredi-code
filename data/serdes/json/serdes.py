@@ -78,12 +78,14 @@ class JsonSerdes(BaseSerdes):
         '''
         Inject our serdes data into the context.
         '''
-        data, _ = self.background
-        # Push our context data into our sub-context key.
-        context[str(background.Name.SERDES)] = data
-
-        # And add any extra info.
-        context['action'] = action
+        key = str(background.Name.SERDES)
+        meta, _ = self.background
+        context[key] = {
+            # Push our context data into our sub-context key.
+            'meta': meta,
+            # And add any extra info.
+            'action': action,
+        }
 
         return context
 

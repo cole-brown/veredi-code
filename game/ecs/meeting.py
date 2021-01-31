@@ -575,3 +575,21 @@ class Meeting:
 
         if self._time_manager:
             yield self._time_manager
+
+    # -------------------------------------------------------------------------
+    # Unit Testing Helpers
+    # -------------------------------------------------------------------------
+
+    def _ut_set_up(self) -> None:
+        '''
+        Calls each manager's _ut_set_up() function.
+        '''
+        for manager in self._each_existing():
+            manager._ut_set_up()
+
+    def _ut_tear_down(self) -> None:
+        '''
+        Calls each manager's _ut_tear_down() function.
+        '''
+        for manager in self._each_existing():
+            manager._ut_tear_down()

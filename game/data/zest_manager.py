@@ -186,11 +186,11 @@ class BaseTest_DataManager(ZestEcs):
         a config file.
         '''
         (self.manager, _,
-         self.context, _) = zload.set_up(self.__class__.__name__,
-                                         '_set_up_ecs',
-                                         self.debugging,
-                                         debug_flags=self.debug_flags,
-                                         require_engine=False)
+         self.context, _) = zload.set_up_ecs(self.__class__.__name__,
+                                             '_set_up_ecs',
+                                             self.debugging,
+                                             debug_flags=self.debug_flags,
+                                             require_engine=False)
 
     def set_all_events_external(self, all_events_external: bool) -> None:
         self._all_events_external = all_events_external
@@ -202,7 +202,19 @@ class BaseTest_DataManager(ZestEcs):
 
     def tear_down(self):
         super().tear_down()
+        self._tear_down_ecs()
         self.path   = None
+
+    def _tear_down_ecs(self):
+        '''
+        Calls zload.tear_down_ecs to have meeting/managers run any tear-down
+        they happen to have.
+        '''
+        zload.tear_down_ecs(self.__class__.__name__,
+                            '_tear_down_ecs',
+                            self.debugging,
+                            self.manager,
+                            engine=None)
 
     # -------------------------------------------------------------------------
     # Helpers

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 from veredi.logger                     import log
 from .                                 import zmake, zontext
 from .zpath                            import TestType
-from .zxceptions                       import UnitTestError
+from .exceptions                       import UnitTestError
 
 from veredi                            import run
 
@@ -60,7 +60,7 @@ import veredi.math.d20.parser
 
 
 # -----------------------------------------------------------------------------
-# Helpers for loader()
+# Helpers for Systems.
 # -----------------------------------------------------------------------------
 
 def add_system(system: System) -> SystemId:
@@ -117,30 +117,30 @@ def create_systems(config:      Optional[Configuration],
 
 
 # -----------------------------------------------------------------------------
-# Enough to load some data from the zata dir related to `test_type`.
+# ECS / Engine: Set-up / Tear-Down
 # -----------------------------------------------------------------------------
 
-def set_up(test_name_class:   str,
-           test_name_func:    str,
-           enable_debug_logs: bool,
-           # Optional Debug Stuff:
-           test_type:         TestType                   = TestType.UNIT,
-           debug_flags:       Optional[DebugFlag]        = None,
-           # Optional ECS:
-           require_engine:    Optional[bool]             = False,
-           desired_systems:   Iterable['SysCreateType']  = None,
-           # Optional to pass in - else we'll make:
-           configuration:     Optional[Configuration]    = None,
-           time_manager:      Optional[TimeManager]      = None,
-           event_manager:     Optional[EventManager]     = None,
-           component_manager: Optional[ComponentManager] = None,
-           entity_manager:    Optional[EntityManager]    = None,
-           system_manager:    Optional[SystemManager]    = None,
-           data_manager:      Optional[DataManager]      = None,
-           identity_manager:  Optional[IdentityManager]  = None,
-           # Optional to pass in - else we'll make  if asked:
-           engine:            Optional[Engine]           = None,
-           ) -> Tuple[Meeting, Engine, VerediContext, List[SystemId]]:
+def set_up_ecs(test_name_class:   str,
+               test_name_func:    str,
+               enable_debug_logs: bool,
+               # Optional Debug Stuff:
+               test_type:         TestType                   = TestType.UNIT,
+               debug_flags:       Optional[DebugFlag]        = None,
+               # Optional ECS:
+               require_engine:    Optional[bool]             = False,
+               desired_systems:   Iterable['SysCreateType']  = None,
+               # Optional to pass in - else we'll make:
+               configuration:     Optional[Configuration]    = None,
+               time_manager:      Optional[TimeManager]      = None,
+               event_manager:     Optional[EventManager]     = None,
+               component_manager: Optional[ComponentManager] = None,
+               entity_manager:    Optional[EntityManager]    = None,
+               system_manager:    Optional[SystemManager]    = None,
+               data_manager:      Optional[DataManager]      = None,
+               identity_manager:  Optional[IdentityManager]  = None,
+               # Optional to pass in - else we'll make  if asked:
+               engine:            Optional[Engine]           = None,
+               ) -> Tuple[Meeting, Engine, VerediContext, List[SystemId]]:
     '''
     Creates config, managers, if not supplied (via zmake.meeting).
     Creates a managers' meeting (via zmake.meeting).
@@ -157,13 +157,13 @@ def set_up(test_name_class:   str,
         # Configuration
         # ---
         if not configuration:
-            log.debug("zload.loader creating Configuration...")
+            log.debug("zload.set_up_ecs creating Configuration...")
             configuration = configuration or zmake.config(test_type)
 
         # ---
         # ECS Managers
         # ---
-        log.debug("zload.loader creating Meeting...")
+        log.debug("zload.set_up_ecs creating Meeting...")
         meeting = run.managers(configuration,
                                time_manager=time_manager,
                                event_manager=event_manager,
@@ -174,20 +174,32 @@ def set_up(test_name_class:   str,
                                identity_manager=identity_manager,
                                debug_flags=debug_flags)
 
+        log.debug("zload.set_up_ecs running Meeting's Unit-Test Set-Up...")
+        meeting._ut_set_up()
+
         # ---
         # Engine
         # ---
         engine = None
         if require_engine:
-            log.debug("zload.loader creating Engine...")
+            log.debug("zload.set_up_ecs creating Engine...")
             engine = run.engine(configuration,
                                 meeting,
                                 debug_flags=debug_flags)
 
+            log.debug("zload.set_up_ecs running Engine's Unit-Test Set-Up...")
+            engine._ut_set_up()
+        else:
+            log.debug("zload.set_up_ecs SKIPPING Engine "
+                      "creation (engine not requested).")
+            log.debug("zload.set_up_ecs SKIPPING Engine's Unit-Test "
+                      "Set-Up (engine not requested).")
+
+
         # ---
         # Config Context
         # ---
-        log.debug("zload.loader creating Context...")
+        log.debug("zload.set_up_ecs creating Context...")
         context = zontext.real_config(test_name_class,
                                       test_name_func,
                                       config=configuration)
@@ -195,7 +207,7 @@ def set_up(test_name_class:   str,
         # ---
         # Additional Systems?
         # ---
-        log.debug("zload.loader creating systems...")
+        log.debug("zload.set_up_ecs creating systems...")
         system_manager = meeting.system
         sids = []
         if desired_systems:
@@ -210,34 +222,62 @@ def set_up(test_name_class:   str,
         # Else: our engine creates the requried stuff and we don't want to
         # double-create.
 
+        log.debug("zload.set_up_ecs done.")
         return meeting, engine, context, sids
 
 
+def tear_down_ecs(test_name_class:   str,
+                  test_name_func:    str,
+                  enable_debug_logs: bool,
+                  meeting:           Meeting,
+                  engine:            Optional[Engine] = None) -> None:
+    '''
+    Runs Tear-Down functions for each manager in meeting.
+
+    Runs Tear-Down for engine if supplied.
+    '''
+    with log.LoggingManager.on_or_off(enable_debug_logs):
+        log.debug("zload.tear_down_ecs running Meeting's "
+                  "Unit-Test Tear-Down...")
+        meeting._ut_tear_down()
+
+        if engine:
+            log.debug("zload.tear_down_ecs running Engine's "
+                      "Unit-Test Tear-Down...")
+            engine._ut_tear_down()
+        else:
+            log.debug("zload.tear_down_ecs SKIPPING Engine's "
+                      "Unit-Test Tear-Down (engine does not exist)...")
+
+        log.debug("zload.tear_down_ecs done.")
+
+
 # -----------------------------------------------------------------------------
-# Background Helper
+# Background: Set-up / Tear-Down
 # -----------------------------------------------------------------------------
 
 def set_up_background() -> None:
     '''
-    Get the context cleared out and ready for a new test.
+    Get the background cleared out and ready for a new test.
     '''
-    # Context will create an empty data structure to fill if it has none, so we
-    # just need to nuke it from orbit.
-    background.testing.nuke()
+    # Technically should only do this in tear-down. See if it's too much of a
+    # pain or too many mess-ups to just do it there.
+    # background.testing.nuke()
+
+    # Enable our unit-testing flag.
     background.testing.set_unit_testing(True)
 
 
 def tear_down_background() -> None:
     '''
-    Get the context cleared out and ready for a new test.
+    Get the background cleared out and ready for a new test.
     '''
-    # Currently nothing really to do that set_up_background() doesn't do.
-    # But I want tear_down_background() for the pairing.
+    # Delete entire background, since it's all created during set-up/testing.
     background.testing.nuke()
 
 
 # -----------------------------------------------------------------------------
-# Registries Helper
+# Registries: Set-up / Tear-Down
 # -----------------------------------------------------------------------------
 
 # TODO [2020-11-12]: Figure out how to register Encodables for every test?
@@ -246,7 +286,7 @@ def tear_down_background() -> None:
 def set_up_registries(encodables: bool = True,
                       **kwargs:   bool) -> None:
     '''
-    Get the registries cleared out and ready for a new test.
+    Get the registries ready for a new test.
     '''
     # ------------------------------
     # Ensure Things Are Not Registered.

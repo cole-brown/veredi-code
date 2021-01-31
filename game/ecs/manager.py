@@ -241,3 +241,19 @@ class EcsManager(LogMixin, ABC):
         '''
         # Ok. Die well or poorly. Either way you're dead now.
         return VerediHealth.NECROSIS
+
+    # -------------------------------------------------------------------------
+    # Unit Testing Helpers
+    # -------------------------------------------------------------------------
+
+    def _ut_set_up(self) -> None:
+        '''
+        Any unit-testing set-up for this Manager or its members to do?
+        '''
+        pass
+
+    def _ut_tear_down(self) -> None:
+        '''
+        Any unit-testing tear-down for this Manager or its members to do?
+        '''
+        pass

@@ -20,7 +20,7 @@ from veredi.data.config.config    import Configuration
 from veredi.data.config.hierarchy import Document
 
 from .                            import zpath
-from .zxceptions                  import UnitTestError
+from .exceptions                  import UnitTestError
 
 
 # -----------------------------------------------------------------------------

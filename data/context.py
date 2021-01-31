@@ -219,6 +219,14 @@ class DataGameContext(BaseDataContext):
         taxon = ctx.get(self._TAXON, None)
         return taxon
 
+    @property
+    def temp(self) -> Optional[Taxon]:
+        '''
+        Returns the context's temp flag or False.
+        '''
+        # Only save has temp, currently...
+        return False
+
 
 class DataLoadContext(DataGameContext):
     '''
@@ -250,17 +258,36 @@ class DataSaveContext(DataGameContext):
     Context for saving data to a repository.
     '''
 
+    _TO_TEMP = 'temp'
+
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
 
     def __init__(self,
                  dotted: str,
-                 taxon:  Taxon) -> None:
+                 taxon:  Taxon,
+                 temp:   bool = False) -> None:
+        '''
+        If `temp` is True, save this to a temporary directory.
+        Useful for e.g. unit testing.
+        '''
         super().__init__(dotted,
                          self._REQUEST_SAVE,
                          DataAction.SAVE,
                          taxon)
+
+        ctx = self.sub
+        ctx[self._TO_TEMP] = temp
+
+    @property
+    def temp(self) -> Optional[Taxon]:
+        '''
+        Returns the context's temp flag or False.
+        '''
+        ctx = self.sub
+        temp = ctx.get(self._TO_TEMP, False)
+        return temp
 
     # -------------------------------------------------------------------------
     # Python Funcs (& related)

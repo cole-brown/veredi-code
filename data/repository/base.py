@@ -135,9 +135,21 @@ class BaseRepository(LogMixin, ABC):
     def load(self,
              context: 'BaseDataContext') -> 'TextIOBase':
         '''
-        Loads data from repository based on `load_id`, `load_type`.
+        Loads data from the repository based on data in the `context`.
 
         Returns io stream.
+        '''
+        raise NotImplementedError(f"{self.__class__.__name__}.load() "
+                                  "is not implemented.")
+
+    @abstractmethod
+    def save(self,
+             data:    'TextIOBase',
+             context: 'BaseDataContext') -> bool:
+        '''
+        Saves data to the repository based on data in the `context`.
+
+        Returns success/failure of save operation.
         '''
         raise NotImplementedError(f"{self.__class__.__name__}.load() "
                                   "is not implemented.")
@@ -221,3 +233,25 @@ class BaseRepository(LogMixin, ABC):
                                   LoadError,
                                   SaveError,
                                   VerediError)
+
+    # -------------------------------------------------------------------------
+    # Unit Testing Helpers
+    # -------------------------------------------------------------------------
+
+    def _ut_set_up(self) -> None:
+        '''
+        Set-up for unit testing.
+
+        E.g. FileTreeRepository can create its temp dir.
+        '''
+        # Default set-up: nothing.
+        pass
+
+    def _ut_tear_down(self) -> None:
+        '''
+        Tear-down for unit testing.
+
+        E.g. FileTreeRepository can delete its temp dir.
+        '''
+        # Default tear-down: also nothing.
+        pass
