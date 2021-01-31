@@ -1322,3 +1322,21 @@ class DataManager(EcsManagerWithEvents):
         health = VerediHealth.FATAL
         self.health = health
         return health
+
+    # -------------------------------------------------------------------------
+    # Unit Testing Helpers
+    # -------------------------------------------------------------------------
+
+    def _ut_set_up(self) -> None:
+        '''
+        Any unit-testing set-up for DataManager or its members to do (e.g.
+        repository)?
+        '''
+        self._repository._ut_set_up()
+
+    def _ut_tear_down(self) -> None:
+        '''
+        Any unit-testing tear-down for DataManager or its members to do (e.g.
+        repository)?
+        '''
+        self._repository._ut_tear_down()

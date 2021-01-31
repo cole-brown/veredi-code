@@ -2318,3 +2318,23 @@ class Engine(LogMixin):
 
     # TODO: Check return values of system ticks and kill off any that are
     # unhealthy too much?
+
+    # -------------------------------------------------------------------------
+    # Unit Testing Helpers
+    # -------------------------------------------------------------------------
+
+    def _ut_set_up(self) -> None:
+        '''
+        Any unit-testing set-up to do?
+        '''
+        # None currently [2021-01-31].
+        # Managers do their own.
+        pass
+
+    def _ut_tear_down(self) -> None:
+        '''
+        Any unit-testing tear-down to do?
+        '''
+        # None currently [2021-01-31].
+        # Managers do their own.
+        pass
