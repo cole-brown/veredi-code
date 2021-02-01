@@ -81,20 +81,27 @@ class BaseRepository(LogMixin, ABC):
         '''
         return self._name
 
+    @property
+    def primary_id(self) -> str:
+        '''
+        The primary id (game/campaign name, likely, for file-tree repo).
+        '''
+        return self._primary_id
+
     # -------------------------------------------------------------------------
     # Context Properties/Methods
     # -------------------------------------------------------------------------
 
     @property
     @abstractmethod
-    def background(self):
+    def background(self) -> None:
         '''
         Data for the Veredi Background context.
         '''
         raise NotImplementedError(f"{self.__class__.__name__}.background() "
                                   "is not implemented.")
 
-    def _make_background(self, dotted_name):
+    def _make_background(self) -> None:
         '''
         Start of the background data.
 
@@ -105,7 +112,7 @@ class BaseRepository(LogMixin, ABC):
           'veredi.repository.file-bare'
         '''
         return {
-            background.Name.DOTTED.key: dotted_name,
+            background.Name.DOTTED.key: self.dotted(),
             background.Name.TYPE.key: self.name,
         }
 
