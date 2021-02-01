@@ -18,38 +18,31 @@ from types import StringTypes
 from pathlib import Path
 
 
+from . import const
+
+
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-PathType = NewType('PathType', Union[str, Path])
-'''Path or string type.'''
-
-PathTypeTuple = (str, Path)
-'''Tuple for 'PathType' checking.'''
-
-PathsInput = NewType('PathsInput',
-                     Union[PathType, Iterable[PathType]])
-'''One or more PathType inputs.'''
 
 
 # -------------------------------Just Functions.-------------------------------
 # --                            Paths In General                             --
 # -----------------------------------------------------------------------------
 
-def cast(*input: PathType) -> Path:
+def cast(*input: const.PathType) -> Path:
     '''
     Ensure that `str_or_path` is a pathlib.Path.
     '''
     return Path(*input)
 
 
-def to_str_list(input: PathsInput) -> str:
+def to_str_list(input: const.PathsInput) -> str:
     '''
     Convert a path or iterable of paths to a list of strings.
     '''
     output = []
-    if isinstance(input, (StringTypes, PathTypeTuple)):
+    if isinstance(input, const.PathTypeTuple):
         output.append(_path_to_str(input))
 
     else:
@@ -59,7 +52,7 @@ def to_str_list(input: PathsInput) -> str:
     return output
 
 
-def to_str(input: PathsInput) -> str:
+def to_str(input: const.PathsInput) -> str:
     '''
     Convert a path or iterable of paths to a single string.
     '''
@@ -78,7 +71,7 @@ def to_str(input: PathsInput) -> str:
 # Helpers
 # -----------------------------------------------------------------------------
 
-def _path_to_str(input: PathType) -> str:
+def _path_to_str(input: const.PathType) -> str:
     '''
     Convert a single PathType to a string.
     '''
