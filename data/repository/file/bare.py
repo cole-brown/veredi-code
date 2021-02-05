@@ -16,6 +16,8 @@ import shutil
 from io import StringIO, TextIOBase
 
 
+from veredi.logger               import log
+
 from veredi.data.config.registry import register
 from veredi.data                 import background
 
@@ -24,8 +26,8 @@ from veredi.data.context         import DataBareContext
 from veredi.data.config.context  import ConfigContext
 
 
-from ..                          import exceptions
-from .                           import base
+from ...                         import exceptions
+from .base                       import FileRepository
 
 
 # -----------------------------------------------------------------------------
@@ -38,11 +40,13 @@ from .                           import base
 # -----------------------------------------------------------------------------
 
 @register('veredi', 'repository', 'file-bare')
-class FileBareRepository(base.BaseRepository):
+class FileBareRepository(FileRepository):
 
     _SANITIZE_KEYCHAIN = ['repository', 'sanitize']
 
     _REPO_NAME = 'file-bare'
+
+    _TEMP_PATH = 'zest-temp'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -51,6 +55,8 @@ class FileBareRepository(base.BaseRepository):
     def __init__(self,
                  config_context: Optional[ConfigContext] = None) -> None:
         super().__init__(self._REPO_NAME, config_context)
+        self._log_start_up(self.dotted(),
+                           "Done with init.")
 
     def _configure(self,
                    context: Optional[ConfigContext]) -> None:
@@ -58,13 +64,33 @@ class FileBareRepository(base.BaseRepository):
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
-        super()._configure(context)
+        # ------------------------------
+        # Have Mom set us up.
+        # ------------------------------
+        # We must not require a Configuration object to complete our set-up...
+        # A Configuration object needs /us/.
+        super()._configure(context, require_config=False)
 
-        # Bare repo doesn't have a root until it loads something from
-        # somewhere. Then that directory is its root.
-        self._root = None
+        # ------------------------------
+        # FileBareRepository Set-Up
+        # ------------------------------
 
-        self._log_debug("Set my root to: {}", self.root)
+        # # ---
+        # # Optional Config! No exception:
+        # # ---
+        # config = background.config.config(self.__class__.__name__,
+        #                                   self.dotted(),
+        #                                   context,
+        #                                   raises_error=False)
+        # # Expect Null() if no config.
+
+        # Nothing unique to FileBareRepository, at the moment.
+
+        # ------------------------------
+        # Done.
+        # ------------------------------
+        self._log_start_up(self.dotted(),
+                           "Done with configuration.")
 
     # -------------------------------------------------------------------------
     # Load / Save Helpers
@@ -95,13 +121,25 @@ class FileBareRepository(base.BaseRepository):
         Turns load/save meta-data in the context into a key we can use to
         retrieve the data.
         '''
-        self._root = context.key.parent
-        # We are a FileBareRepo, and now we know our root (for the time
-        # being...). Put it in our bg data.
-        self._bg['path'] = self._root
-        # And make sure our 'key' (path) is safe to use.
-        if isinstance(context.key, paths.Path):
-            return self._path_safed(*context.key.parts, context=context)
+        if not context.key:
+            raise self._log_exception(
+                self._error_type(context),
+                "Context must have a key: {}",
+                context.key,
+                context=context)
+
+        # Get the path to the file. Should be a full path for
+        # FileBareRepository.
+        key = paths.cast(context.key)
+
+        # Make sure our 'key' (path) is safe to use and is in the temp dir if
+        # needed.
+        key = self._path(*key.parts,
+                         context=context,
+                         ensure=True,
+                         glob=False)
+
+        return key
 
     # -------------------------------------------------------------------------
     # Load Methods

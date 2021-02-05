@@ -56,7 +56,7 @@ class Test_Commander(ZestEcs):
                         #    # repository:
                         #    #   type: veredi.repository.file-tree
                         #    #   directory: ../repository/file-tree
-                        #    #   sanitize: veredi.sanitize.human.path-safe
+                        #    #   sanitize: veredi.paths.sanitize.human
                         #    # serdes: veredi.serdes.yaml
                     },
                     'server': {

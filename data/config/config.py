@@ -158,7 +158,7 @@ class Configuration:
             # Avoid a circular import
             self._repo = config_repo
             if not self._repo:
-                from ..repository.file import FileBareRepository
+                from ..repository.file.bare import FileBareRepository
                 self._repo = FileBareRepository(Null())
             log.start_up(self._DOTTED_NAME,
                          "  Created config's repo: '{}'",

@@ -84,7 +84,7 @@ def retval(path: pathlib.Path) -> Optional[pathlib.Path]:
     if not path.exists():
         msg = f"Path does not exist: {path}"
         error = FileNotFoundError(msg, path)
-        raise log.exception(msg, error)
+        raise log.exception(error, msg)
         return None
     return path
 
@@ -132,6 +132,14 @@ def repository_file_tree(test_type: TestType = TestType.UNIT
     return retval(rooted(test_type, 'repository', 'file-tree'))
 
 
+def repository_file_bare(test_type: TestType = TestType.UNIT
+                         ) -> Optional[pathlib.Path]:
+    '''
+    Returns pathlib.Path to FileBareRepository test data.
+    '''
+    return retval(rooted(test_type, 'repository', 'file-bare'))
+
+
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
@@ -143,21 +151,21 @@ def config(filepath: Union[pathlib.Path, str, None],
     '''
     path = retval(rooted(test_type, 'config'))
     # TODO: group logging for: "if unit_test AND <group> will output..."
-    log.debug(("zpath.config({test_type}): INPUTS: "
-               f"filepath: {filepath}, "
-               f"path: {path}"))
+    log.debug(f"zpath.config({test_type}): INPUTS: "
+              f"filepath: {filepath}, "
+              f"path: {path}")
     if not filepath:
         # TODO: group logging for: "if unit_test AND <group> will output..."
-        log.debug(("zpath.config({test_type}): FINAL VALUES: "
-                   f"No filepath; using default path: {path}"))
+        log.debug("zpath.config({test_type}): FINAL VALUES: "
+                  f"No filepath; using default path: {path}")
         return path
 
     path = path / filepath
     # TODO: group logging for: "if unit_test AND <group> will output..."
-    log.debug(("zpath.config({test_type}): FINAL VALUES: "
-               "Adding filepath... returning: "
-               f"path: {path} "
-               f"retval(): {retval(path)}"))
+    log.debug("zpath.config({test_type}): FINAL VALUES: "
+              "Adding filepath... returning: "
+              f"path: {path} "
+              f"retval(): {retval(path)}")
     return retval(path)
 
 

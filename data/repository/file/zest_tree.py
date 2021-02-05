@@ -32,8 +32,8 @@ from veredi.data.context          import (DataAction,
 from veredi.data.records          import DataType
 
 
-from .file                        import FileTreeRepository
-from .taxon                       import Taxon, SavedTaxon
+from .tree                        import FileTreeRepository
+from ..taxon                      import Taxon, SavedTaxon
 from veredi.rules.d20.pf2.game    import PF2Rank, PF2SavedTaxon
 
 
@@ -71,7 +71,7 @@ class Test_FileTreeRepo(ZestBase):
         self.path = zpath.repository_file_tree()
         self.config = zmake.config()
         self.context = ConfigContext(self.path,
-                                     'veredi.data.repository.zest_file',
+                                     self.dotted(__file__),
                                      id=zpath.config_id(self._TEST_TYPE, None))
 
         # Finish set-up. Inject stuff repo needs to init proper.
@@ -83,7 +83,7 @@ class Test_FileTreeRepo(ZestBase):
 
         # TODO [2020-06-01]: Register these, have config read dotted and
         # get from registry.
-        self.config.ut_inject('veredi.sanitize.human.path-safe',
+        self.config.ut_inject('veredi.paths.sanitize.human',
                               Document.CONFIG,
                               'data',
                               'repository',

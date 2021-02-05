@@ -108,7 +108,7 @@ class TemplateFileTree(TemplateRepository):
             self.root = default_root()
 
         # Use system-defined or set to our defaults.
-        self.fn_path_safing = file_sys_safing_fn or self._to_human_readable
+        self._safing_fn = file_sys_safing_fn or self._to_human_readable
         self.data_serdes = data_serdes or YamlSerdes()
 
     def __str__(self):
@@ -135,13 +135,13 @@ class TemplateFileTree(TemplateRepository):
     # --------------------------------------------------------------------------
 
     def _safe_path(self, root, *args):
-        '''Makes args safe with self.fn_path_safing, then joins them together
+        '''Makes args safe with self._safing_fn, then joins them together
         with root path into a full path string.
 
         '''
         components = []
         for each in args:
-            components.append(self.fn_path_safing(each))
+            components.append(self._safing_fn(each))
 
         return os.path.join(root, *components)
 
