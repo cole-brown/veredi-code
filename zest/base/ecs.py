@@ -450,7 +450,7 @@ class ZestEcs(ZestBase):
                                       'set_all_managers': set_all_managers,
                                       'set_engine': set_engine,
                                   })
-            raise log.exception(msg, error)
+            raise log.exception(error, msg)
 
         # ---
         # Set stuff.

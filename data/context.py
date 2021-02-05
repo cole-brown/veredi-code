@@ -54,6 +54,8 @@ class BaseDataContext(EphemerealContext):
     _KEY = 'key'
     _ACTION = 'action'
 
+    _TO_TEMP = 'temp'
+
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
@@ -107,6 +109,17 @@ class BaseDataContext(EphemerealContext):
         '''
         self.sub[self._ACTION] = action
 
+    @property
+    def temp(self) -> bool:
+        '''
+        Returns the context's temp flag or False.
+        '''
+        # Only DataBareContext and DataSaveContext have temp, currently...
+        # But we can try anyways.
+        ctx = self.sub
+        temp = ctx.get(self._TO_TEMP, False)
+        return temp
+
     # -------------------------------------------------------------------------
     # Repository Helpers
     # -------------------------------------------------------------------------
@@ -153,13 +166,17 @@ class DataBareContext(BaseDataContext):
                  dotted:   str,
                  ctx_name: str,
                  key:      Any,
-                 action:   DataAction) -> None:
+                 action:   DataAction,
+                 temp:     bool = False) -> None:
         '''
         Initialize DataBareContext with `dotted`, `ctx_name`, something called
         '`key`' (right now just a file name to load for config's data...),
         and `load`.
         '''
         super().__init__(dotted, ctx_name, key, action)
+
+        ctx = self.sub
+        ctx[self._TO_TEMP] = temp or False
 
     # -------------------------------------------------------------------------
     # String Helper
@@ -219,14 +236,6 @@ class DataGameContext(BaseDataContext):
         taxon = ctx.get(self._TAXON, None)
         return taxon
 
-    @property
-    def temp(self) -> Optional[Taxon]:
-        '''
-        Returns the context's temp flag or False.
-        '''
-        # Only save has temp, currently...
-        return False
-
 
 class DataLoadContext(DataGameContext):
     '''
@@ -258,8 +267,6 @@ class DataSaveContext(DataGameContext):
     Context for saving data to a repository.
     '''
 
-    _TO_TEMP = 'temp'
-
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
@@ -279,15 +286,6 @@ class DataSaveContext(DataGameContext):
 
         ctx = self.sub
         ctx[self._TO_TEMP] = temp
-
-    @property
-    def temp(self) -> Optional[Taxon]:
-        '''
-        Returns the context's temp flag or False.
-        '''
-        ctx = self.sub
-        temp = ctx.get(self._TO_TEMP, False)
-        return temp
 
     # -------------------------------------------------------------------------
     # Python Funcs (& related)

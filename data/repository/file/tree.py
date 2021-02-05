@@ -30,9 +30,9 @@ from veredi.data.context         import (DataAction,
 from veredi.data.config.context  import ConfigContext
 
 
-from ..                          import exceptions
-from .                           import base
-from .taxon                      import Rank
+from ...                         import exceptions
+from .base                       import FileRepository
+from ..taxon                     import Rank
 
 
 # -----------------------------------------------------------------------------
@@ -45,16 +45,13 @@ from .taxon                      import Rank
 # -----------------------------------------------------------------------------
 
 @register('veredi', 'repository', 'file-tree')
-class FileTreeRepository(base.BaseRepository):
+class FileTreeRepository(FileRepository):
 
     # -------------------------------------------------------------------------
     # Constants
     # -------------------------------------------------------------------------
 
     _REPO_NAME   = 'file-tree'
-
-    _SANITIZE_KEYCHAIN = ['repository', 'sanitize']
-    _PATH_KEYCHAIN = ['repository', 'directory']
 
     # ---
     # Path Names
@@ -71,6 +68,8 @@ class FileTreeRepository(base.BaseRepository):
     def __init__(self,
                  config_context: Optional[ConfigContext] = None) -> None:
         super().__init__(self._REPO_NAME, config_context)
+        self._log_start_up(self.dotted(),
+                           "Done with init.")
 
     def _configure(self,
                    context: Optional[ConfigContext]) -> None:
@@ -78,23 +77,13 @@ class FileTreeRepository(base.BaseRepository):
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
-        config = background.config.config(self.__class__.__name__,
-                                          self.dotted(),
-                                          context)
+        super()._configure(context, require_config=True)
 
-        # Start at ConfigContext's path...
-        self._root = ConfigContext.path(context)
-        # ...add config's repo path on top of it (in case it's a relative path
-        # (pathlib is smart enough to correctly handle when it's not)).
-        self._root = self._root / paths.cast(
-            config.get_data(*self._PATH_KEYCHAIN))
-        # Resolve it to turn into absolute path and remove ".."s and stuff.
-        self._root = self._root.resolve()
+        # No FileTreeRepository config to do at present.
 
-        self._log_start_up(self.dotted(),
-                           "Set root to: {}",
-                           self.root,
-                           log_minimum=log.Level.DEBUG)
+        # config = background.config.config(self.__class__.__name__,
+        #                                   self.dotted(),
+        #                                   context)
 
         self._log_start_up(self.dotted(),
                            "Done with configuration.")
@@ -168,7 +157,7 @@ class FileTreeRepository(base.BaseRepository):
             # Insert our temp dir into the resolved components.
             resolved.insert(self._TEMP_PATH, 0)
 
-        path = self._path(resolved, context, glob=False)
+        path = self._path(resolved, context=context, glob=False)
         return path
 
     # -------------------------------------------------------------------------
