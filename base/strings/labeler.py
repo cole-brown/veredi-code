@@ -8,11 +8,12 @@ Decoration helper for labels.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (Optional, Union, Any, Type, Callable)
+from typing import Optional, Union, Any, Type, Callable
+
 
 from veredi.logger import log
 
-from .label import _DOTTED_NAME, LabelInput, normalize
+from .label        import _DOTTED_NAME, LabelInput, normalize
 
 
 # -------------------------------------------------------------------------
@@ -72,7 +73,7 @@ def tag(*dotted_label: LabelInput) -> Callable[..., Type[Any]]:
         '''
         Decorates class with `_DOTTED` attribute and `dotted()` function.
         '''
-        tag_helper('veredi.base.string.labeler.tag',
+        tag_helper('veredi.base.strings.labeler.tag',
                    '@tag',
                    cls_or_func, dotted_label)
         return cls_or_func

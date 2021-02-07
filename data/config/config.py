@@ -9,7 +9,7 @@ Configuration file reader/writer for Veredi games.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, Mapping, Dict, Tuple)
+                    Optional, Any, Dict)
 from veredi.base.null import Nullable, Null
 if TYPE_CHECKING:
     from veredi.base.context         import VerediContext
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 import pathlib
 
 from veredi.logger          import log
-from veredi.base.string     import label
+from veredi.base.strings    import label
 from veredi.base.exceptions import VerediError
 from veredi.data.context    import DataAction, DataBareContext
 from veredi.base.const      import VerediHealth

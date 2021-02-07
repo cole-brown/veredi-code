@@ -13,11 +13,10 @@ from veredi.base.null import NullNoneOr, is_null
 if TYPE_CHECKING:
     from ..data.manager      import DataManager
 
-import numbers
 from decimal import Decimal
 
 
-from veredi.base.string      import label
+from veredi.base.strings     import label
 from veredi.base.assortments import CurrentNext, DeltaNext
 from veredi.base.context     import UnitTestContext
 from veredi.data             import background

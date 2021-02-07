@@ -10,12 +10,12 @@ Record can have multiple documents, like 'metadata' and 'definition.system'.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, List
+from typing import List
 from veredi.base.null import Null, Nullable
 
 
 from veredi.logger         import log
-from veredi.base.string    import label
+from veredi.base.strings   import label
 
 from .record               import Record
 from ..serdes.adapter.dict import DataDict

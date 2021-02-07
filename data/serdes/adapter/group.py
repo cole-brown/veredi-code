@@ -17,10 +17,10 @@ from collections import abc
 import re
 
 
-from veredi.logger      import log
-from veredi.base.string import text
+from veredi.logger       import log
+from veredi.base.strings import text
 
-from .meta              import MetaMarker, MetaType
+from .meta               import MetaMarker, MetaType
 
 
 # -----------------------------------------------------------------------------

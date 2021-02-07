@@ -8,7 +8,7 @@ Mixins and/or Base/Basic Enum Things
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Type, Dict
+from typing import Optional
 
 
 import enum
@@ -16,7 +16,7 @@ import re
 
 
 from veredi.logger               import log
-from veredi.base.string          import label
+from veredi.base.strings         import label
 from veredi.data.codec.encodable import (Encodable,
                                          EncodedComplex)
 

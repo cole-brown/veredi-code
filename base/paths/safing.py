@@ -19,10 +19,8 @@ import hashlib
 from veredi.logger               import log
 from veredi.data.config.registry import register
 
-from ..string import label
-from . import const, utils
-
-from veredi.base.string          import text
+from ..strings                   import label, text
+from .                           import const, utils
 
 
 # -----------------------------------------------------------------------------

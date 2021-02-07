@@ -46,7 +46,7 @@ from veredi.debug.const        import DebugFlag
 # ------------------------------
 # Veredi Misc
 # ------------------------------
-from veredi.base.string        import label
+from veredi.base.strings       import label
 from veredi.data               import background
 
 

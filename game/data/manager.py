@@ -19,8 +19,8 @@ to go for accessing Game Config/Save (as opposed to Entity/Component) data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Set, Type, Mapping, List
-from veredi.base.null import Null, Nullable, NullNoneOr
+from typing import Optional, Any, Set, Type, Mapping, List
+from veredi.base.null import Nullable, NullNoneOr
 
 
 # ---
@@ -28,7 +28,7 @@ from veredi.base.null import Null, Nullable, NullNoneOr
 # ---
 from veredi.logger                         import log
 
-from veredi.base.string                    import label
+from veredi.base.strings                   import label
 from veredi.base.const                     import VerediHealth
 from veredi.base.exceptions                import VerediError
 from veredi.base.context                   import VerediContext

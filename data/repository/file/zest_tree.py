@@ -22,7 +22,6 @@ from veredi.zest.base.unit        import ZestBase
 
 
 from veredi.logger                import log
-from veredi.data                  import background
 from veredi.base                  import paths
 
 from veredi.base.exceptions       import VerediError
@@ -34,8 +33,6 @@ from veredi.data.config.context   import ConfigContext
 from veredi.data.context          import (DataAction,
                                           DataLoadContext,
                                           DataSaveContext)
-from veredi.data.records          import DataType
-
 
 from .tree                        import FileTreeRepository
 from ..taxon                      import Taxon, SavedTaxon

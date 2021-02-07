@@ -16,7 +16,7 @@ import importlib
 
 
 from veredi.logger             import log
-from veredi.base.string        import label
+from veredi.base.strings       import label
 
 # Configuration Stuff
 from veredi.data.config.config import Configuration

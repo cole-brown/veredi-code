@@ -23,7 +23,7 @@ from abc import abstractmethod
 from veredi.logger              import log
 
 from veredi.base                import paths
-from veredi.base.string         import label
+from veredi.base.strings        import label
 from veredi.data                import background
 from veredi.data.context        import DataAction, BaseDataContext
 from veredi.data.config.context import ConfigContext

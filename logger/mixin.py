@@ -18,7 +18,7 @@ lumberjack.
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any, Type, MutableMapping, Iterable)
 if TYPE_CHECKING:
-    from veredi.base.context    import VerediContext
+    from veredi.base.context import VerediContext
 
 
 # # ------------------------------
@@ -31,9 +31,9 @@ import logging as py_logging
 # ------------------------------
 # Veredi Logging & Stuff
 # ------------------------------
-from veredi.base.string import label
-from .                  import log
-from .lumberjack        import Lumberjack
+from veredi.base.strings import label
+from .                   import log
+from .lumberjack         import Lumberjack
 
 
 # -----------------------------------------------------------------------------

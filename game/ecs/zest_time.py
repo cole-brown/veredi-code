@@ -16,7 +16,7 @@ from veredi.logger         import log
 from veredi.zest.base.unit import ZestBase
 from veredi.base.context   import UnitTestContext
 
-from veredi.base.string    import label
+from veredi.base.strings   import label
 from veredi                import time
 
 from .time                 import TimeManager
