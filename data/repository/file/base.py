@@ -205,20 +205,23 @@ class FileRepository(BaseRepository):
             self._log_start_up(self.dotted(),
                                "Getting path-safing from config...",
                                log_minimum=log.Level.DEBUG)
-            path_safing = config.get_data(*self._SANITIZE_KEYCHAIN)
-            if path_safing:
+            path_safing_dotted = config.get_data(*self._SANITIZE_KEYCHAIN)
+            self._log_start_up(self.dotted(),
+                               "Getting path-safing registered "
+                               "function '{}'...",
+                               path_safing_dotted,
+                               log_minimum=log.Level.DEBUG)
+            path_safing_fn = config.get_registered(path_safing_dotted,
+                                                   context)
+            if not path_safing_fn:
+                # Well - nothing more to try; this is a fail.
+                msg = ("Failed to get a path-safing function "
+                       "from our configuration!")
                 self._log_start_up(self.dotted(),
-                                   "Getting path-safing registered "
-                                   "function '{}'...",
-                                   path_safing,
-                                   log_minimum=log.Level.DEBUG)
-                path_safing_fn = config.get_registered(path_safing,
-                                                       context)
-            else:
-                self._log_start_up(self.dotted(),
-                                   "No path-safing in config.",
-                                   path_safing,
-                                   log_minimum=log.Level.DEBUG)
+                                   msg,
+                                   path_safing_dotted,
+                                   log_minimum=log.Level.ERROR)
+                raise background.config.exception(context, msg)
 
         # Ok - set what we decided on.
         self._safing_fn = path_safing_fn
