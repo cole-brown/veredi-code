@@ -11,7 +11,7 @@ A Record Class can have multiple documents, like 'metadata' and 'game.record'.
 # -----------------------------------------------------------------------------
 
 from typing import (Union, Any, Protocol, NewType,
-                    Iterable, Mapping, Dict, List, Tuple)
+                    Iterable, Mapping, Dict, Tuple)
 from veredi.base.null import Null, Nullable, is_null
 
 
@@ -22,7 +22,7 @@ import itertools
 
 from veredi.logger                import log
 
-from veredi.base.string           import label, text
+from veredi.base.strings          import label, text
 from veredi.data.config.hierarchy import Hierarchy
 from ..serdes.adapter.dict        import DataDict, DDKey
 

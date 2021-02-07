@@ -18,7 +18,7 @@ from decimal import Decimal
 from veredi.logger               import log
 
 from veredi.base.context         import VerediContext, UnitTestContext
-from veredi.base.string          import label
+from veredi.base.strings         import label
 from veredi.base                 import numbers
 
 from veredi.data                 import background

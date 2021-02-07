@@ -16,7 +16,7 @@ from typing import Tuple
 from collections import abc
 import enum
 
-from veredi.base.string import text
+from veredi.base.strings import text
 
 
 # -----------------------------------------------------------------------------

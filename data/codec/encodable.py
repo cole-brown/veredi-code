@@ -20,7 +20,7 @@ import re
 
 from veredi.logger         import log, pretty
 from veredi.base.registrar import CallRegistrar, RegisterType
-from veredi.base.string    import label
+from veredi.base.strings   import label
 from veredi.base           import numbers
 
 from ..exceptions          import EncodableError

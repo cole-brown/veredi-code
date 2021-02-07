@@ -8,13 +8,13 @@ Taxonomic ranking for identifying things to be loaded by a repository.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, List, Dict
+from typing import Any, List, Dict
 
 
 import enum
 
 
-from veredi.base.string import label
+from veredi.base.strings import label
 
 
 # -----------------------------------------------------------------------------

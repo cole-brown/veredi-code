@@ -30,8 +30,9 @@ import math
 import enum
 from types import TracebackType
 
+
 from veredi.base.null       import Null, Nullable, NullNoneOr, null_or_none
-from veredi.base.string     import label
+from veredi.base.strings    import label
 from veredi.base.exceptions import VerediError
 
 from . import pretty

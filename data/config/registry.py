@@ -10,12 +10,14 @@ Bit of a Factory thing going on here...
 
 from typing import Optional, Union, Type, Any, Callable
 
-from veredi.logger import log
-from .. import background
-from ..exceptions import RegistryError, ConfigError
-from veredi.base.string import label
-from veredi.base.string import labeler
+
+from veredi.logger       import log
+from ..                  import background
+from ..exceptions        import RegistryError, ConfigError
+from veredi.base.strings import label
+from veredi.base.strings import labeler
 from veredi.base.context import VerediContext
+
 
 # -----------------------------------------------------------------------------
 # Constants
