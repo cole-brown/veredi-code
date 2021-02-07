@@ -8,31 +8,24 @@ Tests for the FileBareRepository.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
-
-
 from io import TextIOBase
 import shutil
 
 from veredi.zest                  import zpath
-from veredi.zest                  import zmake
 from veredi.zest.base.unit        import ZestBase
 
 
 from veredi.logger                import log
 from veredi.data                  import background
 from veredi.base                  import paths
-from veredi.base.null             import Null
 
 from veredi.base.exceptions       import VerediError
 from veredi.data.exceptions       import LoadError, SaveError
 from veredi.zest.exceptions       import UnitTestError
 
-from veredi.data.config.hierarchy import Document
 from veredi.data.config.context   import ConfigContext
 from veredi.data.context          import (DataAction,
                                           DataBareContext)
-from veredi.data.records          import DataType
 
 
 from .bare                        import FileBareRepository
@@ -62,7 +55,8 @@ class Test_FileBareRepo(ZestBase):
         # Paths
         # ---
         # Note: 'config.test-bare.yaml' isn't in the usual
-        # config-file-for-tests spot (zpath.config()). It's in zpath.repository_file_bare().
+        # config-file-for-tests spot (zpath.config()). It's in
+        # zpath.repository_file_bare().
         self.root = zpath.repository_file_bare()
         self.filename = 'config.test-bare.yaml'
         self.path_file = self.root / self.filename
@@ -185,6 +179,7 @@ class Test_FileBareRepo(ZestBase):
         self.assertNotEqual(globbed_full, self.path_file)
         self.assertNotEqual(globbed_full.suffix, self.path_file.suffix)
         self.assertEqual(globbed_full.suffix, '.*')
+        self.assertEqual(globbed_full.stem, self.path_file.stem)
 
     def test_path_temp(self) -> None:
         # Test out our FileBareRepository._path_temp() function that we'll be
@@ -438,8 +433,8 @@ class Test_FileBareRepo(ZestBase):
         return None
 
     def test_path_save(self) -> None:
-        # Test that `_path()` returns a safe path (globbed if needed, ensured if
-        # needed).
+        # Test that `_path()` returns a safe path (globbed if needed, ensured
+        # if needed).
         self._set_up_repo()
 
         action = DataAction.SAVE
@@ -496,8 +491,8 @@ class Test_FileBareRepo(ZestBase):
         self._tear_down_repo()
 
     def test_path_load(self) -> None:
-        # Test that `_path()` returns a safe path (globbed if needed, ensured if
-        # needed).
+        # Test that `_path()` returns a safe path (globbed if needed, ensured
+        # if needed).
         self._set_up_repo()
 
         action = DataAction.SAVE
@@ -612,6 +607,19 @@ class Test_FileBareRepo(ZestBase):
 
         self._tear_down_repo()
 
+    def _helper_data_stream(self,
+                            stream:  TextIOBase,
+                            min_len: int) -> str:
+        '''
+        Read a file's contents with pathlib/Python and verify against inputs.
+        '''
+        stream.seek(0)
+        data = stream.read()
+        self.assertTrue(data)
+        self.assertIsInstance(data, str)
+        self.assertGreater(len(data), min_len)
+        return data
+
     def _helper_file_contents(self,
                               path:           paths.Path,
                               min_len:        int,
@@ -658,13 +666,10 @@ class Test_FileBareRepo(ZestBase):
             self.assertTrue(repo_stream)
             self.assertIsInstance(repo_stream, TextIOBase)
 
-            data = repo_stream.read()
-            self.assertTrue(data)
-            self.assertIsInstance(data, str)
             # There should be a good amount of data in that file.
             # As of [2021-02-02], it's ~1.5 kB in size, so:
             min_len = 1024
-            self.assertGreater(len(data), min_len)
+            data = self._helper_data_stream(repo_stream, min_len)
 
             # And again using python to get something to check.
             self._helper_file_contents(self.path_file, min_len, data)
@@ -672,8 +677,8 @@ class Test_FileBareRepo(ZestBase):
         self._tear_down_repo()
 
     def test_save(self) -> None:
-        # Use repository to load a file, save it to the temp unit-testing place,
-        # then check original vs saved.
+        # Use repository to load a file, save it to the temp unit-testing
+        # place, then check original vs saved.
         self._set_up_repo()
 
         load_ctx = DataBareContext(self.dotted(__file__),
@@ -691,13 +696,10 @@ class Test_FileBareRepo(ZestBase):
             self.assertTrue(repo_stream)
             self.assertIsInstance(repo_stream, TextIOBase)
 
-            data = repo_stream.read()
-            self.assertTrue(data)
-            self.assertIsInstance(data, str)
             # There should be a good amount of data in that file.
             # As of [2021-02-02], it's ~1.5 kB in size, so:
             min_len = 1024
-            self.assertGreater(len(data), min_len)
+            data = self._helper_data_stream(repo_stream, min_len)
 
             # ------------------------------
             # Save data to temp.
@@ -719,29 +721,6 @@ class Test_FileBareRepo(ZestBase):
             self._helper_file_contents(self.path_temp_file, min_len, data)
 
         self._tear_down_repo()
-
-
-    # #         todo check save
-    # #         # Now
-    # #         save_path =
-    # #         with self.path_file.open('r') as file_stream:
-    # #             # ---
-    # #             # Do the checks of this stream.
-    # #             # ---
-    # #             self.assertTrue(file_stream)
-    # #             self.assertIsInstance(file_stream, TextIOBase)
-
-    # #             check = file_stream.read()
-    # #             self.assertTrue(check)
-    # #             self.assertIsInstance(check, str)
-    # #             self.assertGreater(len(check), min_len)
-
-    # #             # ---
-    # #             # Verify our repo read & returned the same data.
-    # #             # ---
-    # #             self.assertEqual(len(data), len(check))
-    # #             self.addTypeEqualityFunc(str, self.assertMultiLineEqual)
-    # #             self.assertEqual(data, check)
 
 
 # --------------------------------Unit Testing---------------------------------

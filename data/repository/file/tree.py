@@ -93,8 +93,8 @@ class FileTreeRepository(FileRepository):
     # -------------------------------------------------------------------------
 
     def _context_data(self,
-                      context: DataGameContext,
-                      paths:   paths.PathsInput) -> DataGameContext:
+                      context:   DataGameContext,
+                      filepaths: paths.PathsInput) -> DataGameContext:
         '''
         Inject our repository, path, and any other desired data into the
         context. In the case of file repositories, include the file path.
@@ -127,7 +127,7 @@ class FileTreeRepository(FileRepository):
             'meta': meta,
             # And add any extra info.
             'action': action,
-            'paths': paths.to_str_list(paths),
+            'paths': paths.to_str_list(filepaths),
         }
         return context
 
@@ -155,9 +155,11 @@ class FileTreeRepository(FileRepository):
         # Should we be in the temp dir for this?
         if context.temp:
             # Insert our temp dir into the resolved components.
-            resolved.insert(self._TEMP_PATH, 0)
+            resolved.insert(0, self._TEMP_PATH)
 
-        path = self._path(resolved, context=context, glob=False)
+        # Do globbing search for loads; saves use exact file name.
+        glob = (context.action == DataAction.LOAD)
+        path = self._path(*resolved, context=context, glob=glob)
         return path
 
     # -------------------------------------------------------------------------
@@ -184,10 +186,10 @@ class FileTreeRepository(FileRepository):
         # ------------------------------
         # Sanity
         # ------------------------------
-        # Error if we found more than one match.
+        # Error if we found not-exactly-one match.
         if not matches:
             # We found nothing.
-            self._context_data(context, matches, DataAction.LOAD)
+            self._context_data(context, matches)
             raise self._log_exception(
                 self._error_type(context),
                 f"No matches for loading file: "
@@ -196,7 +198,7 @@ class FileTreeRepository(FileRepository):
                 context=context)
         elif len(matches) > 1:
             # Throw all matches into context for error.
-            self._context_load_data(context, matches, DataAction.LOAD)
+            self._context_data(context, matches)
             raise self._log_exception(
                 self._error_type(context),
                 f"Too many matches for loading file: "
