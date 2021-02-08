@@ -604,9 +604,10 @@ class WebSocketServer(WebSocketMediator):
         '''
         Make a context with our context data, our serdes, etc.
         '''
+        serdes_ctx, _ = self._serdes.background
         ctx = MediatorServerContext(self.dotted(),
                                     type='websocket.server',
-                                    serdes=self._serdes.make_context_data(),
+                                    serdes=serdes_ctx,
                                     conn=connection)
         return ctx
 

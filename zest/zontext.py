@@ -27,7 +27,7 @@ from veredi.base.context        import VerediContext, UnitTestContext
 
 def empty(klass_name:   str,
           func_name:    str,
-          context_type: Type[VerediContext] = UnitTestContext
+          context_type: Type[VerediContext],
           ) -> VerediContext:
     '''
     `klass_name` and `func_name` should be caller - they are supplied to

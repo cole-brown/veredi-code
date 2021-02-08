@@ -93,9 +93,9 @@ class Test_IdentityManager(ZestEcs):
 
     def identity_request_code(self, entity, id_data):
         context = UnitTestContext(
-            self.__class__.__name__,
-            'identity_request',
-            {})  # no initial sub-context
+            __file__,
+            self,
+            'identity_request_code')  # no initial sub-context
 
         event = CodeIdentityRequest(
             entity.id,

@@ -111,9 +111,9 @@ class Test_InputSystem(ZestSystem):
         # self.manager.entity.creation(self.manager.time)
 
         context = UnitTestContext(
-            self.__class__.__name__,
-            'identity_request',
-            {})  # no initial sub-context
+            __file__,
+            self,
+            'create_entity')  # no initial sub-context
 
         # Request our dude get an identity assigned via code.
         event = CodeIdentityRequest(
@@ -151,9 +151,9 @@ class Test_InputSystem(ZestSystem):
         self.assertTrue(IdentityComponent in entity)
 
         context = UnitTestContext(
-            self.__class__.__name__,
-            'input-event',
-            {})  # no initial sub-context
+            __file__,
+            self,
+            'test_input_cmd')  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(

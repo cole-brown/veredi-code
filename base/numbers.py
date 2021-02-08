@@ -116,3 +116,14 @@ def to_float(input: DecimalTypes) -> float:
     Converts the input to a Float and returns it.
     '''
     return float(input)
+
+
+# -----------------------------------------------------------------------------
+# Serialization
+# -----------------------------------------------------------------------------
+
+def serialize_claim(input: Any) -> bool:
+    '''
+    Return True if the input is a number and we can 'serialize' it.
+    '''
+    return is_number(input)

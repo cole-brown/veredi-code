@@ -255,7 +255,8 @@ class WebSocketClient(WebSocketMediator):
         '''
         ctx = MediatorClientContext(self.dotted())
         ctx.sub['type'] = 'websocket.client'
-        ctx.sub['serdes'] = self._serdes.make_context_data()
+        serdes_ctx, _ = self._serdes.background
+        ctx.sub['serdes'] = serdes_ctx
         return ctx
 
     def make_msg_context(self, id: MonotonicId) -> MessageContext:

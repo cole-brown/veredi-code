@@ -23,7 +23,7 @@ Alot of Outputs.
 # Typing
 # ---
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Type, Callable, Set, List)
+                    Optional, Union, Type, Callable, Set, List, Dict, Tuple)
 if TYPE_CHECKING:
     from decimal                   import Decimal
 
@@ -177,7 +177,7 @@ class OutputSystem(System):
         self._ut_recv_fn = None
 
     @property
-    def _background(self):
+    def _background(self) -> Tuple[Dict[str, str], background.Ownership]:
         '''
         Get background data for background.output.set().
         '''

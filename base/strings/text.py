@@ -29,3 +29,14 @@ def normalize(input: Any) -> str:
     normalize = string.strip()
     normalize = normalize.lower()
     return normalize
+
+
+# -----------------------------------------------------------------------------
+# Serialization
+# -----------------------------------------------------------------------------
+
+def serialize_claim(input: Any) -> bool:
+    '''
+    Return True if the input is a string and we can 'serialize' it.
+    '''
+    return isinstance(input, str)

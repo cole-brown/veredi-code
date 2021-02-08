@@ -24,7 +24,7 @@ from veredi.base.strings   import label
 from veredi.base           import numbers
 
 from ..exceptions          import EncodableError
-
+from .const                import EncodedComplex, EncodedSimple, EncodedEither
 
 # -----------------------------------------------------------------------------
 # Exports
@@ -60,18 +60,6 @@ __all__ = [
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# ---
-# Input Types
-# ---
-# Any Encodable subclass.
-
-# ---
-# Output Types
-# ---
-EncodedComplex  = NewType('EncodedComplex', Mapping[str, str])
-EncodedSimple   = NewType('EncodedSimple',  str)
-EncodedEither   = Union[EncodedComplex, EncodedSimple]
 
 
 # -----------------------------------------------------------------------------

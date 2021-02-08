@@ -10,7 +10,7 @@ Aka JSON Serdes.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Mapping, Dict, List, TextIO)
+                    Optional, Union, Any, Mapping, Dict, List, Tuple, TextIO)
 from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
@@ -44,7 +44,15 @@ from ..base                      import (BaseSerdes,
 
 @register('veredi', 'serdes', 'json')
 class JsonSerdes(BaseSerdes):
+    '''
+    Uses Python's json library to serialize/deserialize the JSON format.
+    '''
+
     _SERDES_NAME   = 'json'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def __init__(self,
                  context: Optional['ConfigContext'] = None) -> None:
@@ -53,41 +61,16 @@ class JsonSerdes(BaseSerdes):
 
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:
-        '''Don't need anything from context, currently.'''
-        self._make_background()
+        '''Config from context and elsewhere.'''
+        super()._configure(context)
+
+        # Nothing specific for us to do.
 
     # -------------------------------------------------------------------------
     # Background & Context
     # -------------------------------------------------------------------------
 
-    def _make_background(self) -> None:
-        self._bg = super()._make_background(self.dotted())
-
-    @property
-    def background(self):
-        '''
-        Data for the Veredi Background context.
-
-        Returns: (data, background.Ownership)
-        '''
-        return self._bg, background.Ownership.SHARE
-
-    def _context_data(self,
-                      context: 'VerediContext',
-                      action:  DataAction) -> 'VerediContext':
-        '''
-        Inject our serdes data into the context.
-        '''
-        key = str(background.Name.SERDES)
-        meta, _ = self.background
-        context[key] = {
-            # Push our context data into our sub-context key.
-            'meta': meta,
-            # And add any extra info.
-            'action': action,
-        }
-
-        return context
+    # None to add/override.
 
     # -------------------------------------------------------------------------
     # Deserialize Methods

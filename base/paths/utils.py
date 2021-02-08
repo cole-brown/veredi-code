@@ -8,6 +8,7 @@ Path/pathlib Helpers
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Any
 from ..null import NullNoneOr, is_null
 
 # For letting users of this module have access to Path type without importing
@@ -148,3 +149,14 @@ def _path_to_str(input: const.PathType) -> str:
     Convert a single PathType to a string.
     '''
     return str(input)
+
+
+# -----------------------------------------------------------------------------
+# Serialization
+# -----------------------------------------------------------------------------
+
+def serialize_claim(input: Any) -> bool:
+    '''
+    Return True if the input is a path and we can 'serialize' it to a str.
+    '''
+    return isinstance(input, Path)

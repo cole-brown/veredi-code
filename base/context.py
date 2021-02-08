@@ -8,7 +8,11 @@ Helper classes for managing contexts for events, error messages, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Type, MutableMapping, Dict, Literal
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Any, Type, MutableMapping, Dict, Literal)
+if TYPE_CHECKING:
+    from unittest import TestCase
+
 from veredi.base.null import Null, Nullable, NullNoneOr
 import enum
 import uuid
@@ -637,14 +641,20 @@ class EphemerealContext(VerediContext):
 
 class UnitTestContext(EphemerealContext):
     def __init__(self,
-                 test_class:       str,
+                 test_file:        str,
+                 test_case:       'TestCase',
                  test_name:        str,
-                 data:             MutableMapping[str, Any],
+                 data:             MutableMapping[str, Any] = {},
                  starting_context: MutableMapping[str, Any] = None) -> None:
         '''
-        Initialize Context with test class/name.
+        Initialize Context with test class/name. e.g.:
+
+        context = UnitTestContext(__file__,
+                                  self,
+                                  'test_something',
+                                  data={...})
         '''
-        super().__init__(test_class + '.' + test_name,
+        super().__init__(test_case.__class__.__name__ + '.' + test_name,
                          'unit-testing')
 
         # Set starting context.
@@ -652,6 +662,8 @@ class UnitTestContext(EphemerealContext):
             self.data = starting_context
         else:
             self.data = {}
+
+        self.data['dotted'] = test_case.dotted(test_file)
 
         # Ensure our sub-context and ingest the provided data.
         sub = self._ensure()

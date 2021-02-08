@@ -8,12 +8,12 @@ Parse strings into timestamps or durations, and possibly vice versa.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any
+from typing import Optional, Union, Any
 
 import re
 from decimal       import Decimal
 
-from datetime      import timedelta
+from datetime      import timedelta, date, datetime
 
 
 from veredi.base   import numbers
@@ -148,3 +148,22 @@ def to_float(input: Any) -> float:
 
     # Else just try to cast.
     return float(input)
+
+
+# -----------------------------------------------------------------------------
+# Serialization
+# -----------------------------------------------------------------------------
+
+def serialize_claim(input: Any) -> bool:
+    '''
+    Return True if the input is a time and we can 'serialize' it to a str.
+    '''
+    # Others? Timedelta?
+    return isinstance(input, (datetime, date))
+
+
+def serialize(input: Union[datetime, date]) -> str:
+    '''
+    'Serialize' input by making sure it's a string.
+    '''
+    return input.isoformat()

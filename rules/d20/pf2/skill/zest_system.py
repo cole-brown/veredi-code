@@ -88,11 +88,9 @@ class Test_SkillSystem(ZestSystem):
 
     def skill_request(self, entity, skill):
         context = UnitTestContext(
-            self.__class__.__name__,
-            'skill_request',
-            {})  # no initial sub-context
-        # ctx = self.context.spawn(EphemerealContext,
-        #                          'unit-testing', None)
+            __file__,
+            self,
+            'skill_request')  # no initial sub-context
 
         event = SkillRequest(
             entity.id,

@@ -136,9 +136,9 @@ class Test_InputCmd_SkillCheck(ZestIntegrateEcs):
 
         # Ok... test the skill command.
         context = UnitTestContext(
-            self.__class__.__name__,
-            'input-event',
-            {})  # no initial sub-context
+            __file__,
+            self,
+            'test_skill_cmd')  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(

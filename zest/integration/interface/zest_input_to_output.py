@@ -218,9 +218,9 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
 
         # Ok... test the ability command.
         context = UnitTestContext(
-            self.__class__.__name__,
-            'input-event',
-            {})  # no initial sub-context
+            __file__,
+            self,
+            'test_input_to_output')  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(

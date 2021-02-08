@@ -10,7 +10,7 @@ various backend implementations (db, file, etc).
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Type)
+                    Optional, Union, Any, Type, Dict, Tuple)
 if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
@@ -94,7 +94,7 @@ class BaseRepository(LogMixin, ABC):
 
     @property
     @abstractmethod
-    def background(self) -> None:
+    def background(self) -> Tuple[Dict[str, str], background.Ownership]:
         '''
         Data for the Veredi Background context.
         '''
