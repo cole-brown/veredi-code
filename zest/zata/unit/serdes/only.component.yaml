@@ -1,0 +1,46 @@
+# This is just test data; it's not a real/final/actual health component data or metadata.
+# I just wanted something relatively non-simple for testing serdes.
+
+--- !component
+
+meta:
+  registry: veredi.unit-test.health
+
+health:
+  # Tracks current hit point amounts.
+  current:
+    hit-points: ${sum(${health.current.*})}
+    permanent: 35
+    temporary: 11
+
+  # Tracks maximums from e.g. leveling, monster templates, etc.
+  maximum:
+    class:
+      - angry-unschooled-fighter: 1
+        hit-points: 12
+      - angry-unschooled-fighter: 2
+        hit-points: 9
+      - monastery-student: 3
+        hit-points: 2
+      - angry-unschooled-fighter: 4
+        hit-points: 12
+
+    level:
+      - angry-unschooled-fighter: [1, 4]
+        hit-points: 2
+
+    hit-points: ${sum(${health.maximum.*.hit-points})}
+
+  # Threshold value for falling unconscious.
+  unconscious:
+    hit-points: 0
+
+  # Threshold value for actually dying.
+  death:
+    hit-points: -${min(0, ${ability.constitution.score})}
+
+  # Tracks resistance to damage types in order to subtract from damage taken.
+  resistance:
+    piercing: 1
+    bludgeoning: 1
+    slashing: 1

@@ -138,9 +138,10 @@ class Test_ComponentManager(ZestBase):
                          ComponentId.INVALID.value)
 
         context = UnitTestContext(
-            self.__class__.__name__,
+            __file__,
+            self,
             'test_create_args',
-            {'unit-test-args': {'x': 1, 'y': 2}})
+            data={'unit-test-args': {'x': 1, 'y': 2}})
 
         cid = self.comp_mgr.create(CompTwo, context)
         self.assertNotEqual(cid, ComponentId.INVALID)

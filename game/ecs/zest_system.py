@@ -224,11 +224,12 @@ class Test_SystemManager(ZestBase):
 
     def create_system(self, sys_type, **kwargs):
         context = UnitTestContext(
-            self.__class__.__name__,
-            'test_create',
-            {}
-            if not kwargs else
-            {'system': kwargs})
+            __file__,
+            self,
+            'create_system',
+            data=({}
+                  if not kwargs else
+                  {'system': kwargs}))
 
         sid = self.system_mgr.create(sys_type,
                                      context)

@@ -11,17 +11,19 @@ Aka ___ Serializer/Deserializer.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union,
-                    NewType, Any, Iterable, Mapping, List, Dict, TextIO)
+                    Optional, Union, NewType, Any,
+                    Iterable, Mapping, List, Dict, Tuple, TextIO)
 if TYPE_CHECKING:
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
+    from veredi.data.context        import DataAction
 
 
 from abc import ABC, abstractmethod
 from io import StringIO
 
 
+from veredi.data       import background
 from ..codec.encodable import Encodable
 
 
@@ -42,9 +44,6 @@ SerializeTypes = NewType('SerializeTypes',
                                None])
 '''Serdes can serialize these types.'''
 
-# TODO [2020-11-30]: ReadTypes/WriteTypes for _read(_all) and _write(_all)
-# functions?
-
 
 # -----------------------------------------------------------------------------
 # Code
@@ -53,6 +52,21 @@ SerializeTypes = NewType('SerializeTypes',
 # Subclasses, register like this:
 # @register('veredi', 'serdes', 'SerdesSubclass')
 class BaseSerdes(ABC):
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        self._name: str = None
+        '''The name of the repository.'''
+
+        self._bg: Dict[Any, Any] = {}
+        '''Our background context data that is shared to the background.'''
+
     def __init__(self,
                  serdes_name:    str,
                  config_context: Optional['VerediContext'] = None) -> None:
@@ -62,9 +76,20 @@ class BaseSerdes(ABC):
 
         `config_context` is the context being used to set us up.
         '''
+        self._define_vars()
+
         self._name = serdes_name.lower()
 
         self._configure(config_context)
+
+    def _configure(self,
+                   context: Optional['ConfigContext']) -> None:
+        '''
+        Do whatever configuration we can as the base class; sub-classes should
+        finish up whatever is needed to set up themselves.
+        '''
+        # Set up our background for when it gets pulled in.
+        self._make_background()
 
     # -------------------------------------------------------------------------
     # Serdes Properties/Methods
@@ -83,15 +108,15 @@ class BaseSerdes(ABC):
     # -------------------------------------------------------------------------
 
     @property
-    @abstractmethod
-    def background(self):
+    def background(self) -> Tuple[Dict[str, str], background.Ownership]:
         '''
         Data for the Veredi Background context.
-        '''
-        raise NotImplementedError(f"{self.__class__.__name__}.background() "
-                                  "is not implemented.")
 
-    def _make_background(self, dotted_name):
+        Returns: (data, background.Ownership)
+        '''
+        return self._bg, background.Ownership.SHARE
+
+    def _make_background(self) -> Dict[str, str]:
         '''
         Start of the background data.
 
@@ -101,69 +126,69 @@ class BaseSerdes(ABC):
         `dotted_name` is:
           'veredi.repository.file-bare'
         '''
-        return {
-            'dotted': dotted_name,
-            'type': self.name,
-        }
-
-    def make_context_data(self) -> Mapping[str, str]:
-        '''
-        Returns context data for inserting into someone else's context.
-        '''
-        return {
+        self._bg = {
             'dotted': self.dotted(),
             'type': self.name,
         }
+        return self._bg
 
-    # -------------------------------------------------------------------------
-    # Abstract Methods
-    # -------------------------------------------------------------------------
-
-    @abstractmethod
-    def _configure(self,
-                   context: Optional['ConfigContext']) -> None:
+    def _context_data(self,
+                      context: 'VerediContext',
+                      action:  'DataAction') -> 'VerediContext':
         '''
-        Allows serdess to grab anything from the config data that they need to
-        set up themselves.
+        Inject our serdes data into the context.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}._configure() "
-                                  "is not implemented.")
+        key = str(background.Name.SERDES)
+        meta, _ = self.background
+        context[key] = {
+            # Push our context data into our sub-context key.
+            'meta': meta,
+            # And add any extra info.
+            'action': action,
+        }
+
+        return context
 
     # -------------------------------------------------------------------------
-    # Abstract: Decode Methods
+    # Abstract: Deserialize Methods
     # -------------------------------------------------------------------------
 
     @abstractmethod
     def deserialize(self,
-                    stream: Union[TextIO, str],
+                    stream:  Union[TextIO, str],
                     context: 'VerediContext') -> DeserializeTypes:
-        '''Read and deserializes a single document from the data stream.
+        '''
+        Read and deserializes a single document from the data stream.
 
         Raises:
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.deserialize() "
-                                  "is not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.deserialize() "
+            "is not implemented.")
 
     @abstractmethod
     def deserialize_all(self,
-                        stream: Union[TextIO, str],
+                        stream:  Union[TextIO, str],
                         context: 'VerediContext') -> DeserializeTypes:
-        '''Read and deserializes all documents from the data stream.
+        '''
+        Read and deserializes all documents from the data stream.
 
         Raises:
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.deserialize_all() "
-                                  "is not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.deserialize_all() "
+            "is not implemented.")
 
     @abstractmethod
     def _read(self,
-              stream: Union[TextIO, str],
+              stream:  Union[TextIO, str],
               context: 'VerediContext') -> Any:
-        '''Read data from a single data stream.
+        '''
+        Read data from a single data stream.
 
         Returns:
           Based on subclass.
@@ -172,14 +197,16 @@ class BaseSerdes(ABC):
           - exceptions.ReadError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}._read() "
-                                  "is not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}._read() "
+            "is not implemented.")
 
     @abstractmethod
     def _read_all(self,
-                  stream: Union[TextIO, str],
+                  stream:  Union[TextIO, str],
                   context: 'VerediContext') -> Any:
-        '''Read data from a single data stream.
+        '''
+        Read data from a single data stream.
 
         Returns:
           Based on subclass.
@@ -188,8 +215,9 @@ class BaseSerdes(ABC):
           - exceptions.ReadError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}._read_all() "
-                                  "is not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}._read_all() "
+            "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Abstract: Serialize Methods
@@ -197,35 +225,40 @@ class BaseSerdes(ABC):
 
     @abstractmethod
     def serialize(self,
-                  data: SerializeTypes,
+                  data:    SerializeTypes,
                   context: 'VerediContext') -> StringIO:
-        '''Write and serializes a single document from the data stream.
+        '''
+        Write and serializes a single document from the data stream.
 
         Raises:
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.serialize() "
-                                  "is not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.serialize() "
+            "is not implemented.")
 
     @abstractmethod
     def serialize_all(self,
-                      data: SerializeTypes,
+                      data:    SerializeTypes,
                       context: 'VerediContext') -> StringIO:
-        '''Write and serializes all documents from the data stream.
+        '''
+        Write and serializes all documents from the data stream.
 
         Raises:
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.serialize_all() "
-                                  "is not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}.serialize_all() "
+            "is not implemented.")
 
     @abstractmethod
     def _write(self,
-               data: Mapping[str, Any],
+               data:    Mapping[str, Any],
                context: 'VerediContext') -> Any:
-        '''Write data from a single data stream.
+        '''
+        Write data from a single data stream.
 
         Returns:
           Based on subclass.
@@ -234,14 +267,16 @@ class BaseSerdes(ABC):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}._write() "
-                                  "is not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}._write() "
+            "is not implemented.")
 
     @abstractmethod
     def _write_all(self,
-                   data: Mapping[str, Any],
+                   data:    Mapping[str, Any],
                    context: 'VerediContext') -> Any:
-        '''Write data from a single data stream.
+        '''
+        Write data from a single data stream.
 
         Returns:
           Based on subclass.
@@ -250,5 +285,6 @@ class BaseSerdes(ABC):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}._write_all() "
-                                  "is not implemented.")
+        raise NotImplementedError(
+            f"{self.__class__.__name__}._write_all() "
+            "is not implemented.")

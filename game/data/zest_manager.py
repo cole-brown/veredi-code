@@ -388,9 +388,12 @@ class BaseTest_DataManager_Serdes(BaseTest_DataManager):
                 42,
                 0xDEADBEEF,
                 UnitTestContext(
-                    self.__class__.__name__,
-                    'test_event_load',
-                    {'unit-testing': "string 'test-data' in zest_manager.py"}),
+                    __file__,
+                    self,
+                    'test_deserialize',
+                    data={
+                        'unit-testing': "string 'test-data' in zest_manager.py"
+                    }),
                 data=stream)
             self.assertTrue(event)
             self.manager.event.notify(event, True)
@@ -466,9 +469,10 @@ class Test_DataManager_ToGame(BaseTest_DataManager):
         self.set_up_events(clear_self=True, clear_manager=True)
 
         ctx = UnitTestContext(
-            self.__class__.__name__,
+            __file__,
+            self,
             'test_event_loaded',
-            {'unit-testing': "Manually created _DeserializedEvent."})
+            data={'unit-testing': "Manually created _DeserializedEvent."})
         ctx.pull(self.context)
         decode_event = _DeserializedEvent(
             42,
