@@ -17,6 +17,7 @@ from .parse  import (duration, is_duration,
 # Namespaced
 from . import machine
 from . import timer
+from . import parse
 
 
 # -----------------------------------------------------------------------------
@@ -53,4 +54,5 @@ __all__ = [
     # ------------------------------
     'machine',
     'timer',
+    'parse',
 ]

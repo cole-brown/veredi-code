@@ -1,59 +1,59 @@
 {
-    'document': 'component',
+    "document": "component",
 
-    'meta': {
-        'registry': 'veredi.unit-test.health',
+    "meta": {
+        "registry": "veredi.unit-test.health"
     },
 
-    'health': {
-        'current': {
-            'hit-points': '${sum(${health.current.*})}',
-            'permanent': 35,
-            'temporary': 11,
+    "health": {
+        "current": {
+            "hit-points": "${sum(${health.current.*})}",
+            "permanent": 35,
+            "temporary": 11
         },
 
-        'maximum': {
-            'class': [
+        "maximum": {
+            "class": [
                 {
-                    'angry-unschooled-fighter': 1,
-                    'hit-points': 12
+                    "angry-unschooled-fighter": 1,
+                    "hit-points": 12
                 },
                 {
-                    'angry-unschooled-fighter': 2,
-                    'hit-points': 9,
+                    "angry-unschooled-fighter": 2,
+                    "hit-points": 9
                 },
                 {
-                    'monastery-student': 3,
-                    'hit-points': 2,
+                    "monastery-student": 3,
+                    "hit-points": 2
                 },
                 {
-                    'angry-unschooled-fighter': 4,
-                    'hit-points': 12,
+                    "angry-unschooled-fighter": 4,
+                    "hit-points": 12
                 }
             ],
 
-            'level': [
+            "level": [
                 {
-                    'angry-unschooled-fighter': [1, 4],
-                    'hit-points': 2
+                    "angry-unschooled-fighter": [1, 4],
+                    "hit-points": 2
                 }
             ],
 
-            'hit-points': '${sum(${health.maximum.*.hit-points})}'
+            "hit-points": "${sum(${health.maximum.*.hit-points})}"
         },
 
-        'unconscious': {
-            'hit-points': 0,
+        "unconscious": {
+            "hit-points": 0
         },
 
-        'death': {
-            'hit-points': '-${min(0, ${ability.constitution.score})}',
+        "death": {
+            "hit-points": "-${min(0, ${ability.constitution.score})}"
         },
 
-        'resistance': {
-            'piercing': 1,
-            'bludgeoning': 1,
-            'slashing': 1,
+        "resistance": {
+            "piercing": 1,
+            "bludgeoning": 1,
+            "slashing": 1
         }
     }
 }
