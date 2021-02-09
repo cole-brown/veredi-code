@@ -1,13 +1,13 @@
 {
-    'document': 'metadata'
-    'record-type': 'veredi.unit-test',
-    'version': 2020-05-19,
+    "document": "metadata",
+    "record-type": "veredi.unit-test",
+    "version": "2020-05-19",
 
-    'source': 'veredi.unit-test',
-    'author': 'Cole Brown',
-    'date': 2020-05-22,
+    "source": "veredi.unit-test",
+    "author": "Cole Brown",
+    "date": "2020-05-22",
 
-    'system': 'unit-test',
-    'name': 'veredi.unit-test.component.health',
-    'display-name': 'Veredi Unit-Testing Health Component'
+    "system": "unit-test",
+    "name": "veredi.unit-test.component.health",
+    "display-name": "Veredi Unit-Testing Health Component"
 }

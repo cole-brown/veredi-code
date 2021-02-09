@@ -13,7 +13,7 @@ from typing import Optional, Union, Any
 import re
 from decimal       import Decimal
 
-from datetime      import timedelta, date, datetime
+import datetime as py_dt
 
 
 from veredi.base   import numbers
@@ -69,9 +69,10 @@ Regex for parsing durations.
 # Parsing
 # -----------------------------------------------------------------------------
 
-def duration(duration_str: str) -> Optional[timedelta]:
+def duration(duration_str: str) -> Optional[py_dt.timedelta]:
     '''
-    Parse a human-friendly time duration `duration_str` into a timedelta.
+    Parse a human-friendly time duration `duration_str` into a
+    py_dt.timedelta.
 
     '5 seconds'
     '1 hour 5 seconds'
@@ -90,7 +91,31 @@ def duration(duration_str: str) -> Optional[timedelta]:
         if param:
             duration_params[name] = int(param)
 
-    return timedelta(**duration_params)
+    return py_dt.timedelta(**duration_params)
+
+
+def date(date_str: str) -> Optional[py_dt.date]:
+    '''
+    Tries to parse a str into a date object. Returns None if it cannot.
+    '''
+    timestamp = None
+    try:
+        timestamp = py_dt.date.fromisoformat(date_str)
+    except ValueError:
+        timestamp = None
+    return timestamp
+
+
+def datetime(datetime_str: str) -> Optional[py_dt.datetime]:
+    '''
+    Tries to parse a str into a datetime object. Returns None if it cannot.
+    '''
+    timestamp = None
+    try:
+        timestamp = py_dt.datetime.fromisoformat(datetime_str)
+    except ValueError:
+        timestamp = None
+    return timestamp
 
 
 # -----------------------------------------------------------------------------
@@ -100,11 +125,11 @@ def duration(duration_str: str) -> Optional[timedelta]:
 def is_duration(check: Any) -> bool:
     '''
     Returns True if `check` is a type usable for durations:
-      - timedelta
+      - py_dt.timedelta
       - numbers.NumberTypesTuple
       - Something `duration()` can parse.
     '''
-    if isinstance(check, timedelta):
+    if isinstance(check, py_dt.timedelta):
         return True
     elif isinstance(check, numbers.NumberTypesTuple):
         return True
@@ -127,7 +152,7 @@ def to_decimal(input: Any) -> Decimal:
     if isinstance(input, str):
         input = duration(input)
 
-    if isinstance(input, timedelta):
+    if isinstance(input, py_dt.timedelta):
         # Get the input as fractional seconds...
         return numbers.to_decimal(input.total_seconds())
 
@@ -142,7 +167,7 @@ def to_float(input: Any) -> float:
     if isinstance(input, str):
         input = duration(input)
 
-    if isinstance(input, timedelta):
+    if isinstance(input, py_dt.timedelta):
         # Get the input as fractional seconds (already a float)...
         return input.total_seconds()
 
@@ -158,11 +183,11 @@ def serialize_claim(input: Any) -> bool:
     '''
     Return True if the input is a time and we can 'serialize' it to a str.
     '''
-    # Others? Timedelta?
-    return isinstance(input, (datetime, date))
+    # Others? py_dt.timedelta?
+    return isinstance(input, (py_dt.datetime, py_dt.date))
 
 
-def serialize(input: Union[datetime, date]) -> str:
+def serialize(input: Union[py_dt.datetime, py_dt.date]) -> str:
     '''
     'Serialize' input by making sure it's a string.
     '''

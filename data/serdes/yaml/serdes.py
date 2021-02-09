@@ -24,9 +24,9 @@ import contextlib
 
 from veredi.logger               import log
 
-from veredi.base.strings         import text
-from veredi.base                 import paths, numbers
 from veredi                      import time
+from veredi.base                 import paths, numbers
+from veredi.base.strings         import text
 
 from veredi.data                 import background
 from veredi.data.config.registry import register
@@ -206,8 +206,9 @@ class YamlSerdes(BaseSerdes):
           Maybes:
             - Other yaml/stream errors?
         '''
-        # Assume we are supposed to read the entire stream.
-        stream.seek(0)
+        if isinstance(stream, TextIOBase):
+            # Assume we are supposed to read the entire stream.
+            stream.seek(0)
 
         data = None
         try:
@@ -325,9 +326,6 @@ class YamlSerdes(BaseSerdes):
         if paths.serialize_claim(data):
             serialized = paths.serialize(data)
             return serialized
-
-        # Date?!
-
 
         # Mapping?
         with contextlib.suppress(AttributeError, TypeError):

@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Tests for the YAML serializer/deserializer.
+Tests for the JSON serializer/deserializer.
 '''
 
 # -----------------------------------------------------------------------------
@@ -19,9 +19,7 @@ from veredi.base.context     import UnitTestContext
 from veredi.data             import background
 from veredi.data.context     import DataAction
 
-from .serdes                 import YamlSerdes
-from .adapters.document      import DocMetadata
-from .adapters.ecs.component import DocComponent
+from .serdes                 import JsonSerdes
 
 from veredi.zest             import zpath
 
@@ -35,7 +33,7 @@ from veredi.zest             import zpath
 # Test Code
 # -----------------------------------------------------------------------------
 
-class Test_YamlSerdes(ZestBase):
+class Test_JsonSerdes(ZestBase):
 
     # -------------------------------------------------------------------------
     # Constasts
@@ -114,10 +112,10 @@ class Test_YamlSerdes(ZestBase):
     # -------------------------------------------------------------------------
 
     def set_up(self):
-        self.serdes = YamlSerdes()
-        self.path_all = zpath.serdes() / 'component.health.yaml'
-        self.path_meta = zpath.serdes() / 'only.meta.yaml'
-        self.path_comp = zpath.serdes() / 'only.component.yaml'
+        self.serdes = JsonSerdes()
+        self.path_all = zpath.serdes() / 'component.health.json'
+        self.path_meta = zpath.serdes() / 'only.meta.json'
+        self.path_comp = zpath.serdes() / 'only.component.json'
 
     def tear_down(self):
         self.serdes = None
@@ -147,8 +145,7 @@ class Test_YamlSerdes(ZestBase):
 
     def _metadata_check(self,
                         test_name: str,
-                        data:      Union[DocMetadata, dict],
-                        data_type: Union[Type[DocMetadata], Type[dict]],
+                        data:      dict,
                         path:      paths.Path) -> bool:
         '''
         Verify that the metadata in 'data' is correct.
@@ -158,12 +155,9 @@ class Test_YamlSerdes(ZestBase):
                           name='metadata_check',
                           path=path):
             self.assertIsNotNone(data)
-            self.assertIsInstance(data, data_type)
+            self.assertIsInstance(data, dict)
 
-            if type(data) == DocMetadata:
-                metadata = data.decode()
-            else:
-                metadata = data
+            metadata = data
 
             self.assertEqual(metadata['record-type'],
                              'veredi.unit-test')
@@ -187,8 +181,7 @@ class Test_YamlSerdes(ZestBase):
 
     def _component_check(self,
                          test_name: str,
-                         data:      Union[DocComponent, dict],
-                         data_type: Union[Type[DocComponent], Type[dict]],
+                         data:      dict,
                          path:      paths.Path) -> bool:
         '''
         Verify that the component data in 'data' is correct.
@@ -198,12 +191,9 @@ class Test_YamlSerdes(ZestBase):
                           name='component_check',
                           path=path):
             self.assertIsNotNone(data)
-            self.assertIsInstance(data, data_type)
+            self.assertIsInstance(data, dict)
 
-            if type(data) == DocComponent:
-                component = data.decode()
-            else:
-                component = data
+            component = data
 
             meta = component.get('meta', {})
             self.assertTrue(meta)
@@ -306,10 +296,10 @@ class Test_YamlSerdes(ZestBase):
         self.assertIsInstance(bg, dict)
         self.assertIn('dotted', bg)
         self.assertEqual(bg['dotted'], self.serdes.dotted())
-        self.assertEqual(bg['dotted'], 'veredi.serdes.yaml')
+        self.assertEqual(bg['dotted'], 'veredi.serdes.json')
         self.assertIn('type', bg)
         self.assertEqual(bg['type'], self.serdes._SERDES_NAME)
-        self.assertEqual(bg['type'], 'yaml')
+        self.assertEqual(bg['type'], 'json')
 
         # ---
         # Context
@@ -341,11 +331,10 @@ class Test_YamlSerdes(ZestBase):
 
         self.assertIsNotNone(data)
         # We should have only a meta document:
-        self.assertIsInstance(data, DocMetadata)
+        self.assertIsInstance(data, dict)
 
         self._metadata_check('test_read_one_meta',
                              data,
-                             DocMetadata,
                              self.path_meta)
 
     def test_read_one_comp(self):
@@ -357,11 +346,10 @@ class Test_YamlSerdes(ZestBase):
 
         self.assertIsNotNone(data)
         # We should have only a comp document:
-        self.assertIsInstance(data, DocComponent)
+        self.assertIsInstance(data, dict)
 
         self._component_check('test_read_one_comp',
                               data,
-                              DocComponent,
                               self.path_comp)
 
     def test_read_all(self):
@@ -372,19 +360,18 @@ class Test_YamlSerdes(ZestBase):
                 self.context('test_read_all', self.path_all))
 
         self.assertIsNotNone(data)
+        self.assertIsInstance(data, list)
         # We should have these documents in this order:
         self.assertEqual(len(data), 2)
-        self.assertIsInstance(data[0], DocMetadata)
-        self.assertIsInstance(data[1], DocComponent)
+        self.assertIsInstance(data[0], dict)
+        self.assertIsInstance(data[1], dict)
 
         self._metadata_check('test_read_all',
                              data[0],
-                             DocMetadata,
                              self.path_all)
 
         self._component_check('test_read_all',
                               data[1],
-                              DocComponent,
                               self.path_all)
 
     # ------------------------------
@@ -405,7 +392,6 @@ class Test_YamlSerdes(ZestBase):
 
         self._metadata_check('test_deserialize_one_meta',
                              data,
-                             dict,
                              self.path_meta)
 
     def test_deserialize_one_comp(self):
@@ -422,7 +408,6 @@ class Test_YamlSerdes(ZestBase):
 
         self._component_check('test_deserialize_one_comp',
                               data,
-                              dict,
                               self.path_comp)
 
     def test_deserialize_all(self):
@@ -440,12 +425,10 @@ class Test_YamlSerdes(ZestBase):
 
         self._metadata_check('test_deserialize_all',
                              data[0],
-                             dict,
                              self.path_all)
 
         self._component_check('test_deserialize_all',
                               data[1],
-                              dict,
                               self.path_all)
 
     # ------------------------------
@@ -461,7 +444,6 @@ class Test_YamlSerdes(ZestBase):
 
         passed = self._metadata_check('test_write_one_meta:write',
                                       write_data,
-                                      dict,
                                       self.path_meta)
         if not passed:
             self.fail("test_write_one_meta:write - write check failed.")
@@ -491,7 +473,6 @@ class Test_YamlSerdes(ZestBase):
 
         self._metadata_check('test_write_one_meta:read',
                              read_data,
-                             dict,
                              self.path_meta)
 
     def test_write_one_comp(self):
@@ -503,7 +484,6 @@ class Test_YamlSerdes(ZestBase):
 
         passed = self._component_check('test_write_one_comp:write',
                                        write_data,
-                                       dict,
                                        self.path_comp)
         if not passed:
             self.fail("test_write_one_comp:write - write check failed.")
@@ -533,7 +513,6 @@ class Test_YamlSerdes(ZestBase):
 
         self._component_check('test_write_one_comp:read',
                               read_data,
-                              dict,
                               self.path_comp)
 
     def test_write_all(self):
@@ -550,14 +529,12 @@ class Test_YamlSerdes(ZestBase):
 
         passed = self._metadata_check('test_write_all:write',
                                       write_data[0],
-                                      dict,
                                       self.path_all)
         if not passed:
             self.fail("test_write_all:write - metadata write check failed.")
 
         passed = self._component_check('test_write_all:write',
                                        write_data[1],
-                                       dict,
                                        self.path_all)
         if not passed:
             self.fail("test_write_all:write - component write check failed.")
@@ -591,12 +568,10 @@ class Test_YamlSerdes(ZestBase):
 
         self._metadata_check('test_write_all:read',
                              read_data[0],
-                             dict,
                              self.path_all)
 
         self._component_check('test_write_all:read',
                               read_data[1],
-                              dict,
                               self.path_all)
 
     # ------------------------------
@@ -612,7 +587,6 @@ class Test_YamlSerdes(ZestBase):
 
         passed = self._metadata_check('test_serialize_one_meta:serialize',
                                       serialize_data,
-                                      dict,
                                       self.path_meta)
         if not passed:
             self.fail("test_serialize_one_meta:serialize "
@@ -643,7 +617,6 @@ class Test_YamlSerdes(ZestBase):
 
         self._metadata_check('test_serialize_one_meta:deserialize',
                              deserialize_data,
-                             dict,
                              self.path_meta)
 
     def test_serialize_one_comp(self):
@@ -655,7 +628,6 @@ class Test_YamlSerdes(ZestBase):
 
         passed = self._component_check('test_serialize_one_comp:serialize',
                                        serialize_data,
-                                       dict,
                                        self.path_comp)
         if not passed:
             self.fail("test_serialize_one_comp:serialize "
@@ -686,13 +658,12 @@ class Test_YamlSerdes(ZestBase):
 
         self._component_check('test_serialize_one_comp:deserialize',
                               deserialize_data,
-                              dict,
                               self.path_comp)
 
     def test_serialize_all(self):
-        # Need something to serialize first... A 'serialize all' needs to be, in
-        # this case (to match our self.path_all file data), a list of our meta
-        # dict and our comp dict.
+        # Need something to serialize first... A 'serialize all' needs to be,
+        # in this case (to match our self.path_all file data), a list of our
+        # meta dict and our comp dict.
         serialize_data = [self._DATA_META, self._DATA_COMP]
 
         self.assertIsNotNone(serialize_data)
@@ -703,7 +674,6 @@ class Test_YamlSerdes(ZestBase):
 
         passed = self._metadata_check('test_serialize_all:serialize',
                                       serialize_data[0],
-                                      dict,
                                       self.path_all)
         if not passed:
             self.fail("test_serialize_all:serialize "
@@ -711,7 +681,6 @@ class Test_YamlSerdes(ZestBase):
 
         passed = self._component_check('test_serialize_all:serialize',
                                        serialize_data[1],
-                                       dict,
                                        self.path_all)
         if not passed:
             self.fail("test_serialize_all:serialize "
@@ -746,12 +715,10 @@ class Test_YamlSerdes(ZestBase):
 
         self._metadata_check('test_serialize_all:deserialize',
                              deserialize_data[0],
-                             dict,
                              self.path_all)
 
         self._component_check('test_serialize_all:deserialize',
                               deserialize_data[1],
-                              dict,
                               self.path_all)
 
 
@@ -760,7 +727,7 @@ class Test_YamlSerdes(ZestBase):
 # -----------------------------------------------------------------------------
 
 # Can't just run file from here... Do:
-#   doc-veredi run data/serdes/yaml/zest_serdes.py
+#   doc-veredi run data/serdes/json/zest_serdes.py
 
 if __name__ == '__main__':
     import unittest

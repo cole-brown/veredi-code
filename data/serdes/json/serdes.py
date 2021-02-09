@@ -10,7 +10,7 @@ Aka JSON Serdes.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Mapping, Dict, List, Tuple, TextIO)
+                    Optional, Union, Any, Mapping, List, Tuple, TextIO)
 from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
@@ -18,11 +18,14 @@ if TYPE_CHECKING:
 
 
 import json
-from io import StringIO
+from io import StringIO, TextIOBase
 import contextlib
 
-from veredi.logger               import log, pretty
-from veredi.data                 import background
+
+from veredi.logger               import log
+from veredi                      import time
+from veredi.base                 import paths, numbers
+from veredi.base.strings         import text
 from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 from veredi.data.context         import DataAction
@@ -54,6 +57,15 @@ class JsonSerdes(BaseSerdes):
     # Initialization
     # -------------------------------------------------------------------------
 
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        super()._define_vars()
+
+        self._json_encoder: Type[json.JSONEncoder] = JsonEncoder
+        '''Custom encoder to handle more types.'''
+
     def __init__(self,
                  context: Optional['ConfigContext'] = None) -> None:
         super().__init__(JsonSerdes._SERDES_NAME,
@@ -77,14 +89,14 @@ class JsonSerdes(BaseSerdes):
     # -------------------------------------------------------------------------
 
     def deserialize(self,
-                    stream: Union[TextIO, str],
+                    stream:  Union[TextIO, str],
                     context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes data from a single data stream.
 
         Raises:
           - exceptions.ReadError
-            - wrapped json.JSONDeserializeError
+            - wrapped json.JSONDecodeError
           Maybes:
             - Other json/stream errors?
         '''
@@ -105,9 +117,81 @@ class JsonSerdes(BaseSerdes):
         log.debug("json.deserialize output: {}", type(data))
         return data
 
+    def _json_hookup_obj_pairs(self, pairs: List[Tuple[Any, Any]]) -> Any:
+        '''
+        Hook for `json.load()` function's `object_pairs_hook` parameter.
+
+        Translates key/value pairs into something else, if needed.
+        '''
+        # ------------------------------
+        # Start with an empty dict, and fill it in with each pair.
+        # ------------------------------
+        result = {}
+        for key, value in pairs:
+            # ------------------------------
+            # Don't care about numbers and such.
+            # ------------------------------
+            if not isinstance(value, str):
+                result[key] = value
+                continue
+
+            # ------------------------------
+            # Check strings to see if we need to make them something else.
+            # ------------------------------
+
+            # ---
+            # Dates & Times:
+            # ---
+
+            # Check for date ("2020-02-02") before datetime
+            # ("2020-02-02T20:20:02.02") since datetime will happily parse a
+            # date as being at 00:00:00.
+            stamp = time.parse.date(value)
+            if stamp:
+                result[key] = stamp
+                # Found a value; done.
+                continue
+
+            # Now do datetime.
+            stamp =  time.parse.datetime(value)
+            if stamp:
+                result[key] = stamp
+                # Found a value; done.
+                continue
+
+            # ---
+            # Insert other stuff here as needed.
+            # ---
+
+            # ---
+            # Ok. It's just a string apparently.
+            # ---
+            result[key] = value
+
+        # ------------------------------
+        # Finally, return the filled out dict.
+        # ------------------------------
+        return result
+
+    def _json_load(self,
+                   stream: Union[TextIO, str]) -> DeserializeTypes:
+        '''
+        Calls `json.load()` or `json.loads()`, as appropriate, with correct
+        hook(s), and returns json's result.
+        '''
+        data = None
+        if isinstance(stream, str):
+            data = json.loads(stream,
+                              object_pairs_hook=self._json_hookup_obj_pairs)
+        else:
+            data = json.load(stream,
+                             object_pairs_hook=self._json_hookup_obj_pairs)
+
+        return data
+
     def _read(self,
-              stream: Union[TextIO, str],
-              context: 'VerediContext') -> Any:
+              stream:  Union[TextIO, str],
+              context: 'VerediContext') -> DeserializeTypes:
         '''
         Read data from a single data stream.
 
@@ -120,17 +204,18 @@ class JsonSerdes(BaseSerdes):
 
         Raises:
           - exceptions.ReadError
-            - wrapped json.JSONDeserializeError
+            - wrapped json.JSONDecodeError
           Maybes:
             - Other json/file errors?
         '''
+        if isinstance(stream, TextIOBase):
+            # Assume we are supposed to read the entire stream.
+            stream.seek(0)
+
         data = None
         try:
-            if isinstance(stream, str):
-                data = json.loads(stream)
-            else:
-                data = json.load(stream)
-        except json.JSONDeserializeError as json_error:
+            data = self._json_load(stream)
+        except json.JSONDecodeError as json_error:
             data = None
             msg = f"Error reading json from stream: {stream}"
             error = exceptions.ReadError(
@@ -154,7 +239,7 @@ class JsonSerdes(BaseSerdes):
         return data
 
     def deserialize_all(self,
-                        stream: Union[TextIO, str],
+                        stream:  Union[TextIO, str],
                         context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes all documents from the data stream. Expects a
@@ -183,8 +268,8 @@ class JsonSerdes(BaseSerdes):
         return data
 
     def _read_all(self,
-                  stream: Union[TextIO, str],
-                  context: 'VerediContext') -> Any:
+                  stream:  Union[TextIO, str],
+                  context: 'VerediContext') -> DeserializeTypes:
         '''
         Read data from a single data stream.
 
@@ -203,7 +288,7 @@ class JsonSerdes(BaseSerdes):
     # -------------------------------------------------------------------------
 
     def serialize(self,
-                  data: SerializeTypes,
+                  data:    SerializeTypes,
                   context: 'VerediContext') -> StringIO:
         '''
         Write and serializes a single document from the data stream.
@@ -217,8 +302,26 @@ class JsonSerdes(BaseSerdes):
         stream = self._write(to_serialize, context)
         return stream
 
+    def _json_dump(self,
+                   data:   SerializeTypes,
+                   stream: Union[TextIO, str]) -> None:
+        '''
+        Calls `json.dump()` or `json.dumps()`, as appropriate, with correct
+        hook(s), and returns json's result.
+        '''
+        if isinstance(stream, str):
+            data = json.dumps(data,
+                              stream,
+                              cls=self._json_encoder)
+        else:
+            data = json.dump(data,
+                             stream,
+                             cls=self._json_encoder)
+
+        return data
+
     def _serialize_prep(self,
-                        data: SerializeTypes,
+                        data:    SerializeTypes,
                         context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into
@@ -231,6 +334,15 @@ class JsonSerdes(BaseSerdes):
         # Is it just an Encodable object?
         if isinstance(data, Encodable):
             serialized = data.encode(None)
+            return serialized
+
+        # Is it a simple type?
+        if (text.serialize_claim(data)
+                or numbers.serialize_claim(data)
+                or paths.serialize_claim(data)
+                or time.serialize_claim(data)):
+            # Let json handle it.
+            serialized = data
             return serialized
 
         # Mapping?
@@ -247,7 +359,7 @@ class JsonSerdes(BaseSerdes):
             serialized = []
             for each in data:
                 # TODO [2020-07-29]: Change to non-recursive?
-                serialized.append(self._serialize_prep(each), context)
+                serialized.append(self._serialize_prep(each, context))
             return serialized
 
         # Falling through to here is bad; raise Exception.
@@ -261,7 +373,7 @@ class JsonSerdes(BaseSerdes):
                             context=context)
 
     def _write(self,
-               data: SerializeTypes,
+               data:    SerializeTypes,
                context: 'VerediContext') -> StringIO:
         '''
         Write data to a stream.
@@ -275,7 +387,7 @@ class JsonSerdes(BaseSerdes):
         '''
         serialized = StringIO()
         try:
-            json.dump(data, serialized)
+            self._json_dump(data, serialized)
         except (TypeError, OverflowError, ValueError) as json_error:
             serialized = None
             # data_pretty = pretty.indented(data)
@@ -291,7 +403,7 @@ class JsonSerdes(BaseSerdes):
         return serialized
 
     def serialize_all(self,
-                      data: SerializeTypes,
+                      data:    SerializeTypes,
                       context: 'VerediContext') -> StringIO:
         '''
         Write and serializes all documents from the data stream.
@@ -309,7 +421,7 @@ class JsonSerdes(BaseSerdes):
         return stream
 
     def _write_all(self,
-                   data: SerializeTypes,
+                   data:    SerializeTypes,
                    context: 'VerediContext') -> StringIO:
         '''
         Write and serializes all documents from the data stream.
@@ -324,3 +436,57 @@ class JsonSerdes(BaseSerdes):
         # Just use _write() since json has no concept of multi-document
         # streams.
         return self._write(data, context)
+
+
+# -----------------------------------------------------------------------------
+# Custom Json Encoder
+# -----------------------------------------------------------------------------
+
+class JsonEncoder(json.JSONEncoder):
+    '''
+    Have to customize the encoder as well, to support dates and such.
+    '''
+
+    def default(self, obj: Any) -> Any:
+        '''
+        Add support for encoding more object types (e.g. date, datetime).
+
+        As of 3.8, the base class supports these:
+          - dict -> object
+          - list, tuple -> array
+          - str -> string
+          - int, float, int- & float-derived Enums -> number
+          - True -> true
+          - False -> false
+          - None -> null
+        '''
+        # ------------------------------
+        # Check for object types we can do something about.
+        # ------------------------------
+
+        # ---
+        # Numbers & Strings:
+        # ---
+
+        # Let parent handle them.
+
+        # ---
+        # Dates & Times:
+        # ---
+        if time.parse.serialize_claim(obj):
+            return time.parse.serialize(obj)
+
+        # ---
+        # Paths:
+        # ---
+        if paths.serialize_claim(obj):
+            return paths.serialize(obj)
+
+        # ---
+        # Insert other stuff here as needed.
+        # ---
+
+        # ---
+        # Else do the (parent's) default.
+        # ---
+        return super().default(obj)

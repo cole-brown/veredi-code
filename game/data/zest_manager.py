@@ -405,7 +405,7 @@ class BaseTest_DataManager_Serdes(BaseTest_DataManager):
             # Test what we got back.
             received = self.events[0]
             self.assertIsNotNone(received)
-            self.assertEqual(type(received), _DeserializedEvent)
+            self.assertIsInstance(received, _DeserializedEvent)
             self.assertIsInstance(received.data, list)
             self.assertEqual(len(received.data), 1)
             component = received.data[0]
