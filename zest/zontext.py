@@ -8,7 +8,10 @@ Context Helpers for unit test data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Type
+from typing import TYPE_CHECKING, Optional, Type, Dict
+if TYPE_CHECKING:
+    import unittest
+
 import pathlib
 
 from veredi.data.config.context import ConfigContext
@@ -22,27 +25,55 @@ from veredi.base.context        import VerediContext, UnitTestContext
 
 
 # -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
+
+def _metadata(file_name: str,
+              test:     'unittest.TestCase',
+              func_name: str) -> Dict[str, str]:
+    '''
+    Returns unit testing metadata dict built from inputs.
+    '''
+    return {
+        'file': file_name,
+        'suite': test.__class__.__name__ if test else str(test),
+        'test': func_name,
+    }
+
+
+# -----------------------------------------------------------------------------
 # General Unit Test Context
 # -----------------------------------------------------------------------------
 
-def empty(klass_name:   str,
+def empty(file_name:    str,
+          klass:        'unittest.TestCase',
           func_name:    str,
           context_type: Type[VerediContext],
           ) -> VerediContext:
     '''
-    `klass_name` and `func_name` should be caller - they are supplied to
-    UnitTestContext's constructor if that `context_type` is used.
+     Creates and returns an empty `context_type` context.
 
-    Creates and returns an empty `context_type` context.
+    For a UnitTestContext:
+      - `file_name` should be __file__ in the caller.
+      - `klass` and `func_name` should be the caller as well - they are
+        supplied to UnitTestContext's constructor if that `context_type` is
+        used.
+
+    For other types, `file_name`, `klass`, and `func_name` are ignored.
+
+    NOTE: Doesn't to place file/klass/func into 'meta' key like `test()` and
+    `real_config()` do!
     '''
     if context_type == UnitTestContext:
-        return context_type(test_class=klass_name,
-                            test_name=func_name,
+        return context_type(file_name,
+                            klass,
+                            func_name,
                             data={})
     return context_type()
 
 
-def test(klass_name:  str,
+def test(file_name:   str,
+         klass:       'unittest.TestCase',
          func_name:   str,
          repo_path:   Optional[pathlib.Path] = None,
          config:      Optional[Configuration] = None
@@ -50,11 +81,14 @@ def test(klass_name:  str,
     '''
     Creates a ConfigContext for general tests of `test_type`.
     '''
-    return ConfigContext(repo_path,
-                         'veredi.zest.zontext.test')
+    ctx = ConfigContext(repo_path,
+                        'veredi.zest.zontext.test')
+    ctx['test'] = _metadata(file_name, klass, func_name)
+    return ctx
 
 
-def real_config(klass_name: str,
+def real_config(file_name:  str,
+                klass:      'unittest.TestCase',
                 func_name:  str,
                 repo_path:  Optional[pathlib.Path]  = None,
                 config:     Optional[Configuration] = None
@@ -65,11 +99,21 @@ def real_config(klass_name: str,
     Prefers optional `repo_path` to use for ConfigContext.
     Will use `config.make_config_context()` if no `repo_path`.
     Will make an 'empty' ConfigContext if neither optional is supplied.
-    '''
-    if repo_path:
-        return ConfigContext(repo_path,
-                             'veredi.zest.zontext.real_config.repo_path')
-    elif config:
-        return config.make_config_context()
 
-    return empty(klass_name, func_name, ConfigContext)
+    - `file_name` should be __file__ in the caller.
+    - `klass` and `func_name` should be the caller as well - they are
+      supplied to UnitTestContext's constructor if that `context_type` is
+      used.
+    '''
+    # Choose which context to make.
+    if repo_path:
+        ctx = ConfigContext(repo_path,
+                            'veredi.zest.zontext.real_config.repo_path')
+    elif config:
+        ctx = config.make_config_context()
+    else:
+        ctx = empty(file_name, klass, func_name, ConfigContext)
+
+    # Slip in the testing metadata befor returning.
+    ctx['test'] = _metadata(file_name, klass, func_name)
+    return ctx

@@ -19,7 +19,7 @@ to go for accessing Game Config/Save (as opposed to Entity/Component) data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Set, Type, Mapping, List
+from typing import Optional, Any, Set, Type, Mapping, Dict, List
 from veredi.base.null import Nullable, NullNoneOr
 
 
@@ -212,6 +212,15 @@ class DataManager(EcsManagerWithEvents):
         '''
 
         # ------------------------------
+        # Misc.
+        # ------------------------------
+
+        self._bg: Dict[Any, Any] = None
+        '''
+        Our background context / meta-data for DataContexts.
+        '''
+
+        # ------------------------------
         # Unit Testing
         # ------------------------------
 
@@ -301,14 +310,17 @@ class DataManager(EcsManagerWithEvents):
         '''
         Data for the Veredi Background context.
         '''
-        serdes_data, serdes_owner = self._serdes.background
-        repo_data, repo_owner = self._repository.background
+        if not self._bg:
+            serdes_data, _ = self._serdes.background
+            repo_data, _ = self._repository.background
 
-        return {
-            background.Name.DOTTED.key: self.dotted(),
-            background.Name.SERDES.key: serdes_data,
-            background.Name.REPO.key:   repo_data,
-        }
+            self._bg = {
+                background.Name.DOTTED.key: self.dotted(),
+                background.Name.SERDES.key: serdes_data,
+                background.Name.REPO.key:   repo_data,
+            }
+
+        return self._bg
 
     @classmethod
     def dotted(klass: 'DataManager') -> str:
@@ -461,10 +473,10 @@ class DataManager(EcsManagerWithEvents):
         # ---
         data_context = None
         if data_action == DataAction.LOAD:
-            data_context = DataLoadContext(caller_dotted, taxon)
+            data_context = DataLoadContext(caller_dotted, taxon, self._bg)
 
         elif data_action == DataAction.SAVE:
-            data_context = DataSaveContext(caller_dotted, taxon)
+            data_context = DataSaveContext(caller_dotted, taxon, self._bg)
 
         else:
             msg = (f"Unknown DataAction '{data_action}' - cannot create "
@@ -575,7 +587,7 @@ class DataManager(EcsManagerWithEvents):
                               "DataManager load Definition for {}: {} {}...",
                               caller_dotted, doc_type, taxon,
                               log_minimum=log.Level.DEBUG)
-        context_definition = DataLoadContext(caller_dotted, taxon)
+        context_definition = DataLoadContext(caller_dotted, taxon, self._bg)
         data = self._load(context_definition)
         definition = Definition(doc_type, data)
         self._log_group_multi(self._log_groups,
@@ -602,7 +614,7 @@ class DataManager(EcsManagerWithEvents):
                               "DataManager load Saved for {}: {} {}...",
                               caller_dotted, doc_type, taxon,
                               log_minimum=log.Level.DEBUG)
-        context_saved = DataLoadContext(caller_dotted, taxon)
+        context_saved = DataLoadContext(caller_dotted, taxon, self._bg)
         data = self._load(context_saved)
         saved = Saved(doc_type, data)
         self._log_group_multi(self._log_groups,

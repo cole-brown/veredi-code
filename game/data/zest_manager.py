@@ -186,7 +186,8 @@ class BaseTest_DataManager(ZestEcs):
         a config file.
         '''
         (self.manager, _,
-         self.context, _) = zload.set_up_ecs(self.__class__.__name__,
+         self.context, _) = zload.set_up_ecs(__file__,
+                                             self,
                                              '_set_up_ecs',
                                              self.debugging,
                                              debug_flags=self.debug_flags,
@@ -210,7 +211,8 @@ class BaseTest_DataManager(ZestEcs):
         Calls zload.tear_down_ecs to have meeting/managers run any tear-down
         they happen to have.
         '''
-        zload.tear_down_ecs(self.__class__.__name__,
+        zload.tear_down_ecs(__file__,
+                            self,
                             '_tear_down_ecs',
                             self.debugging,
                             self.manager,
@@ -329,9 +331,13 @@ class Test_DataManager_Repo(BaseTest_DataManager):
         # And now the repo context should be there.
         repo_ctx = load_ctx.repo_data
         self.assertTrue(repo_ctx)
+        self.assertIn('meta', repo_ctx)
         self.assertTrue(repo_ctx['meta'])
-        self.assertTrue(repo_ctx['path'])
-        load_path = paths.cast(repo_ctx['path'])
+        self.assertIn('path', repo_ctx['meta'])
+        self.assertTrue(repo_ctx['meta']['path'])
+        self.assertIn('root', repo_ctx['meta']['path'])
+        self.assertTrue(repo_ctx['meta']['path']['root'])
+        load_path = paths.cast(repo_ctx['meta']['path']['root'])
         self.assertTrue(load_path)
         self.assertTrue(load_path.exists())
 

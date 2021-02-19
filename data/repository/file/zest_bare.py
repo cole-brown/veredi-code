@@ -148,6 +148,16 @@ class Test_FileBareRepo(ZestBase):
             self.fail(f"temp exists... root is: {self.repo.root()}")
         self.assertFalse(self.path_temp.exists())
 
+    def _meta(self, func):
+        '''
+        Get some metadata for DataBareContext.
+        '''
+        return {
+            'dotted': self.dotted(__file__),
+            'test-suite': self.__class__.__name__,
+            'unit-test': func,
+        }
+
     # -------------------------------------------------------------------------
     # Tests
     # -------------------------------------------------------------------------
@@ -442,6 +452,7 @@ class Test_FileBareRepo(ZestBase):
                                   ConfigContext.KEY,
                                   "not-used-this-test",
                                   action,
+                                  self._meta('test_path_save'),
                                   # Make stuff happen in temp dir.
                                   temp=True)
 
@@ -500,6 +511,7 @@ class Test_FileBareRepo(ZestBase):
                                   ConfigContext.KEY,
                                   "not-used-this-test",
                                   action,
+                                  self._meta('test_path_load'),
                                   # Make stuff happen in temp dir.
                                   temp=True)
 
@@ -595,14 +607,16 @@ class Test_FileBareRepo(ZestBase):
         load_context = DataBareContext(self.dotted(__file__),
                                        ConfigContext.KEY,
                                        self.path_file,
-                                       DataAction.LOAD)
+                                       DataAction.LOAD,
+                                       self._meta('test_context_data'))
         self._helper_test_context_data(load_context)
 
         # Test for SAVE.
         save_context = DataBareContext(self.dotted(__file__),
                                        ConfigContext.KEY,
                                        self.path_file,
-                                       DataAction.SAVE)
+                                       DataAction.SAVE,
+                                       self._meta('test_context_data'))
         self._helper_test_context_data(save_context)
 
         self._tear_down_repo()
@@ -657,7 +671,8 @@ class Test_FileBareRepo(ZestBase):
         ctx = DataBareContext(self.dotted(__file__),
                               ConfigContext.KEY,
                               self.path_file,
-                              DataAction.LOAD)
+                              DataAction.LOAD,
+                              self._meta('test_load'))
         # Read using our repository.
         with self.repo.load(ctx) as repo_stream:
             # ---
@@ -684,7 +699,8 @@ class Test_FileBareRepo(ZestBase):
         load_ctx = DataBareContext(self.dotted(__file__),
                                    ConfigContext.KEY,
                                    self.path_file,
-                                   DataAction.LOAD)
+                                   DataAction.LOAD,
+                                   self._meta('test_load'))
 
         # ------------------------------
         # Read initial data.
@@ -709,6 +725,7 @@ class Test_FileBareRepo(ZestBase):
                                        # Don't add temp dir ourself.
                                        self.path_file,
                                        DataAction.SAVE,
+                                       self._meta('test_save'),
                                        temp=True)
             # DO NOT SEEK BACK TO 0!!!
             # LET IT MAKE SURE TO DO THAT ITSELF!!!

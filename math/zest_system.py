@@ -49,7 +49,8 @@ class Test_MathSystem(ZestSystem):
         self.value_canon = None
         self.value_fill = None
 
-        self.context = zontext.test(self.__class__.__name__,
+        self.context = zontext.test(__file__,
+                                    self,
                                     'set_up')
 
         # Set up parser in background for MathSystem to grab.

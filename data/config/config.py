@@ -64,6 +64,10 @@ def default_path() -> Optional[pathlib.Path]:
 class Configuration:
     '''Config data for how a game will run and what stuff it will use.'''
 
+    # -------------------------------------------------------------------------
+    # Class Constants
+    # -------------------------------------------------------------------------
+
     _DOTTED_NAME = 'veredi.data.config.config'
 
     _CTX_KEY  = 'configuration'
@@ -106,6 +110,11 @@ class Configuration:
         self._id: str = None
         '''
         The game's repository id/key/record-name string.
+        '''
+
+        self._metadata: Dict[Any, Any] = None
+        '''
+        Meta-data for Contexts.
         '''
 
     def __init__(self,
@@ -259,7 +268,8 @@ class Configuration:
         ctx = DataBareContext(self.dotted(),
                               ConfigContext.KEY,
                               self._path,
-                              DataAction.LOAD)
+                              DataAction.LOAD,
+                              self._meta())
         log.group_multi(log_groups,
                         self.dotted(),
                         "Configuration loading from repo...")
@@ -410,30 +420,32 @@ class Configuration:
                                 id=self._id)
         return context
 
+    def _meta(self) -> Dict[Any, Any]:
+        '''
+        Returns some meta-data about this class for Context.
+        '''
+        if not self._metadata:
+            serdes_data, _ = self._serdes.background
+            repo_data, _ = self._repo.background
+            self._metadata = {
+                background.Name.DOTTED.key: self.dotted(),
+                'path':                     self._path,
+                'rules':                    self._rules,
+                'id':                       self._id,
+                background.Name.SERDES.key: serdes_data,
+                background.Name.REPO.key:   repo_data,
+            }
+
+        return self._metadata
+
     def _set_background(self):
         '''
         Sets our config info into the background context.
         '''
-        self._bg = {
-            'dotted': self.dotted(),
-        }
+        metadata = self._meta()
         background.config.set(background.Name.CONFIG,
-                              self._bg,
+                              metadata,
                               background.Ownership.SHARE)
-
-        # Set config's repo/serdes too.
-        bg_data, bg_owner = (self._repo.background
-                             if self._repo else
-                             (None, background.Ownership.SHARE))
-        background.config.set(background.Name.REPO,
-                              bg_data,
-                              bg_owner)
-        bg_data, bg_owner = (self._serdes.background
-                             if self._serdes else
-                             (None, background.Ownership.SHARE))
-        background.config.set(background.Name.SERDES,
-                              bg_data,
-                              bg_owner)
 
     # -------------------------------------------------------------------------
     # Registry Mediation
