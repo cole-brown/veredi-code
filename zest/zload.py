@@ -12,6 +12,7 @@ from typing import (TYPE_CHECKING,
                     Optional, Type, Tuple, Iterable, List)
 if TYPE_CHECKING:
     from veredi.run.system             import SysCreateType
+    import unittest
 
 
 from veredi.logger                     import log
@@ -60,6 +61,26 @@ import veredi.math.d20.parser
 
 
 # -----------------------------------------------------------------------------
+# Helpers for zload.
+# -----------------------------------------------------------------------------
+
+def _test_name(dotted:    str,
+               test_case: 'unittest.TestCase',
+               func:      str) -> str:
+    '''
+    Returns a string of the test name built from the params.
+
+    Format returned is either:
+      - <test-case-name>.<func>
+      - <test-case-name>.<func> (<dotted>)
+    '''
+    return (f"{test_case.__class__.__name__ if test_case else str(test_case)}"
+            f".{func}"
+            # Optional dotted label.
+            f" ('{dotted}')" if dotted else "")
+
+
+# -----------------------------------------------------------------------------
 # Helpers for Systems.
 # -----------------------------------------------------------------------------
 
@@ -85,7 +106,7 @@ def create_system(config:      Optional[Configuration],
 
     e.g.:
       create_system(self._manager.system, self.context, SomeSystem)
-      create_system(self._manager.system, special_context, SomeSystem)
+      create_sy(self._manager.system, special_context, SomeSystem)
     '''
     sid = run.system.create(config, context, sys_type,
                             debug_flags=debug_flags)
@@ -120,7 +141,8 @@ def create_systems(config:      Optional[Configuration],
 # ECS / Engine: Set-up / Tear-Down
 # -----------------------------------------------------------------------------
 
-def set_up_ecs(test_name_class:   str,
+def set_up_ecs(test_name_file:    str,
+               test_case:         'unittest.TestCase',
                test_name_func:    str,
                enable_debug_logs: bool,
                # Optional Debug Stuff:
@@ -152,6 +174,8 @@ def set_up_ecs(test_name_class:   str,
     Returns:
       Tuple[Meeting, VerediContext, SystemManager, List[SystemId]]
     '''
+    log.debug("zload.set_up_ecs for "
+              f"{_test_name(test_name_file, test_case, test_name_func)}...")
     with log.LoggingManager.on_or_off(enable_debug_logs):
         # ---
         # Configuration
@@ -199,7 +223,8 @@ def set_up_ecs(test_name_class:   str,
         # Config Context
         # ---
         log.debug("zload.set_up_ecs creating Context...")
-        context = zontext.real_config(test_name_class,
+        context = zontext.real_config(test_name_file,
+                                      test_case,
                                       test_name_func,
                                       config=configuration)
 
@@ -221,11 +246,13 @@ def set_up_ecs(test_name_class:   str,
         # Else: our engine creates the requried stuff and we don't want to
         # double-create.
 
-        log.debug("zload.set_up_ecs done.")
+        log.debug("zload.set_up_ecs is done for "
+                  f"{_test_name(None, test_case, test_name_func)}.")
         return meeting, engine, context, sids
 
 
-def tear_down_ecs(test_name_class:   str,
+def tear_down_ecs(test_name_file:    str,
+                  test_case:         'unittest.TestCase',
                   test_name_func:    str,
                   enable_debug_logs: bool,
                   meeting:           Meeting,
@@ -248,7 +275,8 @@ def tear_down_ecs(test_name_class:   str,
             log.debug("zload.tear_down_ecs SKIPPING Engine's "
                       "Unit-Test Tear-Down (engine does not exist)...")
 
-        log.debug("zload.tear_down_ecs done.")
+        log.debug("zload.tear_down_ecs is done for "
+                  f"{_test_name(test_name_file, test_case, test_name_func)}.")
 
 
 # -----------------------------------------------------------------------------

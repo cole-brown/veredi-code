@@ -55,6 +55,7 @@ from veredi.zest.base.multiproc                 import (ZestIntegrateMultiproc,
 from veredi.logger                              import (log,
                                                         log_client)
 from veredi.debug.const                         import DebugFlag
+from veredi.base.context                        import UnitTestContext
 from veredi.base.identity                       import (MonotonicId,
                                                         MonotonicIdGenerator)
 from veredi.data                                import background
@@ -368,8 +369,10 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # And make as many as we want...
         for i in range(self.NUM_CLIENTS):
             name = self.NAME_CLIENT_FMT.format(i=i)
-            context = zontext.empty(self.__class__.__name__,
-                                    f"_set_up_clients('{name}')")
+            context = zontext.empty(__file__,
+                                    self.__class__.__name__,
+                                    f"_set_up_clients('{name}')",
+                                    UnitTestContext)
 
             # Give the client an id/key directly for now...
             user_id = self._user_id.next(name)

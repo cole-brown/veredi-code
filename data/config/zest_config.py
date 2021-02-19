@@ -11,12 +11,12 @@ Unit tests for:
 
 from datetime import date
 
-from veredi.zest.base.unit       import ZestBase
-from veredi.zest                 import zpath, zmake
-from veredi.logger               import log
+from veredi.zest.base.unit            import ZestBase
+from veredi.zest                      import zpath, zmake
+from veredi.logger                    import log
 
-from .                           import hierarchy
-from veredi.data.repository.file import FileTreeRepository
+from .                                import hierarchy
+from veredi.data.repository.file.tree import FileTreeRepository
 
 
 # -----------------------------------------------------------------------------

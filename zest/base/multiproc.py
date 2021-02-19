@@ -23,6 +23,7 @@ from veredi.logger                              import log, log_server
 
 from veredi.base.strings                        import label
 from veredi.base.enum                           import FlagCheckMixin
+from veredi.base.context                        import UnitTestContext
 
 from veredi.parallel                            import multiproc
 from veredi.time.timer                          import MonotonicTimer
@@ -296,8 +297,10 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         # Create our log server Process.
         self.log_debug(f"Set up log server... {proc_test}")
         name = self.NAME_LOG
-        context = zontext.empty(self.__class__.__name__,
-                                '_set_up_log')
+        context = zontext.empty(__file__,
+                                self,
+                                '_set_up_log',
+                                UnitTestContext)
         self.proc.log = log_server.init(process_name=name,
                                         initial_log_level=log_level,
                                         context=context,

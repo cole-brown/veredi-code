@@ -64,7 +64,8 @@ class BaseDataContext(EphemerealContext):
                  dotted:   str,
                  ctx_name: str,
                  key:      Any,
-                 action:   DataAction) -> None:
+                 action:   DataAction,
+                 meta:     Dict[Any, Any]) -> None:
         '''
         Initialize BaseDataContext with `dotted`, `ctx_name`, something called
         '`key`' (right now just a file name to load for config's data...),
@@ -75,6 +76,10 @@ class BaseDataContext(EphemerealContext):
         # Set our key and action into the context.
         self.key = key
         self.action = action
+
+        # Put the meta-context into place if present.
+        sub_ctx = self.sub
+        sub_ctx['meta'] = meta if meta else {}
 
     # -------------------------------------------------------------------------
     # Add-to-Context Helpers
@@ -167,13 +172,14 @@ class DataBareContext(BaseDataContext):
                  ctx_name: str,
                  key:      Any,
                  action:   DataAction,
+                 meta:     Dict[Any, Any],
                  temp:     bool = False) -> None:
         '''
         Initialize DataBareContext with `dotted`, `ctx_name`, something called
         '`key`' (right now just a file name to load for config's data...),
         and `load`.
         '''
-        super().__init__(dotted, ctx_name, key, action)
+        super().__init__(dotted, ctx_name, key, action, meta)
 
         ctx = self.sub
         ctx[self._TO_TEMP] = temp or False
@@ -203,7 +209,8 @@ class DataGameContext(BaseDataContext):
                  dotted:   str,
                  ctx_name: str,
                  action:   DataAction,
-                 taxon:    Taxon) -> None:
+                 taxon:    Taxon,
+                 meta:     Dict[Any, Any]) -> None:
         '''
         Initialize DataGameContext with caller's dotted, ctx_name, and the load
         taxonomy information (a series of general to specific identifiers of
@@ -220,7 +227,7 @@ class DataGameContext(BaseDataContext):
             raise log.exception(error, msg)
 
         # Key is just an easy context.taxon.taxon shortcut for game contexts.
-        super().__init__(dotted, ctx_name, taxon.taxon, action)
+        super().__init__(dotted, ctx_name, taxon.taxon, action, meta)
 
         # Save our taxon into our context. NOTE: Must do after
         # super().__init__() in order to get our key assigned.
@@ -248,11 +255,13 @@ class DataLoadContext(DataGameContext):
 
     def __init__(self,
                  dotted: str,
-                 taxon:  Taxon) -> None:
+                 taxon:  Taxon,
+                 meta:   Dict[Any, Any]) -> None:
         super().__init__(dotted,
                          self._REQUEST_LOAD,
                          DataAction.LOAD,
-                         taxon)
+                         taxon,
+                         meta)
 
     # -------------------------------------------------------------------------
     # Python Funcs (& related)
@@ -274,6 +283,7 @@ class DataSaveContext(DataGameContext):
     def __init__(self,
                  dotted: str,
                  taxon:  Taxon,
+                 meta:   Dict[Any, Any],
                  temp:   bool = False) -> None:
         '''
         If `temp` is True, save this to a temporary directory.
@@ -282,7 +292,8 @@ class DataSaveContext(DataGameContext):
         super().__init__(dotted,
                          self._REQUEST_SAVE,
                          DataAction.SAVE,
-                         taxon)
+                         taxon,
+                         meta)
 
         ctx = self.sub
         ctx[self._TO_TEMP] = temp

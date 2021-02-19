@@ -160,3 +160,10 @@ def serialize_claim(input: Any) -> bool:
     Return True if the input is a path and we can 'serialize' it to a str.
     '''
     return isinstance(input, Path)
+
+
+def serialize(input: Path) -> str:
+    '''
+    Serialize a path to a string.
+    '''
+    return str(input)

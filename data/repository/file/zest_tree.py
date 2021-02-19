@@ -220,8 +220,12 @@ class Test_FileTreeRepo(ZestBase):
         # ------------------------------
         context = None
         with log.LoggingManager.on_or_off(self.debugging):
-            context = DataLoadContext(self.dotted(__file__),
-                                      taxon)
+            context = DataLoadContext(
+                self.dotted(__file__),
+                taxon,
+                {
+                    'unit_test_func': 'Test_FileTreeRepo.context_load',
+                })
 
         return context
 
@@ -255,9 +259,13 @@ class Test_FileTreeRepo(ZestBase):
         # Create the context.
         # ------------------------------
         with log.LoggingManager.on_or_off(self.debugging):
-            context = DataSaveContext(self.dotted(__file__),
-                                      taxon,
-                                      temp)
+            context = DataSaveContext(
+                self.dotted(__file__),
+                taxon,
+                temp,
+                {
+                    'unit_test_func': 'Test_FileTreeRepo.context_save',
+                })
 
         return context
 

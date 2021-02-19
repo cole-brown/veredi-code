@@ -25,7 +25,7 @@ from .const  import PathType, PathTypeTuple, PathsInput
 from .utils  import (cast, exists,
                      is_file, is_dir,
                      to_str_list, to_str,
-                     serialize_claim)
+                     serialize_claim, serialize)
 
 
 # ------------------------------
@@ -73,4 +73,5 @@ __all__ = [
     'to_str_list',
     'to_str',
     'serialize_claim',
+    'serialize',
 ]

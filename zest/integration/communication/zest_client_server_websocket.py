@@ -31,8 +31,9 @@ from veredi.data.identity                       import (UserId,
                                                         UserIdGenerator,
                                                         UserKey,
                                                         UserKeyGenerator)
-from veredi.base.context         import VerediContext
-from veredi.data.config.context         import ConfigContext
+from veredi.base.context                        import (VerediContext,
+                                                        UnitTestContext)
+from veredi.data.config.context                 import ConfigContext
 
 
 # ---
@@ -284,8 +285,10 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.log_debug("Set up mediator server... {}",
                        proc_test)
         name = self.NAME_SERVER
-        context = zontext.empty(self.__class__.__name__,
-                                '_set_up_server')
+        context = zontext.empty(__file__,
+                                self,
+                                '_set_up_server',
+                                UnitTestContext)
 
         self.proc.server = multiproc.set_up(proc_name=name,
                                             config=self.config,
@@ -331,8 +334,10 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # And make as many as we want...
         for i in range(self.NUM_CLIENTS):
             name = self.NAME_CLIENT_FMT.format(i=i)
-            context = zontext.empty(self.__class__.__name__,
-                                    f"_set_up_clients('{name}')")
+            context = zontext.empty(__file__,
+                                    self,
+                                    f"_set_up_clients('{name}')",
+                                    UnitTestContext)
 
             # Give the client an id/key directly for now...
             user_id = self._user_id.next(name)

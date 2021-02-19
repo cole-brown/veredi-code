@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from veredi.data.codec          import Encoder, Decoder
 
 import yaml
-from io import StringIO
+from io import StringIO, TextIOBase
 import contextlib
 
 from veredi.logger               import log
@@ -256,8 +256,9 @@ class YamlSerdes(BaseSerdes):
           Maybes:
             - Other yaml/stream errors?
         '''
-        # Assume we are supposed to read the entire stream.
-        stream.seek(0)
+        if isinstance(stream, TextIOBase):
+            # Assume we are supposed to read the entire stream.
+            stream.seek(0)
 
         data = None
         try:

@@ -121,13 +121,13 @@ class ZestEcs(ZestBase):
         self.manager: Meeting = None
         '''
         If class uses ECS, the Meeting of ECS Managers should go here.
-        zload.set_up() can provide this.
+        zload.set_up_ecs() can provide this.
         '''
 
         self.context: VerediContext = None
         '''
         If class uses a set-up/config context, it should go here.
-        zload.set_up() can provide this.
+        zload.set_up_ecs() can provide this.
         '''
 
         self.config: Configuration = None
@@ -143,7 +143,7 @@ class ZestEcs(ZestBase):
         self.engine: Engine = None
         '''
         The ECS Game Engine.
-        zload.set_up() can provide this.
+        zload.set_up_ecs() can provide this.
         '''
 
     def set_up(self) -> None:
@@ -194,22 +194,24 @@ class ZestEcs(ZestBase):
             configuration = self.config
 
         (self.manager, self.engine,
-         self.context, _) = zload.set_up(self.__class__.__name__,
-                                         '_set_up_ecs',
-                                         self.debugging,
-                                         test_type=test_type,
-                                         debug_flags=self.debug_flags,
-                                         require_engine=require_engine,
-                                         desired_systems=desired_systems,
-                                         configuration=configuration,
-                                         time_manager=time_manager,
-                                         event_manager=event_manager,
-                                         component_manager=component_manager,
-                                         entity_manager=entity_manager,
-                                         system_manager=system_manager,
-                                         data_manager=data_manager,
-                                         identity_manager=identity_manager,
-                                         engine=engine)
+         self.context, _) = zload.set_up_ecs(
+             __file__,
+             self,
+             '_set_up_ecs',
+             self.debugging,
+             test_type=test_type,
+             debug_flags=self.debug_flags,
+             require_engine=require_engine,
+             desired_systems=desired_systems,
+             configuration=configuration,
+             time_manager=time_manager,
+             event_manager=event_manager,
+             component_manager=component_manager,
+             entity_manager=entity_manager,
+             system_manager=system_manager,
+             data_manager=data_manager,
+             identity_manager=identity_manager,
+             engine=engine)
 
     # ------------------------------
     # Input / Output Set-Up
@@ -317,14 +319,15 @@ class ZestEcs(ZestBase):
         <your tear-down stuff>
         super().tear_down()
         '''
-        self._tear_down_ecs(self)
+        self._tear_down_ecs()
 
     def _tear_down_ecs(self):
         '''
         Calls zload.tear_down_ecs to have meeting/managers run any tear-down
         they happen to have.
         '''
-        zload.tear_down_ecs(self.__class__.__name__,
+        zload.tear_down_ecs(__file__,
+                            self,
                             '_tear_down_ecs',
                             self.debugging,
                             self.manager,

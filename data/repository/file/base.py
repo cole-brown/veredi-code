@@ -202,6 +202,9 @@ class FileRepository(BaseRepository):
 
         # But really, /most/ repos should get settings from config.
         else:
+            if self.__class__.__name__ == "FileBareRepository":
+                self._log_critical(f"{self.__class__.__name__}._init_path_safing(): Config and Context exist. {config}",
+                                   context=context)
             self._log_start_up(self.dotted(),
                                "Getting path-safing from config...",
                                log_minimum=log.Level.DEBUG)
@@ -614,6 +617,10 @@ class FileRepository(BaseRepository):
         # use data from a previous test.
         path = self._path_temp()
         if path.exists():
+            # Some unit test failed? Try to clean up first.
+            self._ut_tear_down(note="_ut_set_up() needs to clean up dirty state.")
+        # /Now/ it's gone.... right?
+        if path.exists():
             msg = "Temp Dir Path for Unit-Testing already exists!"
             error = UnitTestError(msg,
                                   data={
@@ -628,7 +635,7 @@ class FileRepository(BaseRepository):
         # And now we can create it.
         path.mkdir(parents=True)
 
-    def _ut_tear_down(self) -> None:
+    def _ut_tear_down(self, note: str = None) -> None:
         '''
         Deletes our temp directory and all files in it.
         '''
@@ -643,6 +650,7 @@ class FileRepository(BaseRepository):
             error = UnitTestError(msg,
                                   data={
                                       'meta': self._bg,
+                                      'note': note,
                                       'root': paths.to_str(self.root()),
                                       'exists?': paths.exists(self.root()),
                                       'file?': paths.is_file(self.root()),
@@ -666,6 +674,7 @@ class FileRepository(BaseRepository):
                 error = UnitTestError(msg,
                                       data={
                                           'meta': self._bg,
+                                          'note': note,
                                           'temp-path': paths.to_str(path),
                                           'exists?': path.exists(),
                                           'file?': path.is_file(),

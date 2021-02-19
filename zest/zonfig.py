@@ -88,6 +88,16 @@ class NoFileConfig(Configuration):
     base class for configs for specific backends? FileConfig, DbConfig...
     '''
 
+    # -------------------------------------------------------------------------
+    # Class Constants
+    # -------------------------------------------------------------------------
+
+    _DOTTED_NAME = 'veredi.zest.zonfig.no-file-config'
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self,
                  rules:       label.LabelInput,
                  game_id:     Any,
@@ -95,6 +105,9 @@ class NoFileConfig(Configuration):
         '''Don't call super().__init__()... we Just do it ourselves so as to
         avoid the normal config file.'''
 
+        # ---
+        # Set up variables.
+        # ---
         self._rules = label.normalize(rules)
         self._id = game_id
 
@@ -105,14 +118,26 @@ class NoFileConfig(Configuration):
         # Our storage of the config data itself.
         self._config = config_data or {}
 
+        self._repo = None
+        self._serdes = None
+
+        self._metadata = {
+            background.Name.DOTTED.key: self.dotted(),
+            'path':                     self._path,
+            'rules':                    self._rules,
+            'id':                       self._id,
+            background.Name.SERDES.key: None,
+            background.Name.REPO.key:   None,
+        }
+
+        # ---
+        # After var set-up!
+        # ---
         try:
             # Setup our context, import repo & serdes's.
             # Also includes a handy back-link to this Configuration.
             background.config.init(self._path,
                                    self)
-
-            self._repo = None
-            self._serdes = None
 
             self._set_background()
 
