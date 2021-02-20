@@ -370,7 +370,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         for i in range(self.NUM_CLIENTS):
             name = self.NAME_CLIENT_FMT.format(i=i)
             context = zontext.empty(__file__,
-                                    self.__class__.__name__,
+                                    self,
                                     f"_set_up_clients('{name}')",
                                     UnitTestContext)
 

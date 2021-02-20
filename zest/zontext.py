@@ -29,14 +29,14 @@ from veredi.base.context        import VerediContext, UnitTestContext
 # -----------------------------------------------------------------------------
 
 def _metadata(file_name: str,
-              test:     'unittest.TestCase',
+              test_case: 'unittest.TestCase',
               func_name: str) -> Dict[str, str]:
     '''
     Returns unit testing metadata dict built from inputs.
     '''
     return {
         'file': file_name,
-        'suite': test.__class__.__name__ if test else str(test),
+        'suite': test_case.__class__.__name__ if test_case else str(test_case),
         'test': func_name,
     }
 
@@ -46,7 +46,7 @@ def _metadata(file_name: str,
 # -----------------------------------------------------------------------------
 
 def empty(file_name:    str,
-          klass:        'unittest.TestCase',
+          test_case:    'unittest.TestCase',
           func_name:    str,
           context_type: Type[VerediContext],
           ) -> VerediContext:
@@ -55,25 +55,25 @@ def empty(file_name:    str,
 
     For a UnitTestContext:
       - `file_name` should be __file__ in the caller.
-      - `klass` and `func_name` should be the caller as well - they are
+      - `test` and `func_name` should be the caller as well - they are
         supplied to UnitTestContext's constructor if that `context_type` is
         used.
 
-    For other types, `file_name`, `klass`, and `func_name` are ignored.
+    For other types, `file_name`, `test`, and `func_name` are ignored.
 
-    NOTE: Doesn't to place file/klass/func into 'meta' key like `test()` and
+    NOTE: Doesn't to place file/test/func into 'meta' key like `test()` and
     `real_config()` do!
     '''
     if context_type == UnitTestContext:
         return context_type(file_name,
-                            klass,
+                            test_case,
                             func_name,
                             data={})
     return context_type()
 
 
 def test(file_name:   str,
-         klass:       'unittest.TestCase',
+         test_case:   'unittest.TestCase',
          func_name:   str,
          repo_path:   Optional[pathlib.Path] = None,
          config:      Optional[Configuration] = None
@@ -83,12 +83,12 @@ def test(file_name:   str,
     '''
     ctx = ConfigContext(repo_path,
                         'veredi.zest.zontext.test')
-    ctx['test'] = _metadata(file_name, klass, func_name)
+    ctx['test'] = _metadata(file_name, test_case, func_name)
     return ctx
 
 
 def real_config(file_name:  str,
-                klass:      'unittest.TestCase',
+                test_case:  'unittest.TestCase',
                 func_name:  str,
                 repo_path:  Optional[pathlib.Path]  = None,
                 config:     Optional[Configuration] = None
@@ -101,7 +101,7 @@ def real_config(file_name:  str,
     Will make an 'empty' ConfigContext if neither optional is supplied.
 
     - `file_name` should be __file__ in the caller.
-    - `klass` and `func_name` should be the caller as well - they are
+    - `test_case` and `func_name` should be the caller as well - they are
       supplied to UnitTestContext's constructor if that `context_type` is
       used.
     '''
@@ -112,8 +112,8 @@ def real_config(file_name:  str,
     elif config:
         ctx = config.make_config_context()
     else:
-        ctx = empty(file_name, klass, func_name, ConfigContext)
+        ctx = empty(file_name, test_case, func_name, ConfigContext)
 
     # Slip in the testing metadata befor returning.
-    ctx['test'] = _metadata(file_name, klass, func_name)
+    ctx['test'] = _metadata(file_name, test_case, func_name)
     return ctx
