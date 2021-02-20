@@ -337,7 +337,12 @@ class Test_DataManager_Repo(BaseTest_DataManager):
         self.assertTrue(repo_ctx['meta']['path'])
         self.assertIn('root', repo_ctx['meta']['path'])
         self.assertTrue(repo_ctx['meta']['path']['root'])
-        load_path = paths.cast(repo_ctx['meta']['path']['root'])
+        # ...and it should have the load path it used in it.
+        self.assertIn('paths', repo_ctx)
+        self.assertTrue(repo_ctx['paths'])
+        self.assertIsInstance(repo_ctx['paths'], list)
+        self.assertEqual(len(repo_ctx['paths']), 1)
+        load_path = paths.cast(repo_ctx['paths'][0])
         self.assertTrue(load_path)
         self.assertTrue(load_path.exists())
 
