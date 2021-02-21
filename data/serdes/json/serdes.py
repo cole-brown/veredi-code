@@ -70,13 +70,23 @@ class JsonSerdes(BaseSerdes):
                  context: Optional['ConfigContext'] = None) -> None:
         super().__init__(JsonSerdes._SERDES_NAME,
                          context)
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Done with init.")
 
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:
         '''Config from context and elsewhere.'''
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              f"{self.__class__.__name__} configure...")
+
         super()._configure(context)
 
         # Nothing specific for us to do.
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Done with configuration.")
 
     # -------------------------------------------------------------------------
     # Background & Context
@@ -100,11 +110,19 @@ class JsonSerdes(BaseSerdes):
           Maybes:
             - Other json/stream errors?
         '''
-        log.debug("json.deserialize input: {}", type(stream))
+        self._log_data_processing(self.dotted(),
+                                  "Deserializing from '{}'...",
+                                  type(stream),
+                                  context=context)
+
         self._context_data(context, DataAction.LOAD)
         data = self._read(stream, context)
         if not data:
             msg = "Reading all json from stream resulted in no data."
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.ReadError(
                 msg,
                 context=context,
@@ -114,7 +132,10 @@ class JsonSerdes(BaseSerdes):
             raise log.exception(error, msg,
                                 context=context)
 
-        log.debug("json.deserialize output: {}", type(data))
+        self._log_data_processing(self.dotted(),
+                                  "Deserialized to '{}'!",
+                                  type(data),
+                                  context=context)
         return data
 
     def _json_hookup_obj_pairs(self, pairs: List[Tuple[Any, Any]]) -> Any:
@@ -153,7 +174,7 @@ class JsonSerdes(BaseSerdes):
                 continue
 
             # Now do datetime.
-            stamp =  time.parse.datetime(value)
+            stamp = time.parse.datetime(value)
             if stamp:
                 result[key] = stamp
                 # Found a value; done.
@@ -174,19 +195,30 @@ class JsonSerdes(BaseSerdes):
         return result
 
     def _json_load(self,
-                   stream: Union[TextIO, str]) -> DeserializeTypes:
+                   stream:  Union[TextIO, str],
+                   context: 'VerediContext') -> DeserializeTypes:
         '''
         Calls `json.load()` or `json.loads()`, as appropriate, with correct
         hook(s), and returns json's result.
         '''
         data = None
         if isinstance(stream, str):
+            self._log_data_processing(self.dotted(),
+                                      "Deserializing JSON string...",
+                                      context=context)
             data = json.loads(stream,
                               object_pairs_hook=self._json_hookup_obj_pairs)
         else:
+            self._log_data_processing(self.dotted(),
+                                      "Deserializing JSON stream/file...",
+                                      context=context)
             data = json.load(stream,
                              object_pairs_hook=self._json_hookup_obj_pairs)
 
+        self._log_data_processing(self.dotted(),
+                                  "Deserialized data from JSON.",
+                                  context=context,
+                                  success=True)
         return data
 
     def _read(self,
@@ -208,16 +240,28 @@ class JsonSerdes(BaseSerdes):
           Maybes:
             - Other json/file errors?
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Reading from '{}'...",
+                                  type(stream),
+                                  context=context)
         if isinstance(stream, TextIOBase):
+            self._log_data_processing(self.dotted(),
+                                      "Seek to beginning first.",
+                                      context=context)
             # Assume we are supposed to read the entire stream.
             stream.seek(0)
 
         data = None
         try:
-            data = self._json_load(stream)
+            data = self._json_load(stream, context)
+
         except json.JSONDecodeError as json_error:
             data = None
             msg = f"Error reading json from stream: {stream}"
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.ReadError(
                 msg,
                 context=context,
@@ -236,6 +280,11 @@ class JsonSerdes(BaseSerdes):
             raise log.exception(error, msg,
                                 context=context) from json_error
 
+        self._log_data_processing(self.dotted(),
+                                  "Read JSON from '{}'!",
+                                  type(stream),
+                                  context=context,
+                                  success=True)
         return data
 
     def deserialize_all(self,
@@ -250,13 +299,22 @@ class JsonSerdes(BaseSerdes):
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        log.debug("json.deserialize_all input: {}", type(stream))
+        self._log_data_processing(self.dotted(),
+                                  "Deserializing all from '{}'...",
+                                  type(stream),
+                                  context=context)
         self._context_data(context, DataAction.LOAD)
         data = self._read_all(stream, context)
         if not data:
-            msg = "Reading all json from stream resulted in no data."
+            msg = "Deserializing all JSON from {} resulted in no data."
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      type(stream),
+                                      context=context,
+                                      success=False)
             error = exceptions.ReadError(
                 msg,
+                type(stream),
                 context=context,
                 data={
                     'data': data,
@@ -264,7 +322,11 @@ class JsonSerdes(BaseSerdes):
             raise log.exception(error, msg,
                                 context=context)
 
-        log.debug("json.deserialize_all output: {}", type(data))
+        self._log_data_processing(self.dotted(),
+                                  "Deserialized all from '{}'!",
+                                  type(stream),
+                                  context=context,
+                                  success=True)
         return data
 
     def _read_all(self,
@@ -280,6 +342,10 @@ class JsonSerdes(BaseSerdes):
           - exceptions.ReadError
             - wrapped lib/module errors
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Reading all from '{}'...",
+                                  type(stream),
+                                  context=context)
         # Just use read since json has no concept of multi-document streams.
         return self._read(stream, context)
 
@@ -297,28 +363,56 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapping a library error?
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Serializing from '{}'...",
+                                  type(data),
+                                  context=context)
+
         self._context_data(context, DataAction.SAVE)
         to_serialize = self._serialize_prep(data, context)
         stream = self._write(to_serialize, context)
+
+        self._log_data_processing(self.dotted(),
+                                  "Serialized from '{}'!",
+                                  type(data),
+                                  context=context,
+                                  success=True)
         return stream
 
     def _json_dump(self,
-                   data:   SerializeTypes,
-                   stream: Union[TextIO, str]) -> None:
+                   dump_to: SerializeTypes,
+                   stream:  Union[TextIO, str],
+                   context: 'VerediContext') -> None:
         '''
         Calls `json.dump()` or `json.dumps()`, as appropriate, with correct
         hook(s), and returns json's result.
+
+        `dump_to` is the stream or string or instance of whatever you want JSON
+        dumped to. It will be serialzed to `dump_to` (unless it's immutable (str));
+        `dump_to` is also returned.
+
+        `stream` is the data to be dumped.
         '''
         if isinstance(stream, str):
-            data = json.dumps(data,
-                              stream,
-                              cls=self._json_encoder)
+            self._log_data_processing(self.dotted(),
+                                      "Serializing data to JSON string...",
+                                      context=context)
+            dump_to = json.dumps(dump_to,
+                                 stream,
+                                 cls=self._json_encoder)
         else:
-            data = json.dump(data,
-                             stream,
-                             cls=self._json_encoder)
+            self._log_data_processing(self.dotted(),
+                                      "Serializing data to JSON stream/file...",
+                                      context=context)
+            dump_to = json.dump(dump_to,
+                                stream,
+                                cls=self._json_encoder)
 
-        return data
+        self._log_data_processing(self.dotted(),
+                                  "Serialized data to JSON.",
+                                  context=context,
+                                  success=True)
+        return dump_to
 
     def _serialize_prep(self,
                         data:    SerializeTypes,
@@ -327,12 +421,22 @@ class JsonSerdes(BaseSerdes):
         Tries to turn the various possibilities for data (list, dict, etc) into
         something ready for json to serialize.
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Serialize preparation...",
+                                  context=context)
         serialized = None
         if null_or_none(data):
+            self._log_data_processing(self.dotted(),
+                                      "No data to prep.",
+                                      context=context)
             return serialized
 
         # Is it just an Encodable object?
         if isinstance(data, Encodable):
+            self._log_data_processing(self.dotted(),
+                                      "Encoding `Encodable` data "
+                                      "for serialization.",
+                                      context=context)
             serialized = data.encode(None)
             return serialized
 
@@ -346,24 +450,42 @@ class JsonSerdes(BaseSerdes):
             return serialized
 
         # Mapping?
-        with contextlib.suppress(AttributeError):
+        with contextlib.suppress(AttributeError, TypeError):
+            # Do the thing that spawns the exception before
+            # we log about doing the thing...
+            keys = data.keys()
+            self._log_data_processing(self.dotted(),
+                                      "Prepping `Mapping` of data "
+                                      "for serialization.",
+                                      context=context)
             serialized = {}
-            for each in data.keys():
+            for each in keys:
                 # TODO [2020-07-29]: Change to non-recursive?
                 serialized[str(each)] = self._serialize_prep(data[each],
                                                              context)
             return serialized
 
         # Iterable
-        with contextlib.suppress(AttributeError):
+        with contextlib.suppress(AttributeError, TypeError):
+            # Do the thing that spawns the exception before
+            # we log about doing the thing...
+            iterable = iter(data)
+            self._log_data_processing(self.dotted(),
+                                      "Prepping `Iterable` of data "
+                                      "for serialization.",
+                                      context=context)
             serialized = []
-            for each in data:
+            for each in iterable:
                 # TODO [2020-07-29]: Change to non-recursive?
                 serialized.append(self._serialize_prep(each, context))
             return serialized
 
         # Falling through to here is bad; raise Exception.
-        msg = "Don't know how to process data."
+        msg = f"Don't know how to process '{type(data)}' data."
+        self._log_data_processing(self.dotted(),
+                                  msg,
+                                  context=context,
+                                  success=False)
         error = exceptions.WriteError(msg,
                                       context=context,
                                       data={
@@ -385,13 +507,21 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Writing '{}' to stream...",
+                                  type(data),
+                                  context=context)
         serialized = StringIO()
         try:
-            self._json_dump(data, serialized)
+            self._json_dump(data, serialized, context)
         except (TypeError, OverflowError, ValueError) as json_error:
             serialized = None
             # data_pretty = pretty.indented(data)
-            msg = "Error writing data to stream."
+            msg = f"Error writing data '{type(data)}' to stream."
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.WriteError(msg,
                                           context=context,
                                           data={
@@ -400,6 +530,11 @@ class JsonSerdes(BaseSerdes):
             raise log.exception(error, msg,
                                 context=context) from json_error
 
+        self._log_data_processing(self.dotted(),
+                                  "Wrote '{}' to JSON!",
+                                  type(data),
+                                  context=context,
+                                  success=True)
         return serialized
 
     def serialize_all(self,
@@ -415,9 +550,19 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Serializing all from '{}'...",
+                                  type(data),
+                                  context=context)
+
         self._context_data(context, DataAction.SAVE)
         to_serialize = self._serialize_prep(data, context)
         stream = self._write(to_serialize, context)
+
+        self._log_data_processing(self.dotted(),
+                                  "Serialized all from '{}'!",
+                                  type(data),
+                                  context=context)
         return stream
 
     def _write_all(self,
@@ -433,6 +578,10 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Writing all '{}' to stream...",
+                                  type(data),
+                                  context=context)
         # Just use _write() since json has no concept of multi-document
         # streams.
         return self._write(data, context)

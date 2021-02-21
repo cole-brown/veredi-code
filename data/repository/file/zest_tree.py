@@ -502,10 +502,13 @@ class Test_FileTreeRepo(ZestBase):
         # Shouldn't exist yet.
         self.assertFalse(self.path_temp.exists())
 
+        # Only needed for logging:
+        context = self.context_save(self.TaxonCtx.GAME, temp=True)
+
         # Now we'll ensure it exists... Ensure only ensures the path's parent,
         # so in this case it ensures `self.path_temp` exists, not
         # `self.path_temp_file`.
-        self.repo._path_ensure(self.path_temp_file)
+        self.repo._path_ensure(self.path_temp_file, context)
         # ...so the directory should exist now.
         self.assertTrue(self.path_temp.exists())
 

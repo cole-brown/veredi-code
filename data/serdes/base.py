@@ -23,8 +23,11 @@ from abc import ABC, abstractmethod
 from io import StringIO
 
 
-from veredi.data       import background
-from ..codec.encodable import Encodable
+from veredi.logger       import log
+from veredi.logger.mixin import LogMixin
+
+from veredi.data         import background
+from ..codec.encodable   import Encodable
 
 
 # -----------------------------------------------------------------------------
@@ -51,7 +54,23 @@ SerializeTypes = NewType('SerializeTypes',
 
 # Subclasses, register like this:
 # @register('veredi', 'serdes', 'SerdesSubclass')
-class BaseSerdes(ABC):
+class BaseSerdes(LogMixin, ABC):
+
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
+
+    # ------------------------------
+    # Logging
+    # ------------------------------
+
+    _LOG_INIT: List[log.Group] = [
+        log.Group.START_UP,
+        log.Group.DATA_PROCESSING
+    ]
+    '''
+    Group of logs we use a lot for log.group_multi().
+    '''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -77,10 +96,24 @@ class BaseSerdes(ABC):
         `config_context` is the context being used to set us up.
         '''
         self._define_vars()
-
         self._name = serdes_name.lower()
 
+        # ---
+        # Set-Up LogMixin before _configure() so we have logging.
+        # ---
+        self._log_config(self.dotted())
+        # Log both class and base name?
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              f"{self.__class__.__name__} init...")
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "BaseSerdes init...")
+
         self._configure(config_context)
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Done with BaseSerdes init.")
 
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:
@@ -88,6 +121,10 @@ class BaseSerdes(ABC):
         Do whatever configuration we can as the base class; sub-classes should
         finish up whatever is needed to set up themselves.
         '''
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "BaseSerdes configure...")
+
         # Set up our background for when it gets pulled in.
         self._make_background()
 

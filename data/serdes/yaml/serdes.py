@@ -71,12 +71,23 @@ class YamlSerdes(BaseSerdes):
         # TODO: register differenter?
         adapters.import_and_register()
 
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Done with init.")
+
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:
         '''Config from context and elsewhere.'''
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              f"{self.__class__.__name__} configure...")
+
         super()._configure(context)
 
         # Nothing specific for us to do.
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Done with configuration.")
 
     # -------------------------------------------------------------------------
     # Background & Context
@@ -100,10 +111,19 @@ class YamlSerdes(BaseSerdes):
           Maybes:
             - Other yaml/stream errors?
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Deserializing from '{}'...",
+                                  type(stream),
+                                  context=context)
+
         self._context_data(context, DataAction.LOAD)
         data = self._read(stream, context)
         if not data:
             msg = "Reading yaml from stream resulted in no data."
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.ReadError(
                 msg,
                 context=context,
@@ -123,6 +143,10 @@ class YamlSerdes(BaseSerdes):
         #   - and python objects
         #
         # Game data should just be python: dicts, lists, str, int, etc.
+        self._log_data_processing(self.dotted(),
+                                  "Deserialized to '{}'!",
+                                  type(data),
+                                  context=context)
         return self._deserialize(data)
 
     def deserialize_all(self,
@@ -137,10 +161,19 @@ class YamlSerdes(BaseSerdes):
           Maybes:
             - Other yaml/stream errors?
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Deserializing all from '{}'...",
+                                  type(stream),
+                                  context=context)
         self._context_data(context, DataAction.LOAD)
         data = self._read_all(stream, context)
         if not data:
             msg = "Reading all yaml from stream resulted in no data."
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      type(stream),
+                                      context=context,
+                                      success=False)
             error = exceptions.ReadError(
                 msg,
                 context=context,
@@ -160,6 +193,11 @@ class YamlSerdes(BaseSerdes):
         #   - and python objects
         #
         # Game data should just be python: dicts, lists, str, int, etc.
+        self._log_data_processing(self.dotted(),
+                                  "Deserialized all from '{}'!",
+                                  type(stream),
+                                  context=context,
+                                  success=True)
         return self._deserialize_each(data)
 
     def _deserialize(self,
@@ -206,7 +244,14 @@ class YamlSerdes(BaseSerdes):
           Maybes:
             - Other yaml/stream errors?
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Reading from '{}'...",
+                                  type(stream),
+                                  context=context)
         if isinstance(stream, TextIOBase):
+            self._log_data_processing(self.dotted(),
+                                      "Seek to beginning first.",
+                                      context=context)
             # Assume we are supposed to read the entire stream.
             stream.seek(0)
 
@@ -219,6 +264,10 @@ class YamlSerdes(BaseSerdes):
         except yaml.YAMLError as yaml_error:
             data = None
             msg = 'YAML failed while reading the data.'
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.ReadError(
                 msg,
                 context=context,
@@ -235,6 +284,12 @@ class YamlSerdes(BaseSerdes):
                                         None),
                 })
             raise log.exception(error, msg, context=context) from yaml_error
+
+        self._log_data_processing(self.dotted(),
+                                  "Read YAML from '{}'!",
+                                  type(stream),
+                                  context=context,
+                                  success=True)
         return data
 
     def _read_all(self,
@@ -256,7 +311,14 @@ class YamlSerdes(BaseSerdes):
           Maybes:
             - Other yaml/stream errors?
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Reading all from '{}'...",
+                                  type(stream),
+                                  context=context)
         if isinstance(stream, TextIOBase):
+            self._log_data_processing(self.dotted(),
+                                      "Seek to beginning first.",
+                                      context=context)
             # Assume we are supposed to read the entire stream.
             stream.seek(0)
 
@@ -267,6 +329,10 @@ class YamlSerdes(BaseSerdes):
         except yaml.YAMLError as yaml_error:
             data = None
             msg = 'YAML failed while reading all the data.'
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.ReadError(
                 msg,
                 context=context,
@@ -284,6 +350,11 @@ class YamlSerdes(BaseSerdes):
                 })
             raise log.exception(error, msg, context=context) from yaml_error
 
+        self._log_data_processing(self.dotted(),
+                                  "Read all YAML from '{}'!",
+                                  type(stream),
+                                  context=context,
+                                  success=True)
         return data
 
     def _finish_read(self, data: Any) -> List[Any]:
@@ -305,33 +376,47 @@ class YamlSerdes(BaseSerdes):
         Tries to turn the various possibilities for data (list, dict, etc) into
         something ready for yaml to serialize.
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Serialize preparation...",
+                                  context=context)
         serialized = None
         if null_or_none(data):
+            self._log_data_processing(self.dotted(),
+                                      "No data to prep.",
+                                      context=context)
             return serialized
 
         # Is it just an Encodable object?
         if isinstance(data, Encodable):
+            self._log_data_processing(self.dotted(),
+                                      "Encoding `Encodable` data "
+                                      "for serialization.",
+                                      context=context)
             serialized = data.encode(None)
             return serialized
 
         # Is it a simple type?
         if (text.serialize_claim(data)
                 or numbers.serialize_claim(data)
-                or paths.serialize_claim(data)
                 or time.serialize_claim(data)):
             # Let yaml handle it.
             serialized = data
             return serialized
-
-        # Path maybe?
         if paths.serialize_claim(data):
             serialized = paths.serialize(data)
             return serialized
 
         # Mapping?
         with contextlib.suppress(AttributeError, TypeError):
+            # Do the thing that spawns the exception before
+            # we log about doing the thing...
+            keys = data.keys()
+            self._log_data_processing(self.dotted(),
+                                      "Prepping `Mapping` of data "
+                                      "for serialization.",
+                                      context=context)
             serialized = {}
-            for each in data.keys():
+            for each in keys:
                 # TODO [2020-07-29]: Change to non-recursive?
                 serialized[str(each)] = self._serialize_prep(data[each],
                                                              context)
@@ -339,13 +424,24 @@ class YamlSerdes(BaseSerdes):
 
         # Iterable?
         with contextlib.suppress(AttributeError, TypeError):
+            # Do the thing that spawns the exception before
+            # we log about doing the thing...
+            iterable = iter(data)
+            self._log_data_processing(self.dotted(),
+                                      "Prepping `Iterable` of data "
+                                      "for serialization.",
+                                      context=context)
             serialized = []
-            for each in data:
+            for each in iterable:
                 # TODO [2020-07-29]: Change to non-recursive?
                 serialized.append(self._serialize_prep(each, context))
             return serialized
 
         msg = "Don't know how to process data"
+        self._log_data_processing(self.dotted(),
+                                  msg,
+                                  context=context,
+                                  success=False)
         error = exceptions.WriteError(msg,
                                       context=context,
                                       data={
@@ -365,18 +461,32 @@ class YamlSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapped yaml.YAMLSerializeError
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Serializing from '{}'...",
+                                  type(data),
+                                  context=context)
+
         self._context_data(context, DataAction.SAVE)
-        log.debug(f"serialize data: {data}")
         to_serialize = self._serialize_prep(data, context)
         output = self._write(to_serialize, context)
         if not output:
-            msg = f"Writing yaml from data resulted in no output: {output}"
+            msg = f"Serializing yaml from data resulted in no output: {output}"
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.WriteError(msg,
                                           context=context,
                                           data={
                                               'data': data,
                                           })
             raise log.exception(error, msg, context=context)
+
+        self._log_data_processing(self.dotted(),
+                                  "Serialized from '{}'!",
+                                  type(data),
+                                  context=context,
+                                  success=True)
         return output
 
     def serialize_all(self,
@@ -390,12 +500,20 @@ class YamlSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapped yaml.YAMLSerializeError
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Serializing all from '{}'...",
+                                  type(data),
+                                  context=context)
 
         to_serialize = self._serialize_prep(data, context)
         self._context_data(context, DataAction.SAVE)
         output = self._write_all(to_serialize, context)
         if not output:
-            msg = f"Writing all yaml from data resulted in no output: {output}"
+            msg = f"Serializing all yaml from data resulted in no output: {output}"
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.WriteError(msg,
                                           context=context,
                                           data={
@@ -405,6 +523,11 @@ class YamlSerdes(BaseSerdes):
 
         # TODO: Here is where we'd check for sanity and stuff?
 
+        self._log_data_processing(self.dotted(),
+                                  "Serialized all from '{}'!",
+                                  type(data),
+                                  context=context,
+                                  success=True)
         return output
 
     def _write(self,
@@ -426,16 +549,24 @@ class YamlSerdes(BaseSerdes):
           Maybes:
             - Other yaml/stream errors?
         '''
-
+        self._log_data_processing(self.dotted(),
+                                  "Writing '{}' to stream...",
+                                  type(data),
+                                  context=context)
         serialized = StringIO()
         try:
             yaml.safe_dump(data, default_flow_style=None, stream=serialized)
             # TODO [2020-07-04]: may need to evaluate this in some way to get
             # it past its lazy writing... I want to catch any yaml exceptions
             # here and not let them infect unrelated code.
+
         except yaml.YAMLError as yaml_error:
             serialized = None
             msg = 'YAML failed while writing the data.'
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.WriteError(msg,
                                           context=context,
                                           data={
@@ -446,6 +577,12 @@ class YamlSerdes(BaseSerdes):
         # Apparently yaml doesn't give us the spot in the stream it started
         # writing, so rewind.
         serialized.seek(0)
+
+        self._log_data_processing(self.dotted(),
+                                  "Wrote '{}' to YAML!",
+                                  type(data),
+                                  context=context,
+                                  success=True)
         return serialized
 
     def _write_all(self,
@@ -468,14 +605,24 @@ class YamlSerdes(BaseSerdes):
             - Other yaml/stream errors?
         '''
 
+        self._log_data_processing(self.dotted(),
+                                  "Writing all '{}' to stream...",
+                                  type(data),
+                                  context=context)
+
         serialized = StringIO()
         try:
             yaml.safe_dump_all(data,
                                default_flow_style=None,
                                stream=serialized)
+
         except yaml.YAMLError as yaml_error:
             serialized = None
             msg = 'YAML failed while writing all the data.'
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             error = exceptions.WriteError(msg,
                                           context=context,
                                           data={
@@ -485,4 +632,11 @@ class YamlSerdes(BaseSerdes):
 
         # Apparently yaml doesn't give us the spot in the stream it started
         # writing, so rewind.
+        serialized.seek(0)
+
+        self._log_data_processing(self.dotted(),
+                                  "Wrote '{}' to YAML!",
+                                  type(data),
+                                  context=context,
+                                  success=True)
         return serialized

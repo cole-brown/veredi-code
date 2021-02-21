@@ -367,9 +367,18 @@ class Test_FileBareRepo(ZestBase):
         filepath = dirpath / 'somefile.txt'
         self.assertFalse(dirpath.exists())
 
+        # Only needed for logging:
+        context = DataBareContext(self.dotted(__file__),
+                                  ConfigContext.KEY,
+                                  "not-used-this-test",
+                                  DataAction.SAVE,
+                                  self._meta('test_path_save'),
+                                  # Make stuff happen in temp dir.
+                                  temp=True)
+
         # Now we'll ensure it exists... Ensure only ensures the path's parent,
         # so in this case it ensures `dirpath` exists, not `filepath`.
-        self.repo._path_ensure(filepath)
+        self.repo._path_ensure(filepath, context)
         # ...so the directory should exist now.
         self.assertTrue(dirpath.exists())
 
@@ -692,6 +701,8 @@ class Test_FileBareRepo(ZestBase):
         self._tear_down_repo()
 
     def test_save(self) -> None:
+        # log.set_group_level(log.Group.DATA_PROCESSING, log.Level.INFO)
+
         # Use repository to load a file, save it to the temp unit-testing
         # place, then check original vs saved.
         self._set_up_repo()

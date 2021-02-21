@@ -26,7 +26,7 @@ from veredi.data.context         import DataBareContext
 from veredi.data.config.context  import ConfigContext
 
 
-from ...                         import exceptions
+from ...exceptions               import LoadError, SaveError
 from .base                       import FileRepository
 
 
@@ -55,8 +55,9 @@ class FileBareRepository(FileRepository):
     def __init__(self,
                  config_context: Optional[ConfigContext] = None) -> None:
         super().__init__(self._REPO_NAME, config_context)
-        self._log_start_up(self.dotted(),
-                           "Done with init.")
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Done with init.")
 
     def _configure(self,
                    context: Optional[ConfigContext]) -> None:
@@ -64,6 +65,10 @@ class FileBareRepository(FileRepository):
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              f"{self.__class__.__name__} configure...")
+
         # ------------------------------
         # Have Mom set us up.
         # ------------------------------
@@ -89,8 +94,9 @@ class FileBareRepository(FileRepository):
         # ------------------------------
         # Done.
         # ------------------------------
-        self._log_start_up(self.dotted(),
-                           "Done with configuration.")
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Done with configuration.")
 
     # -------------------------------------------------------------------------
     # Load / Save Helpers
@@ -121,7 +127,15 @@ class FileBareRepository(FileRepository):
         Turns load/save meta-data in the context into a key we can use to
         retrieve the data.
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Getting data from context to "
+                                  "create key...")
         if not context.key:
+            self._log_data_processing(self.dotted(),
+                                      "Context must have a key: {}",
+                                      context.key,
+                                      context=context,
+                                      success=False)
             raise self._log_exception(
                 self._error_type(context),
                 "Context must have a key: {}",
@@ -139,6 +153,11 @@ class FileBareRepository(FileRepository):
                          ensure=True,
                          glob=False)
 
+        self._log_data_processing(self.dotted(),
+                                  "Created key: {}",
+                                  key,
+                                  context=context,
+                                  success=True)
         return key
 
     # -------------------------------------------------------------------------
@@ -151,28 +170,56 @@ class FileBareRepository(FileRepository):
         '''
         Looks for file at load_path. If it exists, loads that file.
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Loading '{}'...",
+                                  paths.to_str(load_path),
+                                  context=context)
+
         super()._load(load_path, context)
 
         # load_path should be exact - no globbing.
         if not load_path.exists():
+            msg = "Cannot load file. Path/file does not exist: {}"
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      paths.to_str(load_path),
+                                      context=context,
+                                      success=False)
+
             raise self._log_exception(
                 self._error_type(context),
-                "Cannot load file. Path/file does not exist: {}",
+                msg,
                 str(load_path),
                 context=context)
 
         data_stream = None
         with load_path.open('r') as file_stream:
+            self._log_data_processing(self.dotted(),
+                                      "Reading...",
+                                      context=context)
             # Can raise an error - we'll let it.
             try:
                 data_stream = StringIO(file_stream.read(None))
-            except exceptions.LoadError:
+            except LoadError:
+                self._log_data_processing(self.dotted(),
+                                          "Got LoadError trying to "
+                                          "read file: {}",
+                                          paths.to_str(load_path),
+                                          context=context,
+                                          success=False)
                 # Let this one bubble up as-is.
                 if data_stream and not data_stream.closed:
                     data_stream.close()
                 data_stream = None
                 raise
             except Exception as error:
+                self._log_data_processing(self.dotted(),
+                                          "Got an exception trying to "
+                                          "read file: {}",
+                                          paths.to_str(load_path),
+                                          context=context,
+                                          success=False)
+
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up.
                 if data_stream and not data_stream.closed:
@@ -183,6 +230,11 @@ class FileBareRepository(FileRepository):
                     "Error loading data from file. context: {}",
                     context=context) from error
 
+        self._log_data_processing(self.dotted(),
+                                  "Loaded file '{}'!",
+                                  paths.to_str(load_path),
+                                  context=context,
+                                  success=True)
         return data_stream
 
     # -------------------------------------------------------------------------
@@ -196,10 +248,18 @@ class FileBareRepository(FileRepository):
         '''
         Save `data` to `save_path`. If it already exists, overwrites that file.
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Saving '{}'...",
+                                  paths.to_str(save_path),
+                                  context=context)
+
         super()._save(save_path, data, context)
 
         success = False
         with save_path.open('w') as file_stream:
+            self._log_data_processing(self.dotted(),
+                                      "Writing...",
+                                      context=context)
             # Can raise an error - we'll let it.
             try:
                 # Make sure we're at the beginning of the data stream...
@@ -211,18 +271,34 @@ class FileBareRepository(FileRepository):
                 # success/failure...
                 success = True
 
-            except exceptions.SaveError:
+            except SaveError:
+                self._log_data_processing(self.dotted(),
+                                          "Got SaveError trying to "
+                                          "write file: {}",
+                                          paths.to_str(save_path),
+                                          context=context,
+                                          success=False)
+
                 # Let this one bubble up as-is.
-                # TODO: log to Group.DATA_PROCESSING
                 raise
 
             except Exception as error:
+                self._log_data_processing(self.dotted(),
+                                          "Got an exception trying to "
+                                          "write file: {}",
+                                          paths.to_str(save_path),
+                                          context=context,
+                                          success=False)
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up.
-                # TODO: log to Group.DATA_PROCESSING
                 raise self._log_exception(
                     self._error_type(context),
                     "Error saving data to file. context: {}",
                     context=context) from error
 
+        self._log_data_processing(self.dotted(),
+                                  "Saved file '{}'!",
+                                  paths.to_str(save_path),
+                                  context=context,
+                                  success=True)
         return success
