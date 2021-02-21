@@ -35,7 +35,7 @@ class Test_Configuration(ZestBase):
         self.config = zmake.config(zpath.TestType.UNIT,
                                    config_path=self.path)
 
-    def tearDown(self):
+    def tear_down(self):
         self.path = None
         self.config = None
 

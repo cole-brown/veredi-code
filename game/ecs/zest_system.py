@@ -156,11 +156,11 @@ class SysFour(SysTest):
 class Test_SystemManager(ZestBase):
 
     def set_up(self):
-        self.event_mgr  = None
+        self.config    = zmake.config()
+        self.event_mgr = None
         self.finish_set_up()
 
     def finish_set_up(self):
-        self.config     = zmake.config()
         self.time_mgr   = TimeManager()
         self.comp_mgr   = ComponentManager(self.config,
                                            self.event_mgr,
