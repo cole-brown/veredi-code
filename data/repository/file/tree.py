@@ -30,7 +30,7 @@ from veredi.data.context         import (DataAction,
 from veredi.data.config.context  import ConfigContext
 
 
-from ...                         import exceptions
+from ...exceptions               import LoadError, SaveError
 from .base                       import FileRepository
 from ..taxon                     import Rank
 
@@ -51,7 +51,7 @@ class FileTreeRepository(FileRepository):
     # Constants
     # -------------------------------------------------------------------------
 
-    _REPO_NAME   = 'file-tree'
+    _REPO_NAME = 'file-tree'
 
     # ---
     # Path Names
@@ -68,8 +68,9 @@ class FileTreeRepository(FileRepository):
     def __init__(self,
                  config_context: Optional[ConfigContext] = None) -> None:
         super().__init__(self._REPO_NAME, config_context)
-        self._log_start_up(self.dotted(),
-                           "Done with init.")
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Done with init.")
 
     def _configure(self,
                    context: Optional[ConfigContext]) -> None:
@@ -77,6 +78,10 @@ class FileTreeRepository(FileRepository):
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              f"{self.__class__.__name__} configure...")
+
         super()._configure(context, require_config=True)
 
         # No FileTreeRepository config to do at present.
@@ -102,20 +107,36 @@ class FileTreeRepository(FileRepository):
         action = context.action
         if (action == DataAction.SAVE
                 and not isinstance(context, DataSaveContext)):
+            msg = ("Cannot save data; mismatched context type and data "
+                   "action for {}: {}, {}")
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      self._error_name(context, False),
+                                      type(context),
+                                      action,
+                                      context=context,
+                                      success=False)
             raise self._log_exception(
                 self._error_type(context),
-                "Cannot save data; mismatched context type and data "
-                "action for {}: {}, {}",
+                msg,
                 self._error_name(context, False),
                 type(context),
                 action,
                 context=context)
         elif (action == DataAction.LOAD
               and not isinstance(context, DataLoadContext)):
+            msg = ("Cannot load data; mismatched context type and data "
+                   "action for {}: {}, {}")
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      self._error_name(context, False),
+                                      type(context),
+                                      action,
+                                      context=context,
+                                      success=False)
             raise self._log_exception(
                 self._error_type(context),
-                "Cannot load data; mismatched context type and data "
-                "action for {}: {}, {}",
+                msg,
                 self._error_name(context, False),
                 type(context),
                 action,
@@ -167,21 +188,32 @@ class FileTreeRepository(FileRepository):
     # -------------------------------------------------------------------------
 
     def _load(self,
-              path:    paths.PathType,
-              context: DataLoadContext) -> TextIOBase:
+              load_path: paths.PathType,
+              context:   DataLoadContext) -> TextIOBase:
         '''
-        Looks for a match to `path` by splitting into parent dir and
+        Looks for a match to `load_path` by splitting into parent dir and
         glob/file name. If only one match, loads that file.
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Loading requested path '{}'...",
+                                  paths.to_str(load_path),
+                                  context=context)
+
         # ------------------------------
         # Search...
         # ------------------------------
-        # Use path to find all file matchs...
-        directory = path.parent
-        glob = path.name
+        # Use load_path to find all file matchs...
+        directory = load_path.parent
+        glob = load_path.name
         matches = []
         for match in directory.glob(glob):
             matches.append(match)
+
+        match_word = "match" if len(matches) == 1 else "matches"
+        self._log_data_processing(self.dotted(),
+                                  f"Found {len(matches)} {match_word} files for "
+                                  f"loading '{load_path.name}': {matches}",
+                                  context=context)
 
         # ------------------------------
         # Sanity
@@ -190,33 +222,50 @@ class FileTreeRepository(FileRepository):
         if not matches:
             # We found nothing.
             self._context_data(context, matches)
+            msg = (f"No matches for loading file: "
+                   f"directory: {directory}, glob: {glob}, "
+                   f"matches: {matches}")
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             raise self._log_exception(
                 self._error_type(context),
-                f"No matches for loading file: "
-                f"directory: {directory}, glob: {glob}, "
-                f"matches: {matches}",
+                msg,
                 context=context)
         elif len(matches) > 1:
             # Throw all matches into context for error.
             self._context_data(context, matches)
+            msg = (f"Too many matches for loading file: "
+                   f"directory: {directory}, glob: {glob}, "
+                   f"matches: {sorted(matches)}")
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      context=context,
+                                      success=False)
             raise self._log_exception(
                 self._error_type(context),
-                f"Too many matches for loading file: "
-                f"directory: {directory}, glob: {glob}, "
-                f"matches: {sorted(matches)}",
+                msg,
                 context=context)
 
         # ------------------------------
         # Set-Up...
         # ------------------------------
-        path = matches[0]
-        super()._load(path, context)
+        self._log_data_processing(self.dotted(),
+                                  f"Loading '{matches[0]}' file for "
+                                  f"load path '{load_path}'...",
+                                  context=context)
+        load_path = matches[0]
+        super()._load(load_path, context)
 
         # ------------------------------
         # Load!
         # ------------------------------
         data_stream = None
-        with path.open('r') as file_stream:
+        with load_path.open('r') as file_stream:
+            self._log_data_processing(self.dotted(),
+                                      "Reading...",
+                                      context=context)
             # Can raise an error - we'll let it.
             try:
                 # print("\n\nfile tell:", file_stream.tell())
@@ -226,7 +275,13 @@ class FileTreeRepository(FileRepository):
                 # print(data_stream.read(None))
                 # print("\n")
 
-            except exceptions.LoadError:
+            except LoadError:
+                self._log_data_processing(self.dotted(),
+                                          "Got LoadError trying to "
+                                          "read file: {}",
+                                          paths.to_str(load_path),
+                                          context=context,
+                                          success=False)
                 # Let this one bubble up as-is.
                 if data_stream and not data_stream.closed:
                     data_stream.close()
@@ -234,6 +289,13 @@ class FileTreeRepository(FileRepository):
                 raise
 
             except Exception as error:
+                self._log_data_processing(self.dotted(),
+                                          "Got an exception trying to "
+                                          "read file: {}",
+                                          paths.to_str(load_path),
+                                          context=context,
+                                          success=False)
+
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up.
                 if data_stream and not data_stream.closed:
@@ -247,7 +309,13 @@ class FileTreeRepository(FileRepository):
         # ------------------------------
         # Done.
         # ------------------------------
+        self._log_data_processing(self.dotted(),
+                                  "Loaded file '{}'!",
+                                  paths.to_str(load_path),
+                                  context=context,
+                                  success=True)
         return data_stream
+
 
     # -------------------------------------------------------------------------
     # Save Methods
@@ -260,10 +328,18 @@ class FileTreeRepository(FileRepository):
         '''
         Save `data` to `save_path`. If it already exists, overwrites that file.
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Saving '{}'...",
+                                  paths.to_str(save_path),
+                                  context=context)
+
         super()._save(save_path, data, context)
 
         success = False
         with save_path.open('w') as file_stream:
+            self._log_data_processing(self.dotted(),
+                                      "Writing...",
+                                      context=context)
             # Can raise errors - we'll let it.
             try:
                 # Make sure we're at the beginning of the data stream...
@@ -276,18 +352,34 @@ class FileTreeRepository(FileRepository):
                 # no exceptions, so...:
                 success = True
 
-            except exceptions.SaveError:
+            except SaveError:
+                self._log_data_processing(self.dotted(),
+                                          "Got SaveError trying to "
+                                          "write file: {}",
+                                          paths.to_str(save_path),
+                                          context=context,
+                                          success=False)
+
                 # Let this one bubble up as-is.
-                # TODO: log to Group.DATA_PROCESSING
                 raise
 
             except Exception as error:
+                self._log_data_processing(self.dotted(),
+                                          "Got an exception trying to "
+                                          "write file: {}",
+                                          paths.to_str(save_path),
+                                          context=context,
+                                          success=False)
                 # Complain that we found an exception we don't handle.
                 # ...then let it bubble up.
-                # TODO: log to Group.DATA_PROCESSING
                 raise self._log_exception(
                     self._error_type(context),
                     "Error saving data to file. context: {}",
                     context=context) from error
 
+        self._log_data_processing(self.dotted(),
+                                  "Saved file '{}'!",
+                                  paths.to_str(save_path),
+                                  context=context,
+                                  success=True)
         return success

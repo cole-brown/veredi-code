@@ -10,7 +10,7 @@ various backend implementations (db, file, etc).
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Type, Dict, Tuple)
+                    Optional, Union, Any, Type, Dict, List, Tuple)
 if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
@@ -20,11 +20,13 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 
 
+from veredi.logger          import log
 from veredi.logger.mixin    import LogMixin
 from veredi.base.exceptions import VerediError
 from veredi.data            import background
 from veredi.data.context    import BaseDataContext, DataAction
 from ..exceptions           import LoadError, SaveError
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -36,6 +38,26 @@ from ..exceptions           import LoadError, SaveError
 # -----------------------------------------------------------------------------
 
 class BaseRepository(LogMixin, ABC):
+
+    # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
+
+    # ------------------------------
+    # Logging
+    # ------------------------------
+
+    _LOG_INIT: List[log.Group] = [
+        log.Group.START_UP,
+        log.Group.DATA_PROCESSING
+    ]
+    '''
+    Group of logs we use a lot for log.group_multi().
+    '''
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def _define_vars(self) -> None:
         '''
@@ -63,11 +85,24 @@ class BaseRepository(LogMixin, ABC):
         # Set-Up LogMixin before _configure() so we have logging.
         # ---
         self._log_config(self.dotted())
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              f"{self.__class__.__name__} init...")
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "BaseRepository init...")
 
         # ---
         # Configure ourselves.
         # ---
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Configure repo...")
         self._configure(config_context)
+
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Done with BaseRepository init.")
 
     # -------------------------------------------------------------------------
     # Repo Properties/Methods

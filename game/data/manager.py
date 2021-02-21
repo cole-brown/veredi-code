@@ -112,6 +112,22 @@ from .component import DataComponent
 class DataManager(EcsManagerWithEvents):
 
     # -------------------------------------------------------------------------
+    # Constants
+    # -------------------------------------------------------------------------
+
+    # ------------------------------
+    # Logging
+    # ------------------------------
+
+    _LOG_INIT: List[log.Group] = [
+        log.Group.START_UP,
+        log.Group.DATA_PROCESSING
+    ]
+    '''
+    Group of logs we use a lot for log.group_multi().
+    '''
+
+    # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
 
@@ -200,18 +216,6 @@ class DataManager(EcsManagerWithEvents):
         '''
 
         # ------------------------------
-        # Logging
-        # ------------------------------
-
-        self._log_groups: List[log.Group] = [
-            log.Group.START_UP,
-            log.Group.DATA_PROCESSING
-        ]
-        '''
-        Group of logs we use a lot for log.group_multi().
-        '''
-
-        # ------------------------------
         # Misc.
         # ------------------------------
 
@@ -259,7 +263,7 @@ class DataManager(EcsManagerWithEvents):
         if not config:
             msg = ("DataManager could not initialize. Require a Configuration "
                    f"and got: {config}")
-            self._log_group_multi(self._log_groups,
+            self._log_group_multi(self._LOG_INIT,
                                   self.dotted(),
                                   msg,
                                   log_success=False)
@@ -276,7 +280,7 @@ class DataManager(EcsManagerWithEvents):
                    "(Serializer/Deserializer) from "
                    f"config data: {label.normalize(key_serdes)} "
                    f"{config.get(key_serdes)}")
-            self._log_group_multi(self._log_groups,
+            self._log_group_multi(self._LOG_INIT,
                                   self.dotted(),
                                   msg,
                                   log_success=False)
@@ -286,7 +290,7 @@ class DataManager(EcsManagerWithEvents):
             msg = ("DataManager could not create Repository from "
                    f"config data: {label.normalize(key_repo)} "
                    f"{config.get(key_repo)}")
-            self._log_group_multi(self._log_groups,
+            self._log_group_multi(self._LOG_INIT,
                                   self.dotted(),
                                   msg,
                                   log_success=False)
@@ -296,12 +300,12 @@ class DataManager(EcsManagerWithEvents):
         # ---
         # Load Data
         # ---
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager loading initial data...")
         self._game = config.rules(None)
         self._init_load()
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager done.",
                               log_success=True)
@@ -518,7 +522,7 @@ class DataManager(EcsManagerWithEvents):
         '''
         Load everything needed from the very start.
         '''
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager initial loading...",
                               log_minimum=log.Level.DEBUG)
@@ -528,7 +532,7 @@ class DataManager(EcsManagerWithEvents):
         '''
         Load game definition and saved data from repository.
         '''
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager initial game loading...",
                               log_minimum=log.Level.DEBUG)
@@ -536,7 +540,7 @@ class DataManager(EcsManagerWithEvents):
         # ---
         # Load Game Definition...
         # ---
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager loading definition...",
                               log_minimum=log.Level.DEBUG)
@@ -547,7 +551,7 @@ class DataManager(EcsManagerWithEvents):
         # ---
         # Load Game Save...
         # ---
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager loading saved...",
                               log_minimum=log.Level.DEBUG)
@@ -558,13 +562,13 @@ class DataManager(EcsManagerWithEvents):
         # ---
         # Tell our RulesGame object about 'em.
         # ---
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager finalizing game rules...",
                               log_minimum=log.Level.DEBUG)
         self._game.loaded(definition, saved)
 
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager initial game loading complete.",
                               log_minimum=log.Level.DEBUG,
@@ -582,7 +586,7 @@ class DataManager(EcsManagerWithEvents):
 
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager load Definition for {}: {} {}...",
                               caller_dotted, doc_type, taxon,
@@ -590,7 +594,7 @@ class DataManager(EcsManagerWithEvents):
         context_definition = DataLoadContext(caller_dotted, taxon, self._bg)
         data = self._load(context_definition)
         definition = Definition(doc_type, data)
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager load Definition complete.",
                               log_minimum=log.Level.DEBUG,
@@ -609,7 +613,7 @@ class DataManager(EcsManagerWithEvents):
 
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager load Saved for {}: {} {}...",
                               caller_dotted, doc_type, taxon,
@@ -617,7 +621,7 @@ class DataManager(EcsManagerWithEvents):
         context_saved = DataLoadContext(caller_dotted, taxon, self._bg)
         data = self._load(context_saved)
         saved = Saved(doc_type, data)
-        self._log_group_multi(self._log_groups,
+        self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "DataManager load Saved complete.",
                               log_minimum=log.Level.DEBUG,

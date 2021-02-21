@@ -11,7 +11,7 @@ various backend implementations (file path, file tree, etc).
 
 from typing import (TYPE_CHECKING,
                     Optional, Any, Callable, Dict)
-from veredi.base.null import Null, Nullable, is_null
+from veredi.base.null import Null, Nullable, is_null, null_or_none
 if TYPE_CHECKING:
     from io                     import TextIOBase
     from veredi.base.context    import VerediContext
@@ -88,6 +88,10 @@ class FileRepository(BaseRepository):
         Allows repos to grab anything from the config data that they need to
         set up themselves.
         '''
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "FileRepository(Base) configure...")
+
         # ------------------------------
         # Get Config.
         # ------------------------------
@@ -95,10 +99,21 @@ class FileRepository(BaseRepository):
                                           self.dotted(),
                                           context,
                                           raises_error=require_config)
-        if not require_config and is_null(config):
-            self._log_start_up(self.dotted(),
-                               "Config not required and is Null.",
-                               log_minimum=log.Level.DEBUG)
+        if null_or_none(config):
+            if not require_config:
+                self._log_group_multi(self._LOG_INIT,
+                                      self.dotted(),
+                                      "Config not required and is Null/None.",
+                                      log_minimum=log.Level.DEBUG)
+            else:
+                self._log_group_multi(self._LOG_INIT,
+                                      self.dotted(),
+                                      "Config required and is Null/None!",
+                                      log_minimum=log.Level.ERROR,
+                                      log_success=False)
+                msg = (f"{self.__class__.__name__}: "
+                       "Configuration required, but found Null/None!")
+                raise background.config.exception(context, msg)
 
         # ------------------------------
         # Game ID
@@ -106,14 +121,21 @@ class FileRepository(BaseRepository):
         # Grab our primary id from the context too.
         self._primary_id = ConfigContext.id(context)
 
-        self._log_start_up(self.dotted(),
-                           "Set primary-id to: {}",
-                           self._primary_id,
-                           log_minimum=log.Level.DEBUG)
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Set primary-id to: {}",
+                              self._primary_id,
+                              log_minimum=log.Level.DEBUG)
 
         # ------------------------------
         # Paths
         # ------------------------------
+
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Setting up paths...",
+                              self._primary_id,
+                              log_minimum=log.Level.DEBUG)
 
         # ---
         # Path Safing
@@ -131,10 +153,12 @@ class FileRepository(BaseRepository):
         # ...and then it depends.
         if not require_config:
             # No config required. So the root is.... done.
-            self._log_start_up(self.dotted(),
-                               "Set root to context path: {}",
-                               self._root,
-                               log_minimum=log.Level.DEBUG)
+            self._log_group_multi(self._LOG_INIT,
+                                  self.dotted(),
+                                  "No config required; set root to "
+                                  "context path: {}",
+                                  self._root,
+                                  log_minimum=log.Level.DEBUG)
 
         else:
             # We have a config. So add config's repo path on top of it (in case
@@ -145,17 +169,19 @@ class FileRepository(BaseRepository):
             # Resolve it to turn into absolute path and remove ".."s and stuff.
             self._root = self._root.resolve()
 
-            self._log_start_up(self.dotted(),
-                               "Set root based on context and config: {}",
-                               self._root,
-                               log_minimum=log.Level.DEBUG)
+            self._log_group_multi(self._LOG_INIT,
+                                  self.dotted(),
+                                  "Set root based on context and config: {}",
+                                  self._root,
+                                  log_minimum=log.Level.DEBUG)
 
         # Now we can set the temp root based on root.
         self._root_temp = self._path_temp()
-        self._log_start_up(self.dotted(),
-                           "Set root-temp to: {}",
-                           self._root_temp,
-                           log_minimum=log.Level.DEBUG)
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Set root-temp to: {}",
+                              self._root_temp,
+                              log_minimum=log.Level.DEBUG)
 
         # ------------------------------
         # Background
@@ -164,16 +190,18 @@ class FileRepository(BaseRepository):
         # Add our data to the background context.
         self._make_background()
 
-        self._log_start_up(self.dotted(),
-                           "Made background data.",
-                           log_minimum=log.Level.DEBUG)
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Made background data.",
+                              log_minimum=log.Level.DEBUG)
 
         # ------------------------------
         # Done.
         # ------------------------------
-        self._log_start_up(self.dotted(),
-                           "FileRepository._configure() completed.",
-                           log_minimum=log.Level.DEBUG)
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "FileRepository._configure() completed.",
+                              log_minimum=log.Level.DEBUG)
 
     def _init_path_safing(self,
                           context:        Optional[ConfigContext],
@@ -194,49 +222,60 @@ class FileRepository(BaseRepository):
         path_safing_dotted = None
         if not context or not config:
             path_safing_fn, path_safing_dotted = paths.safing.default()
-            self._log_start_up(self.dotted(),
-                               "No context or config; using default "
-                               "path-safing: '{}'",
-                               path_safing_dotted,
-                               log_minimum=log.Level.DEBUG)
+            self._log_group_multi(self._LOG_INIT,
+                                  self.dotted(),
+                                  "No context or config; using default "
+                                  "path-safing: '{}'",
+                                  path_safing_dotted,
+                                  log_minimum=log.Level.DEBUG)
 
         # But really, /most/ repos should get settings from config.
         else:
+            # TODO: Shouldn't really exist when a FileBareRepository comes up...
+            # ...unless it's during a unit test for the FileBareRepository?
             if self.__class__.__name__ == "FileBareRepository":
                 self._log_critical(f"{self.__class__.__name__}._init_path_safing(): Config and Context exist. {config}",
                                    context=context)
-            self._log_start_up(self.dotted(),
-                               "Getting path-safing from config...",
-                               log_minimum=log.Level.DEBUG)
+
+            self._log_group_multi(self._LOG_INIT,
+                                  self.dotted(),
+                                  "Getting path-safing from config...",
+                                  log_minimum=log.Level.DEBUG)
             path_safing_dotted = config.get_data(*self._SANITIZE_KEYCHAIN)
-            self._log_start_up(self.dotted(),
-                               "Getting path-safing registered "
-                               "function '{}'...",
-                               path_safing_dotted,
-                               log_minimum=log.Level.DEBUG)
+            self._log_group_multi(self._LOG_INIT,
+                                  self.dotted(),
+                                  "Getting path-safing registered "
+                                  "function '{}'...",
+                                  path_safing_dotted,
+                                  log_minimum=log.Level.DEBUG)
             path_safing_fn = config.get_registered(path_safing_dotted,
                                                    context)
             if not path_safing_fn:
                 # Well - nothing more to try; this is a fail.
                 msg = ("Failed to get a path-safing function "
                        "from our configuration!")
-                self._log_start_up(self.dotted(),
-                                   msg,
-                                   path_safing_dotted,
-                                   log_minimum=log.Level.ERROR)
+                self._log_group_multi(self._LOG_INIT,
+                                      self.dotted(),
+                                      msg,
+                                      path_safing_dotted,
+                                      log_minimum=log.Level.ERROR)
                 raise background.config.exception(context, msg)
 
         # Ok - set what we decided on.
         self._safing_fn = path_safing_fn
         self._safing_dotted = path_safing_dotted
 
-        self._log_start_up(self.dotted(),
-                           "Set path-safing to: '{}' {}",
-                           self._safing_dotted,
-                           self._safing_fn,
-                           log_minimum=log.Level.DEBUG)
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              "Set path-safing to: '{}' {}",
+                              self._safing_dotted,
+                              self._safing_fn,
+                              log_minimum=log.Level.DEBUG)
 
     def _make_background(self) -> None:
+        '''
+        Make our background context data.
+        '''
         self._bg = super()._make_background()
 
         self._bg[background.Name.PATH.key] = {
@@ -310,8 +349,18 @@ class FileRepository(BaseRepository):
 
         Returns io stream.
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Load...",
+                                  context=context)
         key = self._key(context)
-        return self._load(key, context)
+        loaded = self._load(key, context)
+        success = bool(loaded)
+        success_str = "Successfully loaded" if success else "Failed to load"
+        self._log_data_processing(self.dotted(),
+                                  f"{success_str} data.",
+                                  context=context,
+                                  success=success)
+        return loaded
 
     @abstractmethod
     def _load(self,
@@ -340,8 +389,18 @@ class FileRepository(BaseRepository):
 
         Returns success/failure of save operation.
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Save...",
+                                  context=context)
         key = self._key(context)
-        return self._save(key, data, context)
+        saved = self._save(key, data, context)
+        success = bool(saved)
+        success_str = "Successfully saved" if success else "Failed to save"
+        self._log_data_processing(self.dotted(),
+                                  f"{success_str} data.",
+                                  context=context,
+                                  success=success)
+        return success
 
     @abstractmethod
     def _save(self,
@@ -387,6 +446,11 @@ class FileRepository(BaseRepository):
         Returns a path to either our temp directory, a path /in/ our temp
         directory, or Null().
         '''
+        self._log_data_processing(self.dotted(),
+                                  "Get temp path for non-temp: {}...",
+                                  paths.to_str(path_non_temp),
+                                  context=context)
+
         path_non_temp = (paths.cast(path_non_temp)
                          if path_non_temp else
                          None)
@@ -406,18 +470,25 @@ class FileRepository(BaseRepository):
             # No root and no input? Gonna have a bad time.
             if not path_non_temp:
                 msg = "Cannot make a temp path: no root and no path provided."
+                self._log_data_processing(self.dotted(),
+                                          msg + "root: {}, path: {}",
+                                          paths.to_str(self.root()),
+                                          paths.to_str(path_non_temp),
+                                          context=context,
+                                          success=False)
                 if raise_errors:
                     error = self._error_type(context)(
                         msg,
                         data={
-                            'root': self.root(),
+                            'root': paths.to_str(self.root()),
                             'path': paths.to_str(path_non_temp),
                         })
                     raise self._log_exception(error, msg, context=context)
-                else:
-                    self._log_warning(msg + "root: {}, path: {}",
-                                      self.root(), path_non_temp,
-                                      context=context)
+
+                self._log_warning(msg + "root: {}, path: {}",
+                                  paths.to_str(self.root()),
+                                  paths.to_str(path_non_temp),
+                                  context=context)
                 return Null()
 
             # No root and input is relative? Can't be sure it's valid so don't
@@ -425,6 +496,12 @@ class FileRepository(BaseRepository):
             if not path_non_temp.is_absolute():
                 msg = ("Cannot make a temp path: no root and provided path "
                        "is not absolute.")
+                self._log_data_processing(self.dotted(),
+                                          msg + "root: {}, path: {}",
+                                          str(self.root()),
+                                          paths.to_str(path_non_temp),
+                                          context=context,
+                                          success=False)
                 if raise_errors:
                     error = self._error_type(context)(
                         msg,
@@ -436,7 +513,8 @@ class FileRepository(BaseRepository):
                     raise self._log_exception(error, msg, context=context)
                 else:
                     self._log_warning(msg + "root: {}, path: {}",
-                                      self.root(), path_non_temp,
+                                      str(self.root()),
+                                      paths.to_str(path_non_temp),
                                       context=context)
                 return Null()
 
@@ -447,6 +525,10 @@ class FileRepository(BaseRepository):
                 msg = ("Cannot create a temp path when we have no repository "
                        f"root and '{self._TEMP_PATH}' is not in input: "
                        f"{path_non_temp}")
+                self._log_data_processing(self.dotted(),
+                                          msg,
+                                          context=context,
+                                          success=False)
                 if raise_errors:
                     error = self._error_type(context)(
                         msg,
@@ -470,6 +552,11 @@ class FileRepository(BaseRepository):
             #   3) Input path with one `parts` being `self._TEMP_PATH`.
             # So... just send it back?
             path_temp = path_non_temp
+            self._log_data_processing(self.dotted(),
+                                      "Temp Path is (root-less): {}",
+                                      paths.to_str(path_temp),
+                                      context=context,
+                                      success=False)
 
         # ------------------------------
         # Normal/Expected Cases (w/ `self.root()`):
@@ -481,6 +568,11 @@ class FileRepository(BaseRepository):
         elif not path_non_temp:
             # Provide the temp dir itself...
             path_temp = self.root() / self._TEMP_PATH
+            self._log_data_processing(self.dotted(),
+                                      "Temp Path is (rooted default): {}",
+                                      paths.to_str(path_temp),
+                                      context=context,
+                                      success=False)
 
         # Specific path requested.
         else:
@@ -498,6 +590,12 @@ class FileRepository(BaseRepository):
 
             # And it should be rooted in the repo.
             path_temp = self.root() / path
+
+            self._log_data_processing(self.dotted(),
+                                      "Temp Path is (rooted specific): {}",
+                                      paths.to_str(path_temp),
+                                      context=context,
+                                      success=False)
 
         # ------------------------------
         # Done!
@@ -532,6 +630,10 @@ class FileRepository(BaseRepository):
         if glob:
             if context.action == DataAction.SAVE:
                 msg = "Cannot glob filename when saving!"
+                self._log_data_processing(self.dotted(),
+                                          msg,
+                                          context=context,
+                                          success=False)
                 error = self._error_type(context)(msg,
                                                   data={
                                                       'unsafe': unsafe,
@@ -548,12 +650,18 @@ class FileRepository(BaseRepository):
 
         # Make sure the directory exists?
         if ensure and context.action == DataAction.SAVE:
-            self._path_ensure(path)
+            self._path_ensure(path, context)
 
+        self._log_data_processing(self.dotted(),
+                                  "Created path: {}",
+                                  paths.to_str(path),
+                                  context=context,
+                                  success=True)
         return path
 
     def _path_ensure(self,
-                     path: paths.Path) -> None:
+                     path:    paths.Path,
+                     context: BaseDataContext) -> None:
         '''
         Creates path's parent's path if it does not exist.
 
@@ -561,6 +669,11 @@ class FileRepository(BaseRepository):
         or file component name.
         '''
         path.parent.mkdir(parents=True, exist_ok=True)
+        self._log_data_processing(self.dotted(),
+                                  "Ensured path exists: {}",
+                                  paths.to_str(path),
+                                  context=context,
+                                  success=True)
 
     # -------------------------------------------------------------------------
     # Path Safing
@@ -585,8 +698,10 @@ class FileRepository(BaseRepository):
                 context=context)
 
         path = self._safing_fn(*unsafe)
-        self._log_debug(f"Unsafe: *{unsafe} -> Safe Path: {path}",
-                        context=context)
+        self._log_data_processing(self.dotted(),
+                                  f"Path Safed. Unsafe: *{unsafe} -> Safe: {path}",
+                                  context=context,
+                                  success=True)
         return path
 
     # -------------------------------------------------------------------------
@@ -603,6 +718,9 @@ class FileRepository(BaseRepository):
                 or not self.root().is_dir()):
             msg = ("Invalid root directory for repo data! It must exist "
                    "and be a directory.")
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      success=False)
             error = UnitTestError(msg,
                                   data={
                                       'meta': self._bg,
@@ -617,11 +735,19 @@ class FileRepository(BaseRepository):
         # use data from a previous test.
         path = self._path_temp()
         if path.exists():
+            # Ideally each test would clean up after itself without fail, but...
+            self._log_data_processing(self.dotted(),
+                                      "_ut_set_up found pre-existinng temp path... "
+                                      "Have to delete it first, which is sub-optimal.",
+                                      success=False)
             # Some unit test failed? Try to clean up first.
             self._ut_tear_down(note="_ut_set_up() needs to clean up dirty state.")
         # /Now/ it's gone.... right?
         if path.exists():
             msg = "Temp Dir Path for Unit-Testing already exists!"
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      success=False)
             error = UnitTestError(msg,
                                   data={
                                       'meta': self._bg,
@@ -635,6 +761,12 @@ class FileRepository(BaseRepository):
         # And now we can create it.
         path.mkdir(parents=True)
 
+        self._log_data_processing(self.dotted(),
+                                  "_ut_set_up complete; temp dir has "
+                                  "been created: {}",
+                                  paths.to_str(path),
+                                  success=True)
+
     def _ut_tear_down(self, note: str = None) -> None:
         '''
         Deletes our temp directory and all files in it.
@@ -647,6 +779,9 @@ class FileRepository(BaseRepository):
                 or not self.root().is_dir()):
             msg = ("Invalid root directory for repo data! It must exist "
                    "and be a directory.")
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      success=False)
             error = UnitTestError(msg,
                                   data={
                                       'meta': self._bg,
@@ -665,12 +800,30 @@ class FileRepository(BaseRepository):
         if path.exists():
             # Is it a dir?
             if path.is_dir():
+                self._log_data_processing(self.dotted(),
+                                          "_ut_tear_down: attempting to "
+                                          "delete temp directory: {}...",
+                                          paths.to_str(path),
+                                          success=False)
                 # Yeah - ok; delete it and it's files now.
                 shutil.rmtree(path)
+                success = path.exists()
+                success_str = "Deleted" if success else "Failed to delete"
+                self._log_data_processing(self.dotted(),
+                                          "_ut_tear_down: {} "
+                                          "temp directory: {}",
+                                          success_str,
+                                          paths.to_str(path),
+                                          success=success)
 
             # Not a dir - error.
             else:
                 msg = "Cannot delete temp dir path - it is not a directory!"
+                self._log_data_processing(self.dotted(),
+                                          "_ut_tear_down: {} {}",
+                                          msg,
+                                          paths.to_str(path),
+                                          success=False)
                 error = UnitTestError(msg,
                                       data={
                                           'meta': self._bg,

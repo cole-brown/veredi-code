@@ -12,6 +12,7 @@ from typing import Union, Type
 
 import datetime
 
+from veredi.logger           import log
 from veredi.zest.base.unit   import ZestBase
 
 from veredi.base             import paths
@@ -728,11 +729,11 @@ class Test_YamlSerdes(ZestBase):
         # ---
         # 1) Serialize!
         # ---
-        with self.serdes.serialize(serialize_data, context) as stream:
+        with self.serdes.serialize_all(serialize_data, context) as stream:
             # ---
             # 2) Deserialize!
             # ---
-            deserialize_data = self.serdes.deserialize(stream, context)
+            deserialize_data = self.serdes.deserialize_all(stream, context)
 
         # ---
         # 3) Check data!
