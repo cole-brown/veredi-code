@@ -145,6 +145,23 @@ class Configuration:
         self._define_vars()
 
         # ---
+        # Sanity Check...
+        # ---
+        preexisting = background.config.config(self.__class__.__name__,
+                                               self.dotted(),
+                                               None)
+        if preexisting:
+            # Log start-up error...
+            msg = ("A Configuration already exists in the background context! "
+                   "Two configs cannot be used to initialize Veredi: {}")
+            log.start_up(self.dotted(),
+                         msg,
+                         preexisting,
+                         success=False)
+            # ...And error out.
+            raise background.config.exception(None, msg)
+
+        # ---
         # Params
         # ---
         self._rules = label.normalize(rules)
