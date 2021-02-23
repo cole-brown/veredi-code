@@ -147,9 +147,7 @@ class Configuration:
         # ---
         # Sanity Check...
         # ---
-        preexisting = background.config.config(self.__class__.__name__,
-                                               self.dotted(),
-                                               None)
+        preexisting = background.config.link(background.config.Link.CONFIG)
         if preexisting:
             # Log start-up error...
             msg = ("A Configuration already exists in the background context! "
