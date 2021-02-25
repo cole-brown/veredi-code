@@ -16,7 +16,6 @@ import re
 import hashlib
 
 
-from veredi.logger               import log
 from veredi.data.config.registry import register
 
 from ..strings                   import label, text
@@ -88,10 +87,8 @@ def to_human_readable(*part: const.PathType) -> pathlib.Path:
             first = False
 
     except TypeError as error:
-        log.exception(error,
-                      "to_human_readable: Cannot sanitize path: {}",
-                      part)
-        raise
+        wrapper = TypeError("to_human_readable: Cannot sanitize path!", part)
+        raise wrapper from error
 
     return utils.cast(*sanitized)
 
@@ -109,10 +106,11 @@ def _part_to_human_readable(part: const.PathType) -> str:
         # Then ensure part is a string before doing the regex replace.
         humanized = _HUMAN_SAFE.sub(_REPLACEMENT, normalized)
     except TypeError as error:
-        log.exception(error,
-                      "to_human_readable: Cannot sanitize path: {}",
-                      part)
-        raise
+        wrapper = TypeError(
+            "_part_to_human_readable: Cannot sanitize path part!",
+            part
+        )
+        raise wrapper from error
     return humanized
 
 
@@ -154,10 +152,11 @@ def to_hashed(*part: const.PathType) -> pathlib.Path:
                 sanitized.append(_part_to_hashed(each))
 
     except TypeError as error:
-        log.exception(error,
-                      "to_hashed: Cannot sanitize path: {}",
-                      part)
-        raise
+        wrapper = TypeError(
+            "to_hashed: Cannot sanitize path!",
+            part
+        )
+        raise wrapper from error
 
     return utils.cast(*sanitized)
 
@@ -170,8 +169,9 @@ def _part_to_hashed(part: const.PathType) -> str:
         # Ensure part is a string, encode to bytes, and hash those.
         hashed = hashlib.sha256(str(part).encode()).hexdigest()
     except TypeError as error:
-        log.exception(error,
-                      "_part_to_hashed: Cannot sanitize part: {}",
-                      part)
-        raise
+        wrapper = TypeError(
+            "_part_to_hashed: Cannot sanitize part!",
+            part
+        )
+        raise wrapper from error
     return hashed

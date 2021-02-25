@@ -16,21 +16,12 @@ from decimal import Decimal
 
 from veredi.logger import log
 
+from .const import (NumberTypes, NumberTypesTuple,
+                    DecimalTypes, DecimalTypesTuple)
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# ------------------------------
-# Number Types
-# ------------------------------
-
-NumberTypes = NewType('NumberTypes', Union[int, float, Decimal])
-NumberTypesTuple = (int, float, Decimal)
-
-DecimalTypes = NewType('DecimalTypes', Union[Decimal, int, float, str])
-DecimalTypesTuple = (int, float, Decimal, str)
-
 
 # ------------------------------
 # Decimal Stuff

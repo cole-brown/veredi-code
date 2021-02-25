@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Helpers for paths.
+Helpers for numbers.
 '''
 
 # -----------------------------------------------------------------------------
@@ -12,24 +12,19 @@ Helpers for paths.
 # Types
 # ------------------------------
 
-# Might as well have Python's type here for simpler imports/usage elsewhere.
-from pathlib import Path
+# Might as well have Python's Decimal here for simpler imports/usage elsewhere.
+from decimal import Decimal
 
-from .const  import PathType, PathTypeTuple, PathsInput
-
+from .const import (NumberTypes, NumberTypesTuple,
+                    DecimalTypes, DecimalTypesTuple)
 
 # ------------------------------
 # Functions
 # ------------------------------
 
-from .utils  import (cast, exists,
-                     is_file, is_dir,
-                     to_str_list, to_str,
-                     serialize_claim, serialize)
-
-
-# NOTE: Do NOT import safing! We need to keep the paths module usable by
-# logging... safing uses `register()` which uses logging.
+from .utils import (to_str, from_str, is_number,
+                    to_decimal, to_float,
+                    serialize_claim)
 
 
 # -----------------------------------------------------------------------------
@@ -49,20 +44,23 @@ __all__ = [
     # ------------------------------
     # Types & Consts
     # ------------------------------
-    'Path',
-    'PathType',
-    'PathTypeTuple',
-    'PathsInput',
+    'Decimal',
+    'NumberTypes',
+    'NumberTypesTuple',
+    'DecimalTypes',
+    'DecimalTypesTuple',
+
+    # ------------------------------
+    # Namespaced
+    # ------------------------------
 
     # ------------------------------
     # Functions
     # ------------------------------
-    'cast',
-    'exists',
-    'is_file',
-    'is_dir',
-    'to_str_list',
     'to_str',
+    'from_str',
+    'is_number',
+    'to_decimal',
+    'to_float',
     'serialize_claim',
-    'serialize',
 ]
