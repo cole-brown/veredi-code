@@ -14,7 +14,7 @@ from typing import List
 from veredi.base.null import Null, Nullable
 
 
-from veredi.logger         import log
+from veredi                import log
 from veredi.base.strings   import label
 
 from .record               import Record

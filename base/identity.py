@@ -15,9 +15,9 @@ import uuid
 
 from abc import abstractmethod
 
-from veredi.logger import log
-# from veredi.base.decorators import abstract_class_attribute
-from veredi.base.metaclasses import InvalidProvider, ABC_InvalidProvider
+from veredi                      import log
+# from veredi.base.decorators    import abstract_class_attribute
+from veredi.base.metaclasses     import InvalidProvider, ABC_InvalidProvider
 
 from veredi.data.codec.encodable import Encodable, EncodedComplex
 

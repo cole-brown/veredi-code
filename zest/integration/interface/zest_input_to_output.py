@@ -21,9 +21,9 @@ Make sure output meets expectations.
 import re
 from itertools import zip_longest
 
-from veredi.zest.base.integrate import ZestIntegrateEngine
+from veredi.zest.base.integrate             import ZestIntegrateEngine
 
-from veredi.logger                          import log
+from veredi                                 import log
 from veredi.base.null                       import Null
 from veredi.data                            import background
 from veredi.base.context                    import UnitTestContext

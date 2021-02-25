@@ -11,7 +11,7 @@ Bit of a Factory thing going on here...
 from typing import Optional, Union, Type, Any, Callable
 
 
-from veredi.logger       import log
+from veredi              import log
 from ..                  import background
 from ..exceptions        import RegistryError, ConfigError
 from veredi.base.strings import label

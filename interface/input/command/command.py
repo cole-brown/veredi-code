@@ -20,7 +20,7 @@ from typing import (Optional, Any,
 # ---
 # Code
 # ---
-from veredi.logger       import log
+from veredi              import log
 from veredi.base.context import VerediContext
 
 from veredi.base.null    import null_or_none

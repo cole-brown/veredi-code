@@ -8,18 +8,18 @@ Tests for the Skill system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.base.ecs          import ZestEcs
+from veredi.zest.base.ecs           import ZestEcs
 from veredi.zest                    import zmake
 
 from veredi.base.context            import UnitTestContext
-from veredi.logger                  import log
+from veredi                         import log
 
-from veredi.game.ecs.event                import EventManager
-from veredi.game.ecs.time                 import TimeManager
-from veredi.game.ecs.component            import ComponentManager
-from veredi.game.ecs.entity               import EntityManager
-from veredi.game.ecs.system               import SystemManager
-from veredi.game.ecs.meeting              import Meeting
+from veredi.game.ecs.event          import EventManager
+from veredi.game.ecs.time           import TimeManager
+from veredi.game.ecs.component      import ComponentManager
+from veredi.game.ecs.entity         import EntityManager
+from veredi.game.ecs.system         import SystemManager
+from veredi.game.ecs.meeting        import Meeting
 
 from veredi.game.ecs.base.identity  import ComponentId
 from veredi.game.ecs.base.component import ComponentLifeCycle

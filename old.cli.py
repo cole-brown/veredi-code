@@ -20,7 +20,7 @@ import argparse
 # ---
 # Veredi: Misc
 # ---
-from veredi.logger import log
+from veredi import log
 
 # ---
 # Commands

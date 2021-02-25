@@ -13,10 +13,10 @@ from typing import (TYPE_CHECKING,
                     Optional, Any, MutableMapping, Dict)
 from veredi.base.null import Null, Nullable
 if TYPE_CHECKING:
-    from veredi.data.config.context import ConfigContext
+    from veredi.data.config.context  import ConfigContext
 
-from veredi.logger                  import log
-from veredi.data.config.registry    import register
+from veredi                          import log
+from veredi.data.config.registry     import register
 
 from veredi.game.data.component      import DataComponent
 from veredi.game.interface.component import queue

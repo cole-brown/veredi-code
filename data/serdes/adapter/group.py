@@ -17,7 +17,7 @@ from collections import abc
 import re
 
 
-from veredi.logger       import log
+from veredi              import log
 from veredi.base.strings import text
 
 from .meta               import MetaMarker, MetaType

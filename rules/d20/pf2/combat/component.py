@@ -17,13 +17,13 @@ DefenseComponent
 from typing import (TYPE_CHECKING,
                     Optional)
 if TYPE_CHECKING:
-    from veredi.base.context        import VerediContext
-    from veredi.data.config.context import ConfigContext
+    from veredi.base.context         import VerediContext
+    from veredi.data.config.context  import ConfigContext
 
-from veredi.logger                  import log
-from veredi.data.config.registry    import register
+from veredi                          import log
+from veredi.data.config.registry     import register
 
-from veredi.game.data.component     import DataComponent
+from veredi.game.data.component      import DataComponent
 from veredi.game.interface.component import queue
 
 

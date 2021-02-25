@@ -29,7 +29,7 @@ from contextlib import contextmanager
 # ---
 # Veredi Imports
 # ---
-from veredi.logger               import log
+from veredi                      import log
 from veredi.debug.const          import DebugFlag
 from veredi.base.identity        import MonotonicId
 from veredi.base.context         import VerediContext

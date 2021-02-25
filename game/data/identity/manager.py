@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 # ---
 # Code
 # ---
-from veredi.logger                 import log
+from veredi                        import log
 from veredi.base.const             import VerediHealth
 from veredi.base.dicts             import BidirectionalDict
 from veredi.base.assortments       import DeltaNext

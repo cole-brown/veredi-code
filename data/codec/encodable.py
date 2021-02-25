@@ -18,7 +18,8 @@ import enum
 import re
 
 
-from veredi.logger         import log, pretty
+from veredi                import log
+from veredi.log            import pretty
 from veredi.base.registrar import CallRegistrar, RegisterType
 from veredi.base.strings   import label
 from veredi.base           import numbers

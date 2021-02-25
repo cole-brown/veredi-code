@@ -11,7 +11,7 @@ Set up the game engine.
 from typing import Optional
 
 
-from veredi.logger                     import log
+from veredi                            import log
 from veredi.base.strings               import label
 from veredi.data                       import background
 from veredi.debug.const                import DebugFlag

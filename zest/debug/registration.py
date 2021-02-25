@@ -8,7 +8,7 @@ Some command(s) for background data and possibly other data.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.logger                      import log
+from veredi                             import log
 from veredi.data                        import background
 
 # Everything needed to participate in command registration.

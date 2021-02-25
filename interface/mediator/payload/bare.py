@@ -16,7 +16,7 @@ from typing import Optional, Union, Any, NewType, Mapping
 import enum
 
 
-from veredi.logger               import log
+from veredi                      import log
 from veredi.base.enum            import EnumEncodeNameMixin
 from veredi.data.codec.encodable import (Encodable,
                                          EncodedComplex,

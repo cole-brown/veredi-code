@@ -17,7 +17,7 @@ from veredi.base.null import Null, Nullable, NullNoneOr
 import enum
 import uuid
 
-from veredi.logger import log
+from veredi      import log
 from .exceptions import ContextError
 
 # -----------------------------------------------------------------------------
@@ -613,7 +613,7 @@ class VerediContext:
     # -------------------------------------------------------------------------
 
     def _pretty(self):
-        from veredi.logger import pretty
+        from veredi.log import pretty
         from pprint import pformat
         return pretty.indented(f"{self.__class__.__name__}:\n"
                                + pformat(self._get()))

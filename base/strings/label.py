@@ -16,7 +16,7 @@ import pathlib
 
 
 # CANNOT IMPORT LOG. Circular import.
-# from veredi.logger import log
+# from veredi import log
 
 from .. import lists
 

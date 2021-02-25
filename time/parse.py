@@ -17,7 +17,7 @@ import datetime as py_dt
 
 
 from veredi.base   import numbers
-from veredi.logger import log
+from veredi        import log
 
 
 # -----------------------------------------------------------------------------

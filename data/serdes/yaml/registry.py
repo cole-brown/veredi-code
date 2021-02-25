@@ -13,9 +13,9 @@ from typing import Optional, Type, NewType, Callable, List, Tuple
 import yaml
 import re
 
-from veredi.logger import log
+from veredi        import log
 from ...exceptions import RegistryError
-from . import tags
+from .             import tags
 
 
 # -----------------------------------------------------------------------------

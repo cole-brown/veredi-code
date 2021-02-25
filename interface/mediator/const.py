@@ -15,10 +15,10 @@ import enum
 import re
 
 
-from veredi.logger               import log
-from veredi.base.enum            import (FlagCheckMixin,
-                                         FlagSetMixin,
-                                         FlagEncodeValueMixin)
+from veredi           import log
+from veredi.base.enum import (FlagCheckMixin,
+                              FlagSetMixin,
+                              FlagEncodeValueMixin)
 
 
 _MT_ENCODE_FIELD_NAME: str = 'v.mt'

@@ -10,7 +10,7 @@ Create Game ECS Systems.
 
 from typing import Union, Optional, Type, NewType, Tuple, List
 
-from veredi.logger                     import log
+from veredi                            import log
 from veredi.base.strings               import label
 
 from veredi.data                       import background
