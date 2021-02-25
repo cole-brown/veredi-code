@@ -43,11 +43,6 @@ from . import formats
 
 __all__ = [
     # ------------------------------
-    # External Types
-    # ------------------------------
-    'PyLogType',
-
-    # ------------------------------
     # Types & Consts
     # ------------------------------
 
@@ -82,8 +77,14 @@ __all__ = [
     'start_up',
     'data_processing',
 
+    # ------------------------------
+    # 'with' context manager
+    # ------------------------------
     'LoggingManager',
 
+    # ------------------------------
+    # Unit Testing Support
+    # ------------------------------
     'ut_call',
     'ut_set_up',
     'ut_tear_down',

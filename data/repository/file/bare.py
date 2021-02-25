@@ -16,7 +16,7 @@ import shutil
 from io import StringIO, TextIOBase
 
 
-from veredi.logger               import log
+from veredi                      import log
 
 from veredi.data.config.registry import register
 from veredi.data                 import background

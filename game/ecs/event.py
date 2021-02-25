@@ -19,7 +19,7 @@ from veredi.base.null import Null, NullNoneOr
 import enum
 
 
-from veredi.logger             import log
+from veredi                    import log
 from veredi.base.context       import VerediContext
 from veredi.base.const         import VerediHealth
 from veredi.data               import background
@@ -169,7 +169,7 @@ class Event:
         return f"{name}[id:{self.id},t:{self.type}]"
 
     def _pretty(self):
-        from veredi.logger import pretty
+        from veredi.log import pretty
         return (f"{self.__str_name__()}:\n  context:\n" +
                 pretty.indented(self._context._pretty(), indent=4))
 

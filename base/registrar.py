@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 
 
 from veredi.base.strings    import label
-from veredi.logger          import log
+from veredi                 import log
 from veredi.data            import background
 from veredi.data.exceptions import RegistryError
 
@@ -257,7 +257,7 @@ class BaseRegistrar(ABC):
                    f"{registration}. Trying to register {cls_or_func} at "
                    f"'{label.normalize(dotted_list)}'. "
                    "Registry: \n{}")
-            from veredi.logger import pretty
+            from veredi.log import pretty
             log.exception(error, msg,
                           pretty.indented(klass._REGISTRY))
             # Reraise it. Just want more info.

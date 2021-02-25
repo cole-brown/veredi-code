@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 import enum
 
-from veredi.logger             import log
+from veredi                    import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data               import background

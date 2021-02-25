@@ -14,7 +14,7 @@ from veredi.base.null    import NullNoneOr
 import enum
 
 
-from veredi.logger       import log
+from veredi              import log
 
 from veredi.base.context import EphemerealContext
 from veredi.data         import background

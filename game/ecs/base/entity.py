@@ -17,13 +17,13 @@ if TYPE_CHECKING:
 
 import enum
 
-from veredi.logger import log
-from veredi.base.null import Null
+from veredi              import log
+from veredi.base.null    import Null
 from veredi.base.context import VerediContext
-from .identity import (ComponentId,
-                       EntityId)
-from .component import (Component,
-                        CompIdOrType)
+from .identity           import (ComponentId,
+                                 EntityId)
+from .component          import (Component,
+                                 CompIdOrType)
 
 
 # -----------------------------------------------------------------------------

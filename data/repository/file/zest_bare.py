@@ -11,24 +11,23 @@ Tests for the FileBareRepository.
 from io import TextIOBase
 import shutil
 
-from veredi.zest                  import zpath
-from veredi.zest.base.unit        import ZestBase
+from veredi.zest                import zpath
+from veredi.zest.base.unit      import ZestBase
 
 
-from veredi.logger                import log
-from veredi.data                  import background
-from veredi.base                  import paths
+from veredi                     import log
+from veredi.data                import background
+from veredi.base                import paths
 
-from veredi.base.exceptions       import VerediError
-from veredi.data.exceptions       import LoadError, SaveError
-from veredi.zest.exceptions       import UnitTestError
+from veredi.base.exceptions     import VerediError
+from veredi.data.exceptions     import LoadError, SaveError
+from veredi.zest.exceptions     import UnitTestError
 
-from veredi.data.config.context   import ConfigContext
-from veredi.data.context          import (DataAction,
-                                          DataBareContext)
+from veredi.data.config.context import ConfigContext
+from veredi.data.context        import (DataAction,
+                                        DataBareContext)
 
-
-from .bare                        import FileBareRepository
+from .bare                      import FileBareRepository
 
 
 # -----------------------------------------------------------------------------

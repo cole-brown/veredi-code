@@ -26,7 +26,7 @@ from veredi.base.null import Nullable, NullNoneOr
 # ---
 # Veredi Stuff
 # ---
-from veredi.logger                         import log
+from veredi                                import log
 
 from veredi.base.strings                   import label
 from veredi.base.const                     import VerediHealth

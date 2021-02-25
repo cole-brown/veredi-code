@@ -23,7 +23,7 @@ from abc import ABC, abstractmethod
 from io import StringIO
 
 
-from veredi.logger       import log
+from veredi              import log
 from veredi.logger.mixin import LogMixin
 
 from veredi.data         import background

@@ -30,7 +30,7 @@ import multiprocessing.connection
 import asyncio
 # import signal
 
-from veredi.logger              import log
+from veredi                     import log
 from veredi.debug.const         import DebugFlag
 from veredi.data                import background
 from veredi.data.config.context import ConfigContext

@@ -30,7 +30,7 @@ from decimal import Decimal
 # ---
 # Code
 # ---
-from veredi.logger                      import log
+from veredi                             import log
 from veredi.base.const                  import VerediHealth
 from veredi.base                        import numbers
 from veredi.data.config.registry        import register

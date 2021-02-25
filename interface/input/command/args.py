@@ -20,13 +20,13 @@ import enum
 import re
 
 
-from veredi.logger import log
-from veredi.base.context import VerediContext
+from veredi                        import log
+from veredi.base.context           import VerediContext
 
 from veredi.game.ecs.base.identity import EntityId
 
-from .const import CommandFailure
-from ..context import InputContext
+from .const                        import CommandFailure
+from ..context                     import InputContext
 
 
 # -----------------------------------------------------------------------------

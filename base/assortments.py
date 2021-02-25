@@ -11,7 +11,7 @@ Generic collection-type or pair-ish or (named) tuple-ish things.
 from typing import Optional, Union, TypeVar, Generic
 
 
-from veredi.logger import log
+from veredi import log
 
 
 # -----------------------------------------------------------------------------

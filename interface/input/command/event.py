@@ -11,7 +11,7 @@ packaged up into an event or perhaps fed directly/firstly into InputSystem.
 
 from typing import Union, Optional, Type
 
-from veredi.logger                  import log
+from veredi                         import log
 from veredi.base.strings            import text
 from veredi.game.ecs.event          import Event
 from veredi.game.ecs.base.component import Component

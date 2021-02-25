@@ -18,12 +18,12 @@ from typing import List, Tuple, Dict
 import sys
 import unittest
 
-from veredi.logger                      import log
-from veredi.zest                        import zload
-from veredi.zest.zpath                  import TestType
-from veredi.zest.timing                 import ZestTiming
-from veredi.debug.const                 import DebugFlag
-from veredi.base.strings                import label
+from veredi              import log
+from veredi.zest         import zload
+from veredi.zest.zpath   import TestType
+from veredi.zest.timing  import ZestTiming
+from veredi.debug.const  import DebugFlag
+from veredi.base.strings import label
 
 
 # -----------------------------------------------------------------------------

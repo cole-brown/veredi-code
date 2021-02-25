@@ -20,7 +20,7 @@ import enum
 import itertools
 
 
-from veredi.logger                import log
+from veredi                       import log
 
 from veredi.base.strings          import label, text
 from veredi.data.config.hierarchy import Hierarchy

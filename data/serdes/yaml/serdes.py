@@ -22,7 +22,7 @@ import yaml
 from io import StringIO, TextIOBase
 import contextlib
 
-from veredi.logger               import log
+from veredi                      import log
 
 from veredi                      import time
 from veredi.base                 import paths, numbers

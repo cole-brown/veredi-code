@@ -11,9 +11,9 @@ Decoration helper for labels.
 from typing import Optional, Union, Any, Type, Callable
 
 
-from veredi.logger import log
+from veredi import log
 
-from .label        import _DOTTED_NAME, LabelInput, normalize
+from .label import _DOTTED_NAME, LabelInput, normalize
 
 
 # -------------------------------------------------------------------------

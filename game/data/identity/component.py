@@ -14,11 +14,11 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
 
-from veredi.logger               import log
+from veredi                      import log
 from veredi.data.config.registry import register
 from veredi.data.identity        import UserId, UserKey
 
-from ..component import DataComponent
+from ..component                 import DataComponent
 
 
 # -----------------------------------------------------------------------------

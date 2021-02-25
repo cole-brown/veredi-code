@@ -48,7 +48,7 @@ import enum
 import pathlib
 import copy
 
-from veredi.logger          import log
+from veredi                 import log
 
 from veredi.base.null       import Null, Nullable, NullNoneOr
 from .exceptions            import ConfigError
@@ -1284,7 +1284,7 @@ class testing:
 # TODO [2020-06-23]: string, repr for this
 
 def to_str() -> str:
-    from veredi.logger import pretty
+    from veredi.log import pretty
     return "Veredi Backgroud Context:\n" + pretty.indented(_CONTEXT)
 
 

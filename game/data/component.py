@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from veredi.data.config.context  import ConfigContext
 
 
-from veredi.logger                   import log
+from veredi                          import log
 from veredi.data.exceptions          import DataNotPresentError
 from ..ecs.base.component            import Component
 from ..ecs.base.identity             import ComponentId

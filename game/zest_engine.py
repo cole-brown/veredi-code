@@ -11,7 +11,7 @@ Tests for engine.py (The Game Itself).
 from veredi.zest.base.engine import ZestEngine
 from veredi.base.const       import VerediHealth
 from veredi.debug.const      import DebugFlag
-from veredi.logger           import log
+from veredi                  import log
 
 from .ecs.const              import SystemTick, SystemPriority
 

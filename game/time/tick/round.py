@@ -15,7 +15,7 @@ from veredi.base.null import Null, Nullable, NullNoneOr, null_or_none
 from decimal import Decimal
 
 
-from veredi.logger               import log
+from veredi                      import log
 
 from veredi.base.context         import VerediContext, UnitTestContext
 from veredi.base.strings         import label

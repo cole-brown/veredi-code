@@ -13,7 +13,7 @@ import pathlib
 import enum
 
 
-from veredi.logger import log
+from veredi import log
 
 
 # -----------------------------------------------------------------------------

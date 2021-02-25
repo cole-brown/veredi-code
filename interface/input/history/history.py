@@ -16,7 +16,7 @@ from typing import Optional, Any, Dict, List
 
 # General Veredi Stuff
 from veredi.data                         import background
-from veredi.logger                       import log
+from veredi                              import log
 from veredi.base.context                 import VerediContext
 from veredi.data.config.registry         import register
 

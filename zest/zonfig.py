@@ -11,7 +11,7 @@ Configuration file reader/writer for Veredi games.
 from typing import Optional, Any, MutableMapping
 
 
-from veredi.logger                import log
+from veredi                       import log
 
 from veredi.base.strings          import label
 

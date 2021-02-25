@@ -13,7 +13,7 @@ import pathlib
 
 from veredi                    import run
 from veredi.base.strings       import label
-from veredi.logger             import log
+from veredi                    import log
 from veredi.data.config.config import Configuration
 
 from .                         import zpath, zonfig

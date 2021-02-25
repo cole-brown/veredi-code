@@ -13,7 +13,7 @@ from typing import Optional, Type, Any, Mapping
 import uuid
 import re
 
-from veredi.logger        import log
+from veredi               import log
 from veredi.base.identity import SerializableId
 import veredi.time.machine
 

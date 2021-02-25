@@ -13,7 +13,7 @@ from datetime import date
 
 from veredi.zest.base.unit            import ZestBase
 from veredi.zest                      import zpath, zmake
-from veredi.logger                    import log
+from veredi                           import log
 
 from .                                import hierarchy
 from veredi.data.repository.file.tree import FileTreeRepository

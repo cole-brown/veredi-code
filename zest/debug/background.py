@@ -11,7 +11,7 @@ Some command(s) for background data and possibly other data.
 from typing import Optional
 
 
-from veredi.logger                       import log
+from veredi                              import log
 from veredi.data                         import background
 
 # Everything needed to participate in command registration.
@@ -81,7 +81,7 @@ def to_log(log_name: str) -> None:
     '''
     Log background out at a level that will likely get printed.
     '''
-    from veredi.logger import pretty
+    from veredi.log import pretty
     output = pretty.indented(background._CONTEXT,
                              sort=True)
     # TODO [2020-06-28]: Log function for 'always log this' that isn't

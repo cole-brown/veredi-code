@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from .context    import VerediContext
     from .base.const import VerediHealth
 
-from veredi.logger import pretty
+from veredi.log import pretty
 
 
 # -----------------------------------------------------------------------------

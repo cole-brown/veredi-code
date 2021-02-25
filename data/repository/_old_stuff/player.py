@@ -24,11 +24,11 @@ import hashlib
 #-----
 # Our Stuff
 #-----
-from veredi.logger import log
+from veredi                      import log
 from veredi.data.config.registry import register
-from ... import exceptions
-# from ...serdes import json
-from ...serdes import yaml
+from ...                         import exceptions
+# from ...serdes                 import json
+from ...serdes                   import yaml
 
 # -----------------------------------------------------------------------------
 # Constants

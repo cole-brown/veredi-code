@@ -10,13 +10,13 @@ For converting user input into Veredi's math/roll syntax trees.
 
 from typing import Optional, Any, Dict
 
-from veredi.logger          import log
+from veredi              import log
 
-from veredi.base.strings    import label
-from veredi.data            import background
-from veredi.base.context    import VerediContext
+from veredi.base.strings import label
+from veredi.data         import background
+from veredi.base.context import VerediContext
 
-from veredi.math.parser     import MathParser, MathTree
+from veredi.math.parser  import MathParser, MathTree
 
 
 # -----------------------------------------------------------------------------

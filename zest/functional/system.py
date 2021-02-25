@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from veredi.base.context import VerediContext
 
 
-from veredi.logger                      import log
+from veredi                             import log
 
 from veredi.data                        import background
 from veredi.data.config.registry        import register

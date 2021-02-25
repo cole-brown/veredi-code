@@ -17,7 +17,7 @@ import pathlib
 import os
 
 
-from veredi.logger             import log
+from veredi                    import log
 from veredi.base.strings       import label
 from veredi.data.config.config import Configuration
 from veredi.data.exceptions    import ConfigError

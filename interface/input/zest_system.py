@@ -8,8 +8,8 @@ Tests for the Input system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.base.system         import ZestSystem
-from veredi.logger                   import log
+from veredi.zest.base.system             import ZestSystem
+from veredi                              import log
 
 from veredi.base.context                 import UnitTestContext
 

@@ -19,7 +19,7 @@ Test debug command(s).
 
 from veredi.zest.base.integrate import ZestIntegrateEngine
 
-from veredi.logger                    import log
+from veredi                           import log
 from veredi.debug.const               import DebugFlag
 from veredi.base.context              import UnitTestContext
 
