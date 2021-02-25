@@ -26,6 +26,7 @@ from contextlib import contextmanager
 # ------------------------------
 from veredi.base.strings import label
 from .                   import log
+from .                   import formats
 
 
 # -----------------------------------------------------------------------------
@@ -116,7 +117,7 @@ class Lumberjack:
         '''
         Remove the specified handler from our logger, if we have it.
         '''
-        log.remove_handler(handler, self._logger, self._name)
+        formats.remove_handler(handler, self._logger, self._name)
 
     # -------------------------------------------------------------------------
     # Levels
