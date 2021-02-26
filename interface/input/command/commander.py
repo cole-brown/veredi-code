@@ -28,7 +28,7 @@ from veredi.base.null import Null, Nullable
 # ---
 # Code
 # ---
-from veredi                              import log
+from veredi.logs                         import log
 from veredi.base.strings                 import pretty
 from veredi.base.const                   import VerediHealth
 from veredi.base.context                 import VerediContext

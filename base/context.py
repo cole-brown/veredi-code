@@ -17,7 +17,7 @@ from veredi.base.null import Null, Nullable, NullNoneOr
 import enum
 import uuid
 
-from veredi      import log
+from veredi.logs import log
 from .exceptions import ContextError
 
 # -----------------------------------------------------------------------------

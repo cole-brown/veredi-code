@@ -35,7 +35,7 @@ from sys import exit
 # ---
 # Veredi Imports
 # ---
-from veredi.log                                import (log,
+from veredi.logs                               import (log,
                                                        log_server,
                                                        log_client)
 

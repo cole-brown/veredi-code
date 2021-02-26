@@ -13,7 +13,7 @@ from typing import Optional, Tuple
 import pathlib
 
 
-from veredi                    import log
+from veredi.logs               import log
 from veredi.base.strings       import label
 from veredi.data.config.config import Configuration
 # from veredi.data.exceptions  import ConfigError

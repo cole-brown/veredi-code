@@ -12,7 +12,7 @@ from veredi.zest.base.ecs           import ZestEcs
 from veredi.zest                    import zmake
 
 from veredi.base.context            import UnitTestContext
-from veredi                         import log
+from veredi.logs                    import log
 
 from veredi.game.ecs.event          import EventManager
 from veredi.game.ecs.time           import TimeManager

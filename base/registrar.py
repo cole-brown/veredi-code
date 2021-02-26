@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 
 
 from veredi.base.strings    import label
-from veredi                 import log
+from veredi.logs            import log
 from veredi.data            import background
 from veredi.data.exceptions import RegistryError
 

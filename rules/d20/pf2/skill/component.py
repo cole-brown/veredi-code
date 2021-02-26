@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from .event                     import SkillEvent
 
 
-from veredi                          import log
+from veredi.logs                     import log
 from veredi.data.config.registry     import register
 from veredi.game.interface.component import queue
 

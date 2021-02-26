@@ -19,7 +19,7 @@ from veredi.base.null          import NullNoneOr, null_or_none
 
 
 # Error Handling
-from veredi                    import log
+from veredi.logs               import log
 from veredi.logger.metered     import MeteredLog
 from veredi.logger.mixin       import LogMixin
 from veredi.base.exceptions    import VerediError, HealthError

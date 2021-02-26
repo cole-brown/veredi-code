@@ -14,7 +14,7 @@ from typing import (TYPE_CHECKING,
 if TYPE_CHECKING:
     from veredi.run.system               import SysCreateType
 
-from veredi                              import log
+from veredi.logs                         import log
 from veredi.base                         import random
 
 from .unit                               import ZestBase

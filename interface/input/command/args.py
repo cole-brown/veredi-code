@@ -20,7 +20,7 @@ import enum
 import re
 
 
-from veredi                        import log
+from veredi.logs                   import log
 from veredi.base.context           import VerediContext
 
 from veredi.game.ecs.base.identity import EntityId

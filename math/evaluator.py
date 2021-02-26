@@ -15,7 +15,7 @@ from decimal import Decimal
 
 from abc import ABC, abstractmethod
 
-from veredi  import log
+from veredi.logs import log
 from .parser import MathTree, FINAL_VALUE_TYPES
 
 

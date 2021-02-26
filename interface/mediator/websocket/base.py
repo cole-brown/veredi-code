@@ -27,7 +27,7 @@ from io import StringIO
 # ---
 # Veredi Imports
 # ---
-from veredi                  import log
+from veredi.logs             import log
 from veredi.data.serdes.base import BaseSerdes
 from veredi.time.timer       import MonotonicTimer
 from veredi.base.identity    import MonotonicId

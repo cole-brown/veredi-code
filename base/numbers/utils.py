@@ -14,7 +14,7 @@ import decimal
 from decimal import Decimal
 
 
-from veredi import log
+from veredi.logs import log
 
 from .const import (NumberTypes, NumberTypesTuple,
                     DecimalTypes, DecimalTypesTuple)

@@ -38,7 +38,7 @@ from veredi.data.codec.encodable   import (Encodable,
                                            EncodedSimple,
                                            EncodedComplex)
 
-from veredi                        import log
+from veredi.logs                   import log
 from veredi.security               import abac
 from veredi.base.identity          import SerializableId
 

@@ -39,7 +39,7 @@ from veredi.game.ecs.const     import SystemTick
 # ------------------------------
 # Debugging Help
 # ------------------------------
-from veredi                    import log
+from veredi.logs               import log
 from veredi.debug.const        import DebugFlag
 
 

@@ -18,7 +18,7 @@ from typing import List, Tuple, Dict
 import sys
 import unittest
 
-from veredi              import log
+from veredi.logs         import log
 from veredi.zest         import zload
 from veredi.zest.zpath   import TestType
 from veredi.zest.timing  import ZestTiming

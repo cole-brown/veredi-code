@@ -9,7 +9,7 @@ Tests for the Input system, events, and components.
 # -----------------------------------------------------------------------------
 
 from veredi.zest.base.system             import ZestSystem
-from veredi                              import log
+from veredi.logs                         import log
 
 from veredi.base.context                 import UnitTestContext
 

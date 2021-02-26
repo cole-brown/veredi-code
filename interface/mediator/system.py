@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 from veredi.data                         import background
 from veredi.base.context                 import VerediContext
 
-from veredi                              import log, log_client
+from veredi.logs                         import log, log_client
 from veredi.debug.const                  import DebugFlag
 
 from veredi.base.const                   import VerediHealth

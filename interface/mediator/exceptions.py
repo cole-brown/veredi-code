@@ -16,7 +16,7 @@ https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.set_except
 from typing import Optional, Callable
 
 
-from veredi                 import log
+from veredi.logs            import log
 from veredi.base.exceptions import VerediError
 
 

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     import unittest
 
 
-from veredi                            import log
+from veredi.logs                       import log
 from .                                 import zmake, zontext
 from .zpath                            import TestType
 from .exceptions                       import UnitTestError

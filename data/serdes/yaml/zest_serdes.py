@@ -12,7 +12,7 @@ from typing import Union, Type
 
 import datetime
 
-from veredi                  import log
+from veredi.logs             import log
 from veredi.zest.base.unit   import ZestBase
 
 from veredi.base             import paths

@@ -19,7 +19,7 @@ from veredi.zest.base.ecs                  import ZestEcs
 from veredi.zest                           import zload
 from veredi.base                           import paths
 from veredi.base.context                   import UnitTestContext
-from veredi                                import log
+from veredi.logs                           import log
 
 from veredi.data.context                   import (DataAction,
                                                    DataLoadContext,

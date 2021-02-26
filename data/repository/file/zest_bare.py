@@ -15,7 +15,7 @@ from veredi.zest                import zpath
 from veredi.zest.base.unit      import ZestBase
 
 
-from veredi                     import log
+from veredi.logs                import log
 from veredi.data                import background
 from veredi.base                import paths
 

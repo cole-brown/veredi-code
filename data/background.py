@@ -48,7 +48,7 @@ import enum
 import pathlib
 import copy
 
-from veredi                 import log
+from veredi.logs            import log
 
 from veredi.base.null       import Null, Nullable, NullNoneOr
 from .exceptions            import ConfigError

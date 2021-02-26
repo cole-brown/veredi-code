@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from veredi.base.context         import VerediContext
     from veredi.data.config.context  import ConfigContext
 
-from veredi                          import log
+from veredi.logs                     import log
 from veredi.data.config.registry     import register
 
 from veredi.game.data.component      import DataComponent

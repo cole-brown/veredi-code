@@ -10,7 +10,7 @@ Tests for the Commander sub-system, events, components, commands......
 
 from veredi.zest.base.ecs         import ZestEcs
 from veredi.zest                  import zonfig
-from veredi                       import log
+from veredi.logs                  import log
 
 from veredi.data                  import background
 from veredi.base.null             import Null

@@ -11,7 +11,7 @@ Keys for accessing Configuration Data.
 from typing import Optional, Type, Any, Dict
 import enum
 
-from veredi import log
+from veredi.logs import log
 
 from ..     import exceptions
 
