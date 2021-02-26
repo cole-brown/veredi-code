@@ -953,7 +953,7 @@ def group(group:         'const.Group',
     output = brace_message(msg,
                            *args,
                            context=context,
-                           log_fmt_type=MessageType.GROUP,
+                           log_fmt_type=const.MessageType.GROUP,
                            log_group=group,
                            log_dotted=dotted,
                            log_success=log_success,
@@ -1028,7 +1028,7 @@ def group_multi(groups:        Iterable['const.Group'],
 
     # Resolve the groups based on resolution type, then log to whatever
     # group(s) that is.
-    final_groups = group_resolve.resolve(groups)
+    final_groups = group_resolve.resolve(groups, _GROUP_LEVELS)
     for log_group in final_groups:
         group(log_group,
               dotted,
