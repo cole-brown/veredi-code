@@ -26,13 +26,13 @@ import select
 from datetime import datetime
 
 
-from . import log
-from veredi.parallel import multiproc
-from veredi.debug.const                         import DebugFlag
-from veredi.data                         import background
-from veredi.data.config.config import Configuration
-from veredi.base.context       import VerediContext
-from veredi.data.config.context         import ConfigContext
+from .                          import log
+from veredi.parallel            import multiproc
+from veredi.debug.const         import DebugFlag
+from veredi.data                import background
+from veredi.data.config.config  import Configuration
+from veredi.base.context        import VerediContext
+from veredi.data.config.context import ConfigContext
 
 
 # -----------------------------------------------------------------------------

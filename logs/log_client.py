@@ -17,8 +17,6 @@ from typing import Union
 import logging
 import logging.handlers
 
-from . import const
-from . import formats
 from . import log
 
 
@@ -41,7 +39,7 @@ _client_name: str = None
 
 
 def init(client_name: str,
-         level:       Union[const.Level, int, None] = const.DEFAULT_LEVEL) -> None:
+         level:       Union[log.Level, int, None] = log.DEFAULT_LEVEL) -> None:
     '''
     Initialize log.py for non-local logging.
     '''
@@ -75,5 +73,5 @@ def close():
 
     log.debug(f"log_client close: {_client_name} - closing _socket_handler...")
     _socket_handler.close()
-    formats.remove_handler(_socket_handler)
+    log.remove_handler(_socket_handler)
     log.debug(f"log_client close: {_client_name} - done.")
