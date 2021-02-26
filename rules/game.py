@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 
 
-from veredi.logger.mixin          import LogMixin
+from veredi.logs.mixin            import LogMixin
 
 from veredi.data.repository.taxon import Taxon, LabelTaxon, SavedTaxon
 from veredi.data.records          import (DataType,

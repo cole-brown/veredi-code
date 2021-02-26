@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 
 
 from veredi.logs            import log
-from veredi.logger.mixin    import LogMixin
+from veredi.logs.mixin      import LogMixin
 from veredi.base.exceptions import VerediError
 from veredi.data            import background
 from veredi.data.context    import BaseDataContext, DataAction

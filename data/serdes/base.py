@@ -24,7 +24,7 @@ from io import StringIO
 
 
 from veredi.logs         import log
-from veredi.logger.mixin import LogMixin
+from veredi.logs.mixin   import LogMixin
 
 from veredi.data         import background
 from ..codec.encodable   import Encodable
