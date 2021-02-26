@@ -15,7 +15,7 @@ Base Veredi Class for Testing ECS Engine.
 
 from typing import Optional, Dict, Set
 
-from veredi                      import log
+from veredi.logs                 import log
 from .ecs                        import ZestEcs
 
 from veredi.game.ecs.base.system import System

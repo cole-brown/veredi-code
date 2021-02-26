@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 
 
-from veredi                 import log
+from veredi.logs            import log
 from veredi.logger.mixin    import LogMixin
 from veredi.base.exceptions import VerediError
 from veredi.data            import background

@@ -13,7 +13,7 @@ from typing import Optional, Any, Dict, Iterable, Iterator
 
 import enum
 
-from veredi import log
+from veredi.logs import log
 
 # TODO [2020-10-28]: Some stuff is missing type hinting.
 

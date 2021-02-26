@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 from abc import abstractmethod
 
 
-from veredi                             import log
+from veredi.logs                        import log
 from veredi.base.const                  import VerediHealth
 from veredi.base.strings                import label
 from veredi.data                        import background

@@ -18,7 +18,7 @@ from typing import (Optional, Any, Type, NewType, Protocol,
 
 import lark  # Lark, Transformer, Visitor, v_args
 
-from veredi                      import log
+from veredi.logs                 import log
 from veredi.data.config.registry import register
 
 from ..parser                    import MathParser, MathTree

@@ -10,7 +10,7 @@ For converting user input into Veredi's math/roll syntax trees.
 
 from typing import Optional, Any, Dict
 
-from veredi              import log
+from veredi.logs         import log
 
 from veredi.base.strings import label
 from veredi.data         import background

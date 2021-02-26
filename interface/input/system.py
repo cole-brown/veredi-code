@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 # ---
 from veredi.data                         import background
 
-from veredi                              import log
+from veredi.logs                         import log
 from veredi.base.const                   import VerediHealth
 from veredi.data.config.registry         import register
 

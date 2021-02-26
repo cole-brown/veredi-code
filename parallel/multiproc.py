@@ -28,7 +28,7 @@ import veredi.time.machine
 from veredi.base.enum            import FlagCheckMixin
 from veredi.base.const           import VerediHealth
 from veredi.game.ecs.base.system import SystemLifeCycle
-from veredi                      import log, log_client
+from veredi.logs                 import log, log_client
 from veredi.base.context         import VerediContext
 from veredi.data.config.config   import Configuration
 from veredi.data.config.context  import ConfigContext

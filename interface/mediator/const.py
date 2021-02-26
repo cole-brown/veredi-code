@@ -15,7 +15,7 @@ import enum
 import re
 
 
-from veredi           import log
+from veredi.logs      import log
 from veredi.base.enum import (FlagCheckMixin,
                               FlagSetMixin,
                               FlagEncodeValueMixin)

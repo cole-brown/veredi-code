@@ -13,7 +13,7 @@ from typing import Optional, Union, Type, Mapping
 import enum
 import re
 
-from veredi                      import log
+from veredi.logs                 import log
 from veredi.data.codec.encodable import Encodable
 
 

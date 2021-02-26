@@ -19,7 +19,7 @@ from veredi.base.null import Nullable, Null, null_or_none
 import enum
 import pathlib
 
-from veredi                 import log
+from veredi.logs            import log
 
 from veredi.base.exceptions import ContextError
 from veredi.base.context    import VerediContext, EphemerealContext

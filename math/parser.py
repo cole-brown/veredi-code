@@ -18,7 +18,7 @@ from collections import deque
 import enum
 from decimal import Decimal
 
-from veredi                      import log
+from veredi.logs                 import log
 from veredi.base.context         import VerediContext
 from veredi.base.enum            import (FlagEncodeNameMixin,
                                          FlagCheckMixin)

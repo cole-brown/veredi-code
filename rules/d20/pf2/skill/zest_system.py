@@ -13,7 +13,7 @@ import random
 
 from veredi.zest.base.system        import ZestSystem
 from veredi.base.context            import UnitTestContext
-from veredi                         import log
+from veredi.logs                    import log
 
 from veredi.game.ecs.base.identity  import ComponentId
 from veredi.game.ecs.base.component import ComponentLifeCycle

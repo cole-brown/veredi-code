@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 import pathlib
 
-from veredi                 import log
+from veredi.logs            import log
 from veredi.base.strings    import label
 from veredi.base.exceptions import VerediError
 from veredi.data.context    import DataAction, DataBareContext

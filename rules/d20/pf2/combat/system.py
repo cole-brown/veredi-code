@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from veredi.base.context            import VerediContext
     from veredi.game.ecs.manager        import EcsManager
 
-from veredi                             import log
+from veredi.logs                        import log
 from veredi.base.const                  import VerediHealth
 from veredi.data                        import background
 from veredi.data.config.registry        import register

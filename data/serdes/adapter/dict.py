@@ -15,7 +15,7 @@ a DB or JSON comes along they can just implement to the same thing.
 from typing import Union, Any, NewType, Mapping, Iterable, Tuple
 from collections import abc
 
-from veredi              import log
+from veredi.logs         import log
 from veredi.data         import exceptions
 from veredi.base.strings import text
 

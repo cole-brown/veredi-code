@@ -25,7 +25,7 @@ import enum
 
 
 from veredi.data.config       import registry
-from veredi                   import log
+from veredi.logs              import log
 from veredi.logger.mixin      import LogMixin
 from veredi.base.const        import VerediHealth
 from veredi.debug.const       import DebugFlag

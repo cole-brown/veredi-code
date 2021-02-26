@@ -10,7 +10,7 @@ Unit tests for:
 # -----------------------------------------------------------------------------
 
 from veredi.zest.base.unit import ZestBase
-from veredi                import log
+from veredi.logs           import log
 
 from .                     import tree
 from ..parser              import NodeType

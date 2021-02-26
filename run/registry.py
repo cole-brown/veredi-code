@@ -15,7 +15,7 @@ import inspect
 import importlib
 
 
-from veredi                    import log
+from veredi.logs               import log
 from veredi.base.strings       import label
 
 # Configuration Stuff

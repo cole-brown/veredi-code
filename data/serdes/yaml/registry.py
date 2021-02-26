@@ -13,7 +13,7 @@ from typing import Optional, Type, NewType, Callable, List, Tuple
 import yaml
 import re
 
-from veredi        import log
+from veredi.logs   import log
 from ...exceptions import RegistryError
 from .             import tags
 

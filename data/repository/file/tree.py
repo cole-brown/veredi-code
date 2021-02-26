@@ -17,7 +17,7 @@ import re
 from io import StringIO, TextIOBase
 
 
-from veredi                      import log
+from veredi.logs                 import log
 
 from veredi.data.config.registry import register
 from veredi.data                 import background

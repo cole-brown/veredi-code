@@ -21,7 +21,7 @@ from veredi.zest                  import zmake
 from veredi.zest.base.unit        import ZestBase
 
 
-from veredi                       import log
+from veredi.logs                  import log
 from veredi.base                  import paths
 
 from veredi.base.exceptions       import VerediError

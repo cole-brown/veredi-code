@@ -15,7 +15,7 @@ import uuid
 
 from abc import abstractmethod
 
-from veredi                      import log
+from veredi.logs                 import log
 # from veredi.base.decorators    import abstract_class_attribute
 from veredi.base.metaclasses     import InvalidProvider, ABC_InvalidProvider
 

@@ -11,7 +11,7 @@ Tests for the generic System class.
 from datetime import datetime, timezone
 
 
-from veredi                import log
+from veredi.logs           import log
 
 from veredi.zest.base.unit import ZestBase
 from veredi.base.context   import UnitTestContext

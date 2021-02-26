@@ -10,7 +10,7 @@ Context for Mediators.
 
 from typing import Optional, Any, Type, NewType, Mapping, List
 
-from veredi                        import log
+from veredi.logs                   import log
 from veredi.base.context           import EphemerealContext
 from veredi.base.identity          import MonotonicId
 from veredi.game.ecs.base.identity import EntityId

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 import shutil
 from abc import abstractmethod
 
-from veredi                     import log
+from veredi.logs                import log
 
 from veredi.base                import paths
 from veredi.base.strings        import label

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from veredi.base.identity import MonotonicIdGenerator
 
 
-from veredi                    import log
+from veredi.logs               import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.data.config.config import Configuration

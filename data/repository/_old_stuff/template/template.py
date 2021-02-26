@@ -23,7 +23,7 @@ import hashlib
 #-----
 # Our Stuff
 #-----
-from veredi                           import log
+from veredi.logs                      import log
 from veredi.data                      import exceptions
 # from veredi.data.serdes.json.serdes import JsonSerdes
 from veredi.data.serdes.yaml.serdes   import YamlSerdes

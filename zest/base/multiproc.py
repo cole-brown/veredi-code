@@ -19,7 +19,7 @@ import enum
 
 
 from veredi.zest          import zmake, zontext
-from veredi               import log, log_server
+from veredi.logs          import log, log_server
 
 from veredi.base.strings  import label
 from veredi.base.enum     import FlagCheckMixin

@@ -10,7 +10,7 @@ Tests for entity.py (EntityManager class).
 
 from veredi.zest.base.unit import ZestBase
 
-from veredi                import log
+from veredi.logs           import log
 from veredi.zest           import zmake
 from veredi.base.context   import UnitTestContext
 from veredi.base.null      import Null

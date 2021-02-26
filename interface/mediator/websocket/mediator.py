@@ -19,7 +19,7 @@ import multiprocessing
 import multiprocessing.connection
 import re
 
-from veredi                      import log
+from veredi.logs                 import log
 from veredi.base.strings         import label
 from veredi.base.context         import VerediContext
 from veredi.debug.const          import DebugFlag

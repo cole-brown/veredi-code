@@ -19,7 +19,7 @@ from veredi.base.null import Null, NullNoneOr
 import enum
 
 
-from veredi                    import log
+from veredi.logs               import log
 from veredi.base.context       import VerediContext
 from veredi.base.const         import VerediHealth
 from veredi.data               import background
