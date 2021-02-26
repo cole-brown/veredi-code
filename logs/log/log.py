@@ -29,10 +29,9 @@ from types import TracebackType
 
 
 from veredi.base.null       import Null, Nullable
-from veredi.base.strings    import label
+from veredi.base.strings    import label, pretty
 from veredi.base.exceptions import VerediError
 
-from . import pretty
 from . import const
 from . import formats
 
