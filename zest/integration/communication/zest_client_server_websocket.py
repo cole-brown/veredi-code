@@ -22,7 +22,7 @@ from veredi.zest.base.multiproc                 import (ZestIntegrateMultiproc,
                                                         Processes,
                                                         ProcTest,
                                                         ClientProcToSubComm)
-from veredi.logger                              import (log,
+from veredi.logs                                import (log,
                                                         log_client)
 from veredi.debug.const                         import DebugFlag
 from veredi.base.identity                       import (MonotonicId,

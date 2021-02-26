@@ -20,8 +20,8 @@ from veredi.base.null          import NullNoneOr, null_or_none
 
 # Error Handling
 from veredi.logs               import log
-from veredi.logger.metered     import MeteredLog
-from veredi.logger.mixin       import LogMixin
+from veredi.logs.metered       import MeteredLog
+from veredi.logs.mixin         import LogMixin
 from veredi.base.exceptions    import VerediError, HealthError
 from .ecs.exceptions           import TickError
 from .exceptions               import EngineError

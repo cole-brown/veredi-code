@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 
 
 from veredi.base.const   import VerediHealth
-from veredi.logger.mixin import LogMixin
+from veredi.logs.mixin   import LogMixin
 from veredi.debug.const  import DebugFlag
 from veredi.data         import background
 

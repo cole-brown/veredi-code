@@ -10,11 +10,11 @@ See: https://en.wikipedia.org/wiki/Attribute-based_access_control
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.logger.lumberjack import Lumberjack
+from veredi.logs.lumberjack import Lumberjack
 
-from .policy import PolicyDecisionPoint
+from .policy                import PolicyDecisionPoint
 
-from .attributes.subject import Subject
+from .attributes.subject    import Subject
 
 
 # -----------------------------------------------------------------------------
