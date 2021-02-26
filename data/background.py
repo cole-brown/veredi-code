@@ -1284,7 +1284,7 @@ class testing:
 # TODO [2020-06-23]: string, repr for this
 
 def to_str() -> str:
-    from veredi.log import pretty
+    from veredi.base.strings import pretty
     return "Veredi Backgroud Context:\n" + pretty.indented(_CONTEXT)
 
 

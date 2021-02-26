@@ -29,7 +29,7 @@ from veredi.base.null import Null, Nullable
 # Code
 # ---
 from veredi                              import log
-from veredi.log                          import pretty
+from veredi.base.strings                 import pretty
 from veredi.base.const                   import VerediHealth
 from veredi.base.context                 import VerediContext
 from veredi.data.config.registry         import register

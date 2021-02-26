@@ -81,7 +81,7 @@ def to_log(log_name: str) -> None:
     '''
     Log background out at a level that will likely get printed.
     '''
-    from veredi.log import pretty
+    from veredi.base.strings import pretty
     output = pretty.indented(background._CONTEXT,
                              sort=True)
     # TODO [2020-06-28]: Log function for 'always log this' that isn't

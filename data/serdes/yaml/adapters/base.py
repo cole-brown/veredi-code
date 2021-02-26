@@ -11,7 +11,7 @@ Base classes for Veredi YAML formatted files.
 from typing import Any, Type, MutableMapping
 import yaml
 
-from veredi.log                   import pretty
+from veredi.base.strings          import pretty
 from veredi.data.config.hierarchy import Hierarchy
 from ..                           import tags
 from ..                           import registry

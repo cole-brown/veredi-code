@@ -257,7 +257,7 @@ class BaseRegistrar(ABC):
                    f"{registration}. Trying to register {cls_or_func} at "
                    f"'{label.normalize(dotted_list)}'. "
                    "Registry: \n{}")
-            from veredi.log import pretty
+            from veredi.base.strings import pretty
             log.exception(error, msg,
                           pretty.indented(klass._REGISTRY))
             # Reraise it. Just want more info.
