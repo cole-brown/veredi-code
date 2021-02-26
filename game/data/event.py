@@ -249,7 +249,7 @@ class _LoadedEvent(DataEvent):
                 ('closed' if self._data.closed else 'open'))
 
     def _pretty(self):
-        from veredi.log import pretty
+        from veredi.base.strings import pretty
         return (f"{self.__str_name__()}:\n"
                 + f"  data:  {self._str_data()}\n"
                 + "  context:\n"
@@ -312,7 +312,7 @@ class _DeserializedEvent(DataEvent):
                 repr(self.data))
 
     def _pretty(self):
-        from veredi.log import pretty
+        from veredi.base.strings import pretty
         return (f"{self.__str_name__()}:\n"
                 + f"  data:  {self._str_data()}\n"
                 + "  context:\n"

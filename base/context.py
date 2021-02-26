@@ -613,7 +613,7 @@ class VerediContext:
     # -------------------------------------------------------------------------
 
     def _pretty(self):
-        from veredi.log import pretty
+        from veredi.base.strings import pretty
         from pprint import pformat
         return pretty.indented(f"{self.__class__.__name__}:\n"
                                + pformat(self._get()))

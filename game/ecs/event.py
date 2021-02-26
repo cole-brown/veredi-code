@@ -169,7 +169,7 @@ class Event:
         return f"{name}[id:{self.id},t:{self.type}]"
 
     def _pretty(self):
-        from veredi.log import pretty
+        from veredi.base.strings import pretty
         return (f"{self.__str_name__()}:\n  context:\n" +
                 pretty.indented(self._context._pretty(), indent=4))
 

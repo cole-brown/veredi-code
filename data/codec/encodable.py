@@ -19,7 +19,7 @@ import re
 
 
 from veredi                import log
-from veredi.log            import pretty
+from veredi.base.strings   import pretty
 from veredi.base.registrar import CallRegistrar, RegisterType
 from veredi.base.strings   import label
 from veredi.base           import numbers
