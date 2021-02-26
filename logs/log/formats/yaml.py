@@ -29,13 +29,12 @@ from collections import OrderedDict
 
 
 # from veredi.base.null       import Null, Nullable, NullNoneOr, null_or_none
-from veredi.base.strings       import label
+from veredi.base.strings       import label, pretty
 from veredi.base.paths.utils   import to_str as path_to_str
 from veredi.base.paths.const   import PathType
 # from veredi.base.exceptions import VerediError
 
 from .. import const
-from .. import pretty
 
 
 # -----------------------------------------------------------------------------
