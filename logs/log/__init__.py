@@ -29,16 +29,19 @@ from logging import Logger as PyLogType  # noqa
 # ------------------------------
 
 from .const import (
+    # Constants
+    DEFAULT_LEVEL,
+
     # Types
     LogLvlConversion, LoggerInput, SuccessInput,
 
     # Enums
-    MessageType, SuccessType, Level, Group, GroupResolve, LogName
+    MessageType, SuccessType, Level, Group, GroupResolve
 )
 
 
 # ------------------------------
-# Logging To Root Veredi Logger
+# LogName To Root Veredi Logger
 # ------------------------------
 
 from .log import (
@@ -114,7 +117,33 @@ from .formats import (
 
 __all__ = [
     # -------------------------------------------------------------------------
-    # Log.py
+    # const.py
+    # -------------------------------------------------------------------------
+
+    # ------------------------------
+    # Constants
+    # ------------------------------
+    'DEFAULT_LEVEL',
+
+    # ------------------------------
+    # Types
+    # ------------------------------
+    'LogLvlConversion',
+    'LoggerInput',
+    'SuccessInput',
+
+    # ------------------------------
+    # Enums
+    # ------------------------------
+    'MessageType',
+    'SuccessType',
+    'Level',
+    'Group',
+    'GroupResolve',
+
+
+    # -------------------------------------------------------------------------
+    # log.py
     # -------------------------------------------------------------------------
 
     # ------------------------------
@@ -167,7 +196,7 @@ __all__ = [
 
 
     # -------------------------------------------------------------------------
-    # Non-Log.py
+    # non-log.py
     # -------------------------------------------------------------------------
 
     # ------------------------------

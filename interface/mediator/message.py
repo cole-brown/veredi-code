@@ -21,7 +21,6 @@ import enum
 import re
 
 
-import veredi.logger.log
 from veredi.security               import abac
 from veredi.base.enum              import FlagEncodeValueMixin
 from veredi.data.codec.encodable   import (Encodable,
