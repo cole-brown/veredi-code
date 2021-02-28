@@ -18,11 +18,10 @@ import datetime
 import math
 
 
-from veredi.base.strings       import label
+from veredi.base.strings import label
 
-from .record import LogRecordYaml
-# from .factory import LogRecordFactory
-from ... import const as const_l
+from ...                 import const as const_l
+from .record             import LogRecordYaml
 
 
 # -----------------------------------------------------------------------------
@@ -34,7 +33,7 @@ from ... import const as const_l
 # The Record Formatter
 # -----------------------------------------------------------------------------
 
-class LogYaml(logging.Formatter):
+class FormatYaml(logging.Formatter):
     '''
     Log to a yaml format.
     '''

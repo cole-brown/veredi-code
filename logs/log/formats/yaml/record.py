@@ -26,16 +26,17 @@ from io import StringIO
 from traceback import print_exception
 
 
-from veredi.base.strings       import label
-from veredi.base.paths.utils   import to_str as path_to_str
-from veredi.base.paths.const   import PathType
+from veredi.base.strings     import label
+from veredi.base.paths.utils import to_str as path_to_str
+from veredi.base.paths.const import PathType
 
-from ... import const_l
 
 # ---
 # Need to get LiteralString, OrderedDict registered with Python YAML.
 # ---
-from veredi.run.yaml import LiteralString
+from veredi.base.yaml        import LiteralString
+
+from ...                     import const as const_l
 
 
 # -----------------------------------------------------------------------------

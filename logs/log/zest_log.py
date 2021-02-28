@@ -310,7 +310,7 @@ class ZestLogFormat(ZestLogBase):
         Set up our logging to be unit-testable.
         '''
         # Initialize our Formatter...
-        self.formatter = formats.yaml.LogYaml()
+        self.formatter = formats.yaml.FormatYaml()
 
         # ------------------------------
         # Enable capture as final thing.

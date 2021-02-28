@@ -8,7 +8,8 @@ Custom Formatters for Logging.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing           import Optional, Callable, List, TextIO
+from typing           import (Optional, Union, Type, NewType,
+                              Callable, List, TextIO)
 from veredi.base.null import Null, Nullable
 
 import logging
@@ -40,15 +41,34 @@ __all__ = [
     # ------------------------------
     # Types & Consts
     # ------------------------------
+    'FormatInitTypes',
 
-    # ------------------------------
-    # Namespaced
-    # ------------------------------
 
     # ------------------------------
     # Functions
     # ------------------------------
 ]
+
+
+# -----------------------------------------------------------------------------
+# Types
+# -----------------------------------------------------------------------------
+
+FormatInitTypes = NewType('FormatInitTypes',
+                          Union[logging.Formatter,
+                                Type[logging.Formatter],
+                                None])
+'''
+During init, can take a formatter instance, a formatter class, or None for
+default.
+'''
+
+
+# -----------------------------------------------------------------------------
+# Constants
+# -----------------------------------------------------------------------------
+
+_DEFAULT_FORMATTER_CLASS = yaml.FormatYaml
 
 
 # -----------------------------------------------------------------------------
@@ -67,6 +87,29 @@ _ut_handlers_orig: List[logging.Handler] = []
 # Code
 # -----------------------------------------------------------------------------
 
+def init(logger:      logging.Logger,
+         handler:     Optional[logging.Handler] = None,
+         formatter:   FormatInitTypes           = None
+         ) -> None:
+    '''
+    Initialize the handler/formatter provided and add them to the logger.
+
+    If the formatter is a type we know (e.g. FormatYaml), create an instance of
+    that type.
+    '''
+    if not formatter:
+        # formatter = _DEFAULT_FORMATTER_CLASS()
+        pass
+    elif isinstance(formatter, logging.Formatter):
+        pass
+    elif issubclass(formatter, logging.Formatter):
+        # Use default params for now, but could pass in more...
+        # logging.Formatter takes: `fmt`, `datefmt`, `validate`
+        formatter = formatter()
+
+    return init_handler(logger, handler, formatter)
+
+
 def init_handler(logger: logging.Logger,
                  handler:     Optional[logging.Handler]   = None,
                  formatter:   Optional[logging.Formatter] = None
@@ -79,7 +122,7 @@ def init_handler(logger: logging.Logger,
 
     If not provided a formatter or handler, will create a default of:
       - logging.StreamHandler
-        - with time.BestTimeFmt TODO: change default to yaml.LogYaml
+        - with time.BestTimeFmt TODO: change default to yaml.FormatYaml
     '''
     # ------------------------------
     # Init Handler / Formatter as Needed.
@@ -139,6 +182,9 @@ def init_handler(logger: logging.Logger,
                       'default')
     logger.debug(f"Logger '{logger.name}' set up with handler "
                  f"'{name_handler}' and formatter '{name_formatter}'.")
+
+
+# TODO: `add_handler()` function for parity with `remove_handler()`?
 
 
 def remove_handler(handler:     logging.Handler,

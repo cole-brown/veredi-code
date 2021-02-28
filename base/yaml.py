@@ -20,18 +20,10 @@ from collections import OrderedDict
 # Logging needs this stuff for YAML formatted logs, so do not log from here.
 # from veredi.logs               import log
 
-from veredi.base.strings       import label
-from veredi.data.config.config import Configuration
-from veredi.data.exceptions    import ConfigError
-
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-_DOTTED = "veredi.run.yaml"
-
-_REPRESENTERS = set()
 
 
 # -----------------------------------------------------------------------------
