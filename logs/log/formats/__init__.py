@@ -8,11 +8,12 @@ Custom Formatters for Logging.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing           import Optional, Callable, List
-from veredi.base.null import Null
+from typing           import Optional, Callable, List, TextIO
+from veredi.base.null import Null, Nullable
 
 import logging
 
+from veredi.zest.exceptions import UnitTestError
 
 from .. import const as const_l
 from . import const as const_f
@@ -56,6 +57,10 @@ __all__ = [
 
 _handlers: List[logging.Handler] = []
 '''Our main/default logger's main/default handler(s).'''
+
+
+_ut_handlers_orig: List[logging.Handler] = []
+'''Where we'll keep a copy of `_handlers` while using a unit-test handler.'''
 
 
 # -----------------------------------------------------------------------------
@@ -154,3 +159,65 @@ def remove_handler(handler:     logging.Handler,
 
     if logger_name:
         logging.getLogger(logger_name).removeHandler(handler)
+
+
+# -----------------------------------------------------------------------------
+# Unit Testing
+# -----------------------------------------------------------------------------
+
+def ut_set_up(stream:    TextIO,
+              logger:    logging.Logger,
+              formatter: logging.Formatter) -> None:
+    '''
+    Set up for unit testing.
+
+    Saves off current logging handlers/formatters.
+
+    Creates a new StreamHandler with the given `stream` and `formatter`, then
+    calls `init_handler()` for the `logger` and new handler.
+
+    Raises UnitTestError if invalid arguments.
+    '''
+    if not stream or not logger or not formatter:
+        raise UnitTestError("log.formats.ut_set_up(): Cannot setup for "
+                            "unit testing without `stream`, `logger`, "
+                            "and `formatter`.",
+                            data={
+                                'stream': stream,
+                                'logger': logger,
+                                'formatter': formatter,
+                            })
+
+    global _ut_handlers_orig
+    global _handlers
+    _ut_handlers_orig.clear()
+
+    # Save off the current handlers.
+    for handle in _handlers:
+        _ut_handlers_orig.append(handle)
+
+    # And set up a new StreamHandler with their stream.
+    handler = logging.StreamHandler(stream=stream)
+    init_handler(logger,
+                 handler,
+                 formatter)
+
+
+def ut_tear_down(logger: logging.Logger) -> None:
+    '''
+    Tear down for unit testing.
+
+    Resets back to the saved handler(s).
+    '''
+    # Get rid of handlers/formatters we were using for the test.
+    global _handlers
+    if _handlers:
+        for handle in _handlers:
+            logger.removeHandler(handle)
+        _handlers = []
+
+    # And reattach the old handlers.
+    global _ut_handlers_orig
+    for handle in _ut_handlers_orig:
+        _handlers.append(handle)
+        logger.addHandler(handle)
