@@ -15,16 +15,9 @@ if TYPE_CHECKING:
     from veredi.base.context    import VerediContext
 
 
-# ------------------------------
-# Imports for helping others do type hinting
-# ------------------------------
-from logging import Logger as PyLogType  # noqa
-
-
-# ------------------------------
-# Imports to Do Stuff
-# ------------------------------
 import logging
+
+
 from types import TracebackType
 
 
@@ -170,11 +163,11 @@ _unit_test_callback: Callable = Null()
 # Initialization
 # -----------------------------------------------------------------------------
 
-def init(level:        const.LogLvlConversion            = const.DEFAULT_LEVEL,
-         handler:      Optional[logging.Handler]   = None,
-         formatter:    Optional[logging.Formatter] = None,
-         reinitialize: Optional[bool]              = None,
-         debug:        Optional[Any]               = None) -> None:
+def init(level:        const.LogLvlConversion    = const.DEFAULT_LEVEL,
+         handler:      Optional[logging.Handler] = None,
+         formatter:    formats.FormatInitTypes   = None,
+         reinitialize: Optional[bool]            = None,
+         debug:        Optional[Any]             = None) -> None:
     '''
     Initializes our root logger.
 
@@ -196,13 +189,13 @@ def init(level:        const.LogLvlConversion            = const.DEFAULT_LEVEL,
     logger = init_logger(str(const.LogName.ROOT), level)
 
     # This is our root logger, so we do allow it to have special handlers.
-    formats.init_handler(logger, handler, formatter)
+    formats.init(logger, handler, formatter)
 
 
 def init_logger(logger_name: str,
                 level:       const.LogLvlConversion      = const.DEFAULT_LEVEL,
                 formatter:   Optional[logging.Formatter] = None
-                ) -> PyLogType:
+                ) -> logging.Logger:
     '''
     Initializes and returns a logger with the supplied name.
     '''
@@ -223,7 +216,7 @@ def init_logger(logger_name: str,
 
 def get_logger(*names:        str,
                min_log_level: const.LogLvlConversion = None
-               ) -> PyLogType:
+               ) -> logging.Logger:
     '''
     Get a logger by name. Names should be module name, or module and
     class name. ...Or dotted name? Not sure.
@@ -255,7 +248,7 @@ def get_logger(*names:        str,
     return named_logger
 
 
-def _logger(veredi_logger: const.LoggerInput = None) -> PyLogType:
+def _logger(veredi_logger: const.LoggerInput = None) -> logging.Logger:
     '''
     Returns `veredi_logger` if it is Truthy.
     Returns the default veredi logger if not.

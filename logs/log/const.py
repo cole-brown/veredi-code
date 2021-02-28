@@ -378,7 +378,7 @@ class LogName(enum.Enum):
 
     # TODO [2020-09-12]: More logger names. Some formats?
 
-    def _make(*name: str) -> str:
+    def _make(self, *name: str) -> str:
         '''
         Make **ANY** LogName from `*name` strings.
 
