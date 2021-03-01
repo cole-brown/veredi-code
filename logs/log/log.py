@@ -27,6 +27,7 @@ from veredi.base.exceptions import VerediError
 
 from . import const
 from . import formats
+from . import filter
 
 
 # -----------------------------------------------------------------------------
@@ -87,20 +88,6 @@ __all__ = [
 # Constants
 # -----------------------------------------------------------------------------
 
-_CONTEXT_INDENT_AMT = 4
-
-
-# TODO: delete this.
-_FMT_MESSAGE_HUMAN  = {
-    const.MessageType.DEFAULT: ': {message:s}',
-    const.MessageType.NO_FMT:  '{message:s}',
-    const.MessageType.GROUP:   ' - GROUP[{group:s}, {dotted:s}]: {message:s}',
-}
-'''
-Formatting options for `message` in `_FMT_LINE_HUMAN`.
-'''
-
-
 _ULTRA_MEGA_DEBUG_BT = '!~'
 _ULTRA_MEGA_DEBUG_TB = '~!'
 _ULTRA_MEGA_DEBUG_DBG = (
@@ -155,6 +142,11 @@ __initialized: bool = False
 logger: logging.Logger = None
 '''Our main/default logger.'''
 
+_filter: filter.VerediFilter = None
+'''
+A LogRecord filter class that adds Veredi data to LogRecords for the formatter.
+'''
+
 _unit_test_callback: Callable = Null()
 '''Logging callback to consume logs during unit tests.'''
 
@@ -188,6 +180,11 @@ def init(level:        const.LogLvlConversion    = const.DEFAULT_LEVEL,
     global logger
     logger = init_logger(str(const.LogName.ROOT), level)
 
+    # ------------------------------
+    # Initialize the Filter(s) & Format...
+    # ------------------------------
+    global _filter
+    _filter = filter.init(logger)
     # This is our root logger, so we do allow it to have special handlers.
     formats.init(logger, handler, formatter)
 
@@ -271,7 +268,8 @@ def get_level(veredi_logger: const.LoggerInput = None) -> const.Level:
 
 def set_level(level:         const.LogLvlConversion = const.DEFAULT_LEVEL,
               veredi_logger: const.LoggerInput      = None) -> None:
-    '''Change logger's log level. Options are:
+    '''
+    Change logger's log level. Options are:
       - log.CRITICAL
       - log.ERROR
       - log.WARNING
@@ -304,17 +302,14 @@ def will_output(level:         const.LogLvlConversion,
 # Log Output Formatting
 # -----------------------------------------------------------------------------
 
-
-
-def brace_message(fmt_msg:      str,
-                  *args:        Any,
-                  context:      Optional['VerediContext'] = None,
-                  log_fmt_type: Optional[const.MessageType]     = None,
-                  log_group:    Optional[const.Group]           = None,
-                  log_dotted:   Optional[label.DotStr]    = None,
-                  log_success:  const.SuccessInput              = None,
-                  log_dry_run:  Optional[bool]            = False,
-                  **kwargs:     Mapping[str, Any]) -> str:
+def _format(msg_fmt:      str,
+            *args:        Any,
+            context:      Optional['VerediContext']   = None,
+            log_group:    Optional[const.Group]       = None,
+            log_dotted:   Optional[label.DotStr]      = None,
+            log_success:  const.SuccessInput          = None,
+            log_dry_run:  Optional[bool]              = False,
+            **kwargs:     Mapping[str, Any]) -> str:
     '''
     `fmt_msg` is the user's message, which may have brace formatting to act on.
     Can handle case where no formatting needs be done (no args/kwargs
@@ -322,40 +317,92 @@ def brace_message(fmt_msg:      str,
 
     Otherwise use '.format()' brace formatting on `fmt_msg` string.
 
-    If `context` exists, it will be formatted by `pretty.indented()`, then
-    appended to the log as such:
-      <log_line(s)>
-      context:
-          <indented, formatted context>
+    If `context` exists, it will be added to our filter for later use.
 
-    If `log_success` enum is supplied, will prefix formatted user's message
-    with the `log_success` formatted to string. `log_dry_run` will be used to
-    resolve `log_success` into actual vs dry-run strings.
+    If group data exists (`log_group`, `log_dotted`), it will be added to our
+    filter for later use.
 
-    `log_fmt_type` will be applied to the final result just before returning.
-    It is expected for things like group logging. If None supplied, uses
-    MessageType.DEFAULT.
-
-    `log_group` is only necessary for MessageType.GROUP.
-    `log_dotted` is only necessary for MessageType.GROUP (currently).
+    If success/fail data exists (`log_success`, `log_dry_run`), it will be
+    added to our filter for later use.
     '''
-    # ---
-    # Apply `context`.
-    # ---
-    ctx_msg = ''
-    if context:
-        ctx_formatted = pretty.indented(context,
-                                        indent_amount=_CONTEXT_INDENT_AMT)
-        ctx_msg = '\ncontext:\n' + ctx_formatted
+    # Squirrel away our contextual data about this log.
+    _add_data(context=context,
+              log_group=log_group,
+              log_dotted=log_dotted,
+              log_success=log_success,
+              log_dry_run=log_dry_run)
+
+    # And format the message we've been given.
+    return _brace_message(msg_fmt, *args, **kwargs)
+
+
+def _add_data(context:      Optional['VerediContext'] = None,
+              log_group:    Optional[const.Group]     = None,
+              log_dotted:   Optional[label.DotStr]    = None,
+              log_success:  const.SuccessInput        = None,
+              log_dry_run:  Optional[bool]            = False) -> None:
+    '''
+    Add any extra logging data to the filter so that it can add it to the
+    LogRecord soon.
+
+    If `log_success` enum is supplied, will use with `log_dry_run` to
+    resolve `log_success` into actual vs dry-run value before saving.
+    '''
+    global _filter
+    if not _filter:
+        return
+
+    _filter.context(context=context)
+    _filter.group(group=log_group,
+                  dotted=log_dotted)
+    _filter.success(success=log_success,
+                    dry_run=log_dry_run)
+
+
+def _clear_data() -> None:
+    '''
+    Clears out our special LogRecord saved data.
+    '''
+    global _filter
+    if not _filter:
+        return
+
+    _filter.context(clear=True)
+    _filter.group(clear=True)
+    _filter.success(clear=True)
+
+
+# TODO: Delete this? Logs should be able to format themselves?
+def _brace_message(fmt_msg:      str,
+                   *args:        Any,
+                   **kwargs:     Mapping[str, Any]) -> str:
+    '''
+    `fmt_msg` is the user's message, which may have brace formatting to act on.
+    Can handle case where no formatting needs be done (no args/kwargs
+    supplied).
+
+    Otherwise use '.format()' brace formatting on `fmt_msg` string.
+    '''
+    output_msg = None
 
     # ---
-    # Apply formatting for user.
+    # Apply formatting for user?
     # ---
     if args or kwargs:
         try:
-            output_msg = fmt_msg.format(*args, **kwargs) + ctx_msg
+            output_msg = fmt_msg.format(*args, **kwargs)
+
+        # We are trying to log something, so...
+        # Try to eat errors but still give both log and error info maybe?
         except IndexError as error:
-            output_msg = ("FORMAT ERROR FOR: "
+            output_msg = ("FORMAT IndexError FOR: "
+                          + fmt_msg
+                          + ".format(): "
+                          + "args: " + str(args) + ", "
+                          + "kwargs: " + str(kwargs) + " -> "
+                          + str(error))
+        except KeyError as error:
+            output_msg = ("FORMAT KeyError FOR: "
                           + fmt_msg
                           + ".format(): "
                           + "args: " + str(args) + ", "
@@ -363,23 +410,13 @@ def brace_message(fmt_msg:      str,
                           + str(error))
 
     else:
-        output_msg = fmt_msg + ctx_msg
-
-    if log_success:
-        output_msg = '{success:s}: {message:s}'.format(
-            # Resolve success into dry_run vs actual.
-            success=str(log_success.resolve(bool(log_dry_run))),
-            message=output_msg
-        )
+        # Nope; just a string.
+        output_msg = fmt_msg
 
     # ---
     # Apply formatting for log line.
     # ---
-    log_fmt_type = log_fmt_type or const.MessageType.DEFAULT
-    log_fmt = _FMT_MESSAGE_HUMAN[log_fmt_type]
-    return log_fmt.format(message=output_msg,
-                          group=log_group,
-                          dotted=log_dotted)
+    return output_msg
 
 
 # -----------------------------------------------------------------------------
@@ -465,11 +502,10 @@ def ultra_mega_debug(msg:           str,
 
     '''
     log_kwargs = pop_log_kwargs(kwargs)
-    output = brace_message(msg,
-                           *args,
-                           context=context,
-                           log_fmt_type=const.MessageType.NO_FMT,
-                           **kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
     if not ut_call(const.Level.CRITICAL, output):
         this = (veredi_logger
                 or get_logger('veredi.debug.DEBUG.!!!DEBUG!!!'))
@@ -491,7 +527,7 @@ def ultra_hyper_debug(msg:           str,
       'veredi.debug.DEBUG.☢☢DEBUG☢☢'
 
     If `msg` is a str and `format_str` is True, this acts like other log
-    functions (calls `brace_message()` to get a formatted output message).
+    functions (calls `_format()` to get a formatted output message).
 
     If `msg` is not a str, this will pass the `msg` object to
     `pretty.indented()` so as to get a prettily formatted dict, list, or
@@ -525,11 +561,10 @@ def ultra_hyper_debug(msg:           str,
     # non-strings through so pretty.indented() can work better with dicts, etc.
     output = msg
     if isinstance(msg, str) and format_str:
-        output = brace_message(msg,
-                               # Add context to string output.
-                               context=context,
-                               log_fmt_type=const.MessageType.NO_FMT,
-                               *args, **kwargs)
+        output = _format(msg,
+                         # Add context to string output.
+                         context=context,
+                         *args, **kwargs)
 
     # Indent output message before printing.
     output = pretty.indented(output,
@@ -571,10 +606,10 @@ def debug(msg:           str,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
-    output = brace_message(msg,
-                           *args,
-                           context=context,
-                           **kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
     if not ut_call(const.Level.DEBUG, output):
         this = _logger(veredi_logger)
         this.debug(output,
@@ -587,10 +622,10 @@ def info(msg:           str,
          context:       'VerediContext' = None,
          **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
-    output = brace_message(msg,
-                           *args,
-                           context=context,
-                           **kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
     if not ut_call(const.Level.INFO, output):
         this = _logger(veredi_logger)
         this.info(output,
@@ -603,10 +638,10 @@ def warning(msg:           str,
             context:       'VerediContext' = None,
             **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
-    output = brace_message(msg,
-                           *args,
-                           context=context,
-                           **kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
     if not ut_call(const.Level.WARNING, output):
         this = _logger(veredi_logger)
         this.warning(output,
@@ -619,10 +654,10 @@ def error(msg:           str,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
-    output = brace_message(msg,
-                           *args,
-                           context=context,
-                           **kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
     if not ut_call(const.Level.ERROR, output):
         this = _logger(veredi_logger)
         this.error(output,
@@ -659,10 +694,10 @@ def _except_msg(message:      str,
 
     If no `message`, creates a simple default. Otherwise appends basically the
     same info (slightly different format) to the message generated by
-    `brace_message(message, *args, context=context, **kwargs)`.
+    `_format(message, *args, context=context, **kwargs)`.
 
     `error_string` and `error_type` are allowed to have curly brackets when
-    string'd and are not passed to `brace_message`.
+    string'd and are not passed to `_format`.
 
     Returns the exception log message string.
     '''
@@ -705,10 +740,10 @@ def _except_msg(message:      str,
     # ---
     else:
         # Start with their message...
-        msg_append.append(brace_message(message,
-                                        *args,
-                                        context=context,
-                                        **kwargs))
+        msg_append.append(_format(message,
+                                  *args,
+                                  context=context,
+                                  **kwargs))
 
         # ...Now add whatever useful stuff we think of.
         if error_type or error_string:
@@ -853,10 +888,10 @@ def critical(msg:           str,
              context:       'VerediContext' = None,
              **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
-    output = brace_message(msg,
-                           *args,
-                           context=context,
-                           **kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
     if not ut_call(const.Level.CRITICAL, output):
         this = _logger(veredi_logger)
         this.critical(output,
@@ -898,15 +933,15 @@ def at_level(level:         'const.Level',
 # Logging Groups
 # -----------------------------------------------------------------------------
 
-def group(group:         'const.Group',
+def group(log_group:     'const.Group',
           dotted:        label.DotStr,
           msg:           str,
           *args:         Any,
           veredi_logger: const.LoggerInput            = None,
-          context:       'VerediContext'        = None,
+          context:       'VerediContext'              = None,
           log_minimum:   const.Level                  = None,
           log_success:   Optional[const.SuccessInput] = const.SuccessType.IGNORE,
-          log_dry_run:   Optional[bool]         = False,
+          log_dry_run:   Optional[bool]               = False,
           **kwargs:      Any) -> None:
     '''
     Log at `group` log.Level, whatever it's set to right now, as long as it's
@@ -924,7 +959,7 @@ def group(group:         'const.Group',
     # ------------------------------
     # Get level from group.
     # ------------------------------
-    level = _GROUP_LEVELS[group]
+    level = _GROUP_LEVELS[log_group]
     if (not level.verbose_enough(log_minimum)
             or not will_output(level, veredi_logger)):
         # If the group is below the min required by this specific group (or min
@@ -943,15 +978,14 @@ def group(group:         'const.Group',
         log_success = const.SuccessType.FAILURE
 
     # Format, with group options
-    output = brace_message(msg,
-                           *args,
-                           context=context,
-                           log_fmt_type=const.MessageType.GROUP,
-                           log_group=group,
-                           log_dotted=dotted,
-                           log_success=log_success,
-                           log_dry_run=log_dry_run,
-                           **kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     log_group=log_group,
+                     log_dotted=dotted,
+                     log_success=log_success,
+                     log_dry_run=log_dry_run,
+                     **kwargs)
     # Is a unit test eating this log?
     if ut_call(level, output):
         return

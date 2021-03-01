@@ -14,9 +14,12 @@ from typing import TYPE_CHECKING, Optional, Union, List, Tuple
 
 from io import StringIO
 import logging
+import yaml
 
 from veredi.zest.base.unit import ZestBase
 
+
+from veredi.base.context       import UnitTestContext
 from veredi.base.strings       import label
 from veredi.data               import background
 
@@ -27,6 +30,7 @@ from veredi.data               import background
 from . import log
 from . import const
 from . import formats
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -355,26 +359,49 @@ class ZestLogFormat(ZestLogBase):
         else:
             formats.ut_tear_down(log.logger)
 
-    def capture(self) -> None:
+    def deserialize(self) -> None:
         '''
-        Reads all from our log stream and saves as a log entry in `self.logs`.
+        Gets string from `self.stream`, deserializes it via YAML, clears the
+        stream, and returns the deserialized data.
+
+        Calls `assertStream` and `assertNoStream`.
         '''
-        # Bit of sanity checking...
-        self.assertTrue(self.stream)
-        self.assertFalse(self.stream.closed)
-        self.assertTrue(self.stream.readable)
-        self.assertTrue(self.stream.seekable)
+        # Get data from stream, deserialize it.
+        self.assertStream()
+        self.stream.seek(0)
+        data = yaml.safe_load_all(self.stream)
+        # Convert from lazy iterator to actual data.
+        data = list(data)
 
-        # ...and capture the string.
-        message = self.stream.getvalue()
-        # No known log level so just put str in, not (level, str)
-        self.logs.append(message)
-
-        # And reset for next log.
+        # Clean up stream while we're at this...
         self.stream.truncate(0)
         self.stream.seek(0)
         # Need both of these! `truncate()` deletes the current data and
         # `seek()` resets stream position back to zero, which we check for.
+        self.assertNoStream()
+
+        # Return the deserialized data.
+        return data
+
+    def capture(self) -> None:
+        '''
+        Reads all from our log stream and saves as log entries in `self.logs`.
+
+        Clears stream after reading from it.
+
+        Returns number of logs read from stream.
+        '''
+        # Deserialize whatever's in our stream buffer
+        logs = self.deserialize()
+        # (and make sure we got something).
+        self.assertIsInstance(logs, list)
+        self.assertGreater(len(logs), 0)
+
+        # Capture the logs to our `self.logs` list.
+        self.logs.extend(logs)
+        self.assertLogs()
+
+        return len(logs)
 
     def assertStream(self) -> None:
         '''Asserts that stream exists, has data.'''
@@ -419,8 +446,65 @@ class ZestLogFormat(ZestLogBase):
         # No logs yet but should have stream data.
         self.assertNoLogs()
         self.assertStream()
-        # TODO HERE
-        print(self.stream.getvalue())
+
+        # Convert back from yaml and check fields and such.
+        self.capture()
+        self.assertLogs(exact=1)
+        record = self.logs[0]
+        self.assertTrue(record)
+        self.assertEqual(record['message'], message)
+
+    def test_context(self) -> None:
+        '''
+        Test that our Filter adds the context data to the log record, and that
+        our Formatter prints that out.
+        '''
+        self.assertNothing()
+
+        message = 'test'
+        data_in = {
+            'field': 'value',
+            'here':  'there',
+            42:      '?',
+        }
+        context = UnitTestContext(test_file=__file__,
+                                  test_case=self,
+                                  test_name='test_context',
+                                  data=data_in)
+        log.critical(message, context=context)
+        # No logs yet but should have stream data.
+        self.assertNoLogs()
+        self.assertStream()
+
+        # Convert back from yaml and check fields and such.
+        self.capture()
+        self.assertLogs(exact=1)
+        record = self.logs[0]
+        self.assertTrue(record)
+        self.assertEqual(record['message'], message)
+        self.assertIn('context', record)
+        context_data = record['context']
+        self.assertIn('UnitTestContext', context_data)
+        context_data = context_data['UnitTestContext']
+
+        self.assertIn('dotted', context_data)
+        self.assertEqual(context_data['dotted'], self.dotted(__file__))
+        self.assertIn('unit-testing', context_data)
+
+        # Now we can check the `data_in`...
+        data_out = context_data['unit-testing']
+        # Slight detour: data_out has "test_case.test_name" in it, so check
+        # then pop that before comparing the rest of the dictionaries.
+        method_out = data_out.pop('dotted')
+        self.assertEqual(method_out, f'{self.__class__.__name__}.test_context')
+        # Ok; now we can check the `data_in`; should equal data_out:
+        self.assertEqual(data_in, data_out)
+
+    # TODO: Test Group data
+
+    # TODO: Test Success data
+
+    # TODO: test other fields
 
 
 # --------------------------------Unit Testing---------------------------------

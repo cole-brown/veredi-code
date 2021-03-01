@@ -18,7 +18,59 @@ import logging
 
 
 from veredi.base.strings import label
-from ...                 import const_l
+from .                   import const
+
+
+# -----------------------------------------------------------------------------
+# Variables
+# -----------------------------------------------------------------------------
+
+factory: 'LogRecordFactory' = None
+'''
+A LogRecord factory class that adds Veredi data to LogRecords for the formatter.
+'''
+
+_factory_orig: Callable = None
+'''
+Save spot for the original factory function.
+'''
+
+
+# -----------------------------------------------------------------------------
+# Initialization
+# -----------------------------------------------------------------------------
+
+def init() -> 'LogRecordFactory':
+    '''
+    Create and return the LogRecordFactory.
+
+    Saves off the old factory...
+    '''
+    # Save original...
+    global _factory_orig
+    _factory_orig = logging.getLogRecordFactory()
+
+    # Create new...
+    global factory
+    factory = LogRecordFactory()
+
+    # Attach it to the logger...
+    logging.setLogRecordFactory(factory.create)
+
+    # And done.
+
+
+def reset() -> 'LogRecordFactory':
+    '''
+    Reset the LogRecord factory to the factory default.
+    '''
+    global _factory_orig
+    if not _factory_orig:
+        raise ValueError("veredi.logs.log.factory: Cannot reset the "
+                         "LogRecord Factory - have nothing to reset to.",
+                         _factory_orig)
+    # Reattach original...
+    logging.setLogRecordFactory(_factory_orig)
 
 
 # -----------------------------------------------------------------------------
@@ -31,7 +83,7 @@ class RecordGroup(NamedTuple):
     '''
     name:   str
     dotted: label.DotStr
-    status: const_l.SuccessType
+    status: const.SuccessType
 
 
 # -----------------------------------------------------------------------------
@@ -98,10 +150,10 @@ class LogRecordFactory:
 
     def group(self,
               *args:    Any,
-              name:     Optional[str]                 = None,
-              dotted:   Optional[label.DotStr]        = None,
-              status:   Optional[const_l.SuccessType] = None,
-              context:  Optional['VerediContext']     = None,
+              name:     Optional[str]               = None,
+              dotted:   Optional[label.DotStr]      = None,
+              status:   Optional[const.SuccessType] = None,
+              context:  Optional['VerediContext']   = None,
               **kwargs: Any) -> logging.LogRecord:
         '''
         Generate a LogRecord with additional log Group data.
@@ -110,4 +162,28 @@ class LogRecordFactory:
 
         # Now add in our fields.
         record.group = RecordGroup(name, dotted, status)
+        return record
+
+    def create(self,
+               *args:    Any,
+               name:     Optional[str]               = None,
+               dotted:   Optional[label.DotStr]      = None,
+               status:   Optional[const.SuccessType] = None,
+               context:  Optional['VerediContext']   = None,
+               **kwargs: Any) -> logging.LogRecord:
+        '''
+        Generic factory function to start the chain of adding veredi-specific
+        data to a LogRecord.
+
+        This adds:
+          1) Group data, then
+          2) Context data, then
+          3) default logging LogRecord data.
+        '''
+        record = self.group(*args,
+                            name=name,
+                            dotted=dotted,
+                            status=status,
+                            context=context,
+                            **kwargs)
         return record
