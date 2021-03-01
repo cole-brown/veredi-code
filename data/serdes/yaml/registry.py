@@ -23,11 +23,11 @@ from .             import tags
 # -----------------------------------------------------------------------------
 
 YamlDeserialize = NewType('YamlDeserialize',
-                     Callable[[yaml.SafeLoader, yaml.nodes.Node], Type])
+                          Callable[[yaml.SafeLoader, yaml.nodes.Node], Type])
 
 
 YamlSerialize = NewType('YamlSerialize',
-                     Callable[[yaml.SafeDumper, Type], yaml.nodes.Node])
+                        Callable[[yaml.SafeDumper, Type], yaml.nodes.Node])
 
 
 YamlAddClassTuple = NewType(
@@ -74,7 +74,7 @@ def get_class_all(klass: Type) -> List[Type]:
     subclasses_registered = []
     for key in _CLASS_TO_TAG:
         if isinstance(key, klass):
-            subclasses_registered.add(key)
+            subclasses_registered.append(key)
 
     return subclasses_registered
 

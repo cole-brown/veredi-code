@@ -255,6 +255,12 @@ class LogRecordYaml:
     def __init__(self) -> None:
         self._define_vars()
 
+        # We have the record tag, but for now just say to serialize it as a
+        # dictionary.
+        yaml.add_constructor(self._DOC_TYPE_TAG,
+                             yaml.SafeLoader.construct_mapping,
+                             Loader=yaml.SafeLoader)
+
     # -------------------------------------------------------------------------
     # Formatting
     # -------------------------------------------------------------------------

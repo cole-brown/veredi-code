@@ -36,7 +36,7 @@ from .const import (
     LogLvlConversion, LoggerInput, SuccessInput,
 
     # Enums
-    MessageType, SuccessType, Level, Group, GroupResolve
+    SuccessType, Level, Group, GroupResolve
 )
 
 
@@ -135,7 +135,6 @@ __all__ = [
     # ------------------------------
     # Enums
     # ------------------------------
-    'MessageType',
     'SuccessType',
     'Level',
     'Group',

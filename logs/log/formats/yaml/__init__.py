@@ -8,6 +8,11 @@ Custom YAML Formatter for Logging.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional
+
+import logging
+
+
 # ------------------------------
 # YAML Formatted Logging
 # ------------------------------

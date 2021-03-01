@@ -38,13 +38,6 @@ Optional logger can be: Null, None, or a Python logging.Logger.
 
 
 @enum.unique
-class MessageType(enum.Enum):
-    DEFAULT = enum.auto()
-    NO_FMT  = enum.auto()
-    GROUP   = enum.auto()
-
-
-@enum.unique
 class SuccessType(enum.Enum):
     '''
     Success/failure into easier/more consistent strings to see in logs.
@@ -85,6 +78,41 @@ class SuccessType(enum.Enum):
     # ------------------------------
     # Functions
     # ------------------------------
+
+    @classmethod
+    def normalize(klass: 'SuccessType',
+                  success: 'SuccessInput',
+                  dry_run: bool) -> 'SuccessType':
+        '''
+        Convert from any SuccessInput type to a SuccessType enum value.
+        '''
+        # ---
+        # First, convert to SuccessType.
+        # ---
+        value = success
+        # No-op?
+        if isinstance(success, SuccessType):
+            pass
+        # Bool Conversion?
+        elif success is True:
+            value = SuccessType.SUCCESS
+        elif success is False:
+            value = SuccessType.FAILURE
+
+        # 'Optional' option chosen?
+        elif success is None:
+            value = SuccessType.IGNORE
+
+        # Error option chosen?
+        else:
+            raise ValueError("SuccessType.normalize: Cannot convert unknown "
+                             f"input type {type(success)} '{success}' "
+                             "to SuccessType value.")
+
+        # ---
+        # Next, dry run? Or other such thing?
+        # ---
+        return value.resolve(dry_run)
 
     def resolve(self, dry_run: bool) -> 'SuccessType':
         '''

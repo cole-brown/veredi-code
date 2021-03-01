@@ -98,8 +98,7 @@ def init(logger:      logging.Logger,
     that type.
     '''
     if not formatter:
-        # formatter = _DEFAULT_FORMATTER_CLASS()
-        pass
+        formatter = _DEFAULT_FORMATTER_CLASS()
     elif isinstance(formatter, logging.Formatter):
         pass
     elif issubclass(formatter, logging.Formatter):
