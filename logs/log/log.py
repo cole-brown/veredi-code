@@ -302,6 +302,9 @@ def will_output(level:         const.LogLvlConversion,
 # Log Output Formatting
 # -----------------------------------------------------------------------------
 
+# NOTE: Would make sense to puth these in formats/, but log.py owns the filter
+# right now so they're here for now.
+
 def _format(msg_fmt:      str,
             *args:        Any,
             context:      Optional['VerediContext']   = None,
