@@ -196,57 +196,6 @@ class ZestLogMessage(ZestLogBase):
     '''
 
     # -------------------------------------------------------------------------
-    # Set-Up
-    # -------------------------------------------------------------------------
-
-    def _define_vars(self) -> None:
-        '''
-        Defines any instance variables with type hinting, docstrs.
-        Happens ASAP during unittest.setUp().
-        '''
-        # ------------------------------
-        # Parent!
-        # ------------------------------
-        super()._define_vars()
-
-        # ------------------------------
-        # Debugging
-        # ------------------------------
-
-    def set_up(self) -> None:
-        '''
-        Set up our logging to be unit-testable.
-        '''
-
-        # ------------------------------
-        # Enable capture as final thing.
-        # ------------------------------
-        self.capture_logs(True)
-
-    # -------------------------------------------------------------------------
-    # Tear-Down
-    # -------------------------------------------------------------------------
-
-    def tear_down(self) -> None:
-        '''
-        Do any of our own clean-up.
-        '''
-        # ------------------------------
-        # Disable capture as soon as possible.
-        # ------------------------------
-        self.capture_logs(False)
-
-        # ------------------------------
-        # Tear down the rest.
-        # ------------------------------
-        # This is actually part of disabling `capture_logs()`.
-        # log.ut_tear_down()
-
-    # -------------------------------------------------------------------------
-    # Helpers
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
     # Tests
     # -------------------------------------------------------------------------
 
@@ -752,6 +701,33 @@ class ZestLogFormat(ZestLogBase):
                                       dry_run,
                                       context)
             self.verify_success(record, success, dry_run)
+
+
+# -----------------------------------------------------------------------------
+# What is our default log formatter?
+# -----------------------------------------------------------------------------
+
+class ZestLogFormatDefault(ZestLogBase):
+    '''
+    Test veredi.logs.log has the expected default formatter.
+    '''
+
+    # -------------------------------------------------------------------------
+    # Tests
+    # -------------------------------------------------------------------------
+
+    def test_default_is_yaml(self) -> None:
+        self.assertTrue(log.logger)
+        self.assertIsInstance(log.logger, logging.Logger)
+        self.assertTrue(log.logger.handlers)
+        self.assertEqual(len(log.logger.handlers), 1)
+
+        handler = log.logger.handlers[0]
+        self.assertTrue(handler)
+        formatter = handler.formatter
+        self.assertTrue(formatter)
+        self.assertIsInstance(formatter, logging.Formatter)
+        self.assertIsInstance(formatter, formats.yaml.FormatYaml)
 
 
 # --------------------------------Unit Testing---------------------------------
