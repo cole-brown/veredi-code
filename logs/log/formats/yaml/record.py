@@ -30,13 +30,19 @@ from veredi.base.strings     import label
 from veredi.base.paths.utils import to_str as path_to_str
 from veredi.base.paths.const import PathType
 
-
-# ---
-# Need to get LiteralString, OrderedDict registered with Python YAML.
-# ---
-from veredi.base.yaml        import LiteralString
-
 from ...                     import const as const_l
+
+# ---
+# Need to get LiteralString, OrderedDict, etc. registered with Python YAML.
+# ---
+from veredi.base.yaml import (
+    LiteralString,
+    represent as yaml_represent,
+    construct as yaml_construct,
+    enum_representer as yaml_enum_representer,
+    enum_to_string_representer as yaml_enum_to_string_representer
+)
+
 
 
 # -----------------------------------------------------------------------------
@@ -179,7 +185,10 @@ class LogRecordYaml:
     #   group:
     #     name: data-processing
     #     dotted: veredi.repository.file-bare
-    #     status:
+    #   success:
+    #     normalized: '[_OK_]'
+    #     verbatim: '[ OK ]'
+    #     dry-run: true
     #   context:
     #     DataBareContext:
     #       configuration:
@@ -230,6 +239,11 @@ class LogRecordYaml:
         Ordered Dictionary of record elements in the 'group' sub-dictionary.
         '''
 
+        self._dict_success: OrderedDict = OrderedDict()
+        '''
+        Ordered Dictionary of record elements in the 'success' sub-dictionary.
+        '''
+
         self._dict_py: OrderedDict = OrderedDict()
         '''
         Ordered Dictionary of record elements in the 'python' sub-dictionary.
@@ -255,11 +269,18 @@ class LogRecordYaml:
     def __init__(self) -> None:
         self._define_vars()
 
-        # We have the record tag, but for now just say to serialize it as a
+        # We have the record tag, but for now just say to deserialize it as a
         # dictionary.
-        yaml.add_constructor(self._DOC_TYPE_TAG,
-                             yaml.SafeLoader.construct_mapping,
-                             Loader=yaml.SafeLoader)
+        yaml_construct(self._DOC_TYPE_TAG,
+                       yaml.SafeLoader.construct_mapping)
+
+        # Let YAML know how we want our log enums serialized. Use an enum value
+        # that is the correct type (e.g. SuccessType - don't use IGNORE).
+        yaml_represent(const_l.Group,
+                       yaml_enum_representer(const_l.Group.SECURITY))
+        yaml_represent(const_l.SuccessType,
+                       # Use to-string to get the SuccessType formatting.
+                       yaml_enum_to_string_representer)
 
     # -------------------------------------------------------------------------
     # Formatting
@@ -275,6 +296,7 @@ class LogRecordYaml:
         self._dict_record.clear()
         self._dict_level.clear()
         self._dict_group.clear()
+        self._dict_success.clear()
         self._dict_py.clear()
         self._dict_process.clear()
         self._dict_thread.clear()
@@ -300,6 +322,7 @@ class LogRecordYaml:
         self._dict_thread['id'] = None
 
         self._dict_record['group'] = self._dict_group
+        self._dict_record['success'] = self._dict_success
         self._dict_record['context'] = None
         self._dict_record['message'] = None
         self._dict_record['error'] = self._dict_error
@@ -318,6 +341,9 @@ class LogRecordYaml:
 
         if not self._dict_record.get('group', None):
             self._dict_record.pop('group', None)
+
+        if not self._dict_record.get('success', None):
+            self._dict_record.pop('success', None)
 
         if not self._dict_record.get('context', None):
             self._dict_record.pop('context', None)
@@ -350,7 +376,7 @@ class LogRecordYaml:
         self._dict_record['python'] = self._dict_py
         self._dict_py[key] = value
 
-    def _group(self, key: str, value: [str, 'NumberTypes']) -> None:
+    def _group(self, key: str, value: str) -> None:
         '''
         Add a key/value pair to the 'group' sub-dictionary.
         '''
@@ -358,11 +384,19 @@ class LogRecordYaml:
         self._dict_record['group'] = self._dict_group
         self._dict_group[key] = value
 
+    def _success(self, key: str, value: [str, bool]) -> None:
+        '''
+        Add a key/value pair to the 'success' sub-dictionary.
+        '''
+        # Make sure success dict is in the entries, then add this kvp.
+        self._dict_record['success'] = self._dict_success
+        self._dict_success[key] = value
+
     def _error(self, key: str, value: Any) -> None:
         '''
-        Add a key/value pair to the 'group' sub-dictionary.
+        Add a key/value pair to the 'error' sub-dictionary.
         '''
-        # Make sure group dict is in the entries, then add this kvp.
+        # Make sure error dict is in the entries, then add this kvp.
         self._dict_record['error'] = self._dict_error
         self._dict_error[key] = value
 
@@ -409,11 +443,23 @@ class LogRecordYaml:
         '''
         self._group('dotted', dotted)
 
-    def group_status(self, status: const_l.SuccessType) -> None:
+    def success(self,
+                normalized: const_l.SuccessType,
+                verbatim: const_l.SuccessType,
+                dry_run: bool) -> None:
         '''
-        Set the group's status field.
+        Set the success fields.
+
+        Only sets `normalized`, `verbatim` if they are not IGNORE.
+
+        Only sets `dry_run` if it is Truthy.
         '''
-        self._group('status', status)
+        if const_l.SuccessType.valid(normalized):
+            self._success('normalized', normalized)
+        if const_l.SuccessType.valid(verbatim):
+            self._success('verbatim', verbatim)
+        if dry_run:
+            self._success('dry-run', dry_run)
 
     def message(self, message: str) -> None:
         '''

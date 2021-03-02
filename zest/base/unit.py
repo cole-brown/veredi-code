@@ -270,6 +270,12 @@ class ZestBase(unittest.TestCase):
     # Log Capture
     # -------------------------------------------------------------------------
 
+    def clear_logs(self) -> None:
+        '''
+        Drop all captured logs from `self.logs` list.
+        '''
+        self.logs.clear()
+
     def capture_logs(self, enabled: bool) -> None:
         '''
         Divert logs from being output to being received by self.receive_log()
@@ -293,4 +299,7 @@ class ZestBase(unittest.TestCase):
 
         # I want to eat the logs and not let them into the output.
         # ...unless verbose tests, then let it go through.
+        if self._ut_is_verbose:
+            print(f'{self.__class__.__name__}._receive_log: '
+                  'log allowed through because verbose flag is set.')
         return not self._ut_is_verbose

@@ -129,21 +129,20 @@ class FormatYaml(logging.Formatter):
         self._record_fmt.logger_dotted(record.name)
 
         # Group Stuff
-        try:
-            self._record_fmt.group_name(record.group.name)
+        if hasattr(record, 'group'):
+            self._record_fmt.group_name(record.group.group)
             self._record_fmt.group_dotted(record.group.dotted)
-            self._record_fmt.group_status(record.group.status)
-        except AttributeError:
-            # No group data; ok.
-            pass
+
+        # Success Stuff
+        if hasattr(record, 'success'):
+            self._record_fmt.success(record.success.normalized,
+                                     record.success.verbatim,
+                                     record.success.dry_run)
 
         # The Actual Main Thing and its buddy.
         self._record_fmt.message(record.message)
-        try:
+        if hasattr(record, 'context'):
             self._record_fmt.context(record.context)
-        except AttributeError:
-            # No context data; ok.
-            pass
 
         # Python Stuff
         self._record_fmt.module(record.module)

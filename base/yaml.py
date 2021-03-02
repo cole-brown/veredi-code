@@ -10,11 +10,12 @@ Custom YAML Formatter for:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Mapping
+from typing import Any, Type, NewType, Callable, Mapping
 
 
 import yaml
 from collections import OrderedDict
+import enum
 
 
 # Logging needs this stuff for YAML formatted logs, so do not log from here.
@@ -22,8 +23,23 @@ from collections import OrderedDict
 
 
 # -----------------------------------------------------------------------------
-# Constants
+# Types
 # -----------------------------------------------------------------------------
+
+YamlRepresenter = NewType('YamlRepresenter',
+                          Callable[[yaml.Dumper, object], yaml.Node])
+'''
+Callback signature for registering new representer functions for YAML
+serialization.
+'''
+
+
+YamlConstructor = NewType('YamlConstructor',
+                          Callable[[yaml.Node], Any])
+'''
+Callback signature for registering new constructor functions for YAML
+deserialization.
+'''
 
 
 # -----------------------------------------------------------------------------
@@ -71,22 +87,114 @@ def ordered_dict_representer(dumper: yaml.Dumper,
 
 
 # -----------------------------------------------------------------------------
+# YAML Enum Value Dumpers
+# -----------------------------------------------------------------------------
+
+def enum_int_representer(dumper: yaml.Dumper,
+                         data:   enum.Enum) -> yaml.ScalarNode:
+    '''
+    Register some sort of enum as being serialized by int value.
+    '''
+    value = data.value
+    if not isinstance(value, int):
+        # Hm... can't log... don't want to print...
+        # Just represent this as best we can?
+        value = int(value)
+    return dumper.represent_scalar(u'tag:yaml.org,2002:int',
+                                   value)
+
+
+def enum_string_value_representer(dumper: yaml.Dumper,
+                                  data:   enum.Enum) -> yaml.ScalarNode:
+    '''
+    Register some sort of enum as being serialized by str value.
+    '''
+    value = data.value
+    if not isinstance(value, str):
+        # Hm... can't log... don't want to print...
+        # Just represent this as best we can?
+        value = str(value)
+    return dumper.represent_scalar(u'tag:yaml.org,2002:str',
+                                   value)
+
+def enum_to_string_representer(dumper: yaml.Dumper,
+                               data:   enum.Enum) -> yaml.ScalarNode:
+    '''
+    Register some sort of enum as being serialized by `str()`.
+    '''
+    value = str(data)
+    return dumper.represent_scalar(u'tag:yaml.org,2002:str',
+                                   value)
+
+
+def enum_representer(enum_value: enum.Enum) -> YamlRepresenter:
+    '''
+    Get the correct representer function for the enum's value type.
+
+    NOTE: Does not support multi-type enums like, oh, say... String value enums
+    with an 'IGNORE = None' value in them.
+
+    If we don't have a representer for that specific kind of value, raises an
+    error.
+    '''
+    value = enum_value.value
+
+    if isinstance(value, int):
+        return enum_int_representer
+
+    if isinstance(value, str):
+        return enum_string_value_representer
+
+    raise TypeError(f"No representer for {enum_value} with value "
+                    f"type {type(value)}.",
+                    enum_value,
+                    value)
+
+
+# -----------------------------------------------------------------------------
 # Register representers with YAML.
 # -----------------------------------------------------------------------------
 
+def represent(klass: Type, function: YamlRepresenter) -> None:
+    '''
+    Add a representer to YAML.
+    '''
+    yaml.add_representer(klass,
+                         function,
+                         Dumper=yaml.SafeDumper)
+
+
 def representers() -> None:
     '''
-    Reentrant: Add additional representers needed to YAML.
+    Add additional, common, basic representers needed to YAML.
     '''
-    yaml.add_representer(FoldedString,
-                         folded_string_representer,
-                         Dumper=yaml.SafeDumper)
-    yaml.add_representer(LiteralString,
-                         literal_string_representer,
-                         Dumper=yaml.SafeDumper)
-    yaml.add_representer(OrderedDict,
-                         ordered_dict_representer,
-                         Dumper=yaml.SafeDumper)
+    represent(FoldedString,
+              folded_string_representer)
+    represent(LiteralString,
+              literal_string_representer)
+    represent(OrderedDict,
+              ordered_dict_representer)
+
+
+# -----------------------------------------------------------------------------
+# Register constructors with YAML.
+# -----------------------------------------------------------------------------
+
+def construct(tag: str, function: YamlConstructor) -> None:
+    '''
+    Add a constructor to YAML.
+    '''
+    yaml.add_constructor(tag,
+                         function,
+                         Loader=yaml.SafeLoader)
+
+
+def constructors() -> None:
+    '''
+    Add additional, common, basic constructors needed to YAML.
+    '''
+    # None right now.
+    pass
 
 
 # -----------------------------------------------------------------------------
@@ -94,3 +202,4 @@ def representers() -> None:
 # -----------------------------------------------------------------------------
 
 representers()
+constructors()
