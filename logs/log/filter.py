@@ -61,7 +61,7 @@ def reset(filter: logging.Filter,
 
 
 # -----------------------------------------------------------------------------
-# Veredi Log Group Info
+# Veredi Log Info
 # -----------------------------------------------------------------------------
 
 class RecordGroup(NamedTuple):
@@ -69,7 +69,24 @@ class RecordGroup(NamedTuple):
     Container for info about logging group.
     '''
     group:  const.Group
+    '''Group enum value.'''
+
     dotted: label.DotStr
+    '''Dotted string logged specifically for group.'''
+
+
+class RecordSuccess(NamedTuple):
+    '''
+    Container for info about success type/dry run.
+    '''
+    normalized:   const.SuccessType
+    '''Success normalized with dry-run flag.'''
+
+    verbatim: const.SuccessType
+    '''Success value we got passed in as-is.'''
+
+    dry_run: bool
+    '''Dry-run flag we got passed in as-is.'''
 
 
 # -----------------------------------------------------------------------------
@@ -204,9 +221,19 @@ class VerediFilter(logging.Filter):
         If `clear` is True, saves `Null()` instead.
         '''
         rec_success = Null()
-        if clear is not True and not is_null(success):
-            rec_success = const.SuccessType.normalize(success,
-                                                      bool(dry_run))
+        if clear is not True:
+            dry_run = bool(dry_run)
+            # Full success log?
+            if (not is_null(success)
+                    and success is not const.SuccessType.IGNORE):
+                value = const.SuccessType.normalize(success,
+                                                    dry_run)
+                rec_success = RecordSuccess(value, success, dry_run)
+
+            # Just stick dry-run in on its own?
+            elif dry_run:
+                rec_success = RecordSuccess(Null(), Null(), dry_run)
+
         self._record_storage.success = rec_success
 
     def success_filter(self,

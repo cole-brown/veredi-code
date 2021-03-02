@@ -9,7 +9,7 @@ Test our logging and formatting.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import TYPE_CHECKING, Optional, Union, List, Tuple
+from typing import TYPE_CHECKING, Optional, Union, List, Tuple, Mapping
 
 
 from io import StringIO
@@ -251,23 +251,6 @@ class ZestLogMessage(ZestLogBase):
     # -------------------------------------------------------------------------
 
     def test_critical_at_default(self) -> None:
-        '''
-        A basic test. Critical should always print out at whatever the default
-        level is.
-        '''
-        self.assertNoLogs()
-
-        message = 'test'
-        log.critical(message)
-        self.assertLogs(exact=1)
-        self.assertMessage(self.logs[0], substring=message)
-
-
-    def test_critical_at_default(self) -> None:
-        '''
-        A basic test. Critical should always print out at whatever the default
-        level is.
-        '''
         self.assertNoLogs()
 
         message = 'test'
@@ -342,7 +325,7 @@ class ZestLogFormat(ZestLogBase):
         self.stream = None
 
     # -------------------------------------------------------------------------
-    # Helpers
+    # Log Capture
     # -------------------------------------------------------------------------
 
     def capture_logs(self, enabled: bool) -> None:
@@ -403,6 +386,10 @@ class ZestLogFormat(ZestLogBase):
 
         return len(logs)
 
+    # -------------------------------------------------------------------------
+    # Asserts for Log / Stream
+    # -------------------------------------------------------------------------
+
     def assertStream(self) -> None:
         '''Asserts that stream exists, has data.'''
         # Ensure it exists with some expected states.
@@ -431,14 +418,180 @@ class ZestLogFormat(ZestLogBase):
         self.assertNoLogs()
 
     # -------------------------------------------------------------------------
+    # Longer asserts for help in testing.
+    # -------------------------------------------------------------------------
+
+    def verify_message(self, record: Mapping, expected: str) -> None:
+        '''
+        Verify that `record` has the message in the expected spot and that it
+        matches the `expected` string.
+        '''
+        self.assertTrue(record)
+        self.assertEqual(record['message'], expected)
+
+    def verify_context(self,
+                       record:          Mapping,
+                       expected_data:   Mapping,
+                       expected_func:   str,
+                       expected_type:   str = 'UnitTestContext',
+                       expected_dotted: str = None,
+                       expected_class:  str = None,
+                       ) -> None:
+        '''
+        Verify that `record` has the message in the expected spot and that it
+        matches the `expected` string.
+        '''
+        if not expected_func:
+            self.fail("verify_context requires an `expected_func`; "
+                      f"got: {expected_func}")
+        if not expected_dotted:
+            expected_dotted = self.dotted(__file__)
+        if not expected_class:
+            expected_class = f'{self.__class__.__name__}'
+        expected_method = f'{expected_class}.{expected_func}'
+
+        # Record has a context of correct type?
+        self.assertIn('context', record)
+        context_data = record['context']
+        self.assertIn(expected_type, context_data)
+        context_data = context_data[expected_type]
+
+        # Context has expected `dotted` and has data?
+        self.assertIn('dotted', context_data)
+        self.assertEqual(context_data['dotted'], expected_dotted)
+        self.assertIn('unit-testing', context_data)
+
+        # Now we can check the expected_data...
+        data = context_data['unit-testing']
+        # Slight detour: data has "test_case.test_name" in it, so pop that out
+        # and check it before comparing the rest of the dictionaries.
+        method = data.pop('dotted')
+        self.assertEqual(method, expected_method)
+        # Ok; now we can check the data; should equal expected_data.
+        self.assertEqual(data, expected_data)
+
+    def verify_group(self,
+                     record: Mapping,
+                     group: const.Group,
+                     dotted: str = None) -> None:
+        '''
+        Verify that `record` has group fields as expected.
+        '''
+        if not dotted:
+            dotted = self.dotted(__file__)
+
+        self.assertIn('group', record)
+        data_group = record['group']
+
+        self.assertIn('name', data_group)
+        self.assertEqual(data_group['name'], group.value)
+
+        self.assertIn('dotted', data_group)
+        self.assertEqual(data_group['dotted'], dotted)
+
+    def verify_success(self,
+                       record:  Mapping,
+                       success: const.SuccessType,
+                       dry_run: bool,
+                       dotted:  str = None) -> None:
+        '''
+        Verify that `record` has or does not have group fields as expected.
+        '''
+        if not dotted:
+            dotted = self.dotted(__file__)
+        normalized = const.SuccessType.normalize(success, dry_run)
+
+        # If no fields expected, verify success dict is not present
+        # and be done.
+        if success is const.SuccessType.IGNORE and not dry_run:
+            self.assertNotIn('success', record)
+            return
+
+        self.assertIn('success', record)
+        data_success = record['success']
+
+        if success is not const.SuccessType.IGNORE:
+            self.assertIn('normalized', data_success)
+            self.assertEqual(data_success['normalized'], str(normalized))
+
+            self.assertIn('verbatim', data_success)
+            self.assertEqual(data_success['verbatim'], str(success))
+        else:
+            self.assertNotIn('normalized', data_success)
+            self.assertNotIn('verbatim', data_success)
+
+        if dry_run:
+            self.assertIn('dry-run', data_success)
+            self.assertEqual(data_success['dry-run'], dry_run)
+        else:
+            self.assertNotIn('dry-run', data_success)
+
+    # -------------------------------------------------------------------------
+    # Test Helpers
+    # -------------------------------------------------------------------------
+
+    def context(self,
+                test_func: str,
+                data:      Mapping = None) -> Tuple[Mapping, UnitTestContext]:
+        '''
+        Creates a UnitTestContext with either supplied data or a default.
+
+        Returns a tuple of (<context data used>, <context created>).
+        '''
+        if not data:
+            data = {
+                'field': 'value',
+                'here':  'there',
+                42:      '?',
+            }
+        context = UnitTestContext(test_file=__file__,
+                                  test_case=self,
+                                  test_name=test_func,
+                                  data=data)
+        return (data, context)
+
+    def log_success(self,
+                    message: str,
+                    group:   const.Group,
+                    success: const.SuccessType,
+                    dry_run: bool,
+                    context: UnitTestContext) -> Mapping:
+        '''
+        Log a message to a group with success data.
+
+        Returns the captured log record.
+        '''
+        # ---
+        # Log to the group!
+        # ---
+        log.group(group,
+                  self.dotted(__file__),
+                  message,
+                  context=context,
+                  log_success=success,
+                  log_dry_run=dry_run)
+        # No logs yet but should have stream data.
+        self.assertNoLogs()
+        self.assertStream()
+
+        # ---
+        # Check the log!
+        # ---
+        # Convert back from yaml and check fields and such.
+        self.capture()
+        self.assertLogs(exact=1)
+        record = self.logs[0]
+
+        # ---
+        # Return the log!
+        # ---
+        return record
+
+    # -------------------------------------------------------------------------
     # Tests
     # -------------------------------------------------------------------------
 
     def test_critical_at_default(self) -> None:
-        '''
-        A basic test. Critical should always print out at whatever the default
-        level is.
-        '''
         self.assertNothing()
 
         message = 'test'
@@ -452,25 +605,15 @@ class ZestLogFormat(ZestLogBase):
         self.assertLogs(exact=1)
         record = self.logs[0]
         self.assertTrue(record)
-        self.assertEqual(record['message'], message)
+        self.verify_message(record, message)
 
     def test_context(self) -> None:
-        '''
-        Test that our Filter adds the context data to the log record, and that
-        our Formatter prints that out.
-        '''
+        func = 'test_context'
         self.assertNothing()
 
         message = 'test'
-        data_in = {
-            'field': 'value',
-            'here':  'there',
-            42:      '?',
-        }
-        context = UnitTestContext(test_file=__file__,
-                                  test_case=self,
-                                  test_name='test_context',
-                                  data=data_in)
+        ctx_data, context = self.context(func)
+
         log.critical(message, context=context)
         # No logs yet but should have stream data.
         self.assertNoLogs()
@@ -480,31 +623,135 @@ class ZestLogFormat(ZestLogBase):
         self.capture()
         self.assertLogs(exact=1)
         record = self.logs[0]
-        self.assertTrue(record)
-        self.assertEqual(record['message'], message)
-        self.assertIn('context', record)
-        context_data = record['context']
-        self.assertIn('UnitTestContext', context_data)
-        context_data = context_data['UnitTestContext']
 
-        self.assertIn('dotted', context_data)
-        self.assertEqual(context_data['dotted'], self.dotted(__file__))
-        self.assertIn('unit-testing', context_data)
+        # Check record fields.
+        self.verify_message(record, message)
+        self.verify_context(record, ctx_data, func)
 
-        # Now we can check the `data_in`...
-        data_out = context_data['unit-testing']
-        # Slight detour: data_out has "test_case.test_name" in it, so check
-        # then pop that before comparing the rest of the dictionaries.
-        method_out = data_out.pop('dotted')
-        self.assertEqual(method_out, f'{self.__class__.__name__}.test_context')
-        # Ok; now we can check the `data_in`; should equal data_out:
-        self.assertEqual(data_in, data_out)
+    def test_group(self) -> None:
+        func = 'test_group'
+        self.assertNothing()
 
-    # TODO: Test Group data
+        # Make sure our group will log.
+        group = const.Group.SECURITY
+        level = const.Level.WARNING
+        log.set_group_level(group, level)
 
-    # TODO: Test Success data
+        # Get some stuff to log.
+        message = 'test'
+        ctx_data, context = self.context(func)
 
-    # TODO: test other fields
+        # ---
+        # Log to the group!
+        # ---
+        log.security(self.dotted(__file__),
+                     message,
+                     context=context)
+        # No logs yet but should have stream data.
+        self.assertNoLogs()
+        self.assertStream()
+
+        # ---
+        # Check the log!
+        # ---
+        # Convert back from yaml and check fields and such.
+        self.capture()
+        self.assertLogs(exact=1)
+        record = self.logs[0]
+
+        # Check record fields.
+        self.verify_message(record, message)
+        self.verify_context(record, ctx_data, func)
+        self.verify_group(record, group)
+
+    def test_success(self) -> None:
+        func = 'test_success'
+        self.assertNothing()
+
+        # Make sure our group will log.
+        group = const.Group.SECURITY
+        level = const.Level.WARNING
+        log.set_group_level(group, level)
+
+        # Get some stuff to log.
+        message = 'test'
+        ctx_data, context = self.context(func)
+
+        # ------------------------------
+        # This should not have a success field.
+        # ------------------------------
+        # Ignore and not dry-run - no success field.
+        success = const.SuccessType.IGNORE
+        dry_run = False
+        with self.subTest(success=success,
+                          dry_run=dry_run):
+            record = self.log_success(message,
+                                      group,
+                                      success,
+                                      dry_run,
+                                      context)
+            self.verify_success(record, success, dry_run)
+            self.assertNotIn('success', record)
+
+        # ------------------------------
+        # This should have a partial success field.
+        # ------------------------------
+        # Ignore and dry-run==True - only dry-run in output.
+        self.clear_logs()
+        success = const.SuccessType.IGNORE
+        dry_run = True
+        with self.subTest(success=success,
+                          dry_run=dry_run):
+            record = self.log_success(message,
+                                      group,
+                                      success,
+                                      dry_run,
+                                      context)
+            self.verify_success(record, success, dry_run)
+            self.assertIn('success', record)
+            rec_success = record['success']
+            self.assertNotIn('normalized', rec_success)
+            self.assertNotIn('verbatim', rec_success)
+            self.assertIn('dry-run', rec_success)
+
+        # ------------------------------
+        # Now test some more expected use-cases.
+        # ------------------------------
+        self.clear_logs()
+        success = const.SuccessType.BLANK
+        dry_run = True
+        with self.subTest(success=success,
+                          dry_run=dry_run):
+            record = self.log_success(message,
+                                      group,
+                                      success,
+                                      dry_run,
+                                      context)
+            self.verify_success(record, success, dry_run)
+
+        self.clear_logs()
+        success = const.SuccessType.FAILURE
+        dry_run = False
+        with self.subTest(success=success,
+                          dry_run=dry_run):
+            record = self.log_success(message,
+                                      group,
+                                      success,
+                                      dry_run,
+                                      context)
+            self.verify_success(record, success, dry_run)
+
+        self.clear_logs()
+        success = const.SuccessType.SUCCESS
+        dry_run = False
+        with self.subTest(success=success,
+                          dry_run=dry_run):
+            record = self.log_success(message,
+                                      group,
+                                      success,
+                                      dry_run,
+                                      context)
+            self.verify_success(record, success, dry_run)
 
 
 # --------------------------------Unit Testing---------------------------------

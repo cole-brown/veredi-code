@@ -6,6 +6,7 @@
 
 from typing import (TYPE_CHECKING,
                     Union, NewType, Iterable, Dict)
+from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
 
@@ -78,6 +79,15 @@ class SuccessType(enum.Enum):
     # ------------------------------
     # Functions
     # ------------------------------
+
+    @classmethod
+    def valid(klass: 'SuccessType',
+              success: NullNoneOr['SuccessType']) -> bool:
+        '''
+        Returns true if `success` is a SuccessType value other than IGNORE.
+        '''
+        return (not null_or_none(success)
+                and success is not klass.IGNORE)
 
     @classmethod
     def normalize(klass: 'SuccessType',
