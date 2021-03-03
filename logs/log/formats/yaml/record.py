@@ -19,7 +19,7 @@ from types import TracebackType
 
 
 import logging
-import yaml
+import yaml as py_yaml
 
 from collections import OrderedDict
 from io import StringIO
@@ -35,14 +35,7 @@ from ...                     import const as const_l
 # ---
 # Need to get LiteralString, OrderedDict, etc. registered with Python YAML.
 # ---
-from veredi.base.yaml import (
-    LiteralString,
-    represent as yaml_represent,
-    construct as yaml_construct,
-    enum_representer as yaml_enum_representer,
-    enum_to_string_representer as yaml_enum_to_string_representer
-)
-
+from veredi.base import yaml
 
 
 # -----------------------------------------------------------------------------
@@ -271,16 +264,16 @@ class LogRecordYaml:
 
         # We have the record tag, but for now just say to deserialize it as a
         # dictionary.
-        yaml_construct(self._DOC_TYPE_TAG,
-                       yaml.SafeLoader.construct_mapping)
+        yaml.construct(self._DOC_TYPE_TAG,
+                       py_yaml.SafeLoader.construct_mapping)
 
         # Let YAML know how we want our log enums serialized. Use an enum value
         # that is the correct type (e.g. SuccessType - don't use IGNORE).
-        yaml_represent(const_l.Group,
-                       yaml_enum_representer(const_l.Group.SECURITY))
-        yaml_represent(const_l.SuccessType,
+        yaml.represent(const_l.Group,
+                       yaml.enum_representer(const_l.Group.SECURITY))
+        yaml.represent(const_l.SuccessType,
                        # Use to-string to get the SuccessType formatting.
-                       yaml_enum_to_string_representer)
+                       yaml.enum_to_string_representer)
 
     # -------------------------------------------------------------------------
     # Formatting
@@ -372,6 +365,10 @@ class LogRecordYaml:
         '''
         Add a key/value pair to the 'python' sub-dictionary.
         '''
+        # For Python's fields, only ignore keys. Allow Falsy values.
+        if not key:
+            return
+
         # Make sure python dict is in the entries, then add this kvp.
         self._dict_record['python'] = self._dict_py
         self._dict_py[key] = value
@@ -380,6 +377,10 @@ class LogRecordYaml:
         '''
         Add a key/value pair to the 'group' sub-dictionary.
         '''
+        # Groups should always have key and value.
+        if not key or not value:
+            return
+
         # Make sure group dict is in the entries, then add this kvp.
         self._dict_record['group'] = self._dict_group
         self._dict_group[key] = value
@@ -388,6 +389,12 @@ class LogRecordYaml:
         '''
         Add a key/value pair to the 'success' sub-dictionary.
         '''
+        # Success fields should (currently) always have key and value.
+        if not key or not value:
+            # NOTE: 'dry-run' is a success field which is a bool. Currently
+            # [2021-03-03] it is ignored when False.
+            return
+
         # Make sure success dict is in the entries, then add this kvp.
         self._dict_record['success'] = self._dict_success
         self._dict_success[key] = value
@@ -396,6 +403,10 @@ class LogRecordYaml:
         '''
         Add a key/value pair to the 'error' sub-dictionary.
         '''
+        # For Error fields, only ignore keys. Allow Falsy values.
+        if not key:
+            return
+
         # Make sure error dict is in the entries, then add this kvp.
         self._dict_record['error'] = self._dict_error
         self._dict_error[key] = value
@@ -431,16 +442,11 @@ class LogRecordYaml:
         '''
         self._dict_record['dotted'] = dotted
 
-    def group_name(self, name: str) -> None:
+    def group(self, name: str, dotted: label.DotStr) -> None:
         '''
-        Set the group's name field.
+        Set the group's name and dotted field.
         '''
         self._group('name', name)
-
-    def group_dotted(self, dotted: label.DotStr) -> None:
-        '''
-        Set the group's dotted field.
-        '''
         self._group('dotted', dotted)
 
     def success(self,
@@ -465,7 +471,7 @@ class LogRecordYaml:
         '''
         Set the message field.
         '''
-        self._dict_record['message'] = LiteralString(message)
+        self._dict_record['message'] = yaml.LiteralString(message)
 
     def context(self, context: 'VerediContext') -> None:
         '''
@@ -570,7 +576,7 @@ class LogRecordYaml:
         if not exception_text:
             return
 
-        self._error('exception', LiteralString(exception_text))
+        self._error('exception', yaml.LiteralString(exception_text))
 
     def stack(self, stack_info: str) -> None:
         '''
@@ -579,7 +585,7 @@ class LogRecordYaml:
         if not stack_info:
             return
 
-        self._error('exception', LiteralString(stack_info))
+        self._error('exception', yaml.LiteralString(stack_info))
 
     # ------------------------------
     # Process Info
@@ -600,6 +606,6 @@ class LogRecordYaml:
 
         yaml.safe_dump(self._dict_record,
                        # Always use block formatting.
-                       default_flow_style=False,
+                       default_sequence=yaml.SequenceStyle.BLOCK,
                        stream=stream)
         return stream.getvalue()
