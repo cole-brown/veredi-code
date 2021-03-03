@@ -88,6 +88,10 @@ def registries(configuration: Configuration) -> None:
     # TODO: Move the specifics to math's __init__?
     _import('veredi.math.d20.parser', log_dotted)
 
+    # TODO: v://future/registering/2021-02-01T10:34:57-0800
+    # TODO: import for registering (instead of importing registries) should happen more automaticallyish?
+    _import('veredi.data.repository.file.tree', log_dotted)
+
     # ---
     # Done.
     # ---

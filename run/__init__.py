@@ -11,7 +11,7 @@ Helpers for getting a game of Veredi running.
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from veredi.game.engine import Engine
-
+    from veredi.data.config.config import Configuration
 
 # Functions
 from .options  import configuration
@@ -33,6 +33,13 @@ from .server   import server
 # Code
 # -----------------------------------------------------------------------------
 
+def init(config: 'Configuration') -> None:
+    '''
+    Do some importing and set-up.
+    '''
+    registries(config)
+
+
 def start(engine: 'Engine') -> None:
     '''
     Starts engine, runs until game is completed or stopped.
@@ -48,6 +55,7 @@ __all__ = [
     # ------------------------------
     # File-Local
     # ------------------------------
+    'init',
     'start',
 
     # ------------------------------

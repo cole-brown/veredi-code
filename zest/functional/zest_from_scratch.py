@@ -251,7 +251,7 @@ class Test_From_Scratch(unittest.TestCase):
             # ---
             # Registries of various types... config, encodables, etc.
             # ---
-            run.registries(self.config)
+            run.init(self.config)
 
             # ---
             # Meeting of Managers from config settings.
