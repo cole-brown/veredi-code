@@ -10,11 +10,12 @@ Custom YAML Formatter for:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, Type, NewType, Callable, Mapping
+from typing import (Optional, Union, Any, Type, NewType,
+                    Callable, TextIO, Mapping)
 
 
 import yaml
-from collections import OrderedDict
+from collections import OrderedDict, UserString
 import enum
 
 
@@ -42,38 +43,111 @@ deserialization.
 '''
 
 
+class ScalarStyle(enum.Enum):
+    '''
+    An enum class to represent the scalars' style options YAML has:
+
+    # YAML Example:
+    plain: This string is a plain scalar.
+    quoted-single: 'SINGLE QUOTES!'
+    quoted-double: "Double quotes."
+    literal: |
+      This indents the string but
+      preserves whatever it is exactly.
+    folded: >
+      This folds the string up into multiple lines for serialzation, and
+      unfolds it on deserialization.
+    '''
+    DEFAULT = None
+    '''Let YAML decide.'''
+
+    PLAIN = '_'
+    '''Use plain scalars.'''
+
+    QUOTED_SINGLE = "'"
+    '''Use single-quoted scalars.'''
+
+    QUOTED_DOUBLE = '"'
+    '''Use double-quoted scalars.'''
+
+    LITERAL = '|'
+    '''Use literal scalars which will preserve all formatting.'''
+
+    FOLDED = '>'
+    '''Use folded scalars which will fold long scalars across multiple lines.'''
+
+
+class SequenceStyle(enum.Enum):
+    '''
+    An enum class to represent the sequences' style options YAML has:
+
+    # YAML Example:
+    Block style: !!seq
+    - Mercury   # Rotates - no light/dark sides.
+    - Venus     # Deadliest. Aptly named.
+    - Earth     # Mostly dirt.
+    - Mars      # Seems empty.
+    - Jupiter   # The king.
+    - Saturn    # Pretty.
+    - Uranus    # Where the sun hardly shines.
+    - Neptune   # Boring. No rings.
+    - Pluto     # You call this a planet?
+    Flow style: !!seq [ Mercury, Venus, Earth, Mars,      # Rocks
+                        Jupiter, Saturn, Uranus, Neptune, # Gas
+                        Pluto ]                           # Overrated
+    '''
+    DEFAULT = None
+    '''Let YAML decide.'''
+
+    BLOCK = False
+    '''Use block style for sequences.'''
+
+    FLOW = True
+    '''Use flow style for sequences.'''
+
+
 # -----------------------------------------------------------------------------
 # YAML Large String Dumpers
 # -----------------------------------------------------------------------------
 
-class FoldedString(str):
+class FoldedString(UserString):
     '''
     Class just marks this string to be dumped in 'folded' YAML string format.
     '''
-    pass
+
+    def __init__(self, value: str) -> None:
+        super().__init__(value.strip())
 
 
-class LiteralString(str):
+class LiteralString(UserString):
     '''
     Class just marks this string to be dumped in 'literal' YAML string format.
     '''
-    pass
+
+    def __init__(self, value: str) -> None:
+        super().__init__(value.strip())
 
 
 def folded_string_representer(dumper: yaml.Dumper,
-                              data:   str) -> yaml.ScalarNode:
+                              data:   Union[FoldedString, str]
+                              ) -> yaml.ScalarNode:
     '''
     Register FoldedString as the correct style of literal.
     '''
-    return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='>')
+    return dumper.represent_scalar(u'tag:yaml.org,2002:str',
+                                   str(data),
+                                   style='>')
 
 
 def literal_string_representer(dumper: yaml.Dumper,
-                               data:   str) -> yaml.ScalarNode:
+                               data:   Union[LiteralString, str]
+                               ) -> yaml.ScalarNode:
     '''
     Register FoldedString as the correct style of literal.
     '''
-    return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar(u'tag:yaml.org,2002:str',
+                                   str(data),
+                                   style='|')
 
 
 def ordered_dict_representer(dumper: yaml.Dumper,
@@ -195,6 +269,90 @@ def constructors() -> None:
     '''
     # None right now.
     pass
+
+
+# -----------------------------------------------------------------------------
+# Dump/Load with some default args.
+# -----------------------------------------------------------------------------
+
+def safe_dump(data:             Any,
+              stream:           TextIO,
+              default_scalar:   ScalarStyle   = ScalarStyle.DEFAULT,
+              default_sequence: SequenceStyle = SequenceStyle.DEFAULT,
+              indent:           Optional[int] = None,
+              width:            Optional[int] = None) -> None:
+    '''
+    Call `yaml.safe_dump()` with these args and/or some defaults.
+
+    If `indent` is None, uses yaml default.
+
+    If `width` is None, uses yaml default (which is sort of
+    'no width restriction').
+    '''
+    yaml.safe_dump(data,
+                   stream=stream,
+                   default_style=default_scalar.value,
+                   default_flow_style=default_sequence.value,
+                   indent=indent,
+                   width=width,
+                   # Just using yaml defaults right now [2021-03-03].
+                   encoding=None,  # utf-8 in Python 3
+                   explicit_start=None,
+                   explicit_end=None,
+                   version=None,
+                   tags=None,
+                   canonical=None,
+                   allow_unicode=None,
+                   line_break=None)
+
+
+def safe_dump_all(data:             Any,
+                  stream:           TextIO,
+                  default_scalar:   ScalarStyle   = ScalarStyle.DEFAULT,
+                  default_sequence: SequenceStyle = SequenceStyle.DEFAULT,
+                  indent:           Optional[int] = None,
+                  width:            Optional[int] = None) -> None:
+    '''
+    Call `yaml.safe_dump_all()` with these args and/or some defaults.
+
+    If `indent` is None, uses yaml default.
+
+    If `width` is None, uses yaml default (which is sort of
+    'no width restriction').
+    '''
+    yaml.safe_dump_all(data,
+                       stream=stream,
+                       default_style=default_scalar.value,
+                       default_flow_style=default_sequence.value,
+                       indent=indent,
+                       width=width,
+                       # Just using yaml defaults right now [2021-03-03].
+                       encoding=None,  # utf-8 in Python 3
+                       explicit_start=None,
+                       explicit_end=None,
+                       version=None,
+                       tags=None,
+                       canonical=None,
+                       allow_unicode=None,
+                       line_break=None)
+
+
+def safe_load(stream: TextIO) -> Any:
+    '''
+    Call `yaml.safe_load()` with the stream of data and returns the parsed
+    Python object.
+    '''
+    data = yaml.safe_load(stream)
+    return data
+
+
+def safe_load_all(stream: TextIO) -> Any:
+    '''
+    Call `yaml.safe_load_all()` with the stream of data and returns the parsed
+    Python object.
+    '''
+    data = yaml.safe_load_all(stream)
+    return data
 
 
 # -----------------------------------------------------------------------------

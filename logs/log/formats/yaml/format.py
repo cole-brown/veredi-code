@@ -130,8 +130,8 @@ class FormatYaml(logging.Formatter):
 
         # Group Stuff
         if hasattr(record, 'group'):
-            self._record_fmt.group_name(record.group.group)
-            self._record_fmt.group_dotted(record.group.dotted)
+            self._record_fmt.group(record.group.group,
+                                   record.group.dotted)
 
         # Success Stuff
         if hasattr(record, 'success'):
