@@ -18,6 +18,8 @@ import yaml
 from collections import OrderedDict, UserString
 import enum
 
+# Yaml's Error type to propogate up to our import level.
+from yaml import YAMLError
 
 # Logging needs this stuff for YAML formatted logs, so do not log from here.
 # from veredi.logs               import log

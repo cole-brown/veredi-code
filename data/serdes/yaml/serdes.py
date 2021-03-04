@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
     from veredi.data.codec          import Encoder, Decoder
 
-import yaml
 from io import StringIO, TextIOBase
 import contextlib
 
@@ -26,6 +25,7 @@ from veredi.logs                 import log
 
 from veredi                      import time
 from veredi.base                 import paths, numbers
+from veredi.base                 import yaml
 from veredi.base.strings         import text
 
 from veredi.data                 import background
@@ -107,7 +107,6 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.ReadError
-            - wrapped yaml.YAMLDeserializeError
           Maybes:
             - Other yaml/stream errors?
         '''
@@ -157,7 +156,6 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.ReadError
-            - wrapped yaml.YAMLDeserializeError
           Maybes:
             - Other yaml/stream errors?
         '''
@@ -240,7 +238,6 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.ReadError
-            - wrapped yaml.YAMLDeserializeError
           Maybes:
             - Other yaml/stream errors?
         '''
@@ -307,7 +304,6 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.ReadError
-            - wrapped yaml.YAMLDeserializeError
           Maybes:
             - Other yaml/stream errors?
         '''
@@ -459,7 +455,6 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.WriteError
-            - wrapped yaml.YAMLSerializeError
         '''
         self._log_data_processing(self.dotted(),
                                   "Serializing from '{}'...",
@@ -498,7 +493,6 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.WriteError
-            - wrapped yaml.YAMLSerializeError
         '''
         self._log_data_processing(self.dotted(),
                                   "Serializing all from '{}'...",
@@ -545,7 +539,6 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.WriteError
-            - wrapped yaml.YAMLSerializeError
           Maybes:
             - Other yaml/stream errors?
         '''
@@ -555,7 +548,9 @@ class YamlSerdes(BaseSerdes):
                                   context=context)
         serialized = StringIO()
         try:
-            yaml.safe_dump(data, default_flow_style=None, stream=serialized)
+            yaml.safe_dump(data,
+                           default_sequence=yaml.SequenceStyle.DEFAULT,
+                           stream=serialized)
             # TODO [2020-07-04]: may need to evaluate this in some way to get
             # it past its lazy writing... I want to catch any yaml exceptions
             # here and not let them infect unrelated code.
@@ -600,7 +595,6 @@ class YamlSerdes(BaseSerdes):
 
         Raises:
           - exceptions.WriteError
-            - wrapped yaml.YAMLSerializeError
           Maybes:
             - Other yaml/stream errors?
         '''
@@ -613,7 +607,7 @@ class YamlSerdes(BaseSerdes):
         serialized = StringIO()
         try:
             yaml.safe_dump_all(data,
-                               default_flow_style=None,
+                               default_sequence=yaml.SequenceStyle.DEFAULT,
                                stream=serialized)
 
         except yaml.YAMLError as yaml_error:
