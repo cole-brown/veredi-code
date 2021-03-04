@@ -24,6 +24,7 @@ import logging
 import threading
 
 
+from veredi.base         import threads
 from veredi.base.strings import label
 from .                   import const
 
@@ -116,7 +117,10 @@ class VerediFilter(logging.Filter):
         Instance variable definitions, type hinting, doc strings, etc.
         '''
 
-        self._record_storage: threading.local = threading.local()
+        # Initialize our fields with Null...
+        self._record_storage: threads.Local = threads.Local(context=Null(),
+                                                            group=Null(),
+                                                            success=Null())
         '''
         An instance of the thread-local data-storage class.
 
@@ -126,10 +130,6 @@ class VerediFilter(logging.Filter):
 
     def __init__(self) -> None:
         self._define_vars()
-
-        # Initialize our fields to something empty.
-        self._record_storage.group = Null()
-        self._record_storage.context = Null()
 
     @classmethod
     def dotted(klass: Type['VerediFilter']) -> str:
