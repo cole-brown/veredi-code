@@ -14,14 +14,14 @@ from typing import TYPE_CHECKING, Optional, Union, List, Tuple, Mapping
 
 from io import StringIO
 import logging
-import yaml
 
 from veredi.zest.base.unit import ZestBase
 
 
-from veredi.base.context       import UnitTestContext
-from veredi.base.strings       import label
-from veredi.data               import background
+from veredi.base         import yaml
+from veredi.base.context import UnitTestContext
+from veredi.base.strings import label
+from veredi.data         import background
 
 
 # ------------------------------
