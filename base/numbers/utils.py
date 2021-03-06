@@ -10,6 +10,7 @@ Helper functions for dealing with numbers.
 
 from typing import Union, Any, NewType
 
+import math
 import decimal
 from decimal import Decimal
 
@@ -39,6 +40,9 @@ erroring...
 
 We'll get a copy of it for our own use.
 '''
+
+_DEFAULT_CLOSENESS_TOLERANCE_REL = 1e-5
+'''Default (relative) tolerance for `closeish()`'''
 
 
 # -----------------------------------------------------------------------------
@@ -79,6 +83,41 @@ def is_number(input: Any) -> bool:
     Checks type of input. Returns
     '''
     return isinstance(input, NumberTypesTuple)
+
+
+def equalish(a: NumberTypes,
+             b: NumberTypes,
+             relative_tolerance: Union[float, Decimal, None] = None,
+             absolute_tolerance: Union[float, Decimal, None] = None) -> bool:
+    '''
+    Returns true if `a` and `b` are "close enough" to equal.
+
+    If both `a` and `b` are ints, this is "==".
+
+    For floats and Decimals, this is `math.isclose()`.
+      - In this case, it will use `relative_tolerance` and/or
+        `absolute_tolerance` if provided, or use a default value.
+    '''
+    if isinstance(a, int) and isinstance(b, int):
+        return a == b
+
+    # If both are None, use our default.
+    if relative_tolerance is None and absolute_tolerance is None:
+        relative_tolerance = _DEFAULT_CLOSENESS_TOLERANCE_REL
+
+    # These are the default values to `math.isclose()`. It doesn't take kindly
+    # to being passed None, so reset to these if we have a default param.
+    #  rel_tol=1e-09
+    #  abs_tol=0.0
+    #  https://docs.python.org/3/library/math.html#math.isclose
+    if relative_tolerance is None:
+        relative_tolerance = 1e-09
+    if absolute_tolerance is None:
+        absolute_tolerance = 0.0
+
+    return math.isclose(a, b,
+                        rel_tol=relative_tolerance,
+                        abs_tol=absolute_tolerance)
 
 
 # -----------------------------------------------------------------------------

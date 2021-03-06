@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # Functions
 from .options  import configuration
 from .engine   import managers, engine
-from .registry import registries
+from .registry import registrars, registrees
 
 # Namespaced
 from .         import system
@@ -37,7 +37,8 @@ def init(config: 'Configuration') -> None:
     '''
     Do some importing and set-up.
     '''
-    registries(config)
+    registrars(config)
+    registrees(config)
 
 
 def start(engine: 'Engine') -> None:
@@ -64,7 +65,8 @@ __all__ = [
     'configuration',
     'managers',
     'engine',
-    'registries',
+    'registrars',
+    'registrees',
 
     # ------------------------------
     # Functions

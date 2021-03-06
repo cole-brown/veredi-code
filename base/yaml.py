@@ -117,8 +117,18 @@ class FoldedString(UserString):
     Class just marks this string to be dumped in 'folded' YAML string format.
     '''
 
-    def __init__(self, value: str) -> None:
-        super().__init__(value.strip())
+    def __init__(self, value: str, line_rstrip: bool = True) -> None:
+        # Strip out whitespace to force YAML to obey our LiteralString style...
+        # >.<
+        if line_rstrip:
+            lines = value.split('\n')
+            for i in range(len(lines)):
+                lines[i] = lines[i].rstrip()
+            value = '\n'.join(lines)
+        else:
+            value = value.strip()
+
+        super().__init__(value)
 
 
 class LiteralString(UserString):
@@ -126,8 +136,18 @@ class LiteralString(UserString):
     Class just marks this string to be dumped in 'literal' YAML string format.
     '''
 
-    def __init__(self, value: str) -> None:
-        super().__init__(value.strip())
+    def __init__(self, value: str, line_rstrip: bool = True) -> None:
+        # Strip out whitespace to force YAML to obey our LiteralString style...
+        # >.<
+        if line_rstrip:
+            lines = value.split('\n')
+            for i in range(len(lines)):
+                lines[i] = lines[i].rstrip()
+            value = '\n'.join(lines)
+        else:
+            value = value.strip()
+
+        super().__init__(value)
 
 
 def folded_string_representer(dumper: yaml.Dumper,

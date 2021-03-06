@@ -22,7 +22,7 @@ from .const import (NumberTypes, NumberTypesTuple,
 # Functions
 # ------------------------------
 
-from .utils import (to_str, from_str, is_number,
+from .utils import (to_str, from_str, is_number, equalish,
                     to_decimal, to_float,
                     serialize_claim)
 
@@ -60,6 +60,7 @@ __all__ = [
     'to_str',
     'from_str',
     'is_number',
+    'equalish',
     'to_decimal',
     'to_float',
     'serialize_claim',
