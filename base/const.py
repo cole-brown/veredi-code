@@ -10,6 +10,17 @@ each other.
 # -----------------------------------------------------------------------------
 
 import enum
+import pathlib
+
+
+# -----------------------------------------------------------------------------
+# Paths
+# -----------------------------------------------------------------------------
+
+# We are in veredi/base/const.py, so this file's grandparent is the veredi root
+# directory.
+LIB_VEREDI_ROOT = pathlib.Path(__file__).parent.parent
+'''The current root directory of the Veredi library.'''
 
 
 # -----------------------------------------------------------------------------

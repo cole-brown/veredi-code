@@ -5,7 +5,7 @@
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Union, NewType, Iterable, Dict)
+                    Optional, Union, NewType, Iterable, Dict)
 from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
@@ -212,17 +212,39 @@ class Level(enum.IntEnum):
             return Level.NOTSET
         return Level(lvl)
 
-    def verbose_enough(self, minimum: Union['Level', int, None]) -> bool:
+    def will_output_at(self,
+                       minimum:       Union['Level', int, None],
+                       notset_return: Optional[bool] = None) -> bool:
         '''
-        Returns True if self is a verbose enough level for 'minimum'.
+        Returns True if self is a 'high' level to be output at `minimum` level.
 
         This could be called "greater than or equal to", except verbosity
         values go down as verbosity levels go up...
+
+        Raises ValueError if self or `minimum` are Level.NOTSET unless
+        `notset_return` is set to True/False, in which case that value
+        is returned instead.
         '''
         min_level = Level.to_logging(minimum)
-        # Verbose enough if match or are more verbose.
+
+        # None/NOTSET is a bit of a grey area, but... there's an optional
+        # return to use so:
+        if min_level == Level.NOTSET:
+            if isinstance(notset_return, bool):
+                return notset_return
+            raise ValueError(f"Cannot determine if {self} will output "
+                             f"for unset minimum: {min_level}")
+        if self == Level.NOTSET:
+            if isinstance(notset_return, bool):
+                return notset_return
+            raise ValueError(f"Cannot determine if unset {self} will output "
+                             f"for minimum: {min_level}")
+
+        # Verbose enough if we're equal or our level is a stricter log level
+        # than the minimum. Example: CRITICAL is verbose enough to be printed
+        # when the minimum is DEBUG.
         return ((self == min_level)
-                or self.most_verbose(self, min_level) == self)
+                or self.most_verbose(self, min_level) == minimum)
 
     @staticmethod
     def most_verbose(lvl_a: Union['Level', int, None],

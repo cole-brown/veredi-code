@@ -287,15 +287,17 @@ def set_level(level:         const.LogLvlConversion = const.DEFAULT_LEVEL,
     this.setLevel(const.Level.to_logging(level))
 
 
-def will_output(level:         const.LogLvlConversion,
+def will_output(check:         Union[const.LogLvlConversion, const.Group],
                 veredi_logger: const.LoggerInput = None) -> bool:
     '''
-    Returns true if supplied `level` is high enough to output a log.
+    Returns true if supplied `check` is high enough to output a log.
     '''
-    if isinstance(level, const.Level):
-        level = const.Level.to_logging(level)
+    if isinstance(check, const.Group):
+        check = get_group_level(check)
+    if isinstance(check, const.Level):
+        check = const.Level.to_logging(check)
     this = _logger(veredi_logger)
-    return level >= this.level
+    return check >= this.level
 
 
 # -----------------------------------------------------------------------------
@@ -963,7 +965,10 @@ def group(log_group:     'const.Group',
     # Get level from group.
     # ------------------------------
     level = _GROUP_LEVELS[log_group]
-    if (not level.verbose_enough(log_minimum)
+    # If we have a minimum, make sure this group matches it (NOTSETs treated as
+    # failures). Also might as well check that the logger will output it at all.
+    if ((log_minimum and not level.will_output_at(log_minimum,
+                                                  notset_return=False))
             or not will_output(level, veredi_logger)):
         # If the group is below the min required by this specific group (or min
         # required to output at all), do not log it.
@@ -1020,6 +1025,14 @@ def group(log_group:     'const.Group',
     # ------------------------------
     log_fn(output,
            **log_kwargs)
+
+
+def get_group_level(group: 'const.Group') -> 'const.Level':
+    '''
+    Returns group's current log.Level.
+    '''
+    global _GROUP_LEVELS
+    return _GROUP_LEVELS[group]
 
 
 def set_group_level(group: 'const.Group',
