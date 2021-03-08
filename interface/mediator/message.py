@@ -102,7 +102,7 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
             return 'veredi.interface.mediator.message.specialid'
 
         @classmethod
-        def _type_field(klass: 'SpecialId') -> str:
+        def type_field(klass: 'SpecialId') -> str:
             '''
             A short, unique name for encoding an instance into a field in
             a dict.
@@ -404,10 +404,10 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'Message') -> str:
+    def type_field(klass: 'Message') -> str:
         return klass._ENCODE_NAME
 
-    def _encode_simple(self) -> EncodedSimple:
+    def encode_simple(self) -> EncodedSimple:
         '''
         Don't support simple for Messages.
         '''
@@ -416,7 +416,7 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
         raise NotImplementedError(msg)
 
     @classmethod
-    def _decode_simple(klass: 'Message',
+    def decode_simple(klass: 'Message',
                        data: EncodedSimple) -> 'Message':
         '''
         Don't support simple by default.
@@ -425,7 +425,7 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
                "simple string.")
         raise NotImplementedError(msg)
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -449,8 +449,8 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
         return encoded
 
     @classmethod
-    def _decode_complex(klass: 'Message',
-                        data: EncodedComplex) -> 'Message':
+    def decode_complex(klass: 'Message',
+                       data: EncodedComplex) -> 'Message':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

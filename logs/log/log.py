@@ -129,6 +129,7 @@ _GROUP_LEVELS: Dict[const.Group, const.Level] = {
     const.Group.SECURITY:        const.Level.WARNING,
     const.Group.START_UP:        const.Level.DEBUG,
     const.Group.DATA_PROCESSING: const.Level.DEBUG,
+    const.Group.REGISTRATION:    const.Level.DEBUG,
 }
 
 
@@ -1173,6 +1174,39 @@ def data_processing(dotted:        label.DotStr,
     '''
     kwargs = incr_stack_level(kwargs)
     group(const.Group.DATA_PROCESSING,
+          dotted,
+          msg,
+          *args,
+          veredi_logger=veredi_logger,
+          context=context,
+          log_minimum=log_minimum,
+          log_success=log_success,
+          log_dry_run=log_dry_run,
+          **kwargs)
+
+
+def registration(dotted:        label.DotStr,
+                 msg:           str,
+                 *args:         Any,
+                 veredi_logger: const.LoggerInput     = None,
+                 context:       'VerediContext' = None,
+                 log_minimum:   const.Level           = None,
+                 log_success:   const.SuccessInput    = const.SuccessType.IGNORE,
+                 log_dry_run:   Optional[bool]  = False,
+                 **kwargs:      Any) -> None:
+    '''
+    Log at Group.REGISTRATION log.Level, whatever it's set to right now.
+
+    If `success` is supplied, will become a SuccessType string prepending log
+    message. `log_dry_run` will be used to resolve `log_success` into
+    actual vs dry-run strings.
+
+    If `log_success` is a bool:
+      - True  -> SuccessType.SUCCESS
+      - False -> SuccessType.FAILURE
+    '''
+    kwargs = incr_stack_level(kwargs)
+    group(const.Group.REGISTRATION,
           dotted,
           msg,
           *args,

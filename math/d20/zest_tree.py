@@ -30,18 +30,18 @@ class MockNode(tree.Node, dotted='veredi.math.d20.tree.zest_tree.mock_node'):
         pass
 
     @classmethod
-    def _type_field(klass):
+    def type_field(klass):
         '''Encodable type name.'''
         return 'mock-node'
 
-    def _encode_complex(self):
+    def encode_complex(self):
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         raise NotImplementedError
 
     @classmethod
-    def _decode_complex(klass, data):
+    def decode_complex(klass, data):
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -56,7 +56,7 @@ class MockLeaf(tree.Leaf, dotted='veredi.math.d20.tree.zest_tree.mock_leaf'):
                          value=value)
 
     @classmethod
-    def _type_field(klass):
+    def type_field(klass):
         '''Encodable type name.'''
         return 'mock-leaf'
 
@@ -67,14 +67,14 @@ class MockLeaf(tree.Leaf, dotted='veredi.math.d20.tree.zest_tree.mock_leaf'):
         '''
         raise NotImplementedError
 
-    def _encode_complex(self):
+    def encode_complex(self):
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         raise NotImplementedError
 
     @classmethod
-    def _decode_complex(klass, data):
+    def decode_complex(klass, data):
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

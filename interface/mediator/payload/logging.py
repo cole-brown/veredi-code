@@ -99,7 +99,7 @@ class LogField(EnumEncodeNameMixin, enum.Enum):
         return 'veredi.interface.mediator.payload.logfield'
 
     @classmethod
-    def _type_field(klass: 'LogField') -> str:
+    def type_field(klass: 'LogField') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         Override this if you don't like what veredi.base.label.auto() and
@@ -211,10 +211,10 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'LogReply') -> str:
+    def type_field(klass: 'LogReply') -> str:
         return klass._ENCODE_NAME
 
-    def _encode_simple(self) -> EncodedSimple:
+    def encode_simple(self) -> EncodedSimple:
         '''
         Don't support simple for LogReplies.
         '''
@@ -223,8 +223,8 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
         raise NotImplementedError(msg)
 
     @classmethod
-    def _decode_simple(klass: 'LogReply',
-                       data: EncodedSimple) -> 'LogReply':
+    def decode_simple(klass: 'LogReply',
+                      data: EncodedSimple) -> 'LogReply':
         '''
         Don't support simple by default.
         '''
@@ -232,7 +232,7 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
                "simple string.")
         raise NotImplementedError(msg)
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -247,8 +247,8 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
         }
 
     @classmethod
-    def _decode_complex(klass: 'LogReply',
-                        data:  EncodedComplex) -> 'LogReply':
+    def decode_complex(klass: 'LogReply',
+                       data:  EncodedComplex) -> 'LogReply':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -413,12 +413,12 @@ class LogPayload(BasePayload,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'LogPayload') -> str:
+    def type_field(klass: 'LogPayload') -> str:
         return klass._ENCODE_NAME
 
     # Simple:  BasePayload's are good.
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -433,8 +433,8 @@ class LogPayload(BasePayload,
         }
 
     @classmethod
-    def _decode_complex(klass: 'BasePayload',
-                        data:  EncodedComplex) -> 'BasePayload':
+    def decode_complex(klass: 'BasePayload',
+                       data:  EncodedComplex) -> 'BasePayload':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

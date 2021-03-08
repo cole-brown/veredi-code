@@ -94,12 +94,12 @@ class Configuration:
 
         self._repo: 'BaseRepository' = None
         '''
-        The repository for the game's saved data.
+        The repository for the game's Configuration data.
         '''
 
         self._serdes: 'BaseSerdes' = None
         '''
-        The serializer/deserializer for the game's saved data.
+        The serializer/deserializer for the game's Configuration data.
         '''
 
         self._rules: label.DotStr = None

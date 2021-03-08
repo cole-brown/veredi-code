@@ -123,7 +123,7 @@ class MsgType(FlagCheckMixin, FlagSetMixin, FlagEncodeValueMixin, enum.Flag):
         return 'veredi.interface.mediator.msgtype'
 
     @classmethod
-    def _type_field(klass: 'MsgType') -> str:
+    def type_field(klass: 'MsgType') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         '''

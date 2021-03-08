@@ -9,17 +9,101 @@ themselves in preparation for serialization or after deserialization.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (TYPE_CHECKING,
-                    Optional, Protocol, Any)
-if TYPE_CHECKING:
-    from .encodable import Encodable
+from typing import Optional, Protocol, Any
+
+
+from veredi.logs import log
+from veredi.base.strings import label
 
 
 # -----------------------------------------------------------------------------
 # Types
 # -----------------------------------------------------------------------------
 
-from .const import EncodedComplex, EncodedSimple, EncodedEither
+from .const import EncodedComplex, EncodedSimple, EncodedEither, Encoding
+
+from .encodable import Encodable
+from .registry import EncodableRegistry
+
+
+# -----------------------------------------------------------------------------
+# Exports
+# -----------------------------------------------------------------------------
+
+__all__ = [
+    # ------------------------------
+    # File-Local
+    # ------------------------------
+    'register',
+
+
+    # ------------------------------
+    # Types
+    # ------------------------------
+    'EncodedComplex',
+    'EncodedSimple',
+    'EncodedEither',
+    'Encoding',
+
+    'Encodable',
+    'EncodableRegistry',
+
+
+    # # ------------------------------
+    # # Protocol / Interface
+    # # ------------------------------
+    # 'Encoder',
+    # 'Decoder',
+]
+
+
+# -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
+
+def register(klass:  'Encodable',
+             dotted: Optional[label.LabelInput] = None) -> None:
+    '''
+    Register the `klass` with the `dotted` string to our registry.
+    '''
+    dotted_str = label.normalize(dotted)
+    log.registration(dotted,
+                     f"Encodable: Checking '{dotted_str}' "
+                     f"for registration of '{klass.__name__}'...")
+
+    # ---
+    # Sanity
+    # ---
+    if not dotted:
+        # No dotted string is an error.
+        msg = ("Encodable sub-classes must be registered with a `dotted` "
+               f"parameter. Got: '{dotted_str}'")
+        error = ValueError(msg, klass, dotted)
+        log.registration(dotted, msg)
+        raise log.exception(error, msg)
+
+    elif dotted == klass._DO_NOT_REGISTER:
+        # A 'do not register' dotted string probably means a base class is
+        # encodable but shouldn't exist on its own; subclasses should
+        # register themselves.
+        log.registration(dotted,
+                         f"Ignoring '{klass}'. "
+                         "It is marked as 'do not register'.")
+        return
+
+    # ---
+    # Register
+    # ---
+    log.registration(dotted,
+                     f"Encodable: Registering '{dotted_str}' "
+                     f"to '{klass.__name__}'...")
+
+    dotted_args = label.regularize(dotted)
+    EncodableRegistry.register(klass, *dotted_args)
+
+    log.registration(dotted,
+                     f"Encodable: Registered '{dotted_str}' "
+                     f"to '{klass.__name__}'.")
 
 
 # -----------------------------------------------------------------------------
@@ -40,14 +124,14 @@ from .const import EncodedComplex, EncodedSimple, EncodedEither
 #                encode_in_progress: Optional[EncodedComplex]) -> EncodedEither:
 #         '''
 #         Encode self as a simple or complex encoding, depending on
-#         self._encode_simple_only().
+#         self.encoding().
 #
-#         If self._encode_simple_only(), encodes to a string..
+#         If self.encoding() is SIMPLE, encodes to a string.
 #
-#         If not self._encode_simple_only():
+#         Otherwise:
 #           - If `encode_in_progress` is provided, encodes this to a sub-field
-#             under self._type_field().
-#           - Else encodes this to a dict and provides self._type_field() as the
+#             under self.type_field().
+#           - Else encodes this to a dict and provides self.type_field() as the
 #             value of self._TYPE_FIELD_NAME.
 #         '''
 #         ...
@@ -113,23 +197,3 @@ from .const import EncodedComplex, EncodedSimple, EncodedEither
 #         Return a new `klass` instance.
 #         '''
 #         ...
-
-
-# -----------------------------------------------------------------------------
-# Exports
-# -----------------------------------------------------------------------------
-
-__all__ = [
-    # ------------------------------
-    # Types
-    # ------------------------------
-    'EncodedComplex',
-    'EncodedSimple',
-    'EncodedEither',
-
-    # # ------------------------------
-    # # Protocol / Interface
-    # # ------------------------------
-    # 'Encoder',
-    # 'Decoder',
-]

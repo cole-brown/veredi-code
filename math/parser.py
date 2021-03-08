@@ -119,7 +119,7 @@ class NodeType(FlagEncodeNameMixin, FlagCheckMixin, enum.Flag):
         return 'veredi.math.parser.tree'
 
     @classmethod
-    def _type_field(klass: 'NodeType') -> str:
+    def type_field(klass: 'NodeType') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         '''
@@ -574,12 +574,12 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'MathTree') -> str:
+    def type_field(klass: 'MathTree') -> str:
         '''Children should override this for appropriate name.'''
-        raise NotImplementedError(f"{klass.__name__}._type_field() "
+        raise NotImplementedError(f"{klass.__name__}.type_field() "
                                   "is not implemented.")
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode self as a Mapping of strings to (basic) values (str, int, etc).
         '''
@@ -590,7 +590,7 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
             for child in self._children:
                 encoded_children.append(child.encode(None))
 
-        # print("\nMathTree._encode_complex(): {self.__class__.__name__}.dott:
+        # print("\nMathTree.encode_complex(): {self.__class__.__name__}.dott:
         # And return all our vars as a dictionary structure.
         encoded = {
             'dotted':   self.dotted(),
@@ -631,7 +631,7 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
             # into our array of children.
             for child_data in encoded_children:
                 child_class = EncodableRegistry.get_from_data(child_data, None)
-                child_instance = child_class._decode_complex(child_data)
+                child_instance = child_class.decode_complex(child_data)
                 children.append(child_instance)
         instance._children = children
 
@@ -639,8 +639,8 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return instance
 
     @classmethod
-    def _decode_complex(klass: 'MathTree',
-                        data: EncodedComplex) -> 'MathTree':
+    def decode_complex(klass: 'MathTree',
+                       data: EncodedComplex) -> 'MathTree':
         '''
         Use data and EncodableRegistry to figure out what MathTree subclass
         the data is, then decode the data using the subclass.
@@ -648,7 +648,7 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         Return a new instance of `klass` as the result of the decoding.
         '''
         actual_class = EncodableRegistry.get_from_data(data)
-        instance = actual_class._decode_complex(data)
+        instance = actual_class.decode_complex(data)
         return instance
 
     # -------------------------------------------------------------------------

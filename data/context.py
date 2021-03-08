@@ -41,6 +41,69 @@ class DataAction(enum.Enum):
     SAVE = enum.auto()
     '''Save data action.'''
 
+    # -------------------------------------------------------------------------
+    # Functions
+    # -------------------------------------------------------------------------
+
+    def __str__(self) -> str:
+        '''
+        Convert DataOperation to a string representation.
+        '''
+        return self.name.lower()
+
+    def __repr__(self) -> str:
+        '''
+        Convert DataOperation to a string representation.
+        '''
+        return self.name.lower()
+
+
+class DataOperation(enum.Enum):
+    '''
+    'Extended' version of DataAction that splits load/save up for
+    repository, serdes, and codec steps.
+    '''
+
+    # ------------------------------
+    # DataAction.LOAD
+    # ------------------------------
+    READ = DataAction.LOAD
+    '''Repository's LOAD data action.'''
+
+    DESERIALIZE = DataAction.LOAD
+    '''Serdes' LOAD data action.'''
+
+    DECODE = DataAction.LOAD
+    '''Codec's LOAD data action.'''
+
+    # ------------------------------
+    # DataAction.SAVE
+    # ------------------------------
+    ENCODE = DataAction.SAVE
+    '''Codec's SAVE data action.'''
+
+    SERIALIZE = DataAction.SAVE
+    '''Serdes' SAVE data action.'''
+
+    WRITE = DataAction.SAVE
+    '''Repository's SAVE data action.'''
+
+    # -------------------------------------------------------------------------
+    # Functions
+    # -------------------------------------------------------------------------
+
+    def __str__(self) -> str:
+        '''
+        Convert DataOperation to a string representation.
+        '''
+        return self.name.lower()
+
+    def __repr__(self) -> str:
+        '''
+        Convert DataOperation to a string representation.
+        '''
+        return self.name.lower()
+
 
 # -----------------------------------------------------------------------------
 # Bare Data Context

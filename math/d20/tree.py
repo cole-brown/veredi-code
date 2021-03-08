@@ -235,7 +235,7 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
     # Encodable
     # -------------------------------------------------------------------------
 
-    def _encode_simple(self) -> EncodedSimple:
+    def encode_simple(self) -> EncodedSimple:
         '''
         Don't support simple by default.
         '''
@@ -244,8 +244,8 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
         raise NotImplementedError(msg)
 
     @classmethod
-    def _decode_simple(klass: 'Encodable',
-                       data: EncodedSimple) -> 'Encodable':
+    def decode_simple(klass: 'Encodable',
+                      data: EncodedSimple) -> 'Encodable':
         '''
         Don't support simple by default.
         '''
@@ -437,16 +437,16 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'Dice') -> str:
+    def type_field(klass: 'Dice') -> str:
         '''Encodable type name.'''
         return klass._NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super()._encode_complex()
+        enc_data = super().encode_complex()
 
         # Add our specific Dice data.
         enc_data['dice']  = self.dice
@@ -457,8 +457,8 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
         return enc_data
 
     @classmethod
-    def _decode_complex(klass: 'Dice',
-                        data: EncodedComplex) -> 'Dice':
+    def decode_complex(klass: 'Dice',
+                       data: EncodedComplex) -> 'Dice':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -541,16 +541,16 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'Constant') -> str:
+    def type_field(klass: 'Constant') -> str:
         '''Encodable type name.'''
         return klass._NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super()._encode_complex()
+        enc_data = super().encode_complex()
 
         # And... we have nothing to add.
 
@@ -558,8 +558,8 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
         return enc_data
 
     @classmethod
-    def _decode_complex(klass: 'Constant',
-                        data: EncodedComplex) -> 'Constant':
+    def decode_complex(klass: 'Constant',
+                       data: EncodedComplex) -> 'Constant':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -658,16 +658,16 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'Variable') -> str:
+    def type_field(klass: 'Variable') -> str:
         '''Encodable type name.'''
         return klass._NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super()._encode_complex()
+        enc_data = super().encode_complex()
 
         # And... we have nothing to add.
 
@@ -675,8 +675,8 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
         return enc_data
 
     @classmethod
-    def _decode_complex(klass: 'Variable',
-                        data: EncodedComplex) -> 'Variable':
+    def decode_complex(klass: 'Variable',
+                       data: EncodedComplex) -> 'Variable':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -873,16 +873,16 @@ class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'OperatorAdd') -> str:
+    def type_field(klass: 'OperatorAdd') -> str:
         '''Encodable type name.'''
         return klass._NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super()._encode_complex()
+        enc_data = super().encode_complex()
 
         # We don't have anything...
 
@@ -890,8 +890,8 @@ class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
         return enc_data
 
     @classmethod
-    def _decode_complex(klass: 'OperatorAdd',
-                        data: EncodedComplex) -> 'OperatorAdd':
+    def decode_complex(klass: 'OperatorAdd',
+                       data: EncodedComplex) -> 'OperatorAdd':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -941,16 +941,16 @@ class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'OperatorSub') -> str:
+    def type_field(klass: 'OperatorSub') -> str:
         '''Encodable type name.'''
         return klass._NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super()._encode_complex()
+        enc_data = super().encode_complex()
 
         # We don't have anything...
 
@@ -958,8 +958,8 @@ class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
         return enc_data
 
     @classmethod
-    def _decode_complex(klass: 'OperatorSub',
-                        data: EncodedComplex) -> 'OperatorSub':
+    def decode_complex(klass: 'OperatorSub',
+                       data: EncodedComplex) -> 'OperatorSub':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -1009,16 +1009,16 @@ class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'OperatorMult') -> str:
+    def type_field(klass: 'OperatorMult') -> str:
         '''Encodable type name.'''
         return klass._NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super()._encode_complex()
+        enc_data = super().encode_complex()
 
         # We don't have anything...
 
@@ -1026,8 +1026,8 @@ class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
         return enc_data
 
     @classmethod
-    def _decode_complex(klass: 'OperatorMult',
-                        data: EncodedComplex) -> 'OperatorMult':
+    def decode_complex(klass: 'OperatorMult',
+                       data: EncodedComplex) -> 'OperatorMult':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -1103,16 +1103,16 @@ class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'OperatorDiv') -> str:
+    def type_field(klass: 'OperatorDiv') -> str:
         '''Encodable type name.'''
         return klass._NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super()._encode_complex()
+        enc_data = super().encode_complex()
 
         # We don't have anything...
 
@@ -1120,8 +1120,8 @@ class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
         return enc_data
 
     @classmethod
-    def _decode_complex(klass: 'OperatorDiv',
-                        data: EncodedComplex) -> 'OperatorDiv':
+    def decode_complex(klass: 'OperatorDiv',
+                       data: EncodedComplex) -> 'OperatorDiv':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -1169,16 +1169,16 @@ class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'OperatorMod') -> str:
+    def type_field(klass: 'OperatorMod') -> str:
         '''Encodable type name.'''
         return klass._NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super()._encode_complex()
+        enc_data = super().encode_complex()
 
         # We don't have anything...
 
@@ -1186,8 +1186,8 @@ class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
         return enc_data
 
     @classmethod
-    def _decode_complex(klass: 'OperatorMod',
-                        data: EncodedComplex) -> 'OperatorMod':
+    def decode_complex(klass: 'OperatorMod',
+                       data: EncodedComplex) -> 'OperatorMod':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -1237,16 +1237,16 @@ class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'OperatorPow') -> str:
+    def type_field(klass: 'OperatorPow') -> str:
         '''Encodable type name.'''
         return klass._NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super()._encode_complex()
+        enc_data = super().encode_complex()
 
         # We don't have anything...
 
@@ -1254,8 +1254,8 @@ class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
         return enc_data
 
     @classmethod
-    def _decode_complex(klass: 'OperatorPow',
-                        data: EncodedComplex) -> 'OperatorPow':
+    def decode_complex(klass: 'OperatorPow',
+                       data: EncodedComplex) -> 'OperatorPow':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

@@ -106,7 +106,7 @@ class Object(FlagEncodeNameMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
         return 'veredi.security.abac.attributes.object'
 
     @classmethod
-    def _type_field(klass: 'Object') -> str:
+    def type_field(klass: 'Object') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         '''

@@ -62,7 +62,7 @@ class Validity(FlagEncodeValueMixin, enum.Enum):
         return 'veredi.interface.mediator.payload.validity'
 
     @classmethod
-    def _type_field(klass: 'Validity') -> str:
+    def type_field(klass: 'Validity') -> str:
         '''
         A short, unique name for encoding an instance into a field in
         a dict.
@@ -187,10 +187,10 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'BasePayload') -> str:
+    def type_field(klass: 'BasePayload') -> str:
         return klass._ENCODE_NAME
 
-    def _encode_simple(self) -> EncodedSimple:
+    def encode_simple(self) -> EncodedSimple:
         '''
         Don't support simple for Payloads.
         '''
@@ -199,8 +199,8 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         raise NotImplementedError(msg)
 
     @classmethod
-    def _decode_simple(klass: 'BasePayload',
-                       data: EncodedSimple) -> 'BasePayload':
+    def decode_simple(klass: 'BasePayload',
+                      data: EncodedSimple) -> 'BasePayload':
         '''
         Don't support simple by default.
         '''
@@ -208,7 +208,7 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
                "simple string.")
         raise NotImplementedError(msg)
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -223,15 +223,15 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         }
 
     @classmethod
-    def _decode_complex(klass: 'BasePayload',
-                        data:  EncodedComplex) -> 'BasePayload':
+    def decode_complex(klass: 'BasePayload',
+                       data:  EncodedComplex) -> 'BasePayload':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
         '''
         klass.error_for(data, keys=['valid', 'data'])
 
-        # build valid from value saved in _encode_complex
+        # build valid from value saved in encode_complex
         valid = Validity.decode(data['valid'])
 
         # Our data is of type 'Any', so... try to decode that?

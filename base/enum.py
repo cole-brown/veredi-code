@@ -15,10 +15,11 @@ import enum
 import re
 
 
-from veredi.logs                 import log
-from veredi.base.strings         import label
-from veredi.data.codec.encodable import (Encodable,
-                                         EncodedComplex)
+from veredi.logs         import log
+from veredi.base.strings import label
+from veredi.data.codec   import (Encodable,
+                                 Encoding,
+                                 EncodedComplex)
 
 
 # -----------------------------------------------------------------------------
@@ -158,7 +159,7 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     '''
 
     @classmethod
-    def _type_field(klass: 'FlagEncodeValueMixin') -> str:
+    def type_field(klass: 'FlagEncodeValueMixin') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         Override this if you don't like what veredi.base.label.auto() and
@@ -167,9 +168,9 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return label.munge_to_short(label.auto(klass))
 
     @classmethod
-    def _encode_simple_only(klass: 'FlagEncodeValueMixin') -> bool:
+    def encoding(klass: 'FlagEncodeValueMixin') -> Encoding:
         '''We are too simple to bother with being a complex type.'''
-        return True
+        return Encoding.SIMPLE
 
     @classmethod
     def _get_decode_str_rx(klass: 'FlagEncodeValueMixin') -> Optional[str]:
@@ -180,7 +181,7 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         if not klass._ENCODABLE_RX_STR:
             # Build it from the format str.
             klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
-                type_field=klass._type_field())
+                type_field=klass.type_field())
 
         return klass._ENCODABLE_RX_STR
 
@@ -203,25 +204,25 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
         return klass._ENCODABLE_RX
 
-    def _encode_simple(self) -> str:
+    def encode_simple(self) -> str:
         '''
         Encode ourself as a string, return that value.
         '''
-        encoded = self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
+        encoded = self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                                  value=self.value)
         # print(f"FlagEncodeValueMixin.encode_simple: {self} -> {encoded}")
         return encoded
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._encode_complex() is not implemented.")
+            f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def _decode_simple(klass: 'FlagEncodeValueMixin',
-                       data: str) -> 'FlagEncodeValueMixin':
+    def decode_simple(klass: 'FlagEncodeValueMixin',
+                      data: str) -> 'FlagEncodeValueMixin':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -247,12 +248,12 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return decoded
 
     @classmethod
-    def _decode_complex(klass: 'FlagEncodeValueMixin',
-                        value: EncodedComplex) -> 'FlagEncodeValueMixin':
+    def decode_complex(klass: 'FlagEncodeValueMixin',
+                       value: EncodedComplex) -> 'FlagEncodeValueMixin':
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}._decode_complex() is "
+        raise NotImplementedError(f"{klass.__name__}.decode_complex() is "
                                   "not implemented.")
 
 
@@ -308,7 +309,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     '''
 
     @classmethod
-    def _type_field(klass: 'FlagEncodeNameMixin') -> str:
+    def type_field(klass: 'FlagEncodeNameMixin') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         Override this if you don't like what veredi.base.label.auto() and
@@ -317,9 +318,9 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return label.munge_to_short(label.auto(klass))
 
     @classmethod
-    def _encode_simple_only(klass: 'FlagEncodeNameMixin') -> bool:
+    def encoding(klass: 'FlagEncodeNameMixin') -> Encoding:
         '''We are too simple to bother with being a complex type.'''
-        return True
+        return Encoding.SIMPLE
 
     @classmethod
     def _get_decode_str_rx(klass: 'FlagEncodeNameMixin') -> Optional[str]:
@@ -330,7 +331,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         if not klass._ENCODABLE_RX_STR:
             # Build it from the format str.
             klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
-                type_field=klass._type_field())
+                type_field=klass.type_field())
 
         return klass._ENCODABLE_RX_STR
 
@@ -353,7 +354,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
         return klass._ENCODABLE_RX
 
-    def _encode_simple(self) -> str:
+    def encode_simple(self) -> str:
         '''
         Encode ourself as a string, return that value.
         '''
@@ -376,19 +377,19 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
             raise log.exception(error, msg)
 
         # Turn list of names into one string for final return string.
-        return self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
+        return self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                               names='|'.join(names))
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._encode_complex() is not implemented.")
+            f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def _decode_simple(klass: 'FlagEncodeNameMixin',
-                       data: str) -> 'FlagEncodeNameMixin':
+    def decode_simple(klass: 'FlagEncodeNameMixin',
+                      data: str) -> 'FlagEncodeNameMixin':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -424,12 +425,12 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return total
 
     @classmethod
-    def _decode_complex(klass: 'FlagEncodeNameMixin',
-                        value: EncodedComplex) -> 'FlagEncodeNameMixin':
+    def decode_complex(klass: 'FlagEncodeNameMixin',
+                       value: EncodedComplex) -> 'FlagEncodeNameMixin':
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}._decode_complex() is "
+        raise NotImplementedError(f"{klass.__name__}.decode_complex() is "
                                   "not implemented.")
 
 
@@ -480,7 +481,7 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     '''
 
     @classmethod
-    def _type_field(klass: 'EnumEncodeNameMixin') -> str:
+    def type_field(klass: 'EnumEncodeNameMixin') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         Override this if you don't like what veredi.base.label.auto() and
@@ -489,9 +490,9 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return label.munge_to_short(label.auto(klass))
 
     @classmethod
-    def _encode_simple_only(klass: 'EnumEncodeNameMixin') -> bool:
+    def encoding(klass: 'EnumEncodeNameMixin') -> Encoding:
         '''We are too simple to bother with being a complex type.'''
-        return True
+        return Encoding.SIMPLE
 
     @classmethod
     def _get_decode_str_rx(klass: 'EnumEncodeNameMixin') -> Optional[str]:
@@ -502,7 +503,7 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         if not klass._ENCODABLE_RX_STR:
             # Build it from the format str.
             klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
-                type_field=klass._type_field())
+                type_field=klass.type_field())
 
         return klass._ENCODABLE_RX_STR
 
@@ -525,7 +526,7 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
         return klass._ENCODABLE_RX
 
-    def _encode_simple(self) -> str:
+    def encode_simple(self) -> str:
         '''
         Encode ourself as a string, return that value.
         '''
@@ -540,19 +541,19 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
             raise log.exception(error, msg)
 
         # Encode it.
-        return self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
+        return self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                               name=name)
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._encode_complex() is not implemented.")
+            f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def _decode_simple(klass: 'EnumEncodeNameMixin',
-                       data: str) -> 'EnumEncodeNameMixin':
+    def decode_simple(klass: 'EnumEncodeNameMixin',
+                      data: str) -> 'EnumEncodeNameMixin':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -578,10 +579,10 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return klass[name]
 
     @classmethod
-    def _decode_complex(klass: 'EnumEncodeNameMixin',
+    def decode_complex(klass: 'EnumEncodeNameMixin',
                         value: EncodedComplex) -> 'EnumEncodeNameMixin':
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}._decode_complex() is "
+        raise NotImplementedError(f"{klass.__name__}.decode_complex() is "
                                   "not implemented.")

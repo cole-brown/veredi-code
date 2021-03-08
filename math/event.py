@@ -207,16 +207,16 @@ class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'MathOutputEvent') -> str:
+    def type_field(klass: 'MathOutputEvent') -> str:
         return klass._ENCODE_NAME
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
 
         # Parent can do most of it.
-        encoded = super()._encode_complex()
+        encoded = super().encode_complex()
 
         # Now we just need to do total...
         encoded['total'] = numbers.to_str(self._total)
@@ -225,8 +225,8 @@ class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
         return encoded
 
     @classmethod
-    def _decode_complex(klass: 'MathOutputEvent',
-                        data: EncodedComplex) -> 'MathOutputEvent':
+    def decode_complex(klass: 'MathOutputEvent',
+                       data: EncodedComplex) -> 'MathOutputEvent':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

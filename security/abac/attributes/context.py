@@ -90,7 +90,7 @@ class Context(FlagEncodeNameMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
         return 'veredi.security.abac.attributes.context'
 
     @classmethod
-    def _type_field(klass: 'Context') -> str:
+    def type_field(klass: 'Context') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         '''

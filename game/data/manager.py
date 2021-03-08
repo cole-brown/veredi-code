@@ -53,6 +53,7 @@ from veredi.data.context                   import (DataAction,
 from veredi.data.repository.base           import BaseRepository
 from veredi.data.repository.taxon          import Taxon, LabelTaxon, SavedTaxon
 from veredi.data.serdes.base               import BaseSerdes, DeserializeTypes
+from veredi.data.codec.codec               import Codec
 
 from veredi.rules.game                     import RulesGame
 
@@ -141,14 +142,19 @@ class DataManager(EcsManagerWithEvents):
         # Data Handlers
         # ------------------------------
 
+        self._repository: Optional[BaseRepository] = None
+        '''
+        Our Repository for storing data.
+        '''
+
         self._serdes: Optional[BaseSerdes] = None
         '''
         Our Serializer/Deserializer for saving/loading data.
         '''
 
-        self._repository: Optional[BaseRepository] = None
+        self._codec: Optional[Codec] = None
         '''
-        Our Repository for storing data.
+        Our Codec for encoding/decoding data.
         '''
 
         # ------------------------------
@@ -270,11 +276,23 @@ class DataManager(EcsManagerWithEvents):
             raise background.config.exception(None, msg)
 
         # Create our serdes & repo from the config data.
-        key_serdes = ('data', 'serdes')
         key_repo = ('data', 'repository', 'type')
-        self._serdes = config.create_from_config(*key_serdes)
+        key_serdes = ('data', 'serdes')
+        key_codec = ('data', 'codec')
         self._repository = config.create_from_config(*key_repo)
+        self._serdes = config.create_from_config(*key_serdes)
+        self._codec = config.create_from_config(*key_codec)
 
+        if not self._repository:
+            msg = ("DataManager could not create Repository from "
+                   f"config data: {label.normalize(key_repo)} "
+                   f"{config.get(key_repo)}")
+            self._log_group_multi(self._LOG_INIT,
+                                  self.dotted(),
+                                  msg,
+                                  log_success=False)
+            context = config.make_config_context()
+            raise background.config.exception(context, msg)
         if not self._serdes:
             msg = ("DataManager could not create Serdes "
                    "(Serializer/Deserializer) from "
@@ -286,10 +304,11 @@ class DataManager(EcsManagerWithEvents):
                                   log_success=False)
             context = config.make_config_context()
             raise background.config.exception(context, msg)
-        if not self._repository:
-            msg = ("DataManager could not create Repository from "
-                   f"config data: {label.normalize(key_repo)} "
-                   f"{config.get(key_repo)}")
+        if not self._codec:
+            msg = ("DataManager could not create Codec "
+                   "(Coder/Decoder) from "
+                   f"config data: {label.normalize(key_codec)} "
+                   f"{config.get(key_codec)}")
             self._log_group_multi(self._LOG_INIT,
                                   self.dotted(),
                                   msg,
@@ -315,13 +334,15 @@ class DataManager(EcsManagerWithEvents):
         Data for the Veredi Background context.
         '''
         if not self._bg:
-            serdes_data, _ = self._serdes.background
             repo_data, _ = self._repository.background
+            serdes_data, _ = self._serdes.background
+            codec_data, _ = self._codec.background
 
             self._bg = {
                 background.Name.DOTTED.key: self.dotted(),
-                background.Name.SERDES.key: serdes_data,
                 background.Name.REPO.key:   repo_data,
+                background.Name.SERDES.key: serdes_data,
+                background.Name.CODEC.key:  codec_data,
             }
 
         return self._bg
