@@ -1188,11 +1188,11 @@ def data_processing(dotted:        label.DotStr,
 def registration(dotted:        label.DotStr,
                  msg:           str,
                  *args:         Any,
-                 veredi_logger: const.LoggerInput     = None,
-                 context:       'VerediContext' = None,
-                 log_minimum:   const.Level           = None,
-                 log_success:   const.SuccessInput    = const.SuccessType.IGNORE,
-                 log_dry_run:   Optional[bool]  = False,
+                 veredi_logger: const.LoggerInput  = None,
+                 context:       'VerediContext'    = None,
+                 log_minimum:   const.Level        = None,
+                 log_success:   const.SuccessInput = const.SuccessType.IGNORE,
+                 log_dry_run:   Optional[bool]     = False,
                  **kwargs:      Any) -> None:
     '''
     Log at Group.REGISTRATION log.Level, whatever it's set to right now.

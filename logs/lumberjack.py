@@ -210,7 +210,7 @@ class Lumberjack:
         '''
         Log a security-related message via our logger.
 
-        NOTE: this is not a "log at this level" function. Rather, it is a "log
+        NOTE: This is not a "log at this level" function. Rather, it is a "log
         this security-related log" function. The logging level this uses can
         change at any time. This just allows all security logs to stay grouped
         at the same level easily (and keep them there if/when the level
@@ -258,8 +258,32 @@ class Lumberjack:
         '''
         Log a start_up-related message via our logger.
 
-        NOTE: this is not a "log at this level" function. Rather, it is a "log
+        NOTE: This is not a "log at this level" function. Rather, it is a "log
         this start-up-related log" function. The logging level this uses can
+        change at any time. This just allows all start_up logs to stay grouped
+        at the same level easily (and keep them there if/when the level
+        changes).
+        '''
+        kwargs = self._stack(1, **kwargs)
+        log.data_processing(dotted, msg,
+                            *args,
+                            veredi_logger=self._logger,
+                            context=context,
+                            success=success,
+                            **kwargs)
+
+    def registration(self,
+                     dotted:   str,
+                     msg:      str,
+                     *args:    Any,
+                     context:  Optional['VerediContext'] = None,
+                     success:  Optional[log.SuccessType] = None,
+                     **kwargs: Any) -> None:
+        '''
+        Log a registration-related message via our logger.
+
+        NOTE: This is not a "log at this level" function. Rather, it is a "log
+        this registration-related log" function. The logging level this uses can
         change at any time. This just allows all start_up logs to stay grouped
         at the same level easily (and keep them there if/when the level
         changes).
