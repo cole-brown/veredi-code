@@ -214,8 +214,8 @@ class LogMixin:
         '''
         Log a start-up-related message via our logger.
 
-        NOTE: this is not a "log at this level" function. Rather, it is a "log
-        this start_up-related log" function. The logging level this uses can
+        NOTE: This is not a "log at this level" function. Rather, it is a "log
+        this start-up-related log" function. The logging level this uses can
         change at any time. This just allows all start_up logs to stay grouped
         at the same level easily (and keep them there if/when the level
         changes).
@@ -233,12 +233,33 @@ class LogMixin:
                              context:  Optional['VerediContext'] = None,
                              **kwargs: Any) -> None:
         '''
-        Log a start-up-related message via our logger.
+        Log a data-processing-related message via our logger.
 
-        NOTE: this is not a "log at this level" function. Rather, it is a "log
-        this start_up-related log" function. The logging level this uses can
-        change at any time. This just allows all start_up logs to stay grouped
-        at the same level easily (and keep them there if/when the level
+        NOTE: This is not a "log at this level" function. Rather, it is a "log
+        this data-processing-related log" function. The logging level this uses
+        can change at any time. This just allows all start_up logs to stay
+        grouped at the same level easily (and keep them there if/when the level
+        changes).
+        '''
+        kwargs = self._log_stack(**kwargs)
+        self._lumberjack.data_processing(dotted, msg,
+                                         *args,
+                                         context=context,
+                                         **kwargs)
+
+    def _log_registration(self,
+                          dotted:   str,
+                          msg:      str,
+                          *args:    Any,
+                          context:  Optional['VerediContext'] = None,
+                          **kwargs: Any) -> None:
+        '''
+        Log a registration-related message via our logger.
+
+        NOTE: This is not a "log at this level" function. Rather, it is a "log
+        this registration-related log" function. The logging level this uses
+        can change at any time. This just allows all start_up logs to stay
+        grouped at the same level easily (and keep them there if/when the level
         changes).
         '''
         kwargs = self._log_stack(**kwargs)
