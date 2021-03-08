@@ -102,12 +102,12 @@ class BarePayload(BasePayload,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _type_field(klass: 'BarePayload') -> str:
+    def type_field(klass: 'BarePayload') -> str:
         return klass._ENCODE_NAME
 
     # Simple:  BasePayload's are good.
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -121,8 +121,8 @@ class BarePayload(BasePayload,
         }
 
     @classmethod
-    def _decode_complex(klass: 'BasePayload',
-                        data:  EncodedComplex) -> 'BasePayload':
+    def decode_complex(klass: 'BasePayload',
+                       data:  EncodedComplex) -> 'BasePayload':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

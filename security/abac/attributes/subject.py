@@ -106,7 +106,7 @@ class Subject(FlagEncodeNameMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
         return 'veredi.security.abac.attributes.subject'
 
     @classmethod
-    def _type_field(klass: 'Subject') -> str:
+    def type_field(klass: 'Subject') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         '''

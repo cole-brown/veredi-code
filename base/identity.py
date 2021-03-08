@@ -15,11 +15,11 @@ import uuid
 
 from abc import abstractmethod
 
-from veredi.logs                 import log
-# from veredi.base.decorators    import abstract_class_attribute
-from veredi.base.metaclasses     import InvalidProvider, ABC_InvalidProvider
+from veredi.logs              import log
+# from veredi.base.decorators import abstract_class_attribute
+from veredi.base.metaclasses  import InvalidProvider, ABC_InvalidProvider
 
-from veredi.data.codec.encodable import Encodable, EncodedComplex
+from veredi.data.codec        import Encoding, Encodable, EncodedComplex
 
 
 # -----------------------------------------------------------------------------
@@ -127,14 +127,14 @@ class MonotonicId(Encodable,
         # ---
         # Encodable RX
         # ---
-        if not klass._encode_simple_only():
+        if not klass.encoding().has(Encoding.COMPLEX):
             return
 
         # Do we need to init _ENCODABLE_RX_STR?
         if klass._ENCODABLE_RX_STR is None:
             # Format string with field name.
             klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
-                type_field=klass._type_field())
+                type_field=klass.type_field())
 
             # ...and then use it to compile the regex.
             klass._ENCODABLE_RX =  re.compile(klass._ENCODABLE_RX_STR,
@@ -192,9 +192,9 @@ class MonotonicId(Encodable,
     # ------------------------------
 
     @classmethod
-    def _encode_simple_only(klass: 'MonotonicId') -> bool:
+    def encoding(klass: 'MonotonicId') -> Encoding:
         '''We are too simple to bother with being a complex type.'''
-        return True
+        return Encoding.SIMPLE
 
     @classmethod
     def _get_decode_str_rx(klass: 'MonotonicId') -> Optional[str]:
@@ -205,7 +205,7 @@ class MonotonicId(Encodable,
         if not klass._ENCODABLE_RX_STR:
             # Build it from the format str.
             klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
-                type_field=klass._type_field())
+                type_field=klass.type_field())
 
         return klass._ENCODABLE_RX_STR
 
@@ -229,28 +229,28 @@ class MonotonicId(Encodable,
         return klass._ENCODABLE_RX
 
     @classmethod
-    def _type_field(klass: 'MonotonicId') -> str:
+    def type_field(klass: 'MonotonicId') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         '''
         return klass._ENCODE_FIELD_NAME
 
-    def _encode_simple(self) -> str:
+    def encode_simple(self) -> str:
         '''
         Encode ourself as a string, return that value.
         '''
-        return self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
+        return self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                               value=self.value)
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._encode_complex() is not implemented.")
+            f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def _decode_simple(klass: 'MonotonicId', data: str) -> 'MonotonicId':
+    def decode_simple(klass: 'MonotonicId', data: str) -> 'MonotonicId':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -286,12 +286,12 @@ class MonotonicId(Encodable,
         return decoded
 
     @classmethod
-    def _decode_complex(klass: 'MonotonicId',
-                        value: EncodedComplex) -> 'MonotonicId':
+    def decode_complex(klass: 'MonotonicId',
+                       value: EncodedComplex) -> 'MonotonicId':
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}._decode_complex() is "
+        raise NotImplementedError(f"{klass.__name__}.decode_complex() is "
                                   "not implemented.")
 
     # ------------------------------
@@ -449,7 +449,7 @@ class SerializableId(Encodable,
         r'^'
         # Start 'name' capture group.
         + r'(?P<name>'
-        # Name capture is our _type_field().
+        # Name capture is our type_field().
         + '{type_field}'
         + r')'
         # Separate name and value with colon.
@@ -506,14 +506,14 @@ class SerializableId(Encodable,
         # ---
         # Encodable RX
         # ---
-        if not klass._encode_simple_only():
+        if not klass.encoding().has(Encoding.COMPLEX):
             return
 
         # Do we need to init _ENCODABLE_RX_STR?
         if klass._ENCODABLE_RX_STR is None:
             # Format string with field name.
             klass._ENCODABLE_RX_STR = klass._ENCODABLE_RX_STR_FMT.format(
-                type_field=klass._type_field(),
+                type_field=klass.type_field(),
                 encode_uuid_rx=klass._ENCODE_RX_UUID_FORM)
 
             # ...and then use it to compile the regex.
@@ -599,9 +599,9 @@ class SerializableId(Encodable,
     # ------------------------------
 
     @classmethod
-    def _encode_simple_only(klass: 'SerializableId') -> bool:
+    def encoding(klass: 'SerializableId') -> Encoding:
         '''We are too simple to bother with being a complex type.'''
-        return True
+        return Encoding.SIMPLE
 
     @classmethod
     def _get_decode_str_rx(klass: 'SerializableId') -> Optional[str]:
@@ -620,28 +620,28 @@ class SerializableId(Encodable,
         return klass._ENCODABLE_RX
 
     @classmethod
-    def _type_field(klass: 'SerializableId') -> str:
+    def type_field(klass: 'SerializableId') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         '''
         return klass._ENCODE_FIELD_NAME
 
-    def _encode_simple(self) -> str:
+    def encode_simple(self) -> str:
         '''
         Encode ourself as a string, return that value.
         '''
-        return self._ENCODE_SIMPLE_FMT.format(type_field=self._type_field(),
+        return self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                               value=self.value)
 
-    def _encode_complex(self) -> EncodedComplex:
+    def encode_complex(self) -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._encode_complex() is not implemented.")
+            f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def _decode_simple(klass: 'SerializableId', data: str) -> 'SerializableId':
+    def decode_simple(klass: 'SerializableId', data: str) -> 'SerializableId':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -687,12 +687,12 @@ class SerializableId(Encodable,
         return decoded
 
     @classmethod
-    def _decode_complex(klass: 'SerializableId',
-                        value: EncodedComplex) -> 'SerializableId':
+    def decode_complex(klass: 'SerializableId',
+                       value: EncodedComplex) -> 'SerializableId':
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}._encode_complex() is "
+        raise NotImplementedError(f"{klass.__name__}.encode_complex() is "
                                   "not implemented.")
 
     # ------------------------------

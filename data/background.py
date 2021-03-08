@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 
     from veredi.interface.input.parse      import Parcel
     from .config                           import Configuration
+    from veredi.data.codec.codec           import Codec
 
     from veredi.game.ecs.base.identity     import EntityId
     from veredi.data.identity              import UserId, UserKey
@@ -228,6 +229,8 @@ class Name(enum.Enum):
     PATH    = 'path'
 
     SERDES  = 'serdes'
+
+    CODEC   = 'codec'
 
     SYS     = 'system'
     CONFIG  = 'configuration'

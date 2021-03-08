@@ -81,7 +81,7 @@ class BaseSerdes(LogMixin, ABC):
         Instance variable definitions, type hinting, doc strings, etc.
         '''
         self._name: str = None
-        '''The name of the repository.'''
+        '''The name of the serdes.'''
 
         self._bg: Dict[Any, Any] = {}
         '''Our background context data that is shared to the background.'''
@@ -128,6 +128,10 @@ class BaseSerdes(LogMixin, ABC):
         # Set up our background for when it gets pulled in.
         self._make_background()
 
+        self._log_group_multi(self._LOG_INIT,
+                              self.dotted(),
+                              f"Done with BaseSerdes configuration.")
+
     # -------------------------------------------------------------------------
     # Serdes Properties/Methods
     # -------------------------------------------------------------------------
@@ -156,12 +160,6 @@ class BaseSerdes(LogMixin, ABC):
     def _make_background(self) -> Dict[str, str]:
         '''
         Start of the background data.
-
-        `dotted_name` should be the dotted version of your @register() string.
-        e.g. for:
-          @register('veredi', 'repository', 'file-bare')
-        `dotted_name` is:
-          'veredi.repository.file-bare'
         '''
         self._bg = {
             'dotted': self.dotted(),

@@ -325,6 +325,9 @@ class Group(enum.Enum):
     START_UP = 'start-up'
     '''Logs related to start up of Veredi, the game, etc.'''
 
+    REGISTRATION = 'registration'
+    '''Logs related to registration.'''
+
     SECURITY = 'security'
     '''veredi.security.* logs, and related logs.'''
 

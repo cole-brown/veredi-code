@@ -91,7 +91,7 @@ class Action(FlagEncodeNameMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
         return 'veredi.security.abac.attributes.action'
 
     @classmethod
-    def _type_field(klass: 'Action') -> str:
+    def type_field(klass: 'Action') -> str:
         '''
         A short, unique name for encoding an instance into a field in a dict.
         '''
