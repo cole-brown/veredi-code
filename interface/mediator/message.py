@@ -23,7 +23,8 @@ import re
 
 from veredi.security               import abac
 from veredi.base.enum              import FlagEncodeValueMixin
-from veredi.data.codec.encodable   import (Encodable,
+from veredi.data.codec             import (Codec,
+                                           Encodable,
                                            EncodableRegistry,
                                            EncodedComplex,
                                            EncodedSimple)
@@ -407,7 +408,7 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
     def type_field(klass: 'Message') -> str:
         return klass._ENCODE_NAME
 
-    def encode_simple(self) -> EncodedSimple:
+    def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
         Don't support simple for Messages.
         '''
@@ -417,7 +418,8 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
 
     @classmethod
     def decode_simple(klass: 'Message',
-                       data: EncodedSimple) -> 'Message':
+                      data:  EncodedSimple,
+                      codec: 'Codec') -> 'Message':
         '''
         Don't support simple by default.
         '''
@@ -425,7 +427,7 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
                "simple string.")
         raise NotImplementedError(msg)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -450,7 +452,8 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
 
     @classmethod
     def decode_complex(klass: 'Message',
-                       data: EncodedComplex) -> 'Message':
+                       data:  EncodedComplex,
+                       codec: 'Codec') -> 'Message':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

@@ -214,7 +214,7 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
     def type_field(klass: 'LogReply') -> str:
         return klass._ENCODE_NAME
 
-    def encode_simple(self) -> EncodedSimple:
+    def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
         Don't support simple for LogReplies.
         '''
@@ -232,7 +232,7 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
                "simple string.")
         raise NotImplementedError(msg)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -418,7 +418,7 @@ class LogPayload(BasePayload,
 
     # Simple:  BasePayload's are good.
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''

@@ -14,7 +14,8 @@ import enum
 
 from veredi.game.ecs.event          import Event
 
-from veredi.data.codec.encodable    import (Encodable,
+from veredi.data.codec              import (Codec,
+                                            Encodable,
                                             EncodableRegistry,
                                             EncodedSimple,
                                             EncodedComplex)
@@ -214,7 +215,7 @@ class OutputEvent(Event, Encodable, dotted='veredi.interface.output.event'):
     def type_field(klass: 'OutputEvent') -> str:
         return klass._ENCODE_NAME
 
-    def encode_simple(self) -> EncodedSimple:
+    def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
         Don't support simple for OutputEvents.
         '''
@@ -224,7 +225,8 @@ class OutputEvent(Event, Encodable, dotted='veredi.interface.output.event'):
 
     @classmethod
     def decode_simple(klass: 'OutputEvent',
-                      data: EncodedSimple) -> 'OutputEvent':
+                      data:  EncodedSimple,
+                      codec: 'Codec')) -> 'OutputEvent':
         '''
         Don't support simple by default.
         '''
@@ -232,7 +234,7 @@ class OutputEvent(Event, Encodable, dotted='veredi.interface.output.event'):
                "simple string.")
         raise NotImplementedError(msg)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -265,7 +267,8 @@ class OutputEvent(Event, Encodable, dotted='veredi.interface.output.event'):
     @classmethod
     def _decode_super(klass:    'OutputEvent',
                       instance: Optional['OutputEvent'],
-                      data:     EncodedComplex) -> 'OutputEvent':
+                      data:     EncodedComplex,
+                      codec:    'Codec') -> 'OutputEvent':
         '''
         Decode our vars from data into the instance and return it.
         '''
@@ -318,7 +321,8 @@ class OutputEvent(Event, Encodable, dotted='veredi.interface.output.event'):
 
     @classmethod
     def decode_complex(klass: 'OutputEvent',
-                       data: EncodedComplex) -> 'OutputEvent':
+                       data:  EncodedComplex,
+                       codec: 'Codec') -> 'OutputEvent':
         '''
         Use data and EncodableRegistry to figure out what OutputEvent subclass
         the data is, then decode the data using the subclass.

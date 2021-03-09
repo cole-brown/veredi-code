@@ -34,7 +34,7 @@ class MockNode(tree.Node, dotted='veredi.math.d20.tree.zest_tree.mock_node'):
         '''Encodable type name.'''
         return 'mock-node'
 
-    def encode_complex(self):
+    def encode_complex(self, codec: 'Codec'):
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -67,7 +67,7 @@ class MockLeaf(tree.Leaf, dotted='veredi.math.d20.tree.zest_tree.mock_leaf'):
         '''
         raise NotImplementedError
 
-    def encode_complex(self):
+    def encode_complex(self, codec: 'Codec'):
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''

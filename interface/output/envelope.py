@@ -33,7 +33,8 @@ if TYPE_CHECKING:
 # Code
 # ---
 from veredi.data                   import background
-from veredi.data.codec.encodable   import (Encodable,
+from veredi.data.codec             import (Codec,
+                                           Encodable,
                                            EncodableRegistry,
                                            EncodedSimple,
                                            EncodedComplex)
@@ -148,7 +149,7 @@ class Address(Encodable, dotted='veredi.interface.output.address'):
     def type_field(klass: 'Address') -> str:
         return klass._ENCODE_NAME
 
-    def encode_simple(self) -> EncodedSimple:
+    def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
         Don't support simple for Addresss.
         '''
@@ -158,7 +159,8 @@ class Address(Encodable, dotted='veredi.interface.output.address'):
 
     @classmethod
     def decode_simple(klass: 'Address',
-                      data: EncodedSimple) -> 'Address':
+                      data:  EncodedSimple,
+                      codec: 'Codec') -> 'Address':
         '''
         Don't support simple by default.
         '''
@@ -166,7 +168,7 @@ class Address(Encodable, dotted='veredi.interface.output.address'):
                "simple string.")
         raise NotImplementedError(msg)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -189,7 +191,8 @@ class Address(Encodable, dotted='veredi.interface.output.address'):
 
     @classmethod
     def decode_complex(klass: 'Address',
-                       data: EncodedComplex) -> 'Address':
+                       data:  EncodedComplex,
+                       codec: 'Codec') -> 'Address':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -438,7 +441,7 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
     def type_field(klass: 'Envelope') -> str:
         return klass._ENCODE_NAME
 
-    def encode_simple(self) -> EncodedSimple:
+    def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
         Don't support simple for Envelopes.
         '''
@@ -448,7 +451,8 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
 
     @classmethod
     def decode_simple(klass: 'Envelope',
-                      data: EncodedSimple) -> 'Envelope':
+                      data:  EncodedSimple,
+                      codec: 'Codec') -> 'Envelope':
         '''
         Don't support simple for Envelopes.
         '''
@@ -456,7 +460,7 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
                "simple string.")
         raise NotImplementedError(msg)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -472,7 +476,8 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
 
     @classmethod
     def decode_complex(klass: 'Envelope',
-                        data: EncodedComplex) -> 'Envelope':
+                       data:  EncodedComplex,
+                       codec: 'Codec' ) -> 'Envelope':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

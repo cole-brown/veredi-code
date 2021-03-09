@@ -17,7 +17,8 @@ import re
 
 from veredi.logs         import log
 from veredi.base.strings import label
-from veredi.data.codec   import (Encodable,
+from veredi.data.codec   import (Codec,
+                                 Encodable,
                                  Encoding,
                                  EncodedComplex)
 
@@ -204,7 +205,7 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
         return klass._ENCODABLE_RX
 
-    def encode_simple(self) -> str:
+    def encode_simple(self, codec: 'Codec') -> str:
         '''
         Encode ourself as a string, return that value.
         '''
@@ -213,7 +214,7 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         # print(f"FlagEncodeValueMixin.encode_simple: {self} -> {encoded}")
         return encoded
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -222,7 +223,8 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
     @classmethod
     def decode_simple(klass: 'FlagEncodeValueMixin',
-                      data: str) -> 'FlagEncodeValueMixin':
+                      data:  str,
+                      codec: 'Codec') -> 'FlagEncodeValueMixin':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -249,7 +251,8 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
     @classmethod
     def decode_complex(klass: 'FlagEncodeValueMixin',
-                       value: EncodedComplex) -> 'FlagEncodeValueMixin':
+                       value: EncodedComplex,
+                       codec: 'Codec') -> 'FlagEncodeValueMixin':
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -354,7 +357,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
         return klass._ENCODABLE_RX
 
-    def encode_simple(self) -> str:
+    def encode_simple(self, codec: 'Codec') -> str:
         '''
         Encode ourself as a string, return that value.
         '''
@@ -380,7 +383,7 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                               names='|'.join(names))
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -389,7 +392,8 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
     @classmethod
     def decode_simple(klass: 'FlagEncodeNameMixin',
-                      data: str) -> 'FlagEncodeNameMixin':
+                      data:  str,
+                      codec: 'Codec') -> 'FlagEncodeNameMixin':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -426,7 +430,8 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
     @classmethod
     def decode_complex(klass: 'FlagEncodeNameMixin',
-                       value: EncodedComplex) -> 'FlagEncodeNameMixin':
+                       value: EncodedComplex,
+                       codec: 'Codec') -> 'FlagEncodeNameMixin':
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -526,7 +531,7 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
         return klass._ENCODABLE_RX
 
-    def encode_simple(self) -> str:
+    def encode_simple(self, codec: 'Codec') -> str:
         '''
         Encode ourself as a string, return that value.
         '''
@@ -544,7 +549,7 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                               name=name)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -553,7 +558,8 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
     @classmethod
     def decode_simple(klass: 'EnumEncodeNameMixin',
-                      data: str) -> 'EnumEncodeNameMixin':
+                      data:  str,
+                      codec: 'Codec') -> 'EnumEncodeNameMixin':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -580,7 +586,8 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
     @classmethod
     def decode_complex(klass: 'EnumEncodeNameMixin',
-                        value: EncodedComplex) -> 'EnumEncodeNameMixin':
+                       value: EncodedComplex,
+                       codec: 'Codec') -> 'EnumEncodeNameMixin':
         '''
         NotImplementedError: We don't do complex.
         '''

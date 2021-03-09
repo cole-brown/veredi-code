@@ -148,15 +148,6 @@ class Encodable:
         '''
         return klass._ENCODABLE_DOTTED
 
-    @classmethod
-    def codec(klass: 'Encodable') -> 'Codec':
-        '''
-        Returns the Codec for encoding/decoding from the background context.
-        '''
-        # TODO: bg.config doesn't have it now... data manager does.
-        # Does that put it in the bg?
-        return background.config.codec
-
     # -------------------------------------------------------------------------
     # ABC-Lite
     # -------------------------------------------------------------------------
@@ -242,7 +233,7 @@ class Encodable:
 
     @classmethod
     def _get_type_field(klass: 'Encodable',
-                        data: Optional[EncodedEither]) -> Optional[str]:
+                        data:  Optional[EncodedEither]) -> Optional[str]:
         '''
         If data is not a mapping, returns None.
 
@@ -262,7 +253,7 @@ class Encodable:
 
     @classmethod
     def _is_type_field(klass: 'Encodable',
-                       data: Optional[EncodedEither]) -> bool:
+                       data:  Optional[EncodedEither]) -> bool:
         '''
         Returns False if `klass._get_type_field()` or `klass.type_field()`
         return None.
@@ -399,14 +390,16 @@ class Encodable:
     # -------------------------------------------------------------------------
 
     @abstractmethod
-    def encode_simple(self) -> EncodedSimple:
+    def encode_simple(self,
+                      codec: 'Codec') -> EncodedSimple:
         '''
         Encode ourself as an EncodedSimple, return that value.
         '''
         ...
 
     @abstractmethod
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self,
+                       codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -419,7 +412,8 @@ class Encodable:
     @classmethod
     @abstractmethod
     def decode_simple(klass: 'Encodable',
-                       data: EncodedSimple) -> 'Encodable':
+                      data:  EncodedSimple,
+                      codec: 'Codec') -> 'Encodable':
         '''
         Decode ourself as an EncodedSimple, return a new instance of `klass` as
         the result of the decoding.
@@ -429,7 +423,8 @@ class Encodable:
     @classmethod
     @abstractmethod
     def decode_complex(klass: 'Encodable',
-                        data: EncodedComplex) -> 'Encodable':
+                       data:  EncodedComplex,
+                       codec: 'Codec') -> 'Encodable':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -507,8 +502,8 @@ class Encodable:
 
     @classmethod
     def error_for_key(klass: 'Encodable',
-                      key: str,
-                      data: EncodedComplex) -> None:
+                      key:   str,
+                      data:  EncodedComplex) -> None:
         '''
         Raises an EncodableError if supplied `key` is not in `mapping`.
         '''
@@ -522,10 +517,10 @@ class Encodable:
             raise log.exception(error, msg)
 
     @classmethod
-    def error_for_value(klass:   'Encodable',
-                        key:     str,
-                        value:   Any,
-                        data: EncodedComplex) -> None:
+    def error_for_value(klass: 'Encodable',
+                        key:   str,
+                        value: Any,
+                        data:  EncodedComplex) -> None:
         '''
         Raises an EncodableError if `key` value in `data` is not equal to
         supplied `value`.
@@ -549,10 +544,10 @@ class Encodable:
             raise log.exception(error, msg)
 
     @classmethod
-    def error_for(klass:   'Encodable',
-                  data:    EncodedComplex,
-                  keys:    Iterable[str]     = [],
-                  values:  Mapping[str, Any] = {}) -> None:
+    def error_for(klass:  'Encodable',
+                  data:   EncodedComplex,
+                  keys:   Iterable[str]     = [],
+                  values: Mapping[str, Any] = {}) -> None:
         '''
         Runs:
           - error_for_claim()

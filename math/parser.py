@@ -18,13 +18,14 @@ from collections import deque
 import enum
 from decimal import Decimal
 
-from veredi.logs                 import log
-from veredi.base.context         import VerediContext
-from veredi.base.enum            import (FlagEncodeNameMixin,
-                                         FlagCheckMixin)
-from veredi.data.codec.encodable import (Encodable,
-                                         EncodedComplex,
-                                         EncodableRegistry)
+from veredi.logs         import log
+from veredi.base.context import VerediContext
+from veredi.base.enum    import (FlagEncodeNameMixin,
+                                 FlagCheckMixin)
+from veredi.data.codec   import (Codec,
+                                 Encodable,
+                                 EncodedComplex,
+                                 EncodableRegistry)
 
 
 # -----------------------------------------------------------------------------
@@ -222,28 +223,28 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         init easy?
         '''
 
-        self._node_type: 'NodeType'           = type
+        self._node_type: 'NodeType' = type
         '''
         Type of math node - used by base classes for checks, mostly.
         This type enum is an enum.Flag class, so they can be combined.
         '''
 
-        self._value:     Any                  = value or None
+        self._value: Any = value or None
         '''Final value of math node - use node.value getter property.'''
 
-        self._name:      str                  = name or None
+        self._name: str = name or None
         '''
         Name of node (variable name, math operator sign, etc).
         Use node.name getter property.
         '''
 
-        self._milieu:    Optional[str]        = milieu or None
+        self._milieu: Optional[str] = milieu or None
         '''"context" for value. See veredi.base.milieu module.'''
 
-        self._children:  Iterable['MathTree'] = children or None
+        self._children: Iterable['MathTree'] = children or None
         '''Children node of this node for a branch-type node.'''
 
-        self._tags:      VTags                = tags or None
+        self._tags: VTags = tags or None
         '''Tags, traits, whatever.'''
 
     # -------------------------------------------------------------------------
@@ -579,7 +580,7 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         raise NotImplementedError(f"{klass.__name__}.type_field() "
                                   "is not implemented.")
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode self as a Mapping of strings to (basic) values (str, int, etc).
         '''
@@ -606,9 +607,10 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return encoded
 
     @classmethod
-    def _decode_super(klass: 'MathTree',
+    def _decode_super(klass:    'MathTree',
                       instance: 'MathTree',
-                      data: EncodedComplex) -> 'MathTree':
+                      data:     EncodedComplex,
+                      codec:    'Codec') -> 'MathTree':
         '''
         Decode MathTree's instance variables into the `instance` from the
         `data`.
@@ -640,7 +642,8 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
     @classmethod
     def decode_complex(klass: 'MathTree',
-                       data: EncodedComplex) -> 'MathTree':
+                       data:  EncodedComplex,
+                       codec: 'Codec') -> 'MathTree':
         '''
         Use data and EncodableRegistry to figure out what MathTree subclass
         the data is, then decode the data using the subclass.
