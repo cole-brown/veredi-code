@@ -14,12 +14,13 @@ from typing import Optional, Union, Any, Mapping
 
 import enum
 
-from veredi.logs                 import log
-from veredi.base.enum            import FlagEncodeValueMixin
-from veredi.data.codec.encodable import (Encodable,
-                                         EncodedSimple,
-                                         EncodedComplex)
-from veredi.data.exceptions      import EncodableError
+from veredi.logs            import log
+from veredi.base.enum       import FlagEncodeValueMixin
+from veredi.data.codec      import (Codec,
+                                    Encodable,
+                                    EncodedSimple,
+                                    EncodedComplex)
+from veredi.data.exceptions import EncodableError
 
 
 # -----------------------------------------------------------------------------
@@ -190,7 +191,7 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
     def type_field(klass: 'BasePayload') -> str:
         return klass._ENCODE_NAME
 
-    def encode_simple(self) -> EncodedSimple:
+    def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
         Don't support simple for Payloads.
         '''
@@ -200,7 +201,8 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
 
     @classmethod
     def decode_simple(klass: 'BasePayload',
-                      data: EncodedSimple) -> 'BasePayload':
+                      data:  EncodedSimple,
+                      codec: 'Codec') -> 'BasePayload':
         '''
         Don't support simple by default.
         '''
@@ -208,7 +210,7 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
                "simple string.")
         raise NotImplementedError(msg)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -224,7 +226,8 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
 
     @classmethod
     def decode_complex(klass: 'BasePayload',
-                       data:  EncodedComplex) -> 'BasePayload':
+                       data:   EncodedComplex,
+                       codec: 'Codec') -> 'BasePayload':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

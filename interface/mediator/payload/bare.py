@@ -16,13 +16,14 @@ from typing import Optional, Union, Any, NewType, Mapping
 import enum
 
 
-from veredi.logs                 import log
-from veredi.base.enum            import EnumEncodeNameMixin
-from veredi.data.codec.encodable import (Encodable,
-                                         EncodedComplex,
-                                         EncodedSimple)
+from veredi.logs       import log
+from veredi.base.enum  import EnumEncodeNameMixin
+from veredi.data.codec import (Codec,
+                               Encodable,
+                               EncodedComplex,
+                               EncodedSimple)
 
-from .base                       import BasePayload, Validity
+from .base             import BasePayload, Validity
 
 
 # -----------------------------------------------------------------------------
@@ -107,7 +108,7 @@ class BarePayload(BasePayload,
 
     # Simple:  BasePayload's are good.
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -122,7 +123,8 @@ class BarePayload(BasePayload,
 
     @classmethod
     def decode_complex(klass: 'BasePayload',
-                       data:  EncodedComplex) -> 'BasePayload':
+                       data:   EncodedComplex,
+                       codec: 'Codec') -> 'BasePayload':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

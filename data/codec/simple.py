@@ -18,6 +18,7 @@ from veredi.logs import log
 
 from .const      import EncodedComplex, EncodedSimple, Encoding
 from .encodable  import Encodable
+from .codec      import Codec
 
 
 # -----------------------------------------------------------------------------
@@ -57,7 +58,7 @@ class EncodableShim(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     def type_field(klass: 'EncodableShim') -> str:
         return 'shim'
 
-    def encode_simple(self) -> Any:
+    def encode_simple(self, codec: 'Codec') -> Any:
         '''
         We are just a shim for simple data - we should not be called to encode
         it.
@@ -68,7 +69,8 @@ class EncodableShim(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
     @classmethod
     def decode_simple(klass: 'EncodableShim',
-                       data: EncodedSimple) -> 'EncodableShim':
+                      data:  EncodedSimple,
+                      codec: 'Codec')) -> 'EncodableShim':
         '''
         We are just a shim for simple data - we should not be called to decode
         it.
@@ -78,7 +80,7 @@ class EncodableShim(Encodable, dotted=Encodable._DO_NOT_REGISTER):
                "data. It should not be encoded itself.")
         raise TypeError(msg)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Only simple.
         '''
@@ -87,7 +89,8 @@ class EncodableShim(Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
     @classmethod
     def decode_complex(klass: 'EncodableShim',
-                        data: EncodedComplex) -> 'EncodableShim':
+                       data:  EncodedComplex,
+                       codec: 'Codec') -> 'EncodableShim':
         '''
         Only simple.
         '''

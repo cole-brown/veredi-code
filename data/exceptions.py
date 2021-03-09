@@ -84,13 +84,13 @@ class DataRequirementsError(VerediError):
 
 class EncodableError(VerediError):
     '''
-    An Encodable failed to encode() or decode() properly.
+    An Encodable failed to encode or decode properly.
     '''
     ...
 
 
 class SerializableError(VerediError):
     '''
-    An Serializable failed to serialize() or deserialize() properly.
+    An Serializable failed to serialize or deserialize properly.
     '''
     ...

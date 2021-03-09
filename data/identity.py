@@ -174,7 +174,8 @@ class UserId(SerializableId, dotted='veredi.data.identity.user.id'):
 
     @classmethod
     def _decode_simple_init(klass: 'SerializableId',
-                            value: int) -> 'SerializableId':
+                            value: int,
+                            codec: 'Codec') -> 'SerializableId':
         '''
         Subclasses can override this if they have a different constructor.
         '''
@@ -360,7 +361,8 @@ class UserKey(SerializableId, dotted='veredi.data.identity.user.key'):
 
     @classmethod
     def _decode_simple_init(klass: 'SerializableId',
-                            value: int) -> 'SerializableId':
+                            value: int,
+                            codec: 'Codec') -> 'SerializableId':
         '''
         Subclasses can override this if they have a different constructor.
         '''

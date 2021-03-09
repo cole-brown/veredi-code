@@ -19,7 +19,10 @@ from veredi.logs              import log
 # from veredi.base.decorators import abstract_class_attribute
 from veredi.base.metaclasses  import InvalidProvider, ABC_InvalidProvider
 
-from veredi.data.codec        import Encoding, Encodable, EncodedComplex
+from veredi.data.codec        import (Codec,
+                                      Encoding,
+                                      Encodable,
+                                      EncodedComplex)
 
 
 # -----------------------------------------------------------------------------
@@ -235,14 +238,14 @@ class MonotonicId(Encodable,
         '''
         return klass._ENCODE_FIELD_NAME
 
-    def encode_simple(self) -> str:
+    def encode_simple(self, codec: 'Codec') -> str:
         '''
         Encode ourself as a string, return that value.
         '''
         return self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                               value=self.value)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -250,7 +253,9 @@ class MonotonicId(Encodable,
             f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'MonotonicId', data: str) -> 'MonotonicId':
+    def decode_simple(klass: 'MonotonicId',
+                      data:  str,
+                      codec: 'Codec') -> 'MonotonicId':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -273,11 +278,12 @@ class MonotonicId(Encodable,
 
         value = int(match.group('value'))
         # And now we should be able to decode.
-        return klass._decode_simple_init(value)
+        return klass._decode_simple_init(value, codec)
 
     @classmethod
     def _decode_simple_init(klass: 'MonotonicId',
-                            value: int) -> 'MonotonicId':
+                            value: int,
+                            codec: 'Codec') -> 'MonotonicId':
         '''
         Subclasses can override this if they have a different constructor.
         '''
@@ -287,7 +293,8 @@ class MonotonicId(Encodable,
 
     @classmethod
     def decode_complex(klass: 'MonotonicId',
-                       value: EncodedComplex) -> 'MonotonicId':
+                       value: EncodedComplex,
+                       codec: 'Codec') -> 'MonotonicId':
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -433,7 +440,7 @@ class SerializableId(Encodable,
     _ENCODABLE_RX_FLAGS: re.RegexFlag = re.IGNORECASE
     '''Flags used when creating _ENCODABLE_RX.'''
 
-    _ENCODE_RX_UUID_FORM = (
+    _ENCODE_RX_UUID_FORM: str = (
         r'[0-9A-Fa-f]{8}-'
         r'[0-9A-Fa-f]{4}-'
         r'[0-9A-Fa-f]{4}-'
@@ -626,14 +633,14 @@ class SerializableId(Encodable,
         '''
         return klass._ENCODE_FIELD_NAME
 
-    def encode_simple(self) -> str:
+    def encode_simple(self, codec: 'Codec') -> str:
         '''
         Encode ourself as a string, return that value.
         '''
         return self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                               value=self.value)
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         NotImplementedError: We don't do complex.
         '''

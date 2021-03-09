@@ -210,7 +210,7 @@ class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
     def type_field(klass: 'MathOutputEvent') -> str:
         return klass._ENCODE_NAME
 
-    def encode_complex(self) -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
