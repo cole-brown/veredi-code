@@ -24,8 +24,7 @@ from veredi.base.enum    import (FlagEncodeNameMixin,
                                  FlagCheckMixin)
 from veredi.data.codec   import (Codec,
                                  Encodable,
-                                 EncodedComplex,
-                                 EncodableRegistry)
+                                 EncodedComplex)
 
 
 # -----------------------------------------------------------------------------
@@ -617,7 +616,7 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         '''
 
         # Get/decode our fields.
-        instance._node_type = NodeType.decode(data['type'])
+        instance._node_type = codec.decode(NodeType, data['type'])
         instance._value = data['value']
         instance._name = data['name']
         instance._milieu = data.get('milieu', None)
@@ -629,11 +628,11 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         children = None
         if encoded_children:
             children = []
-            # Get each child from EncodableRegistry, decode it, and stuff it
-            # into our array of children.
+            # Decode each child, and stuff it into our array of children.
             for child_data in encoded_children:
-                child_class = EncodableRegistry.get_from_data(child_data, None)
-                child_instance = child_class.decode_complex(child_data)
+                # Don't know who child is, so just send in data and expect all
+                # children to be properly registered/encoded for this.
+                child_instance = codec.decode(None, child_data)
                 children.append(child_instance)
         instance._children = children
 
@@ -645,13 +644,15 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
                        data:  EncodedComplex,
                        codec: 'Codec') -> 'MathTree':
         '''
-        Use data and EncodableRegistry to figure out what MathTree subclass
-        the data is, then decode the data using the subclass.
+        Use `data` and `codec` to decode the data using the subclass.
 
         Return a new instance of `klass` as the result of the decoding.
         '''
-        actual_class = EncodableRegistry.get_from_data(data)
-        instance = actual_class.decode_complex(data)
+        # Have Codec figure out actual class.
+        tree_type = None
+        instance = codec.decode(tree_type, data)
+        # TODO: is this ever called?
+        log.error("HELLO THERE! Is this used? Should it be?!")
         return instance
 
     # -------------------------------------------------------------------------

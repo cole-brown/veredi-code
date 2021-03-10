@@ -132,10 +132,7 @@ def registrars(configuration: Configuration) -> None:
                  "Registering Veredi Classes to their Registries...")
 
     # Import some packages so they can register with their registries.
-    _import('veredi.data.codec.encodable', log_dotted)
-    # Does that work? Or must I do this?
-    # ...Or put it in its own file, which I probably should do anyways maybe?
-    # _import('veredi.data.codec.encodable', log_dotted)  # EncodableRegistry
+    _import('veredi.data.codec.registry', log_dotted)
 
     # Let Rules register stuff.
     _import('veredi.rules', log_dotted)

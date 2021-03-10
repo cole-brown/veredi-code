@@ -37,7 +37,7 @@ __all__ = [
     # ------------------------------
     # Imported
     # ------------------------------
-    # Users of Encodable/EncodableRegistry want to use this a lot.
+    # Users of Encodable want to use this a lot.
     # Export so they don't have to import from the base registrar.
     'RegisterType',
 

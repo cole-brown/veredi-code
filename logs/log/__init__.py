@@ -79,7 +79,7 @@ from .log import (
     security,
     start_up,
     data_processing,
-
+    registration,
 
     # ------------------------------
     # 'with' context manager

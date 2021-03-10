@@ -12,11 +12,13 @@ packaged up into an event or perhaps fed directly/firstly into InputSystem.
 from typing import Optional, Union, Any, Mapping
 import enum
 
+
+from veredi.logs                    import log
+
 from veredi.game.ecs.event          import Event
 
 from veredi.data.codec              import (Codec,
                                             Encodable,
-                                            EncodableRegistry,
                                             EncodedSimple,
                                             EncodedComplex)
 from veredi.base.enum               import (FlagCheckMixin,
@@ -85,7 +87,10 @@ Recipient.register_manually()
 # Base Output Event
 # -----------------------------------------------------------------------------
 
-class OutputEvent(Event, Encodable, dotted='veredi.interface.output.event'):
+# [2021-03-09] Changed to disallow OutputEvent as a directly encodable class.
+# dotted='veredi.interface.output.event'):
+class OutputEvent(Event, Encodable, dotted=Encodable._DO_NOT_REGISTER):
+
     '''
     An event that should be show to the outside world (users?). Something that
     isn't just apparent in some other way.
@@ -297,18 +302,20 @@ class OutputEvent(Event, Encodable, dotted='veredi.interface.output.event'):
         # Source Type can be an enum or an int.
         source_type = data['source_type']
         if not isinstance(source_type, int):
-            source_type = EncodableRegistry.decode(source_type)
+            source_type = codec.decode(None, source_type)
         instance._type = source_type
 
         # Serial ID can be any SerializableId.
-        serial_id = EncodableRegistry.decode(data['sid'],
-                                             data_type=SerializableId,
-                                             fallback=data['sid'])
+        serial_id = codec.decode(None,
+                                 data['sid'],
+                                 reg_find_data_type=SerializableId,
+                                 reg_fallback=data['sid'])
         instance._serial_id = serial_id
 
         # Output is any old Encodable.
-        output = EncodableRegistry.decode(data['output'],
-                                          fallback=data['output'])
+        output = codec.decode(None,
+                              data['output'],
+                              reg_fallback=data['output'])
         instance._output = output
 
         # Recipients encoded themselves into data so they'll get themselves out
@@ -319,25 +326,24 @@ class OutputEvent(Event, Encodable, dotted='veredi.interface.output.event'):
         # Create and return a decoded instance.
         return instance
 
+    # TODO: Move _decode_super() into here? Or leave like this for explicitness?
     @classmethod
     def decode_complex(klass: 'OutputEvent',
                        data:  EncodedComplex,
                        codec: 'Codec') -> 'OutputEvent':
         '''
-        Use data and EncodableRegistry to figure out what OutputEvent subclass
+        Use `data` and `codec` to figure out what OutputEvent subclass
         the data is, then decode the data using the subclass.
 
         Return a new instance of `klass` as the result of the decoding.
         '''
-        actual_class = EncodableRegistry.get_from_data(data)
+        # TODO: This sholud not get called, probably? The subclasses should,
+        # probably?
+        log.error("Base OutputEvent.decode_complex() should not be called!")
 
-        # Not sure if this class is going to be an actual class or just base
-        # class... So allow being an actual class.
-        if actual_class == klass:
-            return actual_class._decode_super(None, data)
-
-        instance = actual_class.decode_complex(data)
-        return instance
+        raise NotImplementedError(f"{klass.__name__}.decode_complex() "
+                                  "should not be called; subclasses should "
+                                  "get theirs called directly instead.")
 
     # -------------------------------------------------------------------------
     # To String

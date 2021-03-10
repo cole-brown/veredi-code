@@ -121,42 +121,10 @@ def register(klass:  'Encodable',
 #     '''
 #
 #     def encode(self,
-#                encode_in_progress: Optional[EncodedComplex]) -> EncodedEither:
+#                <get an up-to-date params list from Codec.encode()>,
+#                ) -> EncodedEither:
 #         '''
-#         Encode self as a simple or complex encoding, depending on
-#         self.encoding().
-#
-#         If self.encoding() is SIMPLE, encodes to a string.
-#
-#         Otherwise:
-#           - If `encode_in_progress` is provided, encodes this to a sub-field
-#             under self.type_field().
-#           - Else encodes this to a dict and provides self.type_field() as the
-#             value of self._TYPE_FIELD_NAME.
-#         '''
-#         ...
-#
-#     @classmethod
-#     def encode_or_none(klass: 'Encodable',
-#                        encodable: Optional['Encodable'],
-#                        encode_in_progress: Optional[EncodedComplex] = None
-#                        ) -> EncodedEither:
-#         '''
-#         If `encodable` is None or Null, returns None.
-#         Otherwise, returns `encodable.encode(encode_in_progress)`.
-#
-#         The equivalent function for decoding is just `decode()`.
-#         '''
-#         ...
-#
-#     def encode_with_registry(self) -> EncodedComplex:
-#         '''
-#         Creates an output dict with keys: _ENCODABLE_REG_FIELD
-#         and _ENCODABLE_PAYLOAD_FIELD.
-#
-#         Returns the output dict:
-#           output[_ENCODABLE_REG_FIELD]: result of `self.dotted()`
-#           output[_ENCODABLE_PAYLOAD_FIELD]: result of `self.encode()`
+#         <get an up-to-date docstr from Codec.encode()>
 #         '''
 #         ...
 #
@@ -167,33 +135,11 @@ def register(klass:  'Encodable',
 #     '''
 #
 #     @classmethod
-#     def decode(klass: 'Encodable',
-#                data: EncodedEither) -> Optional['Encodable']:
+#     def decode(klass:    'Encodable',
+#                data:     EncodedComplex,
+#                <get an up-to-date params list from Codec.decode()>,
+#                ) -> Optional['Encodable']:
 #         '''
-#         Decode simple or complex `data` input, using it to build an
-#         instance of this class.
-#
-#         Return a new `klass` instance.
-#         '''
-#         ...
-#
-#     @classmethod
-#     def decode_with_registry(klass:    'Encodable',
-#                              data:     EncodedComplex,
-#                              **kwargs: Any) -> Optional['Encodable']:
-#         '''
-#         Input `data` must have keys:
-#           - Encodable._ENCODABLE_REG_FIELD
-#           - Encodable._ENCODABLE_PAYLOAD_FIELD
-#         Raises KeyError if not present.
-#
-#         Takes EncodedComplex `data` input, and uses
-#         `Encodable._ENCODABLE_REG_FIELD` key to find registered Encodable to
-#         decode `data[Encodable._ENCODABLE_PAYLOAD_FIELD]`.
-#
-#         Any kwargs supplied (except 'dotted' - will be ignored) are forwarded
-#         to EncodableRegistry.decode() (e.g. 'fallback').
-#
-#         Return a new `klass` instance.
+#         <get an up-to-date docstr from Codec.decode()>
 #         '''
 #         ...

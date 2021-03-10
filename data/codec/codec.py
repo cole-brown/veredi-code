@@ -399,10 +399,13 @@ class Codec(LogMixin):
     #     TODO: SWITCH TO JUST `decode()`
 
     def decode(self,
-               target: Optional[Type['Encodable']],
-               data:   EncodedEither,
-               squelch_error: bool                  = False,
-               **kwargs: Any) -> Optional['Encodable']:
+               target:          Optional[Type['Encodable']],
+               data:            EncodedEither,
+               error_squelch:   bool                      = False,
+               reg_find_dotted: Optional[str]             = None,
+               reg_find_types:  Optional[Type[Encodable]] = None,
+               reg_fallback:    Optional[Type[Encodable]] = None,
+               ) -> Optional['Encodable']:
         '''
         Decode simple or complex `data` input, using it to build an
         instance of the `target` class.
@@ -420,11 +423,17 @@ class Codec(LogMixin):
         `Encodable._ENCODABLE_REG_FIELD` key to find registered Encodable to
         decode `data[Encodable._ENCODABLE_PAYLOAD_FIELD]`.
 
-        Any kwargs supplied (except 'dotted' - will be ignored) are forwarded
-        to EncodableRegistry.decode().
+        These keyword args are used for getting Encodables from the
+        EncodableRegistry:
+          - reg_find_dotted: Encodable's dotted registry string to use for
+            searching for the encodable that can decode the data.
+          - reg_find_types: Search for Encodables of this class or its
+            subclasses that can decode the data.
+          - reg_fallback: Thing to return if no valid Encodable found for
+            decoding.
 
-        `squelch_error` will only raise the exception, instead of raising it
-        through log.exception().
+        `error_squelch` will try to only raise the exception, instead of
+        raising it through log.exception().
         '''
         # ---
         # Decode at all?
@@ -437,12 +446,16 @@ class Codec(LogMixin):
         # Decode target known?
         # ---
         if target is not None:
-            return self._decode_with_target(target, data)
+            return self._decode_with_target(target, data, error_squelch)
 
         # ---
         # Decode with registry?
         # ---
-        return self._decode_with_registry(data, **kwargs)
+        return self._decode_with_registry(data,
+                                          dotted=reg_find_dotted,
+                                          data_types=reg_find_types,
+                                          error_squelch=error_squelch,
+                                          fallback=reg_fallback)
 
     def _decode_any(self,
                     data:  EncodedComplex,
@@ -453,7 +466,7 @@ class Codec(LogMixin):
         If `data` is:
           - encodable: Must be registered to EncodableRegistry in order to
             decode properly.
-          - dict: Decode with _decode_map() using `expected_keys`. Returns
+          - dict: Decode with decode_map() using `expected_keys`. Returns
             another dict!
 
         Else assume it is already decoded or is basic data and returns it
@@ -466,8 +479,8 @@ class Codec(LogMixin):
         try:
             # Don't want this to log the exception if it happens. We're ok with
             # it happening.
-            decoded = EncodableRegistry.decode(data,
-                                               squelch_error=True)
+            decoded = EncodableRegistry.get(data,
+                                            error_squelch=True)
             return decoded
 
         except ValueError:
@@ -497,7 +510,7 @@ class Codec(LogMixin):
     def _decode_with_target(self,
                             target: Optional[Type['Encodable']],
                             data:   EncodedEither,
-                            **kwargs: Any) -> Optional['Encodable']:
+                            error_squerch: bool) -> Optional['Encodable']:
         '''
         Decode simple or complex `data` input, using it to build an
         instance of the `target` class.
@@ -509,7 +522,7 @@ class Codec(LogMixin):
         # Decode Simply?
         # ---
         if target.encoded_as(data) == Encoding.SIMPLE:
-            # Yes. Do that thing. foo
+            # Yes. Do that thing.
             return target.decode_simple(data)
 
         # Does this class only do simple encode/decode?
@@ -517,9 +530,12 @@ class Codec(LogMixin):
             msg = (f"Cannot decode data to '{target.__name__}'. "
                    "Class only encodes simply and didn't match data.")
             error = TypeError(data, msg)
-            raise log.exception(error,
-                                msg + ' data: {}',
-                                data)
+            if error_squerch:
+                raise error
+            else:
+                raise log.exception(error,
+                                    msg + ' data: {}',
+                                    data)
 
         # ---
         # Decode Complexly?
@@ -534,9 +550,12 @@ class Codec(LogMixin):
         return target.decode_complex(claim)
 
     def _decode_with_registry(self,
-                              target:    'Encodable',
-                              data:     EncodedComplex,
-                              **kwargs: Any) -> Optional['Encodable']:
+                              data:          EncodedComplex,
+                              dotted:        Optional[str]             = None,
+                              data_types:    Optional[Type[Encodable]] = None,
+                              error_squelch: bool                      = False,
+                              fallback:      Optional[Type[Encodable]] = None,
+                              ) -> Optional['Encodable']:
         '''
         Input `data` must have keys:
           - Encodable._ENCODABLE_REG_FIELD
@@ -547,8 +566,8 @@ class Codec(LogMixin):
         `Encodable._ENCODABLE_REG_FIELD` key to find registered Encodable to
         decode `data[Encodable._ENCODABLE_PAYLOAD_FIELD]`.
 
-        Any kwargs supplied (except 'dotted' - will be ignored) are forwarded
-        to EncodableRegistry.decode() (e.g. 'fallback').
+        All the keyword args are forwarded to EncodableRegistry.get() (e.g.
+        'data_types').
 
         Return a new `target` instance.
         '''
@@ -557,11 +576,11 @@ class Codec(LogMixin):
         # ------------------------------
         if data is None:
             # No data at all. Use either fallback or None.
-            if 'fallback' in kwargs:
+            if fallback:
                 log.debug("decode_with_registry: data is None; using "
                           "fallback. data: {}, fallback: {}",
-                          data, kwargs['fallback'])
-                return kwargs['fallback']
+                          data, fallback)
+                return fallback
             # `None` is an acceptable enough value for us... Lots of things are
             # optional. Errors for unexpectedly None things should happen in
             # the caller.
@@ -570,30 +589,32 @@ class Codec(LogMixin):
         # When no _ENCODABLE_REG_FIELD, we can't do anything since we don't
         # know how to decode. But only deal with fallback case here. If they
         # don't have a fallback, let it error soon (but not here).
-        if ('fallback' in kwargs
+        if (fallback
                 and Encodable._ENCODABLE_REG_FIELD not in data):
             # No hint as to what data is - use fallback.
             log.warning("decode_with_registry: No {} in data; using fallback. "
                         "data: {}, fallback: {}",
                         Encodable._ENCODABLE_REG_FIELD,
-                        data, kwargs['fallback'])
-            return kwargs['fallback']
+                        data, fallback)
+            return fallback
 
         # ------------------------------
         # Better KeyError exceptions.
         # ------------------------------
-        try:
-            dotted = data[Encodable._ENCODABLE_REG_FIELD]
-        except KeyError:
-            # Now we error on the missing decoding hint.
-            pretty_data = pretty.indented(data)
-            msg = ("decode_with_registry: data has no "
-                   f"'{Encodable._ENCODABLE_REG_FIELD}' key.")
-            raise log.exception(KeyError(Encodable._ENCODABLE_REG_FIELD,
-                                         msg,
-                                         data),
-                                msg + " Cannot decode: {}",
-                                pretty_data)
+        if not dotted:
+            try:
+                dotted = data[Encodable._ENCODABLE_REG_FIELD]
+            except KeyError:
+
+                # Now we error on the missing decoding hint.
+                pretty_data = pretty.indented(data)
+                msg = ("decode_with_registry: data has no "
+                       f"'{Encodable._ENCODABLE_REG_FIELD}' key.")
+                raise log.exception(KeyError(Encodable._ENCODABLE_REG_FIELD,
+                                             msg,
+                                             data),
+                                    msg + " Cannot decode: {}",
+                                    pretty_data)
 
         try:
             encoded_data = data[Encodable._ENCODABLE_PAYLOAD_FIELD]
@@ -611,13 +632,11 @@ class Codec(LogMixin):
         # Now decode it.
         # ------------------------------
 
-        # Don't let 'dotted' be passed in... We already have a 'dotted' kwarg
-        # to send to EncodableRegistry.decode().
-        kwargs.pop('dotted', None)
-
-        decoded = EncodableRegistry.decode(encoded_data,
-                                           dotted=dotted,
-                                           **kwargs)
+        decoded = EncodableRegistry.get(encoded_data,
+                                        dotted=dotted,
+                                        data_type=data_types,
+                                        error_squelch=error_squelch,
+                                        fallback=fallback)
         return decoded
 
     def decode_map(self,
