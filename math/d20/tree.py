@@ -448,7 +448,7 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super().encode_complex()
+        enc_data = super().encode_complex(codec)
 
         # Add our specific Dice data.
         enc_data['dice']  = self.dice
@@ -553,7 +553,7 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super().encode_complex()
+        enc_data = super().encode_complex(codec)
 
         # And... we have nothing to add.
 
@@ -671,7 +671,7 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super().encode_complex()
+        enc_data = super().encode_complex(codec)
 
         # And... we have nothing to add.
 
@@ -887,7 +887,7 @@ class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super().encode_complex()
+        enc_data = super().encode_complex(codec)
 
         # We don't have anything...
 
@@ -956,7 +956,7 @@ class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super().encode_complex()
+        enc_data = super().encode_complex(codec)
 
         # We don't have anything...
 
@@ -1025,7 +1025,7 @@ class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super().encode_complex()
+        enc_data = super().encode_complex(codec)
 
         # We don't have anything...
 
@@ -1120,7 +1120,7 @@ class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super().encode_complex()
+        enc_data = super().encode_complex(codec)
 
         # We don't have anything...
 
@@ -1187,7 +1187,7 @@ class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super().encode_complex()
+        enc_data = super().encode_complex(codec)
 
         # We don't have anything...
 
@@ -1256,7 +1256,7 @@ class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
         Encode ourself as an EncodedComplex, return that value.
         '''
         # Get our parents to do their work.
-        enc_data = super().encode_complex()
+        enc_data = super().encode_complex(codec)
 
         # We don't have anything...
 

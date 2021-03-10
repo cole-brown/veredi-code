@@ -12,6 +12,8 @@ Unit tests for:
 from veredi.zest.base.unit import ZestBase
 from veredi.logs           import log
 
+from veredi.data.codec     import EncodedComplex, Codec
+
 from .                     import tree
 from ..parser              import NodeType
 
@@ -34,14 +36,16 @@ class MockNode(tree.Node, dotted='veredi.math.d20.tree.zest_tree.mock_node'):
         '''Encodable type name.'''
         return 'mock-node'
 
-    def encode_complex(self, codec: 'Codec'):
+    def encode_complex(self, codec: Codec):
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         raise NotImplementedError
 
     @classmethod
-    def decode_complex(klass, data):
+    def decode_complex(klass: 'MockNode',
+                       data:  EncodedComplex,
+                       codec: Codec):
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -67,14 +71,16 @@ class MockLeaf(tree.Leaf, dotted='veredi.math.d20.tree.zest_tree.mock_leaf'):
         '''
         raise NotImplementedError
 
-    def encode_complex(self, codec: 'Codec'):
+    def encode_complex(self, codec: Codec):
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
         raise NotImplementedError
 
     @classmethod
-    def decode_complex(klass, data):
+    def decode_complex(klass: 'MockLeaf',
+                       data:  EncodedComplex,
+                       codec: Codec):
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

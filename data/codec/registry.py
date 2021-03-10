@@ -188,7 +188,7 @@ class EncodableRegistry(CallRegistrar):
         # ---
         # Too simple?
         # ---
-        if isinstance(data, (str, numbers.NumberTypesTuple)):
+        if isinstance(data, (str, *numbers.NumberTypesTuple)):
             return EncodableShim
 
         # ---

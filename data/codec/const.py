@@ -13,7 +13,9 @@ from typing import Union, NewType, Mapping
 import enum
 
 
+from veredi.base           import numbers
 from veredi.base.enum      import FlagCheckMixin, FlagSetMixin
+from veredi.base.null      import Null
 
 
 # -----------------------------------------------------------------------------
@@ -24,6 +26,9 @@ from veredi.base.enum      import FlagCheckMixin, FlagSetMixin
 # Input Types
 # ---
 # Any Encodable subclass.
+EncodeNull = NewType('EncodeNull', Union[None, Null])
+EncodeAsIs = NewType('EncodeAsIs', Union[str, numbers.NumberTypes])
+EncodeAsIsTuple = (str, *numbers.NumberTypesTuple)
 
 # ---
 # Output Types
@@ -31,6 +36,7 @@ from veredi.base.enum      import FlagCheckMixin, FlagSetMixin
 EncodedComplex  = NewType('EncodedComplex', Mapping[str, str])
 EncodedSimple   = NewType('EncodedSimple',  str)
 EncodedEither   = Union[EncodedComplex, EncodedSimple]
+
 
 
 # -----------------------------------------------------------------------------

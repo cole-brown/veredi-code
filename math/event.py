@@ -19,7 +19,7 @@ from veredi.base.identity          import SerializableId
 from veredi.game.ecs.base.identity import EntityId
 from veredi.game.ecs.event         import Event
 from veredi.interface.output.event import OutputEvent, Recipient
-from veredi.data.codec.encodable   import EncodedComplex
+from veredi.data.codec             import Codec, EncodedComplex
 
 from .parser import MathTree
 
@@ -216,7 +216,7 @@ class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
         '''
 
         # Parent can do most of it.
-        encoded = super().encode_complex()
+        encoded = super().encode_complex(codec)
 
         # Now we just need to do total...
         encoded['total'] = numbers.to_str(self._total)
@@ -226,7 +226,8 @@ class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
 
     @classmethod
     def decode_complex(klass: 'MathOutputEvent',
-                       data: EncodedComplex) -> 'MathOutputEvent':
+                       data:  EncodedComplex,
+                       codec: 'Codec') -> 'MathOutputEvent':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

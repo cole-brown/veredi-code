@@ -438,13 +438,13 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
 
         # Put our data into a dict for encoding.
         encoded = {
-            'msg_id':    Encodable.encode_or_none(self._msg_id),
-            'type':      MsgType.encode_or_none(self._type),
-            'entity_id': EntityId.encode_or_none(self._entity_id),
-            'user_id':   UserId.encode_or_none(self._user_id),
-            'user_key':  UserKey.encode_or_none(self._user_key),
+            'msg_id':    codec.encode(self._msg_id),
+            'type':      codec.encode(self._type),
+            'entity_id': codec.encode(self._entity_id),
+            'user_id':   codec.encode(self._user_id),
+            'user_key':  codec.encode(self._user_key),
             'payload':   encoded_payload,
-            'security':  abac.Subject.encode_or_none(self._security_subject),
+            'security':  codec.encode(self._security_subject),
         }
 
         return encoded
