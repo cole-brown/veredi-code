@@ -9,8 +9,21 @@ each other.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Union, NewType
+
 import enum
 import pathlib
+
+
+from ..numbers import NumberTypes, NumberTypesTuple
+
+
+# -----------------------------------------------------------------------------
+# Types
+# -----------------------------------------------------------------------------
+
+SimpleTypes = NewType('SimpleTypes', Union[str, NumberTypes])
+SimpleTypesTuple = (str, *NumberTypesTuple)
 
 
 # -----------------------------------------------------------------------------

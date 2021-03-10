@@ -441,12 +441,15 @@ class JsonSerdes(BaseSerdes):
             return serialized
 
         # Is it a simple type?
-        if (text.serialize_claim(data)
-                or numbers.serialize_claim(data)
-                or paths.serialize_claim(data)
-                or time.serialize_claim(data)):
+        if text.serialize_claim(data) or time.serialize_claim(data):
             # Let json handle it.
             serialized = data
+            return serialized
+        if paths.serialize_claim(data):
+            serialized = paths.serialize(data)
+            return serialized
+        if numbers.serialize_claim(data):
+            serialized = numbers.serialize(data)
             return serialized
 
         # Mapping?

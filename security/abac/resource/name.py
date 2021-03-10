@@ -14,6 +14,7 @@ import enum
 import re
 
 from veredi.logs                 import log
+from veredi.data                 import background
 from veredi.data.codec.encodable import Encodable
 
 
@@ -200,7 +201,7 @@ def _make_owner(owner_id: Union[str, Encodable]) -> str:
         owner_str = owner_id.lower()
 
     elif isinstance(owner_id, Encodable):
-        owner_str = owner_id.encode(None)
+        owner_str = background.manager.data.codec.encode(owner_id)
 
     else:
         msg = ("Cannot make a VRN owner string from an owner_id "

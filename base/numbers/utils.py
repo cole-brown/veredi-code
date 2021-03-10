@@ -8,7 +8,7 @@ Helper functions for dealing with numbers.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Any, NewType
+from typing import Optional, Union, Any, NewType
 
 import math
 import decimal
@@ -33,6 +33,7 @@ _DEFAULT_ROUNDING = Decimal(10) ** -6
 Default to rounding Decimals and floats to this many decimal places.
 '''
 
+
 _DECIMAL_CONTEXT = decimal.ExtendedContext.copy()
 '''
 Use ExtendedContext for decimal operations for more forgiveness and less
@@ -41,8 +42,10 @@ erroring...
 We'll get a copy of it for our own use.
 '''
 
+
 _DEFAULT_CLOSENESS_TOLERANCE_REL = 1e-5
 '''Default (relative) tolerance for `closeish()`'''
+
 
 
 # -----------------------------------------------------------------------------
@@ -157,3 +160,35 @@ def serialize_claim(input: Any) -> bool:
     Return True if the input is a number and we can 'serialize' it.
     '''
     return is_number(input)
+
+
+def serialize(input: DecimalTypes) -> Union[str, float, int]:
+    '''
+    Returns a string (if decimal), float, or int of the input.
+    '''
+    if isinstance(input, Decimal):
+        return str(input)
+    return input
+
+
+def deserialize(input: Any) -> Optional[NumberTypes]:
+    '''
+    Tries to parse input into a number type. Returns number or none.
+
+    Any inputs that are not float/int are parsed through Decimal and returned
+    as Decimal.
+
+    If it cannot be parsed into a number type, returns None.
+    '''
+    if isinstance(input, (float, int)):
+        return input
+
+    try:
+        parsed = Decimal(input)
+        return parsed
+    except decimal.InvalidOperation:
+        # Failed to parse into a decimal, so it's not anything decimal knows
+        # about.
+        pass
+
+    return None

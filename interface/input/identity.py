@@ -81,8 +81,6 @@ class InputId(SerializableId, dotted='veredi.interface.input.identity.input'):
         '''
         Initialize our ID value. ID is based on:
           current time string + str(sequence)
-
-        If `decoding`, just use `decode_value'.
         '''
         # Decoding into a valid UserId?
         if (decoding                                  # Decode mode is a go.

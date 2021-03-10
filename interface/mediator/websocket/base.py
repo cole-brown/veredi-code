@@ -317,13 +317,15 @@ class VebSocket:
         Deserializes received string using our serdes.
         '''
         stream = StringIO(recvd)
+        msg = None
         try:
-            value = self._serdes.deserialize(recvd, context)
+            msg = self._serdes.deserialize(recvd, context)
         finally:
             stream.close()
         # TODO [2020-12-01]: serialize() has serdes encode message... So
         # should serdes also decode message?
-        msg = Message.decode(value)
+        # TODO: Yes. Yes it should.
+        # msg = codec.decode(Message, value)
         return msg
 
     # -------------------------------------------------------------------------

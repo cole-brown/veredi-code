@@ -216,11 +216,11 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         '''
         # self.data is "Any", so... Try to decode it. It may already be
         # decoded - this function should handle those cases.
-        data = self.encode_any(self._data)
+        data = codec.encode(self._data)
 
         # Build our representation to return.
         return {
-            'valid': self.valid.encode(None),
+            'valid': codec.encode(self.valid),
             'data': data,
         }
 
@@ -235,10 +235,10 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         klass.error_for(data, keys=['valid', 'data'])
 
         # build valid from value saved in encode_complex
-        valid = Validity.decode(data['valid'])
+        valid = codec.decode(Validity, data['valid'])
 
         # Our data is of type 'Any', so... try to decode that?
-        data = klass.decode_any(data['data'])
+        data = codec.decode(None, (data['data'])
 
         # Make class with decoded data, skip_validation because this exists and
         # we're just decoding it, not creating a new one.

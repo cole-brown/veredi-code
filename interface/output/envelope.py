@@ -177,13 +177,13 @@ class Address(Encodable, dotted='veredi.interface.output.address'):
         for uid in self.user_ids:
             if not uid:
                 continue
-            encoded_users.append(uid.encode(None))
+            encoded_users.append(codec.encode(uid))
 
         # Put our data into a dict for encoding.
         encoded = {
             'users': encoded_users,
-            'valid_recipients': self._recipient.encode(None),
-            'subject': self._security_subject.encode(None),
+            'valid_recipients': codec.encode(self._recipient),
+            'subject': codec.encode(self._security_subject),
         }
 
         return encoded
@@ -205,11 +205,11 @@ class Address(Encodable, dotted='veredi.interface.output.address'):
         # Decode users list.
         users = []
         for uid in data['users']:
-            users.append(UserId.decode(uid))
+            users.append(codec.decode(UserId, uid))
 
         # Have others grab themselves from data.
-        recipient = Recipient.decode(data['valid_recipients'])
-        subject = abac.Subject.decode(data['subject'])
+        recipient = codec.decode(Recipient, data['valid_recipients'])
+        subject = codec.decode(abac.Subject, data['subject'])
 
         # Create and return a decoded instance.
         return klass(recipient, subject, users)
@@ -465,9 +465,9 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
         '''
 
         encoded = {
-            'valid_recipients': self.valid_recipients.encode(None),
+            'valid_recipients': codec.encode(self.valid_recipients),
             'addresses': codec.encode_map(self._addresses),
-            'event': self._event.encode(None),
+            'event': codec.encode(self._event),
         }
 
         return encoded
@@ -488,7 +488,7 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
                         ])
 
         # Decode our fields.
-        recipients = Recipient.decode(data['valid_recipients'])
+        recipients = codec.decode(Recipient, data['valid_recipients'])
         addresses = codec.decode_map(Address,
                                      data['addresses'],
                                      # Tell it to expect Recipients as keys.

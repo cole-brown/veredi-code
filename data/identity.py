@@ -114,8 +114,6 @@ class UserId(SerializableId, dotted='veredi.data.identity.user.id'):
         '''
         Initialize our ID value. ID is based on:
           current time string, name string, and _UUID_NAMESPACE.
-
-        If `decoding`, just use `decode_value'.
         '''
         # log.debug(f"UserId.__!!INIT!!__: seed: {seed}, name: {name}, "
         #           f"decoding: {decoding}, "
@@ -300,8 +298,6 @@ class UserKey(SerializableId, dotted='veredi.data.identity.user.key'):
         '''
         Initialize our ID value. ID is based on:
           supplied `seed` string, current time string, and _UUID_NAMESPACE.
-
-        If `decoding`, just use `decode_value'.
         '''
         # log.debug(f"UserKey.__!!INIT!!__: seed: {seed}, "
         #           f"time_seed: {time_seed}, "

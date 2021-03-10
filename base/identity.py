@@ -546,8 +546,6 @@ class SerializableId(Encodable,
         '''
         Initialize our ID value. ID is based on:
           current time string, name string, and _UUID_NAMESPACE.
-
-        If `decoding`, just use `decode_value'.
         '''
         # log.debug("SerializableId.__!!INIT!!__: "
         #           f"seed: {seed}, name: {name}, "
@@ -648,7 +646,9 @@ class SerializableId(Encodable,
             f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'SerializableId', data: str) -> 'SerializableId':
+    def decode_simple(klass: 'SerializableId',
+                      data:  str,
+                      codec: 'Codec') -> 'SerializableId':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -688,14 +688,15 @@ class SerializableId(Encodable,
         '''
         Subclasses can override this if they have a different constructor.
         '''
-        decoded = klass(None,
+        decoded = klass(None, None,
                         decoding=True,
                         decoded_value=value)
         return decoded
 
     @classmethod
     def decode_complex(klass: 'SerializableId',
-                       value: EncodedComplex) -> 'SerializableId':
+                       value: EncodedComplex,
+                       codec: 'Codec') -> 'SerializableId':
         '''
         NotImplementedError: We don't do complex.
         '''

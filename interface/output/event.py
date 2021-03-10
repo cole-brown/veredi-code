@@ -247,23 +247,24 @@ class OutputEvent(Event, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         # Source ID can be an int or an EntityId.
         source_id = self.source_id
         if not isinstance(source_id, int):
-            source_id = source_id.encode(None)
+            source_id = codec.encode(source_id)
 
         # Source Type can be an int or an enum.
         source_type = self.source_type
         if not isinstance(source_type, int):
-            source_type = source_type.encode(None)
+            source_type = codec.encode(source_type)
 
         # Build output with our instance data.
         encoded = {
             'source_id': source_id,
             'source_type': source_type,
-            'output': self.output.encode(None),
-            'sid': self.serial_id.encode(None),
+            'output': codec.encode(self.output),
+            'sid': codec.encode(self.serial_id),
         }
 
         # Let these stick themselves into the data.
-        self.desired_recipients.encode(encoded)
+        codec.encode(self.desired_recipients,
+                     encode_in_progress=encoded)
 
         # TODO [2020-11-06]: Leave out context or should we encode it?
 
@@ -296,7 +297,7 @@ class OutputEvent(Event, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         # Source ID can be int or EntityId.
         source_id = data['source_id']
         if not isinstance(source_id, int):
-            source_id = EntityId.decode(source_id)
+            source_id = codec.decode(EntityId, source_id)
         instance._id = source_id
 
         # Source Type can be an enum or an int.
@@ -320,7 +321,7 @@ class OutputEvent(Event, Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
         # Recipients encoded themselves into data so they'll get themselves out
         # again.
-        recipients = Recipient.decode(data)
+        recipients = codec.decode(Recipient, data)
         instance._recipients = recipients
 
         # Create and return a decoded instance.

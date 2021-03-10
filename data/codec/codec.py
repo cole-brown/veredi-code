@@ -9,21 +9,23 @@ Class for Encoding/Decoding the Encodables.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Type, Dict, List,
-                    Iterable, Mapping, Tuple)
-from veredi.base.null import null_or_none
+                    Optional, Union, Any, Type, NewType,
+                    Dict, List, Iterable, Mapping, Tuple)
+from veredi.base.null import NullNoneOr, null_or_none
 if TYPE_CHECKING:
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
 
-from abc import abstractmethod
+import collections
 import enum
 import re
+from abc import abstractmethod
 
 
 from veredi.logs                 import log
 from veredi.logs.mixin           import LogMixin
 from veredi.base                 import numbers
+from veredi.base.const           import SimpleTypes, SimpleTypesTuple
 from veredi.base.strings         import pretty
 from veredi.base.registrar       import RegisterType
 from veredi.base.strings         import label
@@ -32,7 +34,9 @@ from veredi.data.context         import DataAction, DataOperation
 from veredi.data.config.registry import register
 
 from ..exceptions                import EncodableError
-from .const                      import (EncodedComplex,
+from .const                      import (EncodeNull,
+                                         EncodeAsIs,
+                                         EncodedComplex,
                                          EncodedSimple,
                                          EncodedEither,
                                          Encoding)
@@ -43,6 +47,13 @@ from .encodable                  import Encodable
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+EncodeInput = NewType('EncodeInput',
+                      Union[EncodeNull,
+                            EncodeAsIs,
+                            Encodable,
+                            Mapping,
+                            enum.Enum])
 
 
 # -----------------------------------------------------------------------------
@@ -190,50 +201,74 @@ class Codec(LogMixin):
     # API Encoding
     # -------------------------------------------------------------------------
 
-    def encode_data(self,
-                    data:  Any) -> Optional[EncodedEither]:
+    def encode(self,
+               target:         EncodeInput,
+               in_progress:    Optional[EncodedComplex] = None,
+               with_reg_field: bool = True) -> EncodedEither:
         '''
-        Tries to encode `data`.
+        Encode `target`, depending on target's type and encoding settings. See
+        typing of `target` for all encodable types.
 
-        If `data` is:
-          - dict or encodable: Step in to them for encoding.
-          - enum: Use the enum's value.
+        If target is Null or None:
+          - returns None
 
-        Else assume it is already encoded and return as-is.
+        If target is an Encodable:
+          - Encodes using Encodable functionality. See `_encode_encodable()`
+            for details.
+
+        If target is a Mapping:
+          - Encodes as a dictionary.
+
+        If target is a non-Encodable enum.Enum:
+          - Encodes target.value.
+
+        If target is an EncodeAsIs type:
+          - Returns as-is; already 'encoded'.
+
+        Else raises an EncodableError.
         '''
-        # log.debug(f"{self.__class__.__name__}.encode_any: {data}")
-
+        # log.debug(f"{self.__class__.__name__}.encode: {target}")
         encoded = None
-        if isinstance(data, Encodable):
+        if null_or_none(target):
+            # Null/None encode to None.
+            return encoded
+
+        if isinstance(target, Encodable):
             # Encode via its function.
-            encoded = self.encode(data, None)  # TODO: with_reg_field=False?
+            encoded = self._encode_encodable(target,
+                                             in_progress,
+                                             with_reg_field)
 
-        elif isinstance(data, dict):
+        elif isinstance(target, collections.abc.Mapping):
             # Encode via our map helper.
-            encoded = self.encode_map(data)
+            encoded = self.encode_map(target)
 
-        elif isinstance(data, enum.Enum):
+        elif isinstance(target, enum.Enum):
             # Assume, if it's an enum.Enum (that isn't an Encodable), that just
             # value is fine. If that isn't fine, the enum can make itself an
             # Encodable.
-            encoded = data.value
+            encoded = target.value
+
+        elif isinstance(target, SimpleTypesTuple):
+            encoded = self._encode_simple_types(target)
 
         else:
-            # Assume that whatever it is, it is decoded.
-            if not isinstance(data, (str, numbers.NumberTypesTuple)):
-                log.warning(f"{self.__class__.__name__}.encode_any: unknown "
-                            f"type of data {type(data)}. Assuming it's "
-                            "decoded already or doesn't need to be. {}",
-                            data)
-            encoded = data
+            msg = (f"Do not know how to encode type '{type(target)}'.")
+            error = EncodableError(msg,
+                                   data={
+                                       'target': target,
+                                       'in_progress': in_progress,
+                                       'with_reg_field': with_reg_field,
+                                   })
+            raise self._log_exception(error, msg)
 
-        # log.debug(f"{self.__class__.__name__}.encode_any: Done. {encoded}")
+        # log.debug(f"{self.__class__.__name__}.encode: Done. {encoded}")
         return encoded
 
-    def encode(self,
-               target:         Optional[Encodable],
-               in_progress:    Optional[EncodedComplex] = None,
-               with_reg_field: bool = True) -> EncodedEither:
+    def _encode_encodable(self,
+                          target:         Optional[Encodable],
+                          in_progress:    Optional[EncodedComplex] = None,
+                          with_reg_field: bool = False) -> EncodedEither:
         '''
         Encode `target` as a simple or complex encoding, depending on
         `target`.encoding().
@@ -280,29 +315,23 @@ class Codec(LogMixin):
 
         # No. Encode everything we know...
         # ...which as the base class isn't much.
-        encoded = target.encode_complex()
+        encoded = target.encode_complex(self)
 
         # Put the type somewhere and return encoded data.
         if in_progress is not None:
             # Encode as a sub-field in the provided data.
             in_progress[target.type_field()] = encoded
             return in_progress
-
-        # Encode as a base-level dict.
         encoded[target._TYPE_FIELD_NAME] = target.type_field()
+
+        # Encode with reg/payload fields if requested.
         if with_reg_field:
             return {
                 Encodable._ENCODABLE_REG_FIELD: target.dotted(),
-                Encodable._ENCODABLE_PAYLOAD_FIELD: target.encode(None),
+                Encodable._ENCODABLE_PAYLOAD_FIELD: encoded,
             }
-        else:
-            return encoded
-
-    # def encode_or_none(...):
-    #     TODO: SWITCH TO JUST `encode()`
-
-    # def encode_with_registry(self) -> EncodedComplex:
-    #     TODO: SWITCH TO JUST `encode()`
+        # Or just return the encoded data.
+        return encoded
 
     def encode_map(self,
                    encode_from: Mapping,
@@ -316,19 +345,23 @@ class Codec(LogMixin):
         Returns `encode_to` instance (either the new one we created or the
         existing updated one).
         '''
+        if null_or_none(encode_from):
+            # Null/None encode to None.
+            return None
+
         if encode_to is None:
             encode_to = {}
 
-        # log.debug(f"\n\nlogging._encode_map: {encode_from}\n\n")
+        # log.debug(f"\n\nlogging.encode_map: {encode_from}\n\n")
         for key, value in encode_from.items():
-            field = self.encode_key(key)
-            node = self.encode_value(value)
+            field = self._encode_key(key)
+            node = self._encode_value(value)
             encode_to[field] = node
 
-        # log.debug(f"\n\n   done._encode_map: {encode_to}\n\n")
+        # log.debug(f"\n\n   done.\nencode_map: {encode_to}\n\n")
         return encode_to
 
-    def encode_key(self, key: Any) -> str:
+    def _encode_key(self, key: Any) -> str:
         '''
         Encode a dict key.
         '''
@@ -337,31 +370,67 @@ class Codec(LogMixin):
 
         # If key is an encodable, can it encode into a key?
         if isinstance(key, Encodable):
-            if key.encode_simple():
-                field = key.encode(None)
+            if key.encoding().has(Encoding.SIMPLE):
+                field = self._encode_encodable(key)
             else:
-                msg = (f"{self.__class__.__name__}.encode_key: Encodable "
+                msg = (f"{self.__class__.__name__}._encode_key: Encodable "
                        f"'{key}' cannot be encoded into a key value for "
-                       "a dict.")
-                error = AttributeError(msg, key, self)
+                       "a dict - only Encoding.SIMPLE can be used here.")
+                error = EncodableError(msg,
+                                       data={
+                                           'key': key,
+                                       })
                 raise log.exception(error, msg)
 
-        # If key is a str, just use it.
-        elif isinstance(key, str):
-            field = key
+        # Is key something simple?
+        elif isinstance(key, SimpleTypesTuple):
+            field = self._encode_simple_types(key)
 
         # If key is an enum that is not an Encodable, use it's value, I guess?
         elif isinstance(key, enum.Enum):
-            field = key.value
+            field = self._encode_simple_types(key.value)
 
-        # Final guess: stringify it.
+        # If key is a just a number, just use it.
+        elif isinstance(key, numbers.NumberTypesTuple):
+            field = numbers.serialize(key)
+
+        # No idea... error on it.
         else:
-            field = str(key)
+            # # Final guess: stringify it.
+            # field = str(key)
+            msg = (f"{self.__class__.__name__}._encode_key: Key of type "
+                   f"'{type(key)}' is not currently supported for encoding "
+                   " into a field for an encoded dictionary.")
+            error = EncodableError(msg,
+                                   data={
+                                       'key': key,
+                                   })
+            raise log.exception(error, msg)
 
         # log.debug(f"\n\n   done._encode_key: {field}\n\n")
         return field
 
-    def encode_value(self, value: Any) -> str:
+    def _encode_simple_types(self,
+                             value: SimpleTypes) -> Union[str, int, float]:
+        '''
+        Encode a simple type.
+        '''
+        encoded = value
+        if isinstance(value, numbers.NumberTypesTuple):
+            # Numbers have to serialize their Decimals.
+            encoded = numbers.serialize(value)
+        elif isinstance(value, str):
+            encoded = value
+        else:
+            msg = (f"{self.__class__.__name__}._encode_simple_types: "
+                   f"'{type(value)}' is not a member of "
+                   "SimpleTypes and cannot be encoded this way.")
+            error = EncodableError(msg, value)
+            raise log.exception(error, msg)
+
+        return encoded
+
+    def _encode_value(self, value: Any) -> str:
         '''
         Encode a dict value.
 
@@ -395,16 +464,14 @@ class Codec(LogMixin):
     # Decoding
     # -------------------------------------------------------------------------
 
-    # def decode_with_registry(self) -> EncodedComplex:
-    #     TODO: SWITCH TO JUST `decode()`
-
     def decode(self,
                target:          Optional[Type['Encodable']],
                data:            EncodedEither,
-               error_squelch:   bool                      = False,
-               reg_find_dotted: Optional[str]             = None,
-               reg_find_types:  Optional[Type[Encodable]] = None,
-               reg_fallback:    Optional[Type[Encodable]] = None,
+               error_squelch:   bool                        = False,
+               reg_find_dotted: Optional[str]               = None,
+               reg_find_types:  Optional[Type[Encodable]]   = None,
+               reg_fallback:    Optional[Type[Encodable]]   = None,
+               map_expected:    Iterable[Type['Encodable']] = None
                ) -> Optional['Encodable']:
         '''
         Decode simple or complex `data` input, using it to build an
@@ -432,85 +499,81 @@ class Codec(LogMixin):
           - reg_fallback: Thing to return if no valid Encodable found for
             decoding.
 
+        If data is a map with several expected Encodables in it, supply
+        those in `map_expected` or just use `decode_map()`.
+
         `error_squelch` will try to only raise the exception, instead of
         raising it through log.exception().
         '''
         # ---
         # Decode at all?
         # ---
-        if data is None:
+        if null_or_none(data):
             # Can't decode nothing; return nothing.
             return None
 
         # ---
-        # Decode target known?
+        # Decode target already known?
         # ---
-        if target is not None:
-            return self._decode_with_target(target, data, error_squelch)
+        if target:
+            return self._decode_encodable(target, data,
+                                          error_squelch=error_squelch)
 
         # ---
-        # Decode with registry?
+        # Does the EncodableRegistry know about it?
         # ---
-        return self._decode_with_registry(data,
-                                          dotted=reg_find_dotted,
-                                          data_types=reg_find_types,
-                                          error_squelch=error_squelch,
-                                          fallback=reg_fallback)
-
-    def _decode_any(self,
-                    data:  EncodedComplex,
-                    expected_keys: Iterable[Type['Encodable']] = None) -> Any:
-        '''
-        Tries to decode `data`.
-
-        If `data` is:
-          - encodable: Must be registered to EncodableRegistry in order to
-            decode properly.
-          - dict: Decode with decode_map() using `expected_keys`. Returns
-            another dict!
-
-        Else assume it is already decoded or is basic data and returns it
-        as-is.
-        '''
-        # log.debug(f"{self.__class__.__name__}.decode_any: {data}")
-
-        # First... is it a registered Encodable?
-        decoded = None
         try:
-            # Don't want this to log the exception if it happens. We're ok with
-            # it happening.
-            decoded = EncodableRegistry.get(data,
-                                            error_squelch=True)
-            return decoded
+            target = self._decode_with_registry(data,
+                                                dotted=reg_find_dotted,
+                                                data_types=reg_find_types,
+                                                error_squelch=error_squelch,
+                                                fallback=reg_fallback)
+            return target
 
-        except ValueError:
-            # Nope. But that's fine. Try other things.
+        except (KeyError, ValueError):
+            # Expected exceptions from `_decode_with_registry`...
+            # Try more things?
             pass
 
-        # Next... dict?
+        # ---
+        # Mapping?
+        # ---
         if isinstance(data, dict):
             # Decode via our map helper.
-            decoded = self.decode_map(data, expected_keys)
+            decoded = self.decode_map(data, expected=map_expected)
+            return decoded
 
-        # Finally... I dunno. Leave as-is?
-        else:
-            # Warn if not a type we've thought about.
-            if (not isinstance(data, numbers.NumberTypesTuple)
-                    and not isinstance(data, str)):
-                log.warning(f"{self.__class__.__name__}.decode_any: unknown "
-                            f"type of data {type(data)}. Assuming it's "
-                            "decoded already or doesn't need to be. {}",
-                            data)
-            # Assume that whatever it is, it is decoded.
-            decoded = data
+        # ---
+        # Something Simple?
+        # ---
+        try:
+            decoded = self._decode_simple_types(data)
+            return decoded
+        except EncodableError:
+            # Not this either...
+            pass
 
-        # log.debug(f"{self.__class__.__name__}.decode_any: Done. {decoded}")
-        return decoded
+        # ---
+        # Ran out of options... Error out.
+        # ---
+        msg = (f"{self.__class__.__name__}.decode: unknown "
+               f"type of data {type(data)}. Cannot decode.")
+        error = EncodableError(msg,
+                               data={
+                                   'target': target,
+                                   'data': data,
+                                   'error_squelch': error_squelch,
+                                   'reg_find_dotted': reg_find_dotted,
+                                   'reg_find_types': reg_find_types,
+                                   'reg_fallback': reg_fallback,
+                               })
+        raise self._log_exception(error, msg)
 
-    def _decode_with_target(self,
-                            target: Optional[Type['Encodable']],
-                            data:   EncodedEither,
-                            error_squerch: bool) -> Optional['Encodable']:
+    def _decode_encodable(self,
+                          target: Optional[Type['Encodable']],
+                          data:   EncodedEither,
+                          error_squerch: bool = False
+                          ) -> Optional['Encodable']:
         '''
         Decode simple or complex `data` input, using it to build an
         instance of the `target` class.
@@ -523,7 +586,7 @@ class Codec(LogMixin):
         # ---
         if target.encoded_as(data) == Encoding.SIMPLE:
             # Yes. Do that thing.
-            return target.decode_simple(data)
+            return target.decode_simple(data, self)
 
         # Does this class only do simple encode/decode?
         if not target.encoding().has(Encoding.COMPLEX):
@@ -545,9 +608,9 @@ class Codec(LogMixin):
         target.error_for_claim(data)
 
         # Ok; yes. Get our field out of data and pass on to
-        # self.decode_complex().
+        # `decode_complex()`.
         _, claim, _ = target.claim(data)
-        return target.decode_complex(claim)
+        return target.decode_complex(claim, self)
 
     def _decode_with_registry(self,
                               data:          EncodedComplex,
@@ -632,52 +695,40 @@ class Codec(LogMixin):
         # Now decode it.
         # ------------------------------
 
-        decoded = EncodableRegistry.get(encoded_data,
-                                        dotted=dotted,
-                                        data_type=data_types,
-                                        error_squelch=error_squelch,
-                                        fallback=fallback)
-        return decoded
+        target = EncodableRegistry.get(encoded_data,
+                                       dotted=dotted,
+                                       data_type=data_types,
+                                       error_squelch=error_squelch,
+                                       fallback=fallback)
+        return self._decode_encodable(target, data,
+                                      error_squelch=error_squelch)
 
     def decode_map(self,
-                   target: Encodable,
-                   mapping: Mapping,
-                   expected_keys: Iterable[Type['Encodable']] = None
+                   mapping: NullNoneOr[Mapping],
+                   expected: Iterable[Type['Encodable']] = None
                    ) -> Mapping[str, Any]:
         '''
         Decode a mapping.
         '''
         # log.debug(f"\n\nlogging._decode_map {type(mapping)}: {mapping}\n\n")
-
-        # ---
-        # Can we decode the whole dict as something?
-        # ---
-        if target._was_encoded_with_registry(mapping):
-            return self.decode(target, mapping)
+        if null_or_none(mapping):
+            return None
 
         # ---
         # Decode the Base Level
         # ---
         decoded = {}
         for key, value in mapping.items():
-            field = self.decode_key(key, expected_keys)
-            node = self.decode_value(value, expected_keys)
+            field = self._decode_key(key, expected)
+            node = self._decode_value(value, expected)
             decoded[field] = node
-
-        # ---
-        # Is It Anything Special?
-        # ---
-        # Sub-classes could check in about this spot in their override...
-        # claiming, claim, reason = AnythingSpecial.claim(decoded)
-        # if claiming:
-        #     decoded = AnythingSpecial.decode(claim)
 
         # log.debug(f"\n\n   done._decode_map: {decoded}\n\n")
         return decoded
 
-    def decode_key(self,
+    def _decode_key(self,
                    key: Any,
-                   expected_keys: Iterable[Type['Encodable']] = None) -> str:
+                   expected: Iterable[Type['Encodable']] = None) -> str:
         '''
         Decode a mapping's key.
 
@@ -688,14 +739,14 @@ class Codec(LogMixin):
         field = None
 
         # Can we decode to a specified Encodable?
-        if expected_keys:
-            for encodable in expected_keys:
+        if expected:
+            for encodable in expected:
                 # Does this encodable want the key?
                 claiming, claim, _ = encodable.claim(key)
                 if not claiming:
                     continue
                 # Yeah - get it to decode it then.
-                field = encodable.decode(claim)
+                field = self.decode(encodable, claim)
                 # And we are done; give the decoded field back.
                 return field
 
@@ -709,42 +760,48 @@ class Codec(LogMixin):
                                  None,
                                  data={
                                      'key': key,
-                                     'expected_keys': expected_keys,
+                                     'expected': expected,
                                  })
 
         # log.debug(f"\n\n   done._decode_key: {field}\n\n")
         return field
 
-    def decode_value(self,
-                     target: Encodable,
-                     value: Any,
-                     expected_keys: Iterable[Type['Encodable']] = None
-                     ) -> str:
+    def _decode_value(self,
+                      value: Any,
+                      expected: Iterable[Type['Encodable']] = None
+                      ) -> str:
         '''
         Decode a mapping's value.
 
-        Passes `expected_keys` along to _decode_map() if value is a dict.
-
-        Encodable is pretty stupid. dict and Encodable are further decoded -
-        everything else is just assumed to be decoded alreday. Override or
-        smart-ify if you need support for more/better assumptions.
+        Passes `expected` along for continuing the decoding.
         '''
-
         # log.debug(f"\n\nlogging._decode_value {type(value)}: {value}\n\n")
-        node = None
-        if isinstance(value, dict):
-            node = self.decode_map(target, value, expected_keys)
 
-        # You... this... How can I be this stupid sometimes, really...
-        # *facepalm* We're decoding something. It /really/ shouldn't be an
-        # Encodable right now...
-        # elif isinstance(value, Encodable):
-        #     # Decode via its function.
-        #     node = value.decode_with_registry()
-
-        else:
-            # Simple value like int, str? Hopefully?
-            node = value
+        node = self.decode(None, value,
+                           map_expected=expected)
 
         # log.debug(f"\n\n   done._decode_value: {node}\n\n")
         return node
+
+    def _decode_simple_types(self,
+                             value: Union[str, int, float]) -> SimpleTypes:
+        '''
+        Decode a simple type.
+
+        Returns the simple type or raises an EncodableError.
+        '''
+        # Give numbers a shot at Decimals saved as strings before we deal with
+        # other kinds of strings.
+        encoded = numbers.deserialize(value)
+        if encoded:
+            return encoded
+
+        elif isinstance(value, str):
+            encoded = value
+            return encoded
+
+        msg = (f"{self.__class__.__name__}.decode_simple_types: "
+               f"'{type(value)}' is not a member of "
+               "SimpleTypes and cannot be decoded this way.")
+        error = EncodableError(msg, value)
+        raise log.exception(error, msg)

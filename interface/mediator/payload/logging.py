@@ -13,7 +13,10 @@ For:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, NewType, Mapping
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Any, NewType, Mapping)
+if TYPE_CHECKING:
+    from veredi.data.codec import Codec
 
 import enum
 
@@ -224,7 +227,8 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
 
     @classmethod
     def decode_simple(klass: 'LogReply',
-                      data: EncodedSimple) -> 'LogReply':
+                      data: EncodedSimple,
+                      codec: 'Codec') -> 'LogReply':
         '''
         Don't support simple by default.
         '''
@@ -238,25 +242,26 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
         '''
         # self.value is "Any", so... Try to decode it. It may already be
         # decoded - this function should handle those cases.
-        value = self.encode_any(self.value)
+        value = codec.encode(self.value)
 
         # Build our representation to return.
         return {
-            'valid': self.valid.encode(None),
+            'valid': codec.encode(self.valid),
             'value': value,
         }
 
     @classmethod
     def decode_complex(klass: 'LogReply',
-                       data:  EncodedComplex) -> 'LogReply':
+                       data:  EncodedComplex,
+                       codec: 'Codec') -> 'LogReply':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
         '''
         klass.error_for(data, keys=['valid', 'value'])
 
-        valid = Validity.decode(data['valid'])
-        value = klass.decode_any(data['value'])
+        valid = codec.decode(Validity, data['valid'])
+        value = codec.decode(None, data['value'])
 
         # Make class with decoded data, skip_validation because this exists and
         # we're just decoding it, not creating a new one.
@@ -424,17 +429,18 @@ class LogPayload(BasePayload,
         '''
         # Our data is a dict with LogField enum values as keys and LogReplies
         # or log.Level or something as values.
-        encoded = self._encode_map(self.data)
+        encoded = codec.encode_map(self.data)
 
         # Build our representation to return.
         return {
-            'valid': self.valid.encode(None),
+            'valid': codec.encode(self.valid),
             'data': encoded,
         }
 
     @classmethod
     def decode_complex(klass: 'BasePayload',
-                       data:  EncodedComplex) -> 'BasePayload':
+                       data:  EncodedComplex,
+                       codec: 'Codec') -> 'BasePayload':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -442,11 +448,11 @@ class LogPayload(BasePayload,
         klass.error_for(data, keys=['valid', 'data'])
 
         # Decode the validity field.
-        valid = Validity.decode(data['valid'])
+        valid = codec.decode(Validity, data['valid'])
 
         # Decode the data field with our expected key hint of LogField.
-        decoded = klass._decode_map(data['data'],
-                                    expected_keys=[LogField])
+        decoded = codec.decode_map(data['data'],
+                                   expected_keys=[LogField])
 
         # And make our class... Set valid afterwards since LogPayload doesn't
         # care about validity to start with.

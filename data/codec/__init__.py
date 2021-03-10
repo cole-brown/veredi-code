@@ -20,10 +20,12 @@ from veredi.base.strings import label
 # Types
 # -----------------------------------------------------------------------------
 
-from .const import EncodedComplex, EncodedSimple, EncodedEither, Encoding
-
+from .const     import (EncodeNull, EncodeAsIs,
+                        EncodedComplex, EncodedSimple, EncodedEither,
+                        Encoding)
+from .codec     import Codec
 from .encodable import Encodable
-from .registry import EncodableRegistry
+from .registry  import EncodableRegistry
 
 
 # -----------------------------------------------------------------------------
@@ -40,6 +42,10 @@ __all__ = [
     # ------------------------------
     # Types
     # ------------------------------
+    'Codec',
+
+    'EncodeNull',
+    'EncodeAsIs',
     'EncodedComplex',
     'EncodedSimple',
     'EncodedEither',

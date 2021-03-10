@@ -588,7 +588,9 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         if self._children:
             encoded_children = []
             for child in self._children:
-                encoded_children.append(child.encode(None))
+                encoded_children.append(codec.encode(child))
+                # TODO: add reg field to children?
+                #                                      with_reg_field=True))
 
         # print("\nMathTree.encode_complex(): {self.__class__.__name__}.dott:
         # And return all our vars as a dictionary structure.
@@ -599,7 +601,7 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
             'milieu':   self._milieu,
             'children': encoded_children,
             'tags':     self._tags,  # list of strings
-            'type':     self._node_type.encode(None),
+            'type':     codec.encode(self._node_type),
         }
 
         # Done.
