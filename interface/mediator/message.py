@@ -25,7 +25,6 @@ from veredi.security               import abac
 from veredi.base.enum              import FlagEncodeValueMixin
 from veredi.data.codec             import (Codec,
                                            Encodable,
-                                           EncodableRegistry,
                                            EncodedComplex,
                                            EncodedSimple)
 from veredi.data.exceptions        import EncodableError
@@ -435,7 +434,7 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
         # Tell our payload to encode... or use as-is if not an Encodable.
         encoded_payload = self.payload
         if isinstance(self.payload, Encodable):
-            encoded_payload = self.payload.encode_with_registry()
+            encoded_payload = codec.encode(self.payload)
 
         # Put our data into a dict for encoding.
         encoded = {
@@ -468,20 +467,20 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
                         ])
 
         # msg_id could be a few different types.
-        msg_id = EncodableRegistry.decode(data['msg_id'])
+        msg_id = codec.decode(None, data['msg_id'])
 
         # These are always their one type.
-        _type = MsgType.decode(data['type'])
-        entity_id = EntityId.decode(data['entity_id'])
-        user_id = UserId.decode(data['user_id'])
-        user_key = UserKey.decode(data['user_key'])
-        security = abac.Subject.decode(data['security'])
+        _type = codec.decode(MsgType, data['type'])
+        entity_id = codec.decode(EntityId, data['entity_id'])
+        user_id = codec.decode(UserId, data['user_id'])
+        user_key = codec.decode(UserKey, data['user_key'])
+        security = codec.decode(abac.Subject, data['security'])
 
         # Payload can be encoded or just itself. So try to decode, then
         # fallback to use its value as is.
-        payload = Encodable.decode_with_registry(
-            data['payload'],
-            fallback=data['payload'])
+        payload = codec.decode(None,
+                               data['payload'],
+                               fallback=data['payload'])
 
         return klass(msg_id, _type,
                      payload=payload,

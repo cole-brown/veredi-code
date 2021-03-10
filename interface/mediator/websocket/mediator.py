@@ -19,23 +19,23 @@ import multiprocessing
 import multiprocessing.connection
 import re
 
-from veredi.logs                 import log
-from veredi.base.strings         import label
-from veredi.base.context         import VerediContext
-from veredi.debug.const          import DebugFlag
-from veredi.data                 import background
-from veredi.data.serdes.base     import BaseSerdes
-from veredi.data.config.config   import Configuration
-from veredi.data.codec.encodable import EncodableRegistry
 
-from ..mediator                  import Mediator
-from ..context                   import (MessageContext,
-                                         MediatorContext,
-                                         UserConnToken)
-from ..const                     import MsgType
-from ..message                   import Message
-from .base                       import VebSocket
-from ..payload.logging           import LogPayload
+from veredi.logs               import log
+from veredi.base.strings       import label
+from veredi.base.context       import VerediContext
+from veredi.debug.const        import DebugFlag
+from veredi.data               import background
+from veredi.data.serdes.base   import BaseSerdes
+from veredi.data.config.config import Configuration
+
+from ..mediator                import Mediator
+from ..context                 import (MessageContext,
+                                       MediatorContext,
+                                       UserConnToken)
+from ..const                   import MsgType
+from ..message                 import Message
+from .base                     import VebSocket
+from ..payload.logging         import LogPayload
 
 
 # -----------------------------------------------------------------------------

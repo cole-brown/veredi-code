@@ -35,7 +35,6 @@ if TYPE_CHECKING:
 from veredi.data                   import background
 from veredi.data.codec             import (Codec,
                                            Encodable,
-                                           EncodableRegistry,
                                            EncodedSimple,
                                            EncodedComplex)
 
@@ -467,17 +466,16 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
 
         encoded = {
             'valid_recipients': self.valid_recipients.encode(None),
-            'addresses': self._encode_map(self._addresses),
+            'addresses': codec.encode_map(self._addresses),
             'event': self._event.encode(None),
         }
 
-        print(f"envelope.encode_complex: {encoded}")
         return encoded
 
     @classmethod
     def decode_complex(klass: 'Envelope',
                        data:  EncodedComplex,
-                       codec: 'Codec' ) -> 'Envelope':
+                       codec: 'Codec') -> 'Envelope':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -491,16 +489,17 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
 
         # Decode our fields.
         recipients = Recipient.decode(data['valid_recipients'])
-        addresses = Envelope._decode_map(
-            data['addresses'],
-            # Tell it to expect Recipients as keys.
-            (Recipient,))
-        event = EncodableRegistry.decode(data['event'], data_type=OutputEvent)
+        addresses = codec.decode_map(Address,
+                                     data['addresses'],
+                                     # Tell it to expect Recipients as keys.
+                                     (Recipient,))
+        event = codec.decode(None,
+                             data['event'],
+                             reg_data_type=OutputEvent)
 
         envelope = klass(event)
         envelope._recipients = recipients
         envelope._addresses = addresses
-        print(f"envelope.decode_complex: {envelope}")
 
         return envelope
 

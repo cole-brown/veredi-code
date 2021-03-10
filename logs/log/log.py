@@ -69,6 +69,7 @@ __all__ = [
     'security',
     'start_up',
     'data_processing',
+    'registration',
 
     # ------------------------------
     # 'with' context manager

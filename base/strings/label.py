@@ -358,9 +358,9 @@ def munge_to_short(dotted: str) -> str:
 
 
 def from_map(mapping:      Union[str, Mapping[str, Any]],
-             squelch_error: bool = False) -> Optional[str]:
+             error_squelch: bool = False) -> Optional[str]:
     '''
-    If `mapping` is just a string, depends on what `squelch_error` is set to:
+    If `mapping` is just a string, depends on what `error_squelch` is set to:
       - True:  Returns None.
       - False: Raises ValueError.
 
@@ -370,7 +370,7 @@ def from_map(mapping:      Union[str, Mapping[str, Any]],
     Else, return None.
     '''
     if isinstance(mapping, str):
-        if squelch_error:
+        if error_squelch:
             return None
         msg = ("dotted.from_map() does not support strings - needs a Mapping "
                f"type like dict. Got: {type(mapping)}.")

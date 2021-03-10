@@ -153,9 +153,9 @@ class EncodableRegistry(CallRegistrar):
             data: Optional[EncodedEither],
             dotted:        Optional[str]             = None,
             data_type:     Optional[Type[Encodable]] = None,
-            squelch_error: bool                      = False,
+            error_squelch: bool                      = False,
             fallback:      Optional[Type[Encodable]] = None,
-            **kwargs:      Any) -> Optional[Type[Encodable]]:
+            ) -> Optional[Type[Encodable]]:
         '''
         Get the registered Encodable that this `data` can maybe be decoded to,
         if any of our registered classes match `dotted` field in data, or
@@ -169,7 +169,7 @@ class EncodableRegistry(CallRegistrar):
         If `data_type` is supplied, will restrict search for registered
         Encodable to just that class or its subclasses.
 
-        `squelch_error` will only raise the exception, instead of raising it
+        `error_squelch` will only raise the exception, instead of raising it
         through log.exception().
 
         If nothing registered fits `data`:
@@ -202,7 +202,7 @@ class EncodableRegistry(CallRegistrar):
         # ---
         else:
             registry = klass._get()
-            data_dotted = label.from_map(data, squelch_error=True)
+            data_dotted = label.from_map(data, error_squelch=True)
             registree = klass._search(registry,
                                       data_dotted,
                                       data,
@@ -225,8 +225,8 @@ class EncodableRegistry(CallRegistrar):
         # ---
         # Not Found: Fallback if provided?
         # ---
-        if 'fallback' in kwargs:
-            return kwargs['fallback']
+        if fallback:
+            return fallback
 
         # ---
         # No Fallback: Error out.
@@ -239,12 +239,11 @@ class EncodableRegistry(CallRegistrar):
                  "data:\n"
                  "{}\n\n")
         error = ValueError(msg, data, registree)
-        if squelch_error:
+        if error_squelch:
             raise error
-        else:
-            raise log.exception(error, msg + extra,
-                                pretty.indented(registry),
-                                pretty.indented(data))
+        raise log.exception(error, msg + extra,
+                            pretty.indented(registry),
+                            pretty.indented(data))
 
     @classmethod
     def _search(klass:     'EncodableRegistry',
