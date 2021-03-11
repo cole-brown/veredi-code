@@ -252,7 +252,9 @@ class FlagEncodeValueMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     @classmethod
     def decode_complex(klass: 'FlagEncodeValueMixin',
                        value: EncodedComplex,
-                       codec: 'Codec') -> 'FlagEncodeValueMixin':
+                       codec: 'Codec',
+                       instance: Optional['FlagEncodeValueMixin'] = None
+                       ) -> 'FlagEncodeValueMixin':
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -431,7 +433,9 @@ class FlagEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     @classmethod
     def decode_complex(klass: 'FlagEncodeNameMixin',
                        value: EncodedComplex,
-                       codec: 'Codec') -> 'FlagEncodeNameMixin':
+                       codec: 'Codec',
+                       instance: Optional['FlagEncodeNameMixin'] = None
+                       ) -> 'FlagEncodeNameMixin':
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -587,7 +591,9 @@ class EnumEncodeNameMixin(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     @classmethod
     def decode_complex(klass: 'EnumEncodeNameMixin',
                        value: EncodedComplex,
-                       codec: 'Codec') -> 'EnumEncodeNameMixin':
+                       codec: 'Codec',
+                       instance: Optional['EnumEncodeNameMixin'] = None
+                       ) -> 'EnumEncodeNameMixin':
         '''
         NotImplementedError: We don't do complex.
         '''

@@ -253,7 +253,8 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
     @classmethod
     def decode_complex(klass: 'LogReply',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'LogReply':
+                       codec: 'Codec',
+                       instance: Optional['LogReply'] = None) -> 'LogReply':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -440,7 +441,9 @@ class LogPayload(BasePayload,
     @classmethod
     def decode_complex(klass: 'BasePayload',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'BasePayload':
+                       codec: 'Codec',
+                       instance: Optional['BasePayload'] = None
+                       ) -> 'BasePayload':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

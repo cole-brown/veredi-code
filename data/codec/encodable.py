@@ -424,10 +424,14 @@ class Encodable:
     @abstractmethod
     def decode_complex(klass: 'Encodable',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'Encodable':
+                       codec: 'Codec',
+                       instance: Optional['Encodable'] = None) -> 'Encodable':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
+
+        `instance` is for when a subclass needs to partially create/decode
+        itself first and then have a parent decode more.
         '''
         ...
 

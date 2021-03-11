@@ -271,10 +271,10 @@ class OutputEvent(Event, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return encoded
 
     @classmethod
-    def _decode_super(klass:    'OutputEvent',
-                      instance: Optional['OutputEvent'],
-                      data:     EncodedComplex,
-                      codec:    'Codec') -> 'OutputEvent':
+    def decode_complex(klass:    'OutputEvent',
+                       data:     EncodedComplex,
+                       codec:    'Codec',
+                       instance: Optional['OutputEvent'] = None) -> 'OutputEvent':
         '''
         Decode our vars from data into the instance and return it.
         '''
@@ -326,25 +326,6 @@ class OutputEvent(Event, Encodable, dotted=Encodable._DO_NOT_REGISTER):
 
         # Create and return a decoded instance.
         return instance
-
-    # TODO: Move _decode_super() into here? Or leave like this for explicitness?
-    @classmethod
-    def decode_complex(klass: 'OutputEvent',
-                       data:  EncodedComplex,
-                       codec: 'Codec') -> 'OutputEvent':
-        '''
-        Use `data` and `codec` to figure out what OutputEvent subclass
-        the data is, then decode the data using the subclass.
-
-        Return a new instance of `klass` as the result of the decoding.
-        '''
-        # TODO: This sholud not get called, probably? The subclasses should,
-        # probably?
-        log.error("Base OutputEvent.decode_complex() should not be called!")
-
-        raise NotImplementedError(f"{klass.__name__}.decode_complex() "
-                                  "should not be called; subclasses should "
-                                  "get theirs called directly instead.")
 
     # -------------------------------------------------------------------------
     # To String

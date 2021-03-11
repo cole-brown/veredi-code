@@ -452,7 +452,8 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
     @classmethod
     def decode_complex(klass: 'Message',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'Message':
+                       codec: 'Codec',
+                       instance: Optional['Message'] = None) -> 'Message':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

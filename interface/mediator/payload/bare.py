@@ -122,9 +122,11 @@ class BarePayload(BasePayload,
         }
 
     @classmethod
-    def decode_complex(klass: 'BasePayload',
+    def decode_complex(klass: 'BarePayload',
                        data:   EncodedComplex,
-                       codec: 'Codec') -> 'BasePayload':
+                       codec: 'Codec'
+                       instance: Optional['BarePayload'] = None
+                       ) -> 'BarePayload':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

@@ -227,7 +227,9 @@ class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
     @classmethod
     def decode_complex(klass: 'MathOutputEvent',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'MathOutputEvent':
+                       codec: 'Codec',
+                       instance: Optional['MathOutputEvent'] = None
+                       ) -> 'MathOutputEvent':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -245,7 +247,8 @@ class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
                          None,
                          None,
                          None)
-        klass._decode_super(instance, data)
+        super().decode_complex(data, codec,
+                               instance=instance)
 
         # ---
         # And we just have to do our special fields.

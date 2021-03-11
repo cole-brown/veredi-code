@@ -90,7 +90,9 @@ class EncodableShim(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     @classmethod
     def decode_complex(klass: 'EncodableShim',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'EncodableShim':
+                       codec: 'Codec',
+                       instance: Optional['EncodableShim'] = None
+                       ) -> 'EncodableShim':
         '''
         Only simple.
         '''

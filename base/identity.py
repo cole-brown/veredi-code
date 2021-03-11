@@ -294,7 +294,9 @@ class MonotonicId(Encodable,
     @classmethod
     def decode_complex(klass: 'MonotonicId',
                        value: EncodedComplex,
-                       codec: 'Codec') -> 'MonotonicId':
+                       codec: 'Codec',
+                       instance: Optional['MonotonicId'] = None
+                       ) -> 'MonotonicId':
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -696,7 +698,9 @@ class SerializableId(Encodable,
     @classmethod
     def decode_complex(klass: 'SerializableId',
                        value: EncodedComplex,
-                       codec: 'Codec') -> 'SerializableId':
+                       codec: 'Codec',
+                       instance: Optional['SerializableId'] = None
+                       ) -> 'SerializableId':
         '''
         NotImplementedError: We don't do complex.
         '''
