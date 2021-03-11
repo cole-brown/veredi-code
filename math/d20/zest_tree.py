@@ -9,6 +9,8 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Optional
+
 from veredi.zest.base.unit import ZestBase
 from veredi.logs           import log
 
@@ -45,7 +47,8 @@ class MockNode(tree.Node, dotted='veredi.math.d20.tree.zest_tree.mock_node'):
     @classmethod
     def decode_complex(klass: 'MockNode',
                        data:  EncodedComplex,
-                       codec: Codec):
+                       codec: Codec,
+                       instance: Optional['MockNode'] = None):
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -80,7 +83,8 @@ class MockLeaf(tree.Leaf, dotted='veredi.math.d20.tree.zest_tree.mock_leaf'):
     @classmethod
     def decode_complex(klass: 'MockLeaf',
                        data:  EncodedComplex,
-                       codec: Codec):
+                       codec: Codec,
+                       instance: Optional['MockLeaf'] = None):
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.

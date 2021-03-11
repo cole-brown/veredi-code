@@ -608,15 +608,20 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         return encoded
 
     @classmethod
-    def _decode_super(klass:    'MathTree',
-                      instance: 'MathTree',
-                      data:     EncodedComplex,
-                      codec:    'Codec') -> 'MathTree':
+    def decode_complex(klass: 'MathTree',
+                       data:  EncodedComplex,
+                       codec: 'Codec',
+                       instance: Optional['MathTree'] = None) -> 'MathTree':
+
+        '''
+        Use `data` and `codec` to decode the data using the subclass.
+
+        Return a new instance of `klass` as the result of the decoding.
+        '''
         '''
         Decode MathTree's instance variables into the `instance` from the
         `data`.
         '''
-
         # Get/decode our fields.
         instance._node_type = codec.decode(NodeType, data['type'])
         instance._value = data['value']
@@ -639,22 +644,6 @@ class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
         instance._children = children
 
         # And return the instance.
-        return instance
-
-    @classmethod
-    def decode_complex(klass: 'MathTree',
-                       data:  EncodedComplex,
-                       codec: 'Codec') -> 'MathTree':
-        '''
-        Use `data` and `codec` to decode the data using the subclass.
-
-        Return a new instance of `klass` as the result of the decoding.
-        '''
-        # Have Codec figure out actual class.
-        tree_type = None
-        instance = codec.decode(tree_type, data)
-        # TODO: is this ever called?
-        log.error("HELLO THERE! Is this used? Should it be?!")
         return instance
 
     # -------------------------------------------------------------------------

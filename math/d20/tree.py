@@ -461,7 +461,8 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
     @classmethod
     def decode_complex(klass: 'Dice',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'Dice':
+                       codec: 'Codec',
+                       instance: Optional['Dice'] = None) -> 'Dice':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -476,7 +477,8 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
         dice.roll = roll
 
         # Finish building by having our parents do their things.
-        klass._decode_super(dice, data)
+        super().decode_complex(data, codec,
+                               instance=dice)
 
         return dice
 
@@ -563,7 +565,8 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
     @classmethod
     def decode_complex(klass: 'Constant',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'Constant':
+                       codec: 'Codec',
+                       instance: Optional['Encodable'] = None) -> 'Constant':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -574,7 +577,8 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
         constant = Constant(None)
 
         # Finish building by having our parents do their things.
-        klass._decode_super(constant, data)
+        super().decode_complex(data, codec,
+                               instance=constant)
 
         return constant
 
@@ -681,7 +685,8 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
     @classmethod
     def decode_complex(klass: 'Variable',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'Variable':
+                       codec: 'Codec',
+                       instance: Optional['Encodable'] = None) -> 'Variable':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -692,7 +697,8 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
         variable = Variable(None)
 
         # Finish building by having our parents do their things.
-        klass._decode_super(variable, data)
+        super().decode_complex(data, codec,
+                               instance=variable)
 
         return variable
 
@@ -897,7 +903,8 @@ class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
     @classmethod
     def decode_complex(klass: 'OperatorAdd',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'OperatorAdd':
+                       codec: 'Codec',
+                       instance: Optional['Encodable'] = None) -> 'OperatorAdd':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -908,7 +915,8 @@ class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
         add = OperatorAdd(None)
 
         # Finish building by having our parents do their things.
-        klass._decode_super(add, data)
+        super().decode_complex(data, codec,
+                               instance=add)
 
         return add
 
@@ -966,7 +974,8 @@ class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
     @classmethod
     def decode_complex(klass: 'OperatorSub',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'OperatorSub':
+                       codec: 'Codec',
+                       instance: Optional['Encodable'] = None) -> 'OperatorSub':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -977,7 +986,8 @@ class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
         sub = OperatorSub(None)
 
         # Finish building by having our parents do their things.
-        klass._decode_super(sub, data)
+        super().decode_complex(data, codec,
+                               instance=sub)
 
         return sub
 
@@ -1035,7 +1045,9 @@ class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
     @classmethod
     def decode_complex(klass: 'OperatorMult',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'OperatorMult':
+                       codec: 'Codec',
+                       instance: Optional['Encodable'] = None
+                       ) -> 'OperatorMult':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -1046,7 +1058,8 @@ class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
         mult = OperatorMult(None)
 
         # Finish building by having our parents do their things.
-        klass._decode_super(mult, data)
+        super().decode_complex(data, codec,
+                               instance=mult)
 
         return mult
 
@@ -1130,7 +1143,9 @@ class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
     @classmethod
     def decode_complex(klass: 'OperatorDiv',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'OperatorDiv':
+                       codec: 'Codec',
+                       instance: Optional['Encodable'] = None
+                       ) -> 'OperatorDiv':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -1141,7 +1156,8 @@ class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
         div = OperatorDiv(None)
 
         # Finish building by having our parents do their things.
-        klass._decode_super(div, data)
+        super().decode_complex(data, codec,
+                               instance=div)
 
         return div
 
@@ -1197,7 +1213,9 @@ class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
     @classmethod
     def decode_complex(klass: 'OperatorMod',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'OperatorMod':
+                       codec: 'Codec',
+                       instance: Optional['Encodable'] = None
+                       ) -> 'OperatorMod':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -1208,7 +1226,8 @@ class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
         mod = OperatorMod(None)
 
         # Finish building by having our parents do their things.
-        klass._decode_super(mod, data)
+        super().decode_complex(data, codec,
+                               instance=mod)
 
         return mod
 
@@ -1266,7 +1285,9 @@ class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
     @classmethod
     def decode_complex(klass: 'OperatorPow',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'OperatorPow':
+                       codec: 'Codec',
+                       instance: Optional['Encodable'] = None
+                       ) -> 'OperatorPow':
         '''
         Decode ourself as an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -1277,6 +1298,7 @@ class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
         pow = OperatorPow(None)
 
         # Finish building by having our parents do their things.
-        klass._decode_super(pow, data)
+        super().decode_complex(data, codec,
+                               instance=pow)
 
         return pow

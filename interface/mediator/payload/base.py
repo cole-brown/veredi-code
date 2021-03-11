@@ -227,7 +227,9 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
     @classmethod
     def decode_complex(klass: 'BasePayload',
                        data:   EncodedComplex,
-                       codec: 'Codec') -> 'BasePayload':
+                       codec: 'Codec',
+                       instance: Optional['BasePayload'] = None
+                       ) -> 'BasePayload':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -238,7 +240,7 @@ class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
         valid = codec.decode(Validity, data['valid'])
 
         # Our data is of type 'Any', so... try to decode that?
-        data = codec.decode(None, (data['data'])
+        data = codec.decode(None, data['data'])
 
         # Make class with decoded data, skip_validation because this exists and
         # we're just decoding it, not creating a new one.

@@ -191,7 +191,8 @@ class Address(Encodable, dotted='veredi.interface.output.address'):
     @classmethod
     def decode_complex(klass: 'Address',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'Address':
+                       codec: 'Codec',
+                       instance: Optional['Address'] = None) -> 'Address':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
@@ -475,7 +476,8 @@ class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
     @classmethod
     def decode_complex(klass: 'Envelope',
                        data:  EncodedComplex,
-                       codec: 'Codec') -> 'Envelope':
+                       codec: 'Codec',
+                       instance: Optional['Envelope'] = None) -> 'Envelope':
         '''
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
