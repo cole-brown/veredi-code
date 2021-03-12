@@ -17,7 +17,7 @@ import enum
 
 
 from veredi.logs       import log
-from veredi.base.enum  import EnumEncodeNameMixin
+from veredi.strings    import labeler
 from veredi.data.codec import (Codec,
                                Encodable,
                                EncodedComplex,
@@ -35,8 +35,8 @@ from .base             import BasePayload, Validity
 # Do Not Feed the Bares
 # -----------------------------------------------------------------------------
 
-class BarePayload(BasePayload,
-                  dotted='veredi.interface.mediator.payload.bare'):
+@labeler.dotted('veredi.interface.mediator.payload.bare')
+class BarePayload(BasePayload):
     '''
     Payload class for a bare payload.
 

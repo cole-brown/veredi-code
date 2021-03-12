@@ -23,9 +23,12 @@ from veredi.base.strings import label
 from .const     import (EncodeNull, EncodeAsIs,
                         EncodedComplex, EncodedSimple, EncodedEither,
                         Encoding)
+from .enum      import (FlagEncodeValueMixin,
+                        FlagEncodeNameMixin,
+                        EnumEncodeNameMixin)
 from .codec     import Codec
 from .encodable import Encodable
-from .registry  import EncodableRegistry
+from .registry  import EncodableRegistry, register
 
 
 # -----------------------------------------------------------------------------
@@ -34,10 +37,9 @@ from .registry  import EncodableRegistry
 
 __all__ = [
     # ------------------------------
-    # File-Local
+    # Functions
     # ------------------------------
     'register',
-
 
     # ------------------------------
     # Types
@@ -54,6 +56,9 @@ __all__ = [
     'Encodable',
     'EncodableRegistry',
 
+    'EnumEncodeNameMixin',
+    'FlagEncodeNameMixin',
+    'FlagEncodeValueMixin',
 
     # # ------------------------------
     # # Protocol / Interface
@@ -61,55 +66,6 @@ __all__ = [
     # 'Encoder',
     # 'Decoder',
 ]
-
-
-# -----------------------------------------------------------------------------
-# Helpers
-# -----------------------------------------------------------------------------
-
-def register(klass:  'Encodable',
-             dotted: Optional[label.LabelInput] = None) -> None:
-    '''
-    Register the `klass` with the `dotted` string to our registry.
-    '''
-    dotted_str = label.normalize(dotted)
-    log.registration(dotted,
-                     f"Encodable: Checking '{dotted_str}' "
-                     f"for registration of '{klass.__name__}'...")
-
-    # ---
-    # Sanity
-    # ---
-    if not dotted:
-        # No dotted string is an error.
-        msg = ("Encodable sub-classes must be registered with a `dotted` "
-               f"parameter. Got: '{dotted_str}'")
-        error = ValueError(msg, klass, dotted)
-        log.registration(dotted, msg)
-        raise log.exception(error, msg)
-
-    elif dotted == klass._DO_NOT_REGISTER:
-        # A 'do not register' dotted string probably means a base class is
-        # encodable but shouldn't exist on its own; subclasses should
-        # register themselves.
-        log.registration(dotted,
-                         f"Ignoring '{klass}'. "
-                         "It is marked as 'do not register'.")
-        return
-
-    # ---
-    # Register
-    # ---
-    log.registration(dotted,
-                     f"Encodable: Registering '{dotted_str}' "
-                     f"to '{klass.__name__}'...")
-
-    dotted_args = label.regularize(dotted)
-    EncodableRegistry.register(klass, *dotted_args)
-
-    log.registration(dotted,
-                     f"Encodable: Registered '{dotted_str}' "
-                     f"to '{klass.__name__}'.")
 
 
 # -----------------------------------------------------------------------------

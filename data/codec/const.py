@@ -48,7 +48,7 @@ class Encoding(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
     What sort of data are we expecting from this encodable?
     '''
-    INVALID = None
+    INVALID = enum.auto()
     '''Do not use this one.'''
 
     SIMPLE = enum.auto()

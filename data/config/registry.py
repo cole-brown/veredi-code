@@ -28,8 +28,6 @@ _REGISTRY = {}
 _REG_DOTTED = 'veredi.data.config.registry'
 _REG_DOT_SHORT = 'config.registry'
 
-_DOTTED_FUNC_IGNORE = set()
-
 
 # -----------------------------------------------------------------------------
 # Code
@@ -74,7 +72,7 @@ def register(*dotted_label: label.LabelInput) -> Callable[..., Type[Any]]:
         # Pull final key off of list so we don't make too many dictionaries.
         name = str(cls_or_func)
         try:
-            config_name = registree_id[-1]
+            leaf_key = registree_id[-1]
         except IndexError as error:
             raise log.exception(
                 RegistryError,
@@ -84,22 +82,22 @@ def register(*dotted_label: label.LabelInput) -> Callable[..., Type[Any]]:
                 name, registree_id,
                 stacklevel=3) from error
 
-        registration = _REGISTRY
-        reggie_jr = background.registry.get(_REG_DOTTED)
+        registry_our = _REGISTRY
+        registry_bg = background.registry.get(_REG_DOTTED)
         length = len(registree_id)
         # -1 as we've got our config name already from that final registree_id
         # entry.
         for i in range(length - 1):
-            registration = registration.setdefault(registree_id[i], {})
-            reggie_jr = reggie_jr.setdefault(registree_id[i], {})
+            registry_our = registry_our.setdefault(registree_id[i], {})
+            registry_bg = registry_bg.setdefault(registree_id[i], {})
 
         # Helpful messages - but registering either way.
-        if config_name in registration:
+        if leaf_key in registry_our:
             log.warning("Something was already registered under this "
                         "registration key... keys: {}, replacing "
                         "'{}' with this '{}'",
                         registree_id,
-                        str(registration[config_name]),
+                        str(registry_our[leaf_key]),
                         name,
                         stacklevel=3)
         else:
@@ -108,13 +106,13 @@ def register(*dotted_label: label.LabelInput) -> Callable[..., Type[Any]]:
                       name,
                       stacklevel=3)
         # Set as registered cls/func.
-        registration[config_name] = cls_or_func
+        registry_our[leaf_key] = cls_or_func
         # Save as a thing that has been registered at this level.
-        reggie_jr.setdefault('.', []).append(config_name)
+        registry_bg.setdefault('.', []).append(leaf_key)
 
         # Finally, add the 'dotted' property if applicable.
-        labeler.tag_helper(_REG_DOTTED, '@register',
-                           cls_or_func, registree_id)
+        labeler.dotted_helper(_REG_DOTTED, '@register',
+                              cls_or_func, registree_id)
 
         return cls_or_func
 

@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 # ---
 # Code
 # ---
+from veredi.base.strings           import labeler
 from veredi.data                   import background
 from veredi.data.codec             import (Codec,
                                            Encodable,
@@ -57,7 +58,8 @@ from ..mediator.payload.base       import BasePayload
 # Envelope Address
 # -----------------------------------------------------------------------------
 
-class Address(Encodable, dotted='veredi.interface.output.address'):
+@labeler.dotted('veredi.interface.output.address')
+class Address(Encodable):
     '''
     Info for translating from Recipient to Users of a specific output format,
     which is dictated by `security_subject`. Maybe 'output security level' or
@@ -240,7 +242,8 @@ class Address(Encodable, dotted='veredi.interface.output.address'):
 # Message Envelope
 # -----------------------------------------------------------------------------
 
-class Envelope(Encodable, dotted='veredi.interface.output.envelope'):
+@labeler.dotted('veredi.interface.output.envelope')
+class Envelope(Encodable):
     '''
     A container for a message, with some meta-data about the message.
     '''

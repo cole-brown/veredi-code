@@ -20,10 +20,10 @@ from veredi.game.ecs.event          import Event
 from veredi.data.codec              import (Codec,
                                             Encodable,
                                             EncodedSimple,
-                                            EncodedComplex)
-from veredi.base.enum               import (FlagCheckMixin,
-                                            FlagSetMixin,
+                                            EncodedComplex,
                                             FlagEncodeValueMixin)
+from veredi.base.strings            import labeler
+from veredi.base.enum               import FlagCheckMixin, FlagSetMixin
 from veredi.base.context            import VerediContext
 from veredi.game.ecs.base.identity  import EntityId
 from veredi.base.identity           import SerializableId
@@ -34,6 +34,7 @@ from veredi.interface.input.context import InputContext
 # Constants
 # -----------------------------------------------------------------------------
 
+@labeler.dotted('veredi.interface.output.event.recipient')
 @enum.unique
 class Recipient(FlagEncodeValueMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
@@ -79,17 +80,13 @@ class Recipient(FlagEncodeValueMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
         return 'v.io.recip'
 
 
-# Register ourself manually with the Encodable registry.
-Recipient.register_manually()
-
-
 # -----------------------------------------------------------------------------
 # Base Output Event
 # -----------------------------------------------------------------------------
 
 # [2021-03-09] Changed to disallow OutputEvent as a directly encodable class.
-# dotted='veredi.interface.output.event'):
-class OutputEvent(Event, Encodable, dotted=Encodable._DO_NOT_REGISTER):
+# @labeler.dotted('veredi.interface.output.event')
+class OutputEvent(Event, Encodable):
 
     '''
     An event that should be show to the outside world (users?). Something that
@@ -231,7 +228,7 @@ class OutputEvent(Event, Encodable, dotted=Encodable._DO_NOT_REGISTER):
     @classmethod
     def decode_simple(klass: 'OutputEvent',
                       data:  EncodedSimple,
-                      codec: 'Codec')) -> 'OutputEvent':
+                      codec: 'Codec') -> 'OutputEvent':
         '''
         Don't support simple by default.
         '''

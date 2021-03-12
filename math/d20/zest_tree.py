@@ -14,6 +14,7 @@ from typing import Optional
 from veredi.zest.base.unit import ZestBase
 from veredi.logs           import log
 
+from veredi.base.strings   import labeler
 from veredi.data.codec     import EncodedComplex, Codec
 
 from .                     import tree
@@ -24,7 +25,8 @@ from ..parser              import NodeType
 # Mock Classes
 # -----------------------------------------------------------------------------
 
-class MockNode(tree.Node, dotted='veredi.math.d20.tree.zest_tree.mock_node'):
+@labeler.dotted('veredi.math.d20.tree.zest_tree.mock_node')
+class MockNode(tree.Node):
 
     def __init__(self, type, value=None):
         super().__init__(type,
@@ -56,7 +58,8 @@ class MockNode(tree.Node, dotted='veredi.math.d20.tree.zest_tree.mock_node'):
         raise NotImplementedError
 
 
-class MockLeaf(tree.Leaf, dotted='veredi.math.d20.tree.zest_tree.mock_leaf'):
+@labeler.dotted('veredi.math.d20.tree.zest_tree.mock_leaf')
+class MockLeaf(tree.Leaf):
 
     def __init__(self, type, value=None):
         super().__init__(type,

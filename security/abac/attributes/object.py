@@ -9,7 +9,9 @@ Access-Based Access Control - Attributes for Objects.
 # -----------------------------------------------------------------------------
 
 import enum
-from veredi.base.enum import FlagCheckMixin, FlagSetMixin, FlagEncodeNameMixin
+from veredi.base.strings import labeler
+from veredi.base.enum    import FlagCheckMixin, FlagSetMixin
+from veredi.data.codec   import FlagEncodeNameMixin
 
 
 # -----------------------------------------------------------------------------
@@ -24,6 +26,7 @@ from veredi.base.enum import FlagCheckMixin, FlagSetMixin, FlagEncodeNameMixin
 # TODO: make sure we're actually doing Attribute-based Access Control
 # https://en.wikipedia.org/wiki/Attribute-based_access_control
 
+@labeler.dotted('veredi.security.abac.attributes.object')
 @enum.unique
 class Object(FlagEncodeNameMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
@@ -111,7 +114,3 @@ class Object(FlagEncodeNameMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
         A short, unique name for encoding an instance into a field in a dict.
         '''
         return 'v.sec.abac.object'
-
-
-# Register ourself manually with the Encodable registry.
-Object.register_manually()

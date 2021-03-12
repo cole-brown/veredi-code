@@ -60,6 +60,67 @@ __all__ = [
 
 
 # -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
+
+def register(klass:  'Encodable',
+             dotted: Optional[label.LabelInput] = None) -> None:
+    '''
+    Register the `klass` with the `dotted` string to our registry.
+    '''
+    # ---
+    # Sanity
+    # ---
+    if not dotted:
+        # No dotted string is an error.
+        msg = ("Encodable sub-classes must be registered with a `dotted` "
+               f"parameter. Got: '{dotted}'")
+        error = ValueError(msg, klass, dotted)
+        log.registration(dotted, msg)
+        raise log.exception(error, msg)
+
+    if dotted == klass._DO_NOT_REGISTER:
+        # A 'do not register' dotted string probably means a base class is
+        # encodable but shouldn't exist on its own; subclasses should
+        # register themselves.
+        log.registration(dotted,
+                         f"Ignoring '{klass}'. "
+                         "It is marked as 'do not register'.")
+        return
+
+    # ---
+    # Register
+    # ---
+    dotted_str = label.normalize(dotted)
+    log.registration(dotted,
+                     f"EncodableRegistry: Registering '{dotted_str}' "
+                     f"to '{klass.__name__}'...")
+
+    dotted_args = label.regularize(dotted)
+    EncodableRegistry.register(klass, *dotted_args)
+
+    log.registration(dotted,
+                     f"EncodableRegistry: Registered '{dotted_str}' "
+                     f"to '{klass.__name__}'.")
+
+
+def ignore(klass: 'Encodable') -> None:
+    '''
+    For flagging an Encodable class as one that is a base class
+    or should not be registered for some other reason.
+    '''
+    log.registration(EncodableRegistry.dotted(),
+                     f"EncodableRegistry: Marking '{klass}' "
+                     f"as ignored for registration.")
+
+    EncodableRegistry.ignore(klass)
+
+    log.registration(EncodableRegistry.dotted(),
+                     f"EncodableRegistry: '{klass}' "
+                     f"marked as ignored.")
+
+
+# -----------------------------------------------------------------------------
 # Encodables Registry
 # -----------------------------------------------------------------------------
 
@@ -195,7 +256,7 @@ class EncodableRegistry(CallRegistrar):
         # Use dotted name?
         # ---
         if dotted:
-            registree = klass.get_dotted(dotted, None)
+            registree = klass.get_by_dotted(dotted, None)
 
         # ---
         # Search for registered Encodable.
@@ -213,7 +274,7 @@ class EncodableRegistry(CallRegistrar):
         # ---
         if registree:
             # Find by claim?
-            claiming, claim, _ = registree.claim(data)
+            claiming, _, _ = registree.claim(data)
             if claiming:
                 return registree
             else:
@@ -316,8 +377,8 @@ class EncodableRegistry(CallRegistrar):
                 continue
 
             # Do they claim this?
-            # claiming, _, _ = node.claim(data)
-            claiming, claim, reason = node.claim(data)
+            claiming, _, _ = node.claim(data)
+            # claiming, claim, reason = node.claim(data)
             if claiming:
                 # Yes; return decoded result.
                 return node

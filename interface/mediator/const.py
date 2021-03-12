@@ -15,10 +15,10 @@ import enum
 import re
 
 
-from veredi.logs      import log
-from veredi.base.enum import (FlagCheckMixin,
-                              FlagSetMixin,
-                              FlagEncodeValueMixin)
+from veredi.logs         import log
+from veredi.base.strings import labeler
+from veredi.base.enum    import FlagCheckMixin, FlagSetMixin
+from veredi.data.codec   import FlagEncodeValueMixin
 
 
 _MT_ENCODE_FIELD_NAME: str = 'v.mt'
@@ -29,6 +29,7 @@ _MT_ENCODE_FIELD_NAME: str = 'v.mt'
 # Messages
 # -----------------------------------------------------------------------------
 
+@labeler.dotted('veredi.interface.mediator.message.type')
 @enum.unique
 class MsgType(FlagCheckMixin, FlagSetMixin, FlagEncodeValueMixin, enum.Flag):
     '''
@@ -130,10 +131,3 @@ class MsgType(FlagCheckMixin, FlagSetMixin, FlagEncodeValueMixin, enum.Flag):
         return 'v.mt'
 
     # Rest of Encodable is provided by FlagEncodeValueMixin.
-
-
-# Hit a brick wall trying to get an Encodable enum's dotted through to
-# Encodable. :| Register manually?
-#
-# Register ourself manually with the Encodable registry.
-MsgType.register_manually()

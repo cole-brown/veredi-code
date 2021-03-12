@@ -16,6 +16,7 @@ from veredi.base                   import numbers
 from veredi.base.numbers           import NumberTypes
 from veredi.base.context           import VerediContext
 from veredi.base.identity          import SerializableId
+from veredi.base.strings           import labeler
 from veredi.game.ecs.base.identity import EntityId
 from veredi.game.ecs.event         import Event
 from veredi.interface.output.event import OutputEvent, Recipient
@@ -115,7 +116,8 @@ class MathResult(MathEvent):
 # Output to Users
 # -----------------------------------------------------------------------------
 
-class MathOutputEvent(OutputEvent, dotted='veredi.math.event.output'):
+@labeler.dotted('veredi.math.event.output')
+class MathOutputEvent(OutputEvent):
     '''
     This math event is for directing a finalized math result towards the
     command/event output flow.

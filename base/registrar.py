@@ -9,13 +9,13 @@ Bit of a Factory thing going on here...
 # -----------------------------------------------------------------------------
 
 from typing import (Optional, Union, Type, NewType, Any, Mapping,
-                    Callable, Iterable, Dict)
+                    Callable, Iterable, Dict, Set)
 
 
 from abc import ABC, abstractmethod
 
 
-from veredi.base.strings    import label
+from veredi.base.strings    import label, labeler
 from veredi.logs            import log
 from veredi.data            import background
 from veredi.data.exceptions import RegistryError
@@ -47,13 +47,20 @@ class BaseRegistrar(ABC):
     '''
 
     # -------------------------------------------------------------------------
-    # Class Vars
+    # Variables
     # -------------------------------------------------------------------------
+
+    _IGNORE: Set[Union[Type, Callable]] = set()
+    '''
+    Set of classes/functions to ignore for registry reasons.
+
+    Complain if they try to register.
+    '''
 
     # Registry is here, but also toss the reg strs into the background context.
     _REGISTRY: Dict[str, Any] = None
     '''
-    DO NOT ACCESS DIRECTLY! Use `_get()`.
+    DO NOT ACCESS DIRECTLY! Use `_registry()`.
 
     The registry for this registrar. Technically of type:
       Dict[str,
@@ -85,7 +92,7 @@ class BaseRegistrar(ABC):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _get(klass: 'BaseRegistrar') -> Dict[str, Any]:
+    def _registry(klass: 'BaseRegistrar') -> Dict[str, Any]:
         '''
         Get the `klass._REGISTRY`. Create if it is None.
         '''
@@ -120,7 +127,8 @@ class BaseRegistrar(ABC):
         This is called before anything happens in `register()`.
 
         Raise an error to fail the registration or return False to ignore it.
-          - Note that it will be totally ignored. Log if you want to.
+          - Note that returning False will be totally ignored.
+            Log if you want to.
 
         `reg_args` is the Iterable of args passed into `register()`.
 
@@ -155,7 +163,7 @@ class BaseRegistrar(ABC):
         reg_bg.setdefault('.', []).append(leaf_key)
 
     @classmethod
-    def _finalize_register(klass:       'BaseRegistrar',
+    def _finalize_register(klass:      'BaseRegistrar',
                            registeree: 'RegisterType',
                            reg_args:    Iterable[str],
                            reg_ours:    Dict,
@@ -180,6 +188,18 @@ class BaseRegistrar(ABC):
         '''
         This function does the actual registration.
         '''
+        # Ignored?
+        if klass.ignore(cls_or_func):
+            msg = (f"{cls_or_func} is in our set of ignored "
+                   "classes/functions that should not be registered.")
+            error = RegistryError(msg,
+                                  data={
+                                      'registree': cls_or_func,
+                                      'dotted': label.normalize(dotted_label),
+                                      'ignored': klass._IGNORE,
+                                  })
+            raise log.exception(error, msg)
+
         # Do any initial steps.
         dotted_list = label.regularize(*dotted_label)
         if not klass._init_register(cls_or_func, dotted_list):
@@ -202,11 +222,11 @@ class BaseRegistrar(ABC):
                 name, dotted_list,
                 **kwargs) from error
 
-        registration = klass._get()
-        '''Our register - full info saved here.'''
+        # Our register - full info saved here.
+        registry_our = klass._registry()
 
-        reggie_jr = background.registry.get(klass.dotted())
-        '''Background register - just names saved here.'''
+        # Background register - just names saved here.
+        registry_bg = background.registry.get(klass.dotted())
 
         # ------------------------------
         # Get reg dicts to the leaf.
@@ -218,8 +238,8 @@ class BaseRegistrar(ABC):
         for i in range(length - 1):
             # Walk down into both dicts, making new empty sub-entries as
             # necessary.
-            registration = registration.setdefault(dotted_list[i], {})
-            reggie_jr = reggie_jr.setdefault(dotted_list[i], {})
+            registry_our = registry_our.setdefault(dotted_list[i], {})
+            registry_bg = registry_bg.setdefault(dotted_list[i], {})
 
         # ------------------------------
         # Register (warn if occupied).
@@ -227,22 +247,22 @@ class BaseRegistrar(ABC):
 
         # Helpful messages - but registering either way.
         try:
-            if leaf_key in registration:
+            if leaf_key in registry_our:
                 if background.testing.get_unit_testing():
-                    log.ultra_hyper_debug(klass._get())
+                    log.ultra_hyper_debug(klass._registry())
                     msg = ("Something was already registered under this "
-                           f"registration key... keys: {dotted_list}, "
-                           f"replacing {str(registration[leaf_key])}' with "
+                           f"registry_our key... keys: {dotted_list}, "
+                           f"replacing {str(registry_our[leaf_key])}' with "
                            f"this '{name}'.")
                     error = KeyError(leaf_key, msg, cls_or_func)
                     log.exception(error, None, msg,
                                   stacklevel=3)
                 else:
                     log.warning("Something was already registered under this "
-                                "registration key... keys: {}, replacing "
+                                "registry_our key... keys: {}, replacing "
                                 "'{}' with this '{}'",
                                 dotted_list,
-                                str(registration[leaf_key]),
+                                str(registry_our[leaf_key]),
                                 name,
                                 stacklevel=3)
             else:
@@ -251,10 +271,10 @@ class BaseRegistrar(ABC):
                           name,
                           stacklevel=3)
         except TypeError as error:
-            msg = (f"{klass.__name__}.register(): Our 'registration' dict is "
+            msg = (f"{klass.__name__}.register(): Our 'registry_our' dict is "
                    "the incorrect type? Expected something that can deal "
-                   f"with 'in' operator. Have: {type(registration)} -> "
-                   f"{registration}. Trying to register {cls_or_func} at "
+                   f"with 'in' operator. Have: {type(registry_our)} -> "
+                   f"{registry_our}. Trying to register {cls_or_func} at "
                    f"'{label.normalize(dotted_list)}'. "
                    "Registry: \n{}")
             from veredi.base.strings import pretty
@@ -268,23 +288,39 @@ class BaseRegistrar(ABC):
         klass._register(cls_or_func,
                         dotted_list,
                         leaf_key,
-                        registration,
-                        reggie_jr)
+                        registry_our,
+                        registry_bg)
 
         # ------------------------------
         # Finalize (if desired).
         # ------------------------------
         klass._finalize_register(cls_or_func, dotted_list,
-                                 registration, reggie_jr)
+                                 registry_our, registry_bg)
+
+    @classmethod
+    def ignore(klass: 'BaseRegistrar',
+               ignore_klass: Type) -> None:
+        '''
+        Add a class to the ignore list - will not be allowed into the registry
+        although their subclasses will.
+        '''
+        klass._IGNORE.add(ignore_klass)
+
+    @classmethod
+    def ignored(klass: 'BaseRegistrar', check: Type) -> bool:
+        '''
+        Is `check` in our set of classes that should be ignored?
+        '''
+        return (check in klass._IGNORE)
 
     # -------------------------------------------------------------------------
     # Registry Access
     # -------------------------------------------------------------------------
 
     @classmethod
-    def get_dotted(klass:   'BaseRegistrar',
-                   dotted:  label.LabelInput,
-                   context: Optional[VerediContext]) -> 'RegisterType':
+    def get_by_dotted(klass:   'BaseRegistrar',
+                      dotted:  label.LabelInput,
+                      context: Optional[VerediContext]) -> 'RegisterType':
         '''
         Get by dotted name.
 
@@ -296,7 +332,7 @@ class BaseRegistrar(ABC):
         Raises:
           KeyError - dotted string not found in our registry.
         '''
-        registration = klass._get()
+        registration = klass._registry()
         split_keys = label.regularize(dotted)
 
         # ---
@@ -336,7 +372,7 @@ class BaseRegistrar(ABC):
                       data:    Mapping[str, Any],
                       context: Optional[VerediContext]) -> 'RegisterType':
         '''
-        Try to get a dotted name from the data, then pass to get_dotted().
+        Try to get a dotted name from the data, then pass to get_by_dotted().
 
         Returns a registered class/func from the dot-separated keys (e.g.
         "repository.player.file-tree").
@@ -347,7 +383,7 @@ class BaseRegistrar(ABC):
           KeyError - dotted string not found the data.
         '''
         dotted = data['dotted']
-        return klass.get_dotted(dotted, context)
+        return klass.get_by_dotted(dotted, context)
 
     @classmethod
     def invoke(klass: 'BaseRegistrar',
@@ -364,7 +400,7 @@ class BaseRegistrar(ABC):
 
         Context just used for error info.
         '''
-        entry = klass.get(dotted_keys_str, context)
+        entry = klass.get_by_dotted(dotted_keys_str, context)
 
         try:
             # Leave (k)args for others.
@@ -433,8 +469,8 @@ class DottedRegistrar(BaseRegistrar):
         '''
         Let the parent class (BaseRegistrar) register this `registeree`, then
         add these attribuets to the `registeree`.
-          - 'dotted._KLASS_FUNC_NAME'
-          - 'dotted._ATTRIBUTE_PRIVATE_NAME'
+          - 'labeler.KLASS_FUNC_NAME'
+          - 'labeler.ATTRIBUTE_PRIVATE_NAME'
         As of [2020-11-09], these are:
           - dotted() class method
           - _DOTTED class variable
@@ -450,7 +486,7 @@ class DottedRegistrar(BaseRegistrar):
         # ---
         dotted_name = label.normalize(reg_label)
         setattr(registeree,
-                label._ATTRIBUTE_PRIVATE_NAME,
+                labeler.ATTRIBUTE_PRIVATE_NAME,
                 dotted_name)
 
         # ---
@@ -458,14 +494,14 @@ class DottedRegistrar(BaseRegistrar):
         # ---
 
         dotted_attr = getattr(registeree,
-                              label._KLASS_FUNC_NAME, None)
+                              labeler.KLASS_FUNC_NAME, None)
         if dotted_attr:
             # Pre-existing dotted attribute; is it abstract?
             # Complain about abstract.
             if getattr(dotted_attr, '__isabstractmethod__', False):
                 msg = (f"{klass.dotted()}: Failed '{dotted_name}' registry of "
                        f"{registeree.__name__}. Registree has an abstract "
-                       "'{label._KLASS_FUNC_NAME}' attribute, "
+                       "'{labeler.KLASS_FUNC_NAME}' attribute, "
                        "which we cannot auto-generate a replacement for. "
                        "Please implement one manually:\n"
                        "    @classmethod\n"
@@ -473,7 +509,7 @@ class DottedRegistrar(BaseRegistrar):
                        "        # klass._DOTTED magically provided "
                        "by {klass.__name__}\n"
                        "        return klass."
-                       "{label._KLASS_FUNC_NAME}")
+                       "{labeler.KLASS_FUNC_NAME}")
                 raise log.exception(AttributeError(msg, registeree), msg)
 
             # Complain loudly if the registeree has a `dotted` function and
@@ -483,7 +519,7 @@ class DottedRegistrar(BaseRegistrar):
                 msg = (f"{klass.dotted()}: Failed '{dotted_name}' registry of "
                        f"{registeree.__name__}. Registree has a dotted() "
                        "return value of "
-                       f"'{label._KLASS_FUNC_NAME}', which is "
+                       f"'{labeler.KLASS_FUNC_NAME}', which is "
                        "not what it's trying to register as. Please fix the "
                        "class to have the same registration dotted name as "
                        "it has in its dotted() function.")
@@ -493,7 +529,7 @@ class DottedRegistrar(BaseRegistrar):
         # ---
         def get_dotted(klass: Type[Any]) -> Optional[str]:
             return getattr(klass,
-                           label._ATTRIBUTE_PRIVATE_NAME,
+                           labeler.ATTRIBUTE_PRIVATE_NAME,
                            None)
 
         # ---
@@ -507,7 +543,7 @@ class DottedRegistrar(BaseRegistrar):
         # ---
         method = classmethod(get_dotted)
         setattr(registeree,
-                label._KLASS_FUNC_NAME,
+                labeler.KLASS_FUNC_NAME,
                 method)
 
 

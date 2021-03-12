@@ -46,7 +46,7 @@ from veredi.game.engine                import Engine
 # Registry
 from veredi.data.config                import registry as config_registry
 from veredi.data.serdes.yaml           import registry as yaml_registry
-from veredi.data.codec.encodable       import EncodableRegistry
+from veredi.data.codec.registry        import EncodableRegistry
 
 # Registration
 import veredi.math.d20.parser

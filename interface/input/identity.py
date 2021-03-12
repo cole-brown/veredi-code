@@ -12,6 +12,7 @@ from typing import Optional, Type
 
 import uuid
 
+from veredi.base.strings  import labeler
 from veredi.base.identity import SerializableId
 from veredi.game.ecs.time import TimeManager
 
@@ -41,7 +42,8 @@ class InputIdGenerator:
         return self._id_class(self._time)
 
 
-class InputId(SerializableId, dotted='veredi.interface.input.identity.input'):
+@labeler.dotted('veredi.interface.input.identity.input')
+class InputId(SerializableId):
     '''
     ID for Input (events, commands, etc).
 
