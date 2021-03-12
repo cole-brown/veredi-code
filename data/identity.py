@@ -12,6 +12,7 @@ from typing import Optional, Type, Mapping, Tuple, Dict, Union
 
 import uuid
 
+from veredi.base.strings  import labeler
 from veredi.logs          import log
 from veredi.base.identity import SerializableId
 import veredi.time.machine
@@ -42,7 +43,8 @@ class UserIdGenerator:
         return next_id
 
 
-class UserId(SerializableId, dotted='veredi.data.identity.user.id'):
+@labeler.dotted('veredi.data.identity.user.id')
+class UserId(SerializableId):
     '''
     Serializable UserId class.
     '''
@@ -226,7 +228,8 @@ class UserKeyGenerator:
         return next_key
 
 
-class UserKey(SerializableId, dotted='veredi.data.identity.user.key'):
+@labeler.dotted('veredi.data.identity.user.key')
+class UserKey(SerializableId):
     '''
     Serializable UserKey class.
     '''

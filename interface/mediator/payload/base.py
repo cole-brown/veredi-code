@@ -15,11 +15,12 @@ from typing import Optional, Union, Any, Mapping
 import enum
 
 from veredi.logs            import log
-from veredi.base.enum       import FlagEncodeValueMixin
+from veredi.base.strings    import labeler
 from veredi.data.codec      import (Codec,
                                     Encodable,
                                     EncodedSimple,
-                                    EncodedComplex)
+                                    EncodedComplex,
+                                    FlagEncodeValueMixin)
 from veredi.data.exceptions import EncodableError
 
 
@@ -27,6 +28,7 @@ from veredi.data.exceptions import EncodableError
 # Constants
 # -----------------------------------------------------------------------------
 
+@labeler.dotted('veredi.interface.mediator.payload.validity')
 @enum.unique
 class Validity(FlagEncodeValueMixin, enum.Enum):
     '''
@@ -73,16 +75,12 @@ class Validity(FlagEncodeValueMixin, enum.Enum):
     # Rest of Encodabe funcs come from FlagEncodeValueMixin.
 
 
-# Hit a brick wall trying to get an Encodable enum's dotted through to
-# Encodable. :| Register manually with the Encodable registry.
-Validity.register_manually()
-
-
 # -----------------------------------------------------------------------------
 # Payload Basics
 # -----------------------------------------------------------------------------
 
-class BasePayload(Encodable, dotted='veredi.interface.mediator.payload.base'):
+@labeler.dotted('veredi.interface.mediator.payload.base')
+class BasePayload(Encodable):
     '''
     Base class for message payloads. Simple payloads (like a string, list,
     dict...) do not need to be encapsulated. They can just be encoded/decoded

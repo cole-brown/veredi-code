@@ -21,12 +21,13 @@ import enum
 import re
 
 
+from veredi.base.strings           import labeler
 from veredi.security               import abac
-from veredi.base.enum              import FlagEncodeValueMixin
 from veredi.data.codec             import (Codec,
                                            Encodable,
                                            EncodedComplex,
-                                           EncodedSimple)
+                                           EncodedSimple,
+                                           FlagEncodeValueMixin)
 from veredi.data.exceptions        import EncodableError
 from veredi.base.identity          import MonotonicId
 from veredi.data.identity          import UserId, UserKey
@@ -55,7 +56,8 @@ MsgIdTypes = NewType('MsgIdTypes',
 # Code
 # -----------------------------------------------------------------------------
 
-class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
+@labeler.dotted('veredi.interface.mediator.message.message')
+class Message(Encodable):
     '''
     Message object between game and mediator.
 
@@ -73,6 +75,7 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
     _ENCODE_NAME: str = 'message'
     '''Name for this class when encoding/decoding.'''
 
+    @labeler.dotted('veredi.interface.mediator.message.sid')
     @enum.unique
     class SpecialId(FlagEncodeValueMixin, enum.IntEnum):
         '''
@@ -520,8 +523,8 @@ class Message(Encodable, dotted='veredi.interface.mediator.message.message'):
 # Message for Connecting/Disconnecting Users
 # -----------------------------------------------------------------------------
 
-class ConnectionMessage(Message,
-                        dotted='veredi.interface.mediator.message.connection'):
+@labeler.dotted('veredi.interface.mediator.message.connection')
+class ConnectionMessage(Message):
     '''
     Mediator -> Game message for a connecting or disconnecting client.
     '''
@@ -589,8 +592,3 @@ class ConnectionMessage(Message,
         Create a UserPassport instance with our Connection information.
         '''
         return UserPassport(self.user_id, self.user_key, self.connection)
-
-
-# Hit a brick wall trying to get an Encodable enum's dotted through to
-# Encodable. :| Register manually with the Encodable registry.
-Message.SpecialId.register_manually()

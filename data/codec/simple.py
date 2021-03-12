@@ -11,14 +11,15 @@ type for some reason internally...
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any
+from typing import TYPE_CHECKING, Optional, Any
+if TYPE_CHECKING:
+    from .codec      import Codec
 
 
 from veredi.logs import log
 
 from .const      import EncodedComplex, EncodedSimple, Encoding
 from .encodable  import Encodable
-from .codec      import Codec
 
 
 # -----------------------------------------------------------------------------
@@ -30,7 +31,7 @@ from .codec      import Codec
 # Encodable Interface / Mixin
 # -----------------------------------------------------------------------------
 
-class EncodableShim(Encodable, dotted=Encodable._DO_NOT_REGISTER):
+class EncodableShim(Encodable):
     '''
     A class for indicating that some data should just be left as-is for
     encode/decode.
@@ -70,7 +71,7 @@ class EncodableShim(Encodable, dotted=Encodable._DO_NOT_REGISTER):
     @classmethod
     def decode_simple(klass: 'EncodableShim',
                       data:  EncodedSimple,
-                      codec: 'Codec')) -> 'EncodableShim':
+                      codec: 'Codec') -> 'EncodableShim':
         '''
         We are just a shim for simple data - we should not be called to decode
         it.

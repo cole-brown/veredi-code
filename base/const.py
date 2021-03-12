@@ -15,7 +15,7 @@ import enum
 import pathlib
 
 
-from ..numbers import NumberTypes, NumberTypesTuple
+from .numbers import NumberTypes, NumberTypesTuple
 
 
 # -----------------------------------------------------------------------------

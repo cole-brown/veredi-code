@@ -22,10 +22,11 @@ import enum
 
 
 from veredi.logs                 import log
-from veredi.base.enum            import EnumEncodeNameMixin
+from veredi.base.strings         import labeler
 from veredi.data.codec.encodable import (Encodable,
                                          EncodedComplex,
-                                         EncodedSimple)
+                                         EncodedSimple,
+                                         EnumEncodeNameMixin)
 
 from .base                       import BasePayload, Validity
 
@@ -60,6 +61,7 @@ _NC_STR   = "no-comment"
 # Log Field Names for Encode/Decode
 # ------------------------------
 
+@labeler.dotted('veredi.interface.mediator.payload.log.field')
 @enum.unique
 class LogField(EnumEncodeNameMixin, enum.Enum):
     '''
@@ -111,16 +113,12 @@ class LogField(EnumEncodeNameMixin, enum.Enum):
         return 'field'
 
 
-# Enums and that auto-register parameter "dotted='jeff.whatever'" don't
-# get along - registering manually...
-LogField.register_manually()
-
-
 # -----------------------------------------------------------------------------
 # LogPayload Reply Value from Client
 # -----------------------------------------------------------------------------
 
-class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
+@labeler.dotted('veredi.interface.mediator.payload.log.reply')
+class LogReply(Encodable):
     '''
     A helper class for logging payload fields from the client. Allows client to
     refuse to comment about specific things.
@@ -289,8 +287,8 @@ class LogReply(Encodable, dotted='veredi.interface.mediator.payload.logreply'):
 # Payload Actual
 # -----------------------------------------------------------------------------
 
-class LogPayload(BasePayload,
-                 dotted='veredi.interface.mediator.payload.logging'):
+@labeler.dotted('veredi.interface.mediator.payload.log.payload')
+class LogPayload(BasePayload):
     '''
     Payload for a MsgType.LOGGING Message instance.
     '''

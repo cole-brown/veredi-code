@@ -8,6 +8,7 @@ IDs for Entities, Components, and Systems.
 # Imports
 # -----------------------------------------------------------------------------
 
+from veredi.base.strings  import labeler
 from veredi.base.identity import MonotonicId
 
 # -----------------------------------------------------------------------------
@@ -19,8 +20,8 @@ from veredi.base.identity import MonotonicId
 # ECS ID Types
 # -----------------------------------------------------------------------------
 
-class ComponentId(MonotonicId,
-                  dotted='veredi.game.ecs.base.identity.component'):
+@labeler.dotted('veredi.game.ecs.base.identity.component')
+class ComponentId(MonotonicId):
     _ENCODE_FIELD_NAME = 'cid'
     '''Can override in sub-classes if needed.'''
 
@@ -28,8 +29,8 @@ class ComponentId(MonotonicId,
     pass
 
 
-class EntityId(MonotonicId,
-               dotted='veredi.game.ecs.base.identity.entity'):
+@labeler.dotted('veredi.game.ecs.base.identity.entity')
+class EntityId(MonotonicId):
     _ENCODE_FIELD_NAME = 'eid'
     '''Can override in sub-classes if needed.'''
 
@@ -37,8 +38,8 @@ class EntityId(MonotonicId,
     pass
 
 
-class SystemId(MonotonicId,
-               dotted='veredi.game.ecs.base.identity.system'):
+@labeler.dotted('veredi.game.ecs.base.identity.system')
+class SystemId(MonotonicId):
     _ENCODE_FIELD_NAME = 'sid'
     '''Can override in sub-classes if needed.'''
 

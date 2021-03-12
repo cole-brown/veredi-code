@@ -9,16 +9,19 @@ basic Python values/structures (int, dict, etc).
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (TYPE_CHECKING, Optional, Any, Iterable, Mapping, Tuple)
+from typing import (TYPE_CHECKING,
+                    Optional, Any, Type, Callable,
+                    Iterable, Mapping, Tuple)
 if TYPE_CHECKING:
     from .codec import Codec
 
 from abc import abstractmethod
 import re
+import enum
 
 
 from veredi.logs           import log
-from veredi.base.strings   import pretty
+from veredi.base.strings   import label, labeler, pretty
 from veredi.base.registrar import RegisterType
 from veredi.data           import background
 
@@ -92,18 +95,17 @@ class Encodable:
     Classes can/should use "error_for*" methods for validation.
     '''
 
-    _DO_NOT_REGISTER: str = 'n/a'
-    '''
-    Use this as your 'dotted' param if you have a base class that should not be
-    directly encoded/decoded (only children should be encoded/decoded).
-    '''
-
     _TYPE_FIELD_NAME: str = 'encoded.type'
     '''
     Encodable's type_field() value must exist as either top-level key or as
     the value in this field.
 
-    Examples for Jeff(Encodable, dotted='jeff.something') class:
+    Given this class:
+      @labeler.dotted('jeff.something')
+      class Jeff(Encodable):
+        ...
+
+    Examples for it are:
     1) Jeff is a sub-field of the encoded data:
       data = {
         ...
@@ -117,11 +119,6 @@ class Encodable:
         'encoded.type': 'jeff.something',
         ...
       }
-    '''
-
-    _ENCODABLE_DOTTED: str = None
-    '''
-    Classes can just let __init_subclass__ fill this in.
     '''
 
     _ENCODABLE_REG_FIELD: str = 'v.codec'
@@ -138,15 +135,16 @@ class Encodable:
     '''
 
     # -------------------------------------------------------------------------
-    # Class "Properties"
+    # Dotted Label
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def dotted(klass: 'Encodable') -> str:
-        '''
-        Returns the dotted name used to register this Encodable.
-        '''
-        return klass._ENCODABLE_DOTTED
+    # This is provided by @labeler.dotted('...') class decorator.
+    # @classmethod
+    # def dotted(klass: 'Encodable') -> str:
+    #     '''
+    #     Returns the dotted name used to register this Encodable.
+    #     '''
+    #     return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # ABC-Lite

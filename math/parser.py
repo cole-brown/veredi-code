@@ -19,12 +19,13 @@ import enum
 from decimal import Decimal
 
 from veredi.logs         import log
+from veredi.base.strings import labeler
 from veredi.base.context import VerediContext
-from veredi.base.enum    import (FlagEncodeNameMixin,
-                                 FlagCheckMixin)
+from veredi.base.enum    import FlagCheckMixin
 from veredi.data.codec   import (Codec,
                                  Encodable,
-                                 EncodedComplex)
+                                 EncodedComplex,
+                                 FlagEncodeNameMixin)
 
 
 # -----------------------------------------------------------------------------
@@ -69,6 +70,7 @@ class TreeWalkerPredicate(Protocol):
         ...
 
 
+@labeler.dotted('veredi.math.parser.type')
 @enum.unique
 class NodeType(FlagEncodeNameMixin, FlagCheckMixin, enum.Flag):
     '''
@@ -126,13 +128,6 @@ class NodeType(FlagEncodeNameMixin, FlagCheckMixin, enum.Flag):
         return 'v.m.tree'
 
 
-# Hit a brick wall trying to get an Encodable enum's dotted through to
-# Encodable. :| Register manually?
-#
-# Register ourself manually with the Encodable registry.
-NodeType.register_manually()
-
-
 # -----------------------------------------------------------------------------
 # Input String -> Veredi d20 Tree
 # -----------------------------------------------------------------------------
@@ -185,7 +180,7 @@ class MathParser(ABC):
 # Veredi Math Operations in Tree Form
 # -----------------------------------------------------------------------------
 
-class MathTree(ABC, Encodable, dotted=Encodable._DO_NOT_REGISTER):
+class MathTree(ABC, Encodable):
     '''
     Base MathTree interface. Subclasses that are concrete should include a real
     dotted string kwarg instead of `Encodable._DO_NOT_REGISTER` in class args.

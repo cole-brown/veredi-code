@@ -18,14 +18,15 @@ from abc import ABC, abstractmethod
 from functools import reduce
 
 
-from veredi.base       import random, numbers
-from veredi.data.codec import (Codec,
-                               Encodable,
-                               EncodedComplex,
-                               EncodedSimple)
+from veredi.base.strings import labeler
+from veredi.base         import random, numbers
+from veredi.data.codec   import (Codec,
+                                 Encodable,
+                                 EncodedComplex,
+                                 EncodedSimple)
 
-from ..parser          import MathTree, NodeType, VTags
-from .const            import FormatOptions
+from ..parser            import MathTree, NodeType, VTags
+from .const              import FormatOptions
 
 
 # TODO [2020-10-28]: Type hinting for this file.
@@ -40,7 +41,7 @@ from .const            import FormatOptions
 # Base-most class for tree (leaves, branches, everything).
 # -----------------------------------------------------------------------------
 
-class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
+class Node(MathTree):
     '''Base-most class for tree (leaves, branches, everything).'''
 
     # Just using MathTree's __init__ at the moment.
@@ -274,7 +275,7 @@ class Node(MathTree, dotted=Encodable._DO_NOT_REGISTER):
 # Leaves
 # -----------------------------------------------------------------------------
 
-class Leaf(Node, dotted=Encodable._DO_NOT_REGISTER):
+class Leaf(Node):
     '''Leaf node of parsed tree. Dice, constants, vars, etc.'''
 
     # -------------------------------------------------------------------------
@@ -341,7 +342,8 @@ class Leaf(Node, dotted=Encodable._DO_NOT_REGISTER):
 # Leaf Actuals
 # -----------------------------------------------------------------------------
 
-class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
+@labeler.dotted('veredi.math.d20.tree.dice')
+class Dice(Leaf):
 
     _NAME = 'dice'
 
@@ -483,7 +485,8 @@ class Dice(Leaf, dotted='veredi.math.d20.tree.dice'):
         return dice
 
 
-class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
+@labeler.dotted('veredi.math.d20.tree.constant')
+class Constant(Leaf):
 
     _NAME = 'constant'
 
@@ -583,7 +586,8 @@ class Constant(Leaf, dotted='veredi.math.d20.tree.constant'):
         return constant
 
 
-class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
+@labeler.dotted('veredi.math.d20.tree.variable')
+class Variable(Leaf):
 
     _NAME = 'variable'
 
@@ -707,7 +711,7 @@ class Variable(Leaf, dotted='veredi.math.d20.tree.variable'):
 # Tree Node
 # -----------------------------------------------------------------------------
 
-class Branch(Node, ABC, dotted=Encodable._DO_NOT_REGISTER):
+class Branch(Node, ABC):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -825,7 +829,7 @@ class Branch(Node, ABC, dotted=Encodable._DO_NOT_REGISTER):
 # Mathmatic Operations
 # -----------------------------------------------------------------------------
 
-class OperatorMath(Branch, dotted=Encodable._DO_NOT_REGISTER):
+class OperatorMath(Branch):
     '''Base class for math nodes.'''
 
     # -------------------------------------------------------------------------
@@ -854,7 +858,8 @@ class OperatorMath(Branch, dotted=Encodable._DO_NOT_REGISTER):
         return self.__operator_str
 
 
-class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
+@labeler.dotted('veredi.math.d20.tree.add')
+class OperatorAdd(OperatorMath):
     STR_ASCII = '+'
     STR_UNICODE = '+'
     # STR_UNICODE = '\u002B'
@@ -921,7 +926,8 @@ class OperatorAdd(OperatorMath, dotted='veredi.math.d20.tree.add'):
         return add
 
 
-class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
+@labeler.dotted('veredi.math.d20.tree.subtract')
+class OperatorSub(OperatorMath):
     STR_ASCII = '-'
     STR_UNICODE = '−'
     # STR_UNICODE = '\u2212'
@@ -992,7 +998,8 @@ class OperatorSub(OperatorMath, dotted='veredi.math.d20.tree.subtract'):
         return sub
 
 
-class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
+@labeler.dotted('veredi.math.d20.tree.multiply')
+class OperatorMult(OperatorMath):
     STR_ASCII = '*'
     STR_UNICODE = '×'
     # STR_UNICODE = '\u00D7'
@@ -1064,7 +1071,8 @@ class OperatorMult(OperatorMath, dotted='veredi.math.d20.tree.multiply'):
         return mult
 
 
-class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
+@labeler.dotted('veredi.math.d20.tree.divide')
+class OperatorDiv(OperatorMath):
     '''
     Covers both truediv (float math) and floor div (int math) operators.
     '''
@@ -1162,7 +1170,8 @@ class OperatorDiv(OperatorMath, dotted='veredi.math.d20.tree.divide'):
         return div
 
 
-class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
+@labeler.dotted('veredi.math.d20.tree.modulo')
+class OperatorMod(OperatorMath):
     STR_ASCII = '%'
     STR_UNICODE = '%'  # Modulo doesn't have a math symbol...
 
@@ -1232,7 +1241,8 @@ class OperatorMod(OperatorMath, dotted='veredi.math.d20.tree.modulo'):
         return mod
 
 
-class OperatorPow(OperatorMath, dotted='veredi.math.d20.tree.power'):
+@labeler.dotted('veredi.math.d20.tree.power')
+class OperatorPow(OperatorMath):
     STR_ASCII = '^'
     # It would be nice to super-script the 'power-of' component, but
     # that is complicated... maybe?

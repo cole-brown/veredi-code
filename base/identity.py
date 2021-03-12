@@ -16,6 +16,7 @@ import uuid
 from abc import abstractmethod
 
 from veredi.logs              import log
+from veredi.base.strings      import labeler
 # from veredi.base.decorators import abstract_class_attribute
 from veredi.base.metaclasses  import InvalidProvider, ABC_InvalidProvider
 
@@ -56,8 +57,8 @@ class MonotonicIdGenerator:
         return self._last_id
 
 
+@labeler.dotted('veredi.base.identity.monotonic')
 class MonotonicId(Encodable,
-                  dotted="veredi.base.identity.monotonic",
                   metaclass=ABC_InvalidProvider):
     '''
     Integer-based, montonically increasing ID suitable for in-game,
@@ -112,14 +113,12 @@ class MonotonicId(Encodable,
     # ------------------------------
 
     def __init_subclass__(klass:    'Encodable',
-                          dotted:   Optional[str] = None,
                           **kwargs: Any) -> None:
         '''
         Initialize sub-classes.
         '''
-        # Pass up to parent (Encodable).
-        super().__init_subclass__(dotted=dotted,
-                                  **kwargs)
+        # Pass up to parent.
+        super().__init_subclass__(**kwargs)
 
         # ---
         # _INVALID singleton
@@ -140,8 +139,8 @@ class MonotonicId(Encodable,
                 type_field=klass.type_field())
 
             # ...and then use it to compile the regex.
-            klass._ENCODABLE_RX =  re.compile(klass._ENCODABLE_RX_STR,
-                                              klass._ENCODABLE_RX_FLAGS)
+            klass._ENCODABLE_RX = re.compile(klass._ENCODABLE_RX_STR,
+                                             klass._ENCODABLE_RX_FLAGS)
 
     @classmethod
     def _init_invalid_(klass: Type['MonotonicId']) -> None:
@@ -389,8 +388,9 @@ class MonotonicId(Encodable,
 #     def peek(self) -> 'MonotonicId':
 #         return self._last_id
 
+
+@labeler.dotted('veredi.base.identity.serializable')
 class SerializableId(Encodable,
-                     dotted="veredi.base.identity.serializable",
                      metaclass=ABC_InvalidProvider):
     '''
     Base class for a serializable ID (e.g. to a file, or primary key value from
@@ -501,9 +501,8 @@ class SerializableId(Encodable,
         '''
         Initialize sub-classes.
         '''
-        # Pass up to parent (Encodable).
-        super().__init_subclass__(dotted=dotted,
-                                  **kwargs)
+        # Pass up to parent.
+        super().__init_subclass__(**kwargs)
 
         # ---
         # _INVALID singleton

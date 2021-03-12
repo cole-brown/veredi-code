@@ -15,6 +15,7 @@ import re
 
 from veredi.logs          import log
 from veredi.base.identity import SerializableId
+from veredi.base.strings  import labeler
 import veredi.time.machine
 
 
@@ -37,7 +38,8 @@ class PolicyIdGenerator:
         return next_id
 
 
-class PolicyId(SerializableId, dotted='veredi.security.abac.identity.policy'):
+@labeler.dotted('veredi.security.abac.identity.policy')
+class PolicyId(SerializableId):
     '''
     Serializable PolicyId class.
     '''
