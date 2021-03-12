@@ -21,14 +21,14 @@ if TYPE_CHECKING:
 import enum
 
 
-from veredi.logs                 import log
-from veredi.base.strings         import labeler
-from veredi.data.codec.encodable import (Encodable,
-                                         EncodedComplex,
-                                         EncodedSimple,
-                                         EnumEncodeNameMixin)
+from veredi.logs         import log
+from veredi.base.strings import labeler
+from veredi.data.codec   import (Encodable,
+                                 EncodedComplex,
+                                 EncodedSimple,
+                                 EnumEncodeNameMixin)
 
-from .base                       import BasePayload, Validity
+from .base               import BasePayload, Validity
 
 # TODO
 # TODO
