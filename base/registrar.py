@@ -189,7 +189,7 @@ class BaseRegistrar(ABC):
         This function does the actual registration.
         '''
         # Ignored?
-        if klass.ignore(cls_or_func):
+        if klass.ignored(cls_or_func):
             msg = (f"{cls_or_func} is in our set of ignored "
                    "classes/functions that should not be registered.")
             error = RegistryError(msg,
@@ -299,11 +299,14 @@ class BaseRegistrar(ABC):
 
     @classmethod
     def ignore(klass: 'BaseRegistrar',
-               ignore_klass: Type) -> None:
+               ignore_klass: Type,
+               # dotted:       label.InputType  # TODO: should we use dotted to check registry?
+               ) -> None:
         '''
         Add a class to the ignore list - will not be allowed into the registry
         although their subclasses will.
         '''
+        # TODO: Should we search the whole registry for this?
         klass._IGNORE.add(ignore_klass)
 
     @classmethod
