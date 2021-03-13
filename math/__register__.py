@@ -15,26 +15,24 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from .registry import (register,
-                       ignore,
-                       EncodableRegistry)
+from veredi.data.codec import register, ignore
 
 
 # ------------------------------
 # Registrees
 # ------------------------------
-from .enum     import (FlagEncodeValueMixin,
-                       FlagEncodeNameMixin,
-                       EnumEncodeNameMixin)
+from .parser import NodeType, MathTree
+from .event  import MathOutputEvent
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-ignore(FlagEncodeValueMixin)
-ignore(FlagEncodeNameMixin)
-ignore(EnumEncodeNameMixin)
+register(NodeType)
+register(MathOutputEvent)
+
+ignore(MathTree)
 
 
 # -----------------------------------------------------------------------------

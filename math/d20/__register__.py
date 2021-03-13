@@ -15,26 +15,38 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from .registry import (register,
-                       ignore,
-                       EncodableRegistry)
+from veredi.data.codec import register, ignore
 
 
 # ------------------------------
 # Registrees
 # ------------------------------
-from .enum     import (FlagEncodeValueMixin,
-                       FlagEncodeNameMixin,
-                       EnumEncodeNameMixin)
+from .tree import (Node, Leaf, Branch,
+                   Dice, Constant, Variable,
+                   OperatorMath, OperatorAdd, OperatorSub,
+                   OperatorMult, OperatorDiv, OperatorPow)
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-ignore(FlagEncodeValueMixin)
-ignore(FlagEncodeNameMixin)
-ignore(EnumEncodeNameMixin)
+# Always register.
+register(Dice)
+register(Constant)
+register(Variable)
+register(OperatorAdd)
+register(OperatorSub)
+register(OperatorMult)
+register(OperatorDiv)
+register(OperatorPow)
+
+
+# Always ignore.
+ignore(Node)
+ignore(Leaf)
+ignore(Branch)
+ignore(OperatorMath)
 
 
 # -----------------------------------------------------------------------------

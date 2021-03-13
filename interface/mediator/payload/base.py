@@ -79,7 +79,8 @@ class Validity(FlagEncodeValueMixin, enum.Enum):
 # Payload Basics
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.mediator.payload.base')
+# Think this shouldn't be registered?
+# @labeler.dotted('veredi.interface.mediator.payload.base')
 class BasePayload(Encodable):
     '''
     Base class for message payloads. Simple payloads (like a string, list,

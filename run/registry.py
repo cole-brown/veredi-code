@@ -21,6 +21,7 @@ import re
 from veredi.logs               import log
 from veredi.base               import paths
 from veredi.base.strings       import label, text
+from veredi.data               import background
 
 # Configuration Stuff
 from veredi.data.config.config import Configuration
@@ -39,10 +40,18 @@ _REGISTRATION_INIT_NAME = 'register'
 The word used for the registration filename.
 '''
 
+
 _REGISTRATION_INIT_MODULE_NAME = f'__{_REGISTRATION_INIT_NAME}__'
 '''
 The module name (filename sans extension) to look for for registrars,
 registries, and registrees.
+'''
+
+
+_REGISTRATION_INIT_UT_MODULE_NAME = f'__{_REGISTRATION_INIT_NAME}_ut__'
+'''
+If in unit-testing mode (according to background.testing.get_unit_testing()),
+these files will also be searched for and imported.
 '''
 
 
@@ -238,10 +247,12 @@ def _import(module: str, log_dotted: str) -> ModuleType:
 # Smart Importing?
 # -----------------------------------------------------------------------------
 
-def _find_modules(*root:     paths.PathsInput,
-                  filename:   Optional[str]                         = None,
-                  log_dotted: Optional[label.DotStr]                = None,
-                  ignores:    Optional[Set[Union[str, re.Pattern]]] = None
+def _find_modules(*root:       paths.PathsInput,
+                  filename:    Optional[str]                         = None,
+                  filename_ut: Optional[str]                         = None,
+                  log_dotted:  Optional[label.DotStr]                = None,
+                  ignores:     Optional[Set[Union[str, re.Pattern]]] = None,
+                  find_ut:     Optional[bool]                        = None,
                   ) -> Iterable:
     '''
     Finds all modules in `root` and subdirectories that match our
@@ -255,6 +266,12 @@ def _find_modules(*root:     paths.PathsInput,
 
     `filename` will be set to `_REGISTRATION_INIT_MODULE_NAME` if not
     provided. String must match file-name-sans-extension exactly.
+
+    `filename-ut` will be set to `_REGISTRATION_INIT_UT_MODULE_NAME` if not
+    provided. String must match file-name-sans-extension exactly.
+      - This can be disabled if `find_ut` is set explicitly to False, or forced
+        to be enabled if `find_ut` is set explicitly to True. The default value
+        of `None` will obey the `background.testing.get_unit_testing()` flag.
 
     `log_dotted` is only used for logging and will be
     `{_DOTTED}._find_modules' if not provided.
@@ -270,7 +287,21 @@ def _find_modules(*root:     paths.PathsInput,
     # Set up vars...
     # ------------------------------
     log_dotted = log_dotted or label.normalize(_DOTTED, '_find_modules')
-    import_name = filename or _REGISTRATION_INIT_MODULE_NAME
+
+    # What should we import? Are we importing unit-testing stuff too?
+    imports = [filename or _REGISTRATION_INIT_MODULE_NAME]
+    if find_ut is True:
+        # Explicitly want to find unit-test class registrations.
+        imports.append(filename_ut or _REGISTRATION_INIT_UT_MODULE_NAME)
+    elif find_ut is False:
+        # Explicitly /do not/ want to find unit-test class registrations.
+        pass
+    elif background.testing.get_unit_testing():
+        # Implicitly want to find unit-test class registrations - we're in
+        # unit-testing run mode.
+        imports.append(filename_ut or _REGISTRATION_INIT_UT_MODULE_NAME)
+    # Else, implicitly don't want unit-testing - we're a normal run.
+
     root = paths.cast(*root)
     ignores = ignores or _FIND_MODULE_IGNORES
 
@@ -288,21 +319,21 @@ def _find_modules(*root:     paths.PathsInput,
                          "  package: {}\n"
                          "     path: {}\n"
                          "     find: {}",
-                         package_name, package_path, import_name)
+                         package_name, package_path, imports)
         else:
             log.start_up(log_dotted,
                          "Find module root is not a directory!\n"
                          "  package: {}\n"
                          "     path: {}\n"
                          "     find: {}",
-                         package_name, package_path, import_name,
+                         package_name, package_path, imports,
                          log_minimum=log.Level.ERROR)
             msg = "Find module root is not a directory!"
             data = {
                 'root': root,
                 'filename': filename,
                 'ignores': ignores,
-                'import_name': import_name,
+                'imports': imports,
                 'package_path': package_path,
                 'package_name': package_name,
             }
@@ -315,14 +346,14 @@ def _find_modules(*root:     paths.PathsInput,
                      "  package: {}\n"
                      "     path: {}\n"
                      "     find: {}",
-                     package_name, package_path, import_name,
+                     package_name, package_path, imports,
                      log_minimum=log.Level.ERROR)
         msg = "Find module root does not exist!"
         data = {
             'root': root,
             'filename': filename,
             'ignores': ignores,
-            'import_name': import_name,
+            'imports': imports,
             'package_path': package_path,
             'package_name': package_name,
         }
@@ -342,7 +373,7 @@ def _find_modules(*root:     paths.PathsInput,
                  "  package: {}\n"
                  "     path: {}\n"
                  "    files: {}",
-                 package_name, package_path, import_name)
+                 package_name, package_path, imports)
 
     # Make a list so we can keep extending it with sub-directories as we walk
     # the file tree.
@@ -404,12 +435,12 @@ def _find_modules(*root:     paths.PathsInput,
             paths_to_process.extend(list(path.iterdir()))
 
         # Only import exactly our module name.
-        elif module_name != import_name:
+        elif module_name not in imports:
             log.start_up(log_dotted,
                          "Ignoring sub-module to process: {}\n"
                          "    path: {}\n"
                          "  module: {}\n"
-                         "  reason: file name mismatch",
+                         "  reason: no filename match",
                          subpackage, module_relative, module_name,
                          log_minimum=log.Level.DEBUG)
             continue

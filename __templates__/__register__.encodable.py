@@ -15,26 +15,22 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from .registry import (register,
-                       ignore,
-                       EncodableRegistry)
+from veredi.data.codec import register, ignore
 
 
 # ------------------------------
 # Registrees
 # ------------------------------
-from .enum     import (FlagEncodeValueMixin,
-                       FlagEncodeNameMixin,
-                       EnumEncodeNameMixin)
+from .here     import Here
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-ignore(FlagEncodeValueMixin)
-ignore(FlagEncodeNameMixin)
-ignore(EnumEncodeNameMixin)
+# register(Here)
+# register(Here2, 'here.2.dotted')
+# ignore(Here3)
 
 
 # -----------------------------------------------------------------------------

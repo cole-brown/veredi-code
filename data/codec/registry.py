@@ -13,6 +13,7 @@ from veredi.base.null import Null, null_to_none
 
 
 from veredi.logs           import log
+from veredi.data           import background
 from veredi.base.strings   import pretty
 from veredi.base.registrar import CallRegistrar, RegisterType
 from veredi.base.strings   import label
@@ -20,7 +21,6 @@ from veredi.base           import numbers
 
 from .const                import EncodedComplex, EncodedSimple, EncodedEither
 from .encodable            import Encodable
-from .simple               import EncodableShim
 
 
 # -----------------------------------------------------------------------------
@@ -45,7 +45,6 @@ __all__ = [
     'EncodedComplex',
     'EncodedSimple',
     'EncodedEither',
-    'EncodableShim',
 
     # ---
     # Classes
@@ -63,34 +62,47 @@ __all__ = [
 # Helpers
 # -----------------------------------------------------------------------------
 
-def register(klass:  'Encodable',
-             dotted: Optional[label.LabelInput] = None) -> None:
+def register(klass:          'Encodable',
+             dotted:         Optional[label.LabelInput] = None,
+             unit_test_only: Optional[bool]             = False) -> None:
     '''
     Register the `klass` with the `dotted` string to our registry.
+
+    If `unit_test_only` is Truthy, the `klass` will be registered if we are
+    running a unit test, or handed off to `ignore()` if we are not.
     '''
     # ---
     # Sanity
     # ---
     if not dotted:
+        # Check for class's dotted.
+        try:
+            dotted = klass.dotted()
+        except AttributeError:
+            pass
         # No dotted string is an error.
-        msg = ("Encodable sub-classes must be registered with a `dotted` "
-               f"parameter. Got: '{dotted}'")
-        error = ValueError(msg, klass, dotted)
-        log.registration(dotted, msg)
-        raise log.exception(error, msg)
+        if not dotted:
+            msg = ("Encodable sub-classes must either have a `dotted()` "
+                   "class method or be registered with a `dotted` "
+                   f"parameter. Got: '{dotted}'")
+            error = ValueError(msg, klass, dotted)
+            log.registration(dotted, msg)
+            raise log.exception(error, msg)
 
-    if dotted == klass._DO_NOT_REGISTER:
-        # A 'do not register' dotted string probably means a base class is
-        # encodable but shouldn't exist on its own; subclasses should
-        # register themselves.
-        log.registration(dotted,
-                         f"Ignoring '{klass}'. "
-                         "It is marked as 'do not register'.")
+    # ---
+    # Unit Testing?
+    # ---
+    # Unit-test registrees should continue on if in unit-testing mode,
+    # or be diverted to ignore if not.
+    if unit_test_only and not background.testing.get_unit_testing():
+        ignore(klass)
         return
 
     # ---
     # Register
     # ---
+    # Registry should check if it is ignored already by someone previous,
+    # if it cares.
     dotted_str = label.normalize(dotted)
     log.registration(dotted,
                      f"EncodableRegistry: Registering '{dotted_str}' "
@@ -250,7 +262,11 @@ class EncodableRegistry(CallRegistrar):
         # Too simple?
         # ---
         if isinstance(data, (str, *numbers.NumberTypesTuple)):
-            return EncodableShim
+            log.debug("EncodableRegistry.get: Shouldn't be asking the "
+                      "registry for registered class for simple data types. "
+                      f"data: {type(data)}, "
+                      f"dotted: {dotted}, data_type: {data_type}")
+            return None
 
         # ---
         # Use dotted name?
@@ -262,7 +278,7 @@ class EncodableRegistry(CallRegistrar):
         # Search for registered Encodable.
         # ---
         else:
-            registry = klass._get()
+            registry = klass._registry()
             data_dotted = label.from_map(data, error_squelch=True)
             registree = klass._search(registry,
                                       data_dotted,
@@ -313,7 +329,7 @@ class EncodableRegistry(CallRegistrar):
                 data:      EncodedEither,
                 data_type: Type[Encodable]) -> Optional[Encodable]:
         '''
-        Provide `self._get()` as starting point of search.
+        Provide `self._registry()` as starting point of search.
 
         Searches the registry.
 
