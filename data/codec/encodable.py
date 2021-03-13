@@ -17,13 +17,11 @@ if TYPE_CHECKING:
 
 from abc import abstractmethod
 import re
-import enum
 
 
 from veredi.logs           import log
-from veredi.base.strings   import label, labeler, pretty
+from veredi.base.strings   import pretty
 from veredi.base.registrar import RegisterType
-from veredi.data           import background
 
 from ..exceptions          import EncodableError
 from .const                import (EncodedComplex,
@@ -95,7 +93,7 @@ class Encodable:
     Classes can/should use "error_for*" methods for validation.
     '''
 
-    _TYPE_FIELD_NAME: str = 'encoded.type'
+    TYPE_FIELD_NAME: str = 'encoded.type'
     '''
     Encodable's type_field() value must exist as either top-level key or as
     the value in this field.
@@ -121,14 +119,14 @@ class Encodable:
       }
     '''
 
-    _ENCODABLE_REG_FIELD: str = 'v.codec'
+    ENCODABLE_REG_FIELD: str = 'v.codec'
     '''
     Key for help claiming things encoded with
     `Codec.encode()`. Munged down from:
     'veredi.data.codec.encodable'
     '''
 
-    _ENCODABLE_PAYLOAD_FIELD: str = 'v.payload'
+    ENCODABLE_PAYLOAD_FIELD: str = 'v.payload'
     '''
     Key for help claiming things encoded with
     `Codec.encode()`.
@@ -235,12 +233,12 @@ class Encodable:
         '''
         If data is not a mapping, returns None.
 
-        Looks for _TYPE_FIELD_NAME as key in top level of data dictionary,
+        Looks for TYPE_FIELD_NAME as key in top level of data dictionary,
         returns it if found, else returns None.
         '''
         try:
-            if klass._TYPE_FIELD_NAME in data:
-                return data[klass._TYPE_FIELD_NAME]
+            if klass.TYPE_FIELD_NAME in data:
+                return data[klass.TYPE_FIELD_NAME]
 
         # TypeError: "x in data" didn't work.
         # KeyError: "data[x]" didn't work.
@@ -284,13 +282,13 @@ class Encodable:
                                    data:  EncodedEither) -> bool:
         '''
         Returns True if `data` is not Encoding.SIMPLE and has
-        klass._ENCODABLE_REG_FIELD key.
+        klass.ENCODABLE_REG_FIELD key.
         '''
         if klass.encoded_as(data) == Encoding.SIMPLE:
             return False
 
         try:
-            return Encodable._ENCODABLE_REG_FIELD in data
+            return Encodable.ENCODABLE_REG_FIELD in data
 
         # Think "x in data" is TypeError. Also catching KeyError just in case.
         except (TypeError, KeyError):
@@ -387,17 +385,30 @@ class Encodable:
     # Encoding: Entry Functions
     # -------------------------------------------------------------------------
 
+    def encode(self, codec: 'Codec') -> Tuple[Encoding, EncodedEither]:
+        '''
+        Encode ourself as an EncodedSimple or EncodedComplex, depending.
+
+        Default implementation prefers EncodedSimple as long as
+        `self.encoding()` says it is available. Subclasses can override.
+
+        Returns 2-tuple of:
+          - Encoding used.
+          - Encoded data.
+        '''
+        if self.encoding().has(Encoding.SIMPLE):
+            return (Encoding.SIMPLE, self.encode_simple(codec))
+        return (Encoding.COMPLEX, self.encode_complex(codec))
+
     @abstractmethod
-    def encode_simple(self,
-                      codec: 'Codec') -> EncodedSimple:
+    def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
         Encode ourself as an EncodedSimple, return that value.
         '''
         ...
 
     @abstractmethod
-    def encode_complex(self,
-                       codec: 'Codec') -> EncodedComplex:
+    def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
@@ -406,6 +417,31 @@ class Encodable:
     # -------------------------------------------------------------------------
     # Decoding: Entry Functions
     # -------------------------------------------------------------------------
+
+    @classmethod
+    def decode(klass:   'Encodable',
+               data:    EncodedEither,
+               codec:   'Codec',
+               instance: Optional['Encodable']) -> Tuple[Encoding, 'Encodable']:
+        '''
+        Decode ourself from either simple or complex data, depending.
+
+        Default implementation:
+          - Will use `decode_simple()` if `encoded_as()` says SIMPLE or
+            `encoding()` says it is not a COMPLEX encoding type.
+          - Otherwise uses `decode_complex()`.
+
+        Returns 2-tuple of:
+          - Encoding used.
+          - Decoded data.
+        '''
+        if ((klass.encoded_as(data) == Encoding.SIMPLE)
+                or not klass.encoding().has(Encoding.COMPLEX)):
+            return (Encoding.SIMPLE, klass.decode_simple(data, codec))
+
+        # Check for what we want to claim, then decode that via `decode_complex`.
+        _, claim, _ = klass.claim(data)
+        return (Encoding.COMPLEX, klass.decode_complex(claim, codec, instance))
 
     @classmethod
     @abstractmethod

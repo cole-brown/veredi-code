@@ -279,12 +279,12 @@ class Codec(LogMixin):
           - If `encode_in_progress` is provided, encodes this to a sub-field
             under `target.type_field()`.
           - Else encodes this to a dict and provides `target.type_field()` as
-            the value of `target._TYPE_FIELD_NAME`.
+            the value of `target.TYPE_FIELD_NAME`.
 
         If `with_reg_field` is True, returns:
           An output dict with key/values:
-            - _ENCODABLE_REG_FIELD: `target.dotted()`
-            - _ENCODABLE_PAYLOAD_FIELD: `target` encoded data
+            - ENCODABLE_REG_FIELD: `target.dotted()`
+            - ENCODABLE_PAYLOAD_FIELD: `target` encoded data
 
         Else returns:
           `target` encoded data
@@ -294,41 +294,38 @@ class Codec(LogMixin):
             # Null/None encode to None.
             return encoded
 
-        # TODO: if in_progress is not None:
-        # and if encode simple, instead encode as:
-        #   encode_in_progress[type_field] = simple_value
-
-        # Should we encode simply by default?
-        if target.encoding().has(Encoding.SIMPLE):
-            # Yes. Do that thing.
-            simple = target.encode_simple()
-
+        encoding, encoded = target.encode(self)
+        # ---
+        # Encoding.SIMPLE
+        # ---
+        # If we encoded it simply, we're basically done.
+        if encoding.has(Encoding.SIMPLE):
             # If there's an in_progress that's been pass in, and we just
             # encoded ourtarget to a string... That's a bit awkward. But I
             # guess do this. Will make weird-ish looking stuff like: 'v.mid':
             # 'v.mid:1'
             if in_progress is not None:
-                in_progress[target.type_field()] = simple
+                in_progress[target.type_field()] = encoded
                 return in_progress
 
-            return simple
+            return encoded
 
-        # No. Encode everything we know...
-        # ...which as the base class isn't much.
-        encoded = target.encode_complex(self)
+        # ---
+        # Encoding.COMPLEX
+        # ---
 
         # Put the type somewhere and return encoded data.
         if in_progress is not None:
             # Encode as a sub-field in the provided data.
             in_progress[target.type_field()] = encoded
             return in_progress
-        encoded[target._TYPE_FIELD_NAME] = target.type_field()
+        encoded[target.TYPE_FIELD_NAME] = target.type_field()
 
         # Encode with reg/payload fields if requested.
         if with_reg_field:
             return {
-                Encodable._ENCODABLE_REG_FIELD: target.dotted(),
-                Encodable._ENCODABLE_PAYLOAD_FIELD: encoded,
+                Encodable.ENCODABLE_REG_FIELD: target.dotted(),
+                Encodable.ENCODABLE_PAYLOAD_FIELD: encoded,
             }
         # Or just return the encoded data.
         return encoded
@@ -482,13 +479,13 @@ class Codec(LogMixin):
 
         If `target` is unknown (and therefore None), `data` must exist and
         have keys:
-          - Encodable._ENCODABLE_REG_FIELD
-          - Encodable._ENCODABLE_PAYLOAD_FIELD
+          - Encodable.ENCODABLE_REG_FIELD
+          - Encodable.ENCODABLE_PAYLOAD_FIELD
         Raises KeyError if not present.
 
         Takes EncodedComplex `data` input, and uses
-        `Encodable._ENCODABLE_REG_FIELD` key to find registered Encodable to
-        decode `data[Encodable._ENCODABLE_PAYLOAD_FIELD]`.
+        `Encodable.ENCODABLE_REG_FIELD` key to find registered Encodable to
+        decode `data[Encodable.ENCODABLE_PAYLOAD_FIELD]`.
 
         These keyword args are used for getting Encodables from the
         EncodableRegistry:
@@ -516,8 +513,7 @@ class Codec(LogMixin):
         # Decode target already known?
         # ---
         if target:
-            return self._decode_encodable(target, data,
-                                          error_squelch=error_squelch)
+            return self._decode_encodable(target, data)
 
         # ---
         # Does the EncodableRegistry know about it?
@@ -572,7 +568,6 @@ class Codec(LogMixin):
     def _decode_encodable(self,
                           target: Optional[Type['Encodable']],
                           data:   EncodedEither,
-                          error_squerch: bool = False
                           ) -> Optional['Encodable']:
         '''
         Decode simple or complex `data` input, using it to build an
@@ -582,35 +577,29 @@ class Codec(LogMixin):
         `target` instance or None.
         '''
         # ---
+        # Wrong data for target?
+        # ---
+        target.error_for_claim(data)
+
+        # ---
+        # Decode it.
+        # ---
+        encoding, decoded = target.decode(data, self)
+
+        # Right now, same from here on for SIMPLE vs COMPLEX.
+        # Keeping split up for parity with `_encode_encodable`, clarity,
+        # and such.
+
+        # ---
         # Decode Simply?
         # ---
-        if target.encoded_as(data) == Encoding.SIMPLE:
-            # Yes. Do that thing.
-            return target.decode_simple(data, self)
-
-        # Does this class only do simple encode/decode?
-        if not target.encoding().has(Encoding.COMPLEX):
-            msg = (f"Cannot decode data to '{target.__name__}'. "
-                   "Class only encodes simply and didn't match data.")
-            error = TypeError(data, msg)
-            if error_squerch:
-                raise error
-            else:
-                raise log.exception(error,
-                                    msg + ' data: {}',
-                                    data)
+        if encoding == Encoding.SIMPLE:
+            return decoded
 
         # ---
         # Decode Complexly?
         # ---
-        # Maybe; try claiming it to see if it has our type field in the right
-        # place?
-        target.error_for_claim(data)
-
-        # Ok; yes. Get our field out of data and pass on to
-        # `decode_complex()`.
-        _, claim, _ = target.claim(data)
-        return target.decode_complex(claim, self)
+        return decoded
 
     def _decode_with_registry(self,
                               data:          EncodedComplex,
@@ -621,13 +610,13 @@ class Codec(LogMixin):
                               ) -> Optional['Encodable']:
         '''
         Input `data` must have keys:
-          - Encodable._ENCODABLE_REG_FIELD
-          - Encodable._ENCODABLE_PAYLOAD_FIELD
+          - Encodable.ENCODABLE_REG_FIELD
+          - Encodable.ENCODABLE_PAYLOAD_FIELD
         Raises KeyError if not present.
 
         Takes EncodedComplex `data` input, and uses
-        `Encodable._ENCODABLE_REG_FIELD` key to find registered Encodable to
-        decode `data[Encodable._ENCODABLE_PAYLOAD_FIELD]`.
+        `Encodable.ENCODABLE_REG_FIELD` key to find registered Encodable to
+        decode `data[Encodable.ENCODABLE_PAYLOAD_FIELD]`.
 
         All the keyword args are forwarded to EncodableRegistry.get() (e.g.
         'data_types').
@@ -649,15 +638,15 @@ class Codec(LogMixin):
             # the caller.
             return None
 
-        # When no _ENCODABLE_REG_FIELD, we can't do anything since we don't
+        # When no ENCODABLE_REG_FIELD, we can't do anything since we don't
         # know how to decode. But only deal with fallback case here. If they
         # don't have a fallback, let it error soon (but not here).
         if (fallback
-                and Encodable._ENCODABLE_REG_FIELD not in data):
+                and Encodable.ENCODABLE_REG_FIELD not in data):
             # No hint as to what data is - use fallback.
             log.warning("decode_with_registry: No {} in data; using fallback. "
                         "data: {}, fallback: {}",
-                        Encodable._ENCODABLE_REG_FIELD,
+                        Encodable.ENCODABLE_REG_FIELD,
                         data, fallback)
             return fallback
 
@@ -666,27 +655,27 @@ class Codec(LogMixin):
         # ------------------------------
         if not dotted:
             try:
-                dotted = data[Encodable._ENCODABLE_REG_FIELD]
+                dotted = data[Encodable.ENCODABLE_REG_FIELD]
             except KeyError:
 
                 # Now we error on the missing decoding hint.
                 pretty_data = pretty.indented(data)
                 msg = ("decode_with_registry: data has no "
-                       f"'{Encodable._ENCODABLE_REG_FIELD}' key.")
-                raise log.exception(KeyError(Encodable._ENCODABLE_REG_FIELD,
+                       f"'{Encodable.ENCODABLE_REG_FIELD}' key.")
+                raise log.exception(KeyError(Encodable.ENCODABLE_REG_FIELD,
                                              msg,
                                              data),
                                     msg + " Cannot decode: {}",
                                     pretty_data)
 
         try:
-            encoded_data = data[Encodable._ENCODABLE_PAYLOAD_FIELD]
+            encoded_data = data[Encodable.ENCODABLE_PAYLOAD_FIELD]
         except KeyError:
             pretty_data = pretty.indented(data)
             msg = ("decode_with_registry: data has no "
-                   f"'{Encodable._ENCODABLE_PAYLOAD_FIELD}' key. "
+                   f"'{Encodable.ENCODABLE_PAYLOAD_FIELD}' key. "
                    f"Cannot decode: {pretty_data}")
-            raise log.exception(KeyError(Encodable._ENCODABLE_REG_FIELD,
+            raise log.exception(KeyError(Encodable.ENCODABLE_REG_FIELD,
                                          msg,
                                          data),
                                 msg)
@@ -700,8 +689,7 @@ class Codec(LogMixin):
                                        data_type=data_types,
                                        error_squelch=error_squelch,
                                        fallback=fallback)
-        return self._decode_encodable(target, data,
-                                      error_squelch=error_squelch)
+        return self._decode_encodable(target, data)
 
     def decode_map(self,
                    mapping: NullNoneOr[Mapping],
