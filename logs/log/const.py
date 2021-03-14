@@ -5,21 +5,19 @@
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, NewType, Iterable, Dict)
+                    Optional, Union, Any, NewType, Iterable, Dict)
 from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
 
 
-# ------------------------------
-# Imports to Do Stuff
-# ------------------------------
 import logging
 import enum
 
 
 from veredi.base.null       import NullNoneOr, null_or_none
 from veredi.base.strings    import label
+from veredi.base            import numbers
 
 
 # -----------------------------------------------------------------------------
@@ -79,6 +77,62 @@ class SuccessType(enum.Enum):
     # ------------------------------
     # Functions
     # ------------------------------
+
+    @classmethod
+    def success_or_failure(klass: 'SuccessType',
+                           check_success: Optional[Any],
+                           check_failure: Optional[Any]) -> 'SuccessType':
+        '''
+        Tries to translate `check_success` and `check_failure` into either
+        SUCCESS or FAILURE.
+
+        If no successes or no failures to check, pass in SuccessType.IGNORE.
+
+        Numbers will be successful if greater than zero.
+        Generally, uses `bool(check)`.
+        '''
+        # Check for success.
+        successful = False
+        if check_success == SuccessType.IGNORE:
+            successful = klass.SUCCESS
+        else:
+            successful = klass._ok_or_fail(check_success)
+
+        # Check for failure.
+        failure = True
+        if check_failure == SuccessType.IGNORE:
+            failure = klass.SUCCESS
+        else:
+            failure = klass._ok_or_fail(check_failure, invert=True)
+
+        # Return result, preferring a failure.
+        if successful != SuccessType.SUCCESS:
+            return successful
+        return failure
+
+    @classmethod
+    def _ok_or_fail(klass: 'SuccessType',
+                    check: Any,
+                    invert: bool = False) -> 'SuccessType':
+        '''
+        Translates `check` into SUCCESS or FAILURE.
+
+        If `invert` is Truthy, will figure out SUCCESS/FAILURE as normal and
+        then invert the result. That is - will check for failure, instead of
+        checking for success.
+        '''
+        # If a number, succes is greater than zero.
+        if isinstance(check, numbers.NumberTypesTuple):
+            check = (check > 0)
+
+        # bool(check) works for:
+        #   - bools
+        #   - iterators (not empty == success)
+        #   - strings? (not empty == success)
+        if bool(check):
+            return klass.SUCCESS
+
+        return klass.FAILURE
 
     @classmethod
     def valid(klass: 'SuccessType',

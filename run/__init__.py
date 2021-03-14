@@ -13,10 +13,13 @@ if TYPE_CHECKING:
     from veredi.game.engine import Engine
     from veredi.data.config.config import Configuration
 
+
+from veredi.base.strings.
+
 # Functions
 from .options  import configuration
 from .engine   import managers, engine
-from .registry import registrars, registrees
+from .registry import registration
 
 # Namespaced
 from .         import system
@@ -28,6 +31,8 @@ from .server   import server
 # Constants
 # -----------------------------------------------------------------------------
 
+_DOTTED: str = 'veredi.run'
+
 
 # -----------------------------------------------------------------------------
 # Code
@@ -37,8 +42,16 @@ def init(config: 'Configuration') -> None:
     '''
     Do some importing and set-up.
     '''
-    registrars(config)
-    registrees(config)
+    log_dotted = label.normalize(_DOTTED, 'init')
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Initializing Veredi...")
+
+    registration(config)
+
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Initialization done.")
 
 
 def start(engine: 'Engine') -> None:
@@ -65,8 +78,7 @@ __all__ = [
     'configuration',
     'managers',
     'engine',
-    'registrars',
-    'registrees',
+    'registration',
 
     # ------------------------------
     # Functions

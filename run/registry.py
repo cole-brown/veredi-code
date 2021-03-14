@@ -8,7 +8,8 @@ Set up the registries.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Iterable, Set
+from typing import Optional, Union, Any, Iterable, Set, List, Dict
+from veredi.base.null import Nullable, Null
 from types import ModuleType
 
 
@@ -16,10 +17,14 @@ import os
 import inspect
 import importlib
 import re
+import enum
 
 
 from veredi.logs               import log
 from veredi.base               import paths
+from veredi.base.const         import (LIB_VEREDI_ROOT,
+                                       VEREDI_NAME_CODE,
+                                       VEREDI_NAME_DISPLAY)
 from veredi.base.strings       import label, text
 from veredi.data               import background
 
@@ -32,30 +37,39 @@ from veredi.data.exceptions    import ConfigError
 # Constants
 # -----------------------------------------------------------------------------
 
-_DOTTED = 'veredi.run.registry'
+_DOTTED: str = 'veredi.run.registry'
 
 
-_REGISTRATION_INIT_NAME = 'register'
+_LOG_INIT: List[log.Group] = [
+    log.Group.START_UP,
+    log.Group.REGISTRATION,
+]
+'''
+Group of logs we use a lot for log.group_multi().
+'''
+
+
+_REGISTRATION_INIT_NAME: str = 'register'
 '''
 The word used for the registration filename.
 '''
 
 
-_REGISTRATION_INIT_MODULE_NAME = f'__{_REGISTRATION_INIT_NAME}__'
+_REGISTRATION_INIT_MODULE_NAME: str = f'__{_REGISTRATION_INIT_NAME}__'
 '''
 The module name (filename sans extension) to look for for registrars,
 registries, and registrees.
 '''
 
 
-_REGISTRATION_INIT_UT_MODULE_NAME = f'__{_REGISTRATION_INIT_NAME}_ut__'
+_REGISTRATION_INIT_UT_MODULE_NAME: str = f'__{_REGISTRATION_INIT_NAME}_ut__'
 '''
 If in unit-testing mode (according to background.testing.get_unit_testing()),
 these files will also be searched for and imported.
 '''
 
 
-_FIND_MODULE_IGNORES = set({
+_FIND_MODULE_IGNORES: Set = set({
     # ---
     # General Ignores
     # ---
@@ -94,25 +108,182 @@ extension), or compiled regex patterns to match to path names.
 NOTE: Regexs must return a match for strings they /do/ want to ignore.
 '''
 
+# ------------------------------
+# Config Settings
+# ------------------------------
+
+@enum.unique
+class ConfigRegistration(enum.Enum):
+    '''
+    Configuration settings keys for registration.
+    '''
+
+    KEY = 'registration'
+    '''
+    Registration is a list of entries for what to search for registration.
+    '''
+
+    NAME = label.regularize('register.name')
+    '''
+    Who is being registered.
+    '''
+
+    DOTTED = label.regularize('register.dotted')
+    '''
+    Who is being registered.
+    '''
+
+    PATH_ROOT = label.regularize('path.root')
+    '''
+    Path to resolve to get to the root of the file tree to be search for
+    registration files.
+    '''
+
+    PATH_RUN = label.regularize('path.run')
+    '''
+    A list of filenames to look for when running (normal and testing).
+    '''
+
+    PATH_TEST = label.regularize('path.test')
+    '''
+    A list of filenames to look for when in testing mode.
+    '''
+
+    PATH_IGNORES = label.regularize('path.ignores')
+    '''
+    A list of strings and regexs to ignore during path searches.
+    '''
+
+    FORCE_TEST = label.regularlize('unit-test')
+    '''
+    A flag to force registration of unit-testing (or force skipping of it).
+    Overrides auto-detection of unit-testing that registration does.
+    '''
+
+    # ------------------------------
+    # Helpers
+    # ------------------------------
+
+    @classmethod
+    def full_key(self) -> str:
+        '''
+        Adds root key ('registration') to its value to form a full key
+        (e.g. 'registration.path.ignores').
+        '''
+        return label.normalize(self.KEY.value, self.value)
+
+    @classmethod
+    def _get(klass: 'ConfigRegistration',
+             path:  label.DotList,
+             entry: Dict[str, Any]) -> Union[str, re.Pattern]:
+        '''
+        Get value at end of `path` keys in `entry`.
+        '''
+        for node in klass.NAME:
+            entry = entry.get(node, Null())
+
+    @classmethod
+    def name(klass: 'ConfigRegistration',
+             entry: Dict[str, Any]) -> str:
+        '''
+        Returns the NAME entry of this registration entry.
+        '''
+        value = klass._get(klass.NAME, entry)
+        return value
+
+    @classmethod
+    def dotted(klass: 'ConfigRegistration',
+               entry: Dict[str, Any]) -> label.DotStr:
+        '''
+        Returns the DOTTED entry of this registration entry.
+        '''
+        value = klass._get(klass.DOTTED, entry)
+        return label.normalize(value)
+
+    @classmethod
+    def path_root(klass: 'ConfigRegistration',
+                  entry: Dict[str, Any]) -> Nullable[paths.Path]:
+        '''
+        Returns the PATH_ROOT entry of this registration entry.
+
+        PATH_ROOT is the resolved (absolute) path to the root of the file tree
+        we should search for registration.
+        '''
+        field = klass._get(klass.PATH_ROOT, entry)
+        path = paths.cast(field, allow_none=True, allow_null=True)
+        if path:
+            path = path.resolve()
+        return path
+
+    @classmethod
+    def path_run(klass: 'ConfigRegistration',
+                 entry: Dict[str, Any]) -> Nullable[str]:
+        '''
+        Returns the PATH_RUN entry of this registration entry.
+
+        PATH_RUN should be a list of filenames to look for.
+        '''
+        return klass._get(klass.PATH_RUN, entry)
+
+    @classmethod
+    def path_test(klass: 'ConfigRegistration',
+                  entry: Dict[str, Any]) -> Nullable[str]:
+        '''
+        Returns the PATH_TEST entry of this registration entry.
+
+        PATH_TEST should be a list of filenames to look for.
+        '''
+        return klass._get(klass.PATH_TEST, entry)
+
+    @classmethod
+    def path_ignores(klass: 'ConfigRegistration',
+                     entry: Dict[str, Any]) -> Nullable[str]:
+        '''
+        Returns the PATH_IGNORES entry of this registration entry.
+
+        PATH_IGNORES should be a list of strings and regexes to match
+        while checking file and directory names. A matching file/dir
+        will be ignored.
+        '''
+        return klass._get(klass.PATH_IGNORES, entry)
+
+    @classmethod
+    def force_test(klass: 'ConfigRegistration',
+                   entry: Dict[str, Any]) -> Nullable[bool]:
+        '''
+        Returns the FORCE_TEST entry of this registration entry.
+
+        FORCE_TEST, if it exists, should be true to force registration of
+        testing classes or false to force skipping test class registration.
+
+        Generally, not supplying is best choice - it will be auto-detected.
+        '''
+        return klass._get(klass.PATH_IGNORES, entry)
+
 
 # -----------------------------------------------------------------------------
 # Initialize Registries
 # -----------------------------------------------------------------------------
 
-def registrars(configuration: Configuration) -> None:
+def registration(configuration: Configuration) -> None:
     '''
-    Make sure Veredi's required registries/registrars exist and have Veredi's
-    required registered classes/functions/etc in them.
+    Searches for all of Veredi's required registries, registrars, registrees,
+    and invisible elephants.
+
+    Eagerly loads them so they are available at run-time when needed.
     '''
-    log_dotted = label.normalize(_DOTTED, 'registrars')
-    log.start_up(log_dotted,
-                 "Importing and loading registries & registrars...")
+    log_dotted = label.normalize(_DOTTED, 'registration')
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Importing and loading registries, "
+                    "registrars & registrees...")
 
     # ---
     # Sanity.
     # ---
     if not configuration:
         msg = "Configuration must be provided."
+        log.group_multi(_LOG_INIT, log_dotted, msg)
         error = ConfigError(msg,
                             data={
                                 'configuration': str(configuration),
@@ -120,95 +291,158 @@ def registrars(configuration: Configuration) -> None:
         raise log.exception(error, msg)
 
     # ---
-    # Load Registries.
+    # Find all registry modules.
     # ---
-    log.start_up(log_dotted,
-                 "Importing Veredi Registries & Registrars...")
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Finding registry modules...")
 
-    # TODO: load based on what's in configuration?
+    successes = []
+    failures = []
+    registrations = configuration.get(ConfigRegistration.KEY)
+    for entry in registrations:
+        # If a config exception is raised, ok. Otherwise track success/failure.
+        registered, dotted = _register_entry(entry)
 
-    # Import the veredi config registry.
-    _import('veredi.data.config.registry', log_dotted)
+       if registered:
+           successses.append(dotted)
+       else:
+           failures.append(dotted)
 
-    # Import the serdes packages so all the derived serdes (yaml, json, etc)
-    # register.
-    _import('veredi.data.serdes', log_dotted)
-
-    # ---
-    # Registration
-    # ---
-    log.start_up(log_dotted,
-                 "Registering Veredi Classes to their Registries...")
-
-    # Import some packages so they can register with their registries.
-    _import('veredi.data.codec.registry', log_dotted)
-
-    # Let Rules register stuff.
-    _import('veredi.rules', log_dotted)
-
-    # TODO: Move the specifics to math's __init__?
-    _import('veredi.math.d20.parser', log_dotted)
-
-    # TODO: v://future/registering/2021-02-01T10:34:57-0800
-    # TODO: import for registering (instead of importing registries) should happen more automaticallyish?
-    _import('veredi.data.repository.file.tree', log_dotted)
-
-    # ---
-    # Done.
-    # ---
-    log.start_up(log_dotted,
-                 "Done importing and loading registries & registrars.",
-                 log_success=log.SuccessType.SUCCESS)
-
-
-def registrees(configuration: Configuration,
-               *start:        paths.PathsInput,
-               filename:      Optional[str] = None) -> None:
-    '''
-    Import all registrees starting from `start` directory and checking all
-    sub-directories.
-
-    If `filename` is provided, looks for that. Otherwise looks for files that
-    match the `_REGISTRATION_INIT_MODULE_NAME` constant.
-    '''
-    log_dotted = label.normalize(_DOTTED, 'registrees')
-    log.start_up(log_dotted,
-                 "Importing and loading registrees...")
-
-    # ---
-    # Sanity.
-    # ---
-    if not configuration:
-        msg = "Configuration must be provided."
-        error = ConfigError(msg,
-                            data={
-                                'configuration': str(configuration),
-                            })
-        raise log.exception(error, msg)
-
-    # ---
-    # Load Registries.
-    # ---
-    root = paths.cast(*start)
-    log.start_up(log_dotted,
-                 "Importing Veredi Registrees...\n",
-                 "  from root: {}\n"
-                 "  with name: {}",
-                 str(root), filename)
-
-    registree_modules = _find_modules(*start, filename, log_dotted)
-    log.ultra_hyper_debug(registree_modules)
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Registration completed.\n"
+                    f"  Attempted: {len(registrations)}\n"
+                    f"  Succeeded: {len(successses)}\n"
+                    f"     Failed: {len(failures)}\n",
+                    "{data}",
+                    # TODO v://future/2021-03-14T12:27:54
+                    # And get rid of that '\n'
+                    data={
+                        'success': successes,
+                        'failure': failures,
+                    })
 
     # ---
     # Done.
     # ---
+    # Did we completely succeed?
+    success = log.SuccessType.success_or_failure(successes, failures)
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Done with registration importing & loading.",
+                    log_success=success)
 
-    log.start_up(log_dotted,
-                 "Done importing and loading registrees.\n"
-                 "{} registree {} found.",
-                 len(registree_modules),
-                 text.plural(registree_modules, 'module'),
-                 log_success=log.SuccessType.SUCCESS)
+
+def _register_entry(entry:      Dict[str, Any],
+                    log_dotted: str) -> (bool, label.DotStr):
+    '''
+    Run a registration sweep for one registration entry in the configuration.
+    '''
+
+    # ---
+    # Get settings...
+    # ---
+    # Required:
+    name = ConfigRegistration.name(entry)
+    dotted = ConfigRegistration.dotted(entry)
+    if not name or not dotted:
+        msg = (f"Invalid 'registration' entry in configuration file. "
+               "At a minimum, "
+               f"'{ConfigRegistration.NAME.full_key()}' and"
+               f"'{ConfigRegistration.DOTTED.full_key()}'."
+               f"must be provided. All non-'{VEREDI_NAME_DISPLAY}' "
+               "registrations must also, at a minimum, provide: "
+               f"'{ConfigRegistration.PATH_ROOT.full_key()}'.")
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        msg)
+        background.config.exception(None, msg,
+                                    error_data={
+                                        'config-reg-entry': entry,
+                                    })
+
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    f"Getting registration settings for {name} ({dotted})...")
+
+    # Quantum Required:
+    root = ConfigRegistration.path_root(entry)
+    if not root:
+        # If no root supplied, we must be dealing with ourself - otherwise no
+        # idea what to do.
+        if name.lower() != VEREDI_NAME_CODE or dotted.lower() != VEREDI_NAME_CODE:
+            msg = (f"Don't know how to register {name} ({dotted}). "
+                   "At a minimum, "
+                   f"'{ConfigRegistration.PATH_ROOT.full_key()}' "
+                   "must be provided along with "
+                    f"'{ConfigRegistration.NAME.full_key()}' and"
+                    f"'{ConfigRegistration.DOTTED.full_key()}'.")
+            log.group_multi(_LOG_INIT,
+                            log_dotted,
+                            msg)
+            background.config.exception(None, msg,
+                                        error_data={
+                                            'config-reg-entry': entry,
+                                        })
+        # We know a default to use for Veredi. Our root.
+        else:
+            root = LIB_VEREDI_ROOT
+
+    # Optional:
+    filenames = (ConfigRegistration.path_run(entry) or None)
+    filenames_ut = (ConfigRegistration.path_test(entry) or None)
+    ignores = (ConfigRegistration.path_ignores(entry) or None)
+    find_ut = (ConfigRegistration.force_test(entry) or None)
+
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    f"Settings for {name} ({dotted}): {{data}}",
+                    # TODO v://future/2021-03-14T12:27:54
+                    data={
+                        'name': name,
+                        'dotted': dotted,
+                        'root': root,
+                        'run': filenames,
+                        'test': filenames_ut,
+                        'ignores': ignores,
+                        'unit-test': find_ut,
+                    })
+
+    # ---
+    # Search w/ settings.
+    # ---
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    f"Searching {name} ({dotted}) for registration...")
+
+    module_names = _find_modules(root, filenames, filenames_ut,
+                                 log_dotted, ignores, find_ut)
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    f"{len(module_names)} "
+                    f"{text.plural(module_names, 'module')}"
+                    f"found for {name} ({dotted}).")
+
+    # ---
+    # Load all registry modules.
+    # ---
+    # Now load the modules we found.
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    f"Loading {name} ({dotted}) registry modules...")
+    imported = []
+    for name in module_names:
+        imported.append(_import(name, log_dotted))
+
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    f"{len(imported)} "
+                    f"{text.plural(imported, 'module')}"
+                    f"imported for {name} ({dotted}).")
+
+    # If we imported nothing... that's probably a fail.
+    return (imported > 0), dotted
 
 
 # -----------------------------------------------------------------------------
@@ -248,8 +482,8 @@ def _import(module: str, log_dotted: str) -> ModuleType:
 # -----------------------------------------------------------------------------
 
 def _find_modules(*root:       paths.PathsInput,
-                  filename:    Optional[str]                         = None,
-                  filename_ut: Optional[str]                         = None,
+                  filenames:   List[str]                             = [],
+                  filename_ut: List[str]                             = [],
                   log_dotted:  Optional[label.DotStr]                = None,
                   ignores:     Optional[Set[Union[str, re.Pattern]]] = None,
                   find_ut:     Optional[bool]                        = None,
@@ -289,17 +523,22 @@ def _find_modules(*root:       paths.PathsInput,
     log_dotted = log_dotted or label.normalize(_DOTTED, '_find_modules')
 
     # What should we import? Are we importing unit-testing stuff too?
-    imports = [filename or _REGISTRATION_INIT_MODULE_NAME]
+    imports = filenames
+    if not imports:
+        imports.append(_REGISTRATION_INIT_MODULE_NAME)
+    if not filenames_ut:
+       filenames_ut.append(_REGISTRATION_INIT_UT_MODULE_NAME)
+
     if find_ut is True:
         # Explicitly want to find unit-test class registrations.
-        imports.append(filename_ut or _REGISTRATION_INIT_UT_MODULE_NAME)
+        imports.extend(filenames_ut)
     elif find_ut is False:
         # Explicitly /do not/ want to find unit-test class registrations.
         pass
     elif background.testing.get_unit_testing():
         # Implicitly want to find unit-test class registrations - we're in
         # unit-testing run mode.
-        imports.append(filename_ut or _REGISTRATION_INIT_UT_MODULE_NAME)
+        imports.extend(filenames_ut)
     # Else, implicitly don't want unit-testing - we're a normal run.
 
     root = paths.cast(*root)
@@ -331,7 +570,8 @@ def _find_modules(*root:       paths.PathsInput,
             msg = "Find module root is not a directory!"
             data = {
                 'root': root,
-                'filename': filename,
+                'filenames': filenames,
+                'filenames-unit-test': filenames_ut,
                 'ignores': ignores,
                 'imports': imports,
                 'package_path': package_path,
@@ -351,7 +591,8 @@ def _find_modules(*root:       paths.PathsInput,
         msg = "Find module root does not exist!"
         data = {
             'root': root,
-            'filename': filename,
+            'filenames': filenames,
+            'filenames-unit-test': filenames_ut,
             'ignores': ignores,
             'imports': imports,
             'package_path': package_path,

@@ -35,6 +35,12 @@ SimpleTypesTuple = (str, *NumberTypesTuple)
 LIB_VEREDI_ROOT = pathlib.Path(__file__).parent.parent
 '''The current root directory of the Veredi library.'''
 
+VEREDI_NAME_CODE = 'veredi'
+'''A constant to use for our name.'''
+
+VEREDI_NAME_DISPLAY = 'Veredi'
+'''Our properly cased name.'''
+
 
 # -----------------------------------------------------------------------------
 # Health

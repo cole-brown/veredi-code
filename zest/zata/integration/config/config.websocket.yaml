@@ -22,6 +22,26 @@ data:
   serdes: veredi.serdes.yaml
 
 
+registration:
+  - register:
+      name: Veredi
+      dotted: veredi
+    path:
+      root: ../../../..  # Relative from here.
+      run: [ register ]
+      test: [ register ]
+      # ignores:
+      #   - strings
+      #   - !regex "\bregex ?(here)?"
+      #   - data
+      #   - !regex "^[a-z]+_test"
+    # unit-test: true/false to force
+  # - register: my-module
+  #   path:
+  #     root: /srv/veredi/extra/
+  #     run: [ register ]
+
+
 rules:
   type: veredi.rules.d20.pf2.info
   skill: veredi.rules.d20.pf2.skill.system
