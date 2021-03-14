@@ -17,6 +17,7 @@ from typing import (Optional, Union, Any, Type, NewType,
 import yaml
 from collections import OrderedDict, UserString
 import enum
+import re
 
 # Yaml's Error type to propogate up to our import level.
 from yaml import YAMLError
@@ -106,6 +107,38 @@ class SequenceStyle(enum.Enum):
 
     FLOW = True
     '''Use flow style for sequences.'''
+
+
+# -----------------------------------------------------------------------------
+# Regex support in YAML.
+# -----------------------------------------------------------------------------
+# Because... what could possibly go wrong?
+
+# ------------------------------
+# Constructor == Reader
+# ------------------------------
+
+def regex_constructor(loader: yaml.SafeLoader,
+                      node:   yaml.nodes.Node) -> re.Pattern:
+    '''
+    Returns the regex pattern.
+    '''
+    value = loader.construct_scalar(node)
+    return re.compile(value)
+
+
+# ------------------------------
+# Representer == Writer
+# ------------------------------
+
+def regex_representer(dumper: yaml.SafeDumper,
+                      regex:  re.Pattern) -> yaml.nodes.Node:
+    '''
+    Returns a string for the regex pattern.
+    '''
+    if isinstance(regex, re.Pattern):
+        regex = regex.pattern
+    return dumper.represent_scalar('!regex', regex)
 
 
 # -----------------------------------------------------------------------------
@@ -270,6 +303,8 @@ def representers() -> None:
               literal_string_representer)
     represent(OrderedDict,
               ordered_dict_representer)
+    represent(re.Pattern,
+              regex_representer)
 
 
 # -----------------------------------------------------------------------------
@@ -289,8 +324,8 @@ def constructors() -> None:
     '''
     Add additional, common, basic constructors needed to YAML.
     '''
-    # None right now.
-    pass
+    construct('!regex',
+              regex_constructor)
 
 
 # -----------------------------------------------------------------------------
