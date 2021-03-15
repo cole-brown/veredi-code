@@ -44,9 +44,9 @@ from veredi.game.ecs.base.identity     import SystemId
 from veredi.game.engine                import Engine
 
 # Registry
-from veredi.data.config                import registry as config_registry
-from veredi.data.serdes.yaml           import registry as yaml_registry
-from veredi.data.codec.registry        import EncodableRegistry
+from veredi.data.config                import registry as registry_config
+from veredi.data.serdes.yaml           import registry as registry_yaml
+from veredi.data.codec                 import registry as registry_codec
 
 # Registration
 import veredi.math.d20.parser
@@ -318,8 +318,8 @@ def set_up_registries(encodables: bool = True,
     # ------------------------------
     # Ensure Things Are Not Registered.
     # ------------------------------
-    config_registry._ut_unregister()
-    yaml_registry._ut_unregister()
+    registry_config._ut_unregister()
+    registry_yaml._ut_unregister()
 
     # log.ultra_mega_debug("Nuking EncodableRegistry. Was: "
     #                      f"\n{EncodableRegistry._get()}")
@@ -348,9 +348,8 @@ def tear_down_registries() -> None:
     '''
     Get the registries cleared out and ready for a new test.
     '''
-    config_registry._ut_unregister()
-    yaml_registry._ut_unregister()
+    registry_config._ut_unregister()
+    registry_yaml._ut_unregister()
 
-    # # Currently nothing really to do that set_up_registries() doesn't do.
-    # # But I want to clear out the registries for the pairing.
-    # EncodableRegistry.nuke()
+    # TODO: A more automatic unregister?
+    registry_codec.registry()._ut_unregister()

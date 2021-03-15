@@ -93,7 +93,13 @@ _ROOT = 'veredi'
 # ------------------------------
 
 _REGISTRY = 'registry'
-'''Registration by Veredi's Registry will be placed under this key.'''
+'''Registration by Veredi's Registries will be placed under this key.'''
+
+_REGISTRARS = 'registrars'
+'''Veredi's Registrars/Registries will be listed under this key.'''
+
+_REGISTREES = 'registrees'
+'''Veredi's Registry will be listed under this key.'''
 
 _CONFIG = 'configuration'
 '''Configuration data will be placed under this key.'''
@@ -181,7 +187,10 @@ _TESTING = 'testing'
 _CONTEXT_LAYOUT = {
     _ROOT: {
         _CONFIG: {},
-        _REGISTRY: {},
+        _REGISTRY: {
+            _REGISTRARS: {},
+            _REGISTREES: {},
+        },
         _GAME: {
             _MANAGER: {},
             _SYSTEM: {
@@ -526,22 +535,42 @@ class config(metaclass=ConfigMeta):
 class registry:
 
     @classmethod
-    def _get(klass: Type['registry']) -> Nullable[ContextMutableMap]:
+    def _get(klass: Type['registry'], key: str) -> Nullable[ContextMutableMap]:
         '''
         Get registry's full sub-context from background context.
         '''
         global _REGISTRY
-        return veredi.get().get(_REGISTRY, Null())
+        registry_entry = veredi.get().get(_REGISTRY, Null())
+        sub_entry = registry_entry.get(key, Null())
+        return sub_entry
 
     @classmethod
-    def get(klass: Type['registry'],
-            registrar_name: str) -> Nullable[ContextMutableMap]:
+    def registrar(klass:     Type['registry'],
+                  register:  label.DotStr,
+                  data:      ContextMap,
+                  ownership: Ownership) -> None:
+        '''
+        Adds `register`'s dotted label and background data to the background's
+        registrars.
+        '''
+        # Add to list of registrars known.
+        context = klass._get(_REGISTRARS)
+        _set(context, register, data, ownership)
+
+        # And make it a default entry for its registrees list.
+        registrees = klass._get(_REGISTREES)
+        registrees[register] = {}
+
+    @classmethod
+    def registry(klass:          Type['registry'],
+                 registrar_name: label.DotStr) -> Nullable[ContextMutableMap]:
         '''
         Get registry's sub-context for a specific registrar from background
         context. Creates an empty one if none exists.
         '''
-        all_reg = klass._get()
-        return all_reg.setdefault(registrar_name, {})
+        all_registries = klass._get(_REGISTREES)
+        registrar_registry = all_registries.setdefault(registrar_name, {})
+        return registrar_registry
 
     # ------------------------------
     # Note:

@@ -8,19 +8,24 @@ Registry for Encodables.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (Optional, Any, Type, Iterable, Dict)
+from typing import (TYPE_CHECKING,
+                    Optional, Any, Type, Iterable, Dict, List)
 from veredi.base.null import Null, null_to_none
+if TYPE_CHECKING:
+    from veredi.data.config.context import ConfigContext
 
 
 from veredi.logs           import log
 from veredi.data           import background
 from veredi.base.strings   import pretty
-from veredi.base.registrar import CallRegistrar, RegisterType
+from veredi.base.registrar import (BaseRegistrar, CallRegistrar, RegisterType,
+                                   registrar as base_registrar)
 from veredi.base.strings   import label
 from veredi.base           import numbers
 
 from .const                import EncodedComplex, EncodedSimple, EncodedEither
 from .encodable            import Encodable
+from ..exceptions          import RegistryError
 
 
 # -----------------------------------------------------------------------------
@@ -57,10 +62,33 @@ __all__ = [
 # Constants
 # -----------------------------------------------------------------------------
 
+_REGISTRAR: 'EncodableRegistry' = None
+'''
+The registry instance for Encodables.
+'''
 
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
+
+def registrar(log_groups: List[log.Group],
+              context:    'ConfigContext') -> 'EncodableRegistry':
+    '''
+    Create the EncodableRegistry instance.
+    '''
+    global _REGISTRAR
+    _REGISTRAR = base_registrar(EncodableRegistry,
+                                log_groups,
+                                context,
+                                _REGISTRAR)
+
+
+def registry() -> 'EncodableRegistry':
+    '''
+    Get the EncodableRegistry.
+    '''
+    return _REGISTRAR
+
 
 def register(klass:          'Encodable',
              dotted:         Optional[label.LabelInput] = None,
@@ -105,14 +133,16 @@ def register(klass:          'Encodable',
     # if it cares.
     dotted_str = label.normalize(dotted)
     log.registration(dotted,
-                     f"EncodableRegistry: Registering '{dotted_str}' "
+                     f"{_REGISTRAR.__class__.__name__}: "
+                     f"Registering '{dotted_str}' "
                      f"to '{klass.__name__}'...")
 
     dotted_args = label.regularize(dotted)
-    EncodableRegistry.register(klass, *dotted_args)
+    _REGISTRAR.register(klass, *dotted_args)
 
     log.registration(dotted,
-                     f"EncodableRegistry: Registered '{dotted_str}' "
+                     f"{_REGISTRAR.__class__.__name__}: "
+                     f"Registered '{dotted_str}' "
                      f"to '{klass.__name__}'.")
 
 
@@ -122,13 +152,13 @@ def ignore(klass: 'Encodable') -> None:
     or should not be registered for some other reason.
     '''
     log.registration(EncodableRegistry.dotted(),
-                     f"EncodableRegistry: Marking '{klass}' "
-                     f"as ignored for registration.")
+                     f"{_REGISTRAR.__class__.__name__}: Marking '{klass}' "
+                     f"as ignored for registration...")
 
-    EncodableRegistry.ignore(klass)
+    _REGISTRAR.ignore(klass)
 
     log.registration(EncodableRegistry.dotted(),
-                     f"EncodableRegistry: '{klass}' "
+                     f"{_REGISTRAR.__class__.__name__}: '{klass}' "
                      f"marked as ignored.")
 
 
@@ -156,8 +186,7 @@ class EncodableRegistry(CallRegistrar):
     # Initialization
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def _init_register(klass:     'EncodableRegistry',
+    def _init_register(self,
                        encodable: Type[Encodable],
                        reg_args:  Iterable[str]) -> bool:
         '''
@@ -177,11 +206,9 @@ class EncodableRegistry(CallRegistrar):
     # Registration
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def _register(klass:      'EncodableRegistry',
+    def _register(self,
                   encodable:  Type[Encodable],
-                  # *args passed into register()
-                  reg_args:   Iterable[str],
+                  reg_label:    Iterable[str],
                   # final key in `reg_args`
                   leaf_key:   str,
                   # A sub-tree of our registration dict, at the correct node
@@ -195,15 +222,15 @@ class EncodableRegistry(CallRegistrar):
           { leaf_key: Encodable.type_field() }
 
         `reg_args` is the Iterable of args passed into `register()`.
-        `reg_ours` is the place in klass._REGISTRY we placed this registration.
+        `reg_ours` is the place in our registry we placed this registration.
         `reg_bg` is the place in the background we placed this registration.
         '''
         # Get it's type field name.
         try:
             name = encodable.type_field()
         except NotImplementedError as error:
-            msg = (f"{klass.__name__}._register: '{type(encodable)}' "
-                   f"(\"{label.regularize(*reg_args)}\") needs to "
+            msg = (f"{self.__class__.__name__}._register: '{type(encodable)}' "
+                   f"(\"{label.regularize(*reg_label)}\") needs to "
                    "implement type_field() function.")
             log.exception(error, msg)
             # Let error through. Just want more info.
@@ -221,9 +248,8 @@ class EncodableRegistry(CallRegistrar):
     # Decoding
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def get(klass: 'EncodableRegistry',
-            data: Optional[EncodedEither],
+    def get(self,
+            data:          Optional[EncodedEither],
             dotted:        Optional[str]             = None,
             data_type:     Optional[Type[Encodable]] = None,
             error_squelch: bool                      = False,
@@ -272,18 +298,18 @@ class EncodableRegistry(CallRegistrar):
         # Use dotted name?
         # ---
         if dotted:
-            registree = klass.get_by_dotted(dotted, None)
+            registree = self.get_by_dotted(dotted, None)
 
         # ---
         # Search for registered Encodable.
         # ---
         else:
-            registry = klass._registry()
+            registry = self._registry()
             data_dotted = label.from_map(data, error_squelch=True)
-            registree = klass._search(registry,
-                                      data_dotted,
-                                      data,
-                                      data_type=data_type)
+            registree = self._search(registry,
+                                     data_dotted,
+                                     data,
+                                     data_type=data_type)
 
         # ---
         # Did we find the correct registree?
@@ -308,7 +334,8 @@ class EncodableRegistry(CallRegistrar):
         # ---
         # No Fallback: Error out.
         # ---
-        msg = (f"{klass.__name__}: No registered Encodable found for "
+        msg = (f"{self.__class__.__name__}: "
+               "No registered Encodable found for "
                f"data. data_dotted: {data_dotted}")
         extra = (", \n"
                  "registry:\n"
@@ -322,8 +349,7 @@ class EncodableRegistry(CallRegistrar):
                             pretty.indented(registry),
                             pretty.indented(data))
 
-    @classmethod
-    def _search(klass:     'EncodableRegistry',
+    def _search(self,
                 place:     Dict[str, Any],
                 dotted:    label.DotStr,
                 data:      EncodedEither,
@@ -377,7 +403,7 @@ class EncodableRegistry(CallRegistrar):
             node = place[key]
             # If we got a sub-tree/branch, recurse into it.
             if isinstance(node, dict):
-                result = klass._search(node, dotted, data, data_type)
+                result = self._search(node, dotted, data, data_type)
                 # Did that find it?
                 if result:
                     # Yes; return decoded result.

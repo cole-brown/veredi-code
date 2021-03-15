@@ -243,6 +243,10 @@ class Engine(LogMixin):
     '''
 
     def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+
         self._engine_health_: VerediHealth = VerediHealth.INVALID
         '''
         Overall engine health. Do not use directly. Get/set via

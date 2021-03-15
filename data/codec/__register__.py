@@ -11,11 +11,13 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
+from veredi.logs.log import Group
 
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from .registry import (register,
+from .registry import (registrar,
+                       register,
                        ignore,
                        EncodableRegistry)
 
@@ -31,6 +33,8 @@ from .enum     import (FlagEncodeValueMixin,
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
+
+registrar([Group.START_UP, Group.REGISTRATION], None)
 
 ignore(FlagEncodeValueMixin)
 ignore(FlagEncodeNameMixin)
