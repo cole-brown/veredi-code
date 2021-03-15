@@ -8,9 +8,12 @@ Set up the registries.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Iterable, Set, List, Dict
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Any, Callable, Iterable, Set, List, Dict)
 from veredi.base.null import Nullable, Null
 from types import ModuleType
+if TYPE_CHECKING:
+    from veredi.data.config.context import ConfigContext
 
 
 import os
@@ -48,6 +51,19 @@ _LOG_INIT: List[log.Group] = [
 Group of logs we use a lot for log.group_multi().
 '''
 
+
+_REGISTRATION_FUNC_NAME: str = 'run_during_registration'
+'''
+The name of the optional function to run for a module's initialization
+after importing it.
+'''
+
+
+RegistrationFunc = NewType('RegistrationFunc',
+                           Callable[['Configuration', 'ConfigContext'], bool])
+'''
+The signature expected for `_REGISTRATION_FUNC_NAME` functions.
+'''
 
 _REGISTRATION_INIT_NAME: str = 'register'
 '''
@@ -302,7 +318,7 @@ def registration(configuration: Configuration) -> None:
     registrations = configuration.get(ConfigRegistration.KEY)
     for entry in registrations:
         # If a config exception is raised, ok. Otherwise track success/failure.
-        registered, dotted = _register_entry(entry)
+        registered, dotted = _register_entry(configuration, entry, log_dotted)
 
        if registered:
            successses.append(dotted)
@@ -334,8 +350,9 @@ def registration(configuration: Configuration) -> None:
                     log_success=success)
 
 
-def _register_entry(entry:      Dict[str, Any],
-                    log_dotted: str) -> (bool, label.DotStr):
+def _register_entry(configuration: Configuration,
+                    entry:         Dict[str, Any],
+                    log_dotted:    str) -> (bool, label.DotStr):
     '''
     Run a registration sweep for one registration entry in the configuration.
     '''
@@ -442,7 +459,60 @@ def _register_entry(entry:      Dict[str, Any],
                     f"imported for {name} ({dotted}).")
 
     # If we imported nothing... that's probably a fail.
-    return (imported > 0), dotted
+    if imported <= 0:
+        return False, dotted
+
+    # ---
+    # Set-up modules?
+    # ---
+    # Look for the function. Call it the args defined in RegistrationFunc if it
+    # exists.
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Checking for module initialization functions "
+                    f"(`{_REGISTRATION_FUNC_NAME}()`)...")
+
+    context = configuration.make_config_context()
+    module_successes = 0
+    module_failures = 0
+    module_noop = 0
+    for module in imported:
+        module_set_up = getattr(module, _REGISTRATION_FUNC_NAME)
+        if not module_set_up:
+            module_noop += 1
+            continue
+
+        log.group_multi(
+            _LOG_INIT,
+            log_dotted,
+            f"Running `{module.__name__}.{_REGISTRATION_FUNC_NAME}()`...")
+
+        # Call registration function with config.
+        success = module_set_up(configuration, context)
+        if success:
+            module_successes += 1
+        else:
+            module_failures += 1
+
+        log.group_multi(
+            _LOG_INIT,
+            log_dotted,
+            f"`{module.__name__}.{_REGISTRATION_FUNC_NAME}()` done.",
+            log_success=success)
+
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Done initializing modules.",
+                    data={
+                        'successes': module_successes,
+                        'failures':  module_failures,
+                        'no-init':   module_noop,
+                    })
+
+    # ---
+    # Success or Failure, and list of module names imported.
+    # ---
+    return (module_failures > 0), dotted
 
 
 # -----------------------------------------------------------------------------

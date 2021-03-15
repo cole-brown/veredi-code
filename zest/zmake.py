@@ -65,9 +65,4 @@ def config(test_type:     zpath.TestType                 = zpath.TestType.UNIT,
                f"path: {path}"))
     config = run.configuration(rules, config_id, path)
 
-    # Run veredi's base init now that we have the config.
-    log.debug("zmake.config({test_type}): run.init()...")
-    run.init(config)
-
-    log.debug("zmake.config({test_type}): Done.")
     return config
