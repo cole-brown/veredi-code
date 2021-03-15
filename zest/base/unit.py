@@ -138,13 +138,12 @@ class ZestBase(unittest.TestCase):
         '''
 
         # ------------------------------
-        # Registries
+        # Registration
         # ------------------------------
-        self._registry_setup: Dict[str, bool] = {
-            'encodables': False,
-        }
+        self._register_auto: bool = True
         '''
-        Must be keyword arg names for zload.set_up_registries().
+        True allows run.registration() be run and all auto-registration to
+        occur.
         '''
 
     def want_registered(self, registry_setup_name: str) -> None:
@@ -196,11 +195,10 @@ class ZestBase(unittest.TestCase):
         '''
         Nukes all entries in various registries.
         '''
-
         # ---
         # Nuke registries' data so it all can remake itself.
         # ---
-        zload.set_up_registries(**self._registry_setup)
+        zload.set_up_registries(self._register_auto)
 
     # -------------------------------------------------------------------------
     # Tear-Down

@@ -67,14 +67,14 @@ def registrar(reg_type:   Type['BaseRegistrar'],
                          msg,
                          log_minimum=log.Level.ERROR,
                          log_success=False)
-        bg, _ = _REGISTRAR._background()
+        bg, _ = instance._background()
         raise log.exception(RegistryError,
                             msg,
                             context=context,
                             data={
                                 'background': bg,
                                 'type': reg_type,
-                                'existing': _REGISTRAR,
+                                'existing': instance,
                             })
 
     # ------------------------------
@@ -102,7 +102,6 @@ class BaseRegistrar(ABC):
     sub-classes in this module.
     '''
 
-
     # -------------------------------------------------------------------------
     # Registrar Creation Helper
     # -------------------------------------------------------------------------
@@ -120,14 +119,13 @@ class BaseRegistrar(ABC):
             "Creating {registry.__name__} ({registry.dotted()})...")
 
         # Create it.
-        registrar = registry(context)
+        reg = registry(context)
 
         log.group_multi(
             log_groups,
             registry.dotted(),
             "{registry.__name__} ({registry.dotted()}) created.")
-        return registrar
-
+        return reg
 
     # -------------------------------------------------------------------------
     # Initialization

@@ -310,10 +310,13 @@ def tear_down_background() -> None:
 # TODO [2020-11-12]: Figure out how to register Encodables for every test?
 # If not, remove these functions and the things that call them.
 
-def set_up_registries(encodables: bool = True,
-                      **kwargs:   bool) -> None:
+def set_up_registries(config:               Optional[Configuration],
+                      auto_registration:    bool = True,
+                      **kwargs:             bool) -> None:
     '''
     Get the registries ready for a new test.
+
+    `auto_registration` controls whether run.registration() is called.
     '''
     # ------------------------------
     # Ensure Things Are Not Registered.
@@ -321,18 +324,11 @@ def set_up_registries(encodables: bool = True,
     registry_config._ut_unregister()
     registry_yaml._ut_unregister()
 
-    # log.ultra_mega_debug("Nuking EncodableRegistry. Was: "
-    #                      f"\n{EncodableRegistry._get()}")
-    # EncodableRegistry.nuke()
-    #
-    # # ------------------------------
-    # # Register Things.
-    # # ------------------------------
-    # if encodables:
-    #     log.ultra_mega_debug("Providing Encodables...")
-    #     import veredi.data.codec.provide
-    #     log.ultra_mega_debug("Done. EncodableRegistry is: "
-    #                          f"\n{EncodableRegistry._get()}")
+    # ------------------------------
+    # Run our auto-registration.
+    # ------------------------------
+    if auto_registration:
+        run.registration(config)
 
     # ------------------------------
     # Check for unknown inputs...
@@ -352,4 +348,5 @@ def tear_down_registries() -> None:
     registry_yaml._ut_unregister()
 
     # TODO: A more automatic unregister?
+    # run._ut_unregister()
     registry_codec.registry()._ut_unregister()
