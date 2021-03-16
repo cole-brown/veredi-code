@@ -80,7 +80,7 @@ class RecordSuccess(NamedTuple):
     '''
     Container for info about success type/dry run.
     '''
-    normalized:   const.SuccessType
+    normalized: const.SuccessType
     '''Success normalized with dry-run flag.'''
 
     verbatim: const.SuccessType

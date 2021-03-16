@@ -14,17 +14,18 @@ if TYPE_CHECKING:
     from veredi.data.config.config import Configuration
 
 
-from veredi.base.strings.
+from veredi.base.strings import label
+from veredi.logs         import log
 
 # Functions
-from .options  import configuration
-from .engine   import managers, engine
-from .registry import registration
+from .options            import configuration
+from .engine             import managers, engine
+from .registry           import registration
 
 # Namespaced
-from .         import system
+from .                   import system
 
-from .server   import server
+from .server             import server
 
 
 # -----------------------------------------------------------------------------
@@ -43,15 +44,13 @@ def init(config: 'Configuration') -> None:
     Do some importing and set-up.
     '''
     log_dotted = label.normalize(_DOTTED, 'init')
-    log.group_multi(_LOG_INIT,
-                    log_dotted,
-                    "Initializing Veredi...")
+    log.start_up(log_dotted,
+                 "Initializing Veredi...")
 
     registration(config)
 
-    log.group_multi(_LOG_INIT,
-                    log_dotted,
-                    "Initialization done.")
+    log.start_up(log_dotted,
+                 "Initialization done.")
 
 
 def start(engine: 'Engine') -> None:

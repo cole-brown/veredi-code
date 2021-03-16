@@ -83,7 +83,7 @@ def register(*dotted_label: label.LabelInput) -> Callable[..., Type[Any]]:
                 stacklevel=3) from error
 
         registry_our = _REGISTRY
-        registry_bg = background.registry.get(_REG_DOTTED)
+        registry_bg = background.registry.registry(_REG_DOTTED)
         length = len(registree_id)
         # -1 as we've got our config name already from that final registree_id
         # entry.

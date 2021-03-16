@@ -9,7 +9,7 @@ Configuration file reader/writer for Veredi games.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Any, Dict)
+                    Optional, Any, Dict, Tuple)
 from veredi.base.null import Nullable, Null
 if TYPE_CHECKING:
     from veredi.base.context         import VerediContext
@@ -18,12 +18,15 @@ if TYPE_CHECKING:
 
 import pathlib
 
+
 from veredi.logs            import log
 from veredi.base.strings    import label
+from veredi.base            import paths
 from veredi.base.exceptions import VerediError
 from veredi.data.context    import DataAction, DataBareContext
 from veredi.base.const      import VerediHealth
 from veredi.rules.game      import RulesGame
+
 
 from ..                     import background
 from ..exceptions           import ConfigError, LoadError
@@ -46,7 +49,7 @@ DEFAULT_NAME = 'config.veredi.yaml'
 # Code
 # -----------------------------------------------------------------------------
 
-def default_path() -> Optional[pathlib.Path]:
+def default_path() -> Optional[paths.Path]:
     '''Returns absolute path to the DEFAULT config file.
 
     Returns None if file does not exist.
@@ -72,6 +75,51 @@ class Configuration:
 
     _CTX_KEY  = 'configuration'
     _CTX_NAME = 'configuration'
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+
+    def _to_str(self,
+                with_id:    bool,
+                with_rules: bool,
+                with_path:  bool) -> str:
+        '''
+        Returns a string with some data about this Configuration object.
+        '''
+        info = []
+        if with_id:
+            info.append(f"id:{self._id}")
+        if with_rules:
+            info.append(f"rules:{self._rules}")
+        if with_path:
+            info.append(f"path:{self._path}")
+
+        return ('Configuration['
+                + ','.join(info)
+                + ']')
+
+    def __str__(self) -> str:
+        '''
+        Returns a string with some data about this Configuration object.
+        '''
+        return (self._to_str(True, True, False)
+                + "\n"
+                + f"  path: {self._path}\n"
+                + f"  data: {self._config}")
+
+    def __repr__(self) -> str:
+        '''
+        Returns a string with some data about this Configuration object.
+        '''
+        return self._to_str(True, True, True)
+
+    def info_for_error(self) -> Tuple[str, Dict[Any, Any]]:
+        '''
+        Returns a string about the config object, and a dictionary of
+        all its config data.
+        '''
+        return (self._to_str(True, True, True), self._config)
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -262,6 +310,39 @@ class Configuration:
         Veredi dotted name for this class.
         '''
         return klass._DOTTED_NAME
+
+    def path_config_file(self) -> paths.Path:
+        '''
+        Returns our config file path.
+        '''
+        return self._path
+
+    def path_config_dir(self) -> paths.Path:
+        '''
+        Returns our config file's directory path.
+        '''
+        return self._path.parent
+
+    def path(self,
+             *input: paths.PathType) -> paths.Path:
+        '''
+        Takes input path and returns a resolved path.
+
+        If `input` is Falsy, use the config file's directory as the path.
+        If `input` is absolute, use the `input` as the path.
+        If `input` is relative, assume it is relative to the config
+        file's path, make it absolute, and use it.
+
+        Resolve path to get rid of "~", "..", etc and return.
+        '''
+        if not input:
+            return self.path_config_dir()
+
+        path = paths.cast(*input)
+        if not path.is_absolute():
+            path = self.path_config_dir() / path
+        path = path.resolve()
+        return path
 
     # -------------------------------------------------------------------------
     # Load Config Stuff

@@ -18,12 +18,14 @@ from typing import List, Tuple, Dict
 import sys
 import unittest
 
-from veredi.logs         import log
-from veredi.zest         import zload
-from veredi.zest.zpath   import TestType
-from veredi.zest.timing  import ZestTiming
-from veredi.debug.const  import DebugFlag
-from veredi.base.strings import label
+from veredi.logs               import log
+from veredi.zest               import zload, zmake
+from veredi.zest.zpath         import TestType
+from veredi.zest.timing        import ZestTiming
+from veredi.debug.const        import DebugFlag
+from veredi.base.strings       import label
+from veredi.data.config.config import Configuration
+from veredi.base.context       import VerediContext, UnitTestContext
 
 
 # -----------------------------------------------------------------------------
@@ -138,20 +140,25 @@ class ZestBase(unittest.TestCase):
         '''
 
         # ------------------------------
-        # Registration
+        # Configuration & Registration
         # ------------------------------
+        self.context: VerediContext = None
+        '''
+        If class uses a set-up/config context, it should go here.
+        zload.set_up_ecs() can provide this.
+        '''
+
+        self.config: Configuration = None
+        '''
+        If class uses a special config, it should be saved here so set-up(s)
+        can use it.
+        '''
+
         self._register_auto: bool = True
         '''
         True allows run.registration() be run and all auto-registration to
         occur.
         '''
-
-    def want_registered(self, registry_setup_name: str) -> None:
-        '''
-        Call in set_up() with a key string for self._registry_setup() to mark
-        those for registration.
-        '''
-        self._registry_setup[registry_setup_name] = True
 
     def set_up(self) -> None:
         '''
@@ -195,10 +202,14 @@ class ZestBase(unittest.TestCase):
         '''
         Nukes all entries in various registries.
         '''
+        if self.config is None:
+            self.config = zmake.config(self._TEST_TYPE)
+
         # ---
-        # Nuke registries' data so it all can remake itself.
+        # Have class registration for encodables, etc happen.
         # ---
-        zload.set_up_registries(self._register_auto)
+        zload.set_up_registries(self.config,
+                                auto_registration=self._register_auto)
 
     # -------------------------------------------------------------------------
     # Tear-Down

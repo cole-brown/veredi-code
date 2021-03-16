@@ -344,9 +344,12 @@ def tear_down_registries() -> None:
     '''
     Get the registries cleared out and ready for a new test.
     '''
+    # TODO: unit test log group?
     registry_config._ut_unregister()
     registry_yaml._ut_unregister()
 
     # TODO: A more automatic unregister?
     # run._ut_unregister()
-    registry_codec.registry()._ut_unregister()
+    reg_codec = registry_codec.registry()
+    if reg_codec:
+        reg_codec._ut_unregister()

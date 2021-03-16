@@ -302,11 +302,6 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # ---
         self._set_up_clients(self.config, default_flags)  # ProcTest.DNE)
 
-        # ---
-        # Registry
-        # ---
-        self.want_registered('encodables')
-
     def tear_down(self):
         # ---
         # Goodbye Game.

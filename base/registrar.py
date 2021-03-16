@@ -54,7 +54,7 @@ def registrar(reg_type:   Type['BaseRegistrar'],
     log.group_multi(
         log_groups,
         reg_type.dotted(),
-        "Create requested for {registry.__name__} ({registry.Create()})..."
+        "Create requested for {registry.__name__} ({reg_type.dotted()})..."
     )
 
     # ------------------------------
@@ -85,7 +85,8 @@ def registrar(reg_type:   Type['BaseRegistrar'],
     log.group_multi(
         log_groups,
         reg_type.dotted(),
-        "Create request completed for {registry.__name__} ({registry.Create()})...")
+        f"Create request completed for {reg_type.__name__} "
+        f"({instance.dotted()})...")
 
     return instance
 
