@@ -337,6 +337,32 @@ class Level(enum.IntEnum):
         lvl = min(lvl_a, lvl_b)
         return lvl
 
+    @staticmethod
+    def least_verbose(lvl_a: Union['Level', int, None],
+                      lvl_b: Union['Level', int, None],
+                      ignore_notset: bool = True) -> 'Level':
+        '''
+        Returns whichever of `a` or `b` is the least verbose (aka 'highest' or
+        'most important') logging level.
+
+        Converts 'None' to Level.NOTSET.
+
+        if `ignore_notset` is True, this will try to get the least verbose and
+        return 'the other one' if one is logging level NOTSET. Otherwise, this
+        will consider logging level NOTSET as the MOST verbose level.
+
+        NOTSET actually means "use the parent's logging level", so take care.
+        '''
+        # Makes comparing and returing easier to just convert now.
+        lvl_a = Level.from_logging(lvl_a)
+        lvl_b = Level.from_logging(lvl_b)
+
+        # Find the most verbose and return the other one.
+        most = Level.most_verbose(lvl_a, lvl_b, ignore_notset=ignore_notset)
+        if most == lvl_a:
+            return lvl_b
+        return lvl_a
+
     # -------------------------------------------------------------------------
     # Python Functions
     # -------------------------------------------------------------------------
@@ -416,8 +442,9 @@ class GroupResolve(enum.Enum):
 
     HIGHEST = enum.auto()
     '''
-    Group Log resolves to be the Group and Level of the highest log Level. If
-    there is a tie, the first in the collection is used.
+    Group Log resolves to be the Group and Level of the highest (e.g. CRITICAL
+    is higher than DEBUG) log Level. If there is a tie, the first in the
+    collection is used.
     '''
 
     EACH = enum.auto()
@@ -445,14 +472,14 @@ class GroupResolve(enum.Enum):
             highest_level = None
             for group in groups:
                 group_level = levels[group]
-                most_verbose = Level.most_verbose(group_level, highest_level)
+                highest_of = Level.least_verbose(group_level, highest_level)
                 # Just set if this is first time.
                 if not highest_group:
                     highest_group = group
                     highest_level = group_level
 
                 # Else set if we have a more verbose group.
-                elif (most_verbose == group_level
+                elif (highest_of == group_level
                       and group_level != highest_level):
                     highest_group = group
                     highest_level = group_level

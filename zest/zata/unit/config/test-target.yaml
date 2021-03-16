@@ -21,4 +21,23 @@ data:
   serdes: veredi.serdes.yaml
 
 
+registration:
+  - register:
+      name: Veredi
+      dotted: veredi
+    path:
+      root: ../../../..  # Relative from here.
+      run: [ register ]
+      test: [ register ]
+      # ignores:
+      #   - strings
+      #   - !regex "\bregex ?(here)?"
+      #   - data
+      #   - !regex "^[a-z]+_test"
+    # unit-test: true/false to force
+  # - register: my-module
+  #   path:
+  #     run: [ register ]
+
+
 # and more?

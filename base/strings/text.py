@@ -82,7 +82,7 @@ def plural(pluralize:     Union[bool, numbers.NumberTypes, Iterable, None],
     plural = False
 
     # Bool/None: Use bool value.
-    if isinstance(pluralize, (bool, None)):
+    if pluralize in (None, True, False):
         plural = bool(pluralize)
 
     # Number type?

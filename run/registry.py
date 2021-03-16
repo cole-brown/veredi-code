@@ -9,15 +9,15 @@ Set up the registries.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Callable, Iterable, Set, List, Dict)
-from veredi.base.null import Nullable, Null
+                    Optional, Union, Any, NewType, Callable,
+                    Iterable, Set, List, Dict)
+from veredi.base.null import Nullable, Null, null_or_none
 from types import ModuleType
 if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
 
 import os
-import inspect
 import importlib
 import re
 import enum
@@ -124,11 +124,11 @@ extension), or compiled regex patterns to match to path names.
 NOTE: Regexs must return a match for strings they /do/ want to ignore.
 '''
 
+
 # ------------------------------
 # Config Settings
 # ------------------------------
 
-@enum.unique
 class ConfigRegistration(enum.Enum):
     '''
     Configuration settings keys for registration.
@@ -170,7 +170,7 @@ class ConfigRegistration(enum.Enum):
     A list of strings and regexs to ignore during path searches.
     '''
 
-    FORCE_TEST = label.regularlize('unit-test')
+    FORCE_TEST = label.regularize('unit-test')
     '''
     A flag to force registration of unit-testing (or force skipping of it).
     Overrides auto-detection of unit-testing that registration does.
@@ -180,7 +180,6 @@ class ConfigRegistration(enum.Enum):
     # Helpers
     # ------------------------------
 
-    @classmethod
     def full_key(self) -> str:
         '''
         Adds root key ('registration') to its value to form a full key
@@ -190,13 +189,16 @@ class ConfigRegistration(enum.Enum):
 
     @classmethod
     def _get(klass: 'ConfigRegistration',
-             path:  label.DotList,
+             path:  'ConfigRegistration',
              entry: Dict[str, Any]) -> Union[str, re.Pattern]:
         '''
         Get value at end of `path` keys in `entry`.
         '''
-        for node in klass.NAME:
+        if not path or not path.value:
+            return Null()
+        for node in path.value:
             entry = entry.get(node, Null())
+        return entry
 
     @classmethod
     def name(klass: 'ConfigRegistration',
@@ -217,8 +219,9 @@ class ConfigRegistration(enum.Enum):
         return label.normalize(value)
 
     @classmethod
-    def path_root(klass: 'ConfigRegistration',
-                  entry: Dict[str, Any]) -> Nullable[paths.Path]:
+    def path_root(klass:  'ConfigRegistration',
+                  entry:  Dict[str, Any],
+                  config: 'Configuration') -> Nullable[paths.Path]:
         '''
         Returns the PATH_ROOT entry of this registration entry.
 
@@ -226,8 +229,11 @@ class ConfigRegistration(enum.Enum):
         we should search for registration.
         '''
         field = klass._get(klass.PATH_ROOT, entry)
-        path = paths.cast(field, allow_none=True, allow_null=True)
+        path = config.path(field)
+        # Clean up the path if we found it.
         if path:
+            if not path.is_absolute():
+                path = paths.cast(os.getcwd()) / path
             path = path.resolve()
         return path
 
@@ -315,21 +321,42 @@ def registration(configuration: Configuration) -> None:
 
     successes = []
     failures = []
-    registrations = configuration.get(ConfigRegistration.KEY)
+    registrations = configuration.get(ConfigRegistration.KEY.value)
+    if null_or_none(registrations):
+        cfg_str, cfg_data = configuration.info_for_error()
+        msg = ("No registration settings in configuration. "
+               "Registration settings required if running registration.")
+        log.group_multi(_LOG_INIT, log_dotted, msg + "\n  {}",
+                        data={
+                            'configuration': cfg_str,
+                            'settings': cfg_data,
+                        },
+                        log_minimum=log.Level.ERROR,
+                        log_success=False)
+        error = ConfigError(msg,
+                            data={
+                                'configuration': str(configuration),
+                                'registrations': registrations,
+                            })
+        raise log.exception(error, msg)
+
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    f"{len(registrations)} registration entries to run.")
     for entry in registrations:
         # If a config exception is raised, ok. Otherwise track success/failure.
         registered, dotted = _register_entry(configuration, entry, log_dotted)
 
-       if registered:
-           successses.append(dotted)
-       else:
-           failures.append(dotted)
+        if registered:
+            successes.append(dotted)
+        else:
+            failures.append(dotted)
 
     log.group_multi(_LOG_INIT,
                     log_dotted,
                     "Registration completed.\n"
                     f"  Attempted: {len(registrations)}\n"
-                    f"  Succeeded: {len(successses)}\n"
+                    f"  Succeeded: {len(successes)}\n"
                     f"     Failed: {len(failures)}\n",
                     "{data}",
                     # TODO v://future/2021-03-14T12:27:54
@@ -384,11 +411,12 @@ def _register_entry(configuration: Configuration,
                     f"Getting registration settings for {name} ({dotted})...")
 
     # Quantum Required:
-    root = ConfigRegistration.path_root(entry)
+    root = ConfigRegistration.path_root(entry, configuration)
     if not root:
         # If no root supplied, we must be dealing with ourself - otherwise no
         # idea what to do.
-        if name.lower() != VEREDI_NAME_CODE or dotted.lower() != VEREDI_NAME_CODE:
+        if (name.lower() != VEREDI_NAME_CODE
+                or dotted.lower() != VEREDI_NAME_CODE):
             msg = (f"Don't know how to register {name} ({dotted}). "
                    "At a minimum, "
                    f"'{ConfigRegistration.PATH_ROOT.full_key()}' "
@@ -459,7 +487,7 @@ def _register_entry(configuration: Configuration,
                     f"imported for {name} ({dotted}).")
 
     # If we imported nothing... that's probably a fail.
-    if imported <= 0:
+    if len(imported) <= 0:
         return False, dotted
 
     # ---
@@ -512,7 +540,8 @@ def _register_entry(configuration: Configuration,
     # ---
     # Success or Failure, and list of module names imported.
     # ---
-    return (module_failures > 0), dotted
+    # We'll assume that no module failures is success.
+    return (len(module_failures) == 0), dotted
 
 
 # -----------------------------------------------------------------------------
@@ -551,22 +580,17 @@ def _import(module: str, log_dotted: str) -> ModuleType:
 # Smart Importing?
 # -----------------------------------------------------------------------------
 
-def _find_modules(*root:       paths.PathsInput,
-                  filenames:   List[str]                             = [],
-                  filename_ut: List[str]                             = [],
-                  log_dotted:  Optional[label.DotStr]                = None,
-                  ignores:     Optional[Set[Union[str, re.Pattern]]] = None,
-                  find_ut:     Optional[bool]                        = None,
+def _find_modules(root:         paths.Path,
+                  filenames:    List[str]                             = [],
+                  filenames_ut: List[str]                             = [],
+                  log_dotted:   Optional[label.DotStr]                = None,
+                  ignores:      Optional[Set[Union[str, re.Pattern]]] = None,
+                  find_ut:      Optional[bool]                        = None,
                   ) -> Iterable:
     '''
     Finds all modules in `root` and subdirectories that match our
     requirements for being a place to put "Register me plz!!!" code for
     registry entries.
-
-    `root` is one single path - can be in segments.
-    For example:
-      _find_modules("/path/to/jeff")
-      _find_modules("/path", "to", "jeff")
 
     `filename` will be set to `_REGISTRATION_INIT_MODULE_NAME` if not
     provided. String must match file-name-sans-extension exactly.
@@ -597,7 +621,7 @@ def _find_modules(*root:       paths.PathsInput,
     if not imports:
         imports.append(_REGISTRATION_INIT_MODULE_NAME)
     if not filenames_ut:
-       filenames_ut.append(_REGISTRATION_INIT_UT_MODULE_NAME)
+        filenames_ut.append(_REGISTRATION_INIT_UT_MODULE_NAME)
 
     if find_ut is True:
         # Explicitly want to find unit-test class registrations.
@@ -611,7 +635,6 @@ def _find_modules(*root:       paths.PathsInput,
         imports.extend(filenames_ut)
     # Else, implicitly don't want unit-testing - we're a normal run.
 
-    root = paths.cast(*root)
     ignores = ignores or _FIND_MODULE_IGNORES
 
     package_path = root

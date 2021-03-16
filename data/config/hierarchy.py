@@ -194,6 +194,10 @@ class ConfigHierarchy(Hierarchy):
             'serdes': Info.LEAF,
         },
 
+        # Actually a list of stuff, but this doesn't support that...
+        # We should switch to definitions-as-yaml-docs soon anyways.
+        'registration': Info.LEAF,
+
         'rules': {
             'type': Info.LEAF,
             'ability': Info.LEAF,

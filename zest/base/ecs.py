@@ -124,18 +124,6 @@ class ZestEcs(ZestBase):
         zload.set_up_ecs() can provide this.
         '''
 
-        self.context: VerediContext = None
-        '''
-        If class uses a set-up/config context, it should go here.
-        zload.set_up_ecs() can provide this.
-        '''
-
-        self.config: Configuration = None
-        '''
-        If class uses a special config, it should be saved here so set-up(s)
-        can use it.
-        '''
-
         # ------------------------------
         # Engine
         # ------------------------------
