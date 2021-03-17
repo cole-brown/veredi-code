@@ -55,7 +55,7 @@ class VerediYamlDocument(yaml.YAMLObject):
         '''
         target[Hierarchy.VKEY_DOC_TYPE] = self.yaml_tag[1:]
 
-    def decode(self):
+    def deserialize(self):
         '''
         YAML objects & stuff to plain old data structure.
 
@@ -106,6 +106,12 @@ class VerediYamlObject(yaml.YAMLObject):
     def from_yaml(cls, loader, node):
         # print(cls.yaml_tag, "from_yaml", str(cls), str(loader), str(node))
         return cls(node.value)
+
+    def deserialize(self):
+        '''
+        YAML objects & stuff to plain old data structure.
+        '''
+        return self.__dict__
 
 
 # -----------------------------------------------------------------------------

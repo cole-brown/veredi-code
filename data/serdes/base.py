@@ -18,16 +18,15 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
     from veredi.data.context        import DataAction
 
-
 from abc import ABC, abstractmethod
-from io import StringIO
+from io import StringIO, TextIOBase
 
 
 from veredi.logs         import log
 from veredi.logs.mixin   import LogMixin
 
 from veredi.data         import background
-from ..codec.encodable   import Encodable
+from veredi.data.codec   import Codec, Encodable
 
 
 # -----------------------------------------------------------------------------
@@ -169,20 +168,42 @@ class BaseSerdes(LogMixin, ABC):
 
     def _context_data(self,
                       context: 'VerediContext',
-                      action:  'DataAction') -> 'VerediContext':
+                      action:  'DataAction',
+                      codec:   Codec) -> 'VerediContext':
         '''
         Inject our serdes data into the context.
         '''
         key = str(background.Name.SERDES)
         meta, _ = self.background
+        codec_ctx, _ = codec.background
         context[key] = {
             # Push our context data into our sub-context key.
             'meta': meta,
             # And add any extra info.
             'action': action,
+            'codec': codec_ctx,
         }
 
         return context
+
+    def _stream_data(self,
+                     stream: Union[TextIO, str],
+                     data:   Optional[Dict] = None,
+                     field:  str            = 'stream') -> Dict:
+        '''
+        Get info about `stream` for logging, error messages.
+        '''
+        if data is None:
+            data = {}
+        entry = data.setdefault(field, {})
+
+        entry['type'] = stream.__class__.__name__
+        if isinstance(stream, TextIOBase):
+            entry['closed'] = stream.closed if stream else None
+            entry['readable'] = stream.readable() if stream else None
+            entry['position'] = stream.tell() if stream else None
+
+        return data
 
     # -------------------------------------------------------------------------
     # Abstract: Deserialize Methods
@@ -191,6 +212,7 @@ class BaseSerdes(LogMixin, ABC):
     @abstractmethod
     def deserialize(self,
                     stream:  Union[TextIO, str],
+                    codec:   Codec,
                     context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes a single document from the data stream.
@@ -206,6 +228,7 @@ class BaseSerdes(LogMixin, ABC):
     @abstractmethod
     def deserialize_all(self,
                         stream:  Union[TextIO, str],
+                        codec:   Codec,
                         context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes all documents from the data stream.
@@ -221,6 +244,7 @@ class BaseSerdes(LogMixin, ABC):
     @abstractmethod
     def _read(self,
               stream:  Union[TextIO, str],
+              codec:   Codec,
               context: 'VerediContext') -> Any:
         '''
         Read data from a single data stream.
@@ -239,6 +263,7 @@ class BaseSerdes(LogMixin, ABC):
     @abstractmethod
     def _read_all(self,
                   stream:  Union[TextIO, str],
+                  codec:   Codec,
                   context: 'VerediContext') -> Any:
         '''
         Read data from a single data stream.
@@ -261,6 +286,7 @@ class BaseSerdes(LogMixin, ABC):
     @abstractmethod
     def serialize(self,
                   data:    SerializeTypes,
+                  codec:   Codec,
                   context: 'VerediContext') -> StringIO:
         '''
         Write and serializes a single document from the data stream.
@@ -276,6 +302,7 @@ class BaseSerdes(LogMixin, ABC):
     @abstractmethod
     def serialize_all(self,
                       data:    SerializeTypes,
+                      codec:   Codec,
                       context: 'VerediContext') -> StringIO:
         '''
         Write and serializes all documents from the data stream.
@@ -291,6 +318,7 @@ class BaseSerdes(LogMixin, ABC):
     @abstractmethod
     def _write(self,
                data:    Mapping[str, Any],
+               codec:   Codec,
                context: 'VerediContext') -> Any:
         '''
         Write data from a single data stream.
@@ -309,6 +337,7 @@ class BaseSerdes(LogMixin, ABC):
     @abstractmethod
     def _write_all(self,
                    data:    Mapping[str, Any],
+                   codec:   Codec,
                    context: 'VerediContext') -> Any:
         '''
         Write data from a single data stream.

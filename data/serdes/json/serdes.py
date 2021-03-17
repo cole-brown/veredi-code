@@ -10,7 +10,8 @@ Aka JSON Serdes.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Mapping, List, Tuple, TextIO)
+                    Optional, Union, Any, Type, Mapping,
+                    Dict, List, Tuple, TextIO)
 from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
@@ -29,8 +30,8 @@ from veredi.base.strings         import text
 from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 from veredi.data.context         import DataAction
+from veredi.data.codec           import Codec, Encodable
 
-from ...codec.encodable          import Encodable
 from ..base                      import (BaseSerdes,
                                          DeserializeTypes,
                                          SerializeTypes)
@@ -100,6 +101,7 @@ class JsonSerdes(BaseSerdes):
 
     def deserialize(self,
                     stream:  Union[TextIO, str],
+                    codec:   Codec,
                     context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes data from a single data stream.
@@ -115,8 +117,8 @@ class JsonSerdes(BaseSerdes):
                                   type(stream),
                                   context=context)
 
-        self._context_data(context, DataAction.LOAD)
-        data = self._read(stream, context)
+        self._context_data(context, DataAction.LOAD, codec)
+        data = self._read(stream, codec, context)
         if not data:
             msg = "Reading all json from stream resulted in no data."
             self._log_data_processing(self.dotted(),
@@ -223,6 +225,7 @@ class JsonSerdes(BaseSerdes):
 
     def _read(self,
               stream:  Union[TextIO, str],
+              codec:   Codec,
               context: 'VerediContext') -> DeserializeTypes:
         '''
         Read data from a single data stream.
@@ -257,26 +260,21 @@ class JsonSerdes(BaseSerdes):
 
         except json.JSONDecodeError as json_error:
             data = None
+            error_info = {
+                'data': stream,
+            }
+            error_info = self._stream_data(stream, error_info)
             msg = f"Error reading json from stream: {stream}"
             self._log_data_processing(self.dotted(),
                                       msg,
                                       context=context,
                                       success=False)
+            # TODO v://future/2021-03-14T12:27:54 - log 'data' field for
+            # error_info.
             error = exceptions.ReadError(
                 msg,
                 context=context,
-                data={
-                    'data': stream,
-                    'data_stream.closed': (stream.closed
-                                           if stream else
-                                           None),
-                    'data_stream.readable': (stream.readable()
-                                             if stream else
-                                             None),
-                    'data_stream.pos': (stream.tell()
-                                        if stream else
-                                        None),
-                })
+                data=error_info)
             raise log.exception(error, msg,
                                 context=context) from json_error
 
@@ -289,6 +287,7 @@ class JsonSerdes(BaseSerdes):
 
     def deserialize_all(self,
                         stream:  Union[TextIO, str],
+                        codec:   Codec,
                         context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes all documents from the data stream. Expects a
@@ -303,22 +302,26 @@ class JsonSerdes(BaseSerdes):
                                   "Deserializing all from '{}'...",
                                   type(stream),
                                   context=context)
-        self._context_data(context, DataAction.LOAD)
-        data = self._read_all(stream, context)
+        self._context_data(context, DataAction.LOAD, codec)
+        error_info = {
+            'data': stream,
+        }
+        data = self._read_all(stream, codec, context)
         if not data:
             msg = "Deserializing all JSON from {} resulted in no data."
+            error_info = self._stream_data(stream, error_info)
             self._log_data_processing(self.dotted(),
                                       msg,
                                       type(stream),
                                       context=context,
                                       success=False)
+            # TODO v://future/2021-03-14T12:27:54 - log 'data' field for
+            # error_info.
             error = exceptions.ReadError(
                 msg,
                 type(stream),
                 context=context,
-                data={
-                    'data': data,
-                })
+                data=error_info)
             raise log.exception(error, msg,
                                 context=context)
 
@@ -331,6 +334,7 @@ class JsonSerdes(BaseSerdes):
 
     def _read_all(self,
                   stream:  Union[TextIO, str],
+                  codec:   Codec,
                   context: 'VerediContext') -> DeserializeTypes:
         '''
         Read data from a single data stream.
@@ -347,7 +351,7 @@ class JsonSerdes(BaseSerdes):
                                   type(stream),
                                   context=context)
         # Just use read since json has no concept of multi-document streams.
-        return self._read(stream, context)
+        return self._read(stream, codec, context)
 
     # -------------------------------------------------------------------------
     # Serialize Methods
@@ -355,6 +359,7 @@ class JsonSerdes(BaseSerdes):
 
     def serialize(self,
                   data:    SerializeTypes,
+                  codec:   Codec,
                   context: 'VerediContext') -> StringIO:
         '''
         Write and serializes a single document from the data stream.
@@ -368,9 +373,9 @@ class JsonSerdes(BaseSerdes):
                                   type(data),
                                   context=context)
 
-        self._context_data(context, DataAction.SAVE)
-        to_serialize = self._serialize_prep(data, context)
-        stream = self._write(to_serialize, context)
+        self._context_data(context, DataAction.SAVE, codec)
+        to_serialize = self._serialize_prep(data, codec, context)
+        stream = self._write(to_serialize, codec, context)
 
         self._log_data_processing(self.dotted(),
                                   "Serialized from '{}'!",
@@ -416,6 +421,7 @@ class JsonSerdes(BaseSerdes):
 
     def _serialize_prep(self,
                         data:    SerializeTypes,
+                        codec:   Codec,
                         context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into
@@ -437,7 +443,7 @@ class JsonSerdes(BaseSerdes):
                                       "Encoding `Encodable` data "
                                       "for serialization.",
                                       context=context)
-            serialized = data.encode(None)
+            serialized = codec.encode(data)
             return serialized
 
         # Is it a simple type?
@@ -465,6 +471,7 @@ class JsonSerdes(BaseSerdes):
             for each in keys:
                 # TODO [2020-07-29]: Change to non-recursive?
                 serialized[str(each)] = self._serialize_prep(data[each],
+                                                             codec,
                                                              context)
             return serialized
 
@@ -480,7 +487,7 @@ class JsonSerdes(BaseSerdes):
             serialized = []
             for each in iterable:
                 # TODO [2020-07-29]: Change to non-recursive?
-                serialized.append(self._serialize_prep(each, context))
+                serialized.append(self._serialize_prep(each, codec, context))
             return serialized
 
         # Falling through to here is bad; raise Exception.
@@ -499,6 +506,7 @@ class JsonSerdes(BaseSerdes):
 
     def _write(self,
                data:    SerializeTypes,
+               codec:   Codec,
                context: 'VerediContext') -> StringIO:
         '''
         Write data to a stream.
@@ -542,6 +550,7 @@ class JsonSerdes(BaseSerdes):
 
     def serialize_all(self,
                       data:    SerializeTypes,
+                      codec:   Codec,
                       context: 'VerediContext') -> StringIO:
         '''
         Write and serializes all documents from the data stream.
@@ -558,9 +567,9 @@ class JsonSerdes(BaseSerdes):
                                   type(data),
                                   context=context)
 
-        self._context_data(context, DataAction.SAVE)
-        to_serialize = self._serialize_prep(data, context)
-        stream = self._write(to_serialize, context)
+        self._context_data(context, DataAction.SAVE, codec)
+        to_serialize = self._serialize_prep(data, codec, context)
+        stream = self._write(to_serialize, codec, context)
 
         self._log_data_processing(self.dotted(),
                                   "Serialized all from '{}'!",
@@ -570,6 +579,7 @@ class JsonSerdes(BaseSerdes):
 
     def _write_all(self,
                    data:    SerializeTypes,
+                   codec:   Codec,
                    context: 'VerediContext') -> StringIO:
         '''
         Write and serializes all documents from the data stream.
@@ -587,7 +597,7 @@ class JsonSerdes(BaseSerdes):
                                   context=context)
         # Just use _write() since json has no concept of multi-document
         # streams.
-        return self._write(data, context)
+        return self._write(data, codec, context)
 
 
 # -----------------------------------------------------------------------------
