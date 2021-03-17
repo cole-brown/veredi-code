@@ -18,6 +18,7 @@ from veredi.zest.base.unit   import ZestBase
 from veredi.base             import paths
 from veredi.base.context     import UnitTestContext
 from veredi.data             import background
+from veredi.data.codec       import Codec
 from veredi.data.context     import DataAction
 
 from .serdes                 import YamlSerdes
@@ -116,12 +117,14 @@ class Test_YamlSerdes(ZestBase):
 
     def set_up(self):
         self.serdes = YamlSerdes()
+        self.codec = Codec()
         self.path_all = zpath.serdes() / 'component.health.yaml'
         self.path_meta = zpath.serdes() / 'only.meta.yaml'
         self.path_comp = zpath.serdes() / 'only.component.yaml'
 
     def tear_down(self):
         self.serdes = None
+        self.codec = None
         self.path_all = None
         self.path_meta = None
         self.path_comp = None
@@ -130,9 +133,9 @@ class Test_YamlSerdes(ZestBase):
     # Helpers
     # -------------------------------------------------------------------------
 
-    def context(self,
-                test_name: str,
-                filepath:  paths.Path) -> UnitTestContext:
+    def make_context(self,
+                     test_name: str,
+                     filepath:  paths.Path) -> UnitTestContext:
         # Serdes don't require their own context - they just use whatever.
         # Usually a DataLoadContext/DataSaveContext, sometimes a
         # DataBareContext...
@@ -162,7 +165,7 @@ class Test_YamlSerdes(ZestBase):
             self.assertIsInstance(data, data_type)
 
             if type(data) == DocMetadata:
-                metadata = data.decode()
+                metadata = data.deserialize()
             else:
                 metadata = data
 
@@ -202,7 +205,7 @@ class Test_YamlSerdes(ZestBase):
             self.assertIsInstance(data, data_type)
 
             if type(data) == DocComponent:
-                component = data.decode()
+                component = data.deserialize()
             else:
                 component = data
 
@@ -298,6 +301,8 @@ class Test_YamlSerdes(ZestBase):
         # The Serdes Itself
         # ---
         self.assertTrue(self.serdes)
+        # (and friend!)
+        self.assertTrue(self.codec)
 
         # ---
         # Background
@@ -315,11 +320,12 @@ class Test_YamlSerdes(ZestBase):
         # ---
         # Context
         # ---
-        test_context = self.context('test_init', self.path_all)
+        test_context = self.make_context('test_init', self.path_all)
         key = str(background.Name.SERDES)
         self.assertNotIn(key, test_context)
         serdes_context = self.serdes._context_data(test_context,
-                                                   DataAction.SAVE)
+                                                   DataAction.SAVE,
+                                                   self.codec)
         # _context_data() should add to the existing context.
         self.assertIs(test_context, serdes_context)
         self.assertIn(key, serdes_context)
@@ -338,7 +344,8 @@ class Test_YamlSerdes(ZestBase):
         with self.path_meta.open('r') as file_stream:
             data = self.serdes._read(
                 file_stream,
-                self.context('test_read_one_meta', self.path_meta))
+                self.codec,
+                self.make_context('test_read_one_meta', self.path_meta))
 
         self.assertIsNotNone(data)
         # We should have only a meta document:
@@ -354,7 +361,8 @@ class Test_YamlSerdes(ZestBase):
         with self.path_comp.open('r') as file_stream:
             data = self.serdes._read(
                 file_stream,
-                self.context('test_read_one_comp', self.path_comp))
+                self.codec,
+                self.make_context('test_read_one_comp', self.path_comp))
 
         self.assertIsNotNone(data)
         # We should have only a comp document:
@@ -370,7 +378,8 @@ class Test_YamlSerdes(ZestBase):
         with self.path_all.open('r') as file_stream:
             data = self.serdes._read_all(
                 file_stream,
-                self.context('test_read_all', self.path_all))
+                self.codec,
+                self.make_context('test_read_all', self.path_all))
 
         self.assertIsNotNone(data)
         # We should have these documents in this order:
@@ -397,7 +406,8 @@ class Test_YamlSerdes(ZestBase):
         with self.path_meta.open('r') as file_stream:
             data = self.serdes.deserialize(
                 file_stream,
-                self.context('test_deserialize_one_meta', self.path_meta))
+                self.codec,
+                self.make_context('test_deserialize_one_meta', self.path_meta))
 
         self.assertIsNotNone(data)
         # We should have only a meta document... but it should have been
@@ -414,7 +424,8 @@ class Test_YamlSerdes(ZestBase):
         with self.path_comp.open('r') as file_stream:
             data = self.serdes.deserialize(
                 file_stream,
-                self.context('test_deserialize_one_comp', self.path_comp))
+                self.codec,
+                self.make_context('test_deserialize_one_comp', self.path_comp))
 
         self.assertIsNotNone(data)
         # We should have only a comp document... but it should have been
@@ -431,7 +442,8 @@ class Test_YamlSerdes(ZestBase):
         with self.path_all.open('r') as file_stream:
             data = self.serdes.deserialize_all(
                 file_stream,
-                self.context('test_deserialize_all', self.path_all))
+                self.codec,
+                self.make_context('test_deserialize_all', self.path_all))
 
         self.assertIsNotNone(data)
         # We should have these documents in this order:
@@ -467,7 +479,7 @@ class Test_YamlSerdes(ZestBase):
         if not passed:
             self.fail("test_write_one_meta:write - write check failed.")
 
-        context = self.context('test_write_one_meta', self.path_meta)
+        context = self.make_context('test_write_one_meta', self.path_meta)
 
         # Can't just read file and compare strings... there's no guarentee of
         # preserving ordering. Best we can do is...
@@ -478,11 +490,11 @@ class Test_YamlSerdes(ZestBase):
         # ---
         # 1) Write!
         # ---
-        with self.serdes._write(write_data, context) as stream:
+        with self.serdes._write(write_data, self.codec, context) as stream:
             # ---
             # 2) Read!
             # ---
-            read_data = self.serdes._read(stream, context)
+            read_data = self.serdes._read(stream, self.codec, context)
 
         # ---
         # 3) Check data!
@@ -509,7 +521,7 @@ class Test_YamlSerdes(ZestBase):
         if not passed:
             self.fail("test_write_one_comp:write - write check failed.")
 
-        context = self.context('test_write_one_comp', self.path_comp)
+        context = self.make_context('test_write_one_comp', self.path_comp)
 
         # Can't just read file and compare strings... there's no guarentee of
         # preserving ordering. Best we can do is...
@@ -520,11 +532,11 @@ class Test_YamlSerdes(ZestBase):
         # ---
         # 1) Write!
         # ---
-        with self.serdes._write(write_data, context) as stream:
+        with self.serdes._write(write_data, self.codec, context) as stream:
             # ---
             # 2) Read!
             # ---
-            read_data = self.serdes._read(stream, context)
+            read_data = self.serdes._read(stream, self.codec, context)
 
         # ---
         # 3) Check data!
@@ -563,7 +575,7 @@ class Test_YamlSerdes(ZestBase):
         if not passed:
             self.fail("test_write_all:write - component write check failed.")
 
-        context = self.context('test_write_all', self.path_all)
+        context = self.make_context('test_write_all', self.path_all)
 
         # Can't just read file and compare strings... there's no guarentee of
         # preserving ordering. Best we can do is...
@@ -574,11 +586,11 @@ class Test_YamlSerdes(ZestBase):
         # ---
         # 1) Write!
         # ---
-        with self.serdes._write(write_data, context) as stream:
+        with self.serdes._write(write_data, self.codec, context) as stream:
             # ---
             # 2) Read!
             # ---
-            read_data = self.serdes._read(stream, context)
+            read_data = self.serdes._read(stream, self.codec, context)
 
         # ---
         # 3) Check data!
@@ -619,7 +631,7 @@ class Test_YamlSerdes(ZestBase):
             self.fail("test_serialize_one_meta:serialize "
                       "- serialize check failed.")
 
-        context = self.context('test_serialize_one_meta', self.path_meta)
+        context = self.make_context('test_serialize_one_meta', self.path_meta)
 
         # Can't just read file and compare strings... there's no guarentee of
         # preserving ordering. Best we can do is...
@@ -630,11 +642,15 @@ class Test_YamlSerdes(ZestBase):
         # ---
         # 1) Serialize!
         # ---
-        with self.serdes.serialize(serialize_data, context) as stream:
+        with self.serdes.serialize(serialize_data,
+                                   self.codec,
+                                   context) as stream:
             # ---
             # 2) Deserialize!
             # ---
-            deserialize_data = self.serdes.deserialize(stream, context)
+            deserialize_data = self.serdes.deserialize(stream,
+                                                       self.codec,
+                                                       context)
 
         # ---
         # 3) Check data!
@@ -662,7 +678,7 @@ class Test_YamlSerdes(ZestBase):
             self.fail("test_serialize_one_comp:serialize "
                       "- serialize check failed.")
 
-        context = self.context('test_serialize_one_comp', self.path_comp)
+        context = self.make_context('test_serialize_one_comp', self.path_comp)
 
         # Can't just read file and compare strings... there's no guarentee of
         # preserving ordering. Best we can do is...
@@ -673,11 +689,15 @@ class Test_YamlSerdes(ZestBase):
         # ---
         # 1) Serialize!
         # ---
-        with self.serdes.serialize(serialize_data, context) as stream:
+        with self.serdes.serialize(serialize_data,
+                                   self.codec,
+                                   context) as stream:
             # ---
             # 2) Deserialize!
             # ---
-            deserialize_data = self.serdes.deserialize(stream, context)
+            deserialize_data = self.serdes.deserialize(stream,
+                                                       self.codec,
+                                                       context)
 
         # ---
         # 3) Check data!
@@ -691,9 +711,9 @@ class Test_YamlSerdes(ZestBase):
                               self.path_comp)
 
     def test_serialize_all(self):
-        # Need something to serialize first... A 'serialize all' needs to be, in
-        # this case (to match our self.path_all file data), a list of our meta
-        # dict and our comp dict.
+        # Need something to serialize first... A 'serialize all' needs to be,
+        # in this case (to match our self.path_all file data), a list of our
+        # meta dict and our comp dict.
         serialize_data = [self._DATA_META, self._DATA_COMP]
 
         self.assertIsNotNone(serialize_data)
@@ -718,7 +738,7 @@ class Test_YamlSerdes(ZestBase):
             self.fail("test_serialize_all:serialize "
                       "- component serialize check failed.")
 
-        context = self.context('test_serialize_all', self.path_all)
+        context = self.make_context('test_serialize_all', self.path_all)
 
         # Can't just read file and compare strings... there's no guarentee of
         # preserving ordering. Best we can do is...
@@ -729,11 +749,15 @@ class Test_YamlSerdes(ZestBase):
         # ---
         # 1) Serialize!
         # ---
-        with self.serdes.serialize_all(serialize_data, context) as stream:
+        with self.serdes.serialize_all(serialize_data,
+                                       self.codec,
+                                       context) as stream:
             # ---
             # 2) Deserialize!
             # ---
-            deserialize_data = self.serdes.deserialize_all(stream, context)
+            deserialize_data = self.serdes.deserialize_all(stream,
+                                                           self.codec,
+                                                           context)
 
         # ---
         # 3) Check data!

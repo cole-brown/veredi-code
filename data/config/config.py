@@ -35,6 +35,7 @@ from .hierarchy             import Document, Hierarchy
 from .context               import ConfigContext
 from ..repository.file.bare import FileBareRepository
 from ..serdes.yaml.serdes   import YamlSerdes
+from ..codec                import Codec
 
 
 # -----------------------------------------------------------------------------
@@ -150,6 +151,11 @@ class Configuration:
         The serializer/deserializer for the game's Configuration data.
         '''
 
+        self._codec: 'Codec' = None
+        '''
+        The Coder/Decoder for the game's Configuration data.
+        '''
+
         self._rules: label.DotStr = None
         '''
         The game's dotted label for the rules.
@@ -170,7 +176,8 @@ class Configuration:
                  game_id:       Any,
                  config_path:   Optional[pathlib.Path]     = None,
                  config_repo:   Optional['BaseRepository'] = None,
-                 config_serdes: Optional['BaseSerdes']     = None) -> None:
+                 config_serdes: Optional['BaseSerdes']     = None,
+                 config_codec:  Optional[Codec]            = None) -> None:
         '''
         Create a Configuration object for the game's set-up.
 
@@ -180,10 +187,12 @@ class Configuration:
         `game_id` is the Repository id/key/record-name for the game's Saved
         records.
 
-        `config_repo` and `config_serdes` are the repository and serdes to use
-        for the games' Definitions and Saved records.
+        `config_repo`, `config_serdes`, and `config_codec` are the repository,
+        serdes, and codec to use for data about the game's set-up (Definitions
+        and Saved records). The game's data (players, items, etc) is delt with
+        through DataManager with a different Repository/Serdes/Codec.
 
-        `config_path` is an optional override of the default_path() used to
+        `Config_path` is an optional override of the default_path() used to
         find the general Veredi configuration data.
 
         Raises LoadError and ConfigError
@@ -264,6 +273,22 @@ class Configuration:
                 log.start_up(self.dotted(),
                              "  Using passed in serdes: '{}'",
                              self._serdes.dotted())
+
+            # ---
+            # Config Codec
+            # ---
+            # This will usually be a Codec created by us, but allow it to
+            # be passed in.
+            self._codec = config_codec
+            if not self._codec:
+                self._codec = Codec()
+                log.start_up(self.dotted(),
+                             "  Created config's codec: '{}'",
+                             self._codec.dotted())
+            else:
+                log.start_up(self.dotted(),
+                             "  Using passed in codec: '{}'",
+                             self._codec.dotted())
 
             # ---
             # Background
@@ -380,7 +405,9 @@ class Configuration:
                           "Confgig Repo: {}, "
                           "Confgig Serdes: {}",
                           ctx, self._repo, self._serdes)
-                for each in self._serdes.deserialize_all(stream, ctx):
+                for each in self._serdes.deserialize_all(stream,
+                                                         self._codec,
+                                                         ctx):
                     log.debug("Config Loading Doc: {}", each)
                     self._load_doc(each)
 
@@ -481,6 +508,14 @@ class Configuration:
                 ConfigError,
                 "No path for config data after loading!")
 
+        if not self._codec:
+            log.start_up(self.dotted(),
+                         "Configuration set-up: No Codec! Erroring out...",
+                         log_success=False)
+            raise log.exception(
+                ConfigError,
+                "No codec for config data after loading!")
+
         if not self._serdes:
             log.start_up(self.dotted(),
                          "Configuration set-up: No Serdes! Erroring out...",
@@ -521,6 +556,7 @@ class Configuration:
         Returns some meta-data about this class for Context.
         '''
         if not self._metadata:
+            codec_data, _ = self._codec.background
             serdes_data, _ = self._serdes.background
             repo_data, _ = self._repo.background
             self._metadata = {
@@ -528,6 +564,7 @@ class Configuration:
                 'path':                     self._path,
                 'rules':                    self._rules,
                 'id':                       self._id,
+                background.Name.CODEC.key:  codec_data,
                 background.Name.SERDES.key: serdes_data,
                 background.Name.REPO.key:   repo_data,
             }

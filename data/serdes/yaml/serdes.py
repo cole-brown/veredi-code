@@ -16,7 +16,6 @@ from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context        import VerediContext
     from veredi.data.config.context import ConfigContext
-    from veredi.data.codec          import Encoder, Decoder
 
 from io import StringIO, TextIOBase
 import contextlib
@@ -32,13 +31,14 @@ from veredi.data                 import background
 from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 from veredi.data.context         import DataAction
+from veredi.data.codec           import Codec, Encodable
 
-from ...codec.encodable          import Encodable
 from ..base                      import (BaseSerdes,
                                          DeserializeTypes,
                                          SerializeTypes)
 
-from . import adapters
+from .                           import adapters
+from .adapters.base              import VerediYamlDocument, VerediYamlObject
 
 
 # -----------------------------------------------------------------------------
@@ -101,6 +101,7 @@ class YamlSerdes(BaseSerdes):
 
     def deserialize(self,
                     stream:  Union[TextIO, str],
+                    codec:   Codec,
                     context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes data from a single data stream.
@@ -115,8 +116,8 @@ class YamlSerdes(BaseSerdes):
                                   type(stream),
                                   context=context)
 
-        self._context_data(context, DataAction.LOAD)
-        data = self._read(stream, context)
+        self._context_data(context, DataAction.LOAD, codec)
+        data = self._read(stream, codec, context)
         if not data:
             msg = "Reading yaml from stream resulted in no data."
             self._log_data_processing(self.dotted(),
@@ -146,10 +147,11 @@ class YamlSerdes(BaseSerdes):
                                   "Deserialized to '{}'!",
                                   type(data),
                                   context=context)
-        return self._deserialize(data)
+        return self._deserialize(data, codec)
 
     def deserialize_all(self,
                         stream:  Union[TextIO, str],
+                        codec:   Codec,
                         context: 'VerediContext') -> DeserializeTypes:
         '''
         Read and deserializes data from a single data stream.
@@ -163,8 +165,8 @@ class YamlSerdes(BaseSerdes):
                                   "Deserializing all from '{}'...",
                                   type(stream),
                                   context=context)
-        self._context_data(context, DataAction.LOAD)
-        data = self._read_all(stream, context)
+        self._context_data(context, DataAction.LOAD, codec)
+        data = self._read_all(stream, codec, context)
         if not data:
             msg = "Reading all yaml from stream resulted in no data."
             self._log_data_processing(self.dotted(),
@@ -196,35 +198,43 @@ class YamlSerdes(BaseSerdes):
                                   type(stream),
                                   context=context,
                                   success=True)
-        return self._deserialize_each(data)
+        return self._deserialize_each(data, codec)
 
     def _deserialize(self,
-                     yaml_data: Union['Decoder', Dict, List]
+                     yaml_data: Union[Encodable, Dict, List],
+                     codec:     Codec
                      ) -> DeserializeTypes:
         '''
         Deserialize one YAMLObject.
         '''
+        # Have our yaml.YAMLObject sub-classes do anything they want to first.
+        deserialized = yaml_data
+        if isinstance(yaml_data, (VerediYamlDocument, VerediYamlObject)):
+            deserialized = yaml_data.deserialize()
+
         # Don't need to do anything more for simpler collections.
-        if isinstance(yaml_data, (dict, list)):
-            return yaml_data
+        if isinstance(deserialized, (dict, list)):
+            return deserialized
 
         # Do need to decode most stuff, though.
-        datum = yaml_data.decode()
-        return datum
+        deserialized = codec.decode(None, deserialized)
+        return deserialized
 
     def _deserialize_each(self,
-                          yaml_data: Iterable['Decoder']
+                          yaml_data: Iterable[Union[Encodable, Dict, List]],
+                          codec:     Codec
                           ) -> List[DeserializeTypes]:
         '''
         Deserialize each YAML document in the data.
         '''
         data = []
         for doc in yaml_data:
-            data.append(self._deserialize(doc))
+            data.append(self._deserialize(doc, codec))
         return data
 
     def _read(self,
               stream:  Union[TextIO, str],
+              codec:   Codec,
               context: 'VerediContext') -> Any:
         '''
         Read data from a single data stream.
@@ -260,6 +270,10 @@ class YamlSerdes(BaseSerdes):
             # here and not let them infect unrelated code.
         except yaml.YAMLError as yaml_error:
             data = None
+            error_info = {
+                'data': stream,
+            }
+            error_info = self._stream_data(stream, error_info)
             msg = 'YAML failed while reading the data.'
             self._log_data_processing(self.dotted(),
                                       msg,
@@ -268,18 +282,7 @@ class YamlSerdes(BaseSerdes):
             error = exceptions.ReadError(
                 msg,
                 context=context,
-                data={
-                    'data': stream,
-                    'data_stream.closed': (stream.closed
-                                           if stream else
-                                           None),
-                    'data_stream.readable': (stream.readable()
-                                             if stream else
-                                             None),
-                    'data_stream.pos': (stream.tell()
-                                        if stream else
-                                        None),
-                })
+                data=error_info)
             raise log.exception(error, msg, context=context) from yaml_error
 
         self._log_data_processing(self.dotted(),
@@ -291,6 +294,7 @@ class YamlSerdes(BaseSerdes):
 
     def _read_all(self,
                   stream:  Union[TextIO, str],
+                  codec:   Codec,
                   context: 'VerediContext') -> Any:
         '''
         Read data from a single data stream.
@@ -325,6 +329,10 @@ class YamlSerdes(BaseSerdes):
         except yaml.YAMLError as yaml_error:
             data = None
             msg = 'YAML failed while reading all the data.'
+            error_info = {
+                'data': stream,
+            }
+            error_info = self._stream_data(stream, error_info)
             self._log_data_processing(self.dotted(),
                                       msg,
                                       context=context,
@@ -332,18 +340,7 @@ class YamlSerdes(BaseSerdes):
             error = exceptions.ReadError(
                 msg,
                 context=context,
-                data={
-                    'data': stream,
-                    'data_stream.closed': (stream.closed
-                                           if stream else
-                                           None),
-                    'data_stream.readable': (stream.readable()
-                                             if stream else
-                                             None),
-                    'data_stream.pos': (stream.tell()
-                                        if stream else
-                                        None),
-                })
+                data=error_info)
             raise log.exception(error, msg, context=context) from yaml_error
 
         self._log_data_processing(self.dotted(),
@@ -367,6 +364,7 @@ class YamlSerdes(BaseSerdes):
 
     def _serialize_prep(self,
                         data:    SerializeTypes,
+                        codec:   Codec,
                         context: 'VerediContext') -> Mapping[str, Any]:
         '''
         Tries to turn the various possibilities for data (list, dict, etc) into
@@ -388,7 +386,7 @@ class YamlSerdes(BaseSerdes):
                                       "Encoding `Encodable` data "
                                       "for serialization.",
                                       context=context)
-            serialized = data.encode(None)
+            serialized = codec.encode(data)
             return serialized
 
         # Is it a simple type?
@@ -416,6 +414,7 @@ class YamlSerdes(BaseSerdes):
             for each in keys:
                 # TODO [2020-07-29]: Change to non-recursive?
                 serialized[str(each)] = self._serialize_prep(data[each],
+                                                             codec,
                                                              context)
             return serialized
 
@@ -431,7 +430,7 @@ class YamlSerdes(BaseSerdes):
             serialized = []
             for each in iterable:
                 # TODO [2020-07-29]: Change to non-recursive?
-                serialized.append(self._serialize_prep(each, context))
+                serialized.append(self._serialize_prep(each, codec, context))
             return serialized
 
         msg = "Don't know how to process data"
@@ -450,6 +449,7 @@ class YamlSerdes(BaseSerdes):
 
     def serialize(self,
                   data:    SerializeTypes,
+                  codec:   Codec,
                   context: 'VerediContext') -> StringIO:
         '''
         Serializes data from a single data object.
@@ -462,9 +462,9 @@ class YamlSerdes(BaseSerdes):
                                   type(data),
                                   context=context)
 
-        self._context_data(context, DataAction.SAVE)
-        to_serialize = self._serialize_prep(data, context)
-        output = self._write(to_serialize, context)
+        self._context_data(context, DataAction.SAVE, codec)
+        to_serialize = self._serialize_prep(data, codec, context)
+        output = self._write(to_serialize, codec, context)
         if not output:
             msg = f"Serializing yaml from data resulted in no output: {output}"
             self._log_data_processing(self.dotted(),
@@ -487,6 +487,7 @@ class YamlSerdes(BaseSerdes):
 
     def serialize_all(self,
                       data:    SerializeTypes,
+                      codec:   Codec,
                       context: 'VerediContext') -> StringIO:
         '''
         Serializes data from an iterable of data objects. Each will be a
@@ -500,11 +501,12 @@ class YamlSerdes(BaseSerdes):
                                   type(data),
                                   context=context)
 
-        to_serialize = self._serialize_prep(data, context)
-        self._context_data(context, DataAction.SAVE)
-        output = self._write_all(to_serialize, context)
+        to_serialize = self._serialize_prep(data, codec, context)
+        self._context_data(context, DataAction.SAVE, codec)
+        output = self._write_all(to_serialize, codec, context)
         if not output:
-            msg = f"Serializing all yaml from data resulted in no output: {output}"
+            msg = (f"Serializing all yaml from data "
+                   "resulted in no output: {output}")
             self._log_data_processing(self.dotted(),
                                       msg,
                                       context=context,
@@ -527,6 +529,7 @@ class YamlSerdes(BaseSerdes):
 
     def _write(self,
                data:    SerializeTypes,
+               codec:   Codec,
                context: 'VerediContext') -> StringIO:
         '''
         Write data from a single data stream.
@@ -583,6 +586,7 @@ class YamlSerdes(BaseSerdes):
 
     def _write_all(self,
                    data:    SerializeTypes,
+                   codec:   Codec,
                    context: 'VerediContext') -> StringIO:
         '''
         Write data from a single data stream.
