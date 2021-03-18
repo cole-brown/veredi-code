@@ -21,7 +21,7 @@ systems created, etc.
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any,
                     Type, NewType,
-                    Mapping, MutableMapping, List)
+                    Mapping, MutableMapping, List, Tuple)
 if TYPE_CHECKING:
     from veredi.base.const                 import VerediHealth
     from veredi.base.context               import VerediContext
@@ -1307,6 +1307,49 @@ class testing:
         '''
         global _CONTEXT
         _CONTEXT = None
+
+    @classmethod
+    def is_clean(klass: Type['testing']) -> Tuple[bool, Optional[str]]:
+        '''
+        Returns a 2-tuple of (<clean bool>, <dirty reason).
+        Clean:
+          - True if background context is uninitialized (None).
+          - True if background is initialized but has nothing in any of the
+            fields not in IGNORE_KEYS.
+          - False otherwise (background has a non-ignored key with data in the
+            field).
+        '''
+        # The simple case:
+        if _CONTEXT is None:
+            return True, None
+
+        # But, currently [2021-03-17], stuff registers into here via
+        # @register() decorators. So, 'None' is not typical.
+        #
+        # Walk the background and make sure that nothing besides the registry
+        # is filled in yet.
+        IGNORE_KEYS = set((_REGISTRY, ))
+        nodes = [(None, _CONTEXT)]  # Start at root.
+        while len(nodes) > 0:
+            key, node = nodes.pop()
+            # Should we ignore this node?
+            if key in IGNORE_KEYS:
+                continue
+
+            # Is this a dictionary we should traverse into?
+            if isinstance(node, dict):
+                # Add each key/value pair to our nodes-to-check.
+                for kvp in node.items():
+                    nodes.append(kvp)
+                continue
+
+            # Else, make sure the node is empty.
+            if node:
+                return (False,
+                        f"'{key}' in background context has data: {node}")
+
+        # Clean.
+        return (True, None)
 
 
 # -------------------------------------------------------------------------

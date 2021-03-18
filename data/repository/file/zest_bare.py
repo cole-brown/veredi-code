@@ -95,7 +95,6 @@ class Test_FileBareRepo(ZestBase):
         self.path_file      = None
         self.path_temp      = None
         self.path_temp_file = None
-        self.config         = None
         self.repo           = None
 
     # -------------------------------------------------------------------------

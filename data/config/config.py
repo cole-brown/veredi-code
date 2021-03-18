@@ -208,9 +208,9 @@ class Configuration:
         if preexisting:
             # Log start-up error...
             msg = ("A Configuration already exists in the background context! "
-                   "Two configs cannot be used to initialize Veredi: {}")
+                   "Two configs cannot be used to initialize Veredi.")
             log.start_up(self.dotted(),
-                         msg,
+                         msg + ' Pre-existing: {}',
                          preexisting,
                          success=False)
             # ...And error out.

@@ -37,6 +37,10 @@ from veredi.rules.d20.pf2.game             import PF2Rank
 from veredi.rules.d20.pf2.health.component import HealthComponent
 
 
+# For registering
+from veredi.data.repository.file.tree import FileTreeRepository
+
+
 # ---
 # Data Events
 # ---
@@ -191,7 +195,8 @@ class BaseTest_DataManager(ZestEcs):
                                              '_set_up_ecs',
                                              self.debugging,
                                              debug_flags=self.debug_flags,
-                                             require_engine=False)
+                                             require_engine=False,
+                                             configuration=self.config)
 
     def set_all_events_external(self, all_events_external: bool) -> None:
         self._all_events_external = all_events_external

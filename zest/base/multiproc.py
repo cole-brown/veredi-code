@@ -216,13 +216,21 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         self.proc: Processes = Processes()
         '''Our test processes.'''
 
+    def pre_set_up(self,
+                   config_path: str,
+                   rules:       Optional[label.LabelInput] = None,
+                   game_id:     Optional[Any]              = None
+                   ) -> None:
+        # ---
+        # Save these config args.
+        # ---
+        self.config_path = config_path
+        self.config_rules = rules
+        self.config_game_id = game_id
+
     def set_up(self,
-               config_file_name: str,
-               log_level:        log.Level,
-               proc_flags:       ProcTest,
-               rules:            Optional[label.LabelInput]     = None,
-               game_id:          Optional[Any]                  = None
-               ) -> None:
+               log_level:  log.Level,
+               proc_flags: ProcTest) -> None:
         # ---
         # Print out start of new test debuging separator lines.
         # ---
@@ -243,13 +251,6 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         log.set_level(log_level)
         self.lumberjack = log.get_logger(self.NAME_MAIN)
 
-        # ---
-        # Needed Before super's set_up()
-        # ---
-        self.config = zmake.config(self._TEST_TYPE,
-                                   rules=rules,
-                                   game_id=game_id,
-                                   config_path=config_file_name)
 
         # ------------------------------
         # Let parent do stuff.

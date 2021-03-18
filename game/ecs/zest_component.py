@@ -56,7 +56,6 @@ class CompThree(Component):
 class Test_ComponentManager(ZestBase):
 
     def set_up(self):
-        self.config    = zmake.config()
         self.event_mgr = None
         self.finish_set_up()
 
@@ -68,7 +67,6 @@ class Test_ComponentManager(ZestBase):
         self.events_recv = {}
 
     def tear_down(self):
-        self.config    = None
         self.event_mgr = None
         self.comp_mgr  = None
 
@@ -295,7 +293,6 @@ class Test_ComponentManager_Events(Test_ComponentManager):
     def set_up(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.
-        self.config    = zmake.config()
         self.event_mgr = EventManager(self.config, self.debug_flags)
         self.finish_set_up()
         self.register_events()

@@ -479,9 +479,10 @@ class ZestLogFormat(ZestLogBase):
     # Test Helpers
     # -------------------------------------------------------------------------
 
-    def context(self,
-                test_func: str,
-                data:      Mapping = None) -> Tuple[Mapping, UnitTestContext]:
+    def make_context(self,
+                     test_func: str,
+                     data:      Mapping = None
+                     ) -> Tuple[Mapping, UnitTestContext]:
         '''
         Creates a UnitTestContext with either supplied data or a default.
 
@@ -561,7 +562,7 @@ class ZestLogFormat(ZestLogBase):
         self.assertNothing()
 
         message = 'test'
-        ctx_data, context = self.context(func)
+        ctx_data, context = self.make_context(func)
 
         log.critical(message, context=context)
         # No logs yet but should have stream data.
@@ -588,7 +589,7 @@ class ZestLogFormat(ZestLogBase):
 
         # Get some stuff to log.
         message = 'test'
-        ctx_data, context = self.context(func)
+        ctx_data, context = self.make_context(func)
 
         # ---
         # Log to the group!
@@ -624,7 +625,7 @@ class ZestLogFormat(ZestLogBase):
 
         # Get some stuff to log.
         message = 'test'
-        ctx_data, context = self.context(func)
+        ctx_data, context = self.make_context(func)
 
         # ------------------------------
         # This should not have a success field.

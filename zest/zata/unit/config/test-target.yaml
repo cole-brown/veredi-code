@@ -19,6 +19,7 @@ data:
     directory: test-target-repo/file-tree
     sanitize: veredi.paths.sanitize.human
   serdes: veredi.serdes.yaml
+  codec: veredi.codec.codec
 
 
 registration:

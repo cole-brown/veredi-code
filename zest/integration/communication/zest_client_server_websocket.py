@@ -213,6 +213,9 @@ class Test_WebSockets(ZestIntegrateMultiproc):
     # Set-Up & Tear-Down
     # -------------------------------------------------------------------------
 
+    def pre_set_up(self) -> None:
+        super().pre_set_up('config.websocket.yaml')
+
     def set_up(self):
         self.debug_flags = DebugFlag.MEDIATOR_ALL
         self.DISABLED_TESTS = set({
@@ -240,7 +243,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         })
 
         default_flags = ProcTest.NONE
-        super().set_up('config.websocket.yaml', LOG_LEVEL, default_flags)
+        super().set_up(LOG_LEVEL, default_flags)
 
         self._msg_id: MonotonicIdGenerator = MonotonicId.generator()
         '''ID generator for creating Mediator messages.'''

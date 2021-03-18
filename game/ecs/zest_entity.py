@@ -57,7 +57,6 @@ class Test_EntityManager(ZestBase):
     _TYPE_DONT_CARE = 1
 
     def set_up(self):
-        self.config    = zmake.config()
         self.event_mgr = None
         self.finish_set_up()
 
@@ -394,7 +393,6 @@ class Test_EntityManager_Events(Test_EntityManager):
     def set_up(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.
-        self.config    = zmake.config()
         self.event_mgr = EventManager(self.config, None)
         self.finish_set_up()
         self.register_events()

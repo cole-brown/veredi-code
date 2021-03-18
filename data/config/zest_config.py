@@ -30,14 +30,17 @@ from veredi.data.repository.file.tree import FileTreeRepository
 
 class Test_Configuration(ZestBase):
 
-    def set_up(self):
+    def pre_set_up(self) -> None:
         self.path = zpath.config('test-target.yaml')
-        self.config = zmake.config(zpath.TestType.UNIT,
-                                   config_path=self.path)
+        self.config_path = self.path
+
+    def set_up(self):
+        # Moved it all to pre_set_up(), currently.
+        pass
 
     def tear_down(self):
         self.path = None
-        self.config = None
+        self.config_path = None
 
     def test_init(self):
         self.assertIsNotNone(self.path)
