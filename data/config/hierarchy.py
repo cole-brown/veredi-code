@@ -192,6 +192,7 @@ class ConfigHierarchy(Hierarchy):
                 'sanitize': Info.LEAF,
             },
             'serdes': Info.LEAF,
+            'codec': Info.LEAF,
         },
 
         # Actually a list of stuff, but this doesn't support that...

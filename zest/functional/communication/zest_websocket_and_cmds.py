@@ -115,8 +115,6 @@ from veredi.data.serdes.json                    import serdes
 from veredi.rules.d20.pf2.health.component      import HealthComponent
 import veredi.interface.mediator.websocket.server
 import veredi.interface.mediator.websocket.client
-# Should be all our Encodables.
-import veredi.data.codec.provide
 
 
 # -----------------------------------------------------------------------------
@@ -256,6 +254,9 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.entity: Entity = None
         '''Entity for to test with.'''
 
+    def pre_set_up(self) -> None:
+        super().pre_set_up('config.websocket.yaml')
+
     def set_up(self):
         # Want MEDIATOR_ALL for mediators and GAME_ALL for engine?
         # Which == SPAM.
@@ -290,7 +291,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # Parent Stuff (Log Server, Engine, etc)
         # ---
         default_flags = ProcTest.NONE
-        super().set_up('config.websocket.yaml', LOG_LEVEL, default_flags)
+        super().set_up(LOG_LEVEL, default_flags)
 
         # ---
         # Commands / Events / Game

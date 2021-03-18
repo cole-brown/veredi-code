@@ -85,7 +85,6 @@ class Test_FileTreeRepo(ZestBase):
         # ---
         # Create a Repo.
         # ---
-        self.config = zmake.config()
         self.context = ConfigContext(self.root,
                                      self.dotted(__file__),
                                      id=zpath.config_id(self._TEST_TYPE, None))
@@ -128,7 +127,6 @@ class Test_FileTreeRepo(ZestBase):
         # ---
         self.repo           = None
         self.context        = None
-        self.config         = None
 
         self.path_temp_file = None
         self.path_temp      = None

@@ -13,13 +13,16 @@ Base Veredi Class for Tests.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import List, Tuple, Dict
+from typing import Optional, Any, List, Tuple, Dict
 
 import sys
 import unittest
 
 from veredi.logs               import log
-from veredi.zest               import zload, zmake
+from veredi.base               import paths
+from veredi.data               import background
+
+from veredi.zest               import zload, zmake, zpath
 from veredi.zest.zpath         import TestType
 from veredi.zest.timing        import ZestTiming
 from veredi.debug.const        import DebugFlag
@@ -55,6 +58,7 @@ class ZestBase(unittest.TestCase):
       - r'_[a-z_][a-zA-Z_]*[a-z]': Just used by this internally, most likely.
     '''
 
+    # TODO: Make an instance variable?
     _TEST_TYPE = TestType.UNIT
 
     def dotted(self, uufileuu: str) -> None:
@@ -148,6 +152,22 @@ class ZestBase(unittest.TestCase):
         zload.set_up_ecs() can provide this.
         '''
 
+        self.config_path: Optional[paths.Path] = None
+        '''
+        If not None, used as the path to the config file.
+        If None, _TEST_TYPE is used to figure out the path to the config file.
+        '''
+
+        self.config_rules: Optional[label.LabelInput] = None
+        '''
+        Ruleset to use for this instance of Veredi.
+        '''
+
+        self.config_game_id: Optional[Any] = None
+        '''
+        Game ID to use for this instance of Veredi.
+        '''
+
         self.config: Configuration = None
         '''
         If class uses a special config, it should be saved here so set-up(s)
@@ -159,6 +179,18 @@ class ZestBase(unittest.TestCase):
         True allows run.registration() be run and all auto-registration to
         occur.
         '''
+
+    def pre_set_up(self) -> None:
+        '''
+        Use this!
+
+        Called in `self.setUp()` after `self._define_vars()` and before
+        anything happens.
+
+        Use it to do any prep-work needed (like defining a different path for
+        the config file).
+        '''
+        ...
 
     def set_up(self) -> None:
         '''
@@ -174,19 +206,72 @@ class ZestBase(unittest.TestCase):
         unittest.TestCase setUp function. Sub-classes should use `set_up()` for
         their test set-up.
         '''
+        # ---
+        # Sanity and init.
+        # ---
+        self._verify_clean_environment()
         self._define_vars()
 
+        self.pre_set_up()
+
+        # ---
+        # Our Set-Up.
+        # ---
+        self._set_up_config(test_type=self._TEST_TYPE,
+                            rules=self.config_rules,
+                            game_id=self.config_game_id,
+                            config_path=self.config_path)
+        self._set_up_registries()
         self._set_up_background()
 
+        # ---
+        # Our Unit Test'S Specific Set-Up.
+        # ---
         self.set_up()
 
-        # Set up registries after custom set_up so they can set flags for what
-        # registries to populate/ignore.
-        self._set_up_registries()
+        # except:
+        #     # Try to clean up a bit for next test suite.
+        #     self.tearDown()
 
     # ------------------------------
     # Background / Registry Set-Up
     # ------------------------------
+
+    def _assert_config(self) -> None:
+        '''
+        Uses `fail()` to indicate when a Configuration already exists.
+        '''
+        existing_bg = background.config.link(background.config.Link.CONFIG)
+        existing_test = self.config
+
+        if existing_bg:
+            self.fail("A configuration has already been created and "
+                      "is in the background context. Only one config can "
+                      "exist. Pre-existing Config: "
+                      f"{existing_bg}")
+        elif existing_test:
+            self.fail("A configuration has already been created and "
+                      "is /not/ in the background context but is in the test. "
+                      "Please find out which one you want - "
+                      "only one config can exist. Pre-existing Config: "
+                      f"{existing_test}")
+
+    def _set_up_config(self,
+                       test_type:   Optional[zpath.TestType]   = None,
+                       rules:       Optional[label.LabelInput] = None,
+                       game_id:     Optional[Any]              = None,
+                       config_path: Optional[paths.PathsInput] = None) -> None:
+        '''
+        Create the Configuration object for setting up Veredi.
+        '''
+        # Do we already have one?
+        self._assert_config()
+
+        # Ok; no config yet. Let's make one.
+        self.config = zmake.config(test_type=test_type,
+                                   rules=rules,
+                                   game_id=game_id,
+                                   config_path=config_path)
 
     def _set_up_background(self) -> None:
         '''
@@ -211,6 +296,21 @@ class ZestBase(unittest.TestCase):
         zload.set_up_registries(self.config,
                                 auto_registration=self._register_auto)
 
+    def _verify_clean_environment(self):
+        # ---
+        # Is the Background Clean?
+        # ---
+        # If not, it probably has a pre-existing Configuration which is a
+        # no-go.
+        clean, dirty_reason = background.testing.is_clean()
+        if not clean:
+            self.skipTest(f"Background is not clean! {dirty_reason}")
+
+        # ---
+        # Other Things to Check?
+        # ---
+        # ...they would go here.
+
     # -------------------------------------------------------------------------
     # Tear-Down
     # -------------------------------------------------------------------------
@@ -234,8 +334,15 @@ class ZestBase(unittest.TestCase):
         # ---
         # Do test's tear down first in case they rely on vars we control.
         # ---
-        self.tear_down()
+        try:
+            self.tear_down()
+        finally:
+            self._tear_down_base()
 
+    def _tear_down_base(self) -> None:
+        '''
+        Do all the base class tear-down.
+        '''
         # ---
         # Reset or unset our variables for fastidiousness's sake.
         # ---
@@ -247,13 +354,17 @@ class ZestBase(unittest.TestCase):
         # ---
         # Other tear-downs.
         # ---
-        log.ut_tear_down()
-
-        # ---
-        # Nuke registries and background context.
-        # ---
-        self._tear_down_registries()
-        self._tear_down_background()
+        # Chain these in finally blocks so they all try to get called?
+        try:
+            log.ut_tear_down()
+        finally:
+            # ---
+            # Nuke registries and background context.
+            # ---
+            try:
+                self._tear_down_registries()
+            finally:
+                self._tear_down_background()
 
     def _tear_down_registries(self) -> None:
         '''

@@ -547,7 +547,7 @@ class DataManager(EcsManagerWithEvents):
         Returns the deserialized result or Null.
         '''
         loaded = self._repository.load(context)
-        decoded = self._serdes.deserialize_all(loaded, context)
+        decoded = self._serdes.deserialize_all(loaded, self._codec, context)
         return decoded
 
     def _init_load(self) -> None:
@@ -1202,7 +1202,9 @@ class DataManager(EcsManagerWithEvents):
         context = event.context
 
         # Send into my serdes for decoding.
-        deserialized = self._serdes.deserialize_all(loaded, context)
+        deserialized = self._serdes.deserialize_all(loaded,
+                                                    self._codec,
+                                                    context)
 
         # Take serdes data result (just a python dict?) and set into
         # _DeserializedEvent data/context/whatever. Then have EventManager fire

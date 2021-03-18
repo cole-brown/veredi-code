@@ -31,6 +31,10 @@ from .event                         import CodeIdentityRequest, IdentityResult
 from .component                     import IdentityComponent
 
 
+# For registering
+from veredi.data.repository.file.tree import FileTreeRepository
+
+
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
@@ -75,6 +79,8 @@ class Test_IdentityManager(ZestEcs):
     # -------------------------------------------------------------------------
 
     def tear_down(self):
+        super().tear_down()
+
         self.config      = None
         self.identity    = None
         self.manager     = None

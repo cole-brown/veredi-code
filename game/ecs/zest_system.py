@@ -156,7 +156,6 @@ class SysFour(SysTest):
 class Test_SystemManager(ZestBase):
 
     def set_up(self):
-        self.config    = zmake.config()
         self.event_mgr = None
         self.finish_set_up()
 
@@ -464,7 +463,6 @@ class Test_SystemManager_Events(Test_SystemManager):
     def set_up(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.
-        self.config    = zmake.config()
         self.event_mgr = EventManager(self.config, self.debug_flags)
         self.finish_set_up()
         self.register_events()

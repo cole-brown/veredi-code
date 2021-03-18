@@ -43,7 +43,6 @@ class EventThree:
 class Test_Events(ZestBase):
 
     def set_up(self):
-        self.config          = zmake.config()
         self.events          = EventManager(self.config, self.debug_flags)
         self.events_recvd    = {}
         self.handlers_called = {}
