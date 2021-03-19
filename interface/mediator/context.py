@@ -47,13 +47,15 @@ class MediatorContext(EphemerealContext):
                  dotted: str,
                  path:   Optional[str]               = None,
                  type:   Optional[str]               = None,
-                 serdes:  Optional[Mapping[str, str]] = None,
+                 serdes: Optional[Mapping[str, str]] = None,
+                 codec:  Optional[Mapping[str, str]] = None,
                  conn:   Optional[UserConnToken]     = None
                  ) -> None:
         super().__init__(dotted, 'mediator')
         self.sub['path'] = path
         self.sub['type'] = type
         self.sub['serdes'] = serdes
+        self.sub['codec'] = codec
         self.sub['connection'] = conn
 
     @property

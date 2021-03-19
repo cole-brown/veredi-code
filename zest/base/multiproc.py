@@ -100,7 +100,7 @@ class Processes:
         TEAR_DOWN = enum.auto()
 
     def __init__(self):
-        self.clients: List[multiproc.ClientProcToSubComm] = []
+        self.clients: List[ClientProcToSubComm] = []
         '''List of WebSocket Mediator Client TestProcs.'''
 
         self.server: multiproc.ProcToSubComm = None

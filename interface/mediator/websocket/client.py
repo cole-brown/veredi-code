@@ -37,6 +37,7 @@ from veredi.data.identity        import UserId
 from veredi.data                 import background
 from veredi.data.config.config   import Configuration
 from veredi.data.serdes.base     import BaseSerdes
+from veredi.data.codec           import Codec
 from veredi.data.config.registry import register
 
 from ..const                     import MsgType
@@ -68,6 +69,7 @@ class VebSocketClient(VebSocket):
 
     def __init__(self,
                  serdes:         BaseSerdes,
+                 codec:          Codec,
                  med_context_fn: Callable[[], MediatorClientContext],
                  msg_context_fn: Callable[[], MessageContext],
                  host:           str,
@@ -75,7 +77,8 @@ class VebSocketClient(VebSocket):
                  port:           Optional[int]           = None,
                  secure:         Optional[bool]          = True,
                  debug_fn:       Optional[Callable]      = None) -> None:
-        super().__init__(serdes, med_context_fn, msg_context_fn,
+        super().__init__(serdes, codec,
+                         med_context_fn, msg_context_fn,
                          host,
                          path=path,
                          port=port,
@@ -256,7 +259,9 @@ class WebSocketClient(WebSocketMediator):
         ctx = MediatorClientContext(self.dotted())
         ctx.sub['type'] = 'websocket.client'
         serdes_ctx, _ = self._serdes.background
+        codec_ctx, _ = self._codec.background
         ctx.sub['serdes'] = serdes_ctx
+        ctx.sub['codec'] = codec_ctx
         return ctx
 
     def make_msg_context(self, id: MonotonicId) -> MessageContext:
@@ -623,6 +628,7 @@ class WebSocketClient(WebSocketMediator):
         Get a new WebSocket connection to our server.
         '''
         socket = VebSocketClient(self._serdes,
+                                 self._codec,
                                  self.make_med_context,
                                  self.make_msg_context,
                                  self._host,

@@ -344,6 +344,23 @@ class LogRecordYaml:
         if not self._dict_record.get('error', None):
             self._dict_record.pop('error', None)
 
+    def _filter_ut(self) -> None:
+        '''
+        Filters out most of the record, leaving a much smaller log.
+        '''
+        time = self._dict_record['timestamp']
+        message = self._dict_record['message']
+        error = self._dict_record['error']
+
+        self._dict_record.clear()
+
+        if time:
+            self._dict_record['timestamp'] = time
+        if message:
+            self._dict_record['message'] = message
+        if error:
+            self._dict_record['error'] = error
+
     @property
     def _stream(self) -> StringIO:
         '''

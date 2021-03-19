@@ -197,7 +197,7 @@ def many(config:      Optional[Configuration],
             context_unique = False
 
         log.start_up(log_dotted,
-                     f"Processing system '{str(system_or_type.__name__)}' for"
+                     f"Processing system '{str(system_or_type.__name__)}' for "
                      f"adding/creating...")
 
         # Alrighty - do the thing with the system.

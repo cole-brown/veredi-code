@@ -11,7 +11,7 @@ Only really tests the websockets and Mediator.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Type, NewType, Callable, Tuple
+from typing import Optional, Any, Type, NewType, Callable, Tuple, List
 
 import enum
 import signal
@@ -27,6 +27,7 @@ import veredi.time.machine
 
 from veredi.base.enum            import FlagCheckMixin
 from veredi.base.const           import VerediHealth
+from veredi.base.strings         import label
 from veredi.game.ecs.base.system import SystemLifeCycle
 from veredi.logs                 import log, log_client
 from veredi.base.context         import VerediContext
@@ -92,6 +93,28 @@ class ProcTest(FlagCheckMixin, enum.Flag):
     '''
 
 
+_LOG_INIT: List[log.Group] = [
+    log.Group.START_UP,
+    log.Group.PARALLEL,
+]
+'''
+Group of logs we use a lot for log.group_multi().
+'''
+
+
+_LOG_KILL: List[log.Group] = [
+    log.Group.SHUTDOWN,
+    log.Group.PARALLEL,
+]
+'''
+Group of logs we use a lot for log.group_multi().
+'''
+
+
+_DOTTED_FUNCS = 'veredi.parallel.multiproc'
+'''Veredi dotted label for multiproc functions.'''
+
+
 # -----------------------------------------------------------------------------
 # Multiprocessing Helper
 # -----------------------------------------------------------------------------
@@ -128,6 +151,10 @@ class ProcToSubComm:
     its sub-process.
     '''
 
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self,
                  name:       str,
                  process:    multiprocessing.Process,
@@ -153,8 +180,35 @@ class ProcToSubComm:
         '''Time that the process ended.'''
 
     # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(self) -> str:
+        '''
+        Returns our dotted name.
+        '''
+        return 'veredi.parallel.multiproc.process'
+
+    # -------------------------------------------------------------------------
     # Process Control
     # -------------------------------------------------------------------------
+
+    def started(self) -> Optional[bool]:
+        '''
+        Returns None if `start()` has not been called.
+        Returns False if `start()` has been called but we are not alive yet.
+        Returns True if we are alive.
+        '''
+        if not self.time_start:
+            return None
+        return self.process.is_alive()
+
+    def start_time(self) -> Optional[datetime]:
+        '''
+        Returns None or the datetime that `start()` was called.
+        '''
+        return self.time_start
 
     def start(self,
               time_sec: Optional[float] = None) -> None:
@@ -164,6 +218,10 @@ class ProcToSubComm:
         Sets `self.timer_val` based on optional param `time_sec`.
         Also sets `self.time_start` to current time.
         '''
+        log.group_multi(_LOG_INIT,
+                        self.dotted(),
+                        f"{self.__class__.__name__}: "
+                        f"Starting {self.name} sub-process...")
         self.timer_val = time_sec
         self.time_start = veredi.time.machine.utcnow()
         self.process.start()
@@ -191,39 +249,68 @@ class ProcToSubComm:
             #     MultiProcError,
             #     "ProcToSubComm.process is null for {self.name};"
             #     "cannot stop process.")
-            log.error("ProcToSubComm.process is null for {self.name};"
-                      "cannot stop process. Returning successful exit.")
+            log.group_multi(_LOG_KILL,
+                            self.dotted(),
+                            f"{self.__class__.__name__}: "
+                            "process is null for {self.name}; "
+                            "cannot stop process. Returning successful "
+                            "exit anyways.",
+                            log_minimum=log.Level.WARNING,
+                            log_success=False)
             # Could return fail code if appropriate.
             return ExitCodeTuple(self.name, 0)
 
         if self.process.exitcode == 0:
-            log.debug(f"{self.name} already stopped.")
+            log.group_multi(_LOG_KILL,
+                            self.dotted(),
+                            f"{self.__class__.__name__}: "
+                            "{self.name} process already stopped.")
             return ExitCodeTuple(self.name, self.process.exitcode)
 
         # Set our process's shutdown flag. It should notice soon and start
         # doing its shutdown.
-        log.debug(f"Asking {self.name} to end gracefully...")
+        log.group_multi(_LOG_KILL,
+                        self.dotted(),
+                        f"{self.__class__.__name__}: "
+                        f"Asking {self.name} to end gracefully...")
         self.shutdown.set()
 
         # Wait for our process to be done.
         if self.process.is_alive():
-            log.debug(f"Waiting for {self.name} to complete "
-                      "structured shutdown...")
+            log.group_multi(_LOG_KILL,
+                            self.dotted(),
+                            f"{self.__class__.__name__}: "
+                            f"Waiting for {self.name} to complete "
+                            "structured shutdown...")
             self.process.join(wait_timeout)
-            log.debug(f"    {self.name} exit: "
-                      f"{str(self.process.exitcode)}")
+            log.group_multi(_LOG_KILL,
+                            self.dotted(),
+                            f"{self.__class__.__name__}: "
+                            f"{self.name} exit code: "
+                            f"{str(self.process.exitcode)}")
         else:
-            log.debug(f"    {self.name} isn't alive; "
-                      "skip shutdown...")
+            log.group_multi(_LOG_KILL,
+                            self.dotted(),
+                            f"{self.__class__.__name__}: "
+                            f"{self.name} isn't alive; "
+                            "skip shutdown...")
 
         # Make sure it shut down and gave a good exit code.
         if (self.process.is_alive()
                 and self.process.exitcode is None):
             # Still not exited; terminate it.
+            log.group_multi(_LOG_KILL,
+                            self.dotted(),
+                            f"{self.__class__.__name__}: "
+                            f"{self.name} still not exited; terminating...")
             self.process.terminate()
 
         # We stopped it so we know what time_end to set.
         self.time_end = veredi.time.machine.utcnow()
+        log.group_multi(_LOG_KILL,
+                        self.dotted(),
+                        f"{self.__class__.__name__}: "
+                        f"{self.name} stopped.")
         return ExitCodeTuple(self.name, self.process.exitcode)
 
     # -------------------------------------------------------------------------
@@ -379,6 +466,10 @@ class SubToProcComm:
     to its parent.
     '''
 
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
+
     def __init__(self,
                  name:        str,
                  config:      Optional[Configuration],
@@ -396,6 +487,17 @@ class SubToProcComm:
         self._entry_fn   = entry_fn
 
     # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(self) -> str:
+        '''
+        Returns our dotted name.
+        '''
+        return 'veredi.parallel.multiproc.subprocess'
+
+    # -------------------------------------------------------------------------
     # Process Control
     # -------------------------------------------------------------------------
 
@@ -403,6 +505,10 @@ class SubToProcComm:
         '''
         Runs the entry function.
         '''
+        log.group_multi(_LOG_INIT,
+                        self.dotted(),
+                        f"{self.__class__.__name__}: "
+                        f"Starting {self.name}...")
         self._entry_fn(self, context)
 
     # -------------------------------------------------------------------------
@@ -477,21 +583,32 @@ def set_up(proc_name:         str,
     Returns a `t_proc_to_sub` (default: ProcToSubComm) object. When ready to
     start/run the subprocess, call start() on it.
     '''
-    lumberjack = log.get_logger(proc_name,
-                                min_log_level=initial_log_level)
+    logger = log.get_logger(proc_name,
+                            min_log_level=initial_log_level)
+    log_dotted = label.normalize(_DOTTED_FUNCS, 'set_up')
+
 
     if proc_test and proc_test.has(ProcTest.DNE):
         # This process 'Does Not Exist' right now.
         # Should we downgrade this to debug, or error out more heavily?
         # (i.e. exception?)
-        lumberjack.error(f"'{proc_name}' has {proc_test}. "
-                         "Skipping creation.")
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "'{}' has {}. Skipping creation.",
+                        proc_name, proc_test,
+                        veredi_logger=logger,
+                        log_minimum=log.Level.ERROR,
+                        log_success=False)
         return None
 
     # ------------------------------
     # Create multiproc IPC stuff.
     # ------------------------------
-    lumberjack.debug(f"'{proc_name}': Creating inter-process communication...")
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "'{}': Creating inter-process communication...",
+                    proc_name,
+                    veredi_logger=logger)
 
     # The official us<->them IPC pipe.
     child_pipe, parent_pipe = multiprocessing.Pipe()
@@ -499,16 +616,32 @@ def set_up(proc_name:         str,
     # The side-channel/unit-test us<->them IPC pipe.
     ut_child_pipe, ut_parent_pipe = None, None
     if unit_testing:
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "'{}': Creating unit-testing "
+                        "inter-process communication...",
+                        proc_name,
+                        veredi_logger=logger)
         ut_child_pipe, ut_parent_pipe = multiprocessing.Pipe()
 
     # multiproc shutdown flag
     if not shutdown:
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "'{}': Creating shutdown inter-process "
+                        "event flag...",
+                        proc_name,
+                        veredi_logger=logger)
         shutdown = multiprocessing.Event()
 
     # ------------------------------
     # Create the process's private info.
     # ------------------------------
-    lumberjack.debug(f"'{proc_name}': Creating process comms objects...")
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "'{}': Creating process comms objects...",
+                    proc_name,
+                    veredi_logger=logger)
 
     # Info for the proc itself to own.
     comms = t_sub_to_proc(name=proc_name,
@@ -522,6 +655,11 @@ def set_up(proc_name:         str,
     # ---
     # Updated Context w/ start-up info (SubToProcComm, etc).
     # ---
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "'{}': Saving into the ConfigContext...",
+                    proc_name,
+                    veredi_logger=logger)
     ConfigContext.set_log_level(context, initial_log_level)
     ConfigContext.set_subproc(context, comms)
 
@@ -530,6 +668,12 @@ def set_up(proc_name:         str,
     # ------------------------------
     subp_args = [context]
     subp_kwargs = {}
+
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "'{}': Creating the sub-process object...",
+                    proc_name,
+                    veredi_logger=logger)
 
     # Create the process object (doesn't start the process).
     subprocess = multiprocessing.Process(
@@ -551,14 +695,22 @@ def set_up(proc_name:         str,
     # Use Finalize Callback, if supplied.
     # ------------------------------
     if finalize_fn:
-        lumberjack.debug(f"'{proc_name}': Finalize function supplied. "
-                         f"Calling {finalize_fn}...")
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "'{}': Finalize function supplied. "
+                        "Calling {}...",
+                        proc_name, finalize_fn,
+                        veredi_logger=logger)
         finalize_fn(proc, comms)
 
     # ------------------------------
     # Return ProcToSubComm for caller to use to communicate to sub-proc.
     # ------------------------------
-    lumberjack.debug(f"'{proc_name}': Set-up complete.")
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "'{}': Set-up complete.",
+                    proc_name,
+                    veredi_logger=logger)
     return proc
 
 
@@ -566,17 +718,28 @@ def _subproc_entry(context: VerediContext) -> None:
     '''
     Init and run a multiprocessing process.
     '''
+    _log_dotted = label.normalize(_DOTTED_FUNCS, 'entry')
 
     # ------------------------------
     # Basic Sanity
     # ------------------------------
     if not context:
+        log.group_multi(
+            _LOG_INIT,
+            _log_dotted,
+            "_subproc_entry: "
+            "Require a context to run sub-process. Got nothing.")
         raise log.exception(
             MultiProcError,
             "Require a context to run sub-process. Got nothing.")
 
     proc = ConfigContext.subproc(context)
     if not proc:
+        log.group_multi(
+            _LOG_INIT,
+            _log_dotted,
+            "_subproc_entry: "
+            "Require SubToProcComm to run sub-process. Got nothing.")
         raise log.exception(
             MultiProcError,
             "Require SubToProcComm to run sub-process. Got nothing.",
@@ -594,23 +757,46 @@ def _subproc_entry(context: VerediContext) -> None:
     # Sub-proc will ignore sig-int; primarily pay attention to shutdown flag.
     _sigint_ignore()
 
+    log.group_multi(_LOG_INIT,
+                    _log_dotted,
+                    "Initializing sub-process '{}'",
+                    proc.name,
+                    veredi_logger=proc_log)
+
     # Start up the logging client
     log_is_server = ConfigContext.log_is_server(context)
     if not log_is_server:
+        log.group_multi(_LOG_INIT,
+                        _log_dotted,
+                        "Initializing log_client for '{}'",
+                        proc.name,
+                        veredi_logger=proc_log)
         log_client.init(proc.name, initial_log_level)
 
     # ------------------------------
     # More Sanity
     # ------------------------------
     if not proc.pipe:
+        log.group_multi(
+            _LOG_INIT,
+            _log_dotted,
+            "Process '{}' requires a pipe connection; has None.",
+            proc.name,
+            veredi_logger=proc_log)
         raise log.exception(
             MultiProcError,
-            "Process '{}' requires a pipe procection; has None.",
+            "Process '{}' requires a pipe connection; has None.",
             proc.name,
             veredi_logger=proc_log)
     # Not all procs will require a config, maybe? Require until that's true
     # though.
     if not proc.config:
+        log.group_multi(
+            _LOG_INIT,
+            _log_dotted,
+            "Process '{}' requires a configuration; has None.",
+            proc.name,
+            veredi_logger=proc_log)
         raise log.exception(
             MultiProcError,
             "Process '{}' requires a configuration; has None.",
@@ -625,6 +811,12 @@ def _subproc_entry(context: VerediContext) -> None:
     #         proc.name,
     #         veredi_logger=proc_log)
     if not proc.shutdown:
+        log.group_multi(
+            _LOG_INIT,
+            _log_dotted,
+            "Process '{}' requires a shutdown flag; has None.",
+            proc.name,
+            veredi_logger=proc_log)
         raise log.exception(
             MultiProcError,
             "Process '{}' requires a shutdown flag; has None.",
@@ -634,16 +826,31 @@ def _subproc_entry(context: VerediContext) -> None:
     # ------------------------------
     # Actually run the thing...
     # ------------------------------
-    proc_log.debug(f"Process '{proc.name}' starting...")
+    log.group_multi(_LOG_INIT,
+                    _log_dotted,
+                    "Process '{}' starting...",
+                    proc.name,
+                    veredi_logger=proc_log)
     proc.start(context)
+
+    # DONE WITH '_LOG_INIT'; SWITCH TO '_LOG_KILL'!
 
     # ------------------------------
     # Won't reach here until sub-proc is shutdown or dies.
     # ------------------------------
     if not log_is_server:
-        proc_log.debug(f"log_client: '{proc.name}' log_client.close().")
+        log.group_multi(_LOG_KILL,
+                        _log_dotted,
+                        "Closing log_client for '{}' log_client.close().",
+                        proc.name,
+                        veredi_logger=proc_log)
         log_client.close()
-    proc_log.debug(f"Process '{proc.name}' done.")
+
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "Process '{}' done.",
+                    proc.name,
+                    veredi_logger=proc_log)
 
 
 # -----------------------------------------------------------------------------
@@ -668,63 +875,90 @@ def blocking_tear_down(proc: ProcToSubComm,
     if isinstance(graceful_wait, (int, float)) and graceful_wait < 0:
         graceful_wait = GRACEFUL_SHUTDOWN_TIME_SEC
 
-    lumberjack = log.get_logger(proc.name)
-    log.debug(f"blocking_tear_down({proc.name}): graceful_wait: "
-              f"{graceful_wait}, shutdown? {proc.shutdown.is_set()}",
-              veredi_logger=lumberjack)
+    _log_dotted = label.normalize(_DOTTED_FUNCS, 'tear_down.blocking.full')
+    logger = log.get_logger(proc.name)
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "blocking_tear_down({}): "
+                    "graceful_wait: {}, shutdown? {}",
+                    proc.name, graceful_wait,
+                    proc.shutdown.is_set(),
+                    veredi_logger=logger)
 
     # ------------------------------
     # Sanity Check, Early Out.
     # ------------------------------
-    result = _tear_down_check(proc, lumberjack)
-    log.debug(f"blocking_tear_down({proc.name}): tear_down_check: {result}, "
-              f"shutdown? {proc.shutdown.is_set()}",
-              veredi_logger=lumberjack)
+    result = _tear_down_check(proc, logger)
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "blocking_tear_down({}): tear_down_check: {}, "
+                    "shutdown? {}",
+                    proc.name, result,
+                    proc.shutdown.is_set(),
+                    veredi_logger=logger)
     if result:
-        log.debug(f"blocking_tear_down({proc.name}): finished with: "
-                  f"{result}, shutdown? {proc.shutdown.is_set()}",
-                  veredi_logger=lumberjack)
+        log.group_multi(_LOG_KILL,
+                        _log_dotted,
+                        "blocking_tear_down({}): finished with: {}, "
+                        "shutdown? {}",
+                        proc.name, result,
+                        proc.shutdown.is_set(),
+                        veredi_logger=logger)
         return result
 
     # ------------------------------
     # Kick off tear-down.
     # ------------------------------
-    result = _tear_down_start(proc, lumberjack)
-    log.debug(f"blocking_tear_down({proc.name}): tear_down_start: {result}, "
-              f"shutdown? {proc.shutdown.is_set()}",
-              veredi_logger=lumberjack)
-    if result:
-        log.debug(f"blocking_tear_down({proc.name}): finished with: {result}, "
-                  f"shutdown? {proc.shutdown.is_set()}",
-                  veredi_logger=lumberjack)
-        return result
+    _tear_down_start(proc, logger)
+    # `_tear_down_start()` doesn't have a return - can't check it.
+    # if result:
+    #     log.debug(f"blocking_tear_down({proc.name}): finished with: {result}, "
+    #               f"shutdown? {proc.shutdown.is_set()}",
+    #               veredi_logger=logger)
+    #     return result
 
     # ------------------------------
     # Wait for tear-down.
     # ------------------------------
-    result = _tear_down_wait(proc, lumberjack, graceful_wait,
+    result = _tear_down_wait(proc, logger, graceful_wait,
                              log_enter=True,
                              log_wait_timeout=True,
                              log_exit=True)
-    log.debug(f"blocking_tear_down({proc.name}): tear_down_wait: {result}, "
-              "shutdown? {proc.shutdown.is_set()}",
-              veredi_logger=lumberjack)
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "blocking_tear_down({}): tear_down_wait: {}, "
+                    "shutdown? {}",
+                    proc.name, result,
+                    proc.shutdown.is_set(),
+                    veredi_logger=logger)
     if result:
-        log.debug(f"blocking_tear_down({proc.name}): finished with: "
-                  "{result}, shutdown? {proc.shutdown.is_set()}",
-                  veredi_logger=lumberjack)
+        log.group_multi(_LOG_KILL,
+                        _log_dotted,
+                        "blocking_tear_down({}): finished with: {}, "
+                        "shutdown? {}",
+                        proc.name, result,
+                        proc.shutdown.is_set(),
+                        veredi_logger=logger)
         return result
 
     # ------------------------------
     # Finish tear-down.
     # ------------------------------
-    result = _tear_down_end(proc, lumberjack)
-    log.debug(f"blocking_tear_down({proc.name}): tear_down_end: {result}, "
-              "shutdown? {proc.shutdown.is_set()}",
-              veredi_logger=lumberjack)
-    log.debug(f"blocking_tear_down({proc.name}): completed with: {result}, "
-              "shutdown? {proc.shutdown.is_set()}",
-              veredi_logger=lumberjack)
+    result = _tear_down_end(proc, logger)
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "blocking_tear_down({}): tear_down_end: {}, "
+                    "shutdown? {}",
+                    proc.name, result,
+                    proc.shutdown.is_set(),
+                    veredi_logger=logger)
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "blocking_tear_down({}): completed with: {}, "
+                    "shutdown? {}",
+                    proc.name, result,
+                    proc.shutdown.is_set(),
+                    veredi_logger=logger)
     return result
 
 
@@ -735,21 +969,53 @@ def nonblocking_tear_down_start(proc: ProcToSubComm
     `nonblocking_tear_down_wait` for however long they want to wait for a clean
     shutdown, then call `nonblocking_tear_down_end` to finish.
     '''
-    lumberjack = log.get_logger(proc.name)
+    _log_dotted = label.normalize(_DOTTED_FUNCS, 'tear_down.nonblocking.start')
+    logger = log.get_logger(proc.name)
+
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "nonblocking_tear_down_start({}): Begin.",
+                    proc.name,
+                    veredi_logger=logger)
 
     # ------------------------------
     # Sanity Check, Early Out.
     # ------------------------------
-    result = _tear_down_check(proc, lumberjack)
+    result = _tear_down_check(proc, logger)
     if result:
+        log.group_multi(_LOG_KILL,
+                        _log_dotted,
+                        "nonblocking_tear_down_start({}): ",
+                        "Check returned exit code: {}",
+                        proc.name, result,
+                        veredi_logger=logger)
         return result
 
     # ------------------------------
     # Kick off tear-down.
     # ------------------------------
-    result = _tear_down_start(proc, lumberjack)
-    if result:
-        return result
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "nonblocking_tear_down_start({}): ",
+                    "Starting tear-down...",
+                    proc.name,
+                    veredi_logger=logger)
+    _tear_down_start(proc, logger)
+    # No return value for `_tear_down_start()`; can't check anything.
+    # if result:
+    #     log.group_multi(_LOG_KILL,
+    #                     _log_dotted,
+    #                     "nonblocking_tear_down_start({}): ",
+    #                     "_tear_down_start returned exit code: {}",
+    #                     proc.name, result,
+    #                     veredi_logger=logger)
+    #     return result
+
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "nonblocking_tear_down_start({}): Done.",
+                    proc.name,
+                    veredi_logger=logger)
 
 
 def nonblocking_tear_down_wait(proc:             ProcToSubComm,
@@ -765,17 +1031,34 @@ def nonblocking_tear_down_wait(proc:             ProcToSubComm,
     systems can do things. Logs are guarded by `log_<something>`, so a caller
     can have enter logged once, then just loop logging exit (for example).
     '''
-    lumberjack = log.get_logger(proc.name)
+    _log_dotted = label.normalize(_DOTTED_FUNCS, 'tear_down.nonblocking.wait')
+    logger = log.get_logger(proc.name)
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "nonblocking_tear_down_start({}): Begin.",
+                    proc.name,
+                    veredi_logger=logger)
 
     # ------------------------------
     # Wait for tear-down.
     # ------------------------------
-    result = _tear_down_wait(proc, lumberjack, graceful_wait,
+    result = _tear_down_wait(proc, logger, graceful_wait,
                              log_enter=log_enter,
                              log_wait_timeout=log_wait_timeout,
                              log_exit=log_exit)
     if result:
+        log.group_multi(_LOG_KILL,
+                        _log_dotted,
+                        "_tear_down_wait({}): Returned exit code: {}",
+                        proc.name, result,
+                        veredi_logger=logger)
         return result
+
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "nonblocking_tear_down_start({}): No exit yet...",
+                    proc.name,
+                    veredi_logger=logger)
 
 
 def nonblocking_tear_down_end(proc: ProcToSubComm
@@ -786,50 +1069,79 @@ def nonblocking_tear_down_end(proc: ProcToSubComm
 
     In any case, we return its exit code.
     '''
-    lumberjack = log.get_logger(proc.name)
+    _log_dotted = label.normalize(_DOTTED_FUNCS, 'tear_down.nonblocking.end')
+    logger = log.get_logger(proc.name)
 
     # ------------------------------
     # Finish tear-down.
     # ------------------------------
-    result = _tear_down_end(proc, lumberjack)
+    result = _tear_down_end(proc, logger)
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "nonblocking_tear_down_end({}): "
+                    "_tear_down_end returned exit code: {}",
+                    proc.name, result,
+                    veredi_logger=logger)
     return result
 
 
 def _tear_down_check(proc: ProcToSubComm,
-                     lumberjack: Optional[log.PyLogType]
+                     logger: Optional[log.PyLogType]
                      ) -> Optional[ExitCodeTuple]:
     '''
     Checks that process exists, then if process has good exit code.
     '''
+    _log_dotted = label.normalize(_DOTTED_FUNCS, '_tear_down.check')
 
     if not proc or not proc.process:
         if proc:
-            lumberjack.debug(f"No {proc.name} to stop.")
+            log.group_multi(_LOG_KILL,
+                            _log_dotted,
+                            "_tear_down_check({}): "
+                            "No {} to stop.",
+                            proc.name, proc.name,
+                            veredi_logger=logger)
         else:
-            lumberjack.debug(f"Cannot stop None/Null: {proc}")
+            log.group_multi(_LOG_KILL,
+                            _log_dotted,
+                            "_tear_down_check(): "
+                            "Cannot stop None/Null sub-process: {}",
+                            proc,
+                            veredi_logger=logger)
         # Pretend it exited with good exit code?
         return ExitCodeTuple(proc.name, 0)
 
     if proc.process.exitcode == 0:
-        lumberjack.debug(f"{proc.name}: Already stopped.")
+        log.group_multi(_LOG_KILL,
+                        _log_dotted,
+                        "_tear_down_check({}): "
+                        "Process '{}' is already stopped.",
+                        proc.name, proc.name,
+                        veredi_logger=logger)
         return ExitCodeTuple(proc.name, proc.process.exitcode)
 
     return None
 
 
 def _tear_down_start(proc: ProcToSubComm,
-                     lumberjack: Optional[log.PyLogType],
-                     ) -> Optional[ExitCodeTuple]:
+                     logger: Optional[log.PyLogType],
+                     ) -> None:
     '''
     Set shutdown flag. Proc should notice soon (not immediately) and start its
     shutdown.
     '''
-    lumberjack.debug(f"{proc.name}: Asking it to end gracefully...")
+    _log_dotted = label.normalize(_DOTTED_FUNCS, '_tear_down.start')
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "_tear_down_start({}): "
+                    "Asking '{}' to end gracefully...",
+                    proc.name, proc.name,
+                    veredi_logger=logger)
     proc.shutdown.set()
 
 
 def _tear_down_wait(proc:             ProcToSubComm,
-                    lumberjack:       Optional[log.PyLogType],
+                    logger:       Optional[log.PyLogType],
                     graceful_wait:    Optional[float] = -1,
                     log_enter:        bool            = True,
                     log_wait_timeout: bool            = True,
@@ -854,43 +1166,78 @@ def _tear_down_wait(proc:             ProcToSubComm,
     if isinstance(graceful_wait, (int, float)) and graceful_wait < 0:
         graceful_wait = GRACEFUL_SHUTDOWN_TIME_SEC
 
+    _log_dotted = label.normalize(_DOTTED_FUNCS, '_tear_down.wait')
+
     # Wait for process to be done.
     if proc.process.is_alive():
         if log_enter:
-            lumberjack.debug(f"{proc.name}: Waiting for completion of "
-                             "structured shutdown...")
+            log.group_multi(_LOG_KILL,
+                            _log_dotted,
+                            "_tear_down_wait({}): "
+                            "Waiting for '{}' to complete "
+                            "structured shutdown...",
+                            proc.name, proc.name,
+                            veredi_logger=logger)
         proc.process.join(GRACEFUL_SHUTDOWN_TIME_SEC)
         if log_wait_timeout and proc.process.exitcode is None:
-            lumberjack.debug(f"{proc.name} exit timeout: "
-                             f"{str(proc.process.exitcode)}")
+            log.group_multi(_LOG_KILL,
+                            _log_dotted,
+                            "_tear_down_wait({}): "
+                            "'{proc.name}' timed out of this wait; "
+                            "not dead yet.",
+                            proc.name, proc.name,
+                            veredi_logger=logger)
         elif log_exit and proc.process.exitcode is not None:
-            lumberjack.debug(f"{proc.name} exit: "
-                             f"{str(proc.process.exitcode)}")
+            log.group_multi(_LOG_KILL,
+                            _log_dotted,
+                            "_tear_down_wait({}): "
+                            "'{}' has exited with exit code: {}",
+                            proc.name, proc.name,
+                            str(proc.process.exitcode),
+                            veredi_logger=logger)
             return ExitCodeTuple(proc.name, proc.process.exitcode)
     else:
         if log_enter:
-            lumberjack.debug(f"{proc.name}: didn't run; skip shutdown...")
+            log.group_multi(_LOG_KILL,
+                            _log_dotted,
+                            "_tear_down_wait({}): "
+                            "'{}' didn't run; skip shutdown...",
+                            proc.name, proc.name,
+                            veredi_logger=logger)
 
     return None
 
 
 def _tear_down_end(proc: ProcToSubComm,
-                   lumberjack: Optional[log.PyLogType]
+                   logger: Optional[log.PyLogType]
                    ) -> ExitCodeTuple:
     '''
     Checks that process finished shutdown. If not, we terminate it immediately.
 
     In any case, we return its exit code.
     '''
+    _log_dotted = label.normalize(_DOTTED_FUNCS, '_tear_down.end')
+
     # Make sure it shut down and gave a good exit code.
     if (proc.process
             and proc.process.is_alive()
             and proc.process.exitcode is None):
         # Still not exited; terminate it.
-        lumberjack.debug(f"{proc.name}: Still not exited; terminate it... "
-                         "Immediately.")
+        log.group_multi(_LOG_KILL,
+                        _log_dotted,
+                        "_tear_down_end({}): "
+                        "'{}' has still not exited; terminate it... "
+                        "Immediately.",
+                        proc.name, proc.name,
+                        veredi_logger=logger)
         proc.process.terminate()
 
     exitcode = (proc.process.exitcode if (proc and proc.process) else None)
-    lumberjack.debug(f"{proc.name}: Exited with code: {exitcode}")
+    log.group_multi(_LOG_KILL,
+                    _log_dotted,
+                    "_tear_down_end({}): "
+                    "'{}' has exited with exit code: {}",
+                    proc.name, proc.name,
+                    str(exitcode),
+                    veredi_logger=logger)
     return ExitCodeTuple(proc.name, exitcode)

@@ -57,6 +57,7 @@ server:
   mediator:
     type: veredi.interface.mediator.websocket.server
     serdes: veredi.serdes.json
+    codec: veredi.codec.codec
     hostname: 127.0.0.1  # Can't use 'localhost' or IPv6 for now...
     port: 13369
     ssl: false
@@ -76,6 +77,7 @@ client:
   mediator:
     type: veredi.interface.mediator.websocket.client
     serdes: veredi.serdes.json
+    codec: veredi.codec.codec
     hostname: 127.0.0.1  # Can't use 'localhost' or IPv6 for now...
     port: 13369
     ssl: false

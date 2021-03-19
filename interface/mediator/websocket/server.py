@@ -37,6 +37,7 @@ from veredi.data                 import background
 from veredi.data.identity        import UserId, UserKey
 from veredi.data.config.config   import Configuration
 from veredi.data.serdes.base     import BaseSerdes
+from veredi.data.codec           import Codec
 from veredi.data.config.registry import register
 
 from .mediator                   import WebSocketMediator
@@ -47,7 +48,7 @@ from ..message                   import Message, ConnectionMessage
 from ..context                   import (MediatorServerContext,
                                          MessageContext,
                                          UserConnToken)
-from ...user                     import UserConn
+from ...user                     import BaseUser, UserConn
 from ...output.envelope          import Envelope, Address
 from ...output.event             import Recipient
 
@@ -71,6 +72,7 @@ class VebSocketServer(VebSocket):
 
     def __init__(self,
                  serdes:         BaseSerdes,
+                 codec:          Codec,
                  med_context_fn: Callable[[],
                                           MediatorServerContext],
                  msg_context_fn: Callable[[],
@@ -83,7 +85,8 @@ class VebSocketServer(VebSocket):
                  secure:         Optional[Union[str, bool]]            = True,
                  debug_fn:       Optional[Callable]                    = None
                  ) -> None:
-        super().__init__(serdes, med_context_fn, msg_context_fn,
+        super().__init__(serdes, codec,
+                         med_context_fn, msg_context_fn,
                          host,
                          path     = path,
                          port     = port,
@@ -301,11 +304,22 @@ class ClientRegistry:
     '''
 
     def __init__(self, debug_fn: Callable) -> None:
-        self._id:   Dict[UserId,        User] = {}
-        self._key:  Dict[UserKey,       User] = {}
-        self._conn: Dict[UserConnToken, User] = {}
+        self._id:   Dict[UserId,        BaseUser] = {}
+        '''
+        UserId to User map.
+        '''
 
-        self.debug: Callable                  = debug_fn
+        self._key:  Dict[UserKey,       BaseUser] = {}
+        '''
+        UserKey to User map.
+        '''
+
+        self._conn: Dict[UserConnToken, BaseUser] = {}
+        '''
+        UserConnToken to User map.
+        '''
+
+        self.debug: Callable = debug_fn
         '''
         Should be WebSocketServer.debug().
         '''
@@ -455,6 +469,7 @@ class WebSocketServer(WebSocketMediator):
         # Now we can make our WebSocket stuff...
         # ---
         self._socket = VebSocketServer(self._serdes,
+                                       self._codec,
                                        self.make_med_context,
                                        self.make_msg_context,
                                        self.disconnected,
@@ -605,9 +620,11 @@ class WebSocketServer(WebSocketMediator):
         Make a context with our context data, our serdes, etc.
         '''
         serdes_ctx, _ = self._serdes.background
+        codec_ctx, _ = self._codec.background
         ctx = MediatorServerContext(self.dotted(),
                                     type='websocket.server',
                                     serdes=serdes_ctx,
+                                    codec=codec_ctx,
                                     conn=connection)
         return ctx
 

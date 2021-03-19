@@ -232,16 +232,40 @@ class Lumberjack:
                  success:  Optional[log.SuccessType] = None,
                  **kwargs: Any) -> None:
         '''
-        Log a start_up-related message via our logger.
+        Log a start-up-related message via our logger.
 
         NOTE: this is not a "log at this level" function. Rather, it is a "log
         this start-up-related log" function. The logging level this uses can
-        change at any time. This just allows all start_up logs to stay grouped
+        change at any time. This just allows all start-up logs to stay grouped
         at the same level easily (and keep them there if/when the level
         changes).
         '''
         kwargs = self._stack(1, **kwargs)
         log.start_up(dotted, msg,
+                     *args,
+                     veredi_logger=self._logger,
+                     context=context,
+                     success=success,
+                     **kwargs)
+
+    def shutdown(self,
+                 dotted:   str,
+                 msg:      str,
+                 *args:    Any,
+                 context:  Optional['VerediContext'] = None,
+                 success:  Optional[log.SuccessType] = None,
+                 **kwargs: Any) -> None:
+        '''
+        Log a shutdown-related message via our logger.
+
+        NOTE: this is not a "log at this level" function. Rather, it is a "log
+        this start-up-related log" function. The logging level this uses can
+        change at any time. This just allows all shutdown logs to stay grouped
+        at the same level easily (and keep them there if/when the level
+        changes).
+        '''
+        kwargs = self._stack(1, **kwargs)
+        log.shutdown(dotted, msg,
                      *args,
                      veredi_logger=self._logger,
                      context=context,
@@ -256,13 +280,13 @@ class Lumberjack:
                         success:  Optional[log.SuccessType] = None,
                         **kwargs: Any) -> None:
         '''
-        Log a start_up-related message via our logger.
+        Log a data-processing-related message via our logger.
 
         NOTE: This is not a "log at this level" function. Rather, it is a "log
-        this start-up-related log" function. The logging level this uses can
-        change at any time. This just allows all start_up logs to stay grouped
-        at the same level easily (and keep them there if/when the level
-        changes).
+        this data-processing-related log" function. The logging level this uses
+        can change at any time. This just allows all data-processing logs to
+        stay grouped at the same level easily (and keep them there if/when the
+        level changes).
         '''
         kwargs = self._stack(1, **kwargs)
         log.data_processing(dotted, msg,
@@ -283,9 +307,9 @@ class Lumberjack:
         Log a registration-related message via our logger.
 
         NOTE: This is not a "log at this level" function. Rather, it is a "log
-        this registration-related log" function. The logging level this uses can
-        change at any time. This just allows all start_up logs to stay grouped
-        at the same level easily (and keep them there if/when the level
+        this registration-related log" function. The logging level this uses
+        can change at any time. This just allows all registration logs to stay
+        grouped at the same level easily (and keep them there if/when the level
         changes).
         '''
         kwargs = self._stack(1, **kwargs)
@@ -295,6 +319,31 @@ class Lumberjack:
                             context=context,
                             success=success,
                             **kwargs)
+
+    def parallel(self,
+                 dotted:   str,
+                 msg:      str,
+                 *args:    Any,
+                 context:  Optional['VerediContext'] = None,
+                 success:  Optional[log.SuccessType] = None,
+                 **kwargs: Any) -> None:
+        '''
+        Log a parallel-related (multiproc, threading, asyncio) message via our
+        logger.
+
+        NOTE: This is not a "log at this level" function. Rather, it is a "log
+        this registration-related log" function. The logging level this uses
+        can change at any time. This just allows all parallel logs to stay
+        grouped at the same level easily (and keep them there if/when the level
+        changes).
+        '''
+        kwargs = self._stack(1, **kwargs)
+        log.parallel(dotted, msg,
+                     *args,
+                     veredi_logger=self._logger,
+                     context=context,
+                     success=success,
+                     **kwargs)
 
     # -------------------------------------------------------------------------
     # Logging-by-Level Functions
