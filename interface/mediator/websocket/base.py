@@ -29,6 +29,7 @@ from io import StringIO
 # ---
 from veredi.logs             import log
 from veredi.data.serdes.base import BaseSerdes
+from veredi.data.codec       import Codec
 from veredi.time.timer       import MonotonicTimer
 from veredi.base.identity    import MonotonicId
 
@@ -103,38 +104,80 @@ class VebSocket:
     SHORT_NAME = 'base'
     ''' Should be 'client' or 'server', depending. '''
 
-    def __init__(self,
-                 serdes:         BaseSerdes,
-                 med_context_fn: MediatorMakeContext,
-                 msg_context_fn: MessageMakeContext,
-                 host:           str,
-                 path:           Optional[str]              = None,
-                 port:           Optional[int]              = None,
-                 secure:         Optional[Union[str, bool]] = True,
-                 debug_fn:       Optional[Callable]         = None) -> None:
+    # ------------------------------------------------------------------------
+    # Initialization
+    # ------------------------------------------------------------------------
 
-        # ---
-        # Required
-        # ---
-        self._serdes:           BaseSerdes          = serdes
-        self._med_make_context: MediatorMakeContext = med_context_fn
-        self._msg_make_context: MessageMakeContext  = msg_context_fn
-        self._host:             str                 = host
+    def _define_vars(self) -> None:
+        '''
+        Instance variable definitions, type hinting, doc strings, etc.
+        '''
+        self._serdes: BaseSerdes = None
+        '''
+        The Serializer/Deserializer to be used for WebSocket messages.
+        '''
+
+        self._codec: Codec = None
+        '''
+        The Coder/Decoder to be used for WebSocket messages.
+        '''
+
+        self._med_make_context: MediatorMakeContext = None
+        '''
+        A callback for creating MediatorContexts.
+        '''
+
+        self._msg_make_context: MessageMakeContext  = None
+        '''
+        A callback for creating MessageContexts.
+        '''
+
+        self._host: str = None
+        '''
+        Our host name. Used when we create our URI automatically.
+        '''
 
         # ---
         # Optional
         # ---
-        self._path:             str                 = path
-        self._port:             int                 = port
-        self._secure:           Union[str, bool]    = secure
-        self._uri:              Optional[str]       = None
-        self._debug_fn:         Optional[Callable]  = debug_fn
+        self._path: str = None
+        '''
+        The path portion of our URI.
+        '''
+
+        self._port: int = None
+        '''
+        The port portion of our URI.
+        '''
+
+        self._secure: Union[str, bool] = None
+        '''
+        For deciding on secure or standard WebSockets.
+        '''
+
+        self._uri: Optional[str] = None
+        '''
+        Cached URI built from host, path, etc.
+        '''
+
+        self._debug_fn: Optional[Callable] = None
+        '''
+        Callback to use if debugging.
+        '''
 
         # ---
         # Internal
         # ---
         self._socket: websockets.WebSocketClientProtocol = None
-        self._close:  asyncio.Event                      = asyncio.Event()
+        '''
+        Our WebSocket connection to the client.
+        '''
+
+        self._close: asyncio.Event = asyncio.Event()
+        '''
+        AsyncIO Event flag we listen to for deciding when to closing a
+        connection.
+        '''
 
         # For self.connect_parallel_txrx
         self._data_consume: RxProcessor = None
@@ -147,6 +190,39 @@ class VebSocket:
         '''
         Data sending/producing callback for our parallel txrx websocket.
         '''
+
+    def __init__(self,
+                 serdes:         BaseSerdes,
+                 codec:          Codec,
+                 med_context_fn: MediatorMakeContext,
+                 msg_context_fn: MessageMakeContext,
+                 host:           str,
+                 path:           Optional[str]              = None,
+                 port:           Optional[int]              = None,
+                 secure:         Optional[Union[str, bool]] = True,
+                 debug_fn:       Optional[Callable]         = None) -> None:
+
+        # ---
+        # Required
+        # ---
+        self._serdes = serdes
+        self._codec = codec
+        self._med_make_context = med_context_fn
+        self._msg_make_context = msg_context_fn
+        self._host = host
+
+        # ---
+        # Optional
+        # ---
+        self._path = path
+        self._port = port
+        self._secure = secure
+        self._uri = None
+        self._debug_fn = debug_fn
+
+        # ---
+        # Internal
+        # ---
 
         self.debug(f"host: {str(type(self._host))}({self._host}), "
                    f"port: {str(type(self._port))}({self._port}), "

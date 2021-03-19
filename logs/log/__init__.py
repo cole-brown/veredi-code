@@ -78,8 +78,10 @@ from .log import (
     group_multi,
     security,
     start_up,
+    shutdown,
     data_processing,
     registration,
+    parallel,
 
     # ------------------------------
     # 'with' context manager
@@ -178,7 +180,10 @@ __all__ = [
     'group_multi',
     'security',
     'start_up',
+    'shutdown',
     'data_processing',
+    'registration',
+    'parallel',
 
 
     # ------------------------------

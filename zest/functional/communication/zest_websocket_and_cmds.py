@@ -115,6 +115,7 @@ from veredi.data.serdes.json                    import serdes
 from veredi.rules.d20.pf2.health.component      import HealthComponent
 import veredi.interface.mediator.websocket.server
 import veredi.interface.mediator.websocket.client
+import veredi.data.repository.file.tree
 
 
 # -----------------------------------------------------------------------------
@@ -188,12 +189,6 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
             veredi_logger=lumberjack)
 
     # ------------------------------
-    # Import Encodables for Registry?
-    # ------------------------------
-    # TODO: better import?
-    import veredi.math.d20.tree
-
-    # ------------------------------
     # Finish Set-Up and Start It.
     # ------------------------------
 
@@ -264,8 +259,6 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.DISABLED_TESTS = set({
             # Nothing, ideally.
 
-            # TODO [2020-09-09]: Names of these tests.
-
             # ---
             # This is cheating.
             # ---
@@ -275,16 +268,11 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
             # Simplest test.
             # ---
             # 'test_nothing',
-            # 'test_logs_ignore',
 
             # ---
             # More complex tests.
             # ---
-            # 'test_connect',
-            # 'test_ping',
-            # 'test_echo',
-            # 'test_text',
-            # 'test_logging',
+            # 'test_ability_cmd',
         })
 
         # ---

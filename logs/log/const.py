@@ -405,6 +405,9 @@ class Group(enum.Enum):
     START_UP = 'start-up'
     '''Logs related to start up of Veredi, the game, etc.'''
 
+    SHUTDOWN = 'shutdown'
+    '''Logs related to shutdown of Veredi, the game, etc.'''
+
     REGISTRATION = 'registration'
     '''Logs related to registration.'''
 
@@ -413,6 +416,9 @@ class Group(enum.Enum):
 
     DATA_PROCESSING = 'data-processing'
     '''Logs related to loading, processing, and saving data.'''
+
+    PARALLEL = 'parallel'
+    '''Logs related to multiproc, threading, asyncio.'''
 
     # TODO: more groups
 

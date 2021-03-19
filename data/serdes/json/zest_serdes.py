@@ -18,6 +18,7 @@ from veredi.base             import paths
 from veredi.base.context     import UnitTestContext
 from veredi.data             import background
 from veredi.data.context     import DataAction
+from veredi.data.codec       import Codec
 
 from .serdes                 import JsonSerdes
 
@@ -113,12 +114,14 @@ class Test_JsonSerdes(ZestBase):
 
     def set_up(self):
         self.serdes = JsonSerdes()
+        self.codec = Codec()
         self.path_all = zpath.serdes() / 'component.health.json'
         self.path_meta = zpath.serdes() / 'only.meta.json'
         self.path_comp = zpath.serdes() / 'only.component.json'
 
     def tear_down(self):
         self.serdes = None
+        self.codec = None
         self.path_all = None
         self.path_meta = None
         self.path_comp = None
@@ -287,6 +290,8 @@ class Test_JsonSerdes(ZestBase):
         # The Serdes Itself
         # ---
         self.assertTrue(self.serdes)
+        # (and friend!)
+        self.assertTrue(self.codec)
 
         # ---
         # Background
@@ -308,7 +313,8 @@ class Test_JsonSerdes(ZestBase):
         key = str(background.Name.SERDES)
         self.assertNotIn(key, test_context)
         serdes_context = self.serdes._context_data(test_context,
-                                                   DataAction.SAVE)
+                                                   DataAction.SAVE,
+                                                   self.codec)
         # _context_data() should add to the existing context.
         self.assertIs(test_context, serdes_context)
         self.assertIn(key, serdes_context)
@@ -327,6 +333,7 @@ class Test_JsonSerdes(ZestBase):
         with self.path_meta.open('r') as file_stream:
             data = self.serdes._read(
                 file_stream,
+                self.codec,
                 self.context('test_read_one_meta', self.path_meta))
 
         self.assertIsNotNone(data)
@@ -342,6 +349,7 @@ class Test_JsonSerdes(ZestBase):
         with self.path_comp.open('r') as file_stream:
             data = self.serdes._read(
                 file_stream,
+                self.codec,
                 self.context('test_read_one_comp', self.path_comp))
 
         self.assertIsNotNone(data)
@@ -357,6 +365,7 @@ class Test_JsonSerdes(ZestBase):
         with self.path_all.open('r') as file_stream:
             data = self.serdes._read_all(
                 file_stream,
+                self.codec,
                 self.context('test_read_all', self.path_all))
 
         self.assertIsNotNone(data)
@@ -383,6 +392,7 @@ class Test_JsonSerdes(ZestBase):
         with self.path_meta.open('r') as file_stream:
             data = self.serdes.deserialize(
                 file_stream,
+                self.codec,
                 self.context('test_deserialize_one_meta', self.path_meta))
 
         self.assertIsNotNone(data)
@@ -399,6 +409,7 @@ class Test_JsonSerdes(ZestBase):
         with self.path_comp.open('r') as file_stream:
             data = self.serdes.deserialize(
                 file_stream,
+                self.codec,
                 self.context('test_deserialize_one_comp', self.path_comp))
 
         self.assertIsNotNone(data)
@@ -415,6 +426,7 @@ class Test_JsonSerdes(ZestBase):
         with self.path_all.open('r') as file_stream:
             data = self.serdes.deserialize_all(
                 file_stream,
+                self.codec,
                 self.context('test_deserialize_all', self.path_all))
 
         self.assertIsNotNone(data)
@@ -459,11 +471,11 @@ class Test_JsonSerdes(ZestBase):
         # ---
         # 1) Write!
         # ---
-        with self.serdes._write(write_data, context) as stream:
+        with self.serdes._write(write_data, self.codec, context) as stream:
             # ---
             # 2) Read!
             # ---
-            read_data = self.serdes._read(stream, context)
+            read_data = self.serdes._read(stream, self.codec, context)
 
         # ---
         # 3) Check data!
@@ -499,11 +511,11 @@ class Test_JsonSerdes(ZestBase):
         # ---
         # 1) Write!
         # ---
-        with self.serdes._write(write_data, context) as stream:
+        with self.serdes._write(write_data, self.codec, context) as stream:
             # ---
             # 2) Read!
             # ---
-            read_data = self.serdes._read(stream, context)
+            read_data = self.serdes._read(stream, self.codec, context)
 
         # ---
         # 3) Check data!
@@ -550,11 +562,11 @@ class Test_JsonSerdes(ZestBase):
         # ---
         # 1) Write!
         # ---
-        with self.serdes._write(write_data, context) as stream:
+        with self.serdes._write(write_data, self.codec, context) as stream:
             # ---
             # 2) Read!
             # ---
-            read_data = self.serdes._read(stream, context)
+            read_data = self.serdes._read(stream, self.codec, context)
 
         # ---
         # 3) Check data!
@@ -603,11 +615,15 @@ class Test_JsonSerdes(ZestBase):
         # ---
         # 1) Serialize!
         # ---
-        with self.serdes.serialize(serialize_data, context) as stream:
+        with self.serdes.serialize(serialize_data,
+                                   self.codec,
+                                   context) as stream:
             # ---
             # 2) Deserialize!
             # ---
-            deserialize_data = self.serdes.deserialize(stream, context)
+            deserialize_data = self.serdes.deserialize(stream,
+                                                       self.codec,
+                                                       context)
 
         # ---
         # 3) Check data!
@@ -644,11 +660,15 @@ class Test_JsonSerdes(ZestBase):
         # ---
         # 1) Serialize!
         # ---
-        with self.serdes.serialize(serialize_data, context) as stream:
+        with self.serdes.serialize(serialize_data,
+                                   self.codec,
+                                   context) as stream:
             # ---
             # 2) Deserialize!
             # ---
-            deserialize_data = self.serdes.deserialize(stream, context)
+            deserialize_data = self.serdes.deserialize(stream,
+                                                       self.codec,
+                                                       context)
 
         # ---
         # 3) Check data!
@@ -697,11 +717,15 @@ class Test_JsonSerdes(ZestBase):
         # ---
         # 1) Serialize!
         # ---
-        with self.serdes.serialize(serialize_data, context) as stream:
+        with self.serdes.serialize(serialize_data,
+                                   self.codec,
+                                   context) as stream:
             # ---
             # 2) Deserialize!
             # ---
-            deserialize_data = self.serdes.deserialize(stream, context)
+            deserialize_data = self.serdes.deserialize(stream,
+                                                       self.codec,
+                                                       context)
 
         # ---
         # 3) Check data!

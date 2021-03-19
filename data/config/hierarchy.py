@@ -228,6 +228,7 @@ class ConfigHierarchy(Hierarchy):
             'mediator': {
                 'type': Info.LEAF,
                 'serdes': Info.LEAF,
+                'codec': Info.LEAF,
                 'hostname': Info.LEAF,
                 'port': Info.LEAF,
                 'ssl': Info.LEAF,
@@ -251,6 +252,7 @@ class ConfigHierarchy(Hierarchy):
             'mediator': {
                 'type': Info.LEAF,
                 'serdes': Info.LEAF,
+                'codec': Info.LEAF,
                 'hostname': Info.LEAF,
                 'port': Info.LEAF,
                 'ssl': Info.LEAF,

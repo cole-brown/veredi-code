@@ -57,6 +57,13 @@ from veredi.interface.mediator.payload.logging  import (LogPayload,
                                                         _NC_LEVEL)
 from veredi.interface.mediator.payload.bare     import BarePayload
 
+# ---
+# Registry
+# ---
+import veredi.data.serdes.json.serdes
+import veredi.rules.d20.pf2.health.component
+import veredi.data.repository.file.tree
+
 
 # -----------------------------------------------------------------------------
 # Constants

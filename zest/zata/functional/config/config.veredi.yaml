@@ -80,6 +80,7 @@ server:
   mediator:
     type: veredi.interface.mediator.websocket.server
     serdes: veredi.serdes.json
+    codec: veredi.codec.codec
     hostname: localhost
     port: 8888
     ssl: false
@@ -99,6 +100,7 @@ client:
   mediator:
     type: veredi.interface.mediator.websocket.client
     serdes: veredi.serdes.json
+    codec: veredi.codec.codec
     hostname: localhost
     port: 8888
     ssl: false

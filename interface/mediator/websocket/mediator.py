@@ -26,6 +26,7 @@ from veredi.base.context       import VerediContext
 from veredi.debug.const        import DebugFlag
 from veredi.data               import background
 from veredi.data.serdes.base   import BaseSerdes
+from veredi.data.codec         import Codec
 from veredi.data.config.config import Configuration
 
 from ..mediator                import Mediator
@@ -74,6 +75,9 @@ class WebSocketMediator(Mediator):
 
         self._serdes: BaseSerdes      = None
         '''Mediator's serdes will be from Configuration.'''
+
+        self._codec: Codec            = None
+        '''Mediator's codec will be from Configuration.'''
 
         self._host:  str              = None
         '''Mediator's host name/ip string will be from Configuration.'''
@@ -133,6 +137,10 @@ class WebSocketMediator(Mediator):
                                                  'mediator',
                                                  'serdes')
 
+        self._codec = config.create_from_config(self._name,
+                                                'mediator',
+                                                'codec')
+
         self._host = config.get(self._name,
                                 'mediator',
                                 'hostname')
@@ -171,6 +179,7 @@ class WebSocketMediator(Mediator):
             'dotted': self.dotted(),
             'type': label.normalize('websocket', self._name),
             'serdes': self._serdes.dotted(),
+            'codec': self._codec.dotted(),
         }
         return self._bg, background.Ownership.SHARE
 
