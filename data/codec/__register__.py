@@ -11,8 +11,6 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.logs.log import Group
-
 # ------------------------------
 # Registries & Registrars
 # ------------------------------

@@ -4,36 +4,27 @@
 Module for auto-magical registration shenanigans.
 
 This will be found and imported by run.registry in order to have whatever
-Registries, Registrars, and Registrees this provides available at run-time.
+Registries and Registrars this provides available at run-time.
 '''
 
 # -----------------------------------------------------------------------------
 # Imports
 # -----------------------------------------------------------------------------
 
+from veredi.logs.log import Group
+
 
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from veredi.data.codec import register, ignore
-
-
-# ------------------------------
-# Registrees
-# ------------------------------
-# from .here  import Thing1
-# from .there import Thing2, Ignore1
+# from .registry import registrar
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-# register(Thing1)
-# register(Thing1.SubThing)
-# register(Thing2)
-
-# ignore(Ignore1)
+# registrar([Group.START_UP, Group.REGISTRATION], None)
 
 
 # -----------------------------------------------------------------------------
