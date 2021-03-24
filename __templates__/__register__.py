@@ -25,26 +25,15 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Registration
 # -----------------------------------------------------------------------------
 
-# register(...)
-# ignore(...)
+# register(Something)
+
+# ignore(SomeOtherThing)
+
 
 # -----------------------------------------------------------------------------
 # Exports
 # -----------------------------------------------------------------------------
-# If you need to restrict what's exported:
-# __all__ = [
-#     # No exports? Just a registration thing.
-#
-#     # ------------------------------
-#     # File-Local
-#     # ------------------------------
-#
-#     # ------------------------------
-#     # Registries & Registrars
-#     # ------------------------------
-#
-#     # ------------------------------
-#     # Registrees
-#     # ------------------------------
-#
-# ]
+
+__all__ = [
+    # No exports? Just a registration thing.
+]

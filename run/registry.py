@@ -10,7 +10,7 @@ Set up the registries.
 
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any, NewType, Callable,
-                    Iterable, Set, List, Dict)
+                    Tuple, Set, List, Dict)
 from veredi.base.null import Nullable, Null, null_or_none
 from types import ModuleType
 if TYPE_CHECKING:
@@ -654,7 +654,7 @@ def _find_modules(root:          paths.Path,
                   log_dotted:    Optional[label.DotStr]                = None,
                   ignores:       Optional[Set[Union[str, re.Pattern]]] = None,
                   find_ut:       Optional[bool]                        = None,
-                  ) -> Iterable:
+                  ) -> Tuple[List[str], List[str]]:
     '''
     Finds all modules in `root` and subdirectories that match our
     requirements for being a place to put "Register me plz!!!" code for
@@ -681,12 +681,16 @@ def _find_modules(root:          paths.Path,
     `log_dotted` is only used for logging and will be
     `{_DOTTED}._find_modules' if not provided.
 
-    Returns a list of strings of module names:
-      [
-        'veredi.__register__',
-        'veredi.config.__register__',
-        ...
-      ]
+    Returns a 2-tuple of lists of strings of module names:
+      - Tuple is:
+        - Tuple[0]: Registrars found.
+        - Tuple[1]: Registrees found.
+      - Each tuple item is a list of strings, e.g.:
+        [
+          'veredi.__register__',
+          'veredi.config.__register__',
+          ...
+        ]
     '''
     # ------------------------------
     # Set up vars...

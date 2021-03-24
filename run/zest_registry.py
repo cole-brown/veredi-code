@@ -39,9 +39,9 @@ from veredi.base import const
 # Base Class
 # -----------------------------------------------------------------------------
 
-class ZestFindRegistees(ZestBase):
+class ZestFindRegistrations(ZestBase):
     '''
-    Test the veredi.run.registry's finding/initializing registrees.
+    Test the veredi.run.registry's finding/initializing registrations.
     '''
 
     # -------------------------------------------------------------------------
@@ -88,9 +88,10 @@ class ZestFindRegistees(ZestBase):
     # Test Helpers
     # -------------------------------------------------------------------------
 
-    def find_registree_modules(self, root: paths.Path) -> Iterable[ModuleType]:
+    def find_registration_modules(self, root: paths.Path) -> Iterable[ModuleType]:
         '''
-        Find registree modules using `run._find_modules`.
+        Find registration modules using `run._find_modules`.
+          - Both registrees and registrars.
 
         Use `const.LIB_VEREDI_ROOT` if you want the actual modules.
         '''
@@ -102,15 +103,31 @@ class ZestFindRegistees(ZestBase):
     # Tests
     # -------------------------------------------------------------------------
 
-    def test_find_registree_modules(self) -> None:
+    def test_find_registration_modules(self) -> None:
         # self.debugging = True
-        modules = []
+        found = []
         with log.LoggingManager.on_or_off(self.debugging):
-            modules = self.find_registree_modules(self.path_test_root)
+            found = self.find_registration_modules(self.path_test_root)
 
-        expected = ['veredi.__register__', 'veredi.valid.__register__']
-        for module in modules:
-            self.assertIn(module, expected)
+        expected_registrees = [
+            'veredi.__register__',
+            'veredi.valid.__register__'
+        ]
+        expected_registrars = [
+            'veredi.__registrar__',
+            'veredi.valid.__registrar__'
+        ]
+        expected = (expected_registrars, expected_registrees)
+
+        # Check registrars.
+        index = 0
+        for module in found[index]:
+            self.assertIn(module, expected[index])
+
+        # Check registrars.
+        index = 1
+        for module in found[index]:
+            self.assertIn(module, expected[index])
 
 
 # --------------------------------Unit Testing---------------------------------

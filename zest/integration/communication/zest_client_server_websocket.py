@@ -64,8 +64,8 @@ import veredi.data.serdes.json.serdes
 import veredi.rules.d20.pf2.health.component
 import veredi.data.repository.file.tree
 
-# TODO: DELETE
-from veredi.data.codec.registry import registry
+# # TODO: DELETE
+# from veredi.data.codec.registry import registry
 
 
 # -----------------------------------------------------------------------------
