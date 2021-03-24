@@ -348,8 +348,13 @@ def tear_down_registries() -> None:
     registry_config._ut_unregister()
     registry_yaml._ut_unregister()
 
-    # TODO: A more automatic unregister?
-    # run._ut_unregister()
-    reg_codec = registry_codec.registry()
-    if reg_codec:
-        reg_codec._ut_unregister()
+    # Unregistering this way doesn't get things re-registered by the next
+    # run.registration()... Probably because the imports do nothing since we
+    # don't un-import?
+    # So for now just leave it alone?
+    #
+    # # TODO: A more automatic unregister?
+    # # run._ut_unregister()
+    # reg_codec = registry_codec.registry()
+    # if reg_codec:
+    #     reg_codec._ut_unregister()

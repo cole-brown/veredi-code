@@ -104,13 +104,13 @@ class VebSocketClient(VebSocket):
         Also watches the ``_close`` asyncio.Event flag to see if it should kill
         itself early (instruct it via :meth:`close`).
         '''
-        self.debug(f"Client connecting to {self.uri}...")
+        self.debug(f"connect_parallel: Client connecting to {self.uri}...")
 
         self._data_produce = produce_fn
         self._data_consume = consume_fn
 
         async with websockets.connect(self.uri) as websocket:
-            self.debug(f"Client connected to {self.uri}. "
+            self.debug(f"connect_parallel: Client connected to {self.uri}. "
                        f"connection: {websocket}")
             # websocket: WebSocketClientProtocol
             self._socket = websocket
@@ -129,12 +129,13 @@ class VebSocketClient(VebSocket):
             # And this one is just to exit when asked to close().
             poison = asyncio.ensure_future(self._a_wait_close())
             poison.add_done_callback(self._ppc_done_handle)
-            self.debug("Client running produce/consume...")
+            self.debug("connect_parallel: Client running produce/consume...")
             done, pending = await asyncio.wait(
                 [produce, consume, poison],
                 return_when=asyncio.FIRST_COMPLETED)
 
-            self.debug(f"Client done with connection to {self.uri}. "
+            self.debug("connect_parallel: "
+                       f"Client done with connection to {self.uri}. "
                        "Cancelling still pending tasks "
                        "produce/consume tasks...")
             # Whoever didn't finish first gets the axe.
@@ -142,7 +143,7 @@ class VebSocketClient(VebSocket):
                 task.cancel()
 
         self._socket = None
-        self.debug("Client connection done.")
+        self.debug("connect_parallel: Client connection done.")
 
 
 # -----------------------------------------------------------------------------
@@ -204,6 +205,15 @@ class WebSocketClient(WebSocketMediator):
         # Base class init first.
         super().__init__(context, 'client')
 
+        # NOTE: For increased logging on only client from the get-go:
+        # log.set_group_level(log.Group.DATA_PROCESSING, log.Level.INFO)
+        # log.set_group_level(log.Group.PARALLEL, log.Level.DEBUG)
+        # log.critical("Client set data_proc to {}.",
+        #              log.get_group_level(log.Group.DATA_PROCESSING))
+        # log.data_processing(self.dotted(),
+        #                     "Client set data_proc to {}.",
+        #                     log.get_group_level(log.Group.DATA_PROCESSING))
+
         # TODO [2020-09-12]: Remove this and get or generate auth id/key some
         # other way.
         subctx = context.sub
@@ -230,8 +240,8 @@ class WebSocketClient(WebSocketMediator):
     # -------------------------------------------------------------------------
 
     def debug(self,
-              msg: str,
-              *args: Any,
+              msg:      str,
+              *args:    Any,
               **kwargs: Any) -> None:
         '''
         Debug logs if our DebugFlag has the proper bits set for Mediator
@@ -242,9 +252,11 @@ class WebSocketClient(WebSocketMediator):
                                     DebugFlag.MEDIATOR_CLIENT)):
             msg = f"{self._name}: " + msg
             kwargs = log.incr_stack_level(kwargs)
-            log.debug(msg,
-                      *args,
-                      **kwargs)
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      *args,
+                                      **kwargs,
+                                      log_minimum=log.Level.DEBUG)
 
     # -------------------------------------------------------------------------
     # Mediator API
@@ -275,6 +287,8 @@ class WebSocketClient(WebSocketMediator):
         '''
         Start our socket listening.
         '''
+        self.debug("start: Starting clientt...")
+
         # Kick it off into asyncio's hands.
         try:
             asyncio.run(self._a_main(self._shutdown_watcher(),
@@ -296,6 +310,8 @@ class WebSocketClient(WebSocketMediator):
                 "Caught exception running MediatorClient coroutines:\n{}",
                 trace)
 
+        self.debug("start: Done.")
+
     # -------------------------------------------------------------------------
     # Asyncio / Multiprocessing Functions
     # -------------------------------------------------------------------------
@@ -306,11 +322,20 @@ class WebSocketClient(WebSocketMediator):
         when the shutdown flag is set.
         '''
         # Parent's watcher is non-blocking so we can be simple about this:
+        self.debug("_shutdown_watcher: Wait on parent._shutdown_watcher()...")
         await super()._shutdown_watcher()
 
         # If we have a server conn, ask it to close too.
         if self._socket:
+            self.debug("_shutdown_watcher: "
+                       "Tell our WebSocket to stop.")
             self._socket.close()
+        else:
+            self.debug("_shutdown_watcher: "
+                       "We have no WebSocket to stop?")
+
+        self.debug("_shutdown_watcher: "
+                   "Done.")
 
     async def _queue_watcher(self) -> None:
         '''
@@ -329,7 +354,16 @@ class WebSocketClient(WebSocketMediator):
             # Else get one thing and send it off this round.
             try:
                 msg, ctx = self._med_to_game_get()
+                self.debug("_queue_watcher (_med_to_game_queue->game_pipe): "
+                           "_med_to_game_queue has message to process: "
+                           "msg: {}, ctx: {}",
+                           msg, ctx)
                 if not msg or not ctx:
+                    self.debug("_to_game_watcher (_med_to_game_queue->game_pipe): "
+                               "Got nothing for message to process? "
+                               "Need both message and context! "
+                               "msg: {}, ctx: {}",
+                               msg, ctx)
                     await self._continuing()
                     continue
             except asyncio.QueueEmpty:
@@ -339,8 +373,14 @@ class WebSocketClient(WebSocketMediator):
 
             # Transfer from 'received from server queue' to
             # 'sent to game connection'.
-            self.debug(f"Send to game conn: {(msg, ctx)}")
+            self.debug("_to_game_watcher (_med_to_game_queue->game_pipe): "
+                       "Send to game pipe: {}, {}",
+                       msg, ctx)
             self._game_pipe_put(msg, ctx)
+
+            self.debug("_to_game_watcher (_med_to_game_queue->game_pipe): "
+                       "Done processing message: {}, {}",
+                       msg, ctx)
 
             # Skip this - we used get_nowait(), not get().
             # self._rx_queue.task_done()
@@ -356,7 +396,7 @@ class WebSocketClient(WebSocketMediator):
         # ------------------------------
         # Checks and Prep for Attempt.
         # ------------------------------
-        self.debug("Starting connection to server...")
+        self.debug("_connect_manager: Starting connection to server...")
 
         # We're trying to connect now, so we don't need our connect request
         # flag set anymore.
@@ -378,6 +418,11 @@ class WebSocketClient(WebSocketMediator):
         # Do an attempt.
         # ------------------------------
         try:
+            self.debug("_connect_manager: "
+                       "Yielding for Client->Server Connection Attempt {}/{} ",
+                       self._connect_attempts,
+                       self._MAX_CONNECT_ATTEMPT_FAILS)
+
             # "Do the code now."
             yield self
 
@@ -397,29 +442,45 @@ class WebSocketClient(WebSocketMediator):
         # Don't clear attempts counter yet... We're done asking to connect.
         # Server needs to reply for us to actually connect successfully.
         # return self._connection_attempt_success()
+        self.debug("_connect_manager: "
+                   "Done managing Client->Server Connection Attempts. "
+                   "final: {}/{}",
+                   self._connect_attempts,
+                   self._MAX_CONNECT_ATTEMPT_FAILS)
 
     def _connection_attempt_success(self) -> None:
         '''
         Connection was successful. Clean up connection attempts data.
         '''
-        self.debug("Connection attempt successful!")
+        self.debug("_connection_attempt_success: "
+                   "Connection attempt successful!"
+                   "final: {}/{}",
+                   self._connect_attempts,
+                   self._MAX_CONNECT_ATTEMPT_FAILS)
 
         # ------------------------------
         # Set as connected.
         # ------------------------------
+        self.debug("_connection_attempt_success: Setting as connected...")
         self._connected = True
         self._connect_attempts = 0
 
         # ------------------------------
         # Done.
         # ------------------------------
-        self.debug("Connection Successful: Done.")
+        self.debug("_connection_attempt_success: "
+                   "Connection Successful: "
+                   "Done setting/resetting connection vars.")
 
     def _connection_attempt_failure(self) -> None:
         '''
         Couldn't connect. Give up.
         '''
-        self.debug("Connection attempt failed!")
+        self.debug("_connection_attempt_failure: "
+                   "Connection attempt _-FAILED-_!"
+                   "final: {}/{}",
+                   self._connect_attempts,
+                   self._MAX_CONNECT_ATTEMPT_FAILS)
 
         # TODO [2020-08-13]: Give up if a 'give up' fail message/code comes
         # from... somewhere?
@@ -427,6 +488,7 @@ class WebSocketClient(WebSocketMediator):
         # ------------------------------
         # Set as not connected.
         # ------------------------------
+        self.debug("_connection_attempt_failure: Setting as NOT connected...")
         self._connected = False
         # Leave attempt counter as is... Force something to be done about
         # previous failure before allowinng another try.
@@ -434,13 +496,17 @@ class WebSocketClient(WebSocketMediator):
 
         # Close socket if it exists.
         if self._socket:
+            self.debug("_connection_attempt_failure: Closing socket...")
             self._socket.close()
             self._socket = None
+        else:
+            self.debug("_connection_attempt_failure: No socket to close.")
 
         # ------------------------------
         # Drop data queued.
         # ------------------------------
-        self.debug("Connection Failed: Dropping messages in pipes/queues.")
+        self.debug("_connection_attempt_failure: "
+                   "Connection Failed: Dropping messages in pipes/queues.")
         self._game_pipe_clear()
         self._med_to_game_clear()
         self._med_tx_clear()
@@ -450,7 +516,8 @@ class WebSocketClient(WebSocketMediator):
         # ------------------------------
         # Done.
         # ------------------------------
-        self.debug("Connection Failed: Done.")
+        self.debug("_connection_attempt_failure: "
+                   "Connection Failed: Done.")
 
     async def _server_watcher(self) -> None:
         '''
@@ -461,13 +528,10 @@ class WebSocketClient(WebSocketMediator):
         Opens connection to the server, then can send and receive in parallel
         in the :meth:`_handle_produce` and :meth:`_handle_consume` functions.
         '''
-        self.debug("Starting an endless loop...")
-
         # Wait for someone to want to talk to server...
         while True:
             # Check exit condition.
             if self.any_shutdown():
-                self.debug("Obeying shutdown request...")
                 if self._socket:
                     self._socket.close()
                     self._socket = None
@@ -480,13 +544,20 @@ class WebSocketClient(WebSocketMediator):
 
             # Check... enter condition.
             if not self._desire_connect():
+                if self._game_has_data():
+                    self.debug("_server_watcher: "
+                               "Client has data to send but doesn't desire "
+                               "a connection to server?!")
                 await self._continuing()
                 continue
+            self.debug("_server_watcher: "
+                       "Client has data to send to server. Connecting...")
 
             # ------------------------------
             # Connection Manager for tracking failures.
             # ------------------------------
             with self._connect_manager():
+                self.debug("_server_watcher: Obtained connection manager.")
                 # All the 'connecting' code should be under the `with` so it's
                 # all managed and success/failure noticed.
 
@@ -497,18 +568,31 @@ class WebSocketClient(WebSocketMediator):
                                         self._socket)
 
                 # TODO: path for my user? With user id, user key?
-                self.debug("Creating connection to server...")
+                self.debug("_server_watcher: "
+                           "Creating connection to server...")
                 self._socket = self._server_connection()
+                self.debug("_server_watcher: "
+                           "Created connection to server: {}",
+                           self._socket)
 
                 # TODO: get connect message working
-                self.debug("Queueing connect message...")
+                self.debug("_server_watcher: "
+                           "Creating connect message...")
                 connect_msg, connect_ctx = self._connect_message()
+                self.debug("_server_watcher: "
+                           "Queueing connect message... {}, {}",
+                           connect_msg, connect_ctx)
                 await self._med_tx_put(connect_msg, connect_ctx)
 
-                self.debug("Starting connection handlers...")
+                self.debug("_server_watcher: "
+                           "Starting connection handlers...")
                 await self._socket.connect_parallel(self._handle_produce,
                                                     self._handle_consume)
-                self.debug("Done with connection to server.")
+                self.debug("_server_watcher: "
+                           "Done with connection to server.")
+
+            self.debug("_server_watcher: "
+                       "Done with connection manager and connection.")
 
             # And back to waiting on the connection request flag.
             self._socket = None
@@ -519,13 +603,24 @@ class WebSocketClient(WebSocketMediator):
         '''
         Queue up a connection message to server for auth/user registration.
         '''
+        self.debug("_connect_message: "
+                   "Creating connection message {}: {}",
+                   ("from provided context" if ctx else "and a context"),
+                   ctx)
+
         ctx = ctx or self.make_msg_context(Message.SpecialId.CONNECT)
+        self.debug("_connect_message: "
+                   "Creating connection message with context: {}",
+                   ctx)
         msg = Message(Message.SpecialId.CONNECT,
                       MsgType.CONNECT,
                       # TODO: different payload? add user_key?
                       payload=self._id,
                       user_id=self._id,
                       user_key=self._key)
+        self.debug("_connect_message: "
+                   "Created connection message: {}",
+                   msg)
         return msg, ctx
 
     def _request_connect(self) -> None:
@@ -533,7 +628,7 @@ class WebSocketClient(WebSocketMediator):
         Flags :meth:`_server_watcher` with a request to get it all going.
         '''
         # TODO: path for my user? With user id, user key?
-        self.debug("Requesting connection to server...")
+        self.debug("_request_connect: Requesting connection to server...")
         self._connect_request.set()
 
     def _desire_connect(self) -> None:
@@ -547,6 +642,8 @@ class WebSocketClient(WebSocketMediator):
         '''
         Clears `_connect_request` flag.
         '''
+        self.debug("_clear_connect: "
+                   "Done with connection request flag for now.")
         return self._connect_request.clear()
 
     # -------------------------------------------------------------------------
@@ -560,24 +657,28 @@ class WebSocketClient(WebSocketMediator):
         '''
         Send a connection auth/registration request to the server.
         '''
+        self.debug("_htx_connect: conn: {}, msg: {}, ctx: {}",
+                   conn, msg, ctx)
         return await self._htx_generic(msg, ctx, conn, log_type='connect')
 
     async def _hrx_connect(self,
-                           match: re.Match,
-                           path: str,
-                           msg: Message,
+                           match:   re.Match,
+                           path:    str,
+                           msg:     Message,
                            context: Optional[MediatorClientContext]
                            ) -> Optional[Message]:
         '''
         Receive connect ack/response from server.
         '''
-        self.debug(f"Received connect response: {type(msg.payload)}: "
-                   f"{msg.payload}")
+        self.debug("_hrx_connect: Received connect response: {}: {}",
+                   type(msg.payload), msg.payload)
 
         # Have Message check that this msg is a ACK_CONNECT and tell us if it
         # succeeded or not.
         success, reason = msg.verify_connected()
         if success:
+            self.debug("_hrx_connect: Verified message: {}",
+                       msg)
             self._connection_attempt_success()
         else:
             log.error("{self._name}: Failed to connect to server! "
@@ -585,41 +686,88 @@ class WebSocketClient(WebSocketMediator):
                       f"Connection failure: {reason}")
             self._connection_attempt_failure()
 
+        self.debug("_hrx_connect: Connection successful.")
         return await self._hrx_generic(match, path, msg, context,
                                        # Don't ack the ack back.
                                        send_ack=False,
                                        log_type='connect')
 
     async def _hook_produce(self,
-                            msg: Optional[Message],
+                            msg:       Optional[Message],
                             websocket: websockets.WebSocketCommonProtocol
                             ) -> Optional[Message]:
         '''
         Add our user's id/key to the message to be sent to the server.
         '''
+        self.debug("_hook_produce saw msg on socket {}: {}",
+                   websocket, msg)
         if not msg:
+            self.debug("_hook_produce ignoring null message "
+                       "on socket {}: {}",
+                       websocket, msg)
             return msg
 
         # This is all we need at the moment...
         msg.user_id = self._id
         msg.user_key = self._key
+        self.debug("_hook_produce added user-id/key ({}, {}) to message "
+                   "on socket {}: {}",
+                   self._id, self._key,
+                   websocket, msg)
         return msg
 
     async def _hook_consume(self,
-                            msg: Optional[Message],
+                            msg:       Optional[Message],
                             websocket: websockets.WebSocketCommonProtocol
                             ) -> Optional[Message]:
         '''
         Check all received messages from server?
         '''
+        self.debug("_hook_consume saw msg on socket {}: {}",
+                   websocket, msg)
         if not msg:
+            self.debug("_hook_consume ignoring null message "
+                       "on socket {}: {}",
+                       websocket, msg)
             return msg
 
-        # Just log it and return...
+        # ------------------------------
+        # Check User Fields
+        # ------------------------------
+        valid = True
+        # ---
+        # User-Id
+        # ---
         if msg.user_id != self._id:
-            log.warning("Client received msg id that doesn't match expected."
-                        f"Expected: {str(self._id)}, Got: {str(msg.user_id)}. "
-                        f"Msg: {msg}")
+            valid = False
+            log.warning("_hook_consume: "
+                        "Client received user-id that doesn't match expected. "
+                        "expected: {}, got: {}. "
+                        "msg: {}",
+                        self._id, msg.user_id, msg)
+        else:
+            self.debug("_hook_consume: "
+                       "Client received msg for our user-id: ",
+                       msg)
+        # ---
+        # User-Key
+        # ---
+        if msg.user_key != self._key:
+            valid = False
+            log.warning("_hook_consume: "
+                        "Client received user-key that doesn't match expected. "
+                        "expected: {}, got: {}. "
+                        "msg: {}",
+                        self._key, msg.user_key, msg)
+        else:
+            self.debug("_hook_consume: "
+                       "Client received msg for our user-key: ",
+                       msg)
+
+        # TODO: Not sure if we need to actually do anything about
+        # `valid == False` here...
+
+        self.debug("_hook_consume: Done.")
         return msg
 
     def _server_connection(self,
@@ -627,6 +775,7 @@ class WebSocketClient(WebSocketMediator):
         '''
         Get a new WebSocket connection to our server.
         '''
+        self.debug("_server_connection: Creating socket for connection...")
         socket = VebSocketClient(self._serdes,
                                  self._codec,
                                  self.make_med_context,
@@ -636,4 +785,6 @@ class WebSocketClient(WebSocketMediator):
                                  port=self._port,
                                  secure=self._ssl,
                                  debug_fn=self.debug)
+        self.debug("_server_connection: Created socket for connection: {}",
+                   socket)
         return socket

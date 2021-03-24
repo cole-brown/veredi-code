@@ -28,7 +28,8 @@ from .enum      import (FlagEncodeValueMixin,
                         EnumEncodeNameMixin)
 from .codec     import Codec
 from .encodable import Encodable
-from .registry  import EncodableRegistry, register
+from .registry  import (EncodableRegistry,
+                        register, ignore)
 
 
 # -----------------------------------------------------------------------------
@@ -40,6 +41,7 @@ __all__ = [
     # Functions
     # ------------------------------
     'register',
+    'ignore',
 
     # ------------------------------
     # Types

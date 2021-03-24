@@ -75,6 +75,7 @@ from .log import (
 
     group,
     set_group_level,
+    get_group_level,
     group_multi,
     security,
     start_up,
@@ -177,6 +178,7 @@ __all__ = [
 
     'group',
     'set_group_level',
+    'get_group_level',
     'group_multi',
     'security',
     'start_up',

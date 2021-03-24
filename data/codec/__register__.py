@@ -16,10 +16,7 @@ from veredi.logs.log import Group
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from .registry import (registrar,
-                       register,
-                       ignore,
-                       EncodableRegistry)
+from .registry import register, ignore
 
 
 # ------------------------------
@@ -33,8 +30,6 @@ from .enum     import (FlagEncodeValueMixin,
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
-
-registrar([Group.START_UP, Group.REGISTRATION], None)
 
 ignore(FlagEncodeValueMixin)
 ignore(FlagEncodeNameMixin)

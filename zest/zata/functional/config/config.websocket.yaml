@@ -29,8 +29,12 @@ registration:
       dotted: veredi
     path:
       root: ../../../..  # Relative from here.
-      run: [ register ]
-      test: [ register ]
+      registrees:
+        run: [ __register__ ]
+        test: [ __register_ut_ ]
+      registrars:
+        run: [ __registrar__ ]
+        test: [ __registrar_ut_ ]
       # ignores:
       #   - strings
       #   - !regex "\bregex ?(here)?"

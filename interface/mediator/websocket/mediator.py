@@ -70,9 +70,6 @@ class WebSocketMediator(Mediator):
         '''
         super()._define_vars()
 
-        self._name:  str              = None
-        '''Should be 'client' or 'server'.'''
-
         self._serdes: BaseSerdes      = None
         '''Mediator's serdes will be from Configuration.'''
 
@@ -117,11 +114,11 @@ class WebSocketMediator(Mediator):
 
     def __init__(self,
                  context: VerediContext,
-                 species: str) -> None:
+                 name:    str) -> None:
         # ---
         # Base class init first. This will call our _define_vars().
         # ---
-        super().__init__(context)
+        super().__init__(context, name)
 
         # ---
         # Configuration
@@ -129,8 +126,6 @@ class WebSocketMediator(Mediator):
         config = background.config.config(self.__class__.__name__,
                                           self.dotted(),
                                           context)
-
-        self._name = species
 
         # Grab our data from the config...
         self._serdes = config.create_from_config(self._name,
@@ -256,7 +251,7 @@ class WebSocketMediator(Mediator):
         Handle sending a message with a generic/unknown payload. By just
         returing `msg` as the thing to send.
         '''
-        self.debug(f"sending '{log_type}' {msg}...")
+        self.debug("_htx_generic: Sending '{}' {}...", log_type, msg)
         return msg
 
     async def _hrx_generic(self,
@@ -274,20 +269,24 @@ class WebSocketMediator(Mediator):
         # Game will get it eventually and deal with it. We may get a reply to
         # send at some point but that's irrelevant here.
         ctx = self.make_msg_context(msg.msg_id)
-        self.debug(f"received '{log_type}' msg; queuing: "
-                   f"msg: {msg}, ctx: {ctx}")
+        self.debug("_hrx_generic: Received '{}' msg; queuing: "
+                   "msg: {}, ctx: {}",
+                   log_type, msg, ctx)
         await self._med_to_game_put(msg, ctx)
 
         if send_ack:
+            self.debug("_hrx_generic: Sending immediate ACK...")
             send = Message(msg.msg_id, MsgType.ACK_ID,
                            payload=ctx.id,
                            user_id=msg.user_id,
                            user_key=msg.user_key)
             send = await self._handle_reply(send, context, None)
-            self.debug(f"{self._name} got '{log_type}': "
-                       f"{msg}; sending ack: {send}")
+            self.debug("_hrx_generic: {} got '{}': "
+                       "{}; sending ack: {}",
+                       self._name, log_type, msg, send)
             return send
 
+        self.debug("_hrx_generic: No immediate ACK; Done.")
         return None
 
     # -------------------------------------------------------------------------
@@ -354,9 +353,13 @@ class WebSocketMediator(Mediator):
             else:
                 # Someone else check that this isn't None, plz.
                 if msg.type == MsgType.IGNORE:
-                    self.debug(f"send: ignoring IGNORE msg: {msg}")
+                    self.debug("_handle_produce_get_msg: "
+                               "send: ignoring IGNORE msg: {}",
+                               msg)
                 else:
-                    self.debug(f"send: mediator message: {msg}")
+                    self.debug("_handle_produce_get_msg: "
+                               "send: mediator message: {}",
+                               msg)
                     return msg, ctx
 
         # Check for something in game connection to send; don't block.
@@ -402,32 +405,41 @@ class WebSocketMediator(Mediator):
                 continue
             if not msg or msg.type == MsgType.IGNORE:
                 debug_fn = log.warning if not msg else self.debug
-                debug_fn("Produced nothing for sending. "
-                         f"Ignoring msg: {msg}, ctx: {ctx}")
+                debug_fn("_handle_produce: "
+                         "Produced nothing for sending. "
+                         "Ignoring msg: {}, ctx: {}",
+                         msg, ctx)
                 await self._continuing()
                 continue
 
             # Have something to send!
-            self.debug(f"Produced for sending: msg: {msg}, ctx: {ctx}")
+            self.debug("_handle_produce: "
+                       "Produced for sending: msg: {}, ctx: {}",
+                       msg, ctx)
 
             sender, _ = self._hp_paths_type.get(msg.type, None)
             if not sender:
-                log.error("No handlers for msg type? "
-                          f"Ignoring msg: {msg}, ctx: {ctx}")
+                log.error("_handle_produce: "
+                          "No handlers for msg type? "
+                          "Ignoring msg: {}, ctx: {}",
+                          msg, ctx)
                 await self._continuing()
                 continue
 
-            self.debug("Producing result from send processor...")
+            self.debug("_handle_produce: "
+                       "Producing result from send processor...")
             result = await sender(msg, ctx, conn)
 
             # Only send out to socket if actually produced anything.
             if result:
-                self.debug(f"Sending {result}...")
+                self.debug("_handle_produce: "
+                           "Sending {}...", result)
                 result = await self._hook_produce(result, conn)
                 return result
 
             else:
-                self.debug("No result to send; done.")
+                self.debug("_handle_produce: "
+                           "No result to send; done.")
 
             # reloop
             await self._continuing()
@@ -442,16 +454,22 @@ class WebSocketMediator(Mediator):
         '''
         Handles a `VebSocketServer.serve_parallel` consume data callback.
         '''
-        self.debug(f"Consuming a message on path: {path}: {msg}")
+        self.debug("_handle_consume: "
+                   "Consuming a message on path: {}: {}",
+                   path, msg)
         match, processor = self._hrx_path_processor(path)
-        self.debug(f"match: {match}, processor: {processor}")
+        self.debug("_handle_consume: "
+                   "match: {}, processor: {}",
+                   match, processor)
         if not processor:
             # TODO [2020-07-29]: Log info about client too.
-            log.error("Tried to consume message for unhandled path: {}, {}",
+            log.error("_handle_consume: "
+                      "Tried to consume message for unhandled path: {}, {}",
                       msg, path)
             return None
 
-        self.debug("Sending to path processor to consume...")
+        self.debug("_handle_consume: "
+                   "Sending to path processor to consume...")
         result = await processor(match, path, msg, context)
         result = await self._hook_consume(result, conn)
         return result
@@ -491,15 +509,17 @@ class WebSocketMediator(Mediator):
         '''
         Handle sending a ping?
         '''
-        self.debug(f"ping triggered by: {msg}...")
-        self.debug("start...")
+        self.debug("_htx_ping: "
+                   "ping triggered by: {}...", msg)
 
         elapsed = await self._socket.ping(msg, ctx)
         result = Message(msg.msg_id, msg.type,
                          payload=elapsed,
                          user_id=msg.user_id,
                          user_key=msg.user_key)
-        self.debug(f"pinged: {elapsed}, result: {result}")
+        self.debug("_htx_ping: "
+                   "pinged: {}, result: {}",
+                   elapsed, result)
         await self._med_to_game_put(result,
                                     self.make_msg_context(result.msg_id))
 
@@ -515,8 +535,10 @@ class WebSocketMediator(Mediator):
         '''
         Handle receiving a ping. By doing nothing.
         '''
-        self.debug("got ping; ignoring."
-                   f"path: {path}, match: {match}, msg: {msg}...")
+        self.debug("_htx_ping: "
+                   "got ping; ignoring."
+                   "path: {}, match: {}, msg: {}...",
+                   path, match, msg)
         return None
 
     async def _htx_echo(self,
@@ -542,14 +564,18 @@ class WebSocketMediator(Mediator):
         '''
         if msg.type == MsgType.ECHO:
             # Received echo from server to send back.
-            self.debug("Got echo; returning it."
-                       f"path: {path}, match: {match}, msg: {msg}...")
+            self.debug("_htx_echo: "
+                       "Got echo; returning it."
+                       "path: {}, match: {}, msg: {}...",
+                       path, match, msg)
             reply = Message.echo(msg)
             return await self._handle_reply(reply, context, None)
 
         else:
-            self.debug("Got echo-back; enqueuing."
-                       f"path: {path}, match: {match}, msg: {msg}...")
+            self.debug("_htx_echo: "
+                       "Got echo-back; enqueuing."
+                       "path: {}, match: {}, msg: {}...",
+                       path, match, msg)
             # Received echo-back from server; send to game.
             # TODO: add path into context
             await self._med_to_game_put(msg, self.make_msg_context(msg.msg_id))
@@ -614,7 +640,7 @@ class WebSocketMediator(Mediator):
 
         Then send to all addressees.
         '''
-        self.debug(f"_htx_envelope msg: {msg}")
+        self.debug("_htx_envelope msg: {}", msg)
 
         return await self._htx_generic(msg, ctx, conn, log_type='envelope')
 
@@ -631,7 +657,7 @@ class WebSocketMediator(Mediator):
         Raises:
           NotImplementedError
         '''
-        self.debug(f"received 'envelope' {msg}...")
+        self.debug("_hrx_envelope: Received 'envelope' {}...", msg)
         raise NotImplementedError("We should not be receiving Envelopes.")
         return None
 
@@ -644,7 +670,7 @@ class WebSocketMediator(Mediator):
 
         This will encode payload, then send.
         '''
-        self.debug(f"sending 'logging' {msg}...")
+        self.debug("_htx_logging: Sending 'logging' {}...", msg)
         return await self._htx_generic(msg, ctx, conn, log_type='logging')
 
     async def _hrx_logging(self,
@@ -660,17 +686,20 @@ class WebSocketMediator(Mediator):
           - ourself
           - the game
         '''
-        self.debug(f"receiving 'logging' {msg}...")
+        self.debug("_hrx_logging: Receiving 'logging' {}...", msg)
 
-        self.debug("Queueing for self...")
+        self.debug("_hrx_logging: Queueing for self...")
         msg_ctx = self.make_msg_context(msg.msg_id)
         await self._med_rx_put(msg, msg_ctx)
 
         if self._test_pipe_exists():
-            self.debug("UNIT TESTING ONLY!!! Passing into the unit "
+            self.debug("_hrx_logging: "
+                       "UNIT TESTING ONLY!!! Passing into the unit "
                        "testing pipe so that unit test can check out "
-                       "the logging reply...")
-            return self._test_pipe_put(msg)
+                       "the logging reply...\n"
+                       "{}, {}",
+                       msg, msg_ctx)
+            return self._test_pipe_put(msg, msg_ctx)
 
         # Don't want to do the normal _hrx_generic stuff here.
         # This is a mediator-to-mediator message.
@@ -684,7 +713,7 @@ class WebSocketMediator(Mediator):
         '''
         Handle sending a message with an ACK_ID payload.
         '''
-        log.warning("...Why is the TX handler for ACK involved?")
+        log.warning("_htx_ack: ...Why is the TX handler for ACK involved?")
         return await self._htx_generic(msg, ctx, conn, log_type='ack')
 
     async def _hrx_ack(self,
@@ -701,8 +730,9 @@ class WebSocketMediator(Mediator):
         # Game will get it eventually and deal with it. We may get a reply to
         # send at some point but that's irrelevant here.
         ctx = MessageContext(self.dotted(), msg.payload)
-        self.debug("received text msg; queuing: "
-                   f"msg: {msg}, ctx: {ctx}")
+        self.debug("_hrx_ack: received text msg; queuing: "
+                   "msg: {}, ctx: {}",
+                   msg, ctx)
         await self._med_to_game_put(msg, ctx)
 
         # Don't ack the ack.
@@ -727,16 +757,20 @@ class WebSocketMediator(Mediator):
         '''
         Handle receiving a request to root path ("/").
         '''
-        self.debug(f"Received: path: {path}, match: {match}, msg: {msg}")
+        self.debug("_hrx_root: "
+                   "Received: path: {}, match: {}, msg: {}",
+                   path, match, msg)
 
         # Do I have someone else to give this to?
         _, receiver = self._hp_paths_type.get(msg.type, None)
         if receiver:
-            self.debug(f"Forward to: {receiver}")
+            self.debug("_hrx_root: Forward to: {}", receiver)
             return await receiver(match, path, msg, context)
 
         # else:
         # Ok, give up.
-        log.warning("No handlers for msg; ignoring: "
-                    f"path: {path}, match: {match}, msg: {msg}")
+        log.warning("_hrx_root: "
+                    "No handlers for msg; ignoring: "
+                    "path: {}, match: {}, msg: {}",
+                    path, match, msg)
         return None

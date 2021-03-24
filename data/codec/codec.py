@@ -20,7 +20,7 @@ import collections
 import enum
 import re
 from abc import abstractmethod
-
+from datetime import datetime, date
 
 from veredi.logs                 import log
 from veredi.logs.mixin           import LogMixin
@@ -29,6 +29,7 @@ from veredi.base.const           import SimpleTypes, SimpleTypesTuple
 from veredi.base.strings         import pretty
 from veredi.base.registrar       import RegisterType
 from veredi.base.strings         import label
+from veredi                      import time
 from veredi.data                 import background
 from veredi.data.context         import DataAction, DataOperation
 from veredi.data.config.registry import register
@@ -38,9 +39,10 @@ from .const                      import (EncodeNull,
                                          EncodeAsIs,
                                          EncodedComplex,
                                          EncodedSimple,
+                                         EncodedSimpleTuple,
                                          EncodedEither,
                                          Encoding)
-from .registry                   import EncodableRegistry
+from .registry                   import registry
 from .encodable                  import Encodable
 
 
@@ -249,7 +251,8 @@ class Codec(LogMixin):
             # Encodable.
             encoded = target.value
 
-        elif isinstance(target, SimpleTypesTuple):
+        elif (isinstance(target, time.DateTypesTuple)
+              or isinstance(target, SimpleTypesTuple)):
             encoded = self._encode_simple_types(target)
 
         else:
@@ -289,12 +292,28 @@ class Codec(LogMixin):
         Else returns:
           `target` encoded data
         '''
+        # TODO v://future/2021-03-14T12:27:54
+        self._log_data_processing(self.dotted(),
+                                  '_encode_encodable(): target: {}, '
+                                  'in_progress: {}, with_reg_field: {}',
+                                  target,
+                                  in_progress,
+                                  with_reg_field)
+
         encoded = None
         if null_or_none(target):
             # Null/None encode to None.
             return encoded
 
         encoding, encoded = target.encode(self)
+        # TODO v://future/2021-03-14T12:27:54
+        self._log_data_processing(self.dotted(),
+                                  '_encode_encodable(): Encoded.\n'
+                                  '  encoding: {}\n'
+                                  '      data: {}',
+                                  encoding,
+                                  encoded)
+
         # ---
         # Encoding.SIMPLE
         # ---
@@ -306,8 +325,23 @@ class Codec(LogMixin):
             # 'v.mid:1'
             if in_progress is not None:
                 in_progress[target.type_field()] = encoded
+                # TODO v://future/2021-03-14T12:27:54
+                self._log_data_processing(
+                    self.dotted(),
+                    '_encode_encodable(): Simple encoding was inserted into '
+                    '`in_progress` data and is complete.\n'
+                    '        field: {}\n'
+                    '  in_progress: {}',
+                    target.type_field(),
+                    in_progress)
                 return in_progress
 
+            # TODO v://future/2021-03-14T12:27:54
+            self._log_data_processing(
+                self.dotted(),
+                '_encode_encodable(): Simple encoding is complete.\n'
+                '  encoded: {}',
+                encoded)
             return encoded
 
         # ---
@@ -318,16 +352,60 @@ class Codec(LogMixin):
         if in_progress is not None:
             # Encode as a sub-field in the provided data.
             in_progress[target.type_field()] = encoded
+            # TODO v://future/2021-03-14T12:27:54
+            self._log_data_processing(
+                self.dotted(),
+                '_encode_encodable(): Complex encoding inserted into '
+                '`in_progress` data.\n'
+                '        field: {}\n'
+                '  in_progress: {}',
+                target.type_field(),
+                in_progress)
             return in_progress
+
         encoded[target.TYPE_FIELD_NAME] = target.type_field()
+        # TODO v://future/2021-03-14T12:27:54
+        self._log_data_processing(
+            self.dotted(),
+            '_encode_encodable(): Complex encoding had type-field '
+            'added to its data.\n'
+            '  field: {}\n'
+            '  data: {}',
+            target.type_field(),
+            encoded)
 
         # Encode with reg/payload fields if requested.
         if with_reg_field:
-            return {
+            enc_with_reg = {
                 Encodable.ENCODABLE_REG_FIELD: target.dotted(),
                 Encodable.ENCODABLE_PAYLOAD_FIELD: encoded,
             }
+
+            # TODO v://future/2021-03-14T12:27:54
+            self._log_data_processing(
+                self.dotted(),
+                '_encode_encodable(): Complex encoding had reg-field '
+                'added to its data and is complete.\n'
+                '      reg: {}\n'
+                '    value: {}\n'
+                '  payload: {}\n'
+                '    value: {}\n'
+                '  encoded: {}',
+                Encodable.ENCODABLE_REG_FIELD,
+                target.dotted(),
+                Encodable.ENCODABLE_PAYLOAD_FIELD,
+                encoded,
+                enc_with_reg)
+
+            return enc_with_reg
+
         # Or just return the encoded data.
+        # TODO v://future/2021-03-14T12:27:54
+        self._log_data_processing(
+            self.dotted(),
+            '_encode_encodable(): Complex encoding is complete.\n'
+            '  encoded: {}',
+            encoded)
         return encoded
 
     def encode_map(self,
@@ -467,8 +545,8 @@ class Codec(LogMixin):
                error_squelch:   bool                        = False,
                reg_find_dotted: Optional[str]               = None,
                reg_find_types:  Optional[Type[Encodable]]   = None,
-               reg_fallback:    Optional[Type[Encodable]]   = None,
-               map_expected:    Iterable[Type['Encodable']] = None
+               map_expected:    Iterable[Type['Encodable']] = None,
+               fallback:        Optional[Type[Encodable]]   = None
                ) -> Optional['Encodable']:
         '''
         Decode simple or complex `data` input, using it to build an
@@ -493,7 +571,7 @@ class Codec(LogMixin):
             searching for the encodable that can decode the data.
           - reg_find_types: Search for Encodables of this class or its
             subclasses that can decode the data.
-          - reg_fallback: Thing to return if no valid Encodable found for
+          - fallback: Thing to return if no valid Encodable found for
             decoding.
 
         If data is a map with several expected Encodables in it, supply
@@ -507,26 +585,93 @@ class Codec(LogMixin):
         # ---
         if null_or_none(data):
             # Can't decode nothing; return nothing.
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Cannot decode nothing:\n"
+                "  data: {}",
+                data)
             return None
 
         # ---
         # Decode target already known?
         # ---
         if target:
-            return self._decode_encodable(target, data)
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Attempting to decode via Encodable:\n"
+                "  data: {}",
+                data)
+            decoded = self._decode_encodable(target, data)
+
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Decode via Encodable returned:\n"
+                "  decoded: {}",
+                decoded)
+            return decoded
+
+        self._log_data_processing(
+            self.dotted(),
+            "decode: No target...\n"
+            "  type: {}\n"
+            "  data: {}",
+            type(data),
+            data)
+
+        # ---
+        # Is it an Encoding.SIMPLE?
+        # ---
+        if isinstance(data, EncodedSimpleTuple):
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Attempting to decode simply encoded data...\n"
+                "  data: {}",
+                data)
+            decoded = self._decode_simple(data, None)
+
+            if decoded:
+                self._log_data_processing(
+                    self.dotted(),
+                    "decode: Decoded simply encoded data to:\n"
+                    "  decoded: {}",
+                    decoded)
+                return decoded
+
+            # Else: not this... Keep looking.
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Data is not Encoding.SIMPLE. Continuing...")
 
         # ---
         # Does the EncodableRegistry know about it?
         # ---
         try:
-            target = self._decode_with_registry(data,
-                                                dotted=reg_find_dotted,
-                                                data_types=reg_find_types,
-                                                error_squelch=error_squelch,
-                                                fallback=reg_fallback)
-            return target
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Attempting to decode with registry...\n"
+                "  reg_find_dotted: {}\n"
+                "   reg_find_types: {}\n"
+                "    error_squelch: {}\n"
+                "         fallback: {}\n"
+                "             data: {}",
+                reg_find_dotted,
+                reg_find_types,
+                error_squelch,
+                fallback,
+                data)
+            decoded = self._decode_with_registry(data,
+                                                 dotted=reg_find_dotted,
+                                                 data_types=reg_find_types,
+                                                 error_squelch=error_squelch,
+                                                 fallback=fallback)
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Decode with registry returned:\n"
+                "  decoded: {}",
+                decoded)
+            return decoded
 
-        except (KeyError, ValueError):
+        except (KeyError, ValueError, TypeError):
             # Expected exceptions from `_decode_with_registry`...
             # Try more things?
             pass
@@ -535,23 +680,54 @@ class Codec(LogMixin):
         # Mapping?
         # ---
         if isinstance(data, dict):
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Attempting to decode mapping...\n"
+                "  map_expected: {}\n"
+                "          data: {}",
+                map_expected,
+                data)
             # Decode via our map helper.
             decoded = self.decode_map(data, expected=map_expected)
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Decoded mapping returned:\n"
+                "  decoded: {}",
+                decoded)
             return decoded
 
         # ---
-        # Something Simple?
+        # Something Basic?
         # ---
         try:
-            decoded = self._decode_simple_types(data)
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Attempting to decode basic data type...\n"
+                "  data: {}",
+                data)
+            decoded = self._decode_basic_types(data)
+
+            self._log_data_processing(
+                self.dotted(),
+                "decode: Decoded basic data to:\n"
+                "  decoded: {}",
+                decoded)
             return decoded
         except EncodableError:
             # Not this either...
             pass
 
         # ---
-        # Ran out of options... Error out.
+        # Ran out of options... Return fallback or error out.
         # ---
+        if fallback:
+            self._log_data_processing(
+                self.dotted(),
+                "decode: No decoding known for data; returning fallback:\n"
+                "  fallback: {}",
+                fallback)
+            return fallback
+
         msg = (f"{self.__class__.__name__}.decode: unknown "
                f"type of data {type(data)}. Cannot decode.")
         error = EncodableError(msg,
@@ -561,7 +737,7 @@ class Codec(LogMixin):
                                    'error_squelch': error_squelch,
                                    'reg_find_dotted': reg_find_dotted,
                                    'reg_find_types': reg_find_types,
-                                   'reg_fallback': reg_fallback,
+                                   'fallback': fallback,
                                })
         raise self._log_exception(error, msg)
 
@@ -576,6 +752,13 @@ class Codec(LogMixin):
         If `target` is known, it is used to decode and return a new
         `target` instance or None.
         '''
+        self._log_data_processing(
+            self.dotted(),
+            "decode_encodable will be decoding data to target '{}'.\n"
+            "  data: {}",
+            target,
+            data)
+
         # ---
         # Wrong data for target?
         # ---
@@ -584,7 +767,13 @@ class Codec(LogMixin):
         # ---
         # Decode it.
         # ---
-        encoding, decoded = target.decode(data, self)
+        encoding, decoded = target.decode(data, self, None)
+
+        self._log_data_processing(
+            self.dotted(),
+            "decode_encodable decoded target '{}' to: {}",
+            target,
+            decoded)
 
         # Right now, same from here on for SIMPLE vs COMPLEX.
         # Keeping split up for parity with `_encode_encodable`, clarity,
@@ -594,12 +783,43 @@ class Codec(LogMixin):
         # Decode Simply?
         # ---
         if encoding == Encoding.SIMPLE:
+            self._log_data_processing(
+                self.dotted(),
+                "decode_encodable {} decoding completed.\n"
+                "  decoded: {}",
+                encoding,
+                decoded)
+
             return decoded
 
         # ---
         # Decode Complexly?
         # ---
+        self._log_data_processing(
+            self.dotted(),
+            "decode_encodable {} decoding completed.\n"
+            "  decoded: {}",
+            encoding,
+            decoded)
         return decoded
+
+    def _decode_simple(self,
+                       data:      EncodedSimple,
+                       data_type: Optional[Type[Encodable]]) -> Optional['Encodable']:
+        '''
+        Input data must be a string.
+
+        Will look for an Encodable that can claim the simple encoding, and then
+        use that to decode it if found.
+
+        Will return None if no Encodable target is found.
+        '''
+        target = registry().simple(data,
+                                   data_type=data_type)
+        if target:
+            return self._decode_encodable(target, data)
+        return None
+
 
     def _decode_with_registry(self,
                               data:          EncodedComplex,
@@ -629,9 +849,10 @@ class Codec(LogMixin):
         if data is None:
             # No data at all. Use either fallback or None.
             if fallback:
-                log.debug("decode_with_registry: data is None; using "
-                          "fallback. data: {}, fallback: {}",
-                          data, fallback)
+                self._log_data_processing(self.dotted(),
+                                          "decode_with_registry: data is None; using "
+                                          "fallback. data: {}, fallback: {}",
+                                          data, fallback)
                 return fallback
             # `None` is an acceptable enough value for us... Lots of things are
             # optional. Errors for unexpectedly None things should happen in
@@ -644,10 +865,13 @@ class Codec(LogMixin):
         if (fallback
                 and Encodable.ENCODABLE_REG_FIELD not in data):
             # No hint as to what data is - use fallback.
-            log.warning("decode_with_registry: No {} in data; using fallback. "
-                        "data: {}, fallback: {}",
-                        Encodable.ENCODABLE_REG_FIELD,
-                        data, fallback)
+            self._log_data_processing(
+                self.dotted(),
+                "decode_with_registry: No {} in data; using fallback. "
+                "data: {}, fallback: {}",
+                Encodable.ENCODABLE_REG_FIELD,
+                data, fallback,
+                log_minimum=log.Level.WARNING)
             return fallback
 
         # ------------------------------
@@ -656,49 +880,77 @@ class Codec(LogMixin):
         if not dotted:
             try:
                 dotted = data[Encodable.ENCODABLE_REG_FIELD]
-            except KeyError:
 
+            except KeyError:
                 # Now we error on the missing decoding hint.
                 pretty_data = pretty.indented(data)
                 msg = ("decode_with_registry: data has no "
                        f"'{Encodable.ENCODABLE_REG_FIELD}' key.")
-                raise log.exception(KeyError(Encodable.ENCODABLE_REG_FIELD,
-                                             msg,
-                                             data),
-                                    msg + " Cannot decode: {}",
-                                    pretty_data)
+                raise self._log_exception(
+                    KeyError(Encodable.ENCODABLE_REG_FIELD,
+                             msg,
+                             data),
+                    msg + " Cannot decode: {}",
+                    pretty_data)
+
+            except TypeError:
+                # Now we error on the missing decoding hint.
+                pretty_data = pretty.indented(data)
+                msg = ("decode_with_registry: data is not dict type? "
+                       f"Cannot check for '{Encodable.ENCODABLE_REG_FIELD}' "
+                       "key.")
+                raise self._log_exception(
+                    TypeError(Encodable.ENCODABLE_REG_FIELD,
+                              msg,
+                              data),
+                    msg + " Cannot decode: {}",
+                    pretty_data)
 
         try:
             encoded_data = data[Encodable.ENCODABLE_PAYLOAD_FIELD]
+
         except KeyError:
             pretty_data = pretty.indented(data)
             msg = ("decode_with_registry: data has no "
                    f"'{Encodable.ENCODABLE_PAYLOAD_FIELD}' key. "
                    f"Cannot decode: {pretty_data}")
-            raise log.exception(KeyError(Encodable.ENCODABLE_REG_FIELD,
-                                         msg,
-                                         data),
-                                msg)
+            raise self._log_exception(
+                KeyError(Encodable.ENCODABLE_PAYLOAD_FIELD,
+                         msg,
+                         data),
+                msg)
+
+        except TypeError:
+            # Now we error on the missing decoding hint.
+            pretty_data = pretty.indented(data)
+            msg = ("decode_with_registry: data is not dict type? "
+                   f"Cannot find '{Encodable.ENCODABLE_PAYLOAD_FIELD}' "
+                   "key.")
+            raise self._log_exception(
+                KeyError(Encodable.ENCODABLE_PAYLOAD_FIELD,
+                         msg,
+                         data),
+                msg + " Cannot decode: {}",
+                pretty_data)
 
         # ------------------------------
         # Now decode it.
         # ------------------------------
 
-        target = EncodableRegistry.get(encoded_data,
-                                       dotted=dotted,
-                                       data_type=data_types,
-                                       error_squelch=error_squelch,
-                                       fallback=fallback)
+        target = registry().get(encoded_data,
+                                dotted=dotted,
+                                data_type=data_types,
+                                error_squelch=error_squelch,
+                                fallback=fallback)
         return self._decode_encodable(target, data)
 
     def decode_map(self,
-                   mapping: NullNoneOr[Mapping],
+                   mapping:  NullNoneOr[Mapping],
                    expected: Iterable[Type['Encodable']] = None
                    ) -> Mapping[str, Any]:
         '''
         Decode a mapping.
         '''
-        # log.debug(f"\n\nlogging._decode_map {type(mapping)}: {mapping}\n\n")
         if null_or_none(mapping):
             return None
 
@@ -711,11 +963,10 @@ class Codec(LogMixin):
             node = self._decode_value(value, expected)
             decoded[field] = node
 
-        # log.debug(f"\n\n   done._decode_map: {decoded}\n\n")
         return decoded
 
     def _decode_key(self,
-                   key: Any,
+                   key:      Any,
                    expected: Iterable[Type['Encodable']] = None) -> str:
         '''
         Decode a mapping's key.
@@ -723,7 +974,6 @@ class Codec(LogMixin):
         Encodable is pretty stupid. string is only supported type. Override or
         smart-ify if you need support for more key types.
         '''
-        # log.debug(f"\n\nlogging._decode_key {type(key)}: {key}\n\n")
         field = None
 
         # Can we decode to a specified Encodable?
@@ -751,7 +1001,6 @@ class Codec(LogMixin):
                                      'expected': expected,
                                  })
 
-        # log.debug(f"\n\n   done._decode_key: {field}\n\n")
         return field
 
     def _decode_value(self,
@@ -763,21 +1012,22 @@ class Codec(LogMixin):
 
         Passes `expected` along for continuing the decoding.
         '''
-        # log.debug(f"\n\nlogging._decode_value {type(value)}: {value}\n\n")
-
         node = self.decode(None, value,
                            map_expected=expected)
 
-        # log.debug(f"\n\n   done._decode_value: {node}\n\n")
         return node
 
-    def _decode_simple_types(self,
-                             value: Union[str, int, float]) -> SimpleTypes:
+    def _decode_basic_types(self,
+                            value: Union[datetime, str, int, float]
+                            ) -> SimpleTypes:
         '''
-        Decode a simple type.
+        'Decode' a basic type. Generally as itself.
 
         Returns the simple type or raises an EncodableError.
         '''
+        if time.deserialize_claim(value):
+            return time.deserialize(value)
+
         # Give numbers a shot at Decimals saved as strings before we deal with
         # other kinds of strings.
         encoded = numbers.deserialize(value)
@@ -788,8 +1038,8 @@ class Codec(LogMixin):
             encoded = value
             return encoded
 
-        msg = (f"{self.__class__.__name__}.decode_simple_types: "
+        msg = (f"{self.__class__.__name__}.decode_basic_types: "
                f"'{type(value)}' is not a member of "
                "SimpleTypes and cannot be decoded this way.")
         error = EncodableError(msg, value)
-        raise log.exception(error, msg)
+        raise self._log_exception(error, msg)

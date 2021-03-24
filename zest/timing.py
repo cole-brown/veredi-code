@@ -108,7 +108,16 @@ class ZestTiming:
         self._end = datetime.now(tz=self._tz)
 
         self._td_elapsed = self._end - self._start
-        self._dt_elapsed = py_dttime(second=self._td_elapsed.seconds,
+        # Bullshit to make this able to deal with times greater than 59.999999
+        # seconds. Convert timedelta to hours, minutes, seconds so that we can
+        # build a time from it.
+        days, seconds = self._td_elapsed.days, self._td_elapsed.seconds
+        hours = (days * 24) + (seconds // 3600)  # hours portion of seconds
+        minutes = (seconds % 3600) // 60  # minutes portion of seconds
+        seconds = seconds % 60  # the rest of the seconds
+        self._dt_elapsed = py_dttime(hour=hours,
+                                     minute=minutes,
+                                     second=seconds,
                                      microsecond=self._td_elapsed.microseconds)
 
     # ------------------------------

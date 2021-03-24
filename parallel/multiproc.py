@@ -410,46 +410,84 @@ class ProcToSubComm:
     # IPC Helpers
     # -------------------------------------------------------------------------
 
-    def send(self, package: Any, context: VerediContext) -> None:
-        '''
-        Push package & context into IPC pipe.
-        Waits/blocks until it receives something.
-        '''
-        self.pipe.send((package, context))
-
     def has_data(self) -> bool:
         '''
         No wait/block.
         Returns True if pipe has data to recv().
         '''
-        return self.pipe.poll()
+        contains_data = self.pipe.poll()
+        # log.data_processing(self.dotted(),
+        #                     "{} '{}' pipe has data?: {}",
+        #                     self.__class__.__name__, self.name,
+        #                     contains_data)
+        #                     # log_only_at=log.Level.DEBUG)
+        return contains_data
+
+    def send(self, package: Any, context: VerediContext) -> None:
+        '''
+        Push package & context into IPC pipe.
+        Waits/blocks until it receives something.
+        '''
+        log.data_processing(self.dotted(),
+                            "{} '{}' send to sub-proc: {}, {}",
+                            self.__class__.__name__, self.name,
+                            package, context)
+        self.pipe.send((package, context))
 
     def recv(self) -> Tuple[Any, VerediContext]:
         '''
         Pull a package & context from the IPC pipe.
         '''
         package, context = self.pipe.recv()
+        log.data_processing(self.dotted(),
+                            "{} '{}' recv from sub-proc: {}, {}",
+                            self.__class__.__name__, self.name,
+                            package, context)
         return (package, context)
 
-    def _ut_send(self, package: Any, context: VerediContext) -> None:
+    def _ut_exists(self) -> bool:
         '''
-        Push package & context into IPC unit-testing pipe.
-        Waits/blocks until it receives something.
+        Returns True if self._comms.ut_pipe is truthy.
         '''
-        self.ut_pipe.send((package, context))
+        exists = bool(self.ut_pipe)
+        # log.data_processing(self.dotted(),
+        #                     "{} '{}' TESTING pipe exists?: {}",
+        #                     self.__class__.__name__, self.name,
+        #                     exists)
+        return exists
 
     def _ut_has_data(self) -> bool:
         '''
         No wait/block.
         Returns True if unit-testing pipe has data to recv().
         '''
-        return self.pipe.poll()
+        contains_data = self.ut_pipe.poll()
+        # log.data_processing(self.dotted(),
+        #                     "{} '{}' TESTING pipe has data?: {}",
+        #                     self.__class__.__name__, self.name,
+        #                     contains_data)
+        return contains_data
+
+    def _ut_send(self, package: Any, context: VerediContext) -> None:
+        '''
+        Push package & context into IPC unit-testing pipe.
+        Waits/blocks until it receives something.
+        '''
+        log.data_processing(self.dotted(),
+                            "{} '{}' unit-test send to sub-proc: {}, {}",
+                            self.__class__.__name__, self.name,
+                            package, context)
+        self.ut_pipe.send((package, context))
 
     def _ut_recv(self) -> Tuple[Any, VerediContext]:
         '''
         Pull a package & context from the IPC unit-testing pipe.
         '''
         package, context = self.ut_pipe.recv()
+        log.data_processing(self.dotted(),
+                            "{} '{}' unit-test recv from sub-proc: {}, {}",
+                            self.__class__.__name__, self.name,
+                            package, context)
         return (package, context)
 
     # -------------------------------------------------------------------------
@@ -515,10 +553,27 @@ class SubToProcComm:
     # IPC Helpers
     # -------------------------------------------------------------------------
 
+    def has_data(self) -> bool:
+        '''
+        No wait/block.
+        Returns True if pipe has data to recv().
+        '''
+        contains_data = self.pipe.poll()
+        # log.data_processing(self.dotted(),
+        #                     "{} '{}' pipe has data?: {}",
+        #                     self.__class__.__name__, self.name,
+        #                     contains_data)
+        return contains_data
+
     def send(self, package: Any, context: VerediContext) -> None:
         '''
         Push package & context into IPC pipe.
+        Waits/blocks until it receives something.
         '''
+        log.data_processing(self.dotted(),
+                            "{} '{}' pipe send to main proc: {}, {}",
+                            self.__class__.__name__, self.name,
+                            package, context)
         self.pipe.send((package, context))
 
     def recv(self) -> Tuple[Any, VerediContext]:
@@ -526,12 +581,44 @@ class SubToProcComm:
         Pull a package & context from the IPC pipe.
         '''
         package, context = self.pipe.recv()
+        log.data_processing(self.dotted(),
+                            "{} '{}' pipe recv from main proc: {}, {}",
+                            self.__class__.__name__, self.name,
+                            package, context)
         return (package, context)
+
+    def _ut_exists(self) -> bool:
+        '''
+        Returns True if self._comms.ut_pipe is truthy.
+        '''
+        exists = bool(self.ut_pipe)
+        # log.data_processing(self.dotted(),
+        #                     "{} '{}' TESTING pipe exists?: {}",
+        #                     self.__class__.__name__, self.name,
+        #                     exists)
+        return exists
+
+    def _ut_has_data(self) -> bool:
+        '''
+        No wait/block.
+        Returns True if unit-testing pipe has data to recv().
+        '''
+        contains_data = self.ut_pipe.poll()
+        # log.data_processing(self.dotted(),
+        #                     "{} '{}' TESTING pipe has data?: {}",
+        #                     self.__class__.__name__, self.name,
+        #                     contains_data)
+        return contains_data
 
     def _ut_send(self, package: Any, context: VerediContext) -> None:
         '''
         Push package & context into IPC unit-testing pipe.
+        Waits/blocks until it receives something.
         '''
+        log.data_processing(self.dotted(),
+                            "{} '{}' TESTING pipe send to main proc: {}, {}",
+                            self.__class__.__name__, self.name,
+                            package, context)
         self.ut_pipe.send((package, context))
 
     def _ut_recv(self) -> Tuple[Any, VerediContext]:
@@ -539,6 +626,10 @@ class SubToProcComm:
         Pull a package & context from the IPC unit-testing pipe.
         '''
         package, context = self.ut_pipe.recv()
+        log.data_processing(self.dotted(),
+                            "{} '{}' TESTING pipe recv from main proc: {}, {}",
+                            self.__class__.__name__, self.name,
+                            package, context)
         return (package, context)
 
     # -------------------------------------------------------------------------

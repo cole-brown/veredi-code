@@ -26,16 +26,18 @@ from veredi.base.null      import Null
 # Input Types
 # ---
 # Any Encodable subclass.
-EncodeNull = NewType('EncodeNull', Union[None, Null])
-EncodeAsIs = NewType('EncodeAsIs', Union[str, numbers.NumberTypes])
+EncodeNull      = NewType('EncodeNull', Union[None, Null])
+EncodeAsIs      = NewType('EncodeAsIs', Union[str, numbers.NumberTypes])
 EncodeAsIsTuple = (str, *numbers.NumberTypesTuple)
+
 
 # ---
 # Output Types
 # ---
-EncodedComplex  = NewType('EncodedComplex', Mapping[str, str])
-EncodedSimple   = NewType('EncodedSimple',  str)
-EncodedEither   = Union[EncodedComplex, EncodedSimple]
+EncodedComplex     = NewType('EncodedComplex', Mapping[str, str])
+EncodedSimple      = NewType('EncodedSimple',  str)
+EncodedSimpleTuple = (str, )
+EncodedEither      = Union[EncodedComplex, EncodedSimple]
 
 
 

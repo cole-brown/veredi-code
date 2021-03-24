@@ -590,16 +590,16 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # multiple threads and multiple asyncios is... fun.
         self.assert_empty_pipes()
 
-    def test_nothing(self):
-        self.assertIsNotNone(self.entity)
-        self.assertIsNotNone(self.entity_ident)
-        self.assertIsNotNone(self.input_system)
-        self.assertIsNotNone(self.output_system)
-        self.assertIsNotNone(self.manager.system.get(AbilitySystem))
-        self.assertIsNotNone(self.manager.system.get(MathSystem))
-        # No checks for this, really. Just "does it properly not explode"?
-        self.assert_test_ran(
-            self.runner_of_test(self.do_test_nothing))
+    # def test_nothing(self):
+    #     self.assertIsNotNone(self.entity)
+    #     self.assertIsNotNone(self.entity_ident)
+    #     self.assertIsNotNone(self.input_system)
+    #     self.assertIsNotNone(self.output_system)
+    #     self.assertIsNotNone(self.manager.system.get(AbilitySystem))
+    #     self.assertIsNotNone(self.manager.system.get(MathSystem))
+    #     # No checks for this, really. Just "does it properly not explode"?
+    #     self.assert_test_ran(
+    #         self.runner_of_test(self.do_test_nothing))
 
     # ------------------------------
     # Test that our systems exist.

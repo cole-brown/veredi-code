@@ -578,20 +578,29 @@ class MediatorSystem(System):
         # ------------------------------
         # Check if done starting up.
         # ------------------------------
-        if self.server.process.is_alive():
+        started = self.server.started()
+        if started is True:
             # Give our process a bit of time to start up.
             # TODO [2020-09-25]: Could send/recv a test message to see when it
-            # actually is ready.
-            if not self._manager.time.is_timed_out(None,
-                                                   self.TIME_PROCESS_START_SEC):
+            # actually is ready?
+            if not self._manager.time.is_timed_out(
+                    None,
+                    self.TIME_PROCESS_START_SEC):
                 return VerediHealth.PENDING
             else:
                 return VerediHealth.HEALTHY
 
+        # Have we called start already?
+        elif started is False:
+            # Started but not alive yet.
+            return VerediHealth.PENDING
+
+        # Else started is None and we need to call `start()`.
+
         # ------------------------------
         # Start up our process.
         # ------------------------------
-        self.server.process.start()
+        self.server.start()
 
         # Did a thing this tick so say we're PENDING...
         return VerediHealth.PENDING
