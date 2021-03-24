@@ -31,6 +31,7 @@ import asyncio
 # import signal
 
 from veredi.logs                import log
+from veredi.logs.mixin          import LogMixin
 from veredi.debug.const         import DebugFlag
 from veredi.data                import background
 from veredi.data.config.context import ConfigContext
@@ -57,7 +58,7 @@ _UT_DISABLE = "unit-testing disable"
 # Code
 # -----------------------------------------------------------------------------
 
-class Mediator(ABC):
+class Mediator(LogMixin, ABC):
     '''
     Veredi Server I/O Mediator.
 
@@ -75,6 +76,11 @@ class Mediator(ABC):
     def _define_vars(self) -> None:
         '''
         Set up our vars with type hinting, docstrs.
+        '''
+
+        self._name: str = None
+        '''
+        Should be something short and simple like 'client' or 'server'.
         '''
 
         self._comms: SubToProcComm = None
@@ -128,11 +134,16 @@ class Mediator(ABC):
         Queue for received data from this mediator to be passed to the game.
         '''
 
-    def __init__(self, context: VerediContext) -> None:
+    def __init__(self,
+                 context: VerediContext,
+                 name:    str) -> None:
         # ------------------------------
         # Make our vars first.
         # ------------------------------
         self._define_vars()
+        self._log_config(self.dotted())
+
+        self._name = name
 
         # ------------------------------
         # Get/check for required stuff.
@@ -186,9 +197,11 @@ class Mediator(ABC):
         '''
         if self._debug and self._debug.has(DebugFlag.MEDIATOR_BASE):
             kwargs = log.incr_stack_level(kwargs)
-            log.debug(msg,
-                      *args,
-                      **kwargs)
+            self._log_data_processing(self.dotted(),
+                                      msg,
+                                      *args,
+                                      **kwargs,
+                                      log_minimum=log.Level.DEBUG)
 
     def logging_request(self, msg: Message) -> None:
         '''
@@ -198,15 +211,19 @@ class Mediator(ABC):
         if (not msg
                 or msg.type != MsgType.LOGGING
                 or not isinstance(msg.payload, LogPayload)):
-            self.debug(f"logging_request: wrong type or payload: {msg}")
+            self.debug("logging_request: wrong type or payload: {}",
+                       msg)
             return
 
         # Should we update our logging level?
         payload_recv = msg.payload
         request = payload_recv.request
         if not request:
-            log.info("Received LoggingPayload with nothing in request? "
-                     f"Cannot do anything with: {msg}")
+            self._log_data_processing(
+                "logging_request: "
+                "Received LoggingPayload with nothing in request? "
+                "Cannot do anything with: {}",
+                msg)
             return None
 
         report_action = False
@@ -241,10 +258,11 @@ class Mediator(ABC):
         Update our logging to level or ignore.
         '''
         if level is None:
-            return None
+            return
 
         self.debug("_logging_req_level: Updating logging level from "
-                   f"{log.get_level()} to {level}.")
+                   "{} to {}.",
+                   log.get_level(), level)
         log.set_level(level)
 
     def _logging_req_report(self,
@@ -312,29 +330,33 @@ class Mediator(ABC):
         No wait/block.
         Returns True if queue from game has data to send to server.
         '''
-        return self._comms.pipe.poll()
+        return self._comms.has_data()
 
     def _game_pipe_get(self) -> Tuple[Message, MessageContext]:
         '''
         Gets data from game pipe for sending. Waits/blocks until it receives
         something.
         '''
-        msg, ctx = self._comms.pipe.recv()
-        self.debug(f"Got from game pipe for sending: msg: {msg}, ctx: {ctx}")
+        msg, ctx = self._comms.recv()
+        self.debug("_game_pipe_get: "
+                   "Got from game pipe for sending: msg: {}, ctx: {}",
+                   msg, ctx)
         return msg, ctx
 
     def _game_pipe_put(self, msg: Message, ctx: MessageContext) -> None:
         '''Puts data into game pipe for game to receive.'''
-        self.debug("Received into game pipe for game to process: "
-                   f"msg: {msg}, ctx: {ctx}")
-        self._comms.pipe.send((msg, ctx))
+        self.debug("_game_pipe_get: "
+                   "Received into game pipe for game to process: "
+                   "msg: {}, ctx: {}",
+                   msg, ctx)
+        self._comms.send(msg, ctx)
 
     def _game_pipe_clear(self) -> None:
         '''
         Removes all current data for us in our side of the game pipe
         connection.
         '''
-        self.debug("Clearing game pipe...")
+        self.debug("_game_pipe_clear: Clearing game pipe...")
 
         # Read and ignore messages while it has some.
         while self._game_has_data():
@@ -351,8 +373,10 @@ class Mediator(ABC):
     def _med_to_game_get(self) -> Tuple[Message, MessageContext]:
         '''Gets (no wait) data from _med_to_game_queue pipe for processing.'''
         msg, ctx = self._med_to_game_queue.get_nowait()
-        self.debug("Got from _med_to_game_queue for receiving: "
-                   f"msg: {msg}, ctx: {ctx}")
+        self.debug("_med_to_game_get: "
+                   "Got from _med_to_game_queue to give to game: "
+                   "msg: {}, ctx: {}",
+                   msg, ctx)
         return msg, ctx
 
     async def _med_to_game_put(self,
@@ -361,15 +385,17 @@ class Mediator(ABC):
         '''
         Puts data into _med_to_game_put for us to... just receive again?...
         '''
-        self.debug("Received into _med_to_game_put pipe to give to game: "
-                   f"msg: {msg}, ctx: {ctx}")
+        self.debug("_med_to_game_put: "
+                   "Putting into _med_to_game_put pipe to give to game: "
+                   "msg: {}, ctx: {}",
+                   msg, ctx)
         await self._med_to_game_queue.put((msg, ctx))
 
     def _med_to_game_clear(self) -> None:
         '''
         Removes all current data for us from self._med_to_game_queue.
         '''
-        self.debug("Clearing med_to_game pipe...")
+        self.debug("_med_to_game_clear: Clearing med_to_game pipe...")
 
         # Read and ignore messages while it has some.
         while self._med_to_game_has_data():
@@ -386,20 +412,24 @@ class Mediator(ABC):
     def _med_tx_get(self) -> Tuple[Message, MessageContext]:
         '''Gets (no wait) data from _med_tx_queue pipe for sending.'''
         msg, ctx = self._med_tx_queue.get_nowait()
-        self.debug(f"Got from med_tx pipe for sending: msg: {msg}, ctx: {ctx}")
+        self.debug("_med_tx_get: "
+                   "Got from med_tx pipe for sending: msg: {}, ctx: {}",
+                   msg, ctx)
         return msg, ctx
 
     async def _med_tx_put(self, msg: Message, ctx: MessageContext) -> None:
         '''Puts data into _med_tx_queue for us to send to other mediator.'''
-        self.debug("Received into med_tx pipe for med_tx to process: "
-                   f"msg: {msg}, ctx: {ctx}")
+        self.debug("_med_tx_put: "
+                   "Putting into med_tx pipe for med_tx to process: "
+                   "msg: {}, ctx: {}",
+                   msg, ctx)
         await self._med_tx_queue.put((msg, ctx))
 
     def _med_tx_clear(self) -> None:
         '''
         Removes all current data for us from self._med_tx_queue.
         '''
-        self.debug("Clearing med_tx_queue pipe...")
+        self.debug("_med_tx_clear: Clearing med_tx_queue pipe...")
 
         # Read and ignore messages while it has some.
         while self._med_tx_has_data():
@@ -416,21 +446,23 @@ class Mediator(ABC):
     def _med_rx_get(self) -> Tuple[Message, MessageContext]:
         '''Gets (no wait) data from _med_rx_queue pipe for processing.'''
         msg, ctx = self._med_rx_queue.get_nowait()
-        self.debug("Got from med_rx pipe for receiving: "
-                   f"msg: {msg}, ctx: {ctx}")
+        self.debug("_med_rx_get: Got from med_rx pipe for receiving: "
+                   "msg: {}, ctx: {}",
+                   msg, ctx)
         return msg, ctx
 
     async def _med_rx_put(self, msg: Message, ctx: MessageContext) -> None:
         '''Puts data into _med_rx_queue for us to... just receive again?...'''
-        self.debug("Received into med_rx pipe for med_rx to process: "
-                   f"msg: {msg}, ctx: {ctx}")
+        self.debug("_med_rx_put: Put into med_rx pipe for med_rx to process: "
+                   "msg: {}, ctx: {}",
+                   msg, ctx)
         await self._med_rx_queue.put((msg, ctx))
 
     def _med_rx_clear(self) -> None:
         '''
         Removes all current data for us from self._med_rx_queue.
         '''
-        self.debug("Clearing med_rx_queue pipe...")
+        self.debug("_med_rx_clear: Clearing med_rx_queue pipe...")
 
         # Read and ignore messages while it has some.
         while self._med_rx_has_data():
@@ -444,7 +476,7 @@ class Mediator(ABC):
         '''
         Returns True if self._comms.ut_pipe is truthy.
         '''
-        return bool(self._comms.ut_pipe)
+        return self._comms._ut_exists()
 
     def _test_has_data(self) -> bool:
         '''
@@ -453,31 +485,35 @@ class Mediator(ABC):
         '''
         if not self._test_pipe_exists():
             return False
-        return self._comms.ut_pipe.poll()
+        return self._comms._ut_has_data()
 
-    def _test_pipe_get(self) -> Optional[str]:
+    def _test_pipe_get(self) -> Tuple[Optional[Message],
+                                      Optional[MessageContext]]:
         '''
-        Returns 'None' immediately if no unit test pipe. Otherwise gets data
-        from unit test pipe for sending. Waits/blocks until it receives
+        Returns (None, None) immediately if no unit test pipe. Otherwise gets
+        data from unit test pipe for sending. Waits/blocks until it receives
         something.
         '''
         if not self._test_pipe_exists():
-            return None
-        recv = self._comms.ut_pipe.recv()
-        self.debug("Got from unit test pipe for sending: "
-                   f"string: {recv}")
-        return recv
+            return None, None
+        recv, ctx = self._comms._ut_recv()
+        self.debug("_test_pipe_get: Got from unit test pipe for sending: "
+                   "msg: {}, ctx: {}",
+                   recv, ctx)
+        return recv, ctx
 
-    def _test_pipe_put(self, send: str) -> None:
+    def _test_pipe_put(self, msg: Message, ctx: MessageContext) -> None:
         '''
         Ignored if unit test pipe doesn't exist. Otherwise puts data into unit
         test pipe for unit test to receive.
         '''
         if not self._test_pipe_exists():
             return
-        self.debug("Putting into test pipe for unit test to process: "
-                   f"string: {send}")
-        self._comms.ut_pipe.send(send)
+        self.debug("_test_pipe_put: "
+                   "Putting into test pipe for unit test to process: "
+                   "msg: {}, ctx: {}",
+                   msg, ctx)
+        self._comms._ut_send(msg, ctx)
 
     def _test_pipe_clear(self) -> None:
         '''
@@ -487,7 +523,7 @@ class Mediator(ABC):
             # No test pipe - nothing to.
             return
 
-        self.debug("Clearing unit-test pipe...")
+        self.debug("_test_pipe_clear: Clearing unit-test pipe...")
 
         # Read and ignore messages while it has some.
         while self._test_has_data():
@@ -551,16 +587,17 @@ class Mediator(ABC):
             # Else get one thing and process it.
             msg, ctx = self._med_rx_get()
             if not msg:
+                self.debug("_med_queue_watcher: received: {}", msg)
                 await self._continuing()
                 continue
 
             # Deal with this msg to us?
             if msg.type == MsgType.LOGGING:
-                self.debug(f"_med_queue_watcher: _med_rx_get got: {msg}")
+                self.debug("_med_queue_watcher: _med_rx_get got: {}", msg)
                 reply = self.logging_request(msg)
                 if reply:
                     await self._med_tx_put(msg, ctx)
-                    # Done; _continue() and reloop.
+                    # Done; continue and reloop.
 
             await self._continuing()
             continue
@@ -582,33 +619,43 @@ class Mediator(ABC):
 
             # Get that something, do something with it.
             try:
-                string = self._test_pipe_get()
+                msg, ctx = self._test_pipe_get()
+                self._log_data_processing(self.dotted(),
+                                          "_test_watcher: "
+                                          "{} got from test pipe:\n"
+                                          "  data: {}\n"
+                                          "   ctx: {}",
+                                          self._name, msg, ctx)
 
             except EOFError as error:
                 log.exception(error,
+                              "_test_watcher: "
                               "Failed getting from test pipe; "
                               "ignoring and continuing.")
                 # EOFError gets raised if nothing left to receive or other end
                 # closed. Wait til we know what that means to our test/mediator
                 # pair before deciding to take (drastic?) action here...
 
-            if string == _UT_ENABLE:
+            if msg == _UT_ENABLE:
                 self._testing = True
-                self.debug("Enabled unit testing flag.")
+                self.debug("_test_watcher: Enabled unit testing flag.")
 
-            elif string == _UT_DISABLE:
+            elif msg == _UT_DISABLE:
                 self._testing = True
-                self.debug("Disabled unit testing flag.")
+                self.debug("_test_watcher: Disabled unit testing flag.")
 
             else:
-                message = (f"{self._name} doesn't know what to do "
-                           f"with received testing string: {string}")
+                error_msg = ("_test_watcher: "
+                             "{self._name} doesn't know what to do "
+                             "with received testing message: {}")
                 raise log.exception(
-                    ValueError(message),
-                    message)
+                    ValueError(error_msg.format(self._name, msg)),
+                    error_msg,
+                    self._name,
+                    msg)
 
             # Done processing; sleep a bit then continue.
-            await self._continue()
+            await self._continuing()
 
     # ------------------------------
     # Shutdown Flags

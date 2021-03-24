@@ -34,6 +34,9 @@ from veredi.data.codec           import Codec, Encodable
 
 from ..base                      import (BaseSerdes,
                                          DeserializeTypes,
+                                         DeserializeAllTypes,
+                                         _DeserializeMidTypes,
+                                         _DeserializeAllMidTypes,
                                          SerializeTypes)
 
 
@@ -138,7 +141,7 @@ class JsonSerdes(BaseSerdes):
                                   "Deserialized to '{}'!",
                                   type(data),
                                   context=context)
-        return data
+        return self._decode(data, codec)
 
     def _json_hookup_obj_pairs(self, pairs: List[Tuple[Any, Any]]) -> Any:
         '''
@@ -198,7 +201,7 @@ class JsonSerdes(BaseSerdes):
 
     def _json_load(self,
                    stream:  Union[TextIO, str],
-                   context: 'VerediContext') -> DeserializeTypes:
+                   context: 'VerediContext') -> _DeserializeMidTypes:
         '''
         Calls `json.load()` or `json.loads()`, as appropriate, with correct
         hook(s), and returns json's result.
@@ -226,7 +229,7 @@ class JsonSerdes(BaseSerdes):
     def _read(self,
               stream:  Union[TextIO, str],
               codec:   Codec,
-              context: 'VerediContext') -> DeserializeTypes:
+              context: 'VerediContext') -> _DeserializeMidTypes:
         '''
         Read data from a single data stream.
 
@@ -330,12 +333,12 @@ class JsonSerdes(BaseSerdes):
                                   type(stream),
                                   context=context,
                                   success=True)
-        return data
+        return self._decode_all(data, codec)
 
     def _read_all(self,
                   stream:  Union[TextIO, str],
                   codec:   Codec,
-                  context: 'VerediContext') -> DeserializeTypes:
+                  context: 'VerediContext') -> _DeserializeAllMidTypes:
         '''
         Read data from a single data stream.
 

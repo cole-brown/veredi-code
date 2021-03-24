@@ -94,7 +94,7 @@ def plural(pluralize:     Union[bool, numbers.NumberTypes, Iterable, None],
     # Iterable?
     else:
         try:
-            plural = (len(pluralize) != 0)
+            plural = (len(pluralize) != 1)
         except TypeError:
             plural = False
 

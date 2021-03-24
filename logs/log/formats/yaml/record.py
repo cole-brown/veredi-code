@@ -325,6 +325,17 @@ class LogRecordYaml:
         Filters out optional, and currently empty, entries in preparation for
         outputting.
         '''
+        # # ---
+        # # Fiter down to just a few fields during buggy unit tests?
+        # # ---
+        # TODO: What flag to check?
+        # TODO: How to set?
+        # if xxx is not None:
+        #     return self._filter_ut()
+
+        # ---
+        # Filter the empty entries.
+        # ---
         if not self._dict_record.get('python', None):
             self._dict_record.pop('python', None)
         elif not self._dict_py.get('process', None):

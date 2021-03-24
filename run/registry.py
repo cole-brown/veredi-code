@@ -65,20 +65,40 @@ RegistrationFunc = NewType('RegistrationFunc',
 The signature expected for `_REGISTRATION_FUNC_NAME` functions.
 '''
 
-_REGISTRATION_INIT_NAME: str = 'register'
+_REGISTRAR_INIT_NAME: str = 'registrar'
 '''
-The word used for the registration filename.
+The word used for the registrar filename.
 '''
 
 
-_REGISTRATION_INIT_MODULE_NAME: str = f'__{_REGISTRATION_INIT_NAME}__'
+_REGISTRAR_INIT_MODULE_NAME: str = f'__{_REGISTRAR_INIT_NAME}__'
 '''
 The module name (filename sans extension) to look for for registrars,
 registries, and registrees.
 '''
 
 
-_REGISTRATION_INIT_UT_MODULE_NAME: str = f'__{_REGISTRATION_INIT_NAME}_ut__'
+_REGISTRAR_INIT_UT_MODULE_NAME: str = f'__{_REGISTRAR_INIT_NAME}_ut__'
+'''
+If in unit-testing mode (according to background.testing.get_unit_testing()),
+these files will also be searched for and imported.
+'''
+
+
+_REGISTREE_INIT_NAME: str = 'register'
+'''
+The word used for the registree filename.
+'''
+
+
+_REGISTREE_INIT_MODULE_NAME: str = f'__{_REGISTREE_INIT_NAME}__'
+'''
+The module name (filename sans extension) to look for for registrars,
+registries, and registrees.
+'''
+
+
+_REGISTREE_INIT_UT_MODULE_NAME: str = f'__{_REGISTREE_INIT_NAME}_ut__'
 '''
 If in unit-testing mode (according to background.testing.get_unit_testing()),
 these files will also be searched for and imported.
@@ -95,18 +115,15 @@ _FIND_MODULE_IGNORES: Set = set({
     '__templates__',
 
     #  ---
-    # `_REGISTRATION_INIT_FILE_NAME`-based Ignores
+    # registry/registrar filename-based Ignores
     #  ---
     # Ignore anything starting with two underscores...
     # Unless it's the file we want maybe.
-    re.compile(r'^__(?!' + _REGISTRATION_INIT_NAME + r')'),
-
-    # And, because our _REGISTRATION_INIT_FILE_NAME /does/ start with two
-    # underscores, we can also ignore everything that /doesn't/ start with
-    # exactly two underscores.
-    #   re.compile(r'^(?!__).*'),
-    # NOTE: No. There are things called 'directories', turns out... And turns
-    # out we need to walk down into those to look for our files.
+    re.compile(r'^__(?!('
+               + _REGISTRAR_INIT_NAME
+               + r'|'
+               + _REGISTREE_INIT_NAME
+               + r'))'),
 
     # ---
     # Veredi Ignores
@@ -155,12 +172,22 @@ class ConfigRegistration(enum.Enum):
     registration files.
     '''
 
-    PATH_RUN = label.regularize('path.run')
+    PATH_REGISTRARS_RUN = label.regularize('path.registrars.run')
     '''
     A list of filenames to look for when running (normal and testing).
     '''
 
-    PATH_TEST = label.regularize('path.test')
+    PATH_REGISTRARS_TEST = label.regularize('path.registrars.test')
+    '''
+    A list of filenames to look for when in testing mode.
+    '''
+
+    PATH_REGISTREES_RUN = label.regularize('path.registrees.run')
+    '''
+    A list of filenames to look for when running (normal and testing).
+    '''
+
+    PATH_REGISTREES_TEST = label.regularize('path.registrees.test')
     '''
     A list of filenames to look for when in testing mode.
     '''
@@ -238,24 +265,36 @@ class ConfigRegistration(enum.Enum):
         return path
 
     @classmethod
-    def path_run(klass: 'ConfigRegistration',
-                 entry: Dict[str, Any]) -> Nullable[str]:
+    def path_run(klass:      'ConfigRegistration',
+                 entry:      Dict[str, Any],
+                 registrars: bool) -> Nullable[str]:
         '''
-        Returns the PATH_RUN entry of this registration entry.
+        Returns either PATH_REGISTREES_RUN or PATH_REGISTRARS_RUN, depending on
+        `registrars` bool.
+          - True: PATH_REGISTRARS_RUN
+          - False: PATH_REGISTREES_RUN
 
-        PATH_RUN should be a list of filenames to look for.
+        This key's value should be a list of filenames to look for.
         '''
-        return klass._get(klass.PATH_RUN, entry)
+        if registrars:
+            return klass._get(klass.PATH_REGISTRARS_RUN, entry)
+        return klass._get(klass.PATH_REGISTREES_RUN, entry)
 
     @classmethod
     def path_test(klass: 'ConfigRegistration',
-                  entry: Dict[str, Any]) -> Nullable[str]:
+                  entry: Dict[str, Any],
+                  registrars: bool) -> Nullable[str]:
         '''
-        Returns the PATH_TEST entry of this registration entry.
+        Returns either PATH_REGISTREES_TEST or PATH_REGISTRARS_TEST, depending
+        on `registrars` bool.
+          - True: PATH_REGISTRARS_TEST
+          - False: PATH_REGISTREES_TEST
 
-        PATH_TEST should be a list of filenames to look for.
+        This key's value should be a list of filenames to look for.
         '''
-        return klass._get(klass.PATH_TEST, entry)
+        if registrars:
+            return klass._get(klass.PATH_REGISTRARS_TEST, entry)
+        return klass._get(klass.PATH_REGISTREES_TEST, entry)
 
     @classmethod
     def path_ignores(klass: 'ConfigRegistration',
@@ -435,8 +474,10 @@ def _register_entry(configuration: Configuration,
             root = LIB_VEREDI_ROOT
 
     # Optional:
-    filenames = (ConfigRegistration.path_run(entry) or None)
-    filenames_ut = (ConfigRegistration.path_test(entry) or None)
+    registrars = (ConfigRegistration.path_run(entry, True) or None)
+    registrars_ut = (ConfigRegistration.path_test(entry, True) or None)
+    registrees = (ConfigRegistration.path_run(entry, False) or None)
+    registrees_ut = (ConfigRegistration.path_test(entry, False) or None)
     ignores = (ConfigRegistration.path_ignores(entry) or None)
     find_ut = (ConfigRegistration.force_test(entry) or None)
 
@@ -448,8 +489,10 @@ def _register_entry(configuration: Configuration,
                         'name': name,
                         'dotted': dotted,
                         'root': root,
-                        'run': filenames,
-                        'test': filenames_ut,
+                        'registrars': registrars,
+                        'registrars_test': registrars_ut,
+                        'registrees': registrees,
+                        'registrees_test': registrees_ut,
                         'ignores': ignores,
                         'unit-test': find_ut,
                     })
@@ -459,14 +502,27 @@ def _register_entry(configuration: Configuration,
     # ---
     log.group_multi(_LOG_INIT,
                     log_dotted,
-                    f"Searching {name} ({dotted}) for registration...")
+                    "Searching {} ({}) for registration...\n"
+                    "  root: {}",
+                    name, dotted, root)
 
-    module_names = _find_modules(root, filenames, filenames_ut,
+    module_names = _find_modules(root,
+                                 registrars, registrars_ut,
+                                 registrees, registrees_ut,
                                  log_dotted, ignores, find_ut)
+    registrar_names, registree_names = module_names
+
+    # TODO v://future/2021-03-14T12:27:54
+    # add registrar_names & registree_names to log.
     log.group_multi(_LOG_INIT,
                     log_dotted,
-                    f"{len(module_names)} "
-                    f"{text.plural(module_names, 'module')}"
+                    f"{len(registrar_names)} registrar "
+                    f"{text.plural(registrar_names, 'module')} "
+                    f"found for {name} ({dotted}).")
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    f"{len(registree_names)} registree "
+                    f"{text.plural(registree_names, 'module')} "
                     f"found for {name} ({dotted}).")
 
     # ---
@@ -475,15 +531,18 @@ def _register_entry(configuration: Configuration,
     # Now load the modules we found.
     log.group_multi(_LOG_INIT,
                     log_dotted,
-                    f"Loading {name} ({dotted}) registry modules...")
+                    f"Loading {name} ({dotted}) registrar modules...")
     imported = []
-    for name in module_names:
+    for name in registrar_names:
+        imported.append(_import(name, log_dotted))
+
+    for name in registree_names:
         imported.append(_import(name, log_dotted))
 
     log.group_multi(_LOG_INIT,
                     log_dotted,
                     f"{len(imported)} "
-                    f"{text.plural(imported, 'module')}"
+                    f"{text.plural(imported, 'module')} "
                     f"imported for {name} ({dotted}).")
 
     # If we imported nothing... that's probably a fail.
@@ -501,13 +560,17 @@ def _register_entry(configuration: Configuration,
                     f"(`{_REGISTRATION_FUNC_NAME}()`)...")
 
     context = configuration.make_config_context()
-    module_successes = 0
-    module_failures = 0
-    module_noop = 0
+    module_successes = []
+    module_failures = []
+    module_noop = []
     for module in imported:
-        module_set_up = getattr(module, _REGISTRATION_FUNC_NAME)
+        module_set_up = None
+        try:
+            module_set_up = getattr(module, _REGISTRATION_FUNC_NAME)
+        except AttributeError:
+            pass
         if not module_set_up:
-            module_noop += 1
+            module_noop.append(module.__name__)
             continue
 
         log.group_multi(
@@ -518,9 +581,9 @@ def _register_entry(configuration: Configuration,
         # Call registration function with config.
         success = module_set_up(configuration, context)
         if success:
-            module_successes += 1
+            module_successes.append(module.__name__)
         else:
-            module_failures += 1
+            module_failures.append(module.__name__)
 
         log.group_multi(
             _LOG_INIT,
@@ -557,20 +620,23 @@ def _import(module: str, log_dotted: str) -> ModuleType:
     If failure, an exception of whatever type will be allowed to bubble up.
     '''
     try:
-        log.start_up(log_dotted,
-                     f"Importing {module}...")
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        f"Importing {module}...")
         imported = importlib.import_module(module)
-        log.start_up(log_dotted,
-                     f"Imported {module}: {imported}",
-                     log_success=(log.SuccessType.SUCCESS
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        f"Imported {module}: {imported}",
+                        log_success=(log.SuccessType.SUCCESS
                                   if imported else
-                                  log.SuccessType.FAILURE))
+                                     log.SuccessType.FAILURE))
         return imported
 
     except ModuleNotFoundError as error:
-        log.start_up(log_dotted,
-                     f"Failed to import {module}: {error}",
-                     log_success=log.SuccessType.FAILURE)
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        f"Failed to import {module}: {error}",
+                        log_success=log.SuccessType.FAILURE)
         raise
 
     return None
@@ -580,22 +646,33 @@ def _import(module: str, log_dotted: str) -> ModuleType:
 # Smart Importing?
 # -----------------------------------------------------------------------------
 
-def _find_modules(root:         paths.Path,
-                  filenames:    List[str]                             = [],
-                  filenames_ut: List[str]                             = [],
-                  log_dotted:   Optional[label.DotStr]                = None,
-                  ignores:      Optional[Set[Union[str, re.Pattern]]] = None,
-                  find_ut:      Optional[bool]                        = None,
+def _find_modules(root:          paths.Path,
+                  registrars:    List[str]                             = [],
+                  registrars_ut: List[str]                             = [],
+                  registrees:    List[str]                             = [],
+                  registrees_ut: List[str]                             = [],
+                  log_dotted:    Optional[label.DotStr]                = None,
+                  ignores:       Optional[Set[Union[str, re.Pattern]]] = None,
+                  find_ut:       Optional[bool]                        = None,
                   ) -> Iterable:
     '''
     Finds all modules in `root` and subdirectories that match our
     requirements for being a place to put "Register me plz!!!" code for
     registry entries.
 
-    `filename` will be set to `_REGISTRATION_INIT_MODULE_NAME` if not
+    `registrees` will be set to `[_REGISTREE_INIT_MODULE_NAME]` if not
     provided. String must match file-name-sans-extension exactly.
 
-    `filename-ut` will be set to `_REGISTRATION_INIT_UT_MODULE_NAME` if not
+    `registrees_ut` will be set to `[_REGISTREE_INIT_UT_MODULE_NAME]` if not
+    provided. String must match file-name-sans-extension exactly.
+      - This can be disabled if `find_ut` is set explicitly to False, or forced
+        to be enabled if `find_ut` is set explicitly to True. The default value
+        of `None` will obey the `background.testing.get_unit_testing()` flag.
+
+    `registrars` will be set to `[_REGISTRAR_INIT_MODULE_NAME]` if not
+    provided. String must match file-name-sans-extension exactly.
+
+    `registrars_ut` will be set to `[_REGISTRAR_INIT_UT_MODULE_NAME]` if not
     provided. String must match file-name-sans-extension exactly.
       - This can be disabled if `find_ut` is set explicitly to False, or forced
         to be enabled if `find_ut` is set explicitly to True. The default value
@@ -617,22 +694,32 @@ def _find_modules(root:         paths.Path,
     log_dotted = log_dotted or label.normalize(_DOTTED, '_find_modules')
 
     # What should we import? Are we importing unit-testing stuff too?
-    imports = filenames
-    if not imports:
-        imports.append(_REGISTRATION_INIT_MODULE_NAME)
-    if not filenames_ut:
-        filenames_ut.append(_REGISTRATION_INIT_UT_MODULE_NAME)
+    import_registrars = registrars
+    if not registrars:
+        # Can put this in imports directly - will always want it.
+        import_registrars.append(_REGISTRAR_INIT_MODULE_NAME)
+    if not registrars_ut:
+        registrars_ut.append(_REGISTRAR_INIT_UT_MODULE_NAME)
+
+    import_registrees = registrees
+    if not registrees:
+        # Can put this in imports directly - will always want it.
+        import_registrees.append(_REGISTREE_INIT_MODULE_NAME)
+    if not registrars_ut:
+        registrees_ut.append(_REGISTREE_INIT_UT_MODULE_NAME)
 
     if find_ut is True:
         # Explicitly want to find unit-test class registrations.
-        imports.extend(filenames_ut)
+        import_registrars.extend(registrars_ut)
+        import_registrees.extend(registrees_ut)
     elif find_ut is False:
         # Explicitly /do not/ want to find unit-test class registrations.
         pass
     elif background.testing.get_unit_testing():
         # Implicitly want to find unit-test class registrations - we're in
         # unit-testing run mode.
-        imports.extend(filenames_ut)
+        import_registrars.extend(registrars_ut)
+        import_registrees.extend(registrees_ut)
     # Else, implicitly don't want unit-testing - we're a normal run.
 
     ignores = ignores or _FIND_MODULE_IGNORES
@@ -646,27 +733,38 @@ def _find_modules(root:         paths.Path,
 
     if root.exists():
         if root.is_dir():
-            log.start_up(log_dotted,
-                         "Find module root is valid.\n"
-                         "  package: {}\n"
-                         "     path: {}\n"
-                         "     find: {}",
-                         package_name, package_path, imports)
+            log.group_multi(_LOG_INIT,
+                            log_dotted,
+                            "Find module root is valid.\n"
+                            "  package: {}\n"
+                            "     path: {}\n"
+                            "  find: \n"
+                            "    registrars: {}\n"
+                            "    registrees: {}",
+                            package_name, package_path,
+                            import_registrars, import_registrees)
         else:
-            log.start_up(log_dotted,
-                         "Find module root is not a directory!\n"
-                         "  package: {}\n"
-                         "     path: {}\n"
-                         "     find: {}",
-                         package_name, package_path, imports,
-                         log_minimum=log.Level.ERROR)
+            log.group_multi(_LOG_INIT,
+                            log_dotted,
+                            "Find module root is not a directory!\n"
+                            "  package: {}\n"
+                            "     path: {}\n"
+                            "  find: \n"
+                            "    registrars: {}\n"
+                            "    registrees: {}",
+                            package_name, package_path,
+                            import_registrars, import_registrees,
+                            log_minimum=log.Level.ERROR)
             msg = "Find module root is not a directory!"
             data = {
                 'root': root,
-                'filenames': filenames,
-                'filenames-unit-test': filenames_ut,
+                'registrars': registrars,
+                'registrars-unit-test': registrars_ut,
+                'registrees': registrees,
+                'registrees-unit-test': registrees_ut,
                 'ignores': ignores,
-                'imports': imports,
+                'import_registrars': import_registrars,
+                'import_registrees': import_registrees,
                 'package_path': package_path,
                 'package_name': package_name,
             }
@@ -674,20 +772,27 @@ def _find_modules(root:         paths.Path,
             raise log.exception(error, msg)
 
     else:
-        log.start_up(log_dotted,
-                     "Find module root does not exist!\n"
-                     "  package: {}\n"
-                     "     path: {}\n"
-                     "     find: {}",
-                     package_name, package_path, imports,
-                     log_minimum=log.Level.ERROR)
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Find module root does not exist!\n"
+                        "  package: {}\n"
+                        "     path: {}\n"
+                        "  find: \n"
+                        "    registrars: {}\n"
+                        "    registrees: {}",
+                        package_name, package_path,
+                        import_registrars, import_registrees,
+                        log_minimum=log.Level.ERROR)
         msg = "Find module root does not exist!"
         data = {
             'root': root,
-            'filenames': filenames,
-            'filenames-unit-test': filenames_ut,
+            'registrars': registrars,
+            'registrars-unit-test': registrars_ut,
+            'registrees': registrees,
+            'registrees-unit-test': registrees_ut,
             'ignores': ignores,
-            'imports': imports,
+            'import_registrars': import_registrars,
+            'import_registrees': import_registrees,
             'package_path': package_path,
             'package_name': package_name,
         }
@@ -699,15 +804,21 @@ def _find_modules(root:         paths.Path,
     # ------------------------------
 
     # Idea from https://stackoverflow.com/a/5135444/425816
-    exports = []
+    export_registrars = []
+    export_registrees = []
 
     # Get package info from root path.
-    log.start_up(log_dotted,
-                 "Finding modules...\n"
-                 "  package: {}\n"
-                 "     path: {}\n"
-                 "    files: {}",
-                 package_name, package_path, imports)
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Finding modules...\n"
+                    "  unit-testing?: {}\n"
+                    "        package: {}\n"
+                    "           path: {}\n"
+                    "  find: \n"
+                    "     registrars: {}\n"
+                    "     registrees: {}",
+                    find_ut, package_name, package_path,
+                    import_registrars, import_registrees)
 
     # Make a list so we can keep extending it with sub-directories as we walk
     # the file tree.
@@ -746,81 +857,106 @@ def _find_modules(root:         paths.Path,
 
         # This path should be ignored, so continue on.
         if ignore:
-            log.start_up(log_dotted,
-                         "Ignoring:\n"
-                         "          path: {}\n"
-                         "        module: {}\n"
-                         "   ignore type: {}\n"
-                         "  ignore match: {}",
-                         module_relative, module_name,
-                         matched_on, matching,
-                         log_minimum=log.Level.DEBUG)
+            log.group_multi(_LOG_INIT,
+                            log_dotted,
+                            "Ignoring:\n"
+                            "          path: {}\n"
+                            "        module: {}\n"
+                            "   ignore type: {}\n"
+                            "  ignore match: {}",
+                            module_relative, module_name,
+                            matched_on, matching,
+                            log_minimum=log.Level.DEBUG)
             continue
 
         # Import a sub-module directory.
         if path.is_dir():
-            log.start_up(log_dotted,
-                         "Adding sub-module to process: {}\n"
-                         "    path: {}\n"
-                         "  module: {}",
-                         subpackage, module_relative, module_name,
-                         log_minimum=log.Level.DEBUG)
+            log.group_multi(_LOG_INIT,
+                            log_dotted,
+                            "Adding sub-module to process: {}\n"
+                            "    path: {}\n"
+                            "  module: {}",
+                            subpackage, module_relative, module_name,
+                            log_minimum=log.Level.DEBUG)
             # Add them to our list of paths still to do.
             paths_to_process.extend(list(path.iterdir()))
 
         # Only import exactly our module name.
-        elif module_name not in imports:
-            log.start_up(log_dotted,
-                         "Ignoring sub-module to process: {}\n"
-                         "    path: {}\n"
-                         "  module: {}\n"
-                         "  reason: no filename match",
-                         subpackage, module_relative, module_name,
-                         log_minimum=log.Level.DEBUG)
+        elif (module_name not in import_registrars
+              and module_name not in import_registrees):
+            log.group_multi(_LOG_INIT,
+                            log_dotted,
+                            "Ignoring sub-module to process: {}\n"
+                            "    path: {}\n"
+                            "  module: {}\n"
+                            "  reason: no filename match",
+                            subpackage, module_relative, module_name,
+                            log_minimum=log.Level.DEBUG)
             continue
 
         # Import the match only if it's the correct file type.
         elif not path.is_file():
-            log.start_up(log_dotted,
-                         "Ignoring (matching): {}\n"
-                         "    path: {}\n"
-                         "  module: {}\n"
-                         "  reason: Not a file.",
-                         subpackage, module_relative, module_name,
-                         log_minimum=log.Level.DEBUG)
+            log.group_multi(_LOG_INIT,
+                            log_dotted,
+                            "Ignoring (matching): {}\n"
+                            "    path: {}\n"
+                            "  module: {}\n"
+                            "  reason: Not a file.",
+                            subpackage, module_relative, module_name,
+                            log_minimum=log.Level.DEBUG)
             continue
 
         elif module_ext not in ('.py', '.pyw'):
-            log.start_up(log_dotted,
-                         "Ignoring (matching): {}\n"
-                         "    path: {}\n"
-                         "  module: {}\n"
-                         "  reason: Not a python module file extension "
-                         "(.py, .pyw).",
-                         subpackage, module_relative, module_name,
-                         log_minimum=log.Level.DEBUG)
+            log.group_multi(_LOG_INIT,
+                            log_dotted,
+                            "Ignoring (matching): {}\n"
+                            "    path: {}\n"
+                            "  module: {}\n"
+                            "  reason: Not a python module file extension "
+                            "(.py, .pyw).",
+                            subpackage, module_relative, module_name,
+                            log_minimum=log.Level.DEBUG)
             continue
 
         # Alright; ran out of reasons not to import this guy.
         else:
-            exports.append(subpackage)
-            log.start_up(log_dotted,
-                         "Found matching module: {}\n"
-                         "    path: {}\n"
-                         "  module: {}"
-                         + ("\n     ext: {}" if module_ext else ""),
-                         subpackage, module_relative, module_name, module_ext,
-                         log_minimum=log.Level.INFO)
+            if module_name in import_registrars:
+                export_registrars.append(subpackage)
+            else:
+                export_registrees.append(subpackage)
+            log.group_multi(_LOG_INIT,
+                            log_dotted,
+                            "Found matching module: {}\n"
+                            "    path: {}\n"
+                            "  module: {}"
+                            + ("\n     ext: {}" if module_ext else ""),
+                            subpackage, module_relative,
+                            module_name, module_ext,
+                            log_minimum=log.Level.INFO)
 
-    if exports and log.will_output(log.Group.START_UP):
+    if export_registrars and log.will_output(log.Group.START_UP):
         package_log = []
-        for package in exports:
+        for package in export_registrars:
             package_log.append("    - " + package)
-        log.start_up(log_dotted,
-                     "Done finding modules.\n"
-                     "  package: {}\n"
-                     "  matches: {}\n"
-                     "{}",
-                     package_name, len(exports),
-                     '\n'.join(package_log))
-    return exports
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Done finding registrar modules.\n"
+                        "  package: {}\n"
+                        "  matches: {}\n"
+                        "{}",
+                        package_name, len(export_registrars),
+                        '\n'.join(package_log))
+
+    if export_registrees and log.will_output(log.Group.START_UP):
+        package_log = []
+        for package in export_registrees:
+            package_log.append("    - " + package)
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Done finding registree modules.\n"
+                        "  package: {}\n"
+                        "  matches: {}\n"
+                        "{}",
+                        package_name, len(export_registrees),
+                        '\n'.join(package_log))
+    return (export_registrars, export_registrees)

@@ -4,37 +4,26 @@
 Module for auto-magical registration shenanigans.
 
 This will be found and imported by run.registry in order to have whatever
-Registries, Registrars, and Registrees this provides available at run-time.
+Registries and Registrars this provides available at run-time.
 '''
 
 # -----------------------------------------------------------------------------
 # Imports
 # -----------------------------------------------------------------------------
 
+from veredi.logs.log import Group
 
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from veredi.data.codec import register, ignore
-
-
-# ------------------------------
-# Registrees
-# ------------------------------
-from .const   import MsgType
-from .message import Message, ConnectionMessage
+from .registry import registrar
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-register(MsgType)
-register(Message.SpecialId)
-register(Message)
-register(ConnectionMessage)
-
-# ignore(...)
+registrar([Group.START_UP, Group.REGISTRATION], None)
 
 
 # -----------------------------------------------------------------------------

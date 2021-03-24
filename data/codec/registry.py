@@ -198,7 +198,7 @@ class EncodableRegistry(CallRegistrar):
             msg = ("EncodableRegistry only accepts Encodable subclasses for "
                    "registration. Got: {encodable}")
             error = ValueError(msg, encodable, reg_args)
-            raise log.exception(error, msg)
+            raise self._log_exception(error, msg)
 
         return True
 
@@ -232,7 +232,7 @@ class EncodableRegistry(CallRegistrar):
             msg = (f"{self.__class__.__name__}._register: '{type(encodable)}' "
                    f"(\"{label.regularize(*reg_label)}\") needs to "
                    "implement type_field() function.")
-            log.exception(error, msg)
+            self._log_exception(error, msg)
             # Let error through. Just want more info.
             raise
 
@@ -247,6 +247,36 @@ class EncodableRegistry(CallRegistrar):
     # -------------------------------------------------------------------------
     # Decoding
     # -------------------------------------------------------------------------
+
+    def simple(self,
+               data:      Optional[EncodedSimple],
+               data_type: Optional[Type[Encodable]] = None,
+               ) -> Optional[Type[Encodable]]:
+        '''
+        Looks through registered encodables for one that supports
+        Encoding.SIMPLE and claims the data.
+        '''
+        # None decodes to None.
+        if data is None:
+            return None
+
+        self._log_debug(f"EncodableRegistry.simple: data: {type(data)}, "
+                        f"data_type: {data_type}")
+
+        registree = None
+
+        # ---
+        # Search for registered Encodable.
+        # ---
+        registree = self._search(self._registry,
+                                 None,
+                                 data,
+                                 data_type=data_type)
+
+        # ---
+        # Found something or nothing... return it.
+        # ---
+        return registree
 
     def get(self,
             data:          Optional[EncodedEither],
@@ -279,8 +309,8 @@ class EncodableRegistry(CallRegistrar):
         if data is None:
             return None
 
-        log.debug(f"EncodableRegistry.get: data: {type(data)}, "
-                  f"dotted: {dotted}, data_type: {data_type}")
+        self._log_debug(f"EncodableRegistry.get: data: {type(data)}, "
+                        f"dotted: {dotted}, data_type: {data_type}")
 
         registree = None
 
@@ -288,10 +318,10 @@ class EncodableRegistry(CallRegistrar):
         # Too simple?
         # ---
         if isinstance(data, (str, *numbers.NumberTypesTuple)):
-            log.debug("EncodableRegistry.get: Shouldn't be asking the "
-                      "registry for registered class for simple data types. "
-                      f"data: {type(data)}, "
-                      f"dotted: {dotted}, data_type: {data_type}")
+            self._log_debug("EncodableRegistry.get: Shouldn't be asking the "
+                            "registry for registered class for simple data types. "
+                            f"data: {type(data)}, "
+                            f"dotted: {dotted}, data_type: {data_type}")
             return None
 
         # ---
@@ -304,12 +334,13 @@ class EncodableRegistry(CallRegistrar):
         # Search for registered Encodable.
         # ---
         else:
-            registry = self._registry()
+            registry = self._registry
             data_dotted = label.from_map(data, error_squelch=True)
-            registree = self._search(registry,
-                                     data_dotted,
-                                     data,
-                                     data_type=data_type)
+            if data_dotted:
+                registree = self._search(registry,
+                                         data_dotted,
+                                         data,
+                                         data_type=data_type)
 
         # ---
         # Did we find the correct registree?
@@ -320,10 +351,10 @@ class EncodableRegistry(CallRegistrar):
             if claiming:
                 return registree
             else:
-                log.debug(f"EncodableRegistry.get: Found registree for data, "
-                          "but registree will not claim it. "
-                          f"registree: {registree}, data: {type(data)}, "
-                          f"dotted: {dotted}, data_type: {data_type}")
+                self._log_debug(f"EncodableRegistry.get: Found registree for data, "
+                                "but registree will not claim it. "
+                                f"registree: {registree}, data: {type(data)}, "
+                                f"dotted: {dotted}, data_type: {data_type}")
 
         # ---
         # Not Found: Fallback if provided?
@@ -345,17 +376,17 @@ class EncodableRegistry(CallRegistrar):
         error = ValueError(msg, data, registree)
         if error_squelch:
             raise error
-        raise log.exception(error, msg + extra,
-                            pretty.indented(registry),
-                            pretty.indented(data))
+        raise self._log_exception(error, msg + extra,
+                                  pretty.indented(registry),
+                                  pretty.indented(data))
 
     def _search(self,
                 place:     Dict[str, Any],
-                dotted:    label.DotStr,
+                dotted:    Optional[label.DotStr],
                 data:      EncodedEither,
                 data_type: Type[Encodable]) -> Optional[Encodable]:
         '''
-        Provide `self._registry()` as starting point of search.
+        Provide `self._registry` as starting point of search.
 
         Searches the registry.
 
@@ -378,7 +409,7 @@ class EncodableRegistry(CallRegistrar):
         # Provided with a dotted key. Use that for explicit search.
         # ---
         # More like 'get' than search...
-        if label.is_dotstr(dotted):
+        if dotted and label.is_dotstr(dotted):
             keys = label.regularize(dotted)
             # Path shouldn't be long. Just let Null-pattern pretend to be a
             # dict if we hit a 'Does Not Exist'.
@@ -414,8 +445,9 @@ class EncodableRegistry(CallRegistrar):
 
             # If we got a leaf node, check it.
             if not issubclass(node, Encodable):
-                log.warning("Unexpected node in registry... expect either "
-                            f"strings or Encodables, got: {node}")
+                self._log_warning(
+                    "Unexpected node in registry... expect either "
+                    f"strings or Encodables, got: {node}")
                 continue
 
             # Do they claim this?

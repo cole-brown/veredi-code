@@ -117,11 +117,11 @@ class BaseUser:
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}: "
+            f"<{self.__class__.__name__}: "
             f"id: {self.id}, "
             f"key: {self.key}, "
             f"conn: {self.connection}"
-            f"debug: {self.debug}"
+            f"debug: {self.debug}>"
         )
 
     def __repr__(self):

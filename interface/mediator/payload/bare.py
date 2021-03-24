@@ -11,13 +11,14 @@ Er. For bare payloads. E.g. dictionaries to be transmitted as-is.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, NewType, Mapping
+from typing import Optional, Union, Any, NewType, Mapping, Iterable
 
 import enum
 
 
 from veredi.logs         import log
 from veredi.base.strings import labeler
+from veredi.base         import numbers
 from veredi.data.codec   import (Codec,
                                  Encodable,
                                  EncodedComplex,
@@ -29,6 +30,25 @@ from .base               import BasePayload, Validity
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
+
+BareDataType = NewType('BareDataType',
+                       Union[str, numbers.NumberTypes])
+'''
+Data types allow in BarePayload.
+'''
+
+BarePayloadType = NewType('BarePayloadType',
+                          Union[BareDataType,
+                                Iterable[BareDataType],
+                                Mapping[BareDataType, BareDataType]])
+'''
+Full type of data allow in BarePayloads:
+  - Just a BareDataType.
+  - List of BareDataTypes.
+  - Map of BareDataTypes to BareDataTypes.
+
+Basically: numbers, strings, or lists/dicts of numbers/strings.
+'''
 
 
 # -----------------------------------------------------------------------------
@@ -59,7 +79,7 @@ class BarePayload(BasePayload):
     # -------------------------------------------------------------------------
 
     def __init__(self,
-                 data: Mapping[str, Union[str, int]] = None) -> None:
+                 data: BarePayloadType = None) -> None:
         # Ignore validity always... (valid property is hardcoded too).
         super().__init__(data, Validity.VALID)
 
@@ -83,7 +103,7 @@ class BarePayload(BasePayload):
                                   "property is not implemented.")
 
     @property
-    def data(self) -> Any:
+    def data(self) -> BarePayloadType:
         '''
         Property for getting the actual bare payload data.
         Just returns `self._data` as-is.
@@ -91,7 +111,7 @@ class BarePayload(BasePayload):
         return self._data
 
     @data.setter
-    def data(self, value: Any) -> None:
+    def data(self, value: BarePayloadType) -> None:
         '''
         Property for setting the raw data.
         Does /not/ self._validate() after setting, unlike BasePayload.

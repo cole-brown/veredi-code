@@ -21,6 +21,7 @@ import enum
 import re
 
 
+from veredi.logs                   import log
 from veredi.base.strings           import labeler
 from veredi.security               import abac
 from veredi.data.codec             import (Codec,
@@ -283,6 +284,18 @@ class Message(Encodable):
         return (False,
                 "You're not supposed to be able to get this far here. "
                 f"What's wrong? {self.payload}")
+
+    # -------------------------------------------------------------------------
+    # Payload Helpers
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def payload_basic(klass:   'Message',
+                      payload: str) -> BarePayload:
+        '''
+        Creates and returns a bare payload for the message string.
+        '''
+        return BarePayload(payload)
 
     # -------------------------------------------------------------------------
     # Logging MsgType Init Helpers

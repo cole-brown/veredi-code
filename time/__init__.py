@@ -9,10 +9,18 @@ Helpers for getting a game of Veredi running.
 # -----------------------------------------------------------------------------
 
 
-# Functions
-from .parse  import (duration, is_duration,
-                     to_decimal, to_float,
-                     serialize_claim, serialize)
+from .parse  import (
+    # Functions
+    duration, is_duration,
+    to_decimal, to_float,
+    serialize_claim, serialize,
+    deserialize_claim, deserialize,
+
+    # Types
+    DateTypes,
+    DateTypesTuple,
+    DurationInputTypes,
+)
 
 # Namespaced
 from . import machine
@@ -40,6 +48,13 @@ __all__ = [
     # ------------------------------
 
     # ------------------------------
+    # Types
+    # ------------------------------
+    'DateTypes',
+    'DateTypesTuple',
+    'DurationInputTypes',
+
+    # ------------------------------
     # Functions
     # ------------------------------
     'duration',
@@ -48,6 +63,8 @@ __all__ = [
     'to_float',
     'serialize_claim',
     'serialize',
+    'deserialize_claim',
+    'deserialize',
 
     # ------------------------------
     # Namespaced

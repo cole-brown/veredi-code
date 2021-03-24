@@ -20,6 +20,7 @@ from abc import ABC, abstractmethod
 
 from veredi.base.strings    import label, labeler
 from veredi.logs            import log
+from veredi.logs.mixin      import LogMixin
 from veredi.data            import background
 from veredi.data.exceptions import RegistryError
 
@@ -54,7 +55,9 @@ def registrar(reg_type:   Type['BaseRegistrar'],
     log.group_multi(
         log_groups,
         reg_type.dotted(),
-        "Create requested for {registry.__name__} ({reg_type.dotted()})..."
+        "Create requested for {} ({})...",
+        reg_type.__name__,
+        reg_type.dotted()
     )
 
     # ------------------------------
@@ -80,7 +83,7 @@ def registrar(reg_type:   Type['BaseRegistrar'],
     # ------------------------------
     # Create registrar.
     # ------------------------------
-    instance = reg_type.registrar(context)
+    instance = reg_type.registrar(log_groups, context)
 
     log.group_multi(
         log_groups,
@@ -95,7 +98,7 @@ def registrar(reg_type:   Type['BaseRegistrar'],
 # Registration Class
 # -----------------------------------------------------------------------------
 
-class BaseRegistrar(ABC):
+class BaseRegistrar(LogMixin, ABC):
     '''
     A class to hold registration data for whatever type of register you want.
 
@@ -108,7 +111,7 @@ class BaseRegistrar(ABC):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def registrar(registry:   'BaseRegistrar',
+    def registrar(registry:   Type['BaseRegistrar'],
                   log_groups: List[log.Group],
                   context:    'ConfigContext') -> 'BaseRegistrar':
         '''
@@ -117,7 +120,9 @@ class BaseRegistrar(ABC):
         log.group_multi(
             log_groups,
             registry.dotted(),
-            "Creating {registry.__name__} ({registry.dotted()})...")
+            "Creating {} ({})...",
+            registry.__name__,
+            registry.dotted())
 
         # Create it.
         reg = registry(context)
@@ -125,7 +130,9 @@ class BaseRegistrar(ABC):
         log.group_multi(
             log_groups,
             registry.dotted(),
-            "{registry.__name__} ({registry.dotted()}) created.")
+            "{} ({}) created.",
+            reg.__class__.__name__,
+            reg.dotted())
         return reg
 
     # -------------------------------------------------------------------------
@@ -169,6 +176,7 @@ class BaseRegistrar(ABC):
     def __init__(self, context: Optional['ConfigContext']) -> None:
         # Only thing we have is vars to create.
         self._define_vars()
+        self._log_config(self.dotted())
 
         self._configure(context)
         self._background(context)
@@ -190,7 +198,7 @@ class BaseRegistrar(ABC):
         self._bg = {
             'dotted': self.dotted(),
         }
-        return self._bg
+        return self._bg, background.Ownership.SHARE
 
     def _background(self,
                     context: Optional['ConfigContext']) -> None:
@@ -209,6 +217,7 @@ class BaseRegistrar(ABC):
     # Registry Internal Helpers
     # -------------------------------------------------------------------------
 
+    @property
     def _registry(self) -> Dict[str, Any]:
         '''
         Get the `self._store_registry`. Create if it is None.
@@ -218,6 +227,7 @@ class BaseRegistrar(ABC):
 
         return self._store_registry
 
+    @property
     def _ignore(self) -> Dict[str, Any]:
         '''
         Get the `self._store_ignore`. Create if it is None.
@@ -277,7 +287,7 @@ class BaseRegistrar(ABC):
           - register `leaf_key` to list at `reg_bg['.']`.
 
         `reg_args` is the Iterable of args passed into `register()`.
-        `reg_ours` is the place in self._REGISTRY we placed this registration.
+        `reg_ours` is the place in self._registry we placed this registration.
         `reg_bg` is the place in the background we placed this registration.
         '''
         # Set as registered cls/func.
@@ -295,7 +305,7 @@ class BaseRegistrar(ABC):
         Subclasses can use this for any last steps they need to take.
 
         `reg_args` is the Iterable of args passed into `register()`.
-        `reg_ours` is the place in self._REGISTRY we placed this registration.
+        `reg_ours` is the place in self._registry we placed this registration.
         `reg_bg` is the place in the background we placed this registration.
         '''
         ...
@@ -345,7 +355,7 @@ class BaseRegistrar(ABC):
                 **kwargs) from error
 
         # Our register - full info saved here.
-        registry_our = self._registry()
+        registry_our = self._registry
 
         # Background register - just names saved here.
         registry_bg = background.registry.registry(self.dotted())
@@ -371,7 +381,6 @@ class BaseRegistrar(ABC):
         try:
             if leaf_key in registry_our:
                 if background.testing.get_unit_testing():
-                    log.ultra_hyper_debug(self._registry())
                     msg = ("Something was already registered under this "
                            f"registry_our key... keys: {dotted_list}, "
                            f"replacing {str(registry_our[leaf_key])}' with "
@@ -402,7 +411,7 @@ class BaseRegistrar(ABC):
                    "Registry: \n{}")
             from veredi.base.strings import pretty
             log.exception(error, msg,
-                          pretty.indented(self._registry()))
+                          pretty.indented(self._registry))
             # Reraise it. Just want more info.
             raise
 
@@ -430,7 +439,7 @@ class BaseRegistrar(ABC):
         '''
         # TODO: Should we search the whole registry for if this is already
         # registered?
-        self._ignore().add(ignore_klass)
+        self._ignore.add(ignore_klass)
 
     def ignored(self, check: Type) -> bool:
         '''
@@ -456,7 +465,7 @@ class BaseRegistrar(ABC):
         Raises:
           KeyError - dotted string not found in our registry.
         '''
-        registration = self._registry()
+        registration = self._registry
         split_keys = label.regularize(dotted)
 
         # ---

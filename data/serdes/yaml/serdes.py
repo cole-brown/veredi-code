@@ -35,6 +35,9 @@ from veredi.data.codec           import Codec, Encodable
 
 from ..base                      import (BaseSerdes,
                                          DeserializeTypes,
+                                         DeserializeAllTypes,
+                                         _DeserializeMidTypes,
+                                         _DeserializeAllMidTypes,
                                          SerializeTypes)
 
 from .                           import adapters
@@ -99,6 +102,20 @@ class YamlSerdes(BaseSerdes):
     # Deserialize Methods
     # -------------------------------------------------------------------------
 
+    def _decode(self,
+                data:  _DeserializeMidTypes,
+                codec: Codec) -> DeserializeTypes:
+        '''
+        Deserialize one YAMLObject.
+        '''
+        # Have our yaml.YAMLObject sub-classes do anything they want to first.
+        # They should return a dict which can then be decoded.
+        deserialized = data
+        if isinstance(data, (VerediYamlDocument, VerediYamlObject)):
+            deserialized = data.deserialize()
+
+        return super()._decode(deserialized, codec)
+
     def deserialize(self,
                     stream:  Union[TextIO, str],
                     codec:   Codec,
@@ -147,12 +164,12 @@ class YamlSerdes(BaseSerdes):
                                   "Deserialized to '{}'!",
                                   type(data),
                                   context=context)
-        return self._deserialize(data, codec)
+        return self._decode(data, codec)
 
     def deserialize_all(self,
                         stream:  Union[TextIO, str],
                         codec:   Codec,
-                        context: 'VerediContext') -> DeserializeTypes:
+                        context: 'VerediContext') -> DeserializeAllTypes:
         '''
         Read and deserializes data from a single data stream.
 
@@ -198,44 +215,12 @@ class YamlSerdes(BaseSerdes):
                                   type(stream),
                                   context=context,
                                   success=True)
-        return self._deserialize_each(data, codec)
-
-    def _deserialize(self,
-                     yaml_data: Union[Encodable, Dict, List],
-                     codec:     Codec
-                     ) -> DeserializeTypes:
-        '''
-        Deserialize one YAMLObject.
-        '''
-        # Have our yaml.YAMLObject sub-classes do anything they want to first.
-        deserialized = yaml_data
-        if isinstance(yaml_data, (VerediYamlDocument, VerediYamlObject)):
-            deserialized = yaml_data.deserialize()
-
-        # Don't need to do anything more for simpler collections.
-        if isinstance(deserialized, (dict, list)):
-            return deserialized
-
-        # Do need to decode most stuff, though.
-        deserialized = codec.decode(None, deserialized)
-        return deserialized
-
-    def _deserialize_each(self,
-                          yaml_data: Iterable[Union[Encodable, Dict, List]],
-                          codec:     Codec
-                          ) -> List[DeserializeTypes]:
-        '''
-        Deserialize each YAML document in the data.
-        '''
-        data = []
-        for doc in yaml_data:
-            data.append(self._deserialize(doc, codec))
-        return data
+        return self._decode_all(data, codec)
 
     def _read(self,
               stream:  Union[TextIO, str],
               codec:   Codec,
-              context: 'VerediContext') -> Any:
+              context: 'VerediContext') -> _DeserializeMidTypes:
         '''
         Read data from a single data stream.
 
@@ -295,7 +280,7 @@ class YamlSerdes(BaseSerdes):
     def _read_all(self,
                   stream:  Union[TextIO, str],
                   codec:   Codec,
-                  context: 'VerediContext') -> Any:
+                  context: 'VerediContext') -> _DeserializeAllMidTypes:
         '''
         Read data from a single data stream.
 
@@ -350,7 +335,7 @@ class YamlSerdes(BaseSerdes):
                                   success=True)
         return data
 
-    def _finish_read(self, data: Any) -> List[Any]:
+    def _finish_read(self, data: Any) -> List[_DeserializeAllMidTypes]:
         '''
         safe_load_all() returns a generator. We don't want a generator... We
         need to get the data out of the stream before the stream goes bye

@@ -21,20 +21,17 @@ from veredi.data.codec import register, ignore
 # ------------------------------
 # Registrees
 # ------------------------------
-from .const   import MsgType
-from .message import Message, ConnectionMessage
+from .identity import MonotonicId, SerializableId
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-register(MsgType)
-register(Message.SpecialId)
-register(Message)
-register(ConnectionMessage)
+register(MonotonicId)
+register(SerializableId)
 
-# ignore(...)
+# ignore(Here3)
 
 
 # -----------------------------------------------------------------------------

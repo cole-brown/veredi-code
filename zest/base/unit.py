@@ -176,7 +176,7 @@ class ZestBase(unittest.TestCase):
 
         self._register_auto: bool = True
         '''
-        True allows run.registration() be run and all auto-registration to
+        True allows run.registration() to be run and all auto-registration to
         occur.
         '''
 

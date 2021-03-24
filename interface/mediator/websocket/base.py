@@ -201,6 +201,7 @@ class VebSocket:
                  port:           Optional[int]              = None,
                  secure:         Optional[Union[str, bool]] = True,
                  debug_fn:       Optional[Callable]         = None) -> None:
+        self._define_vars()
 
         # ---
         # Required
@@ -383,7 +384,7 @@ class VebSocket:
         '''
         Serializes msg as a structured string using our serdes.
         '''
-        stream = self._serdes.serialize(msg, context)
+        stream = self._serdes.serialize(msg, self._codec, context)
         value = stream.getvalue()
         stream.close()
         return value
@@ -392,16 +393,13 @@ class VebSocket:
         '''
         Deserializes received string using our serdes.
         '''
-        stream = StringIO(recvd)
+        # stream = StringIO(recvd)
         msg = None
         try:
-            msg = self._serdes.deserialize(recvd, context)
+            msg = self._serdes.deserialize(recvd, self._codec, context)
         finally:
-            stream.close()
-        # TODO [2020-12-01]: serialize() has serdes encode message... So
-        # should serdes also decode message?
-        # TODO: Yes. Yes it should.
-        # msg = codec.decode(Message, value)
+            # stream.close()
+            pass
         return msg
 
     # -------------------------------------------------------------------------
@@ -477,9 +475,10 @@ class VebSocket:
             # This trace might not work... Because Async.
             import traceback
             trace = traceback.format_exc()
-            log.exception(error,
-                          "A Future had InvalidStateError as its exception?!"
-                          f"{error}\n{trace}")
+            log.exception(
+                error,
+                "A Future had InvalidStateError as its exception?!"
+                f"{error}\n{trace}")
 
     async def _ppc_consume(self,
                            websocket: websockets.WebSocketCommonProtocol,
@@ -491,15 +490,17 @@ class VebSocket:
 
         Blocking.
         '''
-        self.debug(f"Consuming messages in context: {context}...")
+        self.debug("Consuming messages in context: {}...", context)
         async for raw in websocket:
-            self.debug(f"{self.SHORT_NAME}: <--  : "
-                       f" raw: {raw}")
+            self.debug("{}: <--  : raw: {}",
+                       self.SHORT_NAME,
+                       raw)
             mediator_ctx = self._med_make_context(
                 connection=self.token(websocket))
             recv = self.deserialize(raw, mediator_ctx)
-            self.debug(f"{self.SHORT_NAME}: <--  : "
-                       f"recv: {recv}")
+            self.debug("{}: <--  : recv: {}",
+                       self.SHORT_NAME,
+                       raw)
 
             # Actually process the data we're consuming.
             immediate_reply = await self._data_consume(recv,
@@ -509,11 +510,13 @@ class VebSocket:
 
             # And immediately reply if needed (i.e. ack).
             if immediate_reply:
-                self.debug(f"{self.SHORT_NAME}:  -->: "
-                           f"reply-msg: {immediate_reply}")
+                self.debug("{}:  -->: reply-msg: {}",
+                           self.SHORT_NAME,
+                           immediate_reply)
                 send = self.serialize(immediate_reply, mediator_ctx)
-                self.debug(f"{self.SHORT_NAME}:  -->: "
-                           f"reply-raw: {send}")
+                self.debug("{}:  -->: reply-raw: {}",
+                           self.SHORT_NAME,
+                           send)
                 await websocket.send(send)
 
     async def _ppc_produce(self,
@@ -529,7 +532,7 @@ class VebSocket:
         try:
             # A ConnectionClosed exception of some type will knock us out of
             # this eternal loop.
-            self.debug(f"Producing messages in context {context}...")
+            self.debug("Producing messages in context {}...", context)
             while True:
                 message = await self._data_produce(self.token(websocket))
 
@@ -538,11 +541,15 @@ class VebSocket:
                     self.debug("No result send; done.")
                     return
 
-                self.debug(f"{self.SHORT_NAME}:  -->: send: {message}")
+                self.debug("{}:  -->: send: {}",
+                           self.SHORT_NAME,
+                           message)
                 send = self.serialize(message,
                                       self._med_make_context(
                                           connection=self.token(websocket)))
-                self.debug(f"{self.SHORT_NAME}:  -->: raw: {send}")
+                self.debug("{}:  -->: raw: {}",
+                           self.SHORT_NAME,
+                           send)
                 await websocket.send(send)
 
         except websockets.ConnectionClosedOK:

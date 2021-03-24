@@ -8,7 +8,7 @@ Parse strings into timestamps or durations, and possibly vice versa.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, NewType
 
 import re
 from decimal       import Decimal
@@ -28,6 +28,7 @@ _TIME_DURATION_FLAGS = re.IGNORECASE
 '''
 Don't care about case in time durations.
 '''
+
 
 _TIME_DURATION_REGEX_STR = (
     r'^'
@@ -58,10 +59,31 @@ _TIME_DURATION_REGEX_STR = (
 Regex for parsing human time duration strings.
 '''
 
+
 _TIME_DURATION_REGEX = re.compile(_TIME_DURATION_REGEX_STR,
                                   _TIME_DURATION_FLAGS)
 '''
 Regex for parsing durations.
+'''
+
+
+DateTypes = NewType('DateTypes', Union[py_dt.date, py_dt.datetime])
+'''
+The date/time related types we know about/can deal with.
+'''
+
+
+DateTypesTuple = (py_dt.date, py_dt.datetime)
+'''
+The date/time related types we know about/can deal with.
+'''
+
+
+DurationInputTypes = NewType(
+    'DurationInputTypes',
+    Union[str, py_dt.timedelta, numbers.NumberTypes])
+'''
+The time-duration related types we know about/can deal with.
 '''
 
 
@@ -184,11 +206,31 @@ def serialize_claim(input: Any) -> bool:
     Return True if the input is a time and we can 'serialize' it to a str.
     '''
     # Others? py_dt.timedelta?
-    return isinstance(input, (py_dt.datetime, py_dt.date))
+    return isinstance(input, DateTypesTuple)
 
 
-def serialize(input: Union[py_dt.datetime, py_dt.date]) -> str:
+def serialize(input: DateTypes) -> str:
     '''
     'Serialize' input by making sure it's a string.
     '''
     return input.isoformat()
+
+
+def deserialize_claim(input: Any) -> bool:
+    '''
+    Return True if the input is a date, datetime, etc and we can 'deserialize'
+    it to... probably just itself, but something.
+    '''
+    # Others? py_dt.timedelta?
+    return isinstance(input, DateTypesTuple)
+
+
+def deserialize(input: Any) -> Optional[DateTypes]:
+    '''
+    'Deserialize' a date type to... just itself.
+
+    Returns None if not a DateTypes.
+    '''
+    if deserialize_claim(input):
+        return input
+    return None

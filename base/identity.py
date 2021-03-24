@@ -514,7 +514,7 @@ class SerializableId(Encodable,
         # ---
         # Encodable RX
         # ---
-        if not klass.encoding().has(Encoding.COMPLEX):
+        if not klass.encoding().has(Encoding.SIMPLE):
             return
 
         # Do we need to init _ENCODABLE_RX_STR?
@@ -525,8 +525,8 @@ class SerializableId(Encodable,
                 encode_uuid_rx=klass._ENCODE_RX_UUID_FORM)
 
             # ...and then use it to compile the regex.
-            klass._ENCODABLE_RX =  re.compile(klass._ENCODABLE_RX_STR,
-                                              klass._ENCODABLE_RX_FLAGS)
+            klass._ENCODABLE_RX = re.compile(klass._ENCODABLE_RX_STR,
+                                             klass._ENCODABLE_RX_FLAGS)
 
     @classmethod
     def _init_invalid_(klass: Type['SerializableId']) -> None:
@@ -681,11 +681,12 @@ class SerializableId(Encodable,
         hex_value = int(hex_str, 16)
 
         # And now we should be able to decode.
-        return klass._decode_simple_init(hex_value)
+        return klass._decode_simple_init(hex_value, codec)
 
     @classmethod
     def _decode_simple_init(klass: 'SerializableId',
-                            value: int) -> 'SerializableId':
+                            value: int,
+                            codec: 'Codec') -> 'SerializableId':
         '''
         Subclasses can override this if they have a different constructor.
         '''

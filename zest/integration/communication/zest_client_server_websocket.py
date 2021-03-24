@@ -64,6 +64,9 @@ import veredi.data.serdes.json.serdes
 import veredi.rules.d20.pf2.health.component
 import veredi.data.repository.file.tree
 
+# TODO: DELETE
+from veredi.data.codec.registry import registry
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -90,6 +93,7 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
             "MediatorServer requires a SubToProcComm; received None.")
 
     log_level = ConfigContext.log_level(context)
+
     lumberjack = log.get_logger(comms.name,
                                 min_log_level=log_level)
 
@@ -424,13 +428,13 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         mid = Message.SpecialId.CONNECT
         msg = Message(mid, MsgType.IGNORE,
                       payload=None)
-        client.pipe.send((msg, self.msg_context(mid)))
+        client.send(msg, self.msg_context(mid))
 
         # Wait a bit for all the interprocess communicating to happen.
         self.wait(0.5)
 
         # Received "you're connected now" back?
-        recv, ctx = client.pipe.recv()
+        recv, ctx = client.recv()
 
         # We have a whole test to make sure this goes right, so just
         # sanity checks.
@@ -505,10 +509,10 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         mid = Message.SpecialId.CONNECT
         msg = Message(mid, MsgType.IGNORE,
                       payload=None)
-        client.pipe.send((msg, self.msg_context(mid)))
+        client.send(msg, self.msg_context(mid))
 
         # Received "you're connected now" back?
-        recv, ctx = client.pipe.recv()
+        recv, ctx = client.recv()
 
         # Make sure we got a message back and it has the ping time in it.
         self.assertTrue(recv)
@@ -547,8 +551,10 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         if self.disabled():
             return
 
-        self.assert_test_ran(
-            self.runner_of_test(self.do_test_connect, *self.proc.clients))
+        # self.debugging = True
+        with log.LoggingManager.on_or_off(self.debugging):
+            self.assert_test_ran(
+                self.runner_of_test(self.do_test_connect, *self.proc.clients))
 
     # ------------------------------
     # Test cliets pinging server.
@@ -561,8 +567,8 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         mid = self._msg_id.next()
         msg = Message(mid, MsgType.PING,
                       payload=None)
-        client.pipe.send((msg, self.msg_context(mid)))
-        recv, ctx = client.pipe.recv()
+        client.send(msg, self.msg_context(mid))
+        recv, ctx = client.recv()
         # Make sure we got a message back and it has the ping time in it.
         self.assertTrue(recv)
         self.assertTrue(ctx)
@@ -596,10 +602,10 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.client_connect(client)
 
         mid = self._msg_id.next()
-        send_msg = f"Hello from {client.name}"
-        expected = send_msg
+        expected = f"Hello from {client.name}"
+        send_payload = Message.payload_basic(expected)
         msg = Message(mid, MsgType.ECHO,
-                      payload=send_msg)
+                      payload=send_payload)
         ctx = self.msg_context(mid)
         client.send(msg, ctx)
         self.wait(0.5)
@@ -618,8 +624,8 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertEqual(msg.type, MsgType.ECHO)
         self.assertEqual(recv.type, MsgType.ECHO_ECHO)
         # Got what we sent.
-        self.assertIsInstance(recv.payload, str)
-        self.assertEqual(recv.payload, expected)
+        self.assertIsInstance(recv.payload, type(send_payload))
+        self.assertEqual(recv.payload.data, expected)
 
         # Make sure we don't have anything in the queues...
         self.assert_empty_pipes()
@@ -643,19 +649,20 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # ---
         self.log_debug("client to server...")
 
-        send_txt = f"Hello from {client.name}?"
+        expected = f"Hello from {client.name}?"
+        send_payload = Message.payload_basic(expected)
         client_send = Message(mid, MsgType.TEXT,
-                              payload=send_txt)
+                              payload=send_payload)
         client_send_ctx = self.msg_context(mid)
 
         client_recv_msg = None
         client_recv_ctx = None
         with log.LoggingManager.on_or_off(self.debugging, True):
             # Have client send, then receive from server.
-            client.pipe.send((client_send, client_send_ctx))
+            client.send(client_send, client_send_ctx)
 
             # Server automatically sent an ACK_ID, need to check client.
-            client_recv_msg, client_recv_ctx = client.pipe.recv()
+            client_recv_msg, client_recv_ctx = client.recv()
 
         self.log_debug("client send msg: {}", client_send)
         # Why is this dying when trying to print its payload?!
@@ -688,15 +695,15 @@ class Test_WebSockets(ZestIntegrateMultiproc):
             # Our server should have put the client's packet in its pipe for
             # us... I hope.
             self.log_debug("test_text: game recv from server...")
-            server_recv_msg, server_recv_ctx = self.proc.server.pipe.recv()
+            server_recv_msg, server_recv_ctx = self.proc.server.recv()
 
         self.log_debug("client_sent/server_recv: {}", server_recv_msg)
         # Make sure that the server received the correct thing.
         self.assertEqual(mid, server_recv_msg.msg_id)
         self.assertEqual(client_send.msg_id, server_recv_msg.msg_id)
         self.assertEqual(client_send.type, server_recv_msg.type)
-        self.assertIsInstance(server_recv_msg.payload, str)
-        self.assertEqual(server_recv_msg.payload, send_txt)
+        self.assertIsInstance(server_recv_msg.payload, BarePayload)
+        self.assertEqual(server_recv_msg.payload.data, expected)
         # Check the Context.
         self.assertIsInstance(server_recv_ctx, MessageContext)
         self.assertEqual(server_recv_ctx.id, ack_id)
@@ -719,9 +726,9 @@ class Test_WebSockets(ZestIntegrateMultiproc):
             # Make something for server to send and client to recvive.
             self.log_debug("test_text: server_send...")
             self.log_debug("test_text: pipe to game: {}", server_send)
-            self.proc.server.pipe.send((server_send, server_recv_ctx))
+            self.proc.server.send(server_send, server_recv_ctx)
             self.log_debug("test_text: client_recv...")
-            client_recv_msg, client_recv_ctx = client.pipe.recv()
+            client_recv_msg, client_recv_ctx = client.recv()
 
         self.log_debug("server_sent/client_recv: {}", client_recv_msg)
         self.assertIsNotNone(client_recv_ctx)
@@ -739,7 +746,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # ---
 
         # Client automatically sent an ACK_ID, need to check server for it.
-        server_recv = self.proc.server.pipe.recv()
+        server_recv = self.proc.server.recv()
 
         self.log_debug("server sent msg: {}", server_send)
         self.log_debug("server recv ack: {}", server_recv)
@@ -917,8 +924,21 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # Get the connect out of the way.
         self.client_connect(client)
 
+        # ------------------------------
+        # NOTE: Unit-Tests Failing?
+        # ------------------------------
+        # NOTE: Can't figure out why you're getting no logs in here?
+        # ---------------
+        #   START-NOTE: THIS IS WHY YOUR LOGS ARE MISSING!!!
+
         # Start ignoring logs.
         self.ignore_logging(True, assert_eq_value=0)
+
+        #   END-NOTE: THIS IS WHY YOUR LOGS ARE MISSING!!!
+        # ---------------
+        # NOTE: Scoreboard of Embarassment: ||||-
+        #       Most Recent Embarassment:   [2021-03-24]
+        # ------------------------------
 
         # Have a client adjust its log level to debug. Should spit out a lot of
         # logs then.
@@ -931,24 +951,28 @@ class Test_WebSockets(ZestIntegrateMultiproc):
                                client.user_key,
                                payload)
 
-        send_ctx = self.msg_context(mid)
-        # server -> client
-        self.proc.server.pipe.send((send_msg, send_ctx))
+        # self.debugging = True
+        with log.LoggingManager.on_or_off(self.debugging):
+            send_ctx = self.msg_context(mid)
+            # server -> client
+            self.proc.server.send(send_msg, send_ctx)
+        # self.debugging = False
+
         # Server should have put client's reply into the unit test pipe so we
         # can check it.
-        ut_msg = self.proc.server.ut_pipe.recv()
+        recv_msg, recv_ctx = self.proc.server._ut_recv()
 
         # Make sure we got a LOGGING message reply back.
-        self.assertTrue(ut_msg)
-        self.assertIsInstance(ut_msg, Message)
+        self.assertTrue(recv_msg)
+        self.assertIsInstance(recv_msg, Message)
         # Sent logging... right?
         self.assertEqual(send_msg.type, MsgType.LOGGING)
         # Got logging... right?
-        self.assertEqual(ut_msg.type, MsgType.LOGGING)
+        self.assertEqual(recv_msg.type, MsgType.LOGGING)
 
         # Got logging response?
-        self.assertIsInstance(ut_msg.payload, LogPayload)
-        report = ut_msg.payload.report
+        self.assertIsInstance(recv_msg.payload, LogPayload)
+        report = recv_msg.payload.report
         self.assertIsNotNone(report)
         level = report[LogField.LEVEL]
 
@@ -966,12 +990,13 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # Client should have push into the ut_pipe too.
         # Don't really care, at the moment, but we do care to
         # assert_empty_pipes() for other reasons so get this one out.
-        ut_msg_client = client.ut_pipe.recv()
-        self.assertTrue(ut_msg_client)
-        self.assertIsInstance(ut_msg_client, Message)
-        self.assertEqual(ut_msg_client.type, MsgType.LOGGING)
+        recv_msg_client, recv_ctx_client = client._ut_recv()
+        self.assertTrue(recv_msg_client)
+        self.assertIsInstance(recv_msg_client, Message)
+        self.assertEqual(recv_msg_client.type, MsgType.LOGGING)
 
         self.wait(0.1)
+
         # Stop ignoring logs and make sure we ignored something, at least,
         # right? Well... either have to tell client to go back to previous
         # logging level or we have to keep ignoring. Clean-up / tear-down has
@@ -991,7 +1016,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
 # -----------------------------------------------------------------------------
 
 # Can't just run file from here... Do:
-#   doc-veredi python -m veredi.zest.integration.communication.zest_client_server_websocket
+#   doc-veredi run zest/integration/communication/zest_client_server_websocket
 
 if __name__ == '__main__':
     import unittest

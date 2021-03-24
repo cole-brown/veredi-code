@@ -65,6 +65,7 @@ __all__ = [
 
     'group',
     'set_group_level',
+    'get_group_level',
     'group_multi',
     'security',
     'start_up',
@@ -134,7 +135,7 @@ _GROUP_LEVELS: Dict[const.Group, const.Level] = {
     const.Group.SHUTDOWN:        const.Level.DEBUG,
     const.Group.DATA_PROCESSING: const.Level.DEBUG,
     const.Group.REGISTRATION:    const.Level.DEBUG,
-    const.Group.PARALLEL:        const.Level.INFO,
+    const.Group.PARALLEL:        const.Level.DEBUG,
 }
 
 

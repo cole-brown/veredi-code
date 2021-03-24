@@ -34,9 +34,31 @@ from veredi.data.codec   import Codec, Encodable
 # -----------------------------------------------------------------------------
 
 
+_DeserializeMidTypes = NewType('_DeserializeMidTypes',
+                               Union[List[Any], Dict[str, Any], None])
+'''
+Serdes.deserialize deserializes to these types before decoding.
+'''
+
+
+_DeserializeAllMidTypes = NewType(
+    '_DeserializeAllMidTypes',
+    Union[_DeserializeMidTypes, Iterable[_DeserializeMidTypes]])
+'''
+Sereds.deserialize_all deserializes to this before decoding all.
+'''
+
 DeserializeTypes = NewType('DeserializeTypes',
-                           Union[List[Any], Dict[str, Any], None])
-'''Serdes can deserialize to these types.'''
+                           Union[List[Any], Dict[str, Any], None, Encodable])
+'''
+Serdes.deserialize returns these types after deserializing & decoding.
+'''
+
+DeserializeAllTypes = NewType('DeserializeAllTypes',
+                              Union[DeserializeTypes, List[DeserializeTypes]])
+'''
+Serdes.deserialize_all returns these types after deserializing & decoding.
+'''
 
 
 SerializeTypes = NewType('SerializeTypes',
@@ -44,7 +66,9 @@ SerializeTypes = NewType('SerializeTypes',
                                Iterable[Any],
                                Mapping[str, Any],
                                None])
-'''Serdes can serialize these types.'''
+'''
+Serdes can serialize these types.
+'''
 
 
 # -----------------------------------------------------------------------------
@@ -209,6 +233,43 @@ class BaseSerdes(LogMixin, ABC):
     # Abstract: Deserialize Methods
     # -------------------------------------------------------------------------
 
+    def _decode(self,
+                data:  _DeserializeMidTypes,
+                codec: Codec
+                ) -> DeserializeTypes:
+        '''
+        Decode `data` after it has been deserialized.
+
+        Final step before returning to caller.
+        '''
+        # # Don't need to do anything more for simpler collections.
+        # if isinstance(data, (dict, list)):
+        #     return decoded
+
+        # Try to decode...
+        # If it can't be decoded, use data as decoded. Could be just the
+        # metadata document or something which is (currently) just a dict.
+        decoded = codec.decode(None, data,
+                               error_squelch=True,
+                               fallback=data)
+        return decoded
+
+    def _decode_all(self,
+                    data:  _DeserializeAllMidTypes,
+                    codec: Codec) -> DeserializeAllTypes:
+        '''
+        Deserialize each item in the data.
+
+        If the data is not a list or dict, we will put it in a list before
+        decoding it, so the return will be a list of one decoded item.
+        '''
+        if not isinstance(data, (list, dict)):
+            data = [data]
+        decoded = []
+        for item in data:
+            decoded.append(self._decode(item, codec))
+        return decoded
+
     @abstractmethod
     def deserialize(self,
                     stream:  Union[TextIO, str],
@@ -229,7 +290,7 @@ class BaseSerdes(LogMixin, ABC):
     def deserialize_all(self,
                         stream:  Union[TextIO, str],
                         codec:   Codec,
-                        context: 'VerediContext') -> DeserializeTypes:
+                        context: 'VerediContext') -> DeserializeAllTypes:
         '''
         Read and deserializes all documents from the data stream.
 
@@ -245,7 +306,7 @@ class BaseSerdes(LogMixin, ABC):
     def _read(self,
               stream:  Union[TextIO, str],
               codec:   Codec,
-              context: 'VerediContext') -> Any:
+              context: 'VerediContext') -> _DeserializeMidTypes:
         '''
         Read data from a single data stream.
 
@@ -264,7 +325,7 @@ class BaseSerdes(LogMixin, ABC):
     def _read_all(self,
                   stream:  Union[TextIO, str],
                   codec:   Codec,
-                  context: 'VerediContext') -> Any:
+                  context: 'VerediContext') -> _DeserializeAllMidTypes:
         '''
         Read data from a single data stream.
 
