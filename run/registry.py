@@ -10,7 +10,7 @@ Set up the registries.
 
 from typing import (TYPE_CHECKING,
                     Optional, Union, Any, NewType, Callable,
-                    Tuple, Set, List, Dict)
+                    Tuple, Set, List, Dict, Iterator)
 from veredi.base.null import Nullable, Null, null_or_none
 from types import ModuleType
 if TYPE_CHECKING:
@@ -832,14 +832,14 @@ def _find_modules(root:          paths.Path,
     # ------------------------------
     # Find the modules.
     # ------------------------------
-    return _find_oswalk(log_dotted,
-                        base_name,
-                        base_path,
-                        import_registrars,
-                        import_registrees,
-                        ignores,
-                        ignore_dirs,
-                        find_ut)
+    return _find_scandir2(log_dotted,
+                          base_name,
+                          base_path,
+                          import_registrars,
+                          import_registrees,
+                          ignores,
+                          ignore_dirs,
+                          find_ut)
 
 
 def _find_iterdir(log_dotted:        Optional[label.DotStr],
@@ -1037,64 +1037,32 @@ def submodule(module_relative: paths.Path) -> label.DotStr:
 #             module_relative.stem,
 #             module_relative.suffix)
 
-def _ignore_dir(log_dotted:        str,
-                path_root:         paths.Path,
-                path_relative:     paths.Path,
-                ignores:           Set[Union[str, re.Pattern]]) -> bool:
+def _ignore_dir(log_dotted: str,
+                path:       paths.PathType,
+                ignores:    Set[re.Pattern]) -> bool:
     '''
     Checks if the directory `path_relative` (relative to `path_root`), should
     be ignored or not according to the ignore set and import lists.
+
+    Don't call this for the root - you should not ignore that.
     '''
-    ignore = False
-    path = path_root / path_relative
+    path = str(path)
+    for regex in ignores:
+        if regex.search(path):
+            # Found a match for ignoring, so... ignore.
+            if log.will_output(*_LOG_INIT):
+                log.group_multi(_LOG_INIT,
+                                log_dotted,
+                                "Ignoring Directory:\n"
+                                "   path: {}\n"
+                                "  match: {}",
+                                path,
+                                regex.pattern,
+                                log_minimum=log.Level.DEBUG)
+            return True
 
-    # ------------------------------
-    # Never ignore the root.
-    # ------------------------------
-    if path == path_root:
-        return ignore
-
-    # ------------------------------
-    # Check list of explicit ignores.
-    # ------------------------------
-    name = path.stem
-    matched_on = None
-    matching = None
-    for check in ignores:
-        if isinstance(check, str):
-            # Ignore only if full match.
-            if check == name:
-                ignore = True
-                matched_on = "string"
-                matching = check
-
-        elif isinstance(check, re.Pattern):
-            # Ignore if regex /does/ matches.
-            if check.match(name):
-                ignore = True
-                matched_on = "regex"
-                matching = check.pattern
-
-        # Quit as soon as we know we can ignore or not.
-        if ignore:
-            break
-
-    # ------------------------------
-    # That's it for directories.
-    # ------------------------------
-    if ignore:
-        # print(f'Ignoring cuz "{matched_on:>8s}": {path}')
-        log.group_multi(_LOG_INIT,
-                        log_dotted,
-                        "Ignoring:\n"
-                        "          path: {}\n"
-                        "        module: {}\n"
-                        "   ignore type: {}\n"
-                        "  ignore match: {}",
-                        path_relative, name,
-                        matched_on, matching,
-                        log_minimum=log.Level.DEBUG)
-    return ignore
+    # No matches for ignoring.
+    return False
 
 
 def _ignore(log_dotted:        str,
@@ -1275,6 +1243,145 @@ def _sort(log_dotted:        str,
                         path_relative, submodule,
                         module_name, path_relative.suffix,
                         log_minimum=log.Level.INFO)
+
+
+def _scan(log_dotted: str,
+          directory:  os.DirEntry,
+          ignores:    Set[re.Pattern]) -> Optional[Iterator]:
+    '''
+    Check path and return either None or an `os.scandir()` iterator.
+    '''
+    if _ignore_dir(log_dotted, directory.name, ignores):
+        return None
+    return os.scandir(directory.path)
+
+
+def _find_scandir2(log_dotted:        Optional[label.DotStr],
+                   root_name:         str,
+                   root_path:         paths.Path,
+                   import_registrars: List[str],
+                   import_registrees: List[str],
+                   ignore_files:      Set[Union[str, re.Pattern]],
+                   ignore_dirs:       Set[re.Pattern],
+                   find_ut:           bool
+                   ) -> Tuple[List[str], List[str]]:
+    '''
+    Find the import modules using os's `scandir()`.
+    '''
+    # Original idea from https://stackoverflow.com/a/5135444/425816
+    # But using os.walk, which uses os.scandir, which is much much more
+    # performant than my original pathlib.iterdir attempt.
+    export_registrars = []
+    export_registrees = []
+    # Files that somehow got past ignore checks but are also not matching
+    # registrar/registree names. /Should/ never happen...
+    unknowns = []
+
+    # Get module info from root path.
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Finding modules...\n"
+                    "  unit-testing?: {}\n"
+                    "         module: {}\n"
+                    "           path: {}\n"
+                    "  find: \n"
+                    "     registrars: {}\n"
+                    "     registrees: {}",
+                    find_ut, root_name, root_path,
+                    import_registrars, import_registrees)
+
+    # Start off with the root dir. Append more dir scans as we find valid ones.
+    scans = [root_path, ]
+    scanned_paths = 0
+    # Get all modules in module that do not match ignores...
+    # Don't care about directory names that os.walk returns.
+    for directory in scans:
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                scanned_paths +=1
+
+                # ------------------------------
+                # Directories
+                # ------------------------------
+                if (entry.is_dir()
+                        and not _ignore_dir(log_dotted,
+                                            entry.path,
+                                            ignore_dirs)):
+                    # Add to our list of dirs to scan.
+                    scans.append(entry.path)
+                    continue
+
+                # ------------------------------
+                # Files
+                # ------------------------------
+
+                # ---
+                # Set-up for checking files.
+                # ---
+                path_relative = paths.cast(entry.path).relative_to(root_path)
+
+                # ---
+                # Check each module file.
+                # ---
+                if _ignore(log_dotted,
+                           root_path,
+                           path_relative,
+                           ignore_files,
+                           import_registrars,
+                           import_registrees):
+                    continue
+
+                # Alright; sort this guy into an import list.
+                _sort(log_dotted,
+                      root_path,
+                      path_relative,
+                      import_registrars,
+                      import_registrees,
+                      export_registrars,
+                      export_registrees,
+                      unknowns)
+
+    # ---
+    # Done; log info and return.
+    # ---
+    if log.will_output(log.Group.START_UP):
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Done scanning for modules.\n"
+                        "  scanned: {}\n"
+                        "  matches: {}\n",
+                        scanned_paths,
+                        len(export_registrars) + len(export_registrees))
+
+    if export_registrars and log.will_output(log.Group.START_UP):
+        module_log = []
+        for module in export_registrars:
+            module_log.append("    - " + module)
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Done finding registrar modules.\n"
+                        "   module: {}\n"
+                        "  matches: {}\n"
+                        "{}",
+                        root_name,
+                        len(export_registrars),
+                        '\n'.join(module_log))
+
+    if export_registrees and log.will_output(log.Group.START_UP):
+        module_log = []
+        for module in export_registrees:
+            module_log.append("    - " + module)
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Done finding registree modules.\n"
+                        "   module: {}\n"
+                        "  matches: {}\n"
+                        "{}",
+                        root_name,
+                        len(export_registrees),
+                        '\n'.join(module_log))
+
+    return (export_registrars, export_registrees, unknowns)
 
 
 def _find_oswalk(log_dotted:        Optional[label.DotStr],

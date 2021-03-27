@@ -312,7 +312,6 @@ def will_output(*args:         Union[const.LogLvlConversion, const.Group],
         # ---
         # Compare to the logger's output level int.
         # ---
-
         if check >= the_logger.level:
             return True
 
