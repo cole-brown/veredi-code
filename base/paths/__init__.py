@@ -22,7 +22,7 @@ from .const  import PathType, PathTypeTuple, PathsInput
 # Functions
 # ------------------------------
 
-from .utils  import (cast, exists,
+from .utils  import (cast, walk_filtered, exists,
                      is_file, is_dir,
                      to_str_list, to_str,
                      serialize_claim, serialize)
@@ -58,6 +58,7 @@ __all__ = [
     # Functions
     # ------------------------------
     'cast',
+    'walk_filtered',
     'exists',
     'is_file',
     'is_dir',

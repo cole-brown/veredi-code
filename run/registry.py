@@ -105,18 +105,34 @@ these files will also be searched for and imported.
 '''
 
 
-_FIND_MODULE_IGNORES: Set = set({
+_FIND_MODULE_IGNORES_DIRS: Set[re.Pattern] = set({
+    # ---
+    # Default Ignored Dirs
+    # ---
+    re.compile(r'.git'
+               r'|__pycache__'
+               r'|__LICENSES?__'
+               r'|__templates__'
+               r'|zest'
+               r'|run'),
+})
+'''
+A set of either exact strings to match to filenames (without parent path or
+extension), or compiled regex patterns to match to path names.
+
+NOTE: Regexs must return a match for strings they /do/ want to ignore.
+'''
+
+
+_FIND_MODULE_IGNORES: Set[Union[str, re.Pattern]] = set({
     # ---
     # General Ignores
     # ---
-    '.git',
-    '__pycache__',
     re.compile(r'^__LICENSE.*'),  # __LICENSE__, __LICENSES__
-    '__templates__',
 
-    #  ---
+    # ---
     # registry/registrar filename-based Ignores
-    #  ---
+    # ---
     # Ignore anything starting with two underscores...
     # Unless it's the file we want maybe.
     re.compile(r'^__(?!('
@@ -128,11 +144,6 @@ _FIND_MODULE_IGNORES: Set = set({
     # ---
     # Veredi Ignores
     # ---
-    # Don't care about testing directory.
-    'zest',
-    # Run module should be for getting things running; things that need to
-    # register should be elsewhere?
-    'run',
 })
 '''
 A set of either exact strings to match to filenames (without parent path or
@@ -510,7 +521,7 @@ def _register_entry(configuration: Configuration,
                                  registrars, registrars_ut,
                                  registrees, registrees_ut,
                                  log_dotted, ignores, find_ut)
-    registrar_names, registree_names = module_names
+    registrar_names, registree_names, unknown_names = module_names
 
     # TODO v://future/2021-03-14T12:27:54
     # add registrar_names & registree_names to log.
@@ -524,6 +535,15 @@ def _register_entry(configuration: Configuration,
                     f"{len(registree_names)} registree "
                     f"{text.plural(registree_names, 'module')} "
                     f"found for {name} ({dotted}).")
+    if unknown_names:
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        f"{len(unknown_names)} unknown "
+                        f"{text.plural(unknown_names, 'module')} "
+                        f"found for {name} ({dotted})! "
+                        "Modules did not get ignored but also do not "
+                        "match any filenames for registrars/registrees?",
+                        log_minimum=log.Level.WARNING)
 
     # ---
     # Load all registry modules.
@@ -654,7 +674,7 @@ def _find_modules(root:          paths.Path,
                   log_dotted:    Optional[label.DotStr]                = None,
                   ignores:       Optional[Set[Union[str, re.Pattern]]] = None,
                   find_ut:       Optional[bool]                        = None,
-                  ) -> Tuple[List[str], List[str]]:
+                  ) -> Tuple[List[str], List[str], List[str]]:
     '''
     Finds all modules in `root` and subdirectories that match our
     requirements for being a place to put "Register me plz!!!" code for
@@ -681,10 +701,12 @@ def _find_modules(root:          paths.Path,
     `log_dotted` is only used for logging and will be
     `{_DOTTED}._find_modules' if not provided.
 
-    Returns a 2-tuple of lists of strings of module names:
+    Returns a 3-tuple of lists of strings of module names:
       - Tuple is:
         - Tuple[0]: Registrars found.
         - Tuple[1]: Registrees found.
+        - Tuple[2]: Unknowns found.
+          - Didn't get ignored but also not registrar/registree files.
       - Each tuple item is a list of strings, e.g.:
         [
           'veredi.__register__',
@@ -726,10 +748,12 @@ def _find_modules(root:          paths.Path,
         import_registrees.extend(registrees_ut)
     # Else, implicitly don't want unit-testing - we're a normal run.
 
+    ignore_dirs = _FIND_MODULE_IGNORES_DIRS
+    # ignore_dirs = ignore_dirs or _FIND_MODULE_IGNORES_DIRS
     ignores = ignores or _FIND_MODULE_IGNORES
 
-    package_path = root
-    package_name = package_path.name
+    base_path = root
+    base_name = base_path.name
 
     # ------------------------------
     # Validate the root.
@@ -740,23 +764,23 @@ def _find_modules(root:          paths.Path,
             log.group_multi(_LOG_INIT,
                             log_dotted,
                             "Find module root is valid.\n"
-                            "  package: {}\n"
-                            "     path: {}\n"
+                            "  base: {}\n"
+                            "  path: {}\n"
                             "  find: \n"
                             "    registrars: {}\n"
                             "    registrees: {}",
-                            package_name, package_path,
+                            base_name, base_path,
                             import_registrars, import_registrees)
         else:
             log.group_multi(_LOG_INIT,
                             log_dotted,
                             "Find module root is not a directory!\n"
-                            "  package: {}\n"
-                            "     path: {}\n"
+                            "  base: {}\n"
+                            "  path: {}\n"
                             "  find: \n"
                             "    registrars: {}\n"
                             "    registrees: {}",
-                            package_name, package_path,
+                            base_name, base_path,
                             import_registrars, import_registrees,
                             log_minimum=log.Level.ERROR)
             msg = "Find module root is not a directory!"
@@ -766,11 +790,12 @@ def _find_modules(root:          paths.Path,
                 'registrars-unit-test': registrars_ut,
                 'registrees': registrees,
                 'registrees-unit-test': registrees_ut,
+                'ignore_dirs': ignore_dirs,
                 'ignores': ignores,
                 'import_registrars': import_registrars,
                 'import_registrees': import_registrees,
-                'package_path': package_path,
-                'package_name': package_name,
+                'base_path': base_path,
+                'base_name': base_name,
             }
             error = NotADirectoryError(msg, data)
             raise log.exception(error, msg)
@@ -779,12 +804,12 @@ def _find_modules(root:          paths.Path,
         log.group_multi(_LOG_INIT,
                         log_dotted,
                         "Find module root does not exist!\n"
-                        "  package: {}\n"
-                        "     path: {}\n"
+                        "  base: {}\n"
+                        "  path: {}\n"
                         "  find: \n"
                         "    registrars: {}\n"
                         "    registrees: {}",
-                        package_name, package_path,
+                        base_name, base_path,
                         import_registrars, import_registrees,
                         log_minimum=log.Level.ERROR)
         msg = "Find module root does not exist!"
@@ -794,11 +819,12 @@ def _find_modules(root:          paths.Path,
             'registrars-unit-test': registrars_ut,
             'registrees': registrees,
             'registrees-unit-test': registrees_ut,
+            'ignore_dirs': ignore_dirs,
             'ignores': ignores,
             'import_registrars': import_registrars,
             'import_registrees': import_registrees,
-            'package_path': package_path,
-            'package_name': package_name,
+            'base_path': base_path,
+            'base_name': base_name,
         }
         error = NotADirectoryError(msg, data)
         raise log.exception(error, msg)
@@ -806,35 +832,55 @@ def _find_modules(root:          paths.Path,
     # ------------------------------
     # Find the modules.
     # ------------------------------
+    return _find_oswalk(log_dotted,
+                        base_name,
+                        base_path,
+                        import_registrars,
+                        import_registrees,
+                        ignores,
+                        ignore_dirs,
+                        find_ut)
 
+
+def _find_iterdir(log_dotted:        Optional[label.DotStr],
+                  base_name:         str,
+                  base_path:         str,
+                  import_registrars: List[str],
+                  import_registrees: List[str],
+                  ignores:           Set[Union[str, re.Pattern]],
+                  find_ut:           bool
+                  ) -> Tuple[List[str], List[str]]:
+    '''
+    Find the import modules using pathlib's `iterdir()`.
+    '''
     # Idea from https://stackoverflow.com/a/5135444/425816
     export_registrars = []
     export_registrees = []
 
-    # Get package info from root path.
+    # Get module info from root path.
     log.group_multi(_LOG_INIT,
                     log_dotted,
                     "Finding modules...\n"
                     "  unit-testing?: {}\n"
-                    "        package: {}\n"
+                    "           base: {}\n"
                     "           path: {}\n"
                     "  find: \n"
                     "     registrars: {}\n"
                     "     registrees: {}",
-                    find_ut, package_name, package_path,
+                    find_ut, base_name, base_path,
                     import_registrars, import_registrees)
 
     # Make a list so we can keep extending it with sub-directories as we walk
     # the file tree.
-    paths_to_process = list(package_path.iterdir())
-    # Get all modules in package that do not match ignores...
+    paths_to_process = list(base_path.iterdir())
+    # Get all modules in the base module that do not match ignores...
     for path in paths_to_process:
-        module_relative = path.relative_to(package_path)
+        module_relative = path.relative_to(base_path)
         module_name = module_relative.stem
         module_ext = module_relative.suffix
-        # The sub-package's name to export should be relative to our start
-        # path (`package_path`) and without its file extension.
-        subpackage = label.from_path(module_relative.with_suffix(''))
+        # The sub-module's name to export should be relative to our start
+        # path (`base_path`) and without its file extension.
+        submodule = label.from_path(module_relative.with_suffix(''))
 
         # Should we ignore this?
         ignore = False
@@ -861,6 +907,7 @@ def _find_modules(root:          paths.Path,
 
         # This path should be ignored, so continue on.
         if ignore:
+            # print(f'Ignoring cuz "{matched_on:>8s}": {path}')
             log.group_multi(_LOG_INIT,
                             log_dotted,
                             "Ignoring:\n"
@@ -880,7 +927,7 @@ def _find_modules(root:          paths.Path,
                             "Adding sub-module to process: {}\n"
                             "    path: {}\n"
                             "  module: {}",
-                            subpackage, module_relative, module_name,
+                            submodule, module_relative, module_name,
                             log_minimum=log.Level.DEBUG)
             # Add them to our list of paths still to do.
             paths_to_process.extend(list(path.iterdir()))
@@ -888,29 +935,32 @@ def _find_modules(root:          paths.Path,
         # Only import exactly our module name.
         elif (module_name not in import_registrars
               and module_name not in import_registrees):
+            # print(f'Ignoring cuz "filename": {path}')
             log.group_multi(_LOG_INIT,
                             log_dotted,
                             "Ignoring sub-module to process: {}\n"
                             "    path: {}\n"
                             "  module: {}\n"
                             "  reason: no filename match",
-                            subpackage, module_relative, module_name,
+                            submodule, module_relative, module_name,
                             log_minimum=log.Level.DEBUG)
             continue
 
         # Import the match only if it's the correct file type.
         elif not path.is_file():
+            # print(f'Ignoring cuz "not file": {path}')
             log.group_multi(_LOG_INIT,
                             log_dotted,
                             "Ignoring (matching): {}\n"
                             "    path: {}\n"
                             "  module: {}\n"
                             "  reason: Not a file.",
-                            subpackage, module_relative, module_name,
+                            submodule, module_relative, module_name,
                             log_minimum=log.Level.DEBUG)
             continue
 
         elif module_ext not in ('.py', '.pyw'):
+            # print(f'Ignoring cuz " not .py": {path}')
             log.group_multi(_LOG_INIT,
                             log_dotted,
                             "Ignoring (matching): {}\n"
@@ -918,49 +968,608 @@ def _find_modules(root:          paths.Path,
                             "  module: {}\n"
                             "  reason: Not a python module file extension "
                             "(.py, .pyw).",
-                            subpackage, module_relative, module_name,
+                            submodule, module_relative, module_name,
                             log_minimum=log.Level.DEBUG)
             continue
 
         # Alright; ran out of reasons not to import this guy.
         else:
             if module_name in import_registrars:
-                export_registrars.append(subpackage)
+                # print(f'>> registrar": {path}')
+                export_registrars.append(submodule)
             else:
-                export_registrees.append(subpackage)
+                # print(f'-- registree": {path}')
+                export_registrees.append(submodule)
             log.group_multi(_LOG_INIT,
                             log_dotted,
                             "Found matching module: {}\n"
                             "    path: {}\n"
                             "  module: {}"
                             + ("\n     ext: {}" if module_ext else ""),
-                            subpackage, module_relative,
+                            submodule, module_relative,
                             module_name, module_ext,
                             log_minimum=log.Level.INFO)
 
     if export_registrars and log.will_output(log.Group.START_UP):
-        package_log = []
-        for package in export_registrars:
-            package_log.append("    - " + package)
+        module_log = []
+        for module in export_registrars:
+            module_log.append("    - " + module)
         log.group_multi(_LOG_INIT,
                         log_dotted,
                         "Done finding registrar modules.\n"
-                        "  package: {}\n"
+                        "   module: {}\n"
                         "  matches: {}\n"
                         "{}",
-                        package_name, len(export_registrars),
-                        '\n'.join(package_log))
+                        module_name, len(export_registrars),
+                        '\n'.join(module_log))
 
     if export_registrees and log.will_output(log.Group.START_UP):
-        package_log = []
-        for package in export_registrees:
-            package_log.append("    - " + package)
+        module_log = []
+        for module in export_registrees:
+            module_log.append("    - " + module)
         log.group_multi(_LOG_INIT,
                         log_dotted,
                         "Done finding registree modules.\n"
-                        "  package: {}\n"
+                        "   module: {}\n"
                         "  matches: {}\n"
                         "{}",
-                        package_name, len(export_registrees),
-                        '\n'.join(package_log))
+                        module_name, len(export_registrees),
+                        '\n'.join(module_log))
+    return (export_registrars, export_registrees)
+
+
+def submodule(module_relative: paths.Path) -> label.DotStr:
+    '''
+    The sub-module's name to export should be relative to our start
+    path (`module_path`) and without its file extension.
+    '''
+    return label.from_path(module_relative.with_suffix(''))
+
+
+# def submodule_(root:     paths.PathType,
+#                      relative: paths.PathType) -> Tuple[paths.Path, str, str]:
+#     '''
+#     Returns a 3-tuple of module info:
+#       - module filename
+#       - module filename suffix
+#     '''
+#     return (module_relative,
+#             module_relative.stem,
+#             module_relative.suffix)
+
+def _ignore_dir(log_dotted:        str,
+                path_root:         paths.Path,
+                path_relative:     paths.Path,
+                ignores:           Set[Union[str, re.Pattern]]) -> bool:
+    '''
+    Checks if the directory `path_relative` (relative to `path_root`), should
+    be ignored or not according to the ignore set and import lists.
+    '''
+    ignore = False
+    path = path_root / path_relative
+
+    # ------------------------------
+    # Never ignore the root.
+    # ------------------------------
+    if path == path_root:
+        return ignore
+
+    # ------------------------------
+    # Check list of explicit ignores.
+    # ------------------------------
+    name = path.stem
+    matched_on = None
+    matching = None
+    for check in ignores:
+        if isinstance(check, str):
+            # Ignore only if full match.
+            if check == name:
+                ignore = True
+                matched_on = "string"
+                matching = check
+
+        elif isinstance(check, re.Pattern):
+            # Ignore if regex /does/ matches.
+            if check.match(name):
+                ignore = True
+                matched_on = "regex"
+                matching = check.pattern
+
+        # Quit as soon as we know we can ignore or not.
+        if ignore:
+            break
+
+    # ------------------------------
+    # That's it for directories.
+    # ------------------------------
+    if ignore:
+        # print(f'Ignoring cuz "{matched_on:>8s}": {path}')
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Ignoring:\n"
+                        "          path: {}\n"
+                        "        module: {}\n"
+                        "   ignore type: {}\n"
+                        "  ignore match: {}",
+                        path_relative, name,
+                        matched_on, matching,
+                        log_minimum=log.Level.DEBUG)
+    return ignore
+
+
+def _ignore(log_dotted:        str,
+            path_root:         paths.Path,
+            path_relative:     paths.Path,
+            ignores:           Set[Union[str, re.Pattern]],
+            import_registrars: List[str],
+            import_registrees: List[str]) -> bool:
+    '''
+    Checks if the file `path_relative` (relative to `path_root`), should be
+    ignored or not according to the ignore set and import lists.
+    '''
+    ignore = False
+    path = path_root / path_relative
+    module_name = path.stem
+    module_ext = path.suffix
+
+    # ------------------------------
+    # Check list of explicit ignores.
+    # ------------------------------
+    matched_on = None
+    matching = None
+    for check in ignores:
+        if isinstance(check, str):
+            # Ignore only if full match.
+            if check == module_name:
+                ignore = True
+                matched_on = "string"
+                matching = check
+
+        elif isinstance(check, re.Pattern):
+            # Ignore if regex /does/ matches.
+            if check.match(module_name):
+                ignore = True
+                matched_on = "regex"
+                matching = check.pattern
+
+        # If we've found a reason to ignore this, quit early.
+        if ignore:
+            break
+
+    # ------------------------------
+    # Early out?
+    # ------------------------------
+    # This path should be ignored, so continue on.
+    if ignore:
+        # print(f'Ignoring cuz "{matched_on:>8s}": {path}')
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Ignoring:\n"
+                        "          path: {}\n"
+                        "        module: {}\n"
+                        "   ignore type: {}\n"
+                        "  ignore match: {}",
+                        path_relative, module_name,
+                        matched_on, matching,
+                        log_minimum=log.Level.DEBUG)
+        return ignore
+
+    # ------------------------------
+    # Check for implicit ignoring conditions
+    # ------------------------------.
+    if (module_name not in import_registrars
+            and module_name not in import_registrees):
+        ignore = True
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Ignoring sub-module to process: {}\n"
+                        "    path: {}\n"
+                        "  module: {}\n"
+                        "  reason: no filename match",
+                        submodule(path_relative),
+                        path_relative, module_name,
+                        log_minimum=log.Level.DEBUG)
+
+    # Import the match only if it's the correct file type.
+    elif not path.is_file():
+        ignore = True
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Ignoring (matching): {}\n"
+                        "    path: {}\n"
+                        "  module: {}\n"
+                        "  reason: Not a file.",
+                        submodule(path_relative),
+                        path_relative, module_name,
+                        log_minimum=log.Level.DEBUG)
+
+    elif module_ext not in ('.py', '.pyw'):
+        ignore = True
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Ignoring (matching): {}\n"
+                        "    path: {}\n"
+                        "  module: {}\n"
+                        "  reason: Not a python module file extension "
+                        "(.py, .pyw).",
+                        submodule(path_relative),
+                        path_relative, module_name,
+                        log_minimum=log.Level.DEBUG)
+
+    # `ignore` should still be False, so this is not needed, but is implied.
+    # else:
+    #   # ------------------------------
+    #   # Failed all ignore conditions - do not ignore.
+    #   # ------------------------------
+    #   ignore = False
+
+    return ignore
+
+
+def _sort(log_dotted:        str,
+          path_root:         paths.Path,
+          path_relative:     paths.Path,
+          import_registrars: List[str],
+          import_registrees: List[str],
+          export_registrars: List[str],
+          export_registrees: List[str],
+          unknowns:          List[str]) -> None:
+    '''
+    Figures out which of the export/unknown output lists that `path_relative`
+    belongs to.
+
+    Given `path_root`, `path_relative`, and the input lists
+    (`import_registrars` & `import_registrees`), figure out which output list
+    to place it in:
+      - `export_registrars`
+      - `export_registrees`
+      - `unknowns`
+
+    Appends `submodule()` to the correct list; returns None.
+    '''
+    # filename
+    module_name = path_relative.stem
+    # path -> DotStr
+    submod = submodule(path_relative)
+
+    match = True
+    if module_name in import_registrars:
+        # print(f'>> registrar: {path}')
+        export_registrars.append(submod)
+
+    elif module_name in import_registrees:
+        # print(f'-- registree: {path}')
+        export_registrees.append(submod)
+
+    else:
+        match = False
+        # print(f'xx   unknown: {path}')
+        unknowns.append(submod)
+
+        if log.will_output(*_LOG_INIT):
+            module_ext = path_relative.suffix
+            log.group_multi(
+                _LOG_INIT,
+                log_dotted,
+                "Found unknown module: {}\n"
+                "    path: {}\n"
+                "  module: {}\n"
+                "     ext: {}\n"
+                "  - Does not match registrar or registree names "
+                "but also wasn't ignored?!\n"
+                "    + registrars: {}\n"
+                "    + registrees: {}",
+                path_relative, submod,
+                module_name, module_ext,
+                import_registrars, import_registrees,
+                log_minimum=log.Level.INFO)
+
+    if match and log.will_output(*_LOG_INIT):
+        module_ext = path_relative.suffix
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Found matching module: {}\n"
+                        "    path: {}\n"
+                        "  module: {}"
+                        + ("\n     ext: {}" if module_ext else ""),
+                        path_relative, submodule,
+                        module_name, path_relative.suffix,
+                        log_minimum=log.Level.INFO)
+
+
+def _find_oswalk(log_dotted:        Optional[label.DotStr],
+                 root_name:         str,
+                 root_path:         paths.Path,
+                 import_registrars: List[str],
+                 import_registrees: List[str],
+                 ignore_files:      Set[Union[str, re.Pattern]],
+                 ignore_dirs:       Set[re.Pattern],
+                 find_ut:           bool
+                 ) -> Tuple[List[str], List[str]]:
+    '''
+    Find the import modules using os's `scandir()`.
+    '''
+    # Original idea from https://stackoverflow.com/a/5135444/425816
+    # But using os.walk, which uses os.scandir, which is much much more
+    # performant than my original pathlib.iterdir attempt.
+    export_registrars = []
+    export_registrees = []
+    # Files that somehow got past ignore checks but are also not matching
+    # registrar/registree names. /Should/ never happen...
+    unknowns = []
+
+    # Get module info from root path.
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Finding modules...\n"
+                    "  unit-testing?: {}\n"
+                    "         module: {}\n"
+                    "           path: {}\n"
+                    "  find: \n"
+                    "     registrars: {}\n"
+                    "     registrees: {}",
+                    find_ut, root_name, root_path,
+                    import_registrars, import_registrees)
+
+    # Get all modules in module that do not match ignores...
+    # Don't care about directory names that os.walk returns.
+    for path_rel_dir_str, _, files in paths.walk_filtered(root_path,
+                                                          ignore_dirs):
+        # ---
+        # No files? Not a dir we care about?
+        # ---
+        if not files:
+            continue
+
+        # ---
+        # Set-up for checking files.
+        # ---
+        path_rel_dir = paths.cast(path_rel_dir_str)
+        # if _ignore_dir(log_dotted,
+        #                root_path,
+        #                path_rel_dir,
+        #                ignore_dirs):
+        #     continue
+
+        # module_relative = path_relative.relative_to(root_path)
+        # module_name = module_relative.stem
+        # module_ext = module_relative.suffix
+        # # The sub-module's name to export should be relative to our start
+        # # path (`root_path`) and without its file extension.
+        # submodule = label.from_path(module_relative.with_suffix(''))
+
+        # ---
+        # Check each module file.
+        # ---
+        # `files` is a list of strings of just the filename.
+        for filename in files:
+            path_rel_file = path_rel_dir / filename
+            # Should we ignore this? If so, just go on to the next
+            # filename now.
+            if _ignore(log_dotted,
+                       root_path,
+                       path_rel_file,
+                       ignore_files,
+                       import_registrars,
+                       import_registrees):
+                continue
+
+            # Alright; sort this guy into an import list.
+            _sort(log_dotted,
+                  root_path,
+                  path_rel_file,
+                  import_registrars,
+                  import_registrees,
+                  export_registrars,
+                  export_registrees,
+                  unknowns)
+
+    # ---
+    # Done; log info and return.
+    # ---
+    if export_registrars and log.will_output(log.Group.START_UP):
+        module_log = []
+        for module in export_registrars:
+            module_log.append("    - " + module)
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Done finding registrar modules.\n"
+                        "   module: {}\n"
+                        "  matches: {}\n"
+                        "{}",
+                        root_name,
+                        len(export_registrars),
+                        '\n'.join(module_log))
+
+    if export_registrees and log.will_output(log.Group.START_UP):
+        module_log = []
+        for module in export_registrees:
+            module_log.append("    - " + module)
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Done finding registree modules.\n"
+                        "   module: {}\n"
+                        "  matches: {}\n"
+                        "{}",
+                        root_name,
+                        len(export_registrees),
+                        '\n'.join(module_log))
+
+    return (export_registrars, export_registrees, unknowns)
+
+
+def _find_scandir(log_dotted:        Optional[label.DotStr],
+                  module_name:       str,
+                  module_path:       str,
+                  import_registrars: List[str],
+                  import_registrees: List[str],
+                  ignores:           Set[Union[str, re.Pattern]],
+                  find_ut:           bool
+                  ) -> Tuple[List[str], List[str]]:
+    '''
+    Find the import modules using os's `scandir()`.
+    '''
+    # Idea from https://stackoverflow.com/a/5135444/425816
+    export_registrars = []
+    export_registrees = []
+
+    # Get module info from root path.
+    log.group_multi(_LOG_INIT,
+                    log_dotted,
+                    "Finding modules...\n"
+                    "  unit-testing?: {}\n"
+                    "         module: {}\n"
+                    "           path: {}\n"
+                    "  find: \n"
+                    "     registrars: {}\n"
+                    "     registrees: {}",
+                    find_ut, module_name, module_path,
+                    import_registrars, import_registrees)
+
+    with os.scandir(module_path) as scan_root:
+        # Get all modules in module that do not match ignores...
+        for path in scan_root:
+            path = paths.cast(path)
+            module_relative = path.relative_to(module_path)
+            module_name = module_relative.stem
+            module_ext = module_relative.suffix
+            # The sub-module's name to export should be relative to our start
+            # path (`module_path`) and without its file extension.
+            submodule = label.from_path(module_relative.with_suffix(''))
+
+            # Should we ignore this?
+            ignore = False
+            matched_on = None
+            matching = None
+            for check in ignores:
+                if isinstance(check, str):
+                    # Ignore only if full match.
+                    if check == module_name:
+                        ignore = True
+                        matched_on = "string"
+                        matching = check
+
+                elif isinstance(check, re.Pattern):
+                    # Ignore if regex /does/ matches.
+                    if check.match(module_name):
+                        ignore = True
+                        matched_on = "regex"
+                        matching = check.pattern
+
+                # If we've found a reason to ignore this, quit early.
+                if ignore:
+                    break
+
+            # This path should be ignored, so continue on.
+            if ignore:
+                # print(f'Ignoring cuz "{matched_on:>8s}": {path}')
+                log.group_multi(_LOG_INIT,
+                                log_dotted,
+                                "Ignoring:\n"
+                                "          path: {}\n"
+                                "        module: {}\n"
+                                "   ignore type: {}\n"
+                                "  ignore match: {}",
+                                module_relative, module_name,
+                                matched_on, matching,
+                                log_minimum=log.Level.DEBUG)
+                continue
+
+            # # Import a sub-module directory.
+            # if path.is_dir():
+            #     log.group_multi(_LOG_INIT,
+            #                     log_dotted,
+            #                     "Adding sub-module to process: {}\n"
+            #                     "    path: {}\n"
+            #                     "  module: {}",
+            #                     submodule, module_relative, module_name,
+            #                     log_minimum=log.Level.DEBUG)
+            #     # Add them to our list of paths still to do.
+            #     paths_to_process.extend(list(path.iterdir()))
+
+            # # Only import exactly our module name.
+            # elif (module_name not in import_registrars
+            #       and module_name not in import_registrees):
+            if (module_name not in import_registrars
+                    and module_name not in import_registrees):
+                # print(f'Ignoring cuz "filename": {path}')
+                log.group_multi(_LOG_INIT,
+                                log_dotted,
+                                "Ignoring sub-module to process: {}\n"
+                                "    path: {}\n"
+                                "  module: {}\n"
+                                "  reason: no filename match",
+                                submodule, module_relative, module_name,
+                                log_minimum=log.Level.DEBUG)
+                continue
+
+            # Import the match only if it's the correct file type.
+            elif not path.is_file():
+                # print(f'Ignoring cuz "not file": {path}')
+                log.group_multi(_LOG_INIT,
+                                log_dotted,
+                                "Ignoring (matching): {}\n"
+                                "    path: {}\n"
+                                "  module: {}\n"
+                                "  reason: Not a file.",
+                                submodule, module_relative, module_name,
+                                log_minimum=log.Level.DEBUG)
+                continue
+
+            elif module_ext not in ('.py', '.pyw'):
+                # print(f'Ignoring cuz " not .py": {path}')
+                log.group_multi(_LOG_INIT,
+                                log_dotted,
+                                "Ignoring (matching): {}\n"
+                                "    path: {}\n"
+                                "  module: {}\n"
+                                "  reason: Not a python module file extension "
+                                "(.py, .pyw).",
+                                submodule, module_relative, module_name,
+                                log_minimum=log.Level.DEBUG)
+                continue
+
+            # Alright; ran out of reasons not to import this guy.
+            else:
+                if module_name in import_registrars:
+                    # print(f'>> registrar": {path}')
+                    export_registrars.append(submodule)
+                else:
+                    # print(f'-- registree": {path}')
+                    export_registrees.append(submodule)
+                log.group_multi(_LOG_INIT,
+                                log_dotted,
+                                "Found matching module: {}\n"
+                                "    path: {}\n"
+                                "  module: {}"
+                                + ("\n     ext: {}" if module_ext else ""),
+                                submodule, module_relative,
+                                module_name, module_ext,
+                                log_minimum=log.Level.INFO)
+
+    if export_registrars and log.will_output(log.Group.START_UP):
+        module_log = []
+        for module in export_registrars:
+            module_log.append("    - " + module)
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Done finding registrar modules.\n"
+                        "   module: {}\n"
+                        "  matches: {}\n"
+                        "{}",
+                        module_name, len(export_registrars),
+                        '\n'.join(module_log))
+
+    if export_registrees and log.will_output(log.Group.START_UP):
+        module_log = []
+        for module in export_registrees:
+            module_log.append("    - " + module)
+        log.group_multi(_LOG_INIT,
+                        log_dotted,
+                        "Done finding registree modules.\n"
+                        "   module: {}\n"
+                        "  matches: {}\n"
+                        "{}",
+                        module_name, len(export_registrees),
+                        '\n'.join(module_log))
     return (export_registrars, export_registrees)

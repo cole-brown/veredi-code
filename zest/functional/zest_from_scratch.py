@@ -25,8 +25,7 @@ import sys
 # ------------------------------
 # Testing Help (Unavoidable?)
 # ------------------------------
-from veredi.zest               import zload
-from veredi.zest               import zpath
+from veredi.zest               import zinit, zpath
 from veredi.zest.timing        import ZestTiming
 
 # For asserting.
@@ -177,12 +176,11 @@ class Test_From_Scratch(unittest.TestCase):
         '''
         return 'veredi.zest.functional.from_scratch'
 
-    # TODO: run each test twice (use subTest?)? Once with flag off, once on?
     def set_background_testing_flag(self, flag: bool) -> None:
         '''
         Set background context's unit_testing flag to True/False.
         '''
-        background.set_unit_testing(flag)
+        background.testing.set_unit_testing(flag)
 
     # -------------------------------------------------------------------------
     # Set-Up: Unit Test
@@ -221,8 +219,8 @@ class Test_From_Scratch(unittest.TestCase):
         # Other tear-downs.
         # ---
         log.ut_tear_down()
-        zload.tear_down_registries()
-        zload.tear_down_background()
+        zinit.tear_down_registries()
+        zinit.tear_down_background()
 
     # -------------------------------------------------------------------------
     # Set-Up: Real, Actual Veredi

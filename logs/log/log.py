@@ -294,17 +294,29 @@ def set_level(level:         const.LogLvlConversion = const.DEFAULT_LEVEL,
     this.setLevel(const.Level.to_logging(level))
 
 
-def will_output(check:         Union[const.LogLvlConversion, const.Group],
+def will_output(*args:         Union[const.LogLvlConversion, const.Group],
                 veredi_logger: const.LoggerInput = None) -> bool:
     '''
-    Returns true if supplied `check` is high enough to output a log.
+    Returns true if any supplied `args` is high enough to output a log.
     '''
-    if isinstance(check, const.Group):
-        check = get_group_level(check)
-    if isinstance(check, const.Level):
-        check = const.Level.to_logging(check)
-    this = _logger(veredi_logger)
-    return check >= this.level
+    the_logger = _logger(veredi_logger)
+    for check in args:
+        # ---
+        # Convert to a log level int.
+        # ---
+        if isinstance(check, const.Group):
+            check = get_group_level(check)
+        if isinstance(check, const.Level):
+            check = const.Level.to_logging(check)
+
+        # ---
+        # Compare to the logger's output level int.
+        # ---
+
+        if check >= the_logger.level:
+            return True
+
+    return False
 
 
 # -----------------------------------------------------------------------------
@@ -973,10 +985,12 @@ def group(log_group:     'const.Group',
     # ------------------------------
     level = _GROUP_LEVELS[log_group]
     # If we have a minimum, make sure this group matches it (NOTSETs treated as
-    # failures). Also might as well check that the logger will output it at all.
+    # failures). Also might as well check that the logger will output it at
+    # all.
     if ((log_minimum and not level.will_output_at(log_minimum,
                                                   notset_return=False))
-            or not will_output(level, veredi_logger)):
+            or not will_output(level,
+                               veredi_logger=veredi_logger)):
         # If the group is below the min required by this specific group (or min
         # required to output at all), do not log it.
         return

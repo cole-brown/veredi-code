@@ -85,6 +85,11 @@ class ConfigContext(EphemerealContext):
         A SubToProcComm object to hold on to for a sub-process.
         '''
 
+        UNIT_TESTING = enum.auto()
+        '''
+        Optional field for unit testing.
+        '''
+
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
@@ -211,7 +216,7 @@ class ConfigContext(EphemerealContext):
                                      klass.Link.LOG_SERVER))
 
     @classmethod
-    def set_subproc(klass:   Type['config'],
+    def set_subproc(klass:   Type['ConfigContext'],
                     context: VerediContext,
                     value:   'SubToProcComm') -> None:
         '''
@@ -222,7 +227,7 @@ class ConfigContext(EphemerealContext):
                          value)
 
     @classmethod
-    def subproc(klass:   Type['config'],
+    def subproc(klass:   Type['ConfigContext'],
                 context: VerediContext) -> Nullable['SubToProcComm']:
         '''
         Returns a SubToProcComm or Null.
@@ -231,12 +236,36 @@ class ConfigContext(EphemerealContext):
                                  klass.Link.SUB_PROC)
         return comms or Null()
 
+    @classmethod
+    def set_testing(klass:   Type['ConfigContext'],
+                    context: VerediContext,
+                    value:   'SubToProcComm') -> None:
+        '''
+        Sets the unit-testing link field. Pops if `value` is None.
+        '''
+        context._sub_set(klass.KEY,
+                         klass.Link.UNIT_TESTING,
+                         value)
+
+    @classmethod
+    def testing(klass:   Type['ConfigContext'],
+                context: VerediContext) -> Nullable[bool]:
+        '''
+        Returns the unit-testing link field or Null.
+        '''
+        unit_testing = context._sub_get(klass.KEY,
+                                        klass.Link.UNIT_TESTING)
+        return unit_testing or Null()
+
     # -------------------------------------------------------------------------
     # Unit Testing
     # -------------------------------------------------------------------------
+
     def ut_inject(self,
                   path:     Optional[pathlib.Path]    = None,
-                  keychain: Optional[Iterable[Any]]   = None) -> None:
+                  keychain: Optional[Iterable[Any]]   = None,
+                  ut_flag:  Optional[bool]            = None,
+                  **kwargs: Any) -> None:
         '''
         Unit testing.
 
@@ -247,6 +276,11 @@ class ConfigContext(EphemerealContext):
             config_data[self.Link.PATH] = path
         if keychain is not None:
             config_data[self.Link.KEYCHAIN] = keychain
+        if ut_flag is not None:
+            config_data[self.Link.UNIT_TESTING] = ut_flag
+
+        for key in kwargs:
+            config_data[key] = kwargs[key]
 
     # -------------------------------------------------------------------------
     # To String

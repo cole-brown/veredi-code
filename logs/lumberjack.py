@@ -140,11 +140,13 @@ class Lumberjack:
         self._logger.setLevel(log.Level.to_logging(level))
 
     def will_output(self,
-                    level:         log.LogLvlConversion) -> bool:
+                    *args: log.LogLvlConversion) -> bool:
         '''
-        Returns true if supplied `level` is high enough to output a log.
+        Returns true if any supplied `args` (Group or Level) is high enough to
+        output a log.
         '''
-        return log.will_output(level, self._logger)
+        return log.will_output(*args,
+                               veredi_logger=self._logger)
 
     # -------------------------------------------------------------------------
     # Logging-by-Functionality Functions

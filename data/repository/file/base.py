@@ -231,9 +231,11 @@ class FileRepository(BaseRepository):
 
         # But really, /most/ repos should get settings from config.
         else:
-            # TODO: Shouldn't really exist when a FileBareRepository comes up...
-            # ...unless it's during a unit test for the FileBareRepository?
-            if self.__class__.__name__ == "FileBareRepository":
+            # TODO: Shouldn't really exist when a FileBareRepository comes
+            # up... ...unless it's during a unit test for the
+            # FileBareRepository?
+            if (not ConfigContext.testing(context)
+                    and self.__class__.__name__ == "FileBareRepository"):
                 self._log_critical(f"{self.__class__.__name__}."
                                    "_init_path_safing(): "
                                    f"Config and Context exist. config: {config}",
