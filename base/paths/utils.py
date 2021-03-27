@@ -8,12 +8,15 @@ Path/pathlib Helpers
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any
+from typing import Any, Set, Tuple, List
 from ..null import NullNoneOr, is_null
 
 # For letting users of this module have access to Path type without importing
 # pathlib themselves.
 from pathlib import Path
+import os
+from queue import SimpleQueue
+import re
 
 
 from . import const
@@ -57,6 +60,37 @@ def cast(*input: const.PathType,
     # Try to cast for real.
     # Could raise TypeError.
     return Path(*input)
+
+
+def walk_filtered(root:        const.PathType,
+                  ignore_dirs: Set[re.Pattern]
+                  ) -> Tuple[str, List[str], List[str]]:
+    '''
+    Call os.walk, check each of its generated values, ignore or yield them as
+    indicated by `ignore_dirs` set.
+    '''
+    root = cast(root)
+    for path_rel_str, dirs, files in os.walk(root):
+        path = root / path_rel_str
+        if path == root:
+            # Never ignore the root.
+            yield (path_rel_str, dirs, files)
+            continue
+
+        ignore = False
+        for regex in ignore_dirs:
+            # Don't use 'match' - need to find ignorable things in the middle
+            # of the relative path too.
+            if regex.search(path_rel_str):
+                # Found a match for ignoring, so... ignore.
+                ignore = True
+                break
+
+        if ignore:
+            continue
+
+        # Not ignored, so yield it back as a result.
+        yield (path_rel_str, dirs, files)
 
 
 # --------------------------------Predicates?----------------------------------
