@@ -227,7 +227,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
     def pre_set_up(self) -> None:
         super().pre_set_up('config.websocket.yaml')
 
-    def set_up(self):
+    def set_up(self) -> None:
         self.debug_flags = DebugFlag.MEDIATOR_ALL
         self.DISABLED_TESTS = set({
             # Nothing, ideally.
