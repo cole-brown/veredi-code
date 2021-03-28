@@ -35,11 +35,17 @@ registration:
       registrars:
         run: [ __registrar__ ]
         test: [ __registrar_ut_ ]
-      # ignores:
-      #   - strings
-      #   - !regex "\bregex ?(here)?"
-      #   - data
-      #   - !regex "^[a-z]+_test"
+      # ignore:
+      #   files:
+      #     - strings
+      #     - !regex "\bregex ?(here)?"
+      #     - data
+      #     - !regex "^[a-z]+_test"
+      #   directories:
+      #     - strings
+      #     - !regex "\bregex ?(here)?"
+      #     - data
+      #     - !regex "^[a-z]+_test"
     # unit-test: true/false to force
   # - register: my-module
   #   path:

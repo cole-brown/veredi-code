@@ -86,7 +86,8 @@ class ZestFindRegistrations(ZestBase):
     # Test Helpers
     # -------------------------------------------------------------------------
 
-    def find_registration_modules(self, root: paths.Path) -> Iterable[ModuleType]:
+    def find_registration_modules(self,
+                                  root: paths.Path) -> Iterable[ModuleType]:
         '''
         Find registration modules using `run._find_modules`.
           - Both registrees and registrars.
@@ -103,29 +104,43 @@ class ZestFindRegistrations(ZestBase):
 
     def test_find_registration_modules(self) -> None:
         # self.debugging = True
-        found = []
+        found_registrars = []
+        found_registrees = []
+        unknown = []
         with log.LoggingManager.on_or_off(self.debugging):
             found = self.find_registration_modules(self.path_test_root)
+            found_registrars, found_registrees, unknown = found
 
+        # ------------------------------
+        # Expected Sub-Set
+        # ------------------------------
+        # Just check for a few expected registree and registrar module names.
         expected_registrees = [
-            'veredi.__register__',
-            'veredi.valid.__register__'
+            'veredi.data.codec.__register__',
+            'veredi.math.d20.__register__'
         ]
         expected_registrars = [
-            'veredi.__registrar__',
-            'veredi.valid.__registrar__'
+            'veredi.data.codec.__registrar__',
         ]
-        expected = (expected_registrars, expected_registrees)
 
-        # Check registrars.
-        index = 0
-        for module in found[index]:
-            self.assertIn(module, expected[index])
+        # ------------------------------
+        # Expect only the Known...
+        # ------------------------------
+        self.assertFalse(unknown)
 
+        # ------------------------------
         # Check registrars.
-        index = 1
-        for module in found[index]:
-            self.assertIn(module, expected[index])
+        # ------------------------------
+        self.assertTrue(found_registrars)
+        for module in expected_registrars:
+            self.assertIn(module, found_registrars)
+
+        # ------------------------------
+        # Check registrars.
+        # ------------------------------
+        self.assertTrue(found_registrees)
+        for module in expected_registrees:
+            self.assertIn(module, found_registrees)
 
 
 # --------------------------------Unit Testing---------------------------------
