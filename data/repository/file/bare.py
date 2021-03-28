@@ -54,7 +54,50 @@ class FileBareRepository(FileRepository):
 
     def __init__(self,
                  config_context: Optional[ConfigContext] = None) -> None:
+        # ------------------------------
+        # Config Sanity Check
+        # ------------------------------
+        # Don't care about a specific case: zest_bare.py.
+        # In that case, the unit test is creating a config before it does
+        # tests on a FileBareRepository.
+        unit_testing = ConfigContext.testing(config_context)
+        ut_target_class = ConfigContext.ut_get(config_context,
+                                               'testing_target')
+        log_config_complaint = False
+        if (not unit_testing
+            or (unit_testing
+                and self.__class__.__name__ != ut_target_class)):
+            # Either we aren't unit testing at all, or it's a test that's not
+            # our specific unit test. Either way, we expect not to have a
+            # config.
+            config = background.config.config(self.__class__.__name__,
+                                              self.dotted(),
+                                              config_context,
+                                              raises_error=False)
+            if config:
+                # Cannot log yet; haven't done _log_config()...
+                log_config_complaint = True
+
+        # ------------------------------
+        # Normal Init
+        # ------------------------------
         super().__init__(self._REPO_NAME, config_context)
+
+        # ------------------------------
+        # Now we can log complaint.
+        # ------------------------------
+        if log_config_complaint:
+            self._log_critical(
+                "{}._init_path_safing(): Expects no Configuration to "
+                "exist in the background yet, but Config and Context "
+                "exist. config: {}",
+                self.__class__.__name__,
+                config,
+                context=config_context)
+
+        # ------------------------------
+        # Done.
+        # ------------------------------
         self._log_group_multi(self._LOG_INIT,
                               self.dotted(),
                               "Done with init.")
