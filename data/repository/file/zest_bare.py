@@ -69,6 +69,7 @@ class Test_FileBareRepo(ZestBase):
                                 self.dotted(__file__),
                                 id=zpath.config_id(self._TEST_TYPE, None))
         ConfigContext.set_testing(context, True)
+        context.ut_inject(testing_target="FileBareRepository")
         self.repo = FileBareRepository(context)
 
     # -------------------------------------------------------------------------

@@ -282,6 +282,15 @@ class ConfigContext(EphemerealContext):
         for key in kwargs:
             config_data[key] = kwargs[key]
 
+    def ut_get(self, key: Any) -> Optional[Any]:
+        '''
+        Retrieve a key from the context's "configuration" subcontext.
+
+        Intended for retrieving kwargs set via `ut_inject()`.
+        '''
+        config_data = self._get().get(self.KEY, {})
+        return config_data.get(key, None)
+
     # -------------------------------------------------------------------------
     # To String
     # -------------------------------------------------------------------------
