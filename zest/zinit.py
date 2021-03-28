@@ -100,7 +100,6 @@ def set_up_registries(config: Optional['Configuration']) -> None:
     '''
     Get the registries ready for all tests.
     '''
-    print(f"  zinit.set_up_registries(): {config}")
     # TODO: MOVE THESE BEHIND SENTINEL ONCE THEY HAVE BEEN UPDATED TO NEW
     # REGISTRATION.
     # ------------------------------
@@ -108,26 +107,21 @@ def set_up_registries(config: Optional['Configuration']) -> None:
     # ------------------------------
     registry_config._ut_unregister()
     registry_yaml._ut_unregister()
-    print(f"  zinit.set_up_registries(): config/yaml unregistered.")
 
     # ------------------------------
     # Run our auto-registration.
     # ------------------------------
     global _SENTINEL_INIT
-    print(f"  zinit.set_up_registries(): checking sentinel... {_SENTINEL_INIT}")
     if _SENTINEL_INIT:
         # Already ran - skip.
-        print(f"  zinit.set_up_registries(): Already ran `run.registration()`!")
         return
     else:
         _SENTINEL_INIT = True
 
-    print(f"  zinit.set_up_registries(): Running `run.registration()`!")
     # ------------------------------
     # Run our auto-registration.
     # ------------------------------
     run.registration(config)
-    print(f"  zinit.set_up_registries(): Done!")
 
 
 # TODO: delete this.

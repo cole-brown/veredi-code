@@ -22,7 +22,7 @@ from veredi.logs               import log
 from veredi.base               import paths
 from veredi.data               import background
 
-from veredi.zest               import zload, zmake, zpath
+from veredi.zest               import zinit, zmake, zpath
 from veredi.zest.zpath         import TestType
 from veredi.zest.timing        import ZestTiming
 from veredi.debug.const        import DebugFlag
@@ -174,12 +174,6 @@ class ZestBase(unittest.TestCase):
         can use it.
         '''
 
-        self._register_auto: bool = True
-        '''
-        True allows run.registration() to be run and all auto-registration to
-        occur.
-        '''
-
     def pre_set_up(self) -> None:
         '''
         Use this!
@@ -277,24 +271,19 @@ class ZestBase(unittest.TestCase):
         '''
         Set-up nukes background, so call this before anything is created.
         '''
-
-        # ---
-        # Nuke background data so it all can remake itself.
-        # ---
-        zload.set_up_background()
+        zinit.set_up_background()
 
     def _set_up_registries(self) -> None:
         '''
         Nukes all entries in various registries.
         '''
         if self.config is None:
+            log.warning("No configuration created?! Test should have created "
+                        f"it during `{self.__class__.__name__}"
+                        "._set_up_config`. Creating one for now, but "
+                        "this should be fixed.")
             self.config = zmake.config(self._TEST_TYPE)
-
-        # ---
-        # Have class registration for encodables, etc happen.
-        # ---
-        zload.set_up_registries(self.config,
-                                auto_registration=self._register_auto)
+        zinit.set_up_registries(self.config)
 
     def _verify_clean_environment(self):
         # ---
@@ -373,7 +362,7 @@ class ZestBase(unittest.TestCase):
         # ---
         # Nuke  data so it all can remake itself.
         # ---
-        zload.tear_down_registries()
+        zinit.tear_down_registries()
 
     def _tear_down_background(self) -> None:
         '''
@@ -384,7 +373,7 @@ class ZestBase(unittest.TestCase):
         # ---
         # Nuke background data so it all can remake itself.
         # ---
-        zload.tear_down_background()
+        zinit.tear_down_background()
 
     # -------------------------------------------------------------------------
     # Log Capture
