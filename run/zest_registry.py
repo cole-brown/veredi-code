@@ -129,6 +129,10 @@ class ZestFindRegistrations(ZestBase):
         for module in found[index]:
             self.assertIn(module, expected[index])
 
+        # Check unknowns - should be none.
+        index = 2
+        self.assertFalse(found[2])
+
 
 # --------------------------------Unit Testing---------------------------------
 # --                      Main Command Line Entry Point                      --
