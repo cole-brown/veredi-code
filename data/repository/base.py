@@ -22,6 +22,7 @@ from abc import ABC, abstractmethod
 
 from veredi.logs            import log
 from veredi.logs.mixin      import LogMixin
+from veredi.base.strings    import label
 from veredi.base.exceptions import VerediError
 from veredi.data            import background
 from veredi.data.context    import BaseDataContext, DataAction
@@ -108,6 +109,12 @@ class BaseRepository(LogMixin, ABC):
     # Repo Properties/Methods
     # -------------------------------------------------------------------------
 
+    @classmethod
+    @abstractmethod
+    def dotted(klass: 'BaseRepository') -> label.DotStr:
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented.")
+
     @property
     def name(self) -> str:
         '''
@@ -138,13 +145,7 @@ class BaseRepository(LogMixin, ABC):
 
     def _make_background(self) -> None:
         '''
-        Start of the background data.
-
-        `dotted_name` should be the dotted version of your @register() string.
-        e.g. for:
-          @register('veredi', 'repository', 'file-bare')
-        `dotted_name` is:
-          'veredi.repository.file-bare'
+        Base class's contribution to the background data.
         '''
         return {
             background.Name.DOTTED.key: self.dotted(),

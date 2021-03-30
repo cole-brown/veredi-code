@@ -19,7 +19,7 @@ from typing import (Optional, Any, Type, NewType, Protocol,
 import lark  # Lark, Transformer, Visitor, v_args
 
 from veredi.logs                 import log
-from veredi.data.config.registry import register
+from veredi.base.strings         import label
 
 from ..parser                    import MathParser, MathTree
 
@@ -282,7 +282,6 @@ class Transformer(lark.Transformer):
 # Input String -> Veredi d20 Tree
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'math', 'd20', 'parser')
 class D20Parser(MathParser):
     '''
     MathParser interface implementation. Wraps up the lark parsing and
@@ -322,6 +321,10 @@ class D20Parser(MathParser):
 
         # And set up our transformer.
         self._transformer.set_up(self._variables, self._milieu)
+
+    @classmethod
+    def dotted(klass: Type['MathParser']) -> label.DotStr:
+        return 'veredi.math.d20.parser'
 
     def parse(self,
               string: str,

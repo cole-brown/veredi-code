@@ -45,7 +45,6 @@ from veredi.logs                         import log, log_client
 from veredi.debug.const                  import DebugFlag
 
 from veredi.base.const                   import VerediHealth
-from veredi.data.config.registry         import register
 from veredi.data.config.context          import ConfigContext
 
 from veredi.base.identity                import (MonotonicId,
@@ -156,7 +155,6 @@ def _start_server(comms: multiproc.SubToProcComm,
 # -----------------------------------------------------------------------------
 
 
-@register('veredi', 'interface', 'mediator', 'system')
 class MediatorSystem(System):
 
     MSG_MAX_PER_UPDATE: int = 20
@@ -336,8 +334,7 @@ class MediatorSystem(System):
 
     @classmethod
     def dotted(klass: 'MediatorSystem') -> str:
-        # klass._DOTTED magically provided by @register
-        return klass._DOTTED
+        return 'veredi.interface.mediator.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

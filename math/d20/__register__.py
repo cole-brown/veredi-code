@@ -11,20 +11,18 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.codec import register, ignore
+from veredi.data.registration import codec, config
 
 
-# ------------------------------
-# Registrees
-# ------------------------------
+# ----------------------------------------------------------------------------
+# Imports: Registration
+# ----------------------------------------------------------------------------
 from .tree import (Node, Leaf, Branch,
                    Dice, Constant, Variable,
                    OperatorMath, OperatorAdd, OperatorSub,
                    OperatorMult, OperatorDiv, OperatorPow)
+
+from .parser import D20Parser
 
 
 # -----------------------------------------------------------------------------
@@ -32,21 +30,23 @@ from .tree import (Node, Leaf, Branch,
 # -----------------------------------------------------------------------------
 
 # Always register.
-register(Dice)
-register(Constant)
-register(Variable)
-register(OperatorAdd)
-register(OperatorSub)
-register(OperatorMult)
-register(OperatorDiv)
-register(OperatorPow)
-
+codec.register(Dice)
+codec.register(Constant)
+codec.register(Variable)
+codec.register(OperatorAdd)
+codec.register(OperatorSub)
+codec.register(OperatorMult)
+codec.register(OperatorDiv)
+codec.register(OperatorPow)
 
 # Always ignore.
-ignore(Node)
-ignore(Leaf)
-ignore(Branch)
-ignore(OperatorMath)
+codec.ignore(Node)
+codec.ignore(Leaf)
+codec.ignore(Branch)
+codec.ignore(OperatorMath)
+
+
+config.register(D20Parser)
 
 
 # -----------------------------------------------------------------------------

@@ -1,211 +1,188 @@
 # coding: utf-8
 
 '''
-Bit of a Factory thing going on here...
+Registry for Configuration.
 '''
 
 # -----------------------------------------------------------------------------
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Type, Any, Callable
+from typing import (TYPE_CHECKING,
+                    Optional, Any, Type, Iterable, Dict, List)
+if TYPE_CHECKING:
+    from veredi.data.config.context import ConfigContext
 
 
-from veredi.logs         import log
-from ..                  import background
-from ..exceptions        import RegistryError, ConfigError
-from veredi.base.strings import label
-from veredi.base.strings import labeler
-from veredi.base.context import VerediContext
+from veredi.logs           import log
+from veredi.data           import background
+from veredi.base.context   import VerediContext
+from veredi.base.registrar import DecoratorRegistrar, RegisterType
+from veredi.base.strings   import label
+
+from ..exceptions          import RegistryError
+
+
+# -----------------------------------------------------------------------------
+# Exports
+# -----------------------------------------------------------------------------
+
+__all__ = [
+    # ------------------------------
+    # File-Local
+    # ------------------------------
+
+    # ---
+    # Classes
+    # ---
+    'ConfigRegistry',
+]
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-# Registry is here, but also toss the reg strs into the background context.
-_REGISTRY = {}
-_REG_DOTTED = 'veredi.data.config.registry'
-_REG_DOT_SHORT = 'config.registry'
-
 
 # -----------------------------------------------------------------------------
-# Code
+# Configuration Registry
 # -----------------------------------------------------------------------------
 
-def ignore(parent_class: Type) -> None:
+class ConfigRegistry(DecoratorRegistrar):
     '''
-    Add a parent class to the ignore list for log warnings about register() and
-    labeler.add_dotted_func()'s auto-magical creation of the 'dotted' func.
+    Registry for all the registree types that want to be created by
+    Configuration and/or referencable in the config files.
 
-    e.g. System base class has to do this for its children.
+    ConfigRegistry mainly gets its registrees via __registry__ files
+    using `register()` and `ignore()`, but you can also use the decorator
+
+    ConfigRegistry can also be used as a decorator registry, _BUT_ using it
+    this way will only register the decorated class _if/when_ it gets imported!
+      e.g.:
+        from veredi.data.config.registry import registry
+        @registry.register('veredi.jeff.system')
     '''
-    return labeler.ignore(parent_class)
 
+    # -------------------------------------------------------------------------
+    # Dotted Name
+    # -------------------------------------------------------------------------
 
-# Decorator way of doing factory registration. Note that we will only get
-# classes/funcs that are imported, when they are imported. We don't know about
-# any that are sitting around waiting to be imported. If needed, we can fix
-# that by importing things in their folder's __init__.py.
+    @classmethod
+    def dotted(klass: 'ConfigRegistry') -> str:
+        '''
+        Returns this registrar's dotted name.
+        '''
+        return 'veredi.data.config.registry'
 
-# First, a lil' decorator factory to take our args and make the decorator...
-def register(*dotted_label: label.LabelInput) -> Callable[..., Type[Any]]:
-    '''
-    Property for registering a class or function with the registry.
+    @classmethod
+    def name(klass: 'ConfigRegistry') -> str:
+        '''
+        Returns a short name for this registrar.
+        '''
+        return 'config.registry'
 
-    e.g. for a class:
-      @register('veredi', 'example', 'example-class')
-      class Example:
-        pass
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
-    e.g. for a function:
-      @register('veredi', 'example', 'function')
-      def example(arg0, arg1, **kwargs):
-        pass
-    '''
-    registree_id = label.regularize(*dotted_label)
+    def _init_register(self,
+                       registree: Type[Any],
+                       reg_args:  Iterable[str]) -> bool:
+        '''
+        This is called before anything happens in `register()`.
 
-    # Now make the actual decorator...
-    def register_decorator(
-            cls_or_func: Union[Type[Any], Callable[..., Type[Any]]]
-            ) -> Type[Any]:  # noqa E123
-        # Pull final key off of list so we don't make too many dictionaries.
-        name = str(cls_or_func)
+        Raise an error if a registration should not be allowed.
+        '''
+        # TODO: Do we have any checks to do here?
+        return True
+
+    # -------------------------------------------------------------------------
+    # Registration
+    # -------------------------------------------------------------------------
+
+    def _register(self,
+                  registree:  Type[Any],
+                  reg_label:    Iterable[str],
+                  # final key in `reg_args`
+                  leaf_key:   str,
+                  # A sub-tree of our registration dict, at the correct node
+                  # for registering this registree.
+                  reg_ours:   Dict,
+                  # A sub-tree of the background registration dict, at the
+                  # correct node for registering this registree.
+                  reg_bg:     Dict) -> None:
+        '''
+        We want to register to the background with:
+          { leaf_key: Any.type_field() }
+
+        `reg_args` is the Iterable of args passed into `register()`.
+        `reg_ours` is the place in our registry we placed this registration.
+        `reg_bg` is the place in the background we placed this registration.
+        '''
+        # Get it's type field name.
         try:
-            leaf_key = registree_id[-1]
-        except IndexError as error:
-            raise log.exception(
-                RegistryError,
-                "Need to know what to register this ({}) as. "
-                "E.g. @register('veredi', 'jeff', 'system'). "
-                "Got no label?: {}",
-                name, registree_id,
-                stacklevel=3) from error
+            name = registree.type_field()
+        except NotImplementedError as error:
+            msg = (f"{self.__class__.__name__}._register: '{type(registree)}' "
+                   f"(\"{label.regularize(*reg_label)}\") needs to "
+                   "implement type_field() function.")
+            self._log_exception(error, msg)
+            # Let error through. Just want more info.
+            raise
 
-        registry_our = _REGISTRY
-        registry_bg = background.registry.registry(_REG_DOTTED)
-        length = len(registree_id)
-        # -1 as we've got our config name already from that final registree_id
-        # entry.
-        for i in range(length - 1):
-            registry_our = registry_our.setdefault(registree_id[i], {})
-            registry_bg = registry_bg.setdefault(registree_id[i], {})
-
-        # Helpful messages - but registering either way.
-        if leaf_key in registry_our:
-            log.warning("Something was already registered under this "
-                        "registration key... keys: {}, replacing "
-                        "'{}' with this '{}'",
-                        registree_id,
-                        str(registry_our[leaf_key]),
-                        name,
-                        stacklevel=3)
-        else:
-            log.debug("Registered: keys: {}, value '{}'",
-                      registree_id,
-                      name,
-                      stacklevel=3)
         # Set as registered cls/func.
-        registry_our[leaf_key] = cls_or_func
-        # Save as a thing that has been registered at this level.
-        registry_bg.setdefault('.', []).append(leaf_key)
+        reg_ours[leaf_key] = registree
 
-        # Finally, add the 'dotted' property if applicable.
-        labeler.dotted_helper(_REG_DOTTED, '@register',
-                              cls_or_func, registree_id)
+        # Save to the background as a thing that has been registered at this
+        # level.
+        bg_list = reg_bg.setdefault('.', [])
+        bg_list.append({leaf_key: name})
 
-        return cls_or_func
+    # -------------------------------------------------------------------------
+    # Accessors
+    # -------------------------------------------------------------------------
 
-    return register_decorator
+    def get(self,
+            dotted:   label.LabelInput,
+            context:  Optional[VerediContext],
+            reg_fallback: Optional[RegisterType] = None
+            ) -> Optional[RegisterType]:
+        '''
+        Get the registree class/function for this `dotted` label.
 
+        If nothing found, raises KeyError unless `reg_fallback` was provided.
+        In that case, returns `reg_fallback`.
 
-def get(dotted_keys: label.LabelInput,
-        context:     Optional[VerediContext],
-        # Leave (k)args for others.
-        *args:       Any,
-        **kwargs:    Any) -> Union[Type, Callable]:
-    '''
-    Returns a registered class/func from the dot-separated keys (e.g.
-    "repository.player.file-tree"), passing it args and kwargs.
+        If the thing found at `dotted` is not a registree raises a
+        RegistryError (e.g. asked for "veredi.data", which is a branch in the
+        registree dotted tree: 'veredi.data.codec', 'veredi.data.repository',
+        etc...).
 
-    Context just used for errors/exceptions.
-    '''
-    registration = _REGISTRY
-    split_keys = label.regularize(dotted_keys)
-    i = 0
-    for key in split_keys:
-        if registration is None:
-            break
-        # This can throw the KeyError if nothing registered...
+        Context just used for errors/exceptions.
+
+        `args` and `kwargs` are passed to the registree for initialization.
+        '''
+        dotted = label.normalize(dotted)
+        self._log_debug("ConfigRegistry.get: "
+                        "dotted: {}{}",
+                        dotted,
+                        (f", fallback: {reg_fallback}"
+                         if reg_fallback else
+                         ""))
+
         try:
-            registration = registration[key]
-        except KeyError as error:
-            raise log.exception(
-                RegistryError,
-                "{} has nothing at: '{}' (full path: {})",
-                _REG_DOT_SHORT,
-                label.normalize(split_keys[: i + 1]),
-                split_keys) from error
+            registree = self.get_by_dotted(dotted, context)
 
-        i += 1
+        except (KeyError, RegistryError):
+            # If we have a fallback, return it. Otherwise let the error bubble
+            # up.
+            if reg_fallback:
+                self._log_debug("ConfigRegistry.get: "
+                                "No registree for dotted: '{}'. Using "
+                                "supplied fallback: {}",
+                                dotted,
+                                reg_fallback)
+                return reg_fallback
+            raise
 
-    if isinstance(registration, dict):
-        raise log.exception(
-            RegistryError,
-            "{} for '{}' is not at a leaf - still has entries to go: {}",
-            _REG_DOT_SHORT,
-            label.normalize(split_keys),
-            registration)
-
-    return registration
-
-
-def create(dotted_keys_str: str,
-           context: Optional[VerediContext],
-           # Leave (k)args for others.
-           *args: Any,
-           **kwargs: Any) -> Any:
-    '''
-    Create a registered class from the dot-separated keys (e.g.
-    "repository.player.file-tree"), passing it args and kwargs.
-    '''
-    entry = get(dotted_keys_str, context)
-
-    try:
-        # Leave (k)args for others.
-        return entry(context, *args, **kwargs)
-    except TypeError as error:
-        # NOTE: Something to the tune of:
-        #    TypeError: __init__() got multiple values for argument...
-        # Probably means your *args are too long, or an arg got swapped in
-        # the entry().
-        # e.g.:
-        #   args: (001,)
-        #   kwargs: {'data': {...}}
-        #   entry -> JeffCls.__init__(data, id, extra=None)
-        #     - This dies cuz data was set to '001', then kwargs also
-        #       had a 'data'.
-        raise log.exception(
-            ConfigError,
-            # Leave (k)args for others.
-            "{} failed creating '{}' with: args: {}, "
-            "kwargs: {},  context: {}",
-            _REG_DOT_SHORT,
-            entry, args, kwargs, context) from error
-
-
-# -----------------------------------------------------------------------------
-# Unit Testing
-# -----------------------------------------------------------------------------
-
-def _ut_unregister() -> None:
-    '''
-    Looks like we don't need to do anything. Well, more like: we have to leave
-    registered right now or tests will fail because nothing is registered.
-    '''
-    # '''
-    # Nuke everything from the register; reset it completely.
-    # '''
-    # global _REGISTRY
-    # _REGISTRY = {}
-    pass
+        return registree

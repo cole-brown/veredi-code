@@ -33,12 +33,12 @@ from veredi.logs                 import log
 from veredi.debug.const          import DebugFlag
 from veredi.base.identity        import MonotonicId
 from veredi.base.context         import VerediContext
+from veredi.base.strings         import label
 from veredi.data                 import background
 from veredi.data.identity        import UserId, UserKey
 from veredi.data.config.config   import Configuration
 from veredi.data.serdes.base     import BaseSerdes
 from veredi.data.codec           import Codec
-from veredi.data.config.registry import register
 
 from .mediator                   import WebSocketMediator
 from .exceptions                 import WebSocketError
@@ -482,7 +482,6 @@ class ClientRegistry:
 # The "Mediator-to-Client" Bit
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'interface', 'mediator', 'websocket', 'server')
 class WebSocketServer(WebSocketMediator):
     '''
     Mediator for serving over WebSockets.
@@ -526,6 +525,17 @@ class WebSocketServer(WebSocketMediator):
                                        port=self._port,
                                        secure=self._ssl,
                                        debug_fn=self.debug)
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'WebSocketServer') -> label.DotStr:
+        '''
+        The dotted label string this mediator has.
+        '''
+        return 'veredi.interface.mediator.websocket.server'
 
     # -------------------------------------------------------------------------
     # User Connection Tracking

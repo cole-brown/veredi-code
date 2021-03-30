@@ -25,10 +25,9 @@ from veredi.logs                 import log
 from veredi                      import time
 from veredi.base                 import paths, numbers
 from veredi.base                 import yaml
-from veredi.base.strings         import text
+from veredi.base.strings         import label, text
 
 from veredi.data                 import background
-from veredi.data.config.registry import register
 from veredi.data                 import exceptions
 from veredi.data.context         import DataAction
 from veredi.data.codec           import Codec, Encodable
@@ -53,7 +52,6 @@ from .adapters.base              import VerediYamlDocument, VerediYamlObject
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'serdes', 'yaml')
 class YamlSerdes(BaseSerdes):
     '''
     Uses PyYAML to serialize/deserialize the YAML format.
@@ -93,10 +91,12 @@ class YamlSerdes(BaseSerdes):
                               "Done with configuration.")
 
     # -------------------------------------------------------------------------
-    # Background & Context
+    # Serdes Properties/Methods
     # -------------------------------------------------------------------------
 
-    # None to add/override.
+    @classmethod
+    def dotted(klass: 'YamlSerdes') -> label.DotStr:
+        return 'veredi.serdes.yaml'
 
     # -------------------------------------------------------------------------
     # Deserialize Methods

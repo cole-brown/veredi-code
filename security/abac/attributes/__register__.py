@@ -15,7 +15,7 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from veredi.data.codec import register, ignore
+from veredi.config.registration import codec
 
 
 # ------------------------------
@@ -31,10 +31,10 @@ from .object  import Object
 # Registration
 # -----------------------------------------------------------------------------
 
-register(Action)
-register(Subject)
-register(Context)
-register(Object)
+codec.register(Action)
+codec.register(Subject)
+codec.register(Context)
+codec.register(Object)
 
 # ignore(Here3)
 

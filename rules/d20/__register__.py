@@ -11,25 +11,21 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.registration import codec
+from veredi.data.registration import config
 
 
-# ------------------------------
-# Registrees
-# ------------------------------
-from .zest_tree import MockNode
+# -----------------------------------------------------------------------------
+# Imports: Registration
+# -----------------------------------------------------------------------------
+
+from .game import D20RulesGame
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-# Should be registered if unit-testing, ignored if not.
-codec.register(MockNode, unit_test_only=True)
+config.register(D20RulesGame)
 
 
 # -----------------------------------------------------------------------------

@@ -11,25 +11,35 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
+from veredi.data.registration import codec, config
 
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.registration import codec
 
+# -----------------------------------------------------------------------------
+# Imports: Registration
+# -----------------------------------------------------------------------------
+
+# Registering/ignoring some base/simple things here so we don't have a inverted
+# sort of dependency. Base should be... basic stuff. Configuration and
+# registration is outside its paygrade, really.
 
 # ------------------------------
 # Registrees
 # ------------------------------
-from .zest_tree import MockNode
+from veredi.base.paths    import safing
+from veredi.base.identity import MonotonicId, SerializableId
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-# Should be registered if unit-testing, ignored if not.
-codec.register(MockNode, unit_test_only=True)
+config.register(safing.to_human_readable,
+                'veredi.paths.sanitize.human')
+config.register(safing.to_hashed,
+                'veredi.paths.sanitize.hashed.sha256')
+
+codec.register(MonotonicId)
+codec.register(SerializableId)
 
 
 # -----------------------------------------------------------------------------

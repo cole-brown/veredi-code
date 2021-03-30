@@ -40,7 +40,6 @@ from veredi.data                         import background
 
 from veredi.logs                         import log
 from veredi.base.const                   import VerediHealth
-from veredi.data.config.registry         import register
 
 from veredi.security                     import abac
 from veredi.security.context             import SecurityContext
@@ -86,7 +85,6 @@ Parameters will be the Envelope used for sending and all Recipients sent to.
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'interface', 'output', 'system')
 class OutputSystem(System):
 
     _MAX_PER_TICK = 50
@@ -188,8 +186,7 @@ class OutputSystem(System):
 
     @classmethod
     def dotted(klass: 'OutputSystem') -> str:
-        # klass._DOTTED magically provided by @register
-        return klass._DOTTED
+        return 'veredi.interface.output.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

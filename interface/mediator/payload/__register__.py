@@ -15,7 +15,7 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from veredi.data.codec import register, ignore
+from veredi.data.registration import codec
 
 
 # ------------------------------
@@ -30,13 +30,13 @@ from .logging import LogField, LogReply, LogPayload
 # Registration
 # -----------------------------------------------------------------------------
 
-register(Validity)
-register(LogField)
-register(LogReply)
-register(BarePayload)
-register(LogPayload)
+codec.register(Validity)
+codec.register(LogField)
+codec.register(LogReply)
+codec.register(BarePayload)
+codec.register(LogPayload)
 
-ignore(BasePayload)
+codec.ignore(BasePayload)
 
 
 # -----------------------------------------------------------------------------

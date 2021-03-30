@@ -35,8 +35,8 @@ if TYPE_CHECKING:
 # ---
 from veredi.logs                        import log
 from veredi.base.const                  import VerediHealth
+from veredi.base.strings                import label
 from veredi.data                        import background
-from veredi.data.config.registry        import register
 
 # Game / ECS Stuff
 from veredi.game.ecs.event              import EventManager
@@ -82,7 +82,6 @@ from .component                         import SkillComponent
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'pf2', 'skill', 'system')
 class SkillSystem(D20RulesSystem):
 
     def _configure(self, context: 'VerediContext') -> None:
@@ -123,9 +122,8 @@ class SkillSystem(D20RulesSystem):
         self._ticks: SystemTick = SystemTick.STANDARD
 
     @classmethod
-    def dotted(klass: 'SkillSystem') -> str:
-        # klass._DOTTED magically provided by @register
-        return klass._DOTTED
+    def dotted(klass: 'SkillSystem') -> label.DotStr:
+        return 'veredi.rules.d20.pf2.skill.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

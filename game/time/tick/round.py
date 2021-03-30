@@ -22,7 +22,6 @@ from veredi.base.strings         import label
 from veredi.base                 import numbers
 
 from veredi.data                 import background
-from veredi.data.config.registry import register
 
 from veredi                      import time
 
@@ -41,7 +40,6 @@ from ...ecs.base.identity        import EntityId
 # Game Time
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'game', 'time', 'tick', 'round')
 class TickRounds(TickBase):
     '''
     Keep a game tick clock for Round/Turn-Based games, where entities are
@@ -166,6 +164,10 @@ class TickRounds(TickBase):
         }
         return self._bg_data
 
+    @classmethod
+    def dotted(klass: 'TickRounds') -> label.DotStr:
+        return 'veredi.game.time.tick.round'
+
     # -------------------------------------------------------------------------
     # Round Functions
     # -------------------------------------------------------------------------
@@ -272,18 +274,6 @@ class TickRounds(TickBase):
         curr_actor = self._turn_index
 
         return curr_time + (curr_actor / num_actors * self._seconds_per_round)
-
-    # -------------------------------------------------------------------------
-    # Identification
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'TickRounds') -> str:
-        '''
-        Returns our dotted name.
-        '''
-        # klass._DOTTED magically provided by @register
-        return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # Getting Through A Round

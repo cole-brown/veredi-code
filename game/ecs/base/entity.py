@@ -15,9 +15,12 @@ from veredi.base.null import Null, Nullable
 if TYPE_CHECKING:
     from ..component import ComponentManager
 
+from abc import ABC, abstractmethod
 import enum
 
+
 from veredi.logs         import log
+from veredi.base.strings import label
 from veredi.base.null    import Null
 from veredi.base.context import VerediContext
 from .identity           import (ComponentId,
@@ -61,12 +64,16 @@ class EntityLifeCycle(enum.Enum):
 # Code
 # -----------------------------------------------------------------------------
 
-class Entity:
+class Entity(ABC):
     '''
     An Entity tracks its EntityId and life cycle, but primarily holds a
     collection of its Components. The components /are/ the entity,
     basically.
     '''
+
+    # --------------------------------------------------------------------------
+    # Initialization
+    # --------------------------------------------------------------------------
 
     def __init__(self,
                  context:           Optional[VerediContext],
@@ -98,6 +105,19 @@ class Entity:
             if isinstance(comp, (ComponentId, Component)):
                 self._attach(comp)
 
+    # --------------------------------------------------------------------------
+    # Properties
+    # --------------------------------------------------------------------------
+
+    @classmethod
+    @abstractmethod
+    def dotted(klass: 'Component') -> label.DotStr:
+        '''
+        Veredi dotted label string.
+        '''
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented.")
+
     @property
     def id(self) -> EntityId:
         return EntityId.INVALID if self._entity_id is None else self._entity_id
@@ -123,6 +143,10 @@ class Entity:
           - DESTROYING -> DEAD     : During EntityManager.destruction()
         '''
         self._life_cycle = new_state
+
+    # --------------------------------------------------------------------------
+    # Component Accessors
+    # --------------------------------------------------------------------------
 
     def comp_or_null(self,
                      component: Component,

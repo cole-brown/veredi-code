@@ -33,12 +33,12 @@ from veredi.logs                 import log
 from veredi.debug.const          import DebugFlag
 from veredi.base.identity        import MonotonicId
 from veredi.base.context         import VerediContext
+from veredi.base.strings         import label
 from veredi.data.identity        import UserId
 from veredi.data                 import background
 from veredi.data.config.config   import Configuration
 from veredi.data.serdes.base     import BaseSerdes
 from veredi.data.codec           import Codec
-from veredi.data.config.registry import register
 
 from ..const                     import MsgType
 from ..message                   import Message
@@ -150,7 +150,6 @@ class VebSocketClient(VebSocket):
 # Client (Veredi)
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'interface', 'mediator', 'websocket', 'client')
 class WebSocketClient(WebSocketMediator):
     '''
     Mediator for... client-ing over WebSockets.
@@ -224,6 +223,13 @@ class WebSocketClient(WebSocketMediator):
     # -------------------------------------------------------------------------
     # Properties
     # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'WebSocketClient') -> label.DotStr:
+        '''
+        The dotted label string this mediator has.
+        '''
+        return 'veredi.interface.mediator.websocket.client'
 
     @property
     def connected(self):

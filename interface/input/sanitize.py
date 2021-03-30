@@ -26,7 +26,6 @@ import re
 from veredi.logs                    import log
 from veredi.data                    import background
 from veredi.base.context            import VerediContext
-# from veredi.data.config.registry  import register
 
 
 # -----------------------------------------------------------------------------

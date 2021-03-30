@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 from veredi.logs                     import log
-from veredi.data.config.registry     import register
+from veredi.base.strings             import label
 from veredi.game.interface.component import queue
 
 from veredi.game.data.component      import DataComponent
@@ -32,7 +32,6 @@ from veredi.game.data.component      import DataComponent
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'pf2', 'skill', 'component')
 class SkillComponent(DataComponent, queue.IQueueSingle['SkillEvent']):
     '''
     Component with skill numbers, probably other stuff...
@@ -75,6 +74,17 @@ class SkillComponent(DataComponent, queue.IQueueSingle['SkillEvent']):
         '''
         actual_data = data['skill']
         super()._from_data(actual_data)
+
+    # -------------------------------------------------------------------------
+    # Properties
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'SkillComponent') -> label.DotStr:
+        '''
+        Veredi dotted label string.
+        '''
+        return 'veredi.rules.d20.pf2.skill.component'
 
     # -------------------------------------------------------------------------
     # Queue Interface

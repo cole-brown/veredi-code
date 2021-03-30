@@ -1226,6 +1226,11 @@ class testing:
     Whatever's needed for unit/integration/functional tests.
     '''
 
+    _CLEAN_IGNORE_KEYS = set((_REGISTRY, ))
+    '''
+    Ignore these keys in the background when checking `is_clean()`.
+    '''
+
     @classmethod
     def _get(klass: Type['testing']) -> Nullable[ContextMutableMap]:
         '''
@@ -1323,17 +1328,26 @@ class testing:
         if _CONTEXT is None:
             return True, None
 
-        # But, currently [2021-03-17], stuff registers into here via
-        # @register() decorators. So, 'None' is not typical.
+        # ---
+        # Care!
+        # ---
+        #   1) Need to allow once-per-all-tests registrations to remain in the
+        #      background.
         #
+        #   2) Need to be nice to things that register via decorator - they
+        #      could have been imported already and we don't want to clear them
+        #      out.
+        #
+        # So basically, don't clear out the registration stuff.
+        # ---
+
         # Walk the background and make sure that nothing besides the registry
         # is filled in yet.
-        IGNORE_KEYS = set((_REGISTRY, ))
         nodes = [(None, _CONTEXT)]  # Start at root.
         while len(nodes) > 0:
             key, node = nodes.pop()
             # Should we ignore this node?
-            if key in IGNORE_KEYS:
+            if key in klass._CLEAN_IGNORE_KEYS:
                 continue
 
             # Is this a dictionary we should traverse into?

@@ -11,29 +11,30 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.codec import register, ignore
+from veredi.data.registration import codec, config
 
 
-# ------------------------------
-# Registrees
-# ------------------------------
-from .event import Recipient, OutputEvent
+# ----------------------------------------------------------------------------
+# Imports: Registration
+# ----------------------------------------------------------------------------
+
+from .event    import Recipient, OutputEvent
 from .envelope import Address, Envelope
+
+from .system   import OutputSystem
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-register(Recipient)
-register(Address)
-register(Envelope)
+codec.register(Recipient)
+codec.register(Address)
+codec.register(Envelope)
 
-ignore(OutputEvent)
+codec.ignore(OutputEvent)
+
+config.register(OutputSystem)
 
 
 # -----------------------------------------------------------------------------

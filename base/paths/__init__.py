@@ -27,9 +27,11 @@ from .utils  import (cast, exists,
                      to_str_list, to_str,
                      serialize_claim, serialize)
 
+# ------------------------------
+# Namespace
+# ------------------------------
 
-# NOTE: Do NOT import safing! We need to keep the paths module usable by
-# logging... safing uses `register()` which uses logging.
+from . import safing
 
 
 # -----------------------------------------------------------------------------
@@ -45,6 +47,11 @@ __all__ = [
     # ------------------------------
     # File-Local
     # ------------------------------
+
+    # ------------------------------
+    # Namespace
+    # ------------------------------
+    'safing',
 
     # ------------------------------
     # Types & Consts

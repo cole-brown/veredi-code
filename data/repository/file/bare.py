@@ -18,10 +18,10 @@ from io import StringIO, TextIOBase
 
 from veredi.logs                 import log
 
-from veredi.data.config.registry import register
 from veredi.data                 import background
 
 from veredi.base                 import paths
+from veredi.base.strings         import label
 from veredi.data.context         import DataBareContext
 from veredi.data.config.context  import ConfigContext
 
@@ -39,7 +39,6 @@ from .base                       import FileRepository
 # --                        Load a file specifically.                        --
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'repository', 'file-bare')
 class FileBareRepository(FileRepository):
 
     _SANITIZE_KEYCHAIN = ['repository', 'sanitize']
@@ -141,9 +140,17 @@ class FileBareRepository(FileRepository):
                               self.dotted(),
                               "Done with configuration.")
 
-    # -------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
+    # Properties
+    # --------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'FileBareRepository') -> label.DotStr:
+        return 'veredi.repository.file-bare'
+
+    # --------------------------------------------------------------------------
     # Load / Save Helpers
-    # -------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
 
     def _context_data(self,
                       context: DataBareContext,

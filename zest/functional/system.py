@@ -14,13 +14,13 @@ if TYPE_CHECKING:
     from veredi.base.context import VerediContext
 
 
-from veredi.logs                        import log
+from veredi.logs                     import log
+from veredi.base.strings             import label
+from veredi.data                     import background
+from veredi.data.registration        import config
 
-from veredi.data                        import background
-from veredi.data.config.registry        import register
-
-from veredi.game import ecs
-from veredi.game.event import EngineStopRequest
+from veredi.game                     import ecs
+from veredi.game.event               import EngineStopRequest
 
 
 # -----------------------------------------------------------------------------
@@ -32,7 +32,8 @@ from veredi.game.event import EngineStopRequest
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'zest', 'functional', 'system')
+# register via decorator to test out that that registration way also works.
+@config.register('veredi', 'zest', 'functional', 'system')
 class TestSystem(ecs.base.System):
 
     # -------------------------------------------------------------------------
@@ -62,8 +63,10 @@ class TestSystem(ecs.base.System):
                                        | ecs.SystemTick.TICKS_DEATH)
 
     @classmethod
-    def dotted(klass: 'TestSystem') -> str:
-        # klass._DOTTED magically provided by @register
+    def dotted(klass: 'TestSystem') -> label.DotStr:
+        '''
+        Returns this class's dotted name.
+        '''
         return klass._DOTTED
 
     # -------------------------------------------------------------------------

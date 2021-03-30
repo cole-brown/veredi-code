@@ -24,10 +24,10 @@ from abc import ABC, abstractmethod
 import enum
 
 
-from veredi.data.config       import registry
 from veredi.logs              import log
 from veredi.logs.mixin        import LogMixin
 from veredi.base.const        import VerediHealth
+from veredi.base.strings      import label
 from veredi.debug.const       import DebugFlag
 from veredi.base.assortments  import DeltaNext
 
@@ -282,31 +282,14 @@ class System(LogMixin, ABC):
 
     @classmethod
     @abstractmethod
-    def dotted(klass: 'System') -> str:
-        """
-        The dotted name this system has. If the system uses '@register', you
-        still have to implement dotted, but you get klass._DOTTED for free
-        (the @register decorator sets it).
+    def dotted(klass: 'Component') -> label.DotStr:
+        '''
+        The dotted label string this system has.
 
-        E.g.
-          @register('veredi', 'jeff', 'system')
-        would be:
-          klass._DOTTED = 'veredi.jeff.system'
-
-        So just implement like this:
-
-            @classmethod
-            def dotted(klass: 'JeffSystem') -> str:
-                '''
-                Returns our dotted name.
-                '''
-                # klass._DOTTED magically provided by @register
-                return klass._DOTTED
-        """
+        e.g. 'veredi.jeff.system'
+        '''
         raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented in base class. "
-                                  "Subclasses should get it defined via "
-                                  "@register, or else define it themselves.")
+                                  "is not implemented.")
 
     @property
     def enabled(self) -> bool:
@@ -1005,9 +988,3 @@ class System(LogMixin, ABC):
             f"{repr(self.life_cycle)}], "
             f"{repr(self.health)}]>"
         )
-
-
-# -----------------------------------------------------------------------------
-# Tell registry to leave my children alone for @property dotted() puropses.
-# -----------------------------------------------------------------------------
-registry.ignore(System)

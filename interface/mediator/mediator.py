@@ -37,6 +37,7 @@ from veredi.data                import background
 from veredi.data.config.context import ConfigContext
 from veredi.base.identity       import MonotonicId
 from veredi.base.context        import VerediContext
+from veredi.base.strings        import label
 from veredi.parallel.multiproc  import SubToProcComm
 
 # from .                        import exceptions
@@ -178,6 +179,21 @@ class Mediator(LogMixin, ABC):
 
         # Pull debug up to class.
         self._debug = self._comms.debug_flags
+
+    # --------------------------------------------------------------------------
+    # Properties
+    # --------------------------------------------------------------------------
+
+    @classmethod
+    @abstractmethod
+    def dotted(klass: 'Mediator') -> label.DotStr:
+        '''
+        The dotted label string this mediator has.
+
+        e.g. 'veredi.interface.mediator.websocket.client'
+        '''
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Debug

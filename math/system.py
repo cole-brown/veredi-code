@@ -33,7 +33,6 @@ from decimal import Decimal
 from veredi.logs                        import log
 from veredi.base.const                  import VerediHealth
 from veredi.base                        import numbers
-from veredi.data.config.registry        import register
 
 # Game / ECS Stuff
 from veredi.game.ecs.event              import EventManager, Event
@@ -130,7 +129,6 @@ class MathQueue:
         return f"<MathQueue({self._queue})>"
 
 
-@register('veredi', 'math', 'system')
 class MathSystem(System):
 
     def _configure(self, context: 'VerediContext') -> None:
@@ -161,8 +159,7 @@ class MathSystem(System):
 
     @classmethod
     def dotted(klass: 'MathSystem') -> str:
-        # klass._DOTTED magically provided by @register
-        return klass._DOTTED
+        return 'veredi.math.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

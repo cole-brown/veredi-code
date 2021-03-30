@@ -16,8 +16,6 @@ import re
 import hashlib
 
 
-from veredi.data.config.registry import register
-
 from ..strings                   import label, text
 from .                           import const, utils
 
@@ -50,7 +48,6 @@ def default() -> Tuple[Callable, label.DotStr]:
 # Path Safing Option:
 #   "us?#:er" -> "us___er"
 # --------------------------------------------------------------------------
-@register('veredi', 'paths', 'sanitize', 'human')
 def to_human_readable(*part: const.PathType) -> pathlib.Path:
     '''
     Sanitize each part of the path by converting illegal characters to safe
@@ -119,7 +116,6 @@ def _part_to_human_readable(part: const.PathType) -> str:
 #   "us?#:er" ->
 #     'b3b31a87f6cca2e4d8e7909395c4b4fd0a5ee73b739b54eb3aeff962697ca603'
 # --------------------------------------------------------------------------
-@register('veredi', 'paths', 'sanitize', 'hashed', 'sha256')
 def to_hashed(*part: const.PathType) -> pathlib.Path:
     '''
     Sanitize each part of the path by converting it to a hash string.

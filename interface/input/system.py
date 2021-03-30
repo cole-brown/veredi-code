@@ -44,7 +44,6 @@ from veredi.data                         import background
 
 from veredi.logs                         import log
 from veredi.base.const                   import VerediHealth
-from veredi.data.config.registry         import register
 
 # Game / ECS Stuff
 from veredi.game.ecs.event               import EventManager
@@ -88,7 +87,6 @@ import veredi.zest.debug.registration
 # -----------------------------------------------------------------------------
 
 
-@register('veredi', 'interface', 'input', 'system')
 class InputSystem(System):
 
     def _configure(self, context: 'VerediContext') -> None:
@@ -165,8 +163,7 @@ class InputSystem(System):
 
     @classmethod
     def dotted(klass: 'InputSystem') -> str:
-        # klass._DOTTED magically provided by @register
-        return klass._DOTTED
+        return 'veredi.interface.input.system'
 
     @property
     def historian(self) -> Historian:

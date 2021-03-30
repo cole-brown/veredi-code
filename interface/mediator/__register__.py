@@ -11,30 +11,36 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.codec import register, ignore
+from veredi.data.registration import codec, config
 
 
-# ------------------------------
-# Registrees
-# ------------------------------
+# ----------------------------------------------------------------------------
+# Imports: Registration
+# ----------------------------------------------------------------------------
+
 from .const   import MsgType
 from .message import Message, ConnectionMessage
 
+from .system import MediatorSystem
+from .mediator import Mediator
+from . import websocket
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-register(MsgType)
-register(Message.SpecialId)
-register(Message)
-register(ConnectionMessage)
+codec.register(MsgType)
+codec.register(Message.SpecialId)
+codec.register(Message)
+codec.register(ConnectionMessage)
 
-# ignore(...)
+config.register(MediatorSystem)
+
+config.ignore(Mediator)
+config.ignore(websocket.mediator.WebSocketMediator)
+
+config.register(websocket.server.WebSocketServer)
+config.register(websocket.client.WebSocketClient)
 
 
 # -----------------------------------------------------------------------------

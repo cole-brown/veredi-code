@@ -20,8 +20,8 @@ from abc import ABC, abstractmethod
 from decimal import Decimal
 
 
-from veredi.base               import numbers
-
+from veredi.base         import numbers
+from veredi.base.strings import label
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -149,9 +149,7 @@ class TickBase(ABC):
         '''
         raise NotImplementedError(f"{self.__class__.__name__}.current_seconds "
                                   "getter property is not implemented in base "
-                                  "class. Subclasses should get it defined "
-                                  "via @register, or else define "
-                                  "it themselves.")
+                                  "class.")
 
     @current_seconds.setter
     @abstractmethod
@@ -162,10 +160,8 @@ class TickBase(ABC):
         current_seconds.
         '''
         raise NotImplementedError(f"{self.__class__.__name__}.current_seconds "
-                                  "getter property is not implemented in base "
-                                  "class. Subclasses should get it defined "
-                                  "via @register, or else define "
-                                  "it themselves.")
+                                  "setter property is not implemented in base "
+                                  "class.")
 
     # -------------------------------------------------------------------------
     # Identification
@@ -173,31 +169,12 @@ class TickBase(ABC):
 
     @classmethod
     @abstractmethod
-    def dotted(klass: 'TickBase') -> str:
-        """
-        The dotted name this system has. If the system uses '@register', you
-        still have to implement dotted, but you get klass._DOTTED for free
-        (the @register decorator sets it).
-
-        E.g.
-          @register('veredi', 'jeff', 'system')
-        would be:
-          klass._DOTTED = 'veredi.jeff.system'
-
-        So just implement like this:
-
-            @classmethod
-            def dotted(klass: 'JeffSystem') -> str:
-                '''
-                Returns our dotted name.
-                '''
-                # klass._DOTTED magically provided by @register
-                return klass._DOTTED
-        """
+    def dotted(klass: 'TickBase') -> label.DotStr:
+        '''
+        The dotted label string this Tick class has.
+        '''
         raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented in base class. "
-                                  "Subclasses should get it defined via "
-                                  "@register, or else define it themselves.")
+                                  "is not implemented in base class.")
 
     # -------------------------------------------------------------------------
     # Ticking

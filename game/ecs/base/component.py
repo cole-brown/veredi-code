@@ -16,9 +16,11 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
 
+from abc import ABC, abstractmethod
 import enum
 
-from .identity import ComponentId
+from veredi.base.strings import label
+from .identity           import ComponentId
 
 
 # -----------------------------------------------------------------------------
@@ -51,11 +53,15 @@ class ComponentLifeCycle(enum.Enum):
 # Code
 # -----------------------------------------------------------------------------
 
-class Component:
+class Component(ABC):
     '''
     A component does not track its EntityId. This is so we can have entities
     that actually share the same exact component.
     '''
+
+    # --------------------------------------------------------------------------
+    # Initialization
+    # --------------------------------------------------------------------------
 
     def _define_vars(self) -> None:
         '''
@@ -85,6 +91,19 @@ class Component:
         '''
         ...
 
+    # --------------------------------------------------------------------------
+    # Properties
+    # --------------------------------------------------------------------------
+
+    @classmethod
+    @abstractmethod
+    def dotted(klass: 'Component') -> label.DotStr:
+        '''
+        Veredi dotted label string.
+        '''
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented.")
+
     @property
     def id(self) -> ComponentId:
         return ComponentId.INVALID if self._comp_id is None else self._comp_id
@@ -106,6 +125,10 @@ class Component:
           - DESTROYING -> DEAD     : During ComponentManager.destruction()
         '''
         self._life_cycle = new_state
+
+    # --------------------------------------------------------------------------
+    # Python Functions
+    # --------------------------------------------------------------------------
 
     def __str__(self):
         return (

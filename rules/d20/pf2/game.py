@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 import enum
 
 
-from veredi.data.config.registry  import register
+from veredi.base.strings          import label
 from veredi.data.repository.taxon import Rank, SavedTaxon
 
 from ..game                       import D20RulesGame
@@ -101,7 +101,6 @@ class PF2SavedTaxon(SavedTaxon):
 # Game Definition, Saved Data
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'pf2', 'game')
 class PF2RulesGame(D20RulesGame):
 
     # -------------------------------------------------------------------------
@@ -119,12 +118,12 @@ class PF2RulesGame(D20RulesGame):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def dotted(klass: 'PF2RulesGame') -> str:
+    def dotted(klass: 'D20RulesGame') -> label.DotStr:
         '''
         Veredi dotted label string.
         '''
-        # _DOTTED magically provided by @register.
-        return klass._DOTTED
+        return 'veredi.rules.d20.pf2.game'
+
 
     # -------------------------------------------------------------------------
     # Loading...

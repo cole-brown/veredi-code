@@ -25,6 +25,7 @@ from io import StringIO, TextIOBase
 from veredi.logs         import log
 from veredi.logs.mixin   import LogMixin
 
+from veredi.base.strings import label
 from veredi.data         import background
 from veredi.data.codec   import Codec, Encodable
 
@@ -75,9 +76,12 @@ Serdes can serialize these types.
 # Code
 # -----------------------------------------------------------------------------
 
-# Subclasses, register like this:
-# @register('veredi', 'serdes', 'SerdesSubclass')
 class BaseSerdes(LogMixin, ABC):
+    '''
+    Base SERializer/DESerializer class.
+
+    Sub-classes should register with ConfigRegistry.
+    '''
 
     # -------------------------------------------------------------------------
     # Constants
@@ -158,6 +162,15 @@ class BaseSerdes(LogMixin, ABC):
     # -------------------------------------------------------------------------
     # Serdes Properties/Methods
     # -------------------------------------------------------------------------
+
+    @classmethod
+    @abstractmethod
+    def dotted(klass: 'BaseSerdes') -> label.DotStr:
+        '''
+        Veredi dotted label string.
+        '''
+        raise NotImplementedError(f"{klass.__name__}.dotted() "
+                                  "is not implemented.")
 
     @property
     def name(self) -> str:
