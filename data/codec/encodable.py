@@ -21,7 +21,6 @@ import re
 
 from veredi.logs           import log
 from veredi.base.strings   import pretty
-from veredi.base.registrar import RegisterType
 
 from ..exceptions          import EncodableError
 from .const                import (EncodedComplex,
@@ -35,13 +34,6 @@ from .const                import (EncodedComplex,
 # -----------------------------------------------------------------------------
 
 __all__ = [
-    # ------------------------------
-    # Imported
-    # ------------------------------
-    # Users of Encodable want to use this a lot.
-    # Export so they don't have to import from the base registrar.
-    'RegisterType',
-
     # ------------------------------
     # File-Local
     # ------------------------------

@@ -18,8 +18,7 @@ if TYPE_CHECKING:
 from veredi.logs           import log
 from veredi.data           import background
 from veredi.base.strings   import pretty
-from veredi.base.registrar import (BaseRegistrar, CallRegistrar, RegisterType,
-                                   registrar as base_registrar)
+from veredi.base.registrar import CallRegistrar, RegisterType
 from veredi.base.strings   import label
 from veredi.base           import numbers
 
@@ -33,13 +32,6 @@ from ..exceptions          import RegistryError
 # -----------------------------------------------------------------------------
 
 __all__ = [
-    # ------------------------------
-    # Imported
-    # ------------------------------
-    # Users of Encodable/EncodableRegistry want to use this a lot.
-    # Export so they don't have to import from the base registrar.
-    'RegisterType',
-
     # ------------------------------
     # File-Local
     # ------------------------------
@@ -61,105 +53,6 @@ __all__ = [
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-_REGISTRAR: 'EncodableRegistry' = None
-'''
-The registry instance for Encodables.
-'''
-
-# -----------------------------------------------------------------------------
-# Helpers
-# -----------------------------------------------------------------------------
-
-def registrar(log_groups: List[log.Group],
-              context:    'ConfigContext') -> 'EncodableRegistry':
-    '''
-    Create the EncodableRegistry instance.
-    '''
-    global _REGISTRAR
-    _REGISTRAR = base_registrar(EncodableRegistry,
-                                log_groups,
-                                context,
-                                _REGISTRAR)
-
-
-def registry() -> 'EncodableRegistry':
-    '''
-    Get the EncodableRegistry.
-    '''
-    return _REGISTRAR
-
-
-def register(klass:          'Encodable',
-             dotted:         Optional[label.LabelInput] = None,
-             unit_test_only: Optional[bool]             = False) -> None:
-    '''
-    Register the `klass` with the `dotted` string to our registry.
-
-    If `unit_test_only` is Truthy, the `klass` will be registered if we are
-    running a unit test, or handed off to `ignore()` if we are not.
-    '''
-    # ---
-    # Sanity
-    # ---
-    if not dotted:
-        # Check for class's dotted.
-        try:
-            dotted = klass.dotted()
-        except AttributeError:
-            pass
-        # No dotted string is an error.
-        if not dotted:
-            msg = ("Encodable sub-classes must either have a `dotted()` "
-                   "class method or be registered with a `dotted` "
-                   f"parameter. Got: '{dotted}'")
-            error = ValueError(msg, klass, dotted)
-            log.registration(dotted, msg)
-            raise log.exception(error, msg)
-
-    # ---
-    # Unit Testing?
-    # ---
-    # Unit-test registrees should continue on if in unit-testing mode,
-    # or be diverted to ignore if not.
-    if unit_test_only and not background.testing.get_unit_testing():
-        ignore(klass)
-        return
-
-    # ---
-    # Register
-    # ---
-    # Registry should check if it is ignored already by someone previous,
-    # if it cares.
-    dotted_str = label.normalize(dotted)
-    log.registration(dotted,
-                     f"{_REGISTRAR.__class__.__name__}: "
-                     f"Registering '{dotted_str}' "
-                     f"to '{klass.__name__}'...")
-
-    dotted_args = label.regularize(dotted)
-    _REGISTRAR.register(klass, *dotted_args)
-
-    log.registration(dotted,
-                     f"{_REGISTRAR.__class__.__name__}: "
-                     f"Registered '{dotted_str}' "
-                     f"to '{klass.__name__}'.")
-
-
-def ignore(klass: 'Encodable') -> None:
-    '''
-    For flagging an Encodable class as one that is a base class
-    or should not be registered for some other reason.
-    '''
-    log.registration(EncodableRegistry.dotted(),
-                     f"{_REGISTRAR.__class__.__name__}: Marking '{klass}' "
-                     f"as ignored for registration...")
-
-    _REGISTRAR.ignore(klass)
-
-    log.registration(EncodableRegistry.dotted(),
-                     f"{_REGISTRAR.__class__.__name__}: '{klass}' "
-                     f"marked as ignored.")
 
 
 # -----------------------------------------------------------------------------

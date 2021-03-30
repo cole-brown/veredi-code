@@ -26,8 +26,7 @@ import contextlib
 from veredi.logs                 import log
 from veredi                      import time
 from veredi.base                 import paths, numbers
-from veredi.base.strings         import text
-from veredi.data.config.registry import register
+from veredi.base.strings         import label, text
 from veredi.data                 import exceptions
 from veredi.data.context         import DataAction
 from veredi.data.codec           import Codec, Encodable
@@ -49,7 +48,6 @@ from ..base                      import (BaseSerdes,
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'serdes', 'json')
 class JsonSerdes(BaseSerdes):
     '''
     Uses Python's json library to serialize/deserialize the JSON format.
@@ -93,10 +91,12 @@ class JsonSerdes(BaseSerdes):
                               "Done with configuration.")
 
     # -------------------------------------------------------------------------
-    # Background & Context
+    # Serdes Properties/Methods
     # -------------------------------------------------------------------------
 
-    # None to add/override.
+    @classmethod
+    def dotted(klass: 'JsonSerdes') -> label.DotStr:
+        return 'veredi.serdes.json'
 
     # -------------------------------------------------------------------------
     # Deserialize Methods

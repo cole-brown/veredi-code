@@ -35,7 +35,6 @@ from veredi.base.assortments       import DeltaNext
 from veredi.debug.const            import DebugFlag
 from veredi.data                   import background
 from veredi.data.config.config     import Configuration
-from veredi.data.config.registry   import register
 from veredi.data.identity          import UserId, UserKey
 
 # Game / ECS Stuff

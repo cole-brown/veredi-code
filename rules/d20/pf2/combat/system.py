@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 
 from veredi.logs                        import log
 from veredi.base.const                  import VerediHealth
+from veredi.base.strings                import label
 from veredi.data                        import background
-from veredi.data.config.registry        import register
 
 # Game / ECS Stuff
 from veredi.game.ecs.event              import EventManager
@@ -69,7 +69,6 @@ from .event import (
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'pf2', 'combat', 'system')
 class CombatSystem(D20RulesSystem):
 
     def _configure(self, context: 'VerediContext') -> None:
@@ -120,9 +119,8 @@ class CombatSystem(D20RulesSystem):
                                    | SystemTick.POST)
 
     @classmethod
-    def dotted(klass: 'CombatSystem') -> str:
-        # klass._DOTTED magically provided by @register
-        return klass._DOTTED
+    def dotted(klass: 'CombatSystem') -> label.DotStr:
+        return 'veredi.rules.d20.pf2.combat.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

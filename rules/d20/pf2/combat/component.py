@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from veredi.data.config.context  import ConfigContext
 
 from veredi.logs                     import log
-from veredi.data.config.registry     import register
+from veredi.base.strings             import label
 
 from veredi.game.data.component      import DataComponent
 from veredi.game.interface.component import queue
@@ -36,7 +36,6 @@ from veredi.game.interface.component import queue
 # This means war!
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'pf2', 'combat', 'component', 'attack')
 class AttackComponent(DataComponent, queue.IQueueSingle[AttackEvent]):
     '''
     Component with offensive/attack numbers, attack action queue, probably
@@ -61,6 +60,10 @@ class AttackComponent(DataComponent, queue.IQueueSingle[AttackEvent]):
         # ---
         # Nothing at the moment.
 
+    @classmethod
+    def dotted(klass: 'AttackComponent') -> label.DotStr:
+        return 'veredi.rules.d20.pf2.combat.component.attack'
+
     # ---
     # Queue Interface
     # ---
@@ -83,7 +86,6 @@ class AttackComponent(DataComponent, queue.IQueueSingle[AttackEvent]):
 # D-Fence.
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'rules', 'd20', 'pf2', 'combat', 'component', 'defense')
 class DefenseComponent(DataComponent, queue.IQueueSingle):
     '''
     Component with defense numbers, defense action queue(?), probably other
@@ -107,6 +109,10 @@ class DefenseComponent(DataComponent, queue.IQueueSingle):
         # Context Init Section
         # ---
         # Nothing at the moment.
+
+    @classmethod
+    def dotted(klass: 'DefenseComponent') -> label.DotStr:
+        return 'veredi.rules.d20.pf2.combat.component.defense'
 
     # ---
     # Queue Interface

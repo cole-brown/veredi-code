@@ -11,25 +11,26 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
+from veredi.data.registration import config
 
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.registration import codec
 
+# -----------------------------------------------------------------------------
+# Imports: Registration
+# -----------------------------------------------------------------------------
 
 # ------------------------------
 # Registrees
 # ------------------------------
-from .zest_tree import MockNode
+from .bare import FileBareRepository
+from .tree import FileTreeRepository
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-# Should be registered if unit-testing, ignored if not.
-codec.register(MockNode, unit_test_only=True)
+config.register(FileBareRepository)
+config.register(FileTreeRepository)
 
 
 # -----------------------------------------------------------------------------

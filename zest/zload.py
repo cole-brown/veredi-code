@@ -43,17 +43,6 @@ from veredi.base.context               import VerediContext
 from veredi.game.ecs.base.identity     import SystemId
 from veredi.game.engine                import Engine
 
-# Registry
-from veredi.data.config                import registry as registry_config
-from veredi.data.serdes.yaml           import registry as registry_yaml
-from veredi.data.codec                 import registry as registry_codec
-
-# Registration
-import veredi.math.d20.parser
-# import veredi.data.repository.file
-# import veredi.data.serdes.yaml.serdes
-# import veredi.data.serdes.json.serdes
-
 
 # -----------------------------------------------------------------------------
 # Constants

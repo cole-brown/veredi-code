@@ -214,8 +214,36 @@ class BaseRegistrar(LogMixin, ABC):
                                       bg_owner)
 
     # -------------------------------------------------------------------------
+    # Identification
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    @abstractmethod
+    def dotted(self: 'BaseRegistrar') -> label.DotStr:
+        '''
+        Returns this registrar's dotted name.
+        '''
+        # return 'veredi.base.registrar'
+        raise NotImplementedError(f"{self.__name__}.dotted() is "
+                                  "not implemented in abstract base class.")
+
+    # -------------------------------------------------------------------------
     # Registry Internal Helpers
     # -------------------------------------------------------------------------
+
+    def _is_class(self, registree: 'RegisterType') -> bool:
+        '''
+        Is the registree a class or a function?
+        Returns True for class.
+        '''
+        return issubclass(registree, object)
+
+    def _is_function(self, registree: 'RegisterType') -> bool:
+        '''
+        Is the registree a function or a class?
+        Returns True for function.
+        '''
+        return not self._is_class(registree)
 
     @property
     def _registry(self) -> Dict[str, Any]:
@@ -238,26 +266,13 @@ class BaseRegistrar(LogMixin, ABC):
         return self._store_ignore
 
     # -------------------------------------------------------------------------
-    # Identification
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    @abstractmethod
-    def dotted(self: 'BaseRegistrar') -> str:
-        '''
-        Returns this registrar's dotted name.
-        '''
-        # return 'veredi.base.registrar'
-        raise NotImplementedError(f"{self.__name__}.dotted() is "
-                                  "not implemented in abstract base class.")
-
-    # -------------------------------------------------------------------------
     # Sub-Class Adjustable Registration
     # -------------------------------------------------------------------------
+    # These are run at various steps during `add()` (aka `register()`).
 
     def _init_register(self,
-                       registeree: 'RegisterType',
-                       reg_args:   Iterable[str]) -> bool:
+                       registree: 'RegisterType',
+                       reg_args:  Iterable[str]) -> bool:
         '''
         This is called before anything happens in `register()`.
 
@@ -272,18 +287,18 @@ class BaseRegistrar(LogMixin, ABC):
         return True
 
     def _register(self,
-                  registeree:  'RegisterType',
-                  reg_label:    Iterable[str],
-                  leaf_key:     str,
-                  reg_ours:     Dict,
-                  reg_bg:       Dict) -> None:
+                  registree:  'RegisterType',
+                  reg_label:   Iterable[str],
+                  leaf_key:    str,
+                  reg_ours:    Dict,
+                  reg_bg:      Dict) -> None:
         '''
         Subclasses can override this if they want to register slightly
         differently. For example, if they want to register background data of
         more than just the dotted name.
 
         Default implementation:
-          - register `registeree` to `reg_ours[leaf_key]`
+          - register `registree` to `reg_ours[leaf_key]`
           - register `leaf_key` to list at `reg_bg['.']`.
 
         `reg_args` is the Iterable of args passed into `register()`.
@@ -291,13 +306,13 @@ class BaseRegistrar(LogMixin, ABC):
         `reg_bg` is the place in the background we placed this registration.
         '''
         # Set as registered cls/func.
-        reg_ours[leaf_key] = registeree
+        reg_ours[leaf_key] = registree
 
         # Save as a thing that has been registered at this level.
         reg_bg.setdefault('.', []).append(leaf_key)
 
     def _finalize_register(self,
-                           registeree: 'RegisterType',
+                           registree: 'RegisterType',
                            reg_args:    Iterable[str],
                            reg_ours:    Dict,
                            reg_bg:      Dict) -> None:
@@ -317,6 +332,16 @@ class BaseRegistrar(LogMixin, ABC):
     def register(self,
                  cls_or_func:   'RegisterType',
                  *dotted_label: label.LabelInput) -> None:
+        '''
+        BaseRegistrar defines this as an alias to `get()`.
+
+        Sub-classes can redefine this for their own registration purposes.
+        '''
+        return self.add(cls_or_func, *dotted_label)
+
+    def add(self,
+            cls_or_func:   'RegisterType',
+            *dotted_label: label.LabelInput) -> None:
         '''
         This function does the actual registration.
         '''
@@ -402,7 +427,7 @@ class BaseRegistrar(LogMixin, ABC):
                           name,
                           stacklevel=3)
         except TypeError as error:
-            msg = (f"{self.__class__.__name__}.register(): Our "
+            msg = (f"{self.__class__.__name__}.add(): Our "
                    "'registry_our' dict is the incorrect type? Expected "
                    "something that can deal with 'in' operator. Have: "
                    f"{type(registry_our)} -> {registry_our}. Trying to "
@@ -520,10 +545,10 @@ class BaseRegistrar(LogMixin, ABC):
         return self.get_by_dotted(dotted, context)
 
     def invoke(self,
-               dotted_keys_str: str,
-               context: Optional[VerediContext],
+               dotted:   label.LabelInput,
+               context:  Optional[VerediContext],
                # Leave (k)args for others.
-               *args: Any,
+               *args:    Any,
                **kwargs: Any) -> Any:
         '''
         Use our `get()` to get the registered RegisterType (or error out)
@@ -532,11 +557,15 @@ class BaseRegistrar(LogMixin, ABC):
         Then use args, kwargs to call the RegisterType. Returns the result.
 
         Context just used for error info.
+
+        Raises a RegistryError if invoking raised a TypeError (e.g. due to
+        incorrect args/kwargs).
         '''
-        entry = self.get_by_dotted(dotted_keys_str, context)
+        entry = self.get_by_dotted(dotted, context)
 
         try:
-            # Leave (k)args for others.
+            # Invoke whatever we got from our registry using the
+            # provided arguments.
             return entry(context, *args, **kwargs)
 
         except TypeError as error:
@@ -556,8 +585,9 @@ class BaseRegistrar(LogMixin, ABC):
             raise log.exception(
                 RegistryError,
                 # Leave (k)args for others.
-                "Registry failed creating '{}' with: args: {}, "
+                "{} failed creating '{}' with: args: {}, "
                 "kwargs: {},  context: {}",
+                self.__class__.__name__,
                 entry, args, kwargs, context) from error
 
     # -------------------------------------------------------------------------
@@ -591,46 +621,57 @@ class DottedRegistrar(BaseRegistrar):
     '''
 
     def _register(self,
-                  registeree:  'RegisterType',
-                  reg_label:    label.LabelInput,
-                  leaf_key:     str,
-                  reg_ours:     Dict,
-                  reg_bg:       Dict) -> None:
+                  registree:  'RegisterType',
+                  reg_label:   label.LabelInput,
+                  leaf_key:    str,
+                  reg_ours:    Dict,
+                  reg_bg:      Dict) -> None:
         '''
-        Let the parent class (BaseRegistrar) register this `registeree`, then
-        add these attribuets to the `registeree`.
+        Let the parent class (BaseRegistrar) register this `registree`, then
+        add these attribuets to the `registree`.
           - 'labeler.KLASS_FUNC_NAME'
           - 'labeler.ATTRIBUTE_PRIVATE_NAME'
         As of [2020-11-09], these are:
           - dotted() class method
           - _DOTTED class variable
         '''
-        super()._register(registeree,
+        # ------------------------------
+        # Do actual registration first.
+        # ------------------------------
+        super()._register(registree,
                           reg_label,
                           leaf_key,
                           reg_ours,
                           reg_bg)
 
+        # ------------------------------
+        # Skip adding dotted stuff?
+        # ------------------------------
+        if not self._is_class(registree):
+            return
+
+        # ------------------------------
+        # Try adding dotted if needed.
+        # ------------------------------
+
         # ---
-        # Set the attribute with the class's dotted name value.
+        # Check the registree for per-existing _DOTTED/dotted().
         # ---
         dotted_name = label.normalize(reg_label)
-        setattr(registeree,
-                labeler.ATTRIBUTE_PRIVATE_NAME,
-                dotted_name)
-
-        # ---
-        # Check the dotted func now.
-        # ---
-
-        dotted_attr = getattr(registeree,
+        dotted_attr = getattr(registree,
+                              labeler.ATTRIBUTE_PRIVATE_NAME)
+        dotted_func = getattr(registree,
                               labeler.KLASS_FUNC_NAME, None)
-        if dotted_attr:
+
+        # ---
+        # Do they have `dotted()`?
+        # ---
+        if dotted_func:
             # Pre-existing dotted attribute; is it abstract?
             # Complain about abstract.
-            if getattr(dotted_attr, '__isabstractmethod__', False):
+            if getattr(dotted_func, '__isabstractmethod__', False):
                 msg = (f"{self.dotted()}: Failed '{dotted_name}' registry of "
-                       f"{registeree.__name__}. Registree has an abstract "
+                       f"{registree.__name__}. Registree has an abstract "
                        "'{labeler.KLASS_FUNC_NAME}' attribute, "
                        "which we cannot auto-generate a replacement for. "
                        "Please implement one manually:\n"
@@ -639,42 +680,53 @@ class DottedRegistrar(BaseRegistrar):
                        "by {self.__class__.__name__}\n"
                        "        return klass._DOTTED"
                        "{labeler.KLASS_FUNC_NAME}")
-                raise log.exception(AttributeError(msg, registeree), msg)
+                raise log.exception(AttributeError(msg, registree), msg)
 
-            # Complain loudly if the registeree has a `dotted` function and
+            # Complain loudly if the registree has a `dotted` function and
             # what it returns disagrees with what they gave us as their dotted
             # name.
-            if registeree.dotted() != dotted_name:
+            if registree.dotted() != dotted_name:
                 msg = (f"{self.dotted()}: Failed '{dotted_name}' registry of "
-                       f"{registeree.__name__}. Registree has a dotted() "
+                       f"{registree.__name__}. Registree has a dotted() "
                        "return value of "
-                       f"'{labeler.KLASS_FUNC_NAME}', which is "
+                       f"'{registree.dotted()}', which is "
                        "not what it's trying to register as. Please fix the "
                        "class to have the same registration dotted name as "
                        "it has in its dotted() function.")
-                raise log.exception(AttributeError(msg, registeree), msg)
+                raise log.exception(AttributeError(msg, registree), msg)
 
-        # ---
-        # Make Getter.
-        # ---
-        def get_dotted(klass: Type[Any]) -> Optional[str]:
-            return getattr(klass,
-                           labeler.ATTRIBUTE_PRIVATE_NAME,
-                           None)
+        else:
+            # ------------------------------
+            # Ok; add _DOTTED and dotted().
+            # ------------------------------
 
-        # ---
-        # No Setter.
-        # ---
-        # def set_dotted(self, value):
-        #     return setattr(self, '_dotted', value)
+            # ---
+            # _DOTTED
+            # ---
+            if not dotted_attr:
+                setattr(registree,
+                        labeler.ATTRIBUTE_PRIVATE_NAME,
+                        dotted_name)
 
-        # ---
-        # Set the getter @classmethod function.
-        # ---
-        method = classmethod(get_dotted)
-        setattr(registeree,
-                labeler.KLASS_FUNC_NAME,
-                method)
+            # ---
+            # dotted()
+            # ---
+
+            # Getter yes; setter no.
+            def get_dotted(klass: Type[Any]) -> Optional[str]:
+                return getattr(klass,
+                               labeler.ATTRIBUTE_PRIVATE_NAME,
+                               None)
+            # def set_dotted(self, value):
+            #     return setattr(self, '_dotted', value)
+
+            # ---
+            # Set the getter @classmethod function.
+            # ---
+            method = classmethod(get_dotted)
+            setattr(registree,
+                    labeler.KLASS_FUNC_NAME,
+                    method)
 
 
 # -----------------------------------------------------------------------------
@@ -722,6 +774,9 @@ class DecoratorRegistrar(DottedRegistrar):
 
             # ...which is just a call to the BaseRegistrar...
             super().register(cls_or_func, *args)
+
+            # _DOTTED and dotted() provided in super().register() by
+            # our DottedRegistrar parent class.
 
             # ...and then returning the cls_or_func we decorated.
             return cls_or_func

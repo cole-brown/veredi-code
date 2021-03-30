@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Registerees for the YAML registry.
+Registrees for the YAML registry.
 
 This should include most (all?) of the modules so that only one file needs to
 be included elsewhere to bring all Veredi's YAML constructor/representer

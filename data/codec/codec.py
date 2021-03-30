@@ -18,21 +18,17 @@ if TYPE_CHECKING:
 
 import collections
 import enum
-import re
-from abc import abstractmethod
-from datetime import datetime, date
+from datetime import datetime
 
 from veredi.logs                 import log
 from veredi.logs.mixin           import LogMixin
 from veredi.base                 import numbers
 from veredi.base.const           import SimpleTypes, SimpleTypesTuple
-from veredi.base.strings         import pretty
-from veredi.base.registrar       import RegisterType
-from veredi.base.strings         import label
+from veredi.base.strings         import label, pretty
 from veredi                      import time
 from veredi.data                 import background
-from veredi.data.context         import DataAction, DataOperation
-from veredi.data.config.registry import register
+from veredi.data.context         import DataOperation
+from veredi.data.registration    import codec as registrar
 
 from ..exceptions                import EncodableError
 from .const                      import (EncodeNull,
@@ -42,7 +38,6 @@ from .const                      import (EncodeNull,
                                          EncodedSimpleTuple,
                                          EncodedEither,
                                          Encoding)
-from .registry                   import registry
 from .encodable                  import Encodable
 
 
@@ -62,7 +57,6 @@ EncodeInput = NewType('EncodeInput',
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'codec', 'codec')
 class Codec(LogMixin):
     '''
     Coder/Decoder for Encodables and the EncodableRegistry.
@@ -158,6 +152,10 @@ class Codec(LogMixin):
         Should be lowercase and short.
         '''
         return self._name
+
+    @classmethod
+    def dotted(klass: 'Codec') -> label.DotStr:
+        return 'veredi.codec.codec'
 
     # -------------------------------------------------------------------------
     # Context Properties/Methods
@@ -814,8 +812,8 @@ class Codec(LogMixin):
 
         Will return None if no Encodable target is found.
         '''
-        target = registry().simple(data,
-                                   data_type=data_type)
+        target = registrar.registry().simple(data,
+                                             data_type=data_type)
         if target:
             return self._decode_encodable(target, data)
         return None
@@ -937,11 +935,11 @@ class Codec(LogMixin):
         # Now decode it.
         # ------------------------------
 
-        target = registry().get(encoded_data,
-                                dotted=dotted,
-                                data_type=data_types,
-                                error_squelch=error_squelch,
-                                fallback=fallback)
+        target = registrar.registry().get(encoded_data,
+                                          dotted=dotted,
+                                          data_type=data_types,
+                                          error_squelch=error_squelch,
+                                          fallback=fallback)
         return self._decode_encodable(target, data)
 
     def decode_map(self,

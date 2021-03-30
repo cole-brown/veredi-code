@@ -4,32 +4,27 @@
 Module for auto-magical registration shenanigans.
 
 This will be found and imported by run.registry in order to have whatever
-Registries, Registrars, and Registrees this provides available at run-time.
+Registries and Registrars this provides available at run-time.
 '''
 
 # -----------------------------------------------------------------------------
 # Imports
 # -----------------------------------------------------------------------------
 
-
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.registration import codec
+from veredi.logs.log import Group
 
 
 # ------------------------------
-# Registrees
+# ConfigRegistry
 # ------------------------------
-from .zest_tree import MockNode
+from .registry import registrar
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-# Should be registered if unit-testing, ignored if not.
-codec.register(MockNode, unit_test_only=True)
+registrar([Group.START_UP, Group.REGISTRATION], None)
 
 
 # -----------------------------------------------------------------------------

@@ -15,7 +15,7 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from veredi.data.codec import register, ignore
+from veredi.data.registration import codec
 
 
 # ------------------------------
@@ -28,9 +28,7 @@ from .identity import PolicyId
 # Registration
 # -----------------------------------------------------------------------------
 
-register(PolicyId)
-
-# ignore(Here3)
+codec.register(PolicyId)
 
 
 # -----------------------------------------------------------------------------

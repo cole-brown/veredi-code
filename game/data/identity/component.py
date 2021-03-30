@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 from veredi.logs                 import log
-from veredi.data.config.registry import register
+from veredi.base.strings         import label
 from veredi.data.identity        import UserId, UserKey
 
 from ..component                 import DataComponent
@@ -65,7 +65,6 @@ from ..component                 import DataComponent
 # -----------------------------------------------------------------------------
 
 
-@register('veredi', 'game', 'data', 'identity', 'component')
 class IdentityComponent(DataComponent):
     '''
     Component with identity information beyond, the usual EntityId/ComponentId.
@@ -171,6 +170,14 @@ class IdentityComponent(DataComponent):
         if not names:
             return None
         return ' '.join(names)
+
+    # -------------------------------------------------------------------------
+    # Properties: General
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'IdentityComponent') -> label.DotStr:
+        return 'veredi.game.data.identity.component'
 
     # -------------------------------------------------------------------------
     # Property: User <-> Entity

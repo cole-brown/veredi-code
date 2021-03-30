@@ -21,16 +21,10 @@ import unittest
 from veredi.logs               import log
 
 from veredi                    import run
-from veredi.base.strings       import label
-from veredi.base               import paths
 from veredi.data               import background
-from veredi.debug.const        import DebugFlag
 
-from veredi.data.config        import registry as registry_config
+# from veredi.data.registration import codec, config
 from veredi.data.serdes.yaml   import registry as registry_yaml
-
-
-from .                         import zpath, zonfig
 
 
 # -----------------------------------------------------------------------------
@@ -105,7 +99,6 @@ def set_up_registries(config: Optional['Configuration']) -> None:
     # ------------------------------
     # Ensure Things Are Not Registered.
     # ------------------------------
-    registry_config._ut_unregister()
     registry_yaml._ut_unregister()
 
     # ------------------------------
@@ -130,7 +123,6 @@ def tear_down_registries() -> None:
     Get the registries cleared out and ready for a new test.
     '''
     # TODO: unit test log group?
-    registry_config._ut_unregister()
     registry_yaml._ut_unregister()
 
     # Unregistering this way doesn't get things re-registered by the next

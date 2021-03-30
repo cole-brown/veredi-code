@@ -29,10 +29,9 @@ from veredi.base.null import Null, Nullable
 # Code
 # ---
 from veredi.logs                         import log
-from veredi.base.strings                 import pretty
+from veredi.base.strings                 import label, pretty
 from veredi.base.const                   import VerediHealth
 from veredi.base.context                 import VerediContext
-from veredi.data.config.registry         import register
 from veredi.data                         import background
 
 # Game / ECS Stuff
@@ -74,7 +73,6 @@ from .event                              import (CommandRegistrationBroadcast,
 # Code
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'interface', 'input', 'commander')
 class Commander:
     '''
     Command Pattern: Command Invoker, sort of.
@@ -106,10 +104,12 @@ class Commander:
         add_alias() function of CommandRegisterReply.
         '''
 
-    # Magically provided by @register
-    # @classmethod
-    # def dotted(klass: 'Commander') -> str:
-    #     ...
+    @classmethod
+    def dotted(klass: 'Commander') -> label.DotStr:
+        '''
+        The dotted label string this class has.
+        '''
+        return 'veredi.interface.input.commander'
 
     # -------------------------------------------------------------------------
     # Events

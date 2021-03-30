@@ -11,25 +11,24 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.registration import codec
+from veredi.data.registration import config
 
 
-# ------------------------------
-# Registrees
-# ------------------------------
-from .zest_tree import MockNode
+# -----------------------------------------------------------------------------
+# Imports: Registration
+# -----------------------------------------------------------------------------
+
+from .time.tick.base import TickBase
+from .time.tick.round import TickRounds
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-# Should be registered if unit-testing, ignored if not.
-codec.register(MockNode, unit_test_only=True)
+config.ignore(TickBase)
+
+config.register(TickRounds)
 
 
 # -----------------------------------------------------------------------------

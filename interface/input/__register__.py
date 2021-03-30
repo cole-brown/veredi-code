@@ -11,26 +11,29 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.codec import register, ignore
+from veredi.data.registration import codec, config
 
 
-# ------------------------------
-# Registrees
-# ------------------------------
+# ----------------------------------------------------------------------------
+# Imports: Registration
+# ----------------------------------------------------------------------------
+
 from .identity import InputId
+
+from .system   import InputSystem
+from .command  import commander
+from .history  import history
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-register(InputId)
+codec.register(InputId)
 
-# ignore(...)
+config.register(InputSystem)
+config.register(commander.Commander)
+config.register(history.Historian)
 
 
 # -----------------------------------------------------------------------------

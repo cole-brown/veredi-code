@@ -19,10 +19,9 @@ from io import StringIO, TextIOBase
 
 from veredi.logs                 import log
 
-from veredi.data.config.registry import register
-from veredi.data                 import background
-
 from veredi.base                 import paths
+from veredi.base.strings         import label
+from veredi.data                 import background
 from veredi.data.context         import (DataAction,
                                          DataGameContext,
                                          DataLoadContext,
@@ -44,7 +43,6 @@ from ..taxon                     import Rank
 # --       Load a file given context information and a base directory.       --
 # -----------------------------------------------------------------------------
 
-@register('veredi', 'repository', 'file-tree')
 class FileTreeRepository(FileRepository):
 
     # -------------------------------------------------------------------------
@@ -92,6 +90,14 @@ class FileTreeRepository(FileRepository):
 
         self._log_start_up(self.dotted(),
                            "Done with configuration.")
+
+    # --------------------------------------------------------------------------
+    # Properties
+    # --------------------------------------------------------------------------
+
+    @classmethod
+    def dotted(klass: 'FileTreeRepository') -> label.DotStr:
+        return 'veredi.repository.file-tree'
 
     # -------------------------------------------------------------------------
     # Load / Save Helpers

@@ -11,11 +11,12 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from .registry import register, ignore
+from veredi.data.registration import config, codec
 
+
+# -----------------------------------------------------------------------------
+# Imports: Registration
+# -----------------------------------------------------------------------------
 
 # ------------------------------
 # Registrees
@@ -24,14 +25,19 @@ from .enum     import (FlagEncodeValueMixin,
                        FlagEncodeNameMixin,
                        EnumEncodeNameMixin)
 
+from .codec    import Codec
+
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-ignore(FlagEncodeValueMixin)
-ignore(FlagEncodeNameMixin)
-ignore(EnumEncodeNameMixin)
+codec.ignore(FlagEncodeValueMixin)
+codec.ignore(FlagEncodeNameMixin)
+codec.ignore(EnumEncodeNameMixin)
+
+
+config.register(Codec)
 
 
 # -----------------------------------------------------------------------------

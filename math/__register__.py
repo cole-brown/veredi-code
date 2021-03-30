@@ -11,28 +11,37 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.codec import register, ignore
+from veredi.data.registration import codec, config
 
 
-# ------------------------------
-# Registrees
-# ------------------------------
+# -----------------------------------------------------------------------------
+# Imports: Registration
+# -----------------------------------------------------------------------------
+
 from .parser import NodeType, MathTree
 from .event  import MathOutputEvent
+
+from .system import MathSystem
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-register(NodeType)
-register(MathOutputEvent)
+# ------------------------------
+# EncodableRegistry
+# ------------------------------
 
-ignore(MathTree)
+codec.register(NodeType)
+codec.register(MathOutputEvent)
+
+codec.ignore(MathTree)
+
+
+# ------------------------------
+# ConfigRegistry
+# ------------------------------
+config.register(MathSystem)
 
 
 # -----------------------------------------------------------------------------

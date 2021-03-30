@@ -30,7 +30,7 @@ from veredi.rules.game      import RulesGame
 
 from ..                     import background
 from ..exceptions           import ConfigError, LoadError
-from .                      import registry
+from ..registration         import config as registry
 from .hierarchy             import Document, Hierarchy
 from .context               import ConfigContext
 from ..repository.file.bare import FileBareRepository
@@ -584,10 +584,11 @@ class Configuration:
     # Registry Mediation
     # -------------------------------------------------------------------------
     def get_registered(self,
-                       dotted_str: str,
-                       *args:      Any,
-                       context:    Optional['VerediContext'] = None,
-                       **kwargs:   Any) -> Any:
+                       dotted_str:   str,
+                       *args:        Any,
+                       reg_fallback: Any,
+                       context:      Optional['VerediContext'] = None,
+                       **kwargs:     Any) -> Any:
         '''
         Mediator between any systems that don't care about any deep knowledge
         of veredi basics. Pass in a 'dotted' registration string, like:
@@ -610,11 +611,12 @@ class Configuration:
         try:
             retval = registry.get(dotted_str,
                                   context,
-                                  *args,
-                                  **kwargs)
+                                  reg_fallback=reg_fallback)
+
         except VerediError:
             # Ignore these and subclasses - bubble up.
             raise
+
         except Exception as error:
             raise log.exception(
                 ConfigError,
@@ -640,7 +642,7 @@ class Configuration:
         Catches all exceptions and rewraps outside errors in a VerediError.
         '''
         try:
-            retval = registry.create(dotted_str,
+            retval = registry.invoke(dotted_str,
                                      context,
                                      *args,
                                      **kwargs)

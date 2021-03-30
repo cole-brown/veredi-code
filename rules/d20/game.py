@@ -13,7 +13,8 @@ from veredi.data.repository.taxon import SavedTaxon
 import enum
 
 
-from ..game import RulesGame
+from veredi.base.strings import label
+from ..game              import RulesGame
 
 
 # -----------------------------------------------------------------------------
@@ -42,12 +43,11 @@ class D20RulesGame(RulesGame):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def dotted(klass: 'D20RulesGame') -> str:
+    def dotted(klass: 'D20RulesGame') -> label.DotStr:
         '''
         Veredi dotted label string.
         '''
-        # _DOTTED magically provided by @register.
-        return klass._DOTTED
+        return 'veredi.rules.d20.game'
 
     # -------------------------------------------------------------------------
     # Saved

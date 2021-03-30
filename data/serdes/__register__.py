@@ -11,25 +11,31 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
+from veredi.data.registration import config
 
-# ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.registration import codec
 
+# -----------------------------------------------------------------------------
+# Imports: Registration
+# -----------------------------------------------------------------------------
+
+# Registering/ignoring some base/simple things here so we don't have a inverted
+# sort of dependency. Base should be... basic stuff. Configuration and
+# registration is outside its paygrade, really.
 
 # ------------------------------
 # Registrees
 # ------------------------------
-from .zest_tree import MockNode
+
+from .json.serdes import JsonSerdes
+from .yaml.serdes import YamlSerdes
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-# Should be registered if unit-testing, ignored if not.
-codec.register(MockNode, unit_test_only=True)
+config.register(JsonSerdes)
+config.register(YamlSerdes)
 
 
 # -----------------------------------------------------------------------------

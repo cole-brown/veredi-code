@@ -7,37 +7,12 @@ This will be found and imported by run.registry in order to have whatever
 Registries, Registrars, and Registrees this provides available at run-time.
 '''
 
-# -----------------------------------------------------------------------------
-# Imports
-# -----------------------------------------------------------------------------
-
-
+# ----------------------------------------------------------------------------
+# NOTE!
+# ----------------------------------------------------------------------------
+#
+# Please put veredi.base registrees into veredi.data.config.__register__.
+#
+# Want to separate the registration out of base, which is intended to be
+# very basic.
 # ------------------------------
-# Registries & Registrars
-# ------------------------------
-from veredi.data.codec import register, ignore
-
-
-# ------------------------------
-# Registrees
-# ------------------------------
-from .identity import MonotonicId, SerializableId
-
-
-# -----------------------------------------------------------------------------
-# Registration
-# -----------------------------------------------------------------------------
-
-register(MonotonicId)
-register(SerializableId)
-
-# ignore(Here3)
-
-
-# -----------------------------------------------------------------------------
-# Exports
-# -----------------------------------------------------------------------------
-
-__all__ = [
-    # No exports? Just a registration thing.
-]
