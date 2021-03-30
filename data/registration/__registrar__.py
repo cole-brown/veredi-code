@@ -15,16 +15,17 @@ from veredi.logs.log import Group
 
 
 # ------------------------------
-# ConfigRegistry
+# Registries & Registrars
 # ------------------------------
-from .registry import registrar
+from . import codec, config
 
 
 # -----------------------------------------------------------------------------
 # Registration
 # -----------------------------------------------------------------------------
 
-registrar([Group.START_UP, Group.REGISTRATION], None)
+codec.registrar([Group.START_UP, Group.REGISTRATION], None)
+config.registrar([Group.START_UP, Group.REGISTRATION], None)
 
 
 # -----------------------------------------------------------------------------
