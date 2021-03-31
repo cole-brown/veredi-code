@@ -236,7 +236,8 @@ class BaseRegistrar(LogMixin, ABC):
         Is the registree a class or a function?
         Returns True for class.
         '''
-        return issubclass(registree, object)
+        return (isinstance(registree, type)
+                and issubclass(registree, object))
 
     def _is_function(self, registree: 'RegisterType') -> bool:
         '''
@@ -658,10 +659,15 @@ class DottedRegistrar(BaseRegistrar):
         # Check the registree for per-existing _DOTTED/dotted().
         # ---
         dotted_name = label.normalize(reg_label)
-        dotted_attr = getattr(registree,
-                              labeler.ATTRIBUTE_PRIVATE_NAME)
-        dotted_func = getattr(registree,
-                              labeler.KLASS_FUNC_NAME, None)
+        dotted_attr = None
+        dotted_func = None
+        try:
+            dotted_attr = getattr(registree,
+                                  labeler.ATTRIBUTE_PRIVATE_NAME)
+            dotted_func = getattr(registree,
+                                  labeler.KLASS_FUNC_NAME, None)
+        except AttributeError:
+            pass
 
         # ---
         # Do they have `dotted()`?
@@ -733,14 +739,12 @@ class DottedRegistrar(BaseRegistrar):
 # Registration-By-Decorator Class
 # -----------------------------------------------------------------------------
 
-class DecoratorRegistrar(DottedRegistrar):
+class DecoratorRegistrar:
     '''
-    A class to hold registration data for whatever type of register you want.
+    Add a 'register via decorator' function to a registrar.
 
-    The registry is class-level, so subclass this for each unique registry.
-
-    DecoratorRegistrar is for registering via the decorator `register`
-    function.
+    Decorator is: @register_this(...)
+    Normal registration can still happen via: register(...)
     '''
 
     # -------------------------------------------------------------------------
@@ -752,8 +756,9 @@ class DecoratorRegistrar(DottedRegistrar):
     # about any that are sitting around waiting to be imported. If needed, we
     # can fix that by importing things in their folder's __init__.py.
 
-    def register(self,
-                 *args: str) -> Callable[..., Type[Any]]:
+    def register_this(self,
+                      *dotted_label: label.LabelInput
+                      ) -> Callable[..., Type[Any]]:
         '''
         Decorator property for registering a class or function with this
         registry.
@@ -773,7 +778,8 @@ class DecoratorRegistrar(DottedRegistrar):
         def register_decorator(cls_or_func: 'RegisterType') -> Type[Any]:
 
             # ...which is just a call to the BaseRegistrar...
-            super().register(cls_or_func, *args)
+            super().add(cls_or_func,
+                        *dotted_label)
 
             # _DOTTED and dotted() provided in super().register() by
             # our DottedRegistrar parent class.

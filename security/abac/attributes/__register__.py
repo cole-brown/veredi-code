@@ -15,7 +15,7 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # ------------------------------
 # Registries & Registrars
 # ------------------------------
-from veredi.config.registration import codec
+from veredi.data.registration import codec
 
 
 # ------------------------------

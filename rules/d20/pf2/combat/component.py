@@ -26,6 +26,8 @@ from veredi.base.strings             import label
 from veredi.game.data.component      import DataComponent
 from veredi.game.interface.component import queue
 
+from .event                          import AttackRequest, DefenseRequest
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -36,7 +38,7 @@ from veredi.game.interface.component import queue
 # This means war!
 # -----------------------------------------------------------------------------
 
-class AttackComponent(DataComponent, queue.IQueueSingle[AttackEvent]):
+class AttackComponent(DataComponent, queue.IQueueSingle[AttackRequest]):
     '''
     Component with offensive/attack numbers, attack action queue, probably
     other stuff...
@@ -86,7 +88,7 @@ class AttackComponent(DataComponent, queue.IQueueSingle[AttackEvent]):
 # D-Fence.
 # -----------------------------------------------------------------------------
 
-class DefenseComponent(DataComponent, queue.IQueueSingle):
+class DefenseComponent(DataComponent, queue.IQueueSingle[DefenseRequest]):
     '''
     Component with defense numbers, defense action queue(?), probably other
     stuff...

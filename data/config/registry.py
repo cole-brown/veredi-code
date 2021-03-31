@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 from veredi.logs           import log
 from veredi.data           import background
 from veredi.base.context   import VerediContext
-from veredi.base.registrar import DecoratorRegistrar, RegisterType
+from veredi.base.registrar import CallRegistrar, RegisterType
 from veredi.base.strings   import label
 
 from ..exceptions          import RegistryError
@@ -48,7 +48,7 @@ __all__ = [
 # Configuration Registry
 # -----------------------------------------------------------------------------
 
-class ConfigRegistry(DecoratorRegistrar):
+class ConfigRegistry(CallRegistrar):
     '''
     Registry for all the registree types that want to be created by
     Configuration and/or referencable in the config files.
@@ -95,48 +95,6 @@ class ConfigRegistry(DecoratorRegistrar):
         '''
         # TODO: Do we have any checks to do here?
         return True
-
-    # -------------------------------------------------------------------------
-    # Registration
-    # -------------------------------------------------------------------------
-
-    def _register(self,
-                  registree:  Type[Any],
-                  reg_label:    Iterable[str],
-                  # final key in `reg_args`
-                  leaf_key:   str,
-                  # A sub-tree of our registration dict, at the correct node
-                  # for registering this registree.
-                  reg_ours:   Dict,
-                  # A sub-tree of the background registration dict, at the
-                  # correct node for registering this registree.
-                  reg_bg:     Dict) -> None:
-        '''
-        We want to register to the background with:
-          { leaf_key: Any.type_field() }
-
-        `reg_args` is the Iterable of args passed into `register()`.
-        `reg_ours` is the place in our registry we placed this registration.
-        `reg_bg` is the place in the background we placed this registration.
-        '''
-        # Get it's type field name.
-        try:
-            name = registree.type_field()
-        except NotImplementedError as error:
-            msg = (f"{self.__class__.__name__}._register: '{type(registree)}' "
-                   f"(\"{label.regularize(*reg_label)}\") needs to "
-                   "implement type_field() function.")
-            self._log_exception(error, msg)
-            # Let error through. Just want more info.
-            raise
-
-        # Set as registered cls/func.
-        reg_ours[leaf_key] = registree
-
-        # Save to the background as a thing that has been registered at this
-        # level.
-        bg_list = reg_bg.setdefault('.', [])
-        bg_list.append({leaf_key: name})
 
     # -------------------------------------------------------------------------
     # Accessors

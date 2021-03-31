@@ -144,3 +144,22 @@ class Component(ABC):
             f"[{self.id}, "
             f"{str(self.life_cycle)}]>"
         )
+
+
+# -----------------------------------------------------------------------------
+# Unit-Testing: Mock Component
+# -----------------------------------------------------------------------------
+class MockComponent(Component):
+    '''
+    A Component that has an auto-created return for 'dotted'.
+    '''
+
+    _DOTTED: label.DotStr = 'veredi.zest.mock.component'
+
+    @classmethod
+    def dotted(klass: 'MockComponent') -> label.DotStr:
+        '''
+        Generate dotted from klass' const _DOTTED string and klass' name
+        (lowercased).
+        '''
+        return label.normalize(klass._DOTTED, klass.__name__.lower())

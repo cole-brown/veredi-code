@@ -53,7 +53,9 @@ from veredi.data               import background
 # What we're testing:
 # ------------------------------
 from veredi                    import run
-from .system                   import TestSystem
+# Also testing dynamic registration (on import) for this, so do not import
+# until after registration has initialized registrars.
+#   from .system                   import TestSystem
 
 
 # -----------------------------------------------------------------------------
@@ -64,6 +66,7 @@ from .system                   import TestSystem
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
+
 
 class Test_From_Scratch(unittest.TestCase):
     '''
@@ -226,13 +229,10 @@ class Test_From_Scratch(unittest.TestCase):
     # Set-Up: Real, Actual Veredi
     # -------------------------------------------------------------------------
 
-    def set_up(self,
-               test_name: str,
-               *systems:  Optional['run.system.SysCreateType']) -> bool:
+    def registration(self, test_name: str) -> bool:
         '''
-        Do the "officially, this is how you set up a game" stuff.
-
-        Returns success/failure.
+        Do the "officially, this is how you set up a game" up to
+        run.registration (which is called by run.init).
         '''
         with self.subTest(f"{self.__class__.__name__}.{test_name}() "
                           "-> set_up():"):
@@ -251,6 +251,18 @@ class Test_From_Scratch(unittest.TestCase):
             # ---
             run.init(self.config)
 
+        return True
+
+    def set_up(self,
+               test_name: str,
+               *systems:  Optional['run.system.SysCreateType']) -> bool:
+        '''
+        Do the "officially, this is how you set up a game" stuff.
+
+        Returns success/failure.
+        '''
+        with self.subTest(f"{self.__class__.__name__}.{test_name}() "
+                          "-> set_up():"):
             # ---
             # Meeting of Managers from config settings.
             # ---
@@ -312,6 +324,12 @@ class Test_From_Scratch(unittest.TestCase):
 
     def test_from_scratch(self) -> None:
         # Set-up Veredi game with our TestSystem.
+        self.registration("test_from_scratch")
+
+        # Import the testing system and see if its decorator registers it.
+        from .system import TestSystem
+
+        # Now we're ready to test.
         self.assertTrue(
             self.set_up("test_from_scratch", TestSystem))
         system = self.manager.system.get(TestSystem)

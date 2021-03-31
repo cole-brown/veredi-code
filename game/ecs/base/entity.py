@@ -15,7 +15,6 @@ from veredi.base.null import Null, Nullable
 if TYPE_CHECKING:
     from ..component import ComponentManager
 
-from abc import ABC, abstractmethod
 import enum
 
 
@@ -64,7 +63,7 @@ class EntityLifeCycle(enum.Enum):
 # Code
 # -----------------------------------------------------------------------------
 
-class Entity(ABC):
+class Entity:
     '''
     An Entity tracks its EntityId and life cycle, but primarily holds a
     collection of its Components. The components /are/ the entity,
@@ -110,13 +109,11 @@ class Entity(ABC):
     # --------------------------------------------------------------------------
 
     @classmethod
-    @abstractmethod
-    def dotted(klass: 'Component') -> label.DotStr:
+    def dotted(klass: 'Entity') -> label.DotStr:
         '''
         Veredi dotted label string.
         '''
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented.")
+        return 'veredi.game.ecs.base.entity'
 
     @property
     def id(self) -> EntityId:

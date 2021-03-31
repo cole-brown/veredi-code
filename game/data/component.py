@@ -145,6 +145,13 @@ class DataComponent(Component):
                 f"Key '{key}' not found in our data (in {container}).",
                 None, None)
 
+    @classmethod
+    def dotted(klass: 'DataComponent') -> str:
+        '''
+        This component's dotted label.
+        '''
+        return 'veredi.game.data.component'
+
     # -------------------------------------------------------------------------
     # Persistent Data
     # -------------------------------------------------------------------------

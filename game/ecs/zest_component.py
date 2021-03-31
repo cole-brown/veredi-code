@@ -20,6 +20,7 @@ from .component            import (ComponentManager,
                                    ComponentLifeEvent)
 from .base.identity        import ComponentId
 from .base.component       import (ComponentLifeCycle,
+                                   MockComponent,
                                    Component)
 
 
@@ -32,7 +33,7 @@ from .base.component       import (ComponentLifeCycle,
 # Mockups
 # -----------------------------------------------------------------------------
 
-class CompOne(Component):
+class CompOne(MockComponent):
     pass
 
 
@@ -44,7 +45,7 @@ class CompTwo(CompOne):
         self.y = context.sub['unit-test-args']['y']
 
 
-class CompThree(Component):
+class CompThree(MockComponent):
     pass
 
 

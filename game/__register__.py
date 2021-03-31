@@ -18,9 +18,12 @@ from veredi.data.registration import config
 # Imports: Registration
 # -----------------------------------------------------------------------------
 
+from .data.identity.component import IdentityComponent
+from .data.identity.manager import IdentityManager
+from .data.component import DataComponent
+from .data.manager import DataManager
 from .time.tick.base import TickBase
 from .time.tick.round import TickRounds
-
 
 # -----------------------------------------------------------------------------
 # Registration
@@ -28,6 +31,10 @@ from .time.tick.round import TickRounds
 
 config.ignore(TickBase)
 
+config.register(IdentityComponent)
+config.register(IdentityManager)
+config.register(DataComponent)
+config.register(DataManager)
 config.register(TickRounds)
 
 

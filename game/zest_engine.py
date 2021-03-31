@@ -15,7 +15,7 @@ from veredi.logs             import log
 
 from .ecs.const              import SystemTick, SystemPriority
 
-from .ecs.base.component     import (Component,
+from .ecs.base.component     import (MockComponent,
                                      ComponentLifeCycle)
 from .ecs.base.entity        import EntityLifeCycle
 from .ecs.base.system        import (System,
@@ -31,15 +31,15 @@ from .ecs.base.system        import (System,
 # Mockups
 # -----------------------------------------------------------------------------
 
-class CompOne(Component):
+class CompOne(MockComponent):
     pass
 
 
-class CompTwo(Component):
+class CompTwo(MockComponent):
     pass
 
 
-class CompThree(Component):
+class CompThree(MockComponent):
     pass
 
 
