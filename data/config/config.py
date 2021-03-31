@@ -586,7 +586,7 @@ class Configuration:
     def get_registered(self,
                        dotted_str:   str,
                        *args:        Any,
-                       reg_fallback: Any,
+                       reg_fallback: Optional[Any]             = None,
                        context:      Optional['VerediContext'] = None,
                        **kwargs:     Any) -> Any:
         '''
@@ -609,9 +609,9 @@ class Configuration:
             )
 
         try:
-            retval = registry.get(dotted_str,
-                                  context,
-                                  reg_fallback=reg_fallback)
+            retval = registry.registry().get(dotted_str,
+                                             context,
+                                             reg_fallback=reg_fallback)
 
         except VerediError:
             # Ignore these and subclasses - bubble up.
@@ -642,10 +642,10 @@ class Configuration:
         Catches all exceptions and rewraps outside errors in a VerediError.
         '''
         try:
-            retval = registry.invoke(dotted_str,
-                                     context,
-                                     *args,
-                                     **kwargs)
+            retval = registry.registry().invoke(dotted_str,
+                                                context,
+                                                *args,
+                                                **kwargs)
         except VerediError:
             # Ignore these and subclasses - bubble up.
             raise

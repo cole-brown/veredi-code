@@ -23,7 +23,7 @@ from .entity               import (EntityManager,
                                    EntityEventType,
                                    EntityLifeEvent)
 from .base.identity        import EntityId
-from .base.component       import Component
+from .base.component       import MockComponent
 from .base.entity          import (Entity,
                                    EntityLifeCycle)
 
@@ -37,15 +37,15 @@ from .base.entity          import (Entity,
 # Mockups
 # -----------------------------------------------------------------------------
 
-class CompOne(Component):
+class CompOne(MockComponent):
     pass
 
 
-class CompTwo(Component):
+class CompTwo(MockComponent):
     pass
 
 
-class CompThree(Component):
+class CompThree(MockComponent):
     pass
 
 

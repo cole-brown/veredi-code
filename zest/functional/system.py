@@ -33,7 +33,7 @@ from veredi.game.event               import EngineStopRequest
 # -----------------------------------------------------------------------------
 
 # register via decorator to test out that that registration way also works.
-@config.register('veredi', 'zest', 'functional', 'system')
+@config.register_this('veredi', 'zest', 'functional', 'system')
 class TestSystem(ecs.base.System):
 
     # -------------------------------------------------------------------------

@@ -27,7 +27,7 @@ from .system               import (SystemManager,
 from .const                import SystemTick, SystemPriority
 
 from .base.identity        import SystemId
-from .base.component       import Component
+from .base.component       import MockComponent
 from .base.system          import System, SystemLifeCycle
 
 
@@ -40,15 +40,15 @@ from .base.system          import System, SystemLifeCycle
 # Mockups
 # -----------------------------------------------------------------------------
 
-class CompOne(Component):
+class CompOne(MockComponent):
     pass
 
 
-class CompTwo(Component):
+class CompTwo(MockComponent):
     pass
 
 
-class CompThree(Component):
+class CompThree(MockComponent):
     pass
 
 

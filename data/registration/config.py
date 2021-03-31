@@ -9,7 +9,7 @@ Registry functions for Encodables.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Type, List)
+                    Optional, Any, Type, Callable, List)
 if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
@@ -141,6 +141,42 @@ def register(klass:          RegisterType,
                      _REGISTRAR.__class__.__name__,
                      dotted_str,
                      klass.__name__)
+
+
+# Decorator way of doing factory registration. Note that we will only get
+# classes/funcs that are imported, when they are imported. We don't know
+# about any that are sitting around waiting to be imported. If needed, we
+# can fix that by importing things in their folder's __init__.py.
+def register_this(*dotted_label: label.LabelInput) -> Callable[..., Type[Any]]:
+    '''
+    Decorator property for registering a class or function with this
+    registry.
+
+    e.g. for a class:
+      @register_this('veredi', 'example', 'example-class')
+      class Example:
+        pass
+
+    e.g. for a function:
+      @register_this('veredi', 'example', 'function')
+      def example(arg0, arg1, **kwargs):
+        pass
+    '''
+
+    # Now make the actual decorator...
+    def register_decorator(cls_or_func: 'RegisterType') -> Type[Any]:
+
+        # ...which is just a call to the BaseRegistrar...
+        register(cls_or_func, dotted_label)
+
+        # _DOTTED and dotted() provided in super().register() by
+        # our DottedRegistrar parent class.
+
+        # ...and then returning the cls_or_func we decorated.
+        return cls_or_func
+
+    # ...and return it.
+    return register_decorator
 
 
 def ignore(ignoree: RegisterType) -> None:
