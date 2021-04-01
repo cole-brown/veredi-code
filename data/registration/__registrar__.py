@@ -24,8 +24,8 @@ from . import codec, config
 # Registration
 # -----------------------------------------------------------------------------
 
-codec.registrar([Group.START_UP, Group.REGISTRATION], None)
-config.registrar([Group.START_UP, Group.REGISTRATION], None)
+codec.create([Group.START_UP, Group.REGISTRATION], None)
+config.create([Group.START_UP, Group.REGISTRATION], None)
 
 
 # -----------------------------------------------------------------------------

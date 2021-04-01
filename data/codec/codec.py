@@ -812,8 +812,8 @@ class Codec(LogMixin):
 
         Will return None if no Encodable target is found.
         '''
-        target = registrar.registry().simple(data,
-                                             data_type=data_type)
+        target = registrar.codec.simple(data,
+                                        data_type=data_type)
         if target:
             return self._decode_encodable(target, data)
         return None
@@ -847,10 +847,11 @@ class Codec(LogMixin):
         if data is None:
             # No data at all. Use either fallback or None.
             if fallback:
-                self._log_data_processing(self.dotted(),
-                                          "decode_with_registry: data is None; using "
-                                          "fallback. data: {}, fallback: {}",
-                                          data, fallback)
+                self._log_data_processing(
+                    self.dotted(),
+                    "decode_with_registry: data is None; using "
+                    "using fallback. data: {}, fallback: {}",
+                    data, fallback)
                 return fallback
             # `None` is an acceptable enough value for us... Lots of things are
             # optional. Errors for unexpectedly None things should happen in
@@ -935,11 +936,11 @@ class Codec(LogMixin):
         # Now decode it.
         # ------------------------------
 
-        target = registrar.registry().get(encoded_data,
-                                          dotted=dotted,
-                                          data_type=data_types,
-                                          error_squelch=error_squelch,
-                                          fallback=fallback)
+        target = registrar.codec.get(encoded_data,
+                                     dotted=dotted,
+                                     data_type=data_types,
+                                     error_squelch=error_squelch,
+                                     fallback=fallback)
         return self._decode_encodable(target, data)
 
     def decode_map(self,
@@ -964,8 +965,8 @@ class Codec(LogMixin):
         return decoded
 
     def _decode_key(self,
-                   key:      Any,
-                   expected: Iterable[Type['Encodable']] = None) -> str:
+                    key:      Any,
+                    expected: Iterable[Type['Encodable']] = None) -> str:
         '''
         Decode a mapping's key.
 

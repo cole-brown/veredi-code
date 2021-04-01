@@ -30,10 +30,14 @@ from veredi.data.codec.registry import EncodableRegistry
 
 __all__ = [
     # ------------------------------
+    # Instances
+    # ------------------------------
+    'codec',
+
+    # ------------------------------
     # Functions
     # ------------------------------
-    'registrar',
-    'registry',
+    'create',
     'register',
     'ignore',
 ]
@@ -43,7 +47,7 @@ __all__ = [
 # Constants
 # -----------------------------------------------------------------------------
 
-_REGISTRAR: EncodableRegistry = None
+codec: EncodableRegistry = None
 '''
 The registry instance for Encodables.
 '''
@@ -58,27 +62,20 @@ For logging.
 # Helpers
 # -----------------------------------------------------------------------------
 
-def registrar(log_groups: List[log.Group],
-              context:    'ConfigContext') -> EncodableRegistry:
+def create(log_groups: List[log.Group],
+           context:    'ConfigContext') -> EncodableRegistry:
     '''
     Create the EncodableRegistry instance.
     '''
-    log.registration(label.normalize(_DOTTED, 'registrar'),
+    log.registration(label.normalize(_DOTTED, 'create'),
                      'Creating EncodableRegistry...')
-    global _REGISTRAR
-    _REGISTRAR = base_registrar(EncodableRegistry,
-                                log_groups,
-                                context,
-                                _REGISTRAR)
-    log.registration(label.normalize(_DOTTED, 'registrar'),
+    global codec
+    codec = base_registrar(EncodableRegistry,
+                           log_groups,
+                           context,
+                           codec)
+    log.registration(label.normalize(_DOTTED, 'create'),
                      'Created EncodableRegistry.')
-
-
-def registry() -> EncodableRegistry:
-    '''
-    Get the EncodableRegistry.
-    '''
-    return _REGISTRAR
 
 
 def register(klass:          Type['Encodable'],
@@ -129,16 +126,16 @@ def register(klass:          Type['Encodable'],
     dotted_str = label.normalize(dotted)
     log.registration(log_dotted,
                      "{}: Registering '{}' to '{}'...",
-                     _REGISTRAR.__class__.__name__,
+                     codec.__class__.__name__,
                      dotted_str,
                      klass.__name__)
 
     dotted_args = label.regularize(dotted)
-    _REGISTRAR.register(klass, *dotted_args)
+    codec.register(klass, *dotted_args)
 
     log.registration(log_dotted,
                      "{}: Registered '{}' to '{}'.",
-                     _REGISTRAR.__class__.__name__,
+                     codec.__class__.__name__,
                      dotted_str,
                      klass.__name__)
 
@@ -151,12 +148,12 @@ def ignore(ignoree: Type['Encodable']) -> None:
     log_dotted = label.normalize(EncodableRegistry.dotted(), 'ignore')
     log.registration(log_dotted,
                      "{}: '{}' marking as ignored for registration...",
-                     _REGISTRAR.__class__.__name__,
+                     codec.__class__.__name__,
                      ignoree)
 
-    _REGISTRAR.ignore(ignoree)
+    codec.ignore(ignoree)
 
     log.registration(log_dotted,
                      "{}: '{}' marked as ignored.",
-                     _REGISTRAR.__class__.__name__,
+                     codec.__class__.__name__,
                      ignoree)
