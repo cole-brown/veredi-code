@@ -30,7 +30,7 @@ from veredi.rules.game      import RulesGame
 
 from ..                     import background
 from ..exceptions           import ConfigError, LoadError
-from ..registration         import config as registry
+from ..registration         import config as registrar
 from .hierarchy             import Document, Hierarchy
 from .context               import ConfigContext
 from ..repository.file.bare import FileBareRepository
@@ -609,9 +609,9 @@ class Configuration:
             )
 
         try:
-            retval = registry.registry().get(dotted_str,
-                                             context,
-                                             reg_fallback=reg_fallback)
+            retval = registrar.config.get(dotted_str,
+                                          context,
+                                          reg_fallback=reg_fallback)
 
         except VerediError:
             # Ignore these and subclasses - bubble up.
@@ -642,10 +642,11 @@ class Configuration:
         Catches all exceptions and rewraps outside errors in a VerediError.
         '''
         try:
-            retval = registry.registry().invoke(dotted_str,
-                                                context,
-                                                *args,
-                                                **kwargs)
+            retval = registrar.config.invoke(dotted_str,
+                                             context,
+                                             *args,
+                                             **kwargs)
+
         except VerediError:
             # Ignore these and subclasses - bubble up.
             raise

@@ -29,10 +29,14 @@ from veredi.data.config.registry import ConfigRegistry
 
 __all__ = [
     # ------------------------------
+    # Instances
+    # ------------------------------
+    'config',
+
+    # ------------------------------
     # Functions
     # ------------------------------
-    'registrar',
-    'registry',
+    'create',
     'register',
     'ignore',
 ]
@@ -42,7 +46,7 @@ __all__ = [
 # Constants
 # -----------------------------------------------------------------------------
 
-_REGISTRAR: ConfigRegistry = None
+config: ConfigRegistry = None
 '''
 The registry instance for Configs.
 '''
@@ -57,28 +61,21 @@ For logging.
 # Helpers
 # -----------------------------------------------------------------------------
 
-def registrar(log_groups: List[log.Group],
-              context:    'ConfigContext') -> ConfigRegistry:
+def create(log_groups: List[log.Group],
+           context:    'ConfigContext') -> ConfigRegistry:
     '''
     Create the ConfigRegistry instance.
     '''
-    log_dotted = label.normalize(_DOTTED, 'registrar')
+    log_dotted = label.normalize(_DOTTED, 'create')
     log.registration(log_dotted,
                      'Creating EncodableRegistry...')
-    global _REGISTRAR
-    _REGISTRAR = base_registrar(ConfigRegistry,
-                                log_groups,
-                                context,
-                                _REGISTRAR)
+    global config
+    config = base_registrar(ConfigRegistry,
+                            log_groups,
+                            context,
+                            config)
     log.registration(log_dotted,
                      'Created EncodableRegistry.')
-
-
-def registry() -> ConfigRegistry:
-    '''
-    Get the ConfigRegistry.
-    '''
-    return _REGISTRAR
 
 
 def register(klass:          RegisterType,
@@ -129,16 +126,16 @@ def register(klass:          RegisterType,
     dotted_str = label.normalize(dotted)
     log.registration(log_dotted,
                      "{}: Registering '{}' to '{}'...",
-                     _REGISTRAR.__class__.__name__,
+                     config.__class__.__name__,
                      dotted_str,
                      klass.__name__)
 
     dotted_args = label.regularize(dotted)
-    _REGISTRAR.register(klass, *dotted_args)
+    config.register(klass, *dotted_args)
 
     log.registration(log_dotted,
                      "{}: Registered '{}' to '{}'.",
-                     _REGISTRAR.__class__.__name__,
+                     config.__class__.__name__,
                      dotted_str,
                      klass.__name__)
 
@@ -187,12 +184,12 @@ def ignore(ignoree: RegisterType) -> None:
     log_dotted = label.normalize(ConfigRegistry.dotted(), 'ignore')
     log.registration(log_dotted,
                      "{}: '{}' marking as ignored for registration...",
-                     _REGISTRAR.__class__.__name__,
+                     config.__class__.__name__,
                      ignoree)
 
-    _REGISTRAR.ignore(ignoree)
+    config.ignore(ignoree)
 
     log.registration(log_dotted,
                      "{}: '{}' marked as ignored.",
-                     _REGISTRAR.__class__.__name__,
+                     config.__class__.__name__,
                      ignoree)

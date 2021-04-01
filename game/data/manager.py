@@ -348,7 +348,7 @@ class DataManager(EcsManagerWithEvents):
         return self._bg
 
     @classmethod
-    def dotted(klass: 'DataManager') -> str:
+    def dotted(klass: 'DataManager') -> label.DotStr:
         return 'veredi.game.data.manager'
 
     # -------------------------------------------------------------------------
