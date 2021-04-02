@@ -94,8 +94,8 @@ def set_up_registries(config: Optional['Configuration']) -> None:
     '''
     Get the registries ready for all tests.
     '''
-    # TODO: MOVE THESE BEHIND SENTINEL ONCE THEY HAVE BEEN UPDATED TO NEW
-    # REGISTRATION.
+    # TODO: v://future/registering/2021-04-01T17:10:21 MOVE THESE BEHIND
+    # SENTINEL ONCE THEY HAVE BEEN UPDATED TO NEW REGISTRATION.
     # ------------------------------
     # Ensure Things Are Not Registered.
     # ------------------------------
@@ -117,24 +117,18 @@ def set_up_registries(config: Optional['Configuration']) -> None:
     run.registration(config)
 
 
-# TODO: delete this.
+# TODO: v://future/registering/2021-04-01T17:10:21 delete this.
 def tear_down_registries() -> None:
     '''
     Get the registries cleared out and ready for a new test.
     '''
-    # TODO: unit test log group?
     registry_yaml._ut_unregister()
 
     # Unregistering this way doesn't get things re-registered by the next
     # run.registration()... Probably because the imports do nothing since we
     # don't un-import?
-    # So for now just leave it alone?
     #
-    # # TODO: A more automatic unregister?
-    # # run._ut_unregister()
-    # reg_codec = registry_codec.registry()
-    # if reg_codec:
-    #     reg_codec._ut_unregister()
+    # So for now just leave it alone?
 
 
 # -----------------------------------------------------------------------------
@@ -145,8 +139,6 @@ def set_up_background() -> None:
     '''
     Get the background cleared out and ready for a new test.
     '''
-    # TODO: Figure out how to not nuke entire bg. Registrars lose their info?
-
     # Enable our unit-testing flag.
     background.testing.set_unit_testing(True)
 
@@ -155,7 +147,5 @@ def tear_down_background() -> None:
     '''
     Get the background cleared out and ready for a new test.
     '''
-    # TODO: Figure out how to not nuke entire bg. Registrars lose their info?
-
     # Delete entire background, since it's all created during set-up/testing.
     background.testing.nuke()
