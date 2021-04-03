@@ -99,6 +99,55 @@ def is_dotstr(input: Any) -> bool:
     return True
 
 
+def is_labelinput(*input: Any) -> bool:
+    '''
+    Returns True if all of `input` is valid as LabelInput.
+    '''
+    if not input:
+        return False
+
+    # `input` parameter is *args, so it is definitely an iterable.
+    # So check each one, and return result ASAP.
+    for entry in input:
+        if not is_labelinput_entry(entry):
+            return False
+    return True
+
+
+def is_labelinput_entry(input: Any) -> bool:
+    '''
+    Returns True if this one `input` is valid as LabelInput.
+    '''
+    # ------------------------------
+    # LabelInput is: Union[str, List[str]]
+    #   1) Check for str.
+    #   2) Check for list of strs.
+    # ------------------------------
+
+    # ---
+    # 1) String?
+    # ---
+    if isinstance(input, str):
+        return True
+
+    # ---
+    # 2) Iterable of Strings?
+    # ---
+    # Be strict and require only list, or be Pythonic and just iterate?
+    try:
+        for entry in input:
+            if not isinstance(entry, str):
+                return False
+    except TypeError:
+        # Not iterable so not a LabelInput.
+        return False
+
+    # ---
+    # 3) Success.
+    # ---
+    # Didn't return early with a failure, so we must have succeeded.
+    return True
+
 # -----------------------------------------------------------------------------
 # Label Helper Functions
 # -----------------------------------------------------------------------------
@@ -130,7 +179,7 @@ def _split(dotted: DotStr) -> DotList:
     return dotted.split('.')
 
 
-def regularize(*dotted: LabelInput) -> DotList:
+def regularize(*dotted: LabelInput, empty_ok: bool = False) -> DotList:
     '''
     ??? -> [str, str, ...]
 
@@ -141,13 +190,17 @@ def regularize(*dotted: LabelInput) -> DotList:
         -> ['jeff', 'rules', 'system', 'etc']
       regularize('jeff.rules.system.etc')
         -> ['jeff', 'rules', 'system', 'etc']
+
+    If `empty_ok` is True, will return `[]` for empty `dotted` input.
     '''
+    if empty_ok and not is_labelinput(*dotted):
+        return []
     # Flatten (and split) our input string(s) into one list of one string each.
     return lists.flatten(*dotted,
                          function=_split)
 
 
-def normalize(*dotted: LabelInput) -> DotStr:
+def normalize(*dotted: LabelInput, empty_ok: bool = False) -> Optional[DotStr]:
     '''
     Normalize input `dotted` strings and/or lists of strings into one list of
     strings (or one dotted string if `to_str` is True).
@@ -161,9 +214,14 @@ def normalize(*dotted: LabelInput) -> DotStr:
         -> 'jeff.rules.system.etc'
       normalize(['jeff', 'rules', 'system', 'etc'])
         -> 'jeff.rules.system.etc'
+
+    If `empty_ok` is True, will return `None` for empty `dotted` input.
     '''
+    if empty_ok and not is_labelinput(*dotted):
+        return None
+
     # Easy - regularize and join it.
-    return _join(*regularize(dotted))
+    return _join(*regularize(dotted, empty_ok=empty_ok))
 
 
 def to_path(*args: LabelInput) -> Nullable[pathlib.Path]:

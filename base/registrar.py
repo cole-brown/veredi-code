@@ -15,16 +15,14 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
 
-from abc import ABC, abstractmethod
+from veredi.base.strings       import label, labeler, mixin
+from veredi.base.strings.mixin import NamesMixin
+from veredi.logs               import log
+from veredi.logs.mixin         import LogMixin
+from veredi.data               import background
+from veredi.data.exceptions    import RegistryError
 
-
-from veredi.base.strings    import label, labeler
-from veredi.logs            import log
-from veredi.logs.mixin      import LogMixin
-from veredi.data            import background
-from veredi.data.exceptions import RegistryError
-
-from .context               import VerediContext
+from .context                  import VerediContext
 
 
 # -----------------------------------------------------------------------------
@@ -54,10 +52,10 @@ def registrar(reg_type:   Type['BaseRegistrar'],
     '''
     log.group_multi(
         log_groups,
-        reg_type.dotted(),
+        reg_type.dotted,
         "Create requested for {} ({})...",
         reg_type.__name__,
-        reg_type.dotted()
+        reg_type.dotted
     )
 
     # ------------------------------
@@ -66,7 +64,7 @@ def registrar(reg_type:   Type['BaseRegistrar'],
     if instance:
         msg = (f"{reg_type} already exists! "
                "Should not be recreating it!")
-        log.registration(reg_type.dotted(),
+        log.registration(reg_type.dotted,
                          msg,
                          log_minimum=log.Level.ERROR,
                          log_success=False)
@@ -87,9 +85,9 @@ def registrar(reg_type:   Type['BaseRegistrar'],
 
     log.group_multi(
         log_groups,
-        reg_type.dotted(),
+        reg_type.dotted,
         f"Create request completed for {reg_type.__name__} "
-        f"({instance.dotted()})...")
+        f"({instance.dotted})...")
 
     return instance
 
@@ -98,12 +96,25 @@ def registrar(reg_type:   Type['BaseRegistrar'],
 # Registration Class
 # -----------------------------------------------------------------------------
 
-class BaseRegistrar(LogMixin, ABC):
+class BaseRegistrar(LogMixin, NamesMixin):
     '''
     A class to hold registration data for whatever type of register you want.
 
     Don't sub-class this for specific registries; sub-class one of the
     sub-classes in this module.
+
+    Sub-classes are expected to use kwargs:
+      - Required:
+        + name_dotted: Optional[label.LabelInput]
+          - string/strings to create the Veredi dotted label.
+        + name_string: Optional[str]
+          - Any short string for describing class. Either short-hand or class's
+            __name__ are fine.
+        + name_klass:        Optional[str]
+          - If None, will be class's __name__.
+      - Optional:
+        + name_string_xform: Optional[Callable[[str], str]] = None,
+        + name_klass_xform:  Optional[Callable[[str], str]] = to_lower_lambda,
     '''
 
     # -------------------------------------------------------------------------
@@ -119,20 +130,20 @@ class BaseRegistrar(LogMixin, ABC):
         '''
         log.group_multi(
             log_groups,
-            registry.dotted(),
+            registry.dotted,
             "Creating {} ({})...",
             registry.__name__,
-            registry.dotted())
+            registry.dotted)
 
         # Create it.
         reg = registry(context)
 
         log.group_multi(
             log_groups,
-            registry.dotted(),
+            registry.dotted,
             "{} ({}) created.",
             reg.__class__.__name__,
-            reg.dotted())
+            reg.dotted)
         return reg
 
     # -------------------------------------------------------------------------
@@ -176,7 +187,7 @@ class BaseRegistrar(LogMixin, ABC):
     def __init__(self, context: Optional['ConfigContext']) -> None:
         # Only thing we have is vars to create.
         self._define_vars()
-        self._log_config(self.dotted())
+        self._log_config(self.dotted)
 
         self._configure(context)
         self._background(context)
@@ -186,7 +197,7 @@ class BaseRegistrar(LogMixin, ABC):
         Sub-class configuration.
         '''
         # config = background.config.config(self.__class__.__name__,
-        #                                   self.dotted(),
+        #                                   self.dotted,
         #                                   None)
         ...
 
@@ -196,7 +207,7 @@ class BaseRegistrar(LogMixin, ABC):
         Make background data for this sub-class.
         '''
         self._bg = {
-            'dotted': self.dotted(),
+            'dotted': self.dotted,
         }
         return self._bg, background.Ownership.SHARE
 
@@ -209,23 +220,9 @@ class BaseRegistrar(LogMixin, ABC):
         `__init_subclass__()`.
         '''
         bg_data, bg_owner = self._make_background(context)
-        background.registry.registrar(self.dotted(),
+        background.registry.registrar(self.dotted,
                                       bg_data,
                                       bg_owner)
-
-    # -------------------------------------------------------------------------
-    # Identification
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    @abstractmethod
-    def dotted(self: 'BaseRegistrar') -> label.DotStr:
-        '''
-        Returns this registrar's dotted name.
-        '''
-        # return 'veredi.base.registrar'
-        raise NotImplementedError(f"{self.__name__}.dotted() is "
-                                  "not implemented in abstract base class.")
 
     # -------------------------------------------------------------------------
     # Registry Internal Helpers
@@ -384,7 +381,7 @@ class BaseRegistrar(LogMixin, ABC):
         registry_our = self._registry
 
         # Background register - just names saved here.
-        registry_bg = background.registry.registry(self.dotted())
+        registry_bg = background.registry.registry(self.dotted)
 
         # ------------------------------
         # Get reg dicts to the leaf.
@@ -611,6 +608,7 @@ class BaseRegistrar(LogMixin, ABC):
 # Registration-By-Calling Class
 # -----------------------------------------------------------------------------
 
+# TODO: create DottedDescriptor instead of this kind of attribute.
 class DottedRegistrar(BaseRegistrar):
     '''
     A class to hold registration data for whatever type of register you want.
@@ -676,7 +674,7 @@ class DottedRegistrar(BaseRegistrar):
             # Pre-existing dotted attribute; is it abstract?
             # Complain about abstract.
             if getattr(dotted_func, '__isabstractmethod__', False):
-                msg = (f"{self.dotted()}: Failed '{dotted_name}' registry of "
+                msg = (f"{self.dotted}: Failed '{dotted_name}' registry of "
                        f"{registree.__name__}. Registree has an abstract "
                        "'{labeler.KLASS_FUNC_NAME}' attribute, "
                        "which we cannot auto-generate a replacement for. "
@@ -692,7 +690,7 @@ class DottedRegistrar(BaseRegistrar):
             # what it returns disagrees with what they gave us as their dotted
             # name.
             if registree.dotted() != dotted_name:
-                msg = (f"{self.dotted()}: Failed '{dotted_name}' registry of "
+                msg = (f"{self.dotted}: Failed '{dotted_name}' registry of "
                        f"{registree.__name__}. Registree has a dotted() "
                        "return value of "
                        f"'{registree.dotted()}', which is "
