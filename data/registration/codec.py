@@ -145,7 +145,7 @@ def ignore(ignoree: Type['Encodable']) -> None:
     For flagging an Encodable class as one that is a base class
     or should not be registered for some other reason.
     '''
-    log_dotted = label.normalize(EncodableRegistry.dotted(), 'ignore')
+    log_dotted = label.normalize(EncodableRegistry.dotted, 'ignore')
     log.registration(log_dotted,
                      "{}: '{}' marking as ignored for registration...",
                      codec.__class__.__name__,

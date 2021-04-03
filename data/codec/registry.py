@@ -59,21 +59,13 @@ __all__ = [
 # Encodables Registry
 # -----------------------------------------------------------------------------
 
-class EncodableRegistry(CallRegistrar):
+class EncodableRegistry(CallRegistrar,
+                        name_dotted='veredi.data.codec.encodable.registry',
+                        name_string='encodable',
+                        name_klass=None):
     '''
     Registry for all the encodable types.
     '''
-
-    # -------------------------------------------------------------------------
-    # Dotted Name
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'EncodableRegistry') -> str:
-        '''
-        Returns this registrar's dotted name.
-        '''
-        return 'veredi.data.codec.encodable.registry'
 
     # -------------------------------------------------------------------------
     # Initialization

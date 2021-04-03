@@ -181,7 +181,7 @@ def ignore(ignoree: RegisterType) -> None:
     For flagging an Config class as one that is a base class
     or should not be registered for some other reason.
     '''
-    log_dotted = label.normalize(ConfigRegistry.dotted(), 'ignore')
+    log_dotted = label.normalize(ConfigRegistry.dotted, 'ignore')
     log.registration(log_dotted,
                      "{}: '{}' marking as ignored for registration...",
                      config.__class__.__name__,

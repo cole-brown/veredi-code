@@ -48,7 +48,11 @@ __all__ = [
 # Configuration Registry
 # -----------------------------------------------------------------------------
 
-class ConfigRegistry(CallRegistrar):
+class ConfigRegistry(CallRegistrar,
+                     name_dotted='veredi.data.config.registry',
+                     name_string='config.registyr',
+                     name_klass=None):
+
     '''
     Registry for all the registree types that want to be created by
     Configuration and/or referencable in the config files.
@@ -62,24 +66,6 @@ class ConfigRegistry(CallRegistrar):
         from veredi.data.config.registry import registry
         @registry.register('veredi.jeff.system')
     '''
-
-    # -------------------------------------------------------------------------
-    # Dotted Name
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'ConfigRegistry') -> str:
-        '''
-        Returns this registrar's dotted name.
-        '''
-        return 'veredi.data.config.registry'
-
-    @classmethod
-    def name(klass: 'ConfigRegistry') -> str:
-        '''
-        Returns a short name for this registrar.
-        '''
-        return 'config.registry'
 
     # -------------------------------------------------------------------------
     # Initialization

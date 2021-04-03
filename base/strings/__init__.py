@@ -11,6 +11,7 @@ String helper functions?
 from . import label
 from . import labeler
 from . import text
+from . import mixin
 
 
 # -----------------------------------------------------------------------------
@@ -38,4 +39,5 @@ __all__ = [
     'label',
     'labeler',
     'text',
+    'mixin',
 ]
