@@ -58,8 +58,9 @@ from ..mediator.payload.base       import BasePayload
 # Envelope Address
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.output.address')
-class Address(Encodable):
+class Address(Encodable,
+              name_dotted='veredi.interface.output.address',
+              name_string='address'):
     '''
     Info for translating from Recipient to Users of a specific output format,
     which is dictated by `security_subject`. Maybe 'output security level' or
@@ -70,13 +71,6 @@ class Address(Encodable):
     # Constants
     # -------------------------------------------------------------------------
 
-    # ------------------------------
-    # Constants: Encodable
-    # ------------------------------
-
-    _ENCODE_NAME: str = 'address'
-    '''Name for this class when encoding/decoding.'''
-
     # -------------------------------------------------------------------------
     # Initialization: Instance
     # -------------------------------------------------------------------------
@@ -85,10 +79,10 @@ class Address(Encodable):
         '''
         Init instance vars, type hinting, doc strings.
         '''
-        self._recipient: Recipient = Recipient.INVALID
+        self._recipient: Recipient = Recipient.enum.INVALID
         '''Recipient type of this Address.'''
 
-        self._security_subject: abac.Subject = abac.Subject.INVALID
+        self._security_subject: abac.Subject = abac.Subject.enum.INVALID
         '''
         Security type of this Address - primarily for deciding all of the data
         these users get sent.
@@ -146,10 +140,6 @@ class Address(Encodable):
     # Encodable API
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def type_field(klass: 'Address') -> str:
-        return klass._ENCODE_NAME
-
     def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
         Don't support simple for Addresss.
@@ -202,8 +192,8 @@ class Address(Encodable):
         # Check claims.
         klass.error_for(data,
                         keys=['users'])
-        Recipient.error_for_claim(data)
-        abac.Subject.error_for_claim(data)
+        Recipient.enum.error_for_claim(data)
+        abac.Subject.enum.error_for_claim(data)
 
         # Decode users list.
         users = []
@@ -242,8 +232,9 @@ class Address(Encodable):
 # Message Envelope
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.output.envelope')
-class Envelope(Encodable):
+class Envelope(Encodable,
+               name_dotted='veredi.interface.output.envelope',
+               name_string='envelope'):
     '''
     A container for a message, with some meta-data about the message.
     '''
@@ -251,13 +242,6 @@ class Envelope(Encodable):
     # -------------------------------------------------------------------------
     # Constants
     # -------------------------------------------------------------------------
-
-    # ------------------------------
-    # Constants: Encodable
-    # ------------------------------
-
-    _ENCODE_NAME: str = 'envelope'
-    '''Name for this class when encoding/decoding.'''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -275,7 +259,7 @@ class Envelope(Encodable):
         # ------------------------------
         # Final Info
         # ------------------------------
-        self._recipients: Recipient = Recipient.INVALID
+        self._recipients: Recipient = Recipient.enum.INVALID
         '''All (validated) Recipients that we will be trying to send to.'''
 
         self._addresses: Dict[Recipient, Address] = {}
@@ -428,7 +412,7 @@ class Envelope(Encodable):
         # Build Message
         # -------------------------------
         message = Message(msg_id,
-                          MsgType.ENCODED,
+                          MsgType.enum.ENCODED,
                           payload=payload,
                           # entity_id=user.entity_prime,
                           user_id=user.id,
@@ -439,10 +423,6 @@ class Envelope(Encodable):
     # -------------------------------------------------------------------------
     # Encodable API
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'Envelope') -> str:
-        return klass._ENCODE_NAME
 
     def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''

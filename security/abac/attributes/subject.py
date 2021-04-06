@@ -11,7 +11,7 @@ Access-Based Access Control - Attributes for Subjects.
 import enum
 from veredi.base.strings import labeler
 from veredi.base.enum    import FlagCheckMixin, FlagSetMixin
-from veredi.data.codec   import FlagEncodeNameMixin
+from veredi.data         import codec
 
 
 # -----------------------------------------------------------------------------
@@ -26,9 +26,11 @@ from veredi.data.codec   import FlagEncodeNameMixin
 # TODO: make sure we're actually doing Attribute-based Access Control
 # https://en.wikipedia.org/wiki/Attribute-based_access_control
 
-@labeler.dotted('veredi.security.abac.attributes.subject')
+@codec.enum.encodable(name_dotted='veredi.security.abac.attributes.subject',
+                      name_string='attributes.subject',
+                      enum_encode_type=codec.enum.FlagEncodeName)
 @enum.unique
-class Subject(FlagEncodeNameMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
+class Subject(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
     Attribute-based Access Control via these Subject Permission Flags.
     '''
@@ -96,21 +98,3 @@ class Subject(FlagEncodeNameMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
     This probably means you're either a hacker or the other kind of hacker.
     Good luck and god speed; sorry about the mess- I mean source code.
     '''
-
-    # -------------------------------------------------------------------------
-    # Encodable
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'Subject') -> str:
-        '''
-        Unique dotted name for this class.
-        '''
-        return 'veredi.security.abac.attributes.subject'
-
-    @classmethod
-    def type_field(klass: 'Subject') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        '''
-        return 'v.sec.abac.subject'

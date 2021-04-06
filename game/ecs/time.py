@@ -16,22 +16,23 @@ if TYPE_CHECKING:
 from decimal import Decimal
 
 
-from veredi.base.strings     import label
-from veredi.base.assortments import CurrentNext, DeltaNext
-from veredi.base.context     import UnitTestContext
-from veredi.data             import background
-from veredi.data.exceptions  import ConfigError
-from veredi.base.const       import VerediHealth
-from veredi.debug.const      import DebugFlag
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+from veredi.base.assortments   import CurrentNext, DeltaNext
+from veredi.base.context       import UnitTestContext
+from veredi.data               import background
+from veredi.data.exceptions    import ConfigError
+from veredi.base.const         import VerediHealth
+from veredi.debug.const        import DebugFlag
 
-from .const                  import SystemTick
-from .manager                import EcsManager
+from .const                    import SystemTick
+from .manager                  import EcsManager
 
-from veredi.time.machine     import MachineTime
-from veredi.time.timer       import MonotonicTimer
-from veredi                  import time
-from ..time.clock            import Clock
-from ..time.tick.round       import TickBase
+from veredi.time.machine       import MachineTime
+from veredi.time.timer         import MonotonicTimer
+from veredi                    import time
+from ..time.clock              import Clock
+from ..time.tick.round         import TickBase
 
 
 # -----------------------------------------------------------------------------
@@ -48,7 +49,9 @@ TimeoutInput = NewType('TimeoutInput', Union[str, float, int, None])
 # --                               Dr. Time?                                 --
 # ------------------------------"Just the Time."-------------------------------
 
-class TimeManager(EcsManager):
+class TimeManager(EcsManager,
+                  name_dotted='veredi.game.ecs.manager.time',
+                  name_string='manager.time'):
     '''
     This class has the potential to be saved to data fields. Let it control its
     timezones. Convert to user-friendly elsewhere.
@@ -172,7 +175,7 @@ class TimeManager(EcsManager):
         if isinstance(_ut_context, UnitTestContext):
             # If constructed specifically with a UnitTestContext, don't do
             # _configure() as we have no DataManager.
-            ctx = _ut_context.sub_get(self.dotted())
+            ctx = _ut_context.sub_get(self.dotted)
             self.tick = ctx['tick']
             return
 
@@ -180,7 +183,7 @@ class TimeManager(EcsManager):
         # Config Stuff
         # ------------------------------
         config = background.config.config(self.__class__.__name__,
-                                          self.dotted(),
+                                          self.dotted,
                                           None)
         # No config stuff at the moment.
 
@@ -239,13 +242,6 @@ class TimeManager(EcsManager):
     # Properties
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def dotted(klass: 'TimeManager') -> str:
-        '''
-        The dotted name this Manager has.
-        '''
-        return 'veredi.game.ecs.manager.time'
-
     def get_background(self) -> None:
         '''
         Data for the Veredi Background context.
@@ -253,9 +249,9 @@ class TimeManager(EcsManager):
         if not self._bg_data:
             # Init our data.
             self._bg_data = {
-                background.Name.DOTTED.key: self.dotted(),
+                background.Name.DOTTED.key: self.dotted,
                 'clock': {
-                    'dotted': self.clock.dotted(),
+                    'dotted': self.clock.dotted,
                 },
                 # 'tick': Don't add 'tick' until finalize_background().
                 'engine': {
@@ -263,7 +259,7 @@ class TimeManager(EcsManager):
                     'life-cycle': self._engine_life_cycle,
                 },
                 'machine': {
-                    'dotted': self.machine.dotted(),
+                    'dotted': self.machine.dotted,
                 },
             }
 
@@ -492,7 +488,7 @@ class TimeManager(EcsManager):
         # ------------------------------
         if timeout and isinstance(timeout, str):
             config = background.config.config(self.__class__.__name__,
-                                              self.dotted(),
+                                              self.dotted,
                                               None,
                                               raises_error=False)
             if not config:
@@ -570,7 +566,7 @@ class TimeManager(EcsManager):
         '''
         Returns tick info and machine time for error string information.
         '''
-        return (f"{self.dotted()}: "
+        return (f"{self.dotted}: "
                 f"{str(self.tick)}, "
                 f"{self.machine.stamp_to_str()}")
 

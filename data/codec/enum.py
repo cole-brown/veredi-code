@@ -1,18 +1,18 @@
 # coding: utf-8
 
 '''
-Encodable Mixins for Enums.
+Encodable Wrappers for Enums.
 '''
 
 # -----------------------------------------------------------------------------
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+from typing import Optional, Type, Any
 
 
 import re
-import enum
+import enum as py_enum
 
 
 from veredi.logs  import log
@@ -27,12 +27,184 @@ from .codec       import Codec
 # Constants
 # -----------------------------------------------------------------------------
 
+_WRAPPER_CLASS_FMT: str = "Wrapper{name}"
+
+
+# -----------------------------------------------------------------------------
+# Enum Encoding Descriptor & Base Class
+# -----------------------------------------------------------------------------
+
+class EnumDescriptor:
+    '''
+    Provider for the wrapped enum class in EnumEncodableWrapper.
+    '''
+
+    def __init__(self,
+                 wrapped: Optional[py_enum.Enum],
+                 name_descriptor: str = None) -> None:
+        self.name: str = name_descriptor
+        self.wrapped: py_enum.Enum = wrapped
+
+    def __get__(self,
+                instance: Optional[Any],
+                owner:    Type[Any]) -> label.DotStr:
+        '''
+        Returns the enum class we wrap.
+        '''
+        return self.wrapped
+
+    def __set__(self,
+                instance: Optional[Any],
+                wrapped:  Optional[py_enum.Enum]) -> None:
+        '''
+        Setter should not be used during normal operation...
+        Wrapped enum should not change.
+        '''
+        self.wrapped = wrapped
+
+    def __set_name__(self, owner: Type[Any], name: str) -> None:
+        '''
+        Save our descriptor variable's name in its owner's class.
+        '''
+        self.name = name
+
+
+class EnumEncodableWrapper(Encodable):
+    '''
+    A wrapper class to hold the Encodable functions and dotted/name
+    descriptors.
+    '''
+
+    enum: EnumDescriptor = EnumDescriptor(None)
+
+    def __init__(self, wrap_enum: Optional[Type[py_enum.Enum]]) -> None:
+        if wrap_enum:
+            self.enum = wrap_enum
+
+    @classmethod
+    def encode_on(klass: 'EnumEncodableWrapper') -> str:
+        '''
+        What is this class encoding/decoding?
+        e.g. 'value' or 'name' or...?
+        '''
+        raise NotImplementedError(f"{klass.__name__} needs to "
+                                  "implement `encode_on()`!")
+
+
+# -----------------------------------------------------------------------------
+# Decorator
+# -----------------------------------------------------------------------------
+
+def encodable(name_dotted:         Optional[label.LabelInput] = None,
+              name_string:         Optional[str]              = None,
+              name_klass:          Optional[str]              = None,
+              enum_encode_type:    'EnumEncodableWrapper'     = None):
+    '''
+    Decorator for wrapping an Enum with Encodable support.
+
+    Required:
+      - `name_dotted`
+      - `name_string`
+      - `enum_encode_type`
+
+    Optional:
+      - `name_klass`
+        + Will be `Wrapper{wrapped_class_name}` if not supplied.
+
+    Several helper/wrapper classes exist to be supplied as `enum_encode_type`:
+      - FlagEncodeValue
+      - FlagEncodeName
+      - EnumEncodeName
+
+    Does not exist yet; can be quickly made from EnumEncodeName
+    and FlagEncodeValue:
+      - EnumEncodeValue
+    '''
+    def decorator(klass) -> Type['EnumEncodableWrapper']:
+        # ------------------------------
+        # Sanity Checks
+        # ------------------------------
+        if not issubclass(klass, py_enum.Enum):
+            msg = (f"{klass.__name__}: `encodable` decorator should only be "
+                   "used on enum classes.")
+            error = ValueError(msg, klass, enum_encode_type)
+            raise log.exception(error, msg,
+                                data={
+                                    'class': klass,
+                                    'dotted': name_dotted,
+                                    'name': name_string,
+                                    'klass': name_klass,
+                                    'wrapper': enum_encode_type,
+                                })
+
+        if not enum_encode_type:
+            msg = (f"{klass.__name__}: `encodable` decorator needs an "
+                   "`enum_encode_type` class to use for the wrapper.")
+            error = ValueError(msg, klass, enum_encode_type)
+            raise log.exception(error, msg,
+                                data={
+                                    'class': klass,
+                                    'dotted': name_dotted,
+                                    'name': name_string,
+                                    'klass': name_klass,
+                                    'wrapper': enum_encode_type,
+                                })
+
+        if not issubclass(enum_encode_type, EnumEncodableWrapper):
+            msg = (f"{klass.__name__}: `encodable` decorator needs an "
+                   "`enum_encode_type` that is EnumEncodableWrapper "
+                   "or a subclass.")
+            error = ValueError(msg, klass, enum_encode_type)
+            raise log.exception(error, msg,
+                                data={
+                                    'class': klass,
+                                    'dotted': name_dotted,
+                                    'name': name_string,
+                                    'klass': name_klass,
+                                    'wrapper': enum_encode_type,
+                                })
+
+        # ------------------------------
+        # Define Wrapper Class
+        # ------------------------------
+        class Wrapper(enum_encode_type,
+                      name_dotted=name_dotted,
+                      name_string=name_string,
+                      name_klass=name_klass):
+            '''
+            Wrapper class for an enum that wants to be encodable.
+            '''
+            enum: EnumDescriptor = EnumDescriptor(klass)
+
+            def __init__(self) -> None:
+                super().__init__(klass)
+
+        # Dynamically set class name to something more specific
+        # than `Wrapper`.
+        name = (
+            # Prefer user supplied.
+            name_klass
+            if name_klass else
+            # Else build one using our formatting string.
+            _WRAPPER_CLASS_FMT.format(name=klass.__name__)
+        )
+
+        Wrapper.__name__ = name
+        Wrapper.__qualname__ = name
+
+        # ------------------------------
+        # Done; return the new Wrapper.
+        # ------------------------------
+        return Wrapper
+
+    return decorator
+
 
 # -----------------------------------------------------------------------------
 # By VALUE: Flag Enum
 # -----------------------------------------------------------------------------
 
-class FlagEncodeValueMixin(Encodable):
+class FlagEncodeValue(EnumEncodableWrapper):
     '''
     Helpers for encoding a flag enum for codec support.
 
@@ -65,22 +237,28 @@ class FlagEncodeValueMixin(Encodable):
     String format for encoding MonotonicIds.
     '''
 
-    @classmethod
-    def type_field(klass: 'FlagEncodeValueMixin') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        Override this if you don't like what veredi.base.label.auto() and
-        veredi.base.label.munge_to_short() do for your type field.
-        '''
-        return label.munge_to_short(label.auto(klass))
+    # -------------------------------------------------------------------------
+    # EnumEncode
+    # -------------------------------------------------------------------------
 
     @classmethod
-    def encoding(klass: 'FlagEncodeValueMixin') -> Encoding:
+    def encode_on(klass: 'EnumEncodableWrapper') -> str:
+        '''
+        This class is encoding on the enum's value.
+        '''
+        return 'value'
+
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def encoding(klass: 'FlagEncodeValue') -> Encoding:
         '''We are too simple to bother with being a complex type.'''
         return Encoding.SIMPLE
 
     @classmethod
-    def _get_decode_str_rx(klass: 'FlagEncodeValueMixin') -> Optional[str]:
+    def _get_decode_str_rx(klass: 'FlagEncodeValue') -> Optional[str]:
         '''
         Returns regex /string/ (not compiled regex) of what to look for to
         claim just a string as this class.
@@ -93,7 +271,7 @@ class FlagEncodeValueMixin(Encodable):
         return klass._ENCODABLE_RX_STR
 
     @classmethod
-    def _get_decode_rx(klass: 'FlagEncodeValueMixin') -> re.Pattern:
+    def _get_decode_rx(klass: 'FlagEncodeValue') -> re.Pattern:
         '''
         Returns /compiled/ regex (not regex string) of what to look for to
         claim just a string as this class.
@@ -117,7 +295,7 @@ class FlagEncodeValueMixin(Encodable):
         '''
         encoded = self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
                                                  value=self.value)
-        # print(f"FlagEncodeValueMixin.encode_simple: {self} -> {encoded}")
+        # print(f"FlagEncodeValue.encode_simple: {self} -> {encoded}")
         return encoded
 
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
@@ -128,9 +306,9 @@ class FlagEncodeValueMixin(Encodable):
             f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'FlagEncodeValueMixin',
+    def decode_simple(klass: 'FlagEncodeValue',
                       data:  str,
-                      codec: 'Codec') -> 'FlagEncodeValueMixin':
+                      codec: 'Codec') -> 'FlagEncodeValue':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -152,15 +330,15 @@ class FlagEncodeValueMixin(Encodable):
 
         # Have regex, have match. Build instance.
         decoded = klass(int(match.group('value')))
-        # print(f"FlagEncodeValueMixin.decode_simple: {data} -> {decoded}")
+        # print(f"FlagEncodeValue.decode_simple: {data} -> {decoded}")
         return decoded
 
     @classmethod
-    def decode_complex(klass: 'FlagEncodeValueMixin',
+    def decode_complex(klass: 'FlagEncodeValue',
                        value: EncodedComplex,
                        codec: 'Codec',
-                       instance: Optional['FlagEncodeValueMixin'] = None
-                       ) -> 'FlagEncodeValueMixin':
+                       instance: Optional['FlagEncodeValue'] = None
+                       ) -> 'FlagEncodeValue':
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -172,7 +350,7 @@ class FlagEncodeValueMixin(Encodable):
 # By NAME: Flag Enum
 # -----------------------------------------------------------------------------
 
-class FlagEncodeNameMixin(Encodable):
+class FlagEncodeName(EnumEncodableWrapper):
     '''
     Helpers for encoding a flag enum for codec support.
 
@@ -210,22 +388,28 @@ class FlagEncodeNameMixin(Encodable):
     String format for encoding MonotonicIds.
     '''
 
-    @classmethod
-    def type_field(klass: 'FlagEncodeNameMixin') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        Override this if you don't like what veredi.base.label.auto() and
-        veredi.base.label.munge_to_short() do for your type field.
-        '''
-        return label.munge_to_short(label.auto(klass))
+    # -------------------------------------------------------------------------
+    # EnumEncodableWrapper
+    # -------------------------------------------------------------------------
 
     @classmethod
-    def encoding(klass: 'FlagEncodeNameMixin') -> Encoding:
+    def encode_on(klass: 'EnumEncodableWrapper') -> str:
+        '''
+        This class is encoding on the enum's value.
+        '''
+        return 'name'
+
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def encoding(klass: 'FlagEncodeName') -> Encoding:
         '''We are too simple to bother with being a complex type.'''
         return Encoding.SIMPLE
 
     @classmethod
-    def _get_decode_str_rx(klass: 'FlagEncodeNameMixin') -> Optional[str]:
+    def _get_decode_str_rx(klass: 'FlagEncodeName') -> Optional[str]:
         '''
         Returns regex /string/ (not compiled regex) of what to look for to
         claim just a string as this class.
@@ -238,7 +422,7 @@ class FlagEncodeNameMixin(Encodable):
         return klass._ENCODABLE_RX_STR
 
     @classmethod
-    def _get_decode_rx(klass: 'FlagEncodeNameMixin') -> re.Pattern:
+    def _get_decode_rx(klass: 'FlagEncodeName') -> re.Pattern:
         '''
         Returns /compiled/ regex (not regex string) of what to look for to
         claim just a string as this class.
@@ -264,7 +448,7 @@ class FlagEncodeNameMixin(Encodable):
         names = []
 
         # Haven't found a better way without using power-of-two assumption for
-        # names that I don't want to because we're just a mixin...
+        # names that I don't want to because we're just a ...
         #
         # Iterate over /all/ flags defined.
         for each in self.__class__:
@@ -290,9 +474,9 @@ class FlagEncodeNameMixin(Encodable):
             f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'FlagEncodeNameMixin',
+    def decode_simple(klass: 'FlagEncodeName',
                       data:  str,
-                      codec: 'Codec') -> 'FlagEncodeNameMixin':
+                      codec: 'Codec') -> 'FlagEncodeName':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -328,11 +512,11 @@ class FlagEncodeNameMixin(Encodable):
         return total
 
     @classmethod
-    def decode_complex(klass: 'FlagEncodeNameMixin',
+    def decode_complex(klass: 'FlagEncodeName',
                        value: EncodedComplex,
                        codec: 'Codec',
-                       instance: Optional['FlagEncodeNameMixin'] = None
-                       ) -> 'FlagEncodeNameMixin':
+                       instance: Optional['FlagEncodeName'] = None
+                       ) -> 'FlagEncodeName':
         '''
         NotImplementedError: We don't do complex.
         '''
@@ -345,14 +529,14 @@ class FlagEncodeNameMixin(Encodable):
 # -----------------------------------------------------------------------------
 
 # Implement when needed.
-# class EnumEncodeValueMixin(Encodable):
+# class EnumEncodeValue(EnumEncodableWrapper):
 
 
 # -----------------------------------------------------------------------------
 # By NAME: Enum
 # -----------------------------------------------------------------------------
 
-class EnumEncodeNameMixin(Encodable):
+class EnumEncodeName(EnumEncodableWrapper):
     '''
     Helpers for encoding a enum enum for codec support.
 
@@ -385,22 +569,28 @@ class EnumEncodeNameMixin(Encodable):
     String format for encoding MonotonicIds.
     '''
 
-    @classmethod
-    def type_field(klass: 'EnumEncodeNameMixin') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        Override this if you don't like what veredi.base.label.auto() and
-        veredi.base.label.munge_to_short() do for your type field.
-        '''
-        return label.munge_to_short(label.auto(klass))
+    # -------------------------------------------------------------------------
+    # EnumEncodableWrapper
+    # -------------------------------------------------------------------------
 
     @classmethod
-    def encoding(klass: 'EnumEncodeNameMixin') -> Encoding:
+    def encode_on(klass: 'EnumEncodableWrapper') -> str:
+        '''
+        This class is encoding on the enum's value.
+        '''
+        return 'name'
+
+    # -------------------------------------------------------------------------
+    # Encodable
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def encoding(klass: 'EnumEncodeName') -> Encoding:
         '''We are too simple to bother with being a complex type.'''
         return Encoding.SIMPLE
 
     @classmethod
-    def _get_decode_str_rx(klass: 'EnumEncodeNameMixin') -> Optional[str]:
+    def _get_decode_str_rx(klass: 'EnumEncodeName') -> Optional[str]:
         '''
         Returns regex /string/ (not compiled regex) of what to look for to
         claim just a string as this class.
@@ -413,7 +603,7 @@ class EnumEncodeNameMixin(Encodable):
         return klass._ENCODABLE_RX_STR
 
     @classmethod
-    def _get_decode_rx(klass: 'EnumEncodeNameMixin') -> re.Pattern:
+    def _get_decode_rx(klass: 'EnumEncodeName') -> re.Pattern:
         '''
         Returns /compiled/ regex (not regex string) of what to look for to
         claim just a string as this class.
@@ -457,9 +647,9 @@ class EnumEncodeNameMixin(Encodable):
             f"{self.__class__.__name__}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'EnumEncodeNameMixin',
+    def decode_simple(klass: 'EnumEncodeName',
                       data:  str,
-                      codec: 'Codec') -> 'EnumEncodeNameMixin':
+                      codec: 'Codec') -> 'EnumEncodeName':
         '''
         Decode ourself from a string, return a new instance of `klass` as
         the result of the decoding.
@@ -485,11 +675,11 @@ class EnumEncodeNameMixin(Encodable):
         return klass[name]
 
     @classmethod
-    def decode_complex(klass: 'EnumEncodeNameMixin',
+    def decode_complex(klass: 'EnumEncodeName',
                        value: EncodedComplex,
                        codec: 'Codec',
-                       instance: Optional['EnumEncodeNameMixin'] = None
-                       ) -> 'EnumEncodeNameMixin':
+                       instance: Optional['EnumEncodeName'] = None
+                       ) -> 'EnumEncodeName':
         '''
         NotImplementedError: We don't do complex.
         '''

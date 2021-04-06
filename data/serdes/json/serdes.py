@@ -48,12 +48,12 @@ from ..base                      import (BaseSerdes,
 # Code
 # -----------------------------------------------------------------------------
 
-class JsonSerdes(BaseSerdes):
+class JsonSerdes(BaseSerdes,
+                 name_dotted='veredi.serdes.json',
+                 name_string='json'):
     '''
     Uses Python's json library to serialize/deserialize the JSON format.
     '''
-
-    _SERDES_NAME   = 'json'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -70,33 +70,24 @@ class JsonSerdes(BaseSerdes):
 
     def __init__(self,
                  context: Optional['ConfigContext'] = None) -> None:
-        super().__init__(JsonSerdes._SERDES_NAME,
-                         context)
+        super().__init__(context)
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "Done with init.")
 
     def _configure(self,
                    context: Optional['ConfigContext']) -> None:
         '''Config from context and elsewhere.'''
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               f"{self.__class__.__name__} configure...")
 
         super()._configure(context)
 
         # Nothing specific for us to do.
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "Done with configuration.")
-
-    # -------------------------------------------------------------------------
-    # Serdes Properties/Methods
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'JsonSerdes') -> label.DotStr:
-        return 'veredi.serdes.json'
 
     # -------------------------------------------------------------------------
     # Deserialize Methods
@@ -115,7 +106,7 @@ class JsonSerdes(BaseSerdes):
           Maybes:
             - Other json/stream errors?
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Deserializing from '{}'...",
                                   type(stream),
                                   context=context)
@@ -124,7 +115,7 @@ class JsonSerdes(BaseSerdes):
         data = self._read(stream, codec, context)
         if not data:
             msg = "Reading all json from stream resulted in no data."
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       context=context,
                                       success=False)
@@ -137,7 +128,7 @@ class JsonSerdes(BaseSerdes):
             raise log.exception(error, msg,
                                 context=context)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Deserialized to '{}'!",
                                   type(data),
                                   context=context)
@@ -208,19 +199,19 @@ class JsonSerdes(BaseSerdes):
         '''
         data = None
         if isinstance(stream, str):
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Deserializing JSON string...",
                                       context=context)
             data = json.loads(stream,
                               object_pairs_hook=self._json_hookup_obj_pairs)
         else:
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Deserializing JSON stream/file...",
                                       context=context)
             data = json.load(stream,
                              object_pairs_hook=self._json_hookup_obj_pairs)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Deserialized data from JSON.",
                                   context=context,
                                   success=True)
@@ -246,12 +237,12 @@ class JsonSerdes(BaseSerdes):
           Maybes:
             - Other json/file errors?
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Reading from '{}'...",
                                   type(stream),
                                   context=context)
         if isinstance(stream, TextIOBase):
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Seek to beginning first.",
                                       context=context)
             # Assume we are supposed to read the entire stream.
@@ -268,7 +259,7 @@ class JsonSerdes(BaseSerdes):
             }
             error_info = self._stream_data(stream, error_info)
             msg = f"Error reading json from stream: {stream}"
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       context=context,
                                       success=False)
@@ -281,7 +272,7 @@ class JsonSerdes(BaseSerdes):
             raise log.exception(error, msg,
                                 context=context) from json_error
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Read JSON from '{}'!",
                                   type(stream),
                                   context=context,
@@ -301,7 +292,7 @@ class JsonSerdes(BaseSerdes):
           - exceptions.ReadError
             - wrapping a library error?
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Deserializing all from '{}'...",
                                   type(stream),
                                   context=context)
@@ -313,7 +304,7 @@ class JsonSerdes(BaseSerdes):
         if not data:
             msg = "Deserializing all JSON from {} resulted in no data."
             error_info = self._stream_data(stream, error_info)
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       type(stream),
                                       context=context,
@@ -328,7 +319,7 @@ class JsonSerdes(BaseSerdes):
             raise log.exception(error, msg,
                                 context=context)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Deserialized all from '{}'!",
                                   type(stream),
                                   context=context,
@@ -349,7 +340,7 @@ class JsonSerdes(BaseSerdes):
           - exceptions.ReadError
             - wrapped lib/module errors
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Reading all from '{}'...",
                                   type(stream),
                                   context=context)
@@ -371,7 +362,7 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapping a library error?
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Serializing from '{}'...",
                                   type(data),
                                   context=context)
@@ -380,7 +371,7 @@ class JsonSerdes(BaseSerdes):
         to_serialize = self._serialize_prep(data, codec, context)
         stream = self._write(to_serialize, codec, context)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Serialized from '{}'!",
                                   type(data),
                                   context=context,
@@ -402,21 +393,21 @@ class JsonSerdes(BaseSerdes):
         `stream` is the data to be dumped.
         '''
         if isinstance(stream, str):
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Serializing data to JSON string...",
                                       context=context)
             dump_to = json.dumps(dump_to,
                                  stream,
                                  cls=self._json_encoder)
         else:
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Serializing data to JSON stream/file...",
                                       context=context)
             dump_to = json.dump(dump_to,
                                 stream,
                                 cls=self._json_encoder)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Serialized data to JSON.",
                                   context=context,
                                   success=True)
@@ -430,19 +421,19 @@ class JsonSerdes(BaseSerdes):
         Tries to turn the various possibilities for data (list, dict, etc) into
         something ready for json to serialize.
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Serialize preparation...",
                                   context=context)
         serialized = None
         if null_or_none(data):
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "No data to prep.",
                                       context=context)
             return serialized
 
         # Is it just an Encodable object?
         if isinstance(data, Encodable):
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Encoding `Encodable` data "
                                       "for serialization.",
                                       context=context)
@@ -466,7 +457,7 @@ class JsonSerdes(BaseSerdes):
             # Do the thing that spawns the exception before
             # we log about doing the thing...
             keys = data.keys()
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Prepping `Mapping` of data "
                                       "for serialization.",
                                       context=context)
@@ -483,7 +474,7 @@ class JsonSerdes(BaseSerdes):
             # Do the thing that spawns the exception before
             # we log about doing the thing...
             iterable = iter(data)
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Prepping `Iterable` of data "
                                       "for serialization.",
                                       context=context)
@@ -495,7 +486,7 @@ class JsonSerdes(BaseSerdes):
 
         # Falling through to here is bad; raise Exception.
         msg = f"Don't know how to process '{type(data)}' data."
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   msg,
                                   context=context,
                                   success=False)
@@ -521,7 +512,7 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Writing '{}' to stream...",
                                   type(data),
                                   context=context)
@@ -532,7 +523,7 @@ class JsonSerdes(BaseSerdes):
             serialized = None
             # data_pretty = pretty.indented(data)
             msg = f"Error writing data '{type(data)}' to stream."
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       context=context,
                                       success=False)
@@ -544,7 +535,7 @@ class JsonSerdes(BaseSerdes):
             raise log.exception(error, msg,
                                 context=context) from json_error
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Wrote '{}' to JSON!",
                                   type(data),
                                   context=context,
@@ -565,7 +556,7 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Serializing all from '{}'...",
                                   type(data),
                                   context=context)
@@ -574,7 +565,7 @@ class JsonSerdes(BaseSerdes):
         to_serialize = self._serialize_prep(data, codec, context)
         stream = self._write(to_serialize, codec, context)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Serialized all from '{}'!",
                                   type(data),
                                   context=context)
@@ -594,7 +585,7 @@ class JsonSerdes(BaseSerdes):
           - exceptions.WriteError
             - wrapped lib/module errors
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Writing all '{}' to stream...",
                                   type(data),
                                   context=context)

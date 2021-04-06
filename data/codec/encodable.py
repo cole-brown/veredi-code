@@ -19,14 +19,15 @@ from abc import abstractmethod
 import re
 
 
-from veredi.logs           import log
-from veredi.base.strings   import pretty
+from veredi.logs               import log
+from veredi.base.strings       import pretty
+from veredi.base.strings.mixin import NamesMixin
 
-from ..exceptions          import EncodableError
-from .const                import (EncodedComplex,
-                                   EncodedSimple,
-                                   EncodedEither,
-                                   Encoding)
+from ..exceptions              import EncodableError
+from .const                    import (EncodedComplex,
+                                       EncodedSimple,
+                                       EncodedEither,
+                                       Encoding)
 
 
 # -----------------------------------------------------------------------------
@@ -61,13 +62,31 @@ __all__ = [
 # Encodable Interface / Mixin
 # -----------------------------------------------------------------------------
 
-class Encodable:
+class Encodable(NamesMixin):
     '''
     Mixin for classes that want to support encoding/decoding themselves.
 
     The class should convert its data to/from a mapping of strings to basic
     value-types (str, int, etc). If anything it (directly) contains also needs
     encoding/decoding, the class should ask it to during the encode/decode.
+
+    Sub-classes are expected to use kwargs:
+      - Required:
+        + name_dotted: Optional[label.LabelInput]
+          - string/strings to create the Veredi dotted label.
+        + name_string: Optional[str]
+          - Any short string for describing class. Either short-hand or class's
+            __name__ are fine.
+      - Optional:
+        + name_klass:        Optional[str]
+          - If None, will be class's __name__.
+        + name_string_xform: Optional[Callable[[str], str]] = None,
+        + name_klass_xform:  Optional[Callable[[str], str]] = to_lower_lambda,
+
+    Example:
+      class JeffManager(Manager,
+                         name_dotted=label.normalize('jeff', 'manager'),
+                        name_string='jeff')
 
     Classes must implement if they only want to encode/decode
     to/from Encoding.SIMPLE:
@@ -91,8 +110,9 @@ class Encodable:
     the value in this field.
 
     Given this class:
-      @labeler.dotted('jeff.something')
-      class Jeff(Encodable):
+      class Jeff(Encodable,
+                 name_dotted='jeff.encodable',
+                 name_string='enc.jeff'):
         ...
 
     Examples for it are:
@@ -125,24 +145,12 @@ class Encodable:
     '''
 
     # -------------------------------------------------------------------------
-    # Dotted Label
-    # -------------------------------------------------------------------------
-
-    # This is provided by @labeler.dotted('...') class decorator.
-    # @classmethod
-    # def dotted(klass: 'Encodable') -> str:
-    #     '''
-    #     Returns the dotted name used to register this Encodable.
-    #     '''
-    #     return klass._DOTTED
-
-    # -------------------------------------------------------------------------
     # ABC-Lite
     # -------------------------------------------------------------------------
 
-    # So... ABCs keep biting me when they an other classes both want enums and
+    # So... ABCs keep biting me when they and other classes both want enums and
     # fight and it's stupid annoying and doesn't even work in the case of e.g.
-    # NodeType, which is a FlagEncodeNameMixin (which is an Encodable (which
+    # NodeType, which is a FlagEncodeName (which is an Encodable (which
     # was an ABC)), and also an enum.Flag. It wanted enum.EnumMeta and
     # abc.ABCMeta, but even when those classes were combined into a superclass,
     # the 'dotted' attribute I wanted for me went off into enum code and threw
@@ -202,10 +210,11 @@ class Encodable:
     # -------------------------------------------------------------------------
 
     @classmethod
-    @abstractmethod
     def type_field(klass: 'Encodable') -> str:
         '''
         A short, unique name for encoding an instance into the field of a dict.
+
+        Default returns `name` class descriptor's value.
 
         E.g.: If an instance of whatever has a "Jeff" class instance with
         type_field() returning 'jeff' and instance vars of x=1, y=2 is encoded
@@ -216,8 +225,7 @@ class Encodable:
             ...
           }
         '''
-        raise NotImplementedError(f"{klass.__name__} needs to implement "
-                                  "type_field()")
+        return klass.name
 
     @classmethod
     def _get_type_field(klass: 'Encodable',
@@ -317,7 +325,7 @@ class Encodable:
             - If cannot claim, this is a string describing why not.
         '''
         log.data_processing(
-            klass.dotted(),
+            klass.dotted,
             "{} checking for claim of data:\n"
             "  {}",
             klass.__name__, data)
@@ -328,7 +336,7 @@ class Encodable:
         # Is it EncodedSimple type and intended for this class?
         if klass.encoded_as(data) == Encoding.SIMPLE:
             log.data_processing(
-                klass.dotted(),
+                klass.dotted,
                 "{} checking for Encoding.SIMPLE claim of data:\n"
                 "  {}",
                 klass.__name__, data)
@@ -338,7 +346,7 @@ class Encodable:
             decode_rx = klass._get_decode_rx()
             if not decode_rx:
                 log.data_processing(
-                    klass.dotted(),
+                    klass.dotted,
                     "{} has no Encoding.SIMPLE decode regex; "
                     "cannot claim data:\n"
                     "  {}",
@@ -353,7 +361,7 @@ class Encodable:
             data_claim = data if claimed else None
             reason = (None if claimed else "No regex match.")
             log.data_processing(
-                klass.dotted(),
+                klass.dotted,
                 "{} {} Encoding.SIMPLE data:\n"
                 "  {}",
                 klass.__name__,
@@ -364,7 +372,7 @@ class Encodable:
         # Does this class only do simple encode/decode?
         if not klass.encoding().has(Encoding.COMPLEX):
             log.data_processing(
-                klass.dotted(),
+                klass.dotted,
                 "{} was not Encoding.SIMPLE for us, but we don't do "
                 "Encoding.COMPLEX. Will not claim data:\n"
                 "  {}",
@@ -375,7 +383,7 @@ class Encodable:
                     "Class only encodes simply and didn't match data.")
 
         log.data_processing(
-            klass.dotted(),
+            klass.dotted,
             "{} checking for Encoding.COMPLEX claim of data:\n"
             "  {}",
             klass.__name__, data)
@@ -388,7 +396,7 @@ class Encodable:
         # Encoded with full registree information?
         if klass._was_encoded_with_registry(data):
             log.data_processing(
-                klass.dotted(),
+                klass.dotted,
                 "{} was encoded with registry. Staking claim on data:\n"
                 "  {}",
                 klass.__name__, data[klass.ENCODABLE_PAYLOAD_FIELD])
@@ -397,7 +405,7 @@ class Encodable:
         # Are we a sub-field?
         if klass.type_field() in data:
             log.data_processing(
-                klass.dotted(),
+                klass.dotted,
                 "{} was encoded with type_field. Staking claim on data:\n"
                 "  {}",
                 klass.__name__, data[klass.type_field()])
@@ -407,7 +415,7 @@ class Encodable:
         # Are we this whole thing?
         if klass._is_type_field(data):
             log.data_processing(
-                klass.dotted(),
+                klass.dotted,
                 "{}... um... /is/ type_field? IDK. Staking claim on data:\n"
                 "  {}",
                 klass.__name__, data)
@@ -427,7 +435,7 @@ class Encodable:
         # unless we're actually logging it.
         if log.will_output(log.Group.DATA_PROCESSING):
             log.data_processing(
-                klass.dotted(),
+                klass.dotted,
                 reason + "\n"
                 + "Will not claim data:\n  {}",
                 pretty.indented(data))

@@ -135,19 +135,19 @@ def serializable_id_representer(dumper: yaml.SafeDumper,
 
 # TODO: is this different kind of reg or should it use new registrar base class
 # too?
-registry.register(UserId._ENCODE_FIELD_NAME, UserId,
+registry.register(UserId.name, UserId,
                   serializable_id_constructor,
                   serializable_id_representer,
                   UserId._get_decode_rx())
 
 
-registry.register(UserKey._ENCODE_FIELD_NAME, UserKey,
+registry.register(UserKey.name, UserKey,
                   serializable_id_constructor,
                   serializable_id_representer,
                   UserKey._get_decode_rx())
 
 
-registry.register(InputId._ENCODE_FIELD_NAME, InputId,
+registry.register(InputId.name, InputId,
                   serializable_id_constructor,
                   serializable_id_representer,
                   InputId._get_decode_rx())

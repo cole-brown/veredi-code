@@ -20,13 +20,14 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 
 
-from veredi.logs            import log
-from veredi.logs.mixin      import LogMixin
-from veredi.base.strings    import label
-from veredi.base.exceptions import VerediError
-from veredi.data            import background
-from veredi.data.context    import BaseDataContext, DataAction
-from ..exceptions           import LoadError, SaveError
+from veredi.logs               import log
+from veredi.logs.mixin         import LogMixin
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+from veredi.base.exceptions    import VerediError
+from veredi.data               import background
+from veredi.data.context       import BaseDataContext, DataAction
+from ..exceptions              import LoadError, SaveError
 
 
 # -----------------------------------------------------------------------------
@@ -38,7 +39,26 @@ from ..exceptions           import LoadError, SaveError
 # Code
 # -----------------------------------------------------------------------------
 
-class BaseRepository(LogMixin, ABC):
+class BaseRepository(ABC, LogMixin, NamesMixin):
+    '''
+     Repository sub-classes are expected to use kwargs:
+      - Required:
+        + name_dotted: Optional[label.LabelInput]
+          - string/strings to create the Veredi dotted label.
+        + name_string: Optional[str]
+          - Any short string for describing class. Either short-hand or class's
+            __name__ are fine.
+      - Optional:
+        + name_klass:        Optional[str]
+          - If None, will be class's __name__.
+        + name_string_xform: Optional[Callable[[str], str]] = None,
+        + name_klass_xform:  Optional[Callable[[str], str]] = to_lower_lambda,
+
+    Example:
+      class JeffRepository(BaseRepository,
+                           name_dotted=label.normalize('repository', 'jeff'),
+                           name_string='repo.jeff')
+    '''
 
     # -------------------------------------------------------------------------
     # Constants
@@ -64,64 +84,42 @@ class BaseRepository(LogMixin, ABC):
         '''
         Instance variable definitions, type hinting, doc strings, etc.
         '''
-        self._name: str = None
-        '''The name of the repository.'''
-
         self._primary_id: Any = None
         '''The game ID we'll be loading from.'''
 
     def __init__(self,
-                 repo_name:         str,
                  config_context:    Optional['ConfigContext'] = None) -> None:
         '''
-        `repo_name` should be short-ish and will be lowercased. It should
-        probably be, like, 'file', 'mysql', 'sqlite3' etc...
-
         `config_context` is the context being used to create us.
         '''
         self._define_vars()
-        self._name = repo_name.lower()
 
         # ---
         # Set-Up LogMixin before _configure() so we have logging.
         # ---
-        self._log_config(self.dotted())
+        self._log_config(self.dotted)
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               f"{self.__class__.__name__} init...")
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "BaseRepository init...")
 
         # ---
         # Configure ourselves.
         # ---
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "Configure repo...")
         self._configure(config_context)
 
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "Done with BaseRepository init.")
 
     # -------------------------------------------------------------------------
     # Repo Properties/Methods
     # -------------------------------------------------------------------------
-
-    @classmethod
-    @abstractmethod
-    def dotted(klass: 'BaseRepository') -> label.DotStr:
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented.")
-
-    @property
-    def name(self) -> str:
-        '''
-        Should be short-ish and will be lowercased. It should probably be,
-        like, 'file', 'mysql', 'sqlite3' etc...
-        '''
-        return self._name
 
     @property
     def primary_id(self) -> str:
@@ -148,7 +146,7 @@ class BaseRepository(LogMixin, ABC):
         Base class's contribution to the background data.
         '''
         return {
-            background.Name.DOTTED.key: self.dotted(),
+            background.Name.DOTTED.key: self.dotted,
             background.Name.TYPE.key: self.name,
         }
 

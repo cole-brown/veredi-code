@@ -69,7 +69,9 @@ from .event import (
 # Code
 # -----------------------------------------------------------------------------
 
-class CombatSystem(D20RulesSystem):
+class CombatSystem(D20RulesSystem,
+                   name_dotted='veredi.rules.d20.pf2.combat.system',
+                   name_string='combat.system'):
 
     def _configure(self, context: 'VerediContext') -> None:
         '''
@@ -80,7 +82,7 @@ class CombatSystem(D20RulesSystem):
 
         super()._configure(context)
         config = background.config.config(self.__class__.__name__,
-                                          self.dotted(),
+                                          self.dotted,
                                           context)
         self._config_rules_def(context, config, 'combat')
 
@@ -117,10 +119,6 @@ class CombatSystem(D20RulesSystem):
                                    | SystemTick.PRE
                                    | SystemTick.STANDARD
                                    | SystemTick.POST)
-
-    @classmethod
-    def dotted(klass: 'CombatSystem') -> label.DotStr:
-        return 'veredi.rules.d20.pf2.combat.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -167,7 +165,7 @@ class CombatSystem(D20RulesSystem):
             return
 
         cmd = CommandRegisterReply(event,
-                                   self.dotted(),
+                                   self.dotted,
                                    'attack',
                                    CommandPermission.COMPONENT,
                                    self.command_attack,
@@ -190,7 +188,9 @@ class CombatSystem(D20RulesSystem):
         # Doctor checkup.
         if not self._health_ok_msg("Command ignored due to bad health.",
                                    context=context):
-            return CommandStatus.system_health(context)
+            return CommandStatus.system_health(self.name,
+                                               self._health,
+                                               context)
 
         eid = InputContext.source_id(context)
         entity, component = self._manager.get_with_log(
@@ -200,11 +200,11 @@ class CombatSystem(D20RulesSystem):
             context=context,
             preface="Dropping 'attack' command - ")
         if not entity or not component:
-            return CommandStatus.entity_does_not_exist(eid,
-                                                       entity,
-                                                       component,
-                                                       self._component_type,
-                                                       context)
+            return CommandStatus.does_not_exist(eid,
+                                                entity,
+                                                component,
+                                                self._component_type,
+                                                context)
 
         # Don't process it yet! Need to queue it up for processing in the
         # correct place on the correct turn. Otherwise some values could be

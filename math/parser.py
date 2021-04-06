@@ -18,14 +18,15 @@ from collections import deque
 import enum
 from decimal import Decimal
 
-from veredi.logs         import log
-from veredi.base.strings import labeler
-from veredi.base.context import VerediContext
-from veredi.base.enum    import FlagCheckMixin
-from veredi.data.codec   import (Codec,
-                                 Encodable,
-                                 EncodedComplex,
-                                 FlagEncodeNameMixin)
+from veredi.logs               import log
+from veredi.base.strings.mixin import NamesMixin
+from veredi.base.context       import VerediContext
+from veredi.base.enum          import FlagCheckMixin
+from veredi.data               import codec
+from veredi.data.codec         import (Codec,
+                                       Encodable,
+                                       EncodedComplex,
+                                       FlagEncodeName)
 
 
 # -----------------------------------------------------------------------------
@@ -70,9 +71,11 @@ class TreeWalkerPredicate(Protocol):
         ...
 
 
-@labeler.dotted('veredi.math.parser.type')
+@codec.enum.encodable(name_dotted='veredi.math.parser.type',
+                      name_string='node.type',
+                      enum_encode_type=FlagEncodeName)
 @enum.unique
-class NodeType(FlagEncodeNameMixin, FlagCheckMixin, enum.Flag):
+class NodeType(FlagCheckMixin, enum.Flag):
     '''
     Simpler and more flexable than checking instance types maybe?
 
@@ -109,30 +112,12 @@ class NodeType(FlagEncodeNameMixin, FlagCheckMixin, enum.Flag):
     FUNCTION = enum.auto()
     '''Math function like 'max()', 'min()', etc.'''
 
-    # -------------------------------------------------------------------------
-    # Encodable
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'NodeType') -> str:
-        '''
-        Unique dotted name for this class.
-        '''
-        return 'veredi.math.parser.tree'
-
-    @classmethod
-    def type_field(klass: 'NodeType') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        '''
-        return 'v.m.tree'
-
 
 # -----------------------------------------------------------------------------
 # Input String -> Veredi d20 Tree
 # -----------------------------------------------------------------------------
 
-class MathParser(ABC):
+class MathParser(NamesMixin, ABC):
     '''
     Base MathParser interface.
 
@@ -180,7 +165,7 @@ class MathParser(ABC):
 # Veredi Math Operations in Tree Form
 # -----------------------------------------------------------------------------
 
-class MathTree(ABC, Encodable):
+class MathTree(Encodable, ABC):
     '''
     Base MathTree interface. Subclasses that are concrete should include a real
     dotted string kwarg instead of `Encodable._DO_NOT_REGISTER` in class args.
@@ -198,8 +183,8 @@ class MathTree(ABC, Encodable):
     # NULL_SIGN = '\N{EMPTY SET}'
     NULL_SIGN = '∅'
 
-    _SET_VALUE_ALLOWED = (NodeType.VARIABLE, NodeType.RANDOM)
-    _SET_NAME_ALLOWED = (NodeType.VARIABLE, )
+    _SET_VALUE_ALLOWED = (NodeType.enum.VARIABLE, NodeType.enum.RANDOM)
+    _SET_NAME_ALLOWED = (NodeType.enum.VARIABLE, )
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -383,7 +368,7 @@ class MathTree(ABC, Encodable):
         '''
         Predicate for walk. Returns true if node is Truthy.
         '''
-        return bool(node) and node.type.has(NodeType.VARIABLE)
+        return bool(node) and node.type.has(NodeType.enum.VARIABLE)
 
     def walk(self, predicate=None):
         '''
@@ -568,12 +553,6 @@ class MathTree(ABC, Encodable):
     # Encodable
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def type_field(klass: 'MathTree') -> str:
-        '''Children should override this for appropriate name.'''
-        raise NotImplementedError(f"{klass.__name__}.type_field() "
-                                  "is not implemented.")
-
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode self as a Mapping of strings to (basic) values (str, int, etc).
@@ -590,7 +569,7 @@ class MathTree(ABC, Encodable):
         # print("\nMathTree.encode_complex(): {self.__class__.__name__}.dott:
         # And return all our vars as a dictionary structure.
         encoded = {
-            'dotted':   self.dotted(),
+            'dotted':   self.dotted,
             'value':    self._value,  # should be a number or None...
             'name':     self._name,
             'milieu':   self._milieu,

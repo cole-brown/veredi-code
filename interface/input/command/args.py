@@ -239,7 +239,7 @@ class CommandStatus:
         internal = ("'{}' is reporting poor health: {}. "
                     "It dropped command.").format(sys_name,
                                                   health)
-        reason = "Game system for is sick right now... Try again?"
+        reason = "Game system '{sys_name}' is sick right now... Try again?"
 
         return CommandStatus(False,
                              InputContext.input(context),
@@ -267,7 +267,7 @@ class CommandStatus:
         if not entity_name:
             reason = "Couldn't find the entity for the command."
         else:
-            entity_data = component.dotted()
+            entity_data = component.dotted
             if entity_data:
                 entity_data += ' '
             reason = "Couldn't find either '{}' or their {}data.".format(

@@ -32,7 +32,9 @@ from .event                          import AbilityEvent
 # Component
 # -----------------------------------------------------------------------------
 
-class AbilityComponent(DataComponent, queue.IQueueSingle[AbilityEvent]):
+class AbilityComponent(DataComponent, queue.IQueueSingle[AbilityEvent],
+                       name_dotted='veredi.rules.d20.pf2.ability.component',
+                       name_string='component.ability'):
     '''
     Component with ability numbers, ability action queue, probably
     other stuff...
@@ -75,17 +77,6 @@ class AbilityComponent(DataComponent, queue.IQueueSingle[AbilityEvent]):
         '''
         actual_data = data['ability']
         super()._from_data(actual_data)
-
-    # -------------------------------------------------------------------------
-    # Properties
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'AbilityComponent') -> label.DotStr:
-        '''
-        Veredi dotted label string.
-        '''
-        return 'veredi.rules.d20.pf2.ability.component'
 
     # -------------------------------------------------------------------------
     # Queue Interface

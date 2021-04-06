@@ -129,7 +129,9 @@ class MathQueue:
         return f"<MathQueue({self._queue})>"
 
 
-class MathSystem(System):
+class MathSystem(System,
+                 name_dotted='veredi.math.system',
+                 name_string='system.math'):
 
     def _configure(self, context: 'VerediContext') -> None:
         '''
@@ -141,7 +143,7 @@ class MathSystem(System):
         # ---
         # Health Stuff
         # ---
-        self._required_managers:    Optional[Set[Type[EcsManager]]] = {
+        self._required_managers:    Optional[Set[Type['EcsManager']]] = {
             TimeManager,
             EventManager,
             SystemManager,
@@ -156,10 +158,6 @@ class MathSystem(System):
         self._ticks: SystemTick = (SystemTick.PRE
                                    | SystemTick.STANDARD
                                    | SystemTick.POST)
-
-    @classmethod
-    def dotted(klass: 'MathSystem') -> str:
-        return 'veredi.math.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -203,7 +201,7 @@ class MathSystem(System):
     #         return
 
     #     skill_check = CommandRegisterReply(event,
-    #                                        self.dotted(),
+    #                                        self.dotted,
     #                                        'skill',
     #                                        CommandPermission.COMPONENT,
     #                                        self.command_skill,
@@ -276,7 +274,9 @@ class MathSystem(System):
         # Doctor checkup.
         if not self._health_ok_msg("Command ignored due to bad health.",
                                    context=context):
-            return CommandStatus.system_health(context)
+            return CommandStatus.system_health(self.name,
+                                               self._health,
+                                               context)
 
         eid = InputContext.source_id(context)
         if not eid:

@@ -21,7 +21,9 @@ from veredi.game.ecs.event         import Event
 # Base Input Event
 # -----------------------------------------------------------------------------
 
-class InputEvent(Event):
+class InputEvent(Event,
+                 name_dotted='veredi.interface.input.event',
+                 name_string='input'):
     # def __init__(self,
     #              id:           Union[int, MonotonicId],
     #              type:         Union[int, enum.Enum],
@@ -53,7 +55,9 @@ class InputEvent(Event):
         return "InEvent"
 
 
-class UserInputEvent(Event):
+class UserInputEvent(Event,
+                     name_dotted='veredi.interface.input.event.user',
+                     name_string='input.user'):
     # -------------------------------------------------------------------------
     # To String
     # -------------------------------------------------------------------------
@@ -68,7 +72,9 @@ class UserInputEvent(Event):
 # Command Event
 # -----------------------------------------------------------------------------
 
-class CommandInputEvent(UserInputEvent):
+class CommandInputEvent(UserInputEvent,
+                        name_dotted='veredi.interface.input.event.command',
+                        name_string='input.command'):
     def __init__(self,
                  id:          Union[int, MonotonicId],
                  type:        Union[int, enum.Enum],

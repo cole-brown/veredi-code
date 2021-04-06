@@ -150,7 +150,9 @@ class VebSocketClient(VebSocket):
 # Client (Veredi)
 # -----------------------------------------------------------------------------
 
-class WebSocketClient(WebSocketMediator):
+class WebSocketClient(WebSocketMediator,
+                      name_dotted='veredi.interface.mediator.websocket.client',
+                      name_string='client'):
     '''
     Mediator for... client-ing over WebSockets.
     '''
@@ -202,14 +204,14 @@ class WebSocketClient(WebSocketMediator):
     def __init__(self,
                  context: VerediContext) -> None:
         # Base class init first.
-        super().__init__(context, 'client')
+        super().__init__(context)
 
         # NOTE: For increased logging on only client from the get-go:
         # log.set_group_level(log.Group.DATA_PROCESSING, log.Level.INFO)
         # log.set_group_level(log.Group.PARALLEL, log.Level.DEBUG)
         # log.critical("Client set data_proc to {}.",
         #              log.get_group_level(log.Group.DATA_PROCESSING))
-        # log.data_processing(self.dotted(),
+        # log.data_processing(self.dotted,
         #                     "Client set data_proc to {}.",
         #                     log.get_group_level(log.Group.DATA_PROCESSING))
 
@@ -223,13 +225,6 @@ class WebSocketClient(WebSocketMediator):
     # -------------------------------------------------------------------------
     # Properties
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'WebSocketClient') -> label.DotStr:
-        '''
-        The dotted label string this mediator has.
-        '''
-        return 'veredi.interface.mediator.websocket.client'
 
     @property
     def connected(self):
@@ -258,7 +253,7 @@ class WebSocketClient(WebSocketMediator):
                                     DebugFlag.MEDIATOR_CLIENT)):
             msg = f"{self._name}: " + msg
             kwargs = log.incr_stack_level(kwargs)
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       *args,
                                       **kwargs,
@@ -274,7 +269,7 @@ class WebSocketClient(WebSocketMediator):
         '''
         Make a context with our context data, our serdes, etc.
         '''
-        ctx = MediatorClientContext(self.dotted())
+        ctx = MediatorClientContext(self.dotted)
         ctx.sub['type'] = 'websocket.client'
         serdes_ctx, _ = self._serdes.background
         codec_ctx, _ = self._codec.background
@@ -286,7 +281,7 @@ class WebSocketClient(WebSocketMediator):
         '''
         Make a context for a message.
         '''
-        ctx = MessageContext(self.dotted(), id)
+        ctx = MessageContext(self.dotted, id)
         return ctx
 
     def start(self) -> None:
@@ -614,12 +609,12 @@ class WebSocketClient(WebSocketMediator):
                    ("from provided context" if ctx else "and a context"),
                    ctx)
 
-        ctx = ctx or self.make_msg_context(Message.SpecialId.CONNECT)
+        ctx = ctx or self.make_msg_context(Message.SpecialId.enum.CONNECT)
         self.debug("_connect_message: "
                    "Creating connection message with context: {}",
                    ctx)
-        msg = Message(Message.SpecialId.CONNECT,
-                      MsgType.CONNECT,
+        msg = Message(Message.SpecialId.enum.CONNECT,
+                      MsgType.enum.CONNECT,
                       # TODO: different payload? add user_key?
                       payload=self._id,
                       user_id=self._id,

@@ -40,7 +40,9 @@ from ...ecs.base.identity        import EntityId
 # Game Time
 # -----------------------------------------------------------------------------
 
-class TickRounds(TickBase):
+class TickRounds(TickBase,
+                 name_dotted='veredi.game.time.tick.round',
+                 name_string='tick.round'):
     '''
     Keep a game tick clock for Round/Turn-Based games, where entities are
     assigned a turn order in a round and cannot act (generally) until it is
@@ -97,7 +99,7 @@ class TickRounds(TickBase):
         if isinstance(context, UnitTestContext):
             # If constructed specifically with a UnitTestContext, don't do
             # _configure() as we have no DataManager.
-            ctx = context.sub_get(self.dotted())
+            ctx = context.sub_get(self.dotted)
             self._seconds_per_round = time.to_decimal(ctx['seconds-per-round'])
             self._current_round = numbers.to_decimal(ctx['current-round'])
             return
@@ -163,10 +165,6 @@ class TickRounds(TickBase):
             'turn':            self.turn,
         }
         return self._bg_data
-
-    @classmethod
-    def dotted(klass: 'TickRounds') -> label.DotStr:
-        return 'veredi.game.time.tick.round'
 
     # -------------------------------------------------------------------------
     # Round Functions

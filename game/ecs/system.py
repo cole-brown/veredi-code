@@ -19,6 +19,7 @@ from veredi.logs               import log
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import VerediContext
 from veredi.base.dicts         import DoubleIndexDict
+from veredi.base.strings.mixin import NamesMixin
 from veredi.data               import background
 from veredi.data.config.config import Configuration
 from veredi.debug.const        import DebugFlag
@@ -47,20 +48,24 @@ from .entity                   import EntityManager
 # Code
 # -----------------------------------------------------------------------------
 
-class SystemEvent(Event):
+class SystemEvent(Event,
+                  name_dotted=('veredi.game.ecs.system.event'),
+                  name_string='system'):
     ...
 
 
-class SystemLifeEvent(Event):
+class SystemLifeEvent(Event,
+                      name_dotted=('veredi.game.ecs.system.event.life'),
+                      name_string='system.life'):
     pass
 
 
-class SystemManager(EcsManagerWithEvents):
+class SystemManager(EcsManagerWithEvents,
+                    name_dotted='veredi.game.ecs.system',
+                    name_string='manager.system'):
     '''
     Manages the life cycles of entities/components.
     '''
-
-    DOTTED = 'veredi.game.ecs.system'
 
     # -------------------------------------------------------------------------
     # Init / Set Up
@@ -112,12 +117,8 @@ class SystemManager(EcsManagerWithEvents):
         Data for the Veredi Background context.
         '''
         return {
-            background.Name.DOTTED.key: self.dotted(),
+            background.Name.DOTTED.key: self.dotted,
         }
-
-    @classmethod
-    def dotted(klass: 'SystemManager') -> str:
-        return klass.DOTTED
 
     # -------------------------------------------------------------------------
     # Debugging
@@ -199,7 +200,7 @@ class SystemManager(EcsManagerWithEvents):
         Raises an error if health is less than the minimum for runnable engine.
 
         Adds:
-          "{system.dotted()}'s health became unrunnable: {prev} -> {curr}."
+          "{system.dotted}'s health became unrunnable: {prev} -> {curr}."
           to info/args/kwargs for log message.
         '''
         # Sometimes, it's ok if they're dying...
@@ -227,7 +228,7 @@ class SystemManager(EcsManagerWithEvents):
         else:
             health_transition = f"{str(prev_health)} -> {str(curr_health)}"
 
-        msg = (f"{system.dotted()}'s health became unrunnable "
+        msg = (f"{system.dotted}'s health became unrunnable "
                f"during {during}: {health_transition}. ")
         error = HealthError(curr_health, prev_health, msg, None)
         raise self._log_exception(error,
@@ -436,7 +437,7 @@ class SystemManager(EcsManagerWithEvents):
                                  sys_tick_health,
                                  worst_health,
                                  (f"SystemManager.update for {tick} of "
-                                  f"{system.dotted()} resulted in poor "
+                                  f"{system.dotted} resulted in poor "
                                   f"health: {sys_tick_health}."),
                                  tick=tick)
 
@@ -496,7 +497,7 @@ class SystemManager(EcsManagerWithEvents):
                          health,
                          None,
                          (f"SystemManager._life_cycle_set for {cycle} of "
-                          f"{system.dotted()} resulted in poor health: "
+                          f"{system.dotted} resulted in poor health: "
                           f"{health}."),
                          tick=None,
                          life=cycle)

@@ -10,13 +10,14 @@ For converting user input into Veredi's math/roll syntax trees.
 
 from typing import Optional, Any, Dict
 
-from veredi.logs         import log
+from veredi.logs               import log
 
-from veredi.base.strings import label
-from veredi.data         import background
-from veredi.base.context import VerediContext
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+from veredi.data               import background
+from veredi.base.context       import VerediContext
 
-from veredi.math.parser  import MathParser, MathTree
+from veredi.math.parser        import MathParser, MathTree
 
 
 # -----------------------------------------------------------------------------
@@ -28,7 +29,9 @@ from veredi.math.parser  import MathParser, MathTree
 # Code
 # -----------------------------------------------------------------------------
 
-class Parcel:
+class Parcel(NamesMixin,
+             name_dotted='veredi.interface.input.parse.mather',
+             name_string='parcel'):
     '''
     A collection of parsers.
     '''
@@ -53,19 +56,13 @@ class Parcel:
 
         self.get_background()
 
-    def dotted(self) -> label.DotStr:
-        '''
-        Returns our Veredi Dotted Label.
-        '''
-        return 'veredi.interface.input.parse.mather'
-
     def get_background(self) -> Dict[Any, Any]:
         '''
         Returns `self._bg_data`.
         '''
         if not self._bg_data:
             self._bg_data = {
-                'dotted': self.dotted(),
+                'dotted': self.dotted,
             }
 
         return self._bg_data
@@ -76,7 +73,9 @@ class Parcel:
         return self._math
 
 
-class Mather:
+class Mather(NamesMixin,
+             name_dotted='veredi.interface.input.parse.mather',
+             name_string='mather'):
     '''
     Delegate/Mediator that creates actual MathParser from config data, then
     allows calls to it.
@@ -97,7 +96,7 @@ class Mather:
             return
 
         config = background.config.config(self.__class__.__name__,
-                                          self.dotted(),
+                                          self.dotted,
                                           context)
 
         self._parser: MathParser = config.create_from_config('server',
@@ -107,19 +106,13 @@ class Mather:
 
         self.get_background()
 
-    def dotted(self) -> label.DotStr:
-        '''
-        Returns our Veredi Dotted Label.
-        '''
-        return 'veredi.interface.input.parse.mather'
-
     def get_background(self) -> Dict[Any, Any]:
         '''
         Returns `self._bg_data`.
         '''
         if not self._bg_data:
             self._bg_data = {
-                'dotted': self.dotted(),
+                'dotted': self.dotted,
             }
 
         return self._bg_data

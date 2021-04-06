@@ -23,9 +23,11 @@ from veredi.base.strings import label
 from .const     import (EncodeNull, EncodeAsIs,
                         EncodedComplex, EncodedSimple, EncodedEither,
                         Encoding)
-from .enum      import (FlagEncodeValueMixin,
-                        FlagEncodeNameMixin,
-                        EnumEncodeNameMixin)
+from .          import enum
+from .enum      import (EnumEncodableWrapper,
+                        FlagEncodeValue,
+                        FlagEncodeName,
+                        EnumEncodeName)
 from .codec     import Codec
 from .encodable import Encodable
 
@@ -36,8 +38,9 @@ from .encodable import Encodable
 
 __all__ = [
     # ------------------------------
-    # Functions
+    # namespaced
     # ------------------------------
+    'enum',
 
     # ------------------------------
     # Types
@@ -52,10 +55,6 @@ __all__ = [
     'Encoding',
 
     'Encodable',
-
-    'EnumEncodeNameMixin',
-    'FlagEncodeNameMixin',
-    'FlagEncodeValueMixin',
 
     # # ------------------------------
     # # Protocol / Interface

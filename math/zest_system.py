@@ -55,7 +55,7 @@ class Test_MathSystem(ZestSystem):
 
         # Set up parser in background for MathSystem to grab.
         parcel = UTParcel(self.parser, self.context)
-        background.input.set(self.dotted(__file__),
+        background.input.set(self.dotted,
                              parcel,
                              None,
                              background.Ownership.SHARE)

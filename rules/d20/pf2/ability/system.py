@@ -70,7 +70,9 @@ from .event import (
 # Code
 # -----------------------------------------------------------------------------
 
-class AbilitySystem(D20RulesSystem):
+class AbilitySystem(D20RulesSystem,
+                    name_dotted='veredi.rules.d20.pf2.ability.system',
+                    name_string='ability.system'):
 
     @classmethod
     def dependencies(
@@ -95,7 +97,7 @@ class AbilitySystem(D20RulesSystem):
 
         super()._configure(context)
         config = background.config.config(self.__class__.__name__,
-                                          self.dotted(),
+                                          self.dotted,
                                           context)
         self._config_rules_def(context, config, 'ability')
 
@@ -122,10 +124,6 @@ class AbilitySystem(D20RulesSystem):
         self._ticks: SystemTick = (SystemTick.PRE
                                    | SystemTick.STANDARD
                                    | SystemTick.POST)
-
-    @classmethod
-    def dotted(klass: 'AbilitySystem') -> str:
-        return 'veredi.rules.d20.pf2.ability.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -166,7 +164,7 @@ class AbilitySystem(D20RulesSystem):
         # General Command
         # ---
         cmd = CommandRegisterReply(event,
-                                   self.dotted(),
+                                   self.dotted,
                                    'ability',
                                    CommandPermission.COMPONENT,
                                    self.command_ability,
@@ -206,7 +204,9 @@ class AbilitySystem(D20RulesSystem):
         # Doctor checkup.
         if not self._health_ok_msg("Command ignored due to bad health.",
                                    context=context):
-            return CommandStatus.system_health(context)
+            return CommandStatus.system_health(self.name,
+                                               self._health,
+                                               context)
 
         eid = InputContext.source_id(context)
         entity, component = self._manager.get_with_log(
@@ -231,7 +231,7 @@ class AbilitySystem(D20RulesSystem):
                             math, context,
                             InputContext.input_id(context),
                             # TODO [2020-07-11]: a proper output type...
-                            Recipient.BROADCAST),
+                            Recipient.enum.BROADCAST),
             context)
 
         return CommandStatus.successful(context)

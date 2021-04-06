@@ -43,13 +43,13 @@ from ..taxon                     import Rank
 # --       Load a file given context information and a base directory.       --
 # -----------------------------------------------------------------------------
 
-class FileTreeRepository(FileRepository):
+class FileTreeRepository(FileRepository,
+                         name_dotted='veredi.repository.file-tree',
+                         name_string='file-tree'):
 
     # -------------------------------------------------------------------------
     # Constants
     # -------------------------------------------------------------------------
-
-    _REPO_NAME = 'file-tree'
 
     # ---
     # Path Names
@@ -65,9 +65,9 @@ class FileTreeRepository(FileRepository):
 
     def __init__(self,
                  config_context: Optional[ConfigContext] = None) -> None:
-        super().__init__(self._REPO_NAME, config_context)
+        super().__init__(config_context)
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "Done with init.")
 
     def _configure(self,
@@ -77,7 +77,7 @@ class FileTreeRepository(FileRepository):
         set up themselves.
         '''
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               f"{self.__class__.__name__} configure...")
 
         super()._configure(context, require_config=True)
@@ -85,19 +85,11 @@ class FileTreeRepository(FileRepository):
         # No FileTreeRepository config to do at present.
 
         # config = background.config.config(self.__class__.__name__,
-        #                                   self.dotted(),
+        #                                   self.dotted,
         #                                   context)
 
-        self._log_start_up(self.dotted(),
+        self._log_start_up(self.dotted,
                            "Done with configuration.")
-
-    # --------------------------------------------------------------------------
-    # Properties
-    # --------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'FileTreeRepository') -> label.DotStr:
-        return 'veredi.repository.file-tree'
 
     # -------------------------------------------------------------------------
     # Load / Save Helpers
@@ -115,7 +107,7 @@ class FileTreeRepository(FileRepository):
                 and not isinstance(context, DataSaveContext)):
             msg = ("Cannot save data; mismatched context type and data "
                    "action for {}: {}, {}")
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       self._error_name(context, False),
                                       type(context),
@@ -133,7 +125,7 @@ class FileTreeRepository(FileRepository):
               and not isinstance(context, DataLoadContext)):
             msg = ("Cannot load data; mismatched context type and data "
                    "action for {}: {}, {}")
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       self._error_name(context, False),
                                       type(context),
@@ -200,7 +192,7 @@ class FileTreeRepository(FileRepository):
         Looks for a match to `load_path` by splitting into parent dir and
         glob/file name. If only one match, loads that file.
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Loading requested path '{}'...",
                                   paths.to_str(load_path),
                                   context=context)
@@ -216,7 +208,7 @@ class FileTreeRepository(FileRepository):
             matches.append(match)
 
         match_word = "match" if len(matches) == 1 else "matches"
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   f"Found {len(matches)} {match_word} files for "
                                   f"loading '{load_path.name}': {matches}",
                                   context=context)
@@ -231,7 +223,7 @@ class FileTreeRepository(FileRepository):
             msg = (f"No matches for loading file: "
                    f"directory: {directory}, glob: {glob}, "
                    f"matches: {matches}")
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       context=context,
                                       success=False)
@@ -245,7 +237,7 @@ class FileTreeRepository(FileRepository):
             msg = (f"Too many matches for loading file: "
                    f"directory: {directory}, glob: {glob}, "
                    f"matches: {sorted(matches)}")
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       context=context,
                                       success=False)
@@ -257,7 +249,7 @@ class FileTreeRepository(FileRepository):
         # ------------------------------
         # Set-Up...
         # ------------------------------
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   f"Loading '{matches[0]}' file for "
                                   f"load path '{load_path}'...",
                                   context=context)
@@ -269,7 +261,7 @@ class FileTreeRepository(FileRepository):
         # ------------------------------
         data_stream = None
         with load_path.open('r') as file_stream:
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Reading...",
                                       context=context)
             # Can raise an error - we'll let it.
@@ -282,7 +274,7 @@ class FileTreeRepository(FileRepository):
                 # print("\n")
 
             except LoadError:
-                self._log_data_processing(self.dotted(),
+                self._log_data_processing(self.dotted,
                                           "Got LoadError trying to "
                                           "read file: {}",
                                           paths.to_str(load_path),
@@ -295,7 +287,7 @@ class FileTreeRepository(FileRepository):
                 raise
 
             except Exception as error:
-                self._log_data_processing(self.dotted(),
+                self._log_data_processing(self.dotted,
                                           "Got an exception trying to "
                                           "read file: {}",
                                           paths.to_str(load_path),
@@ -315,7 +307,7 @@ class FileTreeRepository(FileRepository):
         # ------------------------------
         # Done.
         # ------------------------------
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Loaded file '{}'!",
                                   paths.to_str(load_path),
                                   context=context,
@@ -334,7 +326,7 @@ class FileTreeRepository(FileRepository):
         '''
         Save `data` to `save_path`. If it already exists, overwrites that file.
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Saving '{}'...",
                                   paths.to_str(save_path),
                                   context=context)
@@ -343,7 +335,7 @@ class FileTreeRepository(FileRepository):
 
         success = False
         with save_path.open('w') as file_stream:
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Writing...",
                                       context=context)
             # Can raise errors - we'll let it.
@@ -359,7 +351,7 @@ class FileTreeRepository(FileRepository):
                 success = True
 
             except SaveError:
-                self._log_data_processing(self.dotted(),
+                self._log_data_processing(self.dotted,
                                           "Got SaveError trying to "
                                           "write file: {}",
                                           paths.to_str(save_path),
@@ -370,7 +362,7 @@ class FileTreeRepository(FileRepository):
                 raise
 
             except Exception as error:
-                self._log_data_processing(self.dotted(),
+                self._log_data_processing(self.dotted,
                                           "Got an exception trying to "
                                           "write file: {}",
                                           paths.to_str(save_path),
@@ -383,7 +375,7 @@ class FileTreeRepository(FileRepository):
                     "Error saving data to file. context: {}",
                     context=context) from error
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Saved file '{}'!",
                                   paths.to_str(save_path),
                                   context=context,

@@ -33,8 +33,9 @@ from veredi.game.event               import EngineStopRequest
 # -----------------------------------------------------------------------------
 
 # register via decorator to test out that that registration way also works.
-@config.register_this('veredi', 'zest', 'functional', 'system')
-class TestSystem(ecs.base.System):
+class TestSystem(ecs.base.System,
+                 name_dotted='veredi.zest.functional.system',
+                 name_string='attributes.object'):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -61,13 +62,6 @@ class TestSystem(ecs.base.System):
         self._ticks: ecs.SystemTick = (ecs.SystemTick.TICKS_BIRTH
                                        | ecs.SystemTick.TICKS_LIFE
                                        | ecs.SystemTick.TICKS_DEATH)
-
-    @classmethod
-    def dotted(klass: 'TestSystem') -> label.DotStr:
-        '''
-        Returns this class's dotted name.
-        '''
-        return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # System Registration / Definition

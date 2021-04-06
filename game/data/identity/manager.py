@@ -64,7 +64,9 @@ from .component                    import IdentityComponent
 # Code
 # -----------------------------------------------------------------------------
 
-class IdentityManager(EcsManagerWithEvents):
+class IdentityManager(EcsManagerWithEvents,
+                      name_dotted='veredi.game.data.manager.identity',
+                      name_string='manager.identity'):
     '''
     "Manager" of Identities.
 
@@ -201,15 +203,8 @@ class IdentityManager(EcsManagerWithEvents):
         Data for the Veredi Background context.
         '''
         return {
-            background.Name.DOTTED.key: self.dotted(),
+            background.Name.DOTTED.key: self.dotted,
         }
-
-    @classmethod
-    def dotted(klass: 'IdentityManager') -> str:
-        '''
-        This manager's dotted label.
-        '''
-        return 'veredi.game.data.identity.manager'
 
     @property
     def _meeting(self) -> 'Meeting':

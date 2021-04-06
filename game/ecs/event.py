@@ -22,6 +22,7 @@ import enum
 from veredi.logs               import log
 from veredi.base.context       import VerediContext
 from veredi.base.const         import VerediHealth
+from veredi.base.strings.mixin import NamesMixin
 from veredi.data               import background
 from veredi.data.config.config import Configuration
 from veredi.base.exceptions    import VerediError
@@ -116,7 +117,27 @@ class EcsManagerWithEvents(EcsManager):
 # Code
 # -----------------------------------------------------------------------------
 
-class Event:
+class Event(NamesMixin):
+    '''
+    Event sub-classes are expected to use kwargs:
+      - Required:
+        + name_dotted: Optional[label.LabelInput]
+          - string/strings to create the Veredi dotted label.
+        + name_string: Optional[str]
+          - Any short string for describing class. Either short-hand or class's
+            __name__ are fine.
+      - Optional:
+        + name_klass:        Optional[str]
+          - If None, will be class's __name__.
+        + name_string_xform: Optional[Callable[[str], str]] = None,
+        + name_klass_xform:  Optional[Callable[[str], str]] = to_lower_lambda,
+
+    Example:
+      class JeffEvent(Event,
+                      name_dotted=label.normalize('jeff', 'event'),
+                      name_string='jeff')
+    '''
+
     TYPE_NONE = 0
     '''A "Don't care" for the event.type field.'''
 
@@ -188,7 +209,9 @@ class Event:
 # --                   "Event Manager" seems so formal...                    --
 # --------------------------------(oh well...)---------------------------------
 
-class EventManager(EcsManager):
+class EventManager(EcsManager,
+                   name_dotted='veredi.game.ecs.manager.event',
+                   name_string='manager.event'):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -214,19 +237,12 @@ class EventManager(EcsManager):
     # Properties
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def dotted(klass: 'EventManager') -> str:
-        '''
-        The dotted name this Manager has.
-        '''
-        return 'veredi.game.ecs.manager.event'
-
     def get_background(self):
         '''
         Data for the Veredi Background context.
         '''
         return {
-            background.Name.DOTTED.key: self.dotted(),
+            background.Name.DOTTED.key: self.dotted,
         }
 
     # -------------------------------------------------------------------------

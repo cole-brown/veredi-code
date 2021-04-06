@@ -23,6 +23,8 @@ from veredi.logs               import log
 from veredi.logs.metered       import MeteredLog
 from veredi.logs.mixin         import LogMixin
 from veredi.base.exceptions    import VerediError, HealthError
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
 from .ecs.exceptions           import TickError
 from .exceptions               import EngineError
 
@@ -215,7 +217,9 @@ from .ecs.base.entity          import Entity
 # Do we make ours in their own ENGINE_* groups? Use more general groups?
 
 
-class Engine(LogMixin):
+class Engine(LogMixin, NamesMixin,
+             name_dotted='veredi.game.engine',
+             name_string='engine'):
     '''
     Implements an ECS-powered game engine with just
     one time-step loop (currently).
@@ -229,11 +233,6 @@ class Engine(LogMixin):
     SYSTEMS_REQUIRED = frozenset()
     '''
     The systems that this engine cannot run without.
-    '''
-
-    DOTTED = 'veredi.game.engine'
-    '''
-    The Engine's Dotted Label.
     '''
 
     _METER_LOG_AMT = 10  # seconds
@@ -320,7 +319,7 @@ class Engine(LogMixin):
         # Set up ASAP so we have self._log_*() working ASAP.
 
         # Config our LogMixin.
-        self._log_config(self.dotted())
+        self._log_config(self.dotted)
 
         # ---
         # Ye Olde Todoses
@@ -348,12 +347,12 @@ class Engine(LogMixin):
         # ---
         # Init Timer starts timing here and then just runs, so this is all we
         # really need to do with it.
-        timer_run_name = self.dotted() + '.time.run'
+        timer_run_name = label.normalize(self.dotted, 'time', 'run')
         self._timer_run = self.meeting.time.make_timer(timer_run_name)
 
         # Life Timer times specific life-cycles (or specific parts of them).
         # We'll reset it in transition places.
-        timer_life_name = self.dotted() + '.time.life_cycle'
+        timer_life_name = label.normalize(self.dotted, 'time', 'life_cycle')
         self._timer_life = self.meeting.time.make_timer(timer_life_name)
 
         # Init TimeManager with our tick objects and our timers.
@@ -367,7 +366,7 @@ class Engine(LogMixin):
         # ---
         # Metered Logging
         # ---
-        self._metered_log = MeteredLog(self.dotted(),
+        self._metered_log = MeteredLog(self.dotted,
                                        log.Level.NOTSET,
                                        self.meeting.time.machine,
                                        fingerprint=True)
@@ -466,10 +465,6 @@ class Engine(LogMixin):
             self._log_debug("Creating system from config: {}", sys_type)
             self.meeting.system.create(sys_type, context)
 
-    @classmethod
-    def dotted(klass: 'Engine') -> str:
-        return klass.DOTTED
-
     # -------------------------------------------------------------------------
     # Debug Stuff
     # -------------------------------------------------------------------------
@@ -559,7 +554,7 @@ class Engine(LogMixin):
         '''
         Use our MeteredLog to log this tick-related log message. Will be logged
         under our dotted name (that is, the logger is named by the
-        self.dotted() func).
+        self.dotted attribute).
 
         WARNING: Log may be squelched if its too similar to other recent log
         messages in the `tick`.

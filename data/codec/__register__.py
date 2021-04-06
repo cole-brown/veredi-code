@@ -21,9 +21,10 @@ from veredi.data.registration import config, codec
 # ------------------------------
 # Registrees
 # ------------------------------
-from .enum     import (FlagEncodeValueMixin,
-                       FlagEncodeNameMixin,
-                       EnumEncodeNameMixin)
+from .enum     import (EnumEncodableWrapper,
+                       FlagEncodeValue,
+                       FlagEncodeName,
+                       EnumEncodeName)
 
 from .codec    import Codec
 
@@ -32,9 +33,10 @@ from .codec    import Codec
 # Registration
 # -----------------------------------------------------------------------------
 
-codec.ignore(FlagEncodeValueMixin)
-codec.ignore(FlagEncodeNameMixin)
-codec.ignore(EnumEncodeNameMixin)
+codec.ignore(EnumEncodableWrapper)
+codec.ignore(FlagEncodeValue)
+codec.ignore(FlagEncodeName)
+codec.ignore(EnumEncodeName)
 
 
 config.register(Codec)

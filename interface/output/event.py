@@ -14,15 +14,13 @@ import enum
 
 
 from veredi.logs                    import log
-
 from veredi.game.ecs.event          import Event
-
+from veredi.data                    import codec
 from veredi.data.codec              import (Codec,
                                             Encodable,
                                             EncodedSimple,
                                             EncodedComplex,
-                                            FlagEncodeValueMixin)
-from veredi.base.strings            import labeler
+                                            FlagEncodeValue)
 from veredi.base.enum               import FlagCheckMixin, FlagSetMixin
 from veredi.base.context            import VerediContext
 from veredi.game.ecs.base.identity  import EntityId
@@ -34,9 +32,11 @@ from veredi.interface.input.context import InputContext
 # Constants
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.output.event.recipient')
+@codec.enum.encodable(name_dotted='veredi.interface.output.event.recipient',
+                      name_string='recipient',
+                      enum_encode_type=FlagEncodeValue)
 @enum.unique
-class Recipient(FlagEncodeValueMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
+class Recipient(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
     has() and any() provided by FlagCheckMixin.
     '''
@@ -61,33 +61,16 @@ class Recipient(FlagEncodeValueMixin, FlagCheckMixin, FlagSetMixin, enum.Flag):
     LOG = enum.auto()
     '''Send this output (formatted as would be for text client) to the log.'''
 
-    # -------------------------------------------------------------------------
-    # Encodable
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'Recipient') -> str:
-        '''
-        Unique dotted name for this class.
-        '''
-        return 'veredi.interface.output.recipient'
-
-    @classmethod
-    def type_field(klass: 'Recipient') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        '''
-        return 'v.io.recip'
-
 
 # -----------------------------------------------------------------------------
 # Base Output Event
 # -----------------------------------------------------------------------------
 
 # [2021-03-09] Changed to disallow OutputEvent as a directly encodable class.
-# @labeler.dotted('veredi.interface.output.event')
+# class OutputEvent(Event, Encodable,
+#                   name_dotted='veredi.interface.output.event',
+#                   name_string='output'):
 class OutputEvent(Event, Encodable):
-
     '''
     An event that should be show to the outside world (users?). Something that
     isn't just apparent in some other way.
@@ -100,13 +83,6 @@ class OutputEvent(Event, Encodable):
     # -------------------------------------------------------------------------
     # Constants
     # -------------------------------------------------------------------------
-
-    # ------------------------------
-    # Constants: Encodable
-    # ------------------------------
-
-    _ENCODE_NAME: str = 'event.output'
-    '''Name for this class when encoding/decoding.'''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -213,10 +189,6 @@ class OutputEvent(Event, Encodable):
     # Encodable API
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def type_field(klass: 'OutputEvent') -> str:
-        return klass._ENCODE_NAME
-
     def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
         Don't support simple for OutputEvents.
@@ -278,7 +250,7 @@ class OutputEvent(Event, Encodable):
         # Check claims.
         klass.error_for(data,
                         keys=['source_id', 'source_type', 'output', 'sid'])
-        Recipient.error_for_claim(data)
+        Recipient.enum.error_for_claim(data)
 
         # If no instance, we're decoding for ourself.
         if instance is None:

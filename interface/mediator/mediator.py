@@ -38,6 +38,7 @@ from veredi.data.config.context import ConfigContext
 from veredi.base.identity       import MonotonicId
 from veredi.base.context        import VerediContext
 from veredi.base.strings        import label
+from veredi.base.strings.mixin  import NamesMixin
 from veredi.parallel.multiproc  import SubToProcComm
 
 # from .                        import exceptions
@@ -59,9 +60,27 @@ _UT_DISABLE = "unit-testing disable"
 # Code
 # -----------------------------------------------------------------------------
 
-class Mediator(LogMixin, ABC):
+class Mediator(ABC, LogMixin, NamesMixin):
     '''
     Veredi Server I/O Mediator.
+
+    Mediator sub-classes are expected to use kwargs:
+      - Required:
+        + name_dotted: Optional[label.LabelInput]
+          - string/strings to create the Veredi dotted label.
+        + name_string: Optional[str]
+          - Any short string for describing class. Either short-hand or class's
+            __name__ are fine.
+      - Optional:
+        + name_klass:        Optional[str]
+          - If None, will be class's __name__.
+        + name_string_xform: Optional[Callable[[str], str]] = None,
+        + name_klass_xform:  Optional[Callable[[str], str]] = to_lower_lambda,
+
+    Example:
+      class JeffMediator(Mediator,
+                         name_dotted=label.normalize('mediator', 'jeff'),
+                         name_string='jeff')
 
     For a server (e.g. REST) talking to a game.
 
@@ -79,11 +98,6 @@ class Mediator(LogMixin, ABC):
         Set up our vars with type hinting, docstrs.
         '''
 
-        self._name: str = None
-        '''
-        Should be something short and simple like 'client' or 'server'.
-        '''
-
         self._comms: SubToProcComm = None
         '''
         This sub-process to parent process connections, flags, debug info.
@@ -96,9 +110,10 @@ class Mediator(LogMixin, ABC):
         self._testing: bool = False
         '''
         Whatever abnormal shenanigans are needed for unit testing are hidden
-        behind this flag. For example, server shouldn't push MsgType.LOGGING
-        reply messages into its _med_to_game_queue, but will if unit testing
-        so that the unit test can inspect the client's response.
+        behind this flag. For example, server shouldn't push
+        MsgType.enum.LOGGING reply messages into its _med_to_game_queue, but
+        will if unit testing so that the unit test can inspect the client's
+        response.
         '''
 
         # self._test_pipe: multiprocessing.connection.Connection = None
@@ -135,16 +150,12 @@ class Mediator(LogMixin, ABC):
         Queue for received data from this mediator to be passed to the game.
         '''
 
-    def __init__(self,
-                 context: VerediContext,
-                 name:    str) -> None:
+    def __init__(self, context: VerediContext) -> None:
         # ------------------------------
         # Make our vars first.
         # ------------------------------
         self._define_vars()
-        self._log_config(self.dotted())
-
-        self._name = name
+        self._log_config(self.dotted)
 
         # ------------------------------
         # Get/check for required stuff.
@@ -167,7 +178,7 @@ class Mediator(LogMixin, ABC):
 
         # # Get (required) config.
         # config = background.config.config(self.__class__.__name__,
-        #                                   self.dotted(),
+        #                                   self.dotted,
         #                                   context)
 
         # ------------------------------
@@ -179,21 +190,6 @@ class Mediator(LogMixin, ABC):
 
         # Pull debug up to class.
         self._debug = self._comms.debug_flags
-
-    # --------------------------------------------------------------------------
-    # Properties
-    # --------------------------------------------------------------------------
-
-    @classmethod
-    @abstractmethod
-    def dotted(klass: 'Mediator') -> label.DotStr:
-        '''
-        The dotted label string this mediator has.
-
-        e.g. 'veredi.interface.mediator.websocket.client'
-        '''
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented.")
 
     # -------------------------------------------------------------------------
     # Debug
@@ -213,7 +209,7 @@ class Mediator(LogMixin, ABC):
         '''
         if self._debug and self._debug.has(DebugFlag.MEDIATOR_BASE):
             kwargs = log.incr_stack_level(kwargs)
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       *args,
                                       **kwargs,
@@ -225,7 +221,7 @@ class Mediator(LogMixin, ABC):
         handlers, ignore the whole thing... whatever you want.
         '''
         if (not msg
-                or msg.type != MsgType.LOGGING
+                or msg.type != MsgType.enum.LOGGING
                 or not isinstance(msg.payload, LogPayload)):
             self.debug("logging_request: wrong type or payload: {}",
                        msg)
@@ -243,9 +239,9 @@ class Mediator(LogMixin, ABC):
             return None
 
         report_action = False
-        if LogField.LEVEL in request:
+        if LogField.enum.LEVEL in request:
             report_action = True
-            self._logging_req_level(request[LogField.LEVEL])
+            self._logging_req_level(request[LogField.enum.LEVEL])
 
         # We'll have others eventually. Like 'start up log_client and connect
         # to this WebSocket or Whatever to send logs there now please'.
@@ -254,9 +250,10 @@ class Mediator(LogMixin, ABC):
         send = None
 
         # If report requested or if we did something as requested, report back!
-        # LogField.REPORT is bool, so check that it exists and also is True.
-        report_requested = (LogField.REPORT in request
-                            and request[LogField.REPORT])
+        # LogField.enum.REPORT is bool, so check that it exists and also is
+        # True.
+        report_requested = (LogField.enum.REPORT in request
+                            and request[LogField.enum.REPORT])
         if report_requested or report_action:
             # Reuse received; send 'em back their data?
             payload_send = payload_recv
@@ -608,7 +605,7 @@ class Mediator(LogMixin, ABC):
                 continue
 
             # Deal with this msg to us?
-            if msg.type == MsgType.LOGGING:
+            if msg.type == MsgType.enum.LOGGING:
                 self.debug("_med_queue_watcher: _med_rx_get got: {}", msg)
                 reply = self.logging_request(msg)
                 if reply:
@@ -636,12 +633,12 @@ class Mediator(LogMixin, ABC):
             # Get that something, do something with it.
             try:
                 msg, ctx = self._test_pipe_get()
-                self._log_data_processing(self.dotted(),
+                self._log_data_processing(self.dotted,
                                           "_test_watcher: "
                                           "{} got from test pipe:\n"
                                           "  data: {}\n"
                                           "   ctx: {}",
-                                          self._name, msg, ctx)
+                                          self.name, msg, ctx)
 
             except EOFError as error:
                 log.exception(error,
@@ -662,12 +659,12 @@ class Mediator(LogMixin, ABC):
 
             else:
                 error_msg = ("_test_watcher: "
-                             "{self._name} doesn't know what to do "
+                             "{self.name} doesn't know what to do "
                              "with received testing message: {}")
                 raise log.exception(
-                    ValueError(error_msg.format(self._name, msg)),
+                    ValueError(error_msg.format(self.name, msg)),
                     error_msg,
-                    self._name,
+                    self.name,
                     msg)
 
             # Done processing; sleep a bit then continue.

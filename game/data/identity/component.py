@@ -65,7 +65,9 @@ from ..component                 import DataComponent
 # -----------------------------------------------------------------------------
 
 
-class IdentityComponent(DataComponent):
+class IdentityComponent(DataComponent,
+                        name_dotted='veredi.game.data.identity.component',
+                        name_string='component.identity'):
     '''
     Component with identity information beyond, the usual EntityId/ComponentId.
 
@@ -170,14 +172,6 @@ class IdentityComponent(DataComponent):
         if not names:
             return None
         return ' '.join(names)
-
-    # -------------------------------------------------------------------------
-    # Properties: General
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'IdentityComponent') -> label.DotStr:
-        return 'veredi.game.data.identity.component'
 
     # -------------------------------------------------------------------------
     # Property: User <-> Entity

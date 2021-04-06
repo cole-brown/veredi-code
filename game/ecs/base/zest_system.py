@@ -25,20 +25,16 @@ from .  import component
 # Mockups
 # -----------------------------------------------------------------------------
 
-class CompOne(component.Component):
+class CompOne(component.MockComponent):
     pass
 
 
-class CompTwo(component.Component):
+class CompTwo(component.MockComponent):
     pass
 
 
-class SysJeff(system.System):
+class SysJeff(system.MockSystem):
     last_tick = system.SystemTick.DESTRUCTION
-
-    @classmethod
-    def dotted(klass: 'SysJeff') -> str:
-        return 'veredi.game.ecs.base.zest_system.SysJeff'
 
     def _configure(self,
                    context):
@@ -76,10 +72,7 @@ class SysJeff(system.System):
         return VerediHealth.FATAL
 
 
-class SysJill(system.System):
-    @classmethod
-    def dotted(klass: 'SysJill') -> str:
-        return 'veredi.game.ecs.base.zest_system.SysJill'
+class SysJill(system.MockSystem):
 
     def priority(self):
         return const.SystemPriority.HIGH

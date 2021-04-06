@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 
 
 from veredi.logs.mixin            import LogMixin
-
+from veredi.base.strings.mixin    import NamesMixin
 from veredi.data.repository.taxon import Taxon, LabelTaxon, SavedTaxon
 from veredi.data.records          import (DataType,
                                           DocType,
@@ -36,7 +36,7 @@ from veredi.data.records          import (DataType,
 # Code
 # -----------------------------------------------------------------------------
 
-class RulesGame(LogMixin, ABC):
+class RulesGame(LogMixin, NamesMixin, ABC):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -70,13 +70,13 @@ class RulesGame(LogMixin, ABC):
         # Sanity
         # ---
         # config = background.config.config(self.__class__.__name__,
-        #                                   self.dotted(),
+        #                                   self.dotted,
         #                                   context)
 
         # ---
         # LogMixin Set-Up; do ASAP for logging.
         # ---
-        self._log_config(self.dotted())
+        self._log_config(self.dotted)
 
     def loaded(self, definition: Definition, saved: Saved) -> None:
         '''
@@ -88,16 +88,6 @@ class RulesGame(LogMixin, ABC):
     # -------------------------------------------------------------------------
     # Properties
     # -------------------------------------------------------------------------
-
-    @classmethod
-    @abstractmethod
-    def dotted(klass: 'RulesGame') -> str:
-        '''
-        Veredi dotted label string.
-        '''
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented in base class. "
-                                  "Subclasses should defined it themselves.")
 
     @property
     def definition(self) -> Definition:
@@ -175,7 +165,7 @@ class RulesGame(LogMixin, ABC):
         '''
         Create and return a LabelTaxon for the game definition data.
         '''
-        return LabelTaxon(self.dotted())
+        return LabelTaxon(self.dotted)
 
     @abstractmethod
     def game_saved(self) -> SavedTaxon:
@@ -205,13 +195,13 @@ class RulesGame(LogMixin, ABC):
             data = self._definition
 
         else:
-            msg = (f"{self.dotted()}: Unknown type '{data_type}'; do not "
+            msg = (f"{self.dotted}: Unknown type '{data_type}'; do not "
                    "have data to return for it.")
             error = ValueError(msg, data_type)
             raise self._log_exception(error, msg)
 
         if not data:
-            msg = (f"{self.dotted()}: No data for '{data_type}'!")
+            msg = (f"{self.dotted}: No data for '{data_type}'!")
             error = ValueError(msg, data_type)
             raise self._log_exception(error, msg)
 

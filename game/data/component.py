@@ -36,7 +36,9 @@ from veredi.base.strings             import label
 # Code
 # -----------------------------------------------------------------------------
 
-class DataComponent(Component):
+class DataComponent(Component,
+                    name_dotted='veredi.game.data.component',
+                    name_string='component.data'):
     '''
     Component with persistent data.
     '''
@@ -144,13 +146,6 @@ class DataComponent(Component):
             raise DataNotPresentError(
                 f"Key '{key}' not found in our data (in {container}).",
                 None, None)
-
-    @classmethod
-    def dotted(klass: 'DataComponent') -> str:
-        '''
-        This component's dotted label.
-        '''
-        return 'veredi.game.data.component'
 
     # -------------------------------------------------------------------------
     # Persistent Data

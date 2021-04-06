@@ -18,7 +18,6 @@ from abc import ABC, abstractmethod
 from functools import reduce
 
 
-from veredi.base.strings import labeler
 from veredi.base         import random, numbers
 from veredi.data.codec   import (Codec,
                                  Encodable,
@@ -41,7 +40,9 @@ from .const              import FormatOptions
 # Base-most class for tree (leaves, branches, everything).
 # -----------------------------------------------------------------------------
 
-class Node(MathTree):
+class Node(MathTree,
+           name_dotted='veredi.math.d20.tree.node',
+           name_string='node'):
     '''Base-most class for tree (leaves, branches, everything).'''
 
     # Just using MathTree's __init__ at the moment.
@@ -275,7 +276,9 @@ class Node(MathTree):
 # Leaves
 # -----------------------------------------------------------------------------
 
-class Leaf(Node):
+class Leaf(Node,
+           name_dotted='veredi.math.d20.tree.leaf',
+           name_string='leaf'):
     '''Leaf node of parsed tree. Dice, constants, vars, etc.'''
 
     # -------------------------------------------------------------------------
@@ -288,7 +291,7 @@ class Leaf(Node):
                  milieu:   str                  = None,
                  name:     str                  = None,
                  tags:     VTags                = None) -> None:
-        super().__init__(NodeType.LEAF | type,
+        super().__init__(NodeType.enum.LEAF | type,
                          value=value,
                          milieu=milieu,
                          children=None,
@@ -342,10 +345,9 @@ class Leaf(Node):
 # Leaf Actuals
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.math.d20.tree.dice')
-class Dice(Leaf):
-
-    _NAME = 'dice'
+class Dice(Leaf,
+           name_dotted='veredi.math.d20.tree.dice',
+           name_string='dice'):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -355,7 +357,7 @@ class Dice(Leaf):
                  dice: int,
                  faces: int,
                  tags: Dict[str, str] = None) -> None:
-        super().__init__(NodeType.RANDOM, name='dice', tags=tags)
+        super().__init__(NodeType.enum.RANDOM, name='dice', tags=tags)
 
         self.dice = dice
         self.faces = faces
@@ -440,11 +442,6 @@ class Dice(Leaf):
     # Encodable
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def type_field(klass: 'Dice') -> str:
-        '''Encodable type name.'''
-        return klass._NAME
-
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
@@ -485,10 +482,9 @@ class Dice(Leaf):
         return dice
 
 
-@labeler.dotted('veredi.math.d20.tree.constant')
-class Constant(Leaf):
-
-    _NAME = 'constant'
+class Constant(Leaf,
+               name_dotted='veredi.math.d20.tree.constant',
+               name_string='constant'):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -497,7 +493,7 @@ class Constant(Leaf):
     def __init__(self,
                  constant: numbers.NumberTypes,
                  tags: Dict[str, str] = None) -> None:
-        super().__init__(NodeType.CONSTANT,
+        super().__init__(NodeType.enum.CONSTANT,
                          value=constant,
                          name=constant,
                          tags=tags)
@@ -548,11 +544,6 @@ class Constant(Leaf):
     # Encodable
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def type_field(klass: 'Constant') -> str:
-        '''Encodable type name.'''
-        return klass._NAME
-
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
@@ -586,10 +577,9 @@ class Constant(Leaf):
         return constant
 
 
-@labeler.dotted('veredi.math.d20.tree.variable')
-class Variable(Leaf):
-
-    _NAME = 'variable'
+class Variable(Leaf,
+               name_dotted='veredi.math.d20.tree.variable',
+               name_string='variable'):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -599,7 +589,7 @@ class Variable(Leaf):
                  var: str,
                  milieu: str = None,
                  tags: Dict[str, str] = None):
-        super().__init__(NodeType.VARIABLE,
+        super().__init__(NodeType.enum.VARIABLE,
                          milieu=milieu,
                          name=var,
                          tags=tags)
@@ -669,11 +659,6 @@ class Variable(Leaf):
     # Encodable
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def type_field(klass: 'Variable') -> str:
-        '''Encodable type name.'''
-        return klass._NAME
-
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
@@ -711,7 +696,9 @@ class Variable(Leaf):
 # Tree Node
 # -----------------------------------------------------------------------------
 
-class Branch(Node, ABC):
+class Branch(Node, ABC,
+             name_dotted='veredi.math.d20.tree.branch',
+             name_string='branch'):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -722,7 +709,7 @@ class Branch(Node, ABC):
                  type: NodeType,
                  name: str,
                  tags: Dict[str, str] = None):
-        super().__init__(NodeType.BRANCH | type,
+        super().__init__(NodeType.enum.BRANCH | type,
                          children=children,
                          name=name,
                          tags=tags)
@@ -829,7 +816,9 @@ class Branch(Node, ABC):
 # Mathmatic Operations
 # -----------------------------------------------------------------------------
 
-class OperatorMath(Branch):
+class OperatorMath(Branch,
+                   name_dotted='veredi.math.d20.tree.math',
+                   name_string='math'):
     '''Base class for math nodes.'''
 
     # -------------------------------------------------------------------------
@@ -840,7 +829,7 @@ class OperatorMath(Branch):
                  children: List['Node'],
                  op_str: str,
                  tags: Dict[str, str] = None):
-        super().__init__(children, NodeType.OPERATOR, op_str, tags)
+        super().__init__(children, NodeType.enum.OPERATOR, op_str, tags)
         self.__operator_str = op_str
 
     # -------------------------------------------------------------------------
@@ -858,14 +847,13 @@ class OperatorMath(Branch):
         return self.__operator_str
 
 
-@labeler.dotted('veredi.math.d20.tree.add')
-class OperatorAdd(OperatorMath):
+class OperatorAdd(OperatorMath,
+                  name_dotted='veredi.math.d20.tree.add',
+                  name_string='add'):
     STR_ASCII = '+'
     STR_UNICODE = '+'
     # STR_UNICODE = '\u002B'
     # STR_UNICODE = '\N{PLUS SIGN}'
-
-    _NAME = 'Add'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -887,11 +875,6 @@ class OperatorAdd(OperatorMath):
     # -------------------------------------------------------------------------
     # Encodable
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'OperatorAdd') -> str:
-        '''Encodable type name.'''
-        return klass._NAME
 
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
@@ -926,14 +909,13 @@ class OperatorAdd(OperatorMath):
         return add
 
 
-@labeler.dotted('veredi.math.d20.tree.subtract')
-class OperatorSub(OperatorMath):
+class OperatorSub(OperatorMath,
+                  name_dotted='veredi.math.d20.tree.subtract',
+                  name_string='subtract'):
     STR_ASCII = '-'
     STR_UNICODE = '−'
     # STR_UNICODE = '\u2212'
     # STR_UNICODE = '\N{MINUS SIGN}'
-
-    _NAME = 'subtract'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -959,11 +941,6 @@ class OperatorSub(OperatorMath):
     # -------------------------------------------------------------------------
     # Encodable
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'OperatorSub') -> str:
-        '''Encodable type name.'''
-        return klass._NAME
 
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
@@ -998,14 +975,13 @@ class OperatorSub(OperatorMath):
         return sub
 
 
-@labeler.dotted('veredi.math.d20.tree.multiply')
-class OperatorMult(OperatorMath):
+class OperatorMult(OperatorMath,
+                   name_dotted='veredi.math.d20.tree.multiply',
+                   name_string='multiply'):
     STR_ASCII = '*'
     STR_UNICODE = '×'
     # STR_UNICODE = '\u00D7'
     # STR_UNICODE = '\N{MULTIPLICATION SIGN}'
-
-    _NAME = 'multiply'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -1031,11 +1007,6 @@ class OperatorMult(OperatorMath):
     # -------------------------------------------------------------------------
     # Encodable
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'OperatorMult') -> str:
-        '''Encodable type name.'''
-        return klass._NAME
 
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
@@ -1071,8 +1042,9 @@ class OperatorMult(OperatorMath):
         return mult
 
 
-@labeler.dotted('veredi.math.d20.tree.divide')
-class OperatorDiv(OperatorMath):
+class OperatorDiv(OperatorMath,
+                  name_dotted='veredi.math.d20.tree.divide',
+                  name_string='divide'):
     '''
     Covers both truediv (float math) and floor div (int math) operators.
     '''
@@ -1090,8 +1062,6 @@ class OperatorDiv(OperatorMath):
     # ---
     STR_ASCII_FLOOR = '//'
     STR_UNICODE_FLOOR = '÷÷'
-
-    _NAME = 'divide'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -1131,11 +1101,6 @@ class OperatorDiv(OperatorMath):
     # Encodable
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def type_field(klass: 'OperatorDiv') -> str:
-        '''Encodable type name.'''
-        return klass._NAME
-
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
@@ -1170,12 +1135,11 @@ class OperatorDiv(OperatorMath):
         return div
 
 
-@labeler.dotted('veredi.math.d20.tree.modulo')
-class OperatorMod(OperatorMath):
+class OperatorMod(OperatorMath,
+                  name_dotted='veredi.math.d20.tree.modulo',
+                  name_string='modulo'):
     STR_ASCII = '%'
     STR_UNICODE = '%'  # Modulo doesn't have a math symbol...
-
-    _NAME = 'modulo'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -1201,11 +1165,6 @@ class OperatorMod(OperatorMath):
     # -------------------------------------------------------------------------
     # Encodable
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'OperatorMod') -> str:
-        '''Encodable type name.'''
-        return klass._NAME
 
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
@@ -1241,14 +1200,13 @@ class OperatorMod(OperatorMath):
         return mod
 
 
-@labeler.dotted('veredi.math.d20.tree.power')
-class OperatorPow(OperatorMath):
+class OperatorPow(OperatorMath,
+                  name_dotted='veredi.math.d20.tree.power',
+                  name_string='power'):
     STR_ASCII = '^'
     # It would be nice to super-script the 'power-of' component, but
     # that is complicated... maybe?
     STR_UNICODE = '^'
-
-    _NAME = 'power'
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -1274,11 +1232,6 @@ class OperatorPow(OperatorMath):
     # -------------------------------------------------------------------------
     # Encodable
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'OperatorPow') -> str:
-        '''Encodable type name.'''
-        return klass._NAME
 
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''

@@ -42,17 +42,17 @@ class Test_Time(ZestBase):
             self,
             'set_up',
             data={
-                TickRounds.dotted(): {
+                TickRounds.dotted: {
                     'seconds-per-round': self.round_duration,
                     'current-round':     0,
                 },
-                TimeManager.dotted(): {
+                TimeManager.dotted: {
                     # Fill this in once we make it.
                     'tick': None,
                 },
             })
         self.tick = TickRounds(context)
-        context.sub_get(TimeManager.dotted())['tick'] = self.tick
+        context.sub_get(TimeManager.dotted)['tick'] = self.tick
         self.time = TimeManager()
         self.time.finalize_init(None,  # We want to test without a DataManager.
                                 _unit_test=context)

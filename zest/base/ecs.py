@@ -629,7 +629,7 @@ class ZestEcs(ZestBase):
         if null_or_none(event_type):
             event_type = self.event_type_dont_care()
 
-        request = self.manager.data.request(self.dotted(__file__),
+        request = self.manager.data.request(self.dotted,
                                             entity_id,
                                             event_type,
                                             data_action,

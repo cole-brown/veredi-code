@@ -16,11 +16,12 @@ import enum
 
 from veredi.logs            import log
 from veredi.base.strings    import labeler
+from veredi.data            import codec
 from veredi.data.codec      import (Codec,
                                     Encodable,
                                     EncodedSimple,
                                     EncodedComplex,
-                                    FlagEncodeValueMixin)
+                                    FlagEncodeValue)
 from veredi.data.exceptions import EncodableError
 
 
@@ -28,9 +29,11 @@ from veredi.data.exceptions import EncodableError
 # Constants
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.mediator.payload.validity')
+@codec.enum.encodable(name_dotted='veredi.interface.mediator.payload.validity',
+                      name_string='valid',
+                      enum_encode_type=FlagEncodeValue)
 @enum.unique
-class Validity(FlagEncodeValueMixin, enum.Enum):
+class Validity(enum.Enum):
     '''
     Validity of field so we can tell "actually 'None'" from
     "'None' because I don't want to say", for example.
@@ -53,43 +56,17 @@ class Validity(FlagEncodeValueMixin, enum.Enum):
     A good value.
     '''
 
-    # ------------------------------
-    # Encodable API (Codec Support)
-    # ------------------------------
-
-    @classmethod
-    def dotted(klass: 'Validity') -> str:
-        '''
-        Unique dotted name for this class.
-        '''
-        return 'veredi.interface.mediator.payload.validity'
-
-    @classmethod
-    def type_field(klass: 'Validity') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in
-        a dict.
-        '''
-        return 'valid'
-
-    # Rest of Encodabe funcs come from FlagEncodeValueMixin.
-
 
 # -----------------------------------------------------------------------------
 # Payload Basics
 # -----------------------------------------------------------------------------
 
-# Think this shouldn't be registered?
-# @labeler.dotted('veredi.interface.mediator.payload.base')
 class BasePayload(Encodable):
     '''
     Base class for message payloads. Simple payloads (like a string, list,
-    dict...) do not need to be encapsulated. They can just be encoded/decoded
-    with the mediator's codec.
+    dict...) should use BarePayload. Complex payloads should create/use a
+    specific payload class.
     '''
-
-    _ENCODE_NAME: str = 'payload'
-    '''Name for this class when encoding/decoding.'''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -106,7 +83,7 @@ class BasePayload(Encodable):
         actually is...
         '''
 
-        self._valid: 'Validity' = Validity.INVALID
+        self._valid: 'Validity' = Validity.enum.INVALID
         '''
         Validity of self.value. An enum so we can tell "don't want to say"
         apart from "error - could not say".
@@ -136,7 +113,8 @@ class BasePayload(Encodable):
         Base class just checks value of self.valid.
         '''
         # If we have a Validity and it is not INVALID, we are valid.
-        if isinstance(self.valid, Validity) and self.valid != Validity.INVALID:
+        if (isinstance(self.valid, Validity)
+                and self.valid != Validity.enum.INVALID):
             return
 
         # Otherwise raise an error.
@@ -185,10 +163,6 @@ class BasePayload(Encodable):
     # -------------------------------------------------------------------------
     # Encodable API (Codec Support)
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'BasePayload') -> str:
-        return klass._ENCODE_NAME
 
     def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''

@@ -38,8 +38,9 @@ class PolicyIdGenerator:
         return next_id
 
 
-@labeler.dotted('veredi.security.abac.identity.policy')
-class PolicyId(SerializableId):
+class PolicyId(SerializableId,
+               name_dotted='veredi.security.abac.identity.policy',
+               name_string='identity.policy'):
     '''
     Serializable PolicyId class.
     '''
@@ -61,13 +62,6 @@ class PolicyId(SerializableId):
       uuid.uuid5(uuid.UUID(int=0), 'veredi.security.abac.identity.PolicyId')
     '''
 
-    # ------------------------------
-    # Constants: Encodable
-    # ------------------------------
-
-    _ENCODE_FIELD_NAME: str = 'abac.pid'
-    '''Short name for encoding/decoding.'''
-
     # -------------------------------------------------------------------------
     # Properties / Getters
     # -------------------------------------------------------------------------
@@ -86,8 +80,7 @@ class PolicyId(SerializableId):
     # Encodable API (Codec Support)
     # -------------------------------------------------------------------------
 
-    # Everything from parent is fine. We should be ok with just
-    # _ENCODE_FIELD_NAME changed.
+    # Everything from parent is fine.
 
     # -------------------------------------------------------------------------
     # Generator

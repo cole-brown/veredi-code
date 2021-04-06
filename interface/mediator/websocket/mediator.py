@@ -124,7 +124,7 @@ class WebSocketMediator(Mediator):
         # Configuration
         # ---
         config = background.config.config(self.__class__.__name__,
-                                          self.dotted(),
+                                          self.dotted,
                                           context)
 
         # Grab our data from the config...
@@ -171,10 +171,10 @@ class WebSocketMediator(Mediator):
         Get background data for init_background()/background.mediator.set().
         '''
         self._bg = {
-            'dotted': self.dotted(),
+            'dotted': self.dotted,
             'type': label.normalize('websocket', self._name),
-            'serdes': self._serdes.dotted(),
-            'codec': self._codec.dotted(),
+            'serdes': self._serdes.dotted,
+            'codec': self._codec.dotted,
         }
         return self._bg, background.Ownership.SHARE
 
@@ -210,17 +210,17 @@ class WebSocketMediator(Mediator):
         '''
 
         self._hp_paths_type = {
-            MsgType.IGNORE:      (self._htx_root,     self._hrx_root),
-            MsgType.PING:        (self._htx_ping,     self._hrx_ping),
-            MsgType.ECHO:        (self._htx_echo,     self._hrx_echo),
-            MsgType.ECHO_ECHO:   (self._htx_echo,     self._hrx_echo),
-            MsgType.ACK_ID:      (self._htx_ack,      self._hrx_ack),
-            MsgType.TEXT:        (self._htx_text,     self._hrx_text),
-            MsgType.ENCODED:     (self._htx_encoded,  self._hrx_encoded),
-            MsgType.ENVELOPE:    (self._htx_envelope, self._hrx_envelope),
-            MsgType.LOGGING:     (self._htx_logging,  self._hrx_logging),
-            MsgType.CONNECT:     (self._htx_connect,  self._hrx_connect),
-            MsgType.ACK_CONNECT: (self._htx_connect,  self._hrx_connect),
+            MsgType.enum.IGNORE:      (self._htx_root,     self._hrx_root),
+            MsgType.enum.PING:        (self._htx_ping,     self._hrx_ping),
+            MsgType.enum.ECHO:        (self._htx_echo,     self._hrx_echo),
+            MsgType.enum.ECHO_ECHO:   (self._htx_echo,     self._hrx_echo),
+            MsgType.enum.ACK_ID:      (self._htx_ack,      self._hrx_ack),
+            MsgType.enum.TEXT:        (self._htx_text,     self._hrx_text),
+            MsgType.enum.ENCODED:     (self._htx_encoded,  self._hrx_encoded),
+            MsgType.enum.ENVELOPE:    (self._htx_envelope, self._hrx_envelope),
+            MsgType.enum.LOGGING:     (self._htx_logging,  self._hrx_logging),
+            MsgType.enum.CONNECT:     (self._htx_connect,  self._hrx_connect),
+            MsgType.enum.ACK_CONNECT: (self._htx_connect,  self._hrx_connect),
         }
         '''
         "Handle Parallel" Paths (separate handlers for sending, receiving).
@@ -276,7 +276,7 @@ class WebSocketMediator(Mediator):
 
         if send_ack:
             self.debug("_hrx_generic: Sending immediate ACK...")
-            send = Message(msg.msg_id, MsgType.ACK_ID,
+            send = Message(msg.msg_id, MsgType.enum.ACK_ID,
                            payload=ctx.id,
                            user_id=msg.user_id,
                            user_key=msg.user_key)
@@ -340,7 +340,7 @@ class WebSocketMediator(Mediator):
         Returns:
           - (False, False) if it found nothing to produce/send.
           - (Message, MessageContext) if it found something to produce/send.
-            - Could be Nones or MsgType.IGNORE.
+            - Could be Nones or MsgType.enum.IGNORE.
         '''
         # Give our lil' queue priority over game...
         if self._med_tx_has_data():
@@ -352,7 +352,7 @@ class WebSocketMediator(Mediator):
                 pass
             else:
                 # Someone else check that this isn't None, plz.
-                if msg.type == MsgType.IGNORE:
+                if msg.type == MsgType.enum.IGNORE:
                     self.debug("_handle_produce_get_msg: "
                                "send: ignoring IGNORE msg: {}",
                                msg)
@@ -403,7 +403,7 @@ class WebSocketMediator(Mediator):
                 # Ignore. Default return from _handle_produce_get_msg().
                 await self._continuing()
                 continue
-            if not msg or msg.type == MsgType.IGNORE:
+            if not msg or msg.type == MsgType.enum.IGNORE:
                 debug_fn = log.warning if not msg else self.debug
                 debug_fn("_handle_produce: "
                          "Produced nothing for sending. "
@@ -562,7 +562,7 @@ class WebSocketMediator(Mediator):
         ...By just giving back what we got.
         ...Or returning the echo-back to the game.
         '''
-        if msg.type == MsgType.ECHO:
+        if msg.type == MsgType.enum.ECHO:
             # Received echo from server to send back.
             self.debug("_htx_echo: "
                        "Got echo; returning it."
@@ -729,7 +729,7 @@ class WebSocketMediator(Mediator):
         #
         # Game will get it eventually and deal with it. We may get a reply to
         # send at some point but that's irrelevant here.
-        ctx = MessageContext(self.dotted(), msg.payload)
+        ctx = MessageContext(self.dotted, msg.payload)
         self.debug("_hrx_ack: received text msg; queuing: "
                    "msg: {}, ctx: {}",
                    msg, ctx)

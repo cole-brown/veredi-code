@@ -13,7 +13,7 @@ from typing import (Optional, Union, Any, NewType,
 from ..null import Nullable, Null
 
 import pathlib
-
+import re
 
 # CANNOT IMPORT LOG. Circular import.
 # from veredi.logs import log
@@ -55,7 +55,7 @@ E.g.: ["jeff", "rules", "x", "y", "z"]
 # Constants
 # -----------------------------------------------------------------------------
 
-_DOTTED_NAME = 'dotted'
+DOTTED_NAME = 'dotted'
 '''
 Try to call your attribute/property 'dotted', for consistency.
 
@@ -66,6 +66,27 @@ _VEREDI_PREFIX = 'veredi.'
 '''
 The expected start for all dotted strings under the official veredi banner.
 '''
+
+
+# ------------------------------
+# Regexes
+# ------------------------------
+
+_DIR_OR_DOT_RX = re.compile(r'[./\\]')
+'''
+Split on a dot or either slash.
+
+Could instead try determining if it's a path, then using pathlib or `_split()`
+if this doesn't pan out.
+'''
+
+_PATH_PYTHON_TRIM_RX = re.compile(r'(?P<name>.*)(?P<extension>[.]py\w?)')
+'''
+Looks for a ".py", ".pyc", ".pyw", etc extension to strip off.
+'''
+
+_PATH_PYTHON_TRIM_NAME = 'name'
+_PATH_PYTHON_TRIM_EXT = 'extension'
 
 
 # -----------------------------------------------------------------------------
@@ -167,9 +188,9 @@ def _join(*names: str) -> DotStr:
     return '.'.join(names)
 
 
-def _split(dotted: DotStr) -> DotList:
+def _split(dotted: str) -> DotList:
     '''
-    Turns iterable of `names` strings into one dotted string.
+    Splits `names` strings up on '.' and retuns a list of the split strings.
 
     !! NOTE: A bit fragile - use regularize() for a robust `_split()` !!
 
@@ -177,6 +198,21 @@ def _split(dotted: DotStr) -> DotList:
       'veredi.jeff.system' -> ['veredi', 'jeff', 'system']
     '''
     return dotted.split('.')
+
+def _split_path_or_dot(input: Union[str, pathlib.Path]) -> DotList:
+    '''
+    Splits `names` strings up on '.' and retuns a list of the split strings.
+
+    !! NOTE: A bit fragile - use from_path() and/or regularlize() for a robust
+    !!   version!
+
+    e.g.:
+      'veredi.jeff.system' -> ['veredi', 'jeff', 'system']
+      'C:\\veredi\\jeff\\system' -> ['veredi', 'jeff', 'system']
+    Mixed too:
+      '/veredi/jeff.system' -> ['veredi', 'jeff', 'system']
+    '''
+    return _DIR_OR_DOT_RX.split(str(input))
 
 
 def regularize(*dotted: LabelInput, empty_ok: bool = False) -> DotList:
@@ -248,20 +284,32 @@ def to_path(*args: LabelInput) -> Nullable[pathlib.Path]:
     return pathlib.Path(*norm)
 
 
-def from_path(path:    Union[str, pathlib.Path, Null],
-              stop_at: str = 'veredi') -> Optional[str]:
+def _scrub_for_path(input: str) -> str:
     '''
-    Builds a dotted string from the path. If something in the path ends with
-    '.py', strip that out.
+    Check `input` for path things to scrub out. Mainly '.py?' will get trimmed
+    off.
+    '''
+    match = _PATH_PYTHON_TRIM_RX.match(input)
+    result = input
+    if match:
+        result = match.group(_PATH_PYTHON_TRIM_NAME)
+    return result
 
-    Builds dotted output back-to-front, stopping at first `stop_at` string it
-    encounters in the path (default: 'veredi').
 
-    So '/srv/veredi/veredi/jeff/system.py' becomes (for default):
+def from_path(path:     Union[str, pathlib.Path, Null],
+              root_dir: str = 'veredi') -> Optional[DotStr]:
+    '''
+    Builds a dotted string from the `path`, using `root_dir` name as the
+    starting point of the dotted str. If something in the path ends with '.py',
+    strip that out.
+
+    Will use the /last/ occurance of `root_dir` as the starting point.
+
+    So '/srv/veredi/veredi/jeff/system.py' becomes (for `root_dir`=='veredi'):
       'veredi.jeff.system'
 
     Or '/path/to/jeff/veredi-extensions/something/system.py' becomes
-    (for 'jeff'):
+    (for `root_dir`=='jeff'):
       'jeff.veredi-extensions.something.system'
 
     `file` can be __file__ for some auto-magic-ish-ness.
@@ -277,17 +325,70 @@ def from_path(path:    Union[str, pathlib.Path, Null],
     # end, since the Docker container has veredi in '/srv/veredi/veredi'.
     dotted_parts = []
     for part in reversed(path_components):
-        # Drop '.py' ending.
-        if part.endswith('.py'):
-            dotted_parts.append(part[:-3])
-        else:
-            dotted_parts.append(part)
-        # Done once we hid a 'veredi'.
+        # Drop '.py' endings.
+        dotted_parts.append(_scrub_for_path(part))
+
+        # Done once we hit a 'veredi'.
         if part == 'veredi':
             break
 
     return _join(*list(reversed(dotted_parts)))
 
+
+def from_something(input:    Union[str, pathlib.Path, Null, None],
+                   root_str: str = 'veredi') -> Optional[DotStr]:
+    '''
+    Builds a dotted string from the `input`, using `root_str` name as the
+    starting point of the dotted str. If one of the split entries in the dotted
+    string ends with '.py', strip that out.
+
+    Will use the /last/ occurance of `root_dir` as the starting point.
+
+    '/srv/veredi/veredi/jeff/system.py' becomes (for `root_str`=='veredi'):
+      'veredi.jeff.system'
+    'srv.this.at\\veredi/veredi/jeff/system.py' becomes (for `root_str`=='veredi'):
+      'veredi.jeff.system'
+
+    Or '/path/to/jeff.py/veredi-extensions/something/system.py' becomes
+    (for `root_str`=='jeff' or `roto_str`=='jeff.py'):
+      'jeff.veredi-extensions.something.system'
+
+    `file` can be __file__ for some auto-magic-ish-ness.
+    '''
+    # Flatten (and split) our input string(s) into one list of one string each.
+    dot_list = lists.flatten(input,
+                             function=_split_path_or_dot)
+    # Clean up root too.
+    root_str = _scrub_for_path(root_str)
+    parts = []  # Output accum.
+    for part in dot_list:
+        clean = _scrub_for_path(part)
+        # No root? Just push everything to the valid parts list.
+        if not root_str:
+            parts.append(clean)
+            continue
+
+        # Else we have a root to worry about.
+        if not parts:
+            # Searching for root...
+            if clean == root_str:
+                # Found a possible root - start gathering parts.
+                parts.append(clean)
+
+        else:
+            # Found a more recent root? Reset and start gathering again.
+            if clean == root_str:
+                parts.clear()
+                parts.append(clean)
+
+            # Else keep adding to current valid parts.
+            else:
+                parts.append(clean)
+
+    # Now we should have the full output ready. Join into a DotStr for
+    # returning.
+    output = normalize(*parts)
+    return output
 
 def this(find: str,
          milieu: str) -> Tuple[Nullable[DotList], bool]:
@@ -358,8 +459,6 @@ def auto(obj: Any) -> str:
       et = ElementTree()
       print(dotted.auto(et))
         -> 'xml.etree.elementtree'
-
-    If `short` is True, this will try to create a short identifying string.
     '''
     # Try to add object's class name to end if we can.
     name = ''
@@ -375,7 +474,7 @@ def auto(obj: Any) -> str:
     return (obj.__module__ + name).lower()
 
 
-def munge_to_short(dotted: str) -> str:
+def munge_to_short(dotted: DotStr) -> str:
     '''
     Munges `dotted` string down into something short by taking the first letter
     of everything in the dotted path.
@@ -415,8 +514,8 @@ def munge_to_short(dotted: str) -> str:
     return munged.lower()
 
 
-def from_map(mapping:      Union[str, Mapping[str, Any]],
-             error_squelch: bool = False) -> Optional[str]:
+def from_map(mapping:       Union[str, Mapping[str, Any]],
+             error_squelch: bool = False) -> Optional[DotStr]:
     '''
     If `mapping` is just a string, depends on what `error_squelch` is set to:
       - True:  Returns None.
@@ -437,7 +536,7 @@ def from_map(mapping:      Union[str, Mapping[str, Any]],
 
     # Don't raise an exception; just return None if we can't find it.
     try:
-        return mapping.get(_DOTTED_NAME, None)
+        return mapping.get(DOTTED_NAME, None)
     except (ValueError, AttributeError, KeyError):
         pass
 

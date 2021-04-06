@@ -1,7 +1,7 @@
 # coding: utf-8
 
 '''
-Message payload for MsgType.LOGGING, helper functions.
+Message payload for MsgType.enum.LOGGING, helper functions.
 
 For:
   - Server Mediator asking client LOGGING things.
@@ -23,10 +23,11 @@ import enum
 
 from veredi.logs         import log
 from veredi.base.strings import labeler
+from veredi.data         import codec
 from veredi.data.codec   import (Encodable,
                                  EncodedComplex,
                                  EncodedSimple,
-                                 EnumEncodeNameMixin)
+                                 EnumEncodeName)
 
 from .base               import BasePayload, Validity
 
@@ -61,9 +62,11 @@ _NC_STR   = "no-comment"
 # Log Field Names for Encode/Decode
 # ------------------------------
 
-@labeler.dotted('veredi.interface.mediator.payload.log.field')
+@codec.enum.encodable(name_dotted='veredi.interface.mediator.payload.log.field',
+                      name_string='field',
+                      enum_encode_type=EnumEncodeName)
 @enum.unique
-class LogField(EnumEncodeNameMixin, enum.Enum):
+class LogField(enum.Enum):
     '''
     Trying this out for the logging field names?
     '''
@@ -95,30 +98,14 @@ class LogField(EnumEncodeNameMixin, enum.Enum):
     addition to local log output).
     '''
 
-    # ------------------------------
-    # Encodable
-    # ------------------------------
-
-    @classmethod
-    def dotted(klass: 'LogField') -> str:
-        return 'veredi.interface.mediator.payload.logfield'
-
-    @classmethod
-    def type_field(klass: 'LogField') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        Override this if you don't like what veredi.base.label.auto() and
-        veredi.base.label.munge_to_short() do for your type field.
-        '''
-        return 'field'
-
 
 # -----------------------------------------------------------------------------
 # LogPayload Reply Value from Client
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.mediator.payload.log.reply')
-class LogReply(Encodable):
+class LogReply(Encodable,
+               name_dotted='veredi.interface.mediator.payload.log.reply',
+               name_string='reply'):
     '''
     A helper class for logging payload fields from the client. Allows client to
     refuse to comment about specific things.
@@ -127,16 +114,6 @@ class LogReply(Encodable):
     # -------------------------------------------------------------------------
     # Constants
     # -------------------------------------------------------------------------
-
-    # ------------------------------
-    # Constants: Encodable
-    # ------------------------------
-
-    _ENCODE_NAME: str = 'reply'
-    '''
-    Name for this class when encoding/decoding. Will be inside a LogPayload, so
-    lacking 'log' is fine.
-    '''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -153,13 +130,13 @@ class LogReply(Encodable):
         is for...
         '''
 
-        self.valid: Validity = Validity.INVALID
+        self.valid: Validity = Validity.enum.INVALID
         '''Validity of `self.value`.'''
 
     def __init__(self,
                  value:            Any,
-                 valid:            'Validity' = Validity.INVALID,
-                 no_comment_check: Any        = Validity.INVALID,
+                 valid:            'Validity' = Validity.enum.INVALID,
+                 no_comment_check: Any        = Validity.enum.INVALID,
                  skip_validation:  bool       = False,
                  ) -> None:
         self._define_vars()
@@ -174,13 +151,13 @@ class LogReply(Encodable):
 
         else:
             # Validate this LogReply.
-            if valid != Validity.INVALID:
+            if valid != Validity.enum.INVALID:
                 self.valid = valid
-            elif no_comment_check != Validity.INVALID:
+            elif no_comment_check != Validity.enum.INVALID:
                 self.valid = self.validity(value, no_comment_check)
 
             # Error out for invalid LogReplies.
-            if self.valid == Validity.INVALID:
+            if self.valid == Validity.enum.INVALID:
                 raise ValueError(
                     "LogReply cannot have a `valid` status of INVALID.",
                     value, valid, no_comment_check, self.valid)
@@ -193,16 +170,16 @@ class LogReply(Encodable):
         Returns VALID if `value` is not equal to `no_comment`
         or NO_COMMENT otherwise.
         '''
-        return (Validity.VALID
+        return (Validity.enum.VALID
                 if value != no_comment else
-                Validity.NO_COMMENT)
+                Validity.enum.NO_COMMENT)
 
     def get_or_validity(self) -> Union['Validity', Optional[Any]]:
         '''
         If `self.valid` is VALID, returns `self.value`.
         Otherwise return `self.valid`.
         '''
-        if self.valid == Validity.VALID:
+        if self.valid == Validity.enum.VALID:
             return self.value
 
         return self.valid
@@ -210,10 +187,6 @@ class LogReply(Encodable):
     # -------------------------------------------------------------------------
     # Encodable API
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'LogReply') -> str:
-        return klass._ENCODE_NAME
 
     def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
@@ -287,22 +260,16 @@ class LogReply(Encodable):
 # Payload Actual
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.mediator.payload.log.payload')
-class LogPayload(BasePayload):
+class LogPayload(BasePayload,
+                 name_dotted='veredi.interface.mediator.payload.log.payload',
+                 name_string='payload.log'):
     '''
-    Payload for a MsgType.LOGGING Message instance.
+    Payload for a MsgType.enum.LOGGING Message instance.
     '''
 
     # -------------------------------------------------------------------------
     # Constants
     # -------------------------------------------------------------------------
-
-    # ------------------------------
-    # Constants: Encodable
-    # ------------------------------
-
-    _ENCODE_NAME: str = 'payload.log'
-    '''Name for this class when encoding/decoding.'''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -311,7 +278,7 @@ class LogPayload(BasePayload):
     def __init__(self,
                  data: Mapping[str, Union[str, int]] = None) -> None:
         # Ignoring validity to start with...
-        super().__init__(data, Validity.VALID)
+        super().__init__(data, Validity.enum.VALID)
 
     # -------------------------------------------------------------------------
     # Data Structure
@@ -322,14 +289,14 @@ class LogPayload(BasePayload):
         '''
         Get the Server->Client request portion of the data mapping.
         '''
-        return self.data.setdefault(LogField.REQUEST, {})
+        return self.data.setdefault(LogField.enum.REQUEST, {})
 
     @property
     def response(self):
         '''
         Get the Client->Server response portion of the data mapping.
         '''
-        return self.data.setdefault(LogField.RESPONSE, {})
+        return self.data.setdefault(LogField.enum.RESPONSE, {})
 
     def _set_or_pop(self,
                     submap:    Mapping,
@@ -367,20 +334,20 @@ class LogPayload(BasePayload):
     #     '''
     #     request = self.request
     #     self._set_or_pop(request,
-    #                      LogField.LEVEL,
+    #                      LogField.enum.LEVEL,
     #                      level,
     #                      level != log.Level.NOTSET)
     #     self._set_or_pop(request,
-    #                      LogField.REPORT,
+    #                      LogField.enum.REPORT,
     #                      report, report)
 
     def request_level(self, level) -> None:
         '''Sets up a request for logging level.'''
-        self.request[LogField.LEVEL] = level
+        self.request[LogField.enum.LEVEL] = level
 
     def request_report(self) -> None:
         '''Sets up a request for logging report.'''
-        self.request[LogField.REPORT] = True
+        self.request[LogField.enum.REPORT] = True
 
     # -------------------------------------------------------------------------
     # Client -> Server: Logging Report
@@ -398,9 +365,9 @@ class LogPayload(BasePayload):
 
         Any unspecificed/default params will be marked as NO_COMMENT validity.
         '''
-        report = self.response.setdefault(LogField.REPORT, {})
-        report[LogField.LEVEL] = LogReply(level, no_comment_check=_NC_LEVEL)
-        report[LogField.REMOTE] = LogReply(remotes, no_comment_check=_NC_STR)
+        report = self.response.setdefault(LogField.enum.REPORT, {})
+        report[LogField.enum.LEVEL] = LogReply(level, no_comment_check=_NC_LEVEL)
+        report[LogField.enum.REMOTE] = LogReply(remotes, no_comment_check=_NC_STR)
 
     # -------------------------------------------------------------------------
     # Server: Get Logging Report
@@ -409,16 +376,12 @@ class LogPayload(BasePayload):
     @property
     def report(self) -> Mapping[str, LogReply]:
         '''Returns validity of the entire logging report.'''
-        report = self.response.get(LogField.REPORT, None)
+        report = self.response.get(LogField.enum.REPORT, None)
         return report
 
     # -------------------------------------------------------------------------
     # Encodable API (Codec Support)
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'LogPayload') -> str:
-        return klass._ENCODE_NAME
 
     # Simple:  BasePayload's are good.
 

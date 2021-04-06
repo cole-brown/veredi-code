@@ -415,7 +415,7 @@ class VebSocket:
             log.error(f"Cannot ping; no socket connection: {self._socket}")
             return
 
-        if msg.type != MsgType.PING:
+        if msg.type != MsgType.enum.PING:
             error = ValueError("Requested ping of non-ping message.", msg)
             raise log.exception(error,
                                 f"Requested ping of non-ping message: {msg}")

@@ -40,7 +40,7 @@ from veredi.data.exceptions    import ConfigError
 # Constants
 # -----------------------------------------------------------------------------
 
-_DOTTED: str = 'veredi.run.registry'
+_DOTTED: label.DotStr = 'veredi.run.registry'
 
 
 _LOG_INIT: List[log.Group] = [
@@ -444,7 +444,7 @@ def registration(configuration: Configuration) -> None:
 
 def _register_entry(configuration: Configuration,
                     entry:         Dict[str, Any],
-                    log_dotted:    str) -> (bool, label.DotStr):
+                    log_dotted:    label.DotStr) -> (bool, label.DotStr):
     '''
     Run a registration sweep for one registration entry in the configuration.
     '''
@@ -651,7 +651,7 @@ def _register_entry(configuration: Configuration,
 # Importing
 # -----------------------------------------------------------------------------
 
-def _import(module: str, log_dotted: str) -> ModuleType:
+def _import(module: str, log_dotted: label.DotStr) -> ModuleType:
     '''
     Tries to import module by `name`.
 
@@ -873,7 +873,7 @@ def submodule(module_relative: paths.Path) -> label.DotStr:
     return label.from_path(module_relative.with_suffix(''))
 
 
-def _ignore_dir(log_dotted: str,
+def _ignore_dir(log_dotted: label.DotStr,
                 path:       paths.PathType,
                 ignores:    Set[Union[str, re.Pattern]]) -> bool:
     '''
@@ -953,7 +953,7 @@ def _ignore_dir(log_dotted: str,
     return ignore
 
 
-def _ignore(log_dotted:        str,
+def _ignore(log_dotted:        label.DotStr,
             path_root:         paths.Path,
             path_relative:     paths.Path,
             ignores:           Set[Union[str, re.Pattern]],
@@ -1061,7 +1061,7 @@ def _ignore(log_dotted:        str,
     return ignore
 
 
-def _sort(log_dotted:        str,
+def _sort(log_dotted:        label.DotStr,
           path_root:         paths.Path,
           path_relative:     paths.Path,
           import_registrars: List[str],
@@ -1129,7 +1129,7 @@ def _sort(log_dotted:        str,
                         log_minimum=log.Level.INFO)
 
 
-def _scan(log_dotted: str,
+def _scan(log_dotted: label.DotStr,
           directory:  os.DirEntry,
           ignores:    Set[Union[str, re.Pattern]]) -> Optional[Iterator]:
     '''

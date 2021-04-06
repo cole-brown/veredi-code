@@ -23,7 +23,9 @@ from veredi.base.identity import SerializableId
 # Constants
 # -----------------------------------------------------------------------------
 
-class CombatEvent(Event):
+class CombatEvent(Event,
+                  name_dotted='veredi.rules.d20.pf2.combat.event',
+                  name_string='combat.event'):
     def __init__(self,
                  source_id:    EntityId,
                  type:         Union[int, enum.Enum],
@@ -64,7 +66,9 @@ class CombatEvent(Event):
 
 
 # TODO [2020-06-03]: put in health, not combat
-class HealthEvent(Event):
+class HealthEvent(Event,
+                  name_dotted='veredi.rules.d20.pf2.health.event',
+                  name_string='health.event'):
     pass
 
 
@@ -72,7 +76,9 @@ class HealthEvent(Event):
 # General Combat Events
 # -----------------------------------------------------------------------------
 
-class AttackRequest(CombatEvent):
+class AttackRequest(CombatEvent,
+                    name_dotted='veredi.rules.d20.pf2.combat.request.attack',
+                    name_string='combat.request.attack'):
     '''
     An entity wants to attack another entity. This is the info about that.
     '''
@@ -110,7 +116,9 @@ class AttackRequest(CombatEvent):
         return "AtkReqEvent"
 
 
-class AttackResult(CombatEvent):
+class AttackResult(CombatEvent,
+                   name_dotted='veredi.rules.d20.pf2.combat.result.attack',
+                   name_string='combat.result.attack'):
     '''
     An entity has attacked attack another entity. This is the info about that
     and how the attacker did on their parts of the attack math.
@@ -124,7 +132,9 @@ class AttackResult(CombatEvent):
         return "AtkResEvent"
 
 
-class DefenseRequest(CombatEvent):
+class DefenseRequest(CombatEvent,
+                     name_dotted='veredi.rules.d20.pf2.combat.request.defense',
+                     name_string='combat.request.defense'):
     '''
     An entity wants to do something defensive? This is the info about that.
     '''
@@ -162,7 +172,9 @@ class DefenseRequest(CombatEvent):
         return "DfnsReq"
 
 
-class DefenseResult(CombatEvent):
+class DefenseResult(CombatEvent,
+                    name_dotted='veredi.rules.d20.pf2.combat.result.defense',
+                    name_string='combat.result.defense'):
     '''
     An entity did something defensive? This is the info about that and how the
     entity did on their parts of the defense math.
@@ -177,10 +189,14 @@ class DefenseResult(CombatEvent):
 
 
 # TODO [2020-06-03]: put in health, not combat
-class HealedEvent(HealthEvent):
+class HealedEvent(HealthEvent,
+                  name_dotted='veredi.rules.d20.pf2.health.result',
+                  name_string='health.result'):
     pass
 
 
 # TODO [2020-06-03]: put in health, not combat
-class DamagedEvent(HealthEvent):
+class DamagedEvent(HealthEvent,
+                   name_dotted='veredi.rules.d20.pf2.combat.damage',
+                   name_string='combat.damage'):
     pass

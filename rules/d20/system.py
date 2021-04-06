@@ -45,7 +45,9 @@ from veredi.interface.input.command.reg import CommandRegistrationBroadcast
 # Code
 # -----------------------------------------------------------------------------
 
-class D20RulesSystem(System):
+class D20RulesSystem(System,
+                     name_dotted='veredi.rules.d20.system',
+                     name_string='d20.system'):
 
     def __init__(self,
                  context:  Optional['VerediContext'],
@@ -67,7 +69,7 @@ class D20RulesSystem(System):
         # Config Stuff
         # ---
         # config = background.config.config(self.__class__.__name__,
-        #                                   self.dotted(),
+        #                                   self.dotted,
         #                                   context)
         pass
 
@@ -81,9 +83,9 @@ class D20RulesSystem(System):
         # Ask config for our definition to be deserialized and given to us
         # right now.
         self._rule_defs = self._manager.data.load_definition(
-            self.dotted(),
+            self.dotted,
             DocType.definition.system,
-            LabelTaxon(self.dotted()),
+            LabelTaxon(self.dotted),
         )
         self._rule_defs.configure(primary_key)
         if not self._rule_defs:

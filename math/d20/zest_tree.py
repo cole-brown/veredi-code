@@ -25,8 +25,9 @@ from ..parser              import NodeType
 # Mock Classes
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.math.d20.tree.zest_tree.mock_node')
-class MockNode(tree.Node):
+class MockNode(tree.Node,
+               name_dotted='veredi.math.d20.tree.zest-tree.mock-node',
+               name_string='mock-node'):
 
     def __init__(self, type, value=None):
         super().__init__(type,
@@ -34,11 +35,6 @@ class MockNode(tree.Node):
 
     def _eval(self) -> None:
         pass
-
-    @classmethod
-    def type_field(klass):
-        '''Encodable type name.'''
-        return 'mock-node'
 
     def encode_complex(self, codec: Codec):
         '''
@@ -58,17 +54,13 @@ class MockNode(tree.Node):
         raise NotImplementedError
 
 
-@labeler.dotted('veredi.math.d20.tree.zest_tree.mock_leaf')
-class MockLeaf(tree.Leaf):
+class MockLeaf(tree.Leaf,
+               name_dotted='veredi.math.d20.tree.zest-tree.mock-leaf',
+               name_string='mock-leaf'):
 
     def __init__(self, type, value=None):
         super().__init__(type,
                          value=value)
-
-    @classmethod
-    def type_field(klass):
-        '''Encodable type name.'''
-        return 'mock-leaf'
 
     def _eval(self) -> None:
         '''
@@ -106,10 +98,10 @@ class MockLeaf(tree.Leaf):
 class Test_Node(ZestBase):
 
     def set_up(self):
-        self.node0 = MockNode(NodeType.INVALID)
+        self.node0 = MockNode(NodeType.enum.INVALID)
         self.value0 = 42
 
-        self.node1 = MockNode(NodeType.INVALID)
+        self.node1 = MockNode(NodeType.enum.INVALID)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
@@ -303,10 +295,10 @@ class Test_Node(ZestBase):
 class Test_Leaf(ZestBase):
 
     def set_up(self):
-        self.leaf0 = MockLeaf(NodeType.INVALID)
+        self.leaf0 = MockLeaf(NodeType.enum.INVALID)
         self.value0 = 42
 
-        self.leaf1 = MockLeaf(NodeType.INVALID)
+        self.leaf1 = MockLeaf(NodeType.enum.INVALID)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
@@ -543,11 +535,11 @@ class Test_Branch(ZestBase):
             # Branch base class shouldn't be able to eval successfully... It
             # shouldn't even be able to instantiate itself now, since it's
             # abstract.
-            tree.Branch(None, NodeType.INVALID, 'jeff')
+            tree.Branch(None, NodeType.enum.INVALID, 'jeff')
 
         # And no more expecting an AttributeError on eval().
         # with self.assertRaises(AttributeError):
-        #     branch = tree.Branch(None, NodeType.INVALID, 'jeff')
+        #     branch = tree.Branch(None, NodeType.enum.INVALID, 'jeff')
         #     branch.eval()
 
 
@@ -560,7 +552,10 @@ class Test_OperatorMath(ZestBase):
     def test_eval(self):
         with self.assertRaises(TypeError):
             # OperatorMath base class shouldn't be able to eval successfully...
-            branch = tree.OperatorMath(None, NodeType.OPERATOR, None, None)
+            branch = tree.OperatorMath(None,
+                                       NodeType.enum.OPERATOR,
+                                       None,
+                                       None)
             branch.eval()
 
 
