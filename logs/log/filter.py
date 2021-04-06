@@ -25,7 +25,7 @@ import threading
 
 
 from veredi.base         import threads
-from veredi.base.strings import label
+from veredi.base.strings import label, labeler
 from .                   import const
 
 
@@ -97,6 +97,8 @@ class RecordSuccess(NamedTuple):
 # But is recommended...
 # https://docs.python.org/3/howto/logging-cookbook.html#filters-contextual
 
+
+@labeler.dotted('veredi', 'log', 'filter')
 class VerediFilter(logging.Filter):
     '''
     For log records with extra fields for Groups, Context, etc.
@@ -105,8 +107,6 @@ class VerediFilter(logging.Filter):
     # -------------------------------------------------------------------------
     # Constants
     # -------------------------------------------------------------------------
-
-    _DOTTED = label.normalize('veredi', 'log', 'filter')
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -130,10 +130,6 @@ class VerediFilter(logging.Filter):
 
     def __init__(self) -> None:
         self._define_vars()
-
-    @classmethod
-    def dotted(klass: Type['VerediFilter']) -> str:
-        return klass._DOTTED
 
     # -------------------------------------------------------------------------
     # Filtering

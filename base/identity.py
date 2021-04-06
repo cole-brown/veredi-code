@@ -16,7 +16,6 @@ import uuid
 from abc import abstractmethod
 
 from veredi.logs              import log
-from veredi.base.strings      import labeler
 # from veredi.base.decorators import abstract_class_attribute
 from veredi.base.metaclasses  import InvalidProvider, ABC_InvalidProvider
 
@@ -57,8 +56,9 @@ class MonotonicIdGenerator:
         return self._last_id
 
 
-@labeler.dotted('veredi.base.identity.monotonic')
 class MonotonicId(Encodable,
+                  name_dotted='veredi.base.identity.monotonic',
+                  name_string='v.mid',
                   metaclass=ABC_InvalidProvider):
     '''
     Integer-based, montonically increasing ID suitable for in-game,
@@ -82,9 +82,6 @@ class MonotonicId(Encodable,
     # ------------------------------
     # Constants: Encodable
     # ------------------------------
-
-    _ENCODE_FIELD_NAME: str = 'v.mid'
-    '''Can override in sub-classes if needed. E.g. 'eid' for entity id.'''
 
     _ENCODABLE_RX_FLAGS: re.RegexFlag = re.IGNORECASE
     '''Flags used when creating _ENCODABLE_RX.'''
@@ -230,13 +227,6 @@ class MonotonicId(Encodable,
 
         return klass._ENCODABLE_RX
 
-    @classmethod
-    def type_field(klass: 'MonotonicId') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        '''
-        return klass._ENCODE_FIELD_NAME
-
     def encode_simple(self, codec: 'Codec') -> str:
         '''
         Encode ourself as a string, return that value.
@@ -352,18 +342,11 @@ class MonotonicId(Encodable,
         '''
         return '{:03d}'.format(self.value)
 
-    @property
-    def _short_name_(self) -> str:
-        '''
-        A short name for the class for abbreviated outputs (e.g. repr).
-        '''
-        return self._ENCODE_FIELD_NAME
-
     def __str__(self) -> str:
         return f'{self.__class__.__name__}:{self._format_}'
 
     def __repr__(self) -> str:
-        return f'{self._short_name_}:{self._format_}'
+        return f'{self.name}:{self._format_}'
 
 
 # -----------------------------------------------------------------------------
@@ -389,8 +372,9 @@ class MonotonicId(Encodable,
 #         return self._last_id
 
 
-@labeler.dotted('veredi.base.identity.serializable')
 class SerializableId(Encodable,
+                     name_dotted='veredi.base.identity.serializable',
+                     name_string='identity.serializable',
                      metaclass=ABC_InvalidProvider):
     '''
     Base class for a serializable ID (e.g. to a file, or primary key value from
@@ -436,9 +420,6 @@ class SerializableId(Encodable,
     # Constants: Encodable
     # ------------------------------
 
-    _ENCODE_FIELD_NAME: str = 'v.sid'
-    '''Can override in sub-classes if needed. E.g. 'eid' for entity id.'''
-
     _ENCODABLE_RX_FLAGS: re.RegexFlag = re.IGNORECASE
     '''Flags used when creating _ENCODABLE_RX.'''
 
@@ -478,7 +459,7 @@ class SerializableId(Encodable,
     _ENCODABLE_RX_STR: str = None
     '''
     Actual string used to compile regex. Leave as None for __init_subclass__ to
-    set to _encodable_rx_str_base with subclass's _ENCODE_FIELD_NAME.
+    set to _encodable_rx_str_base with subclass's klass.name.
     '''
 
     _ENCODABLE_RX: re.Pattern = None
@@ -625,13 +606,6 @@ class SerializableId(Encodable,
         '''
         return klass._ENCODABLE_RX
 
-    @classmethod
-    def type_field(klass: 'SerializableId') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        '''
-        return klass._ENCODE_FIELD_NAME
-
     def encode_simple(self, codec: 'Codec') -> str:
         '''
         Encode ourself as a string, return that value.
@@ -740,16 +714,8 @@ class SerializableId(Encodable,
         raise NotImplementedError(f"{self.__class__.__name__}._format() is "
                                   "not implemented.")
 
-    @property
-    def _short_name_(self) -> str:
-        '''
-        A short name for the class for abbreviated outputs (e.g. repr).
-        '''
-        # 'sid' is already used a lot as short-hand for SystemId...
-        return self._ENCODE_FIELD_NAME
-
     def __str__(self) -> str:
         return f'{self.__class__.__name__}:{self._format_}'
 
     def __repr__(self) -> str:
-        return f'{self._short_name_}:{self._format_}'
+        return f'{self.name}:{self._format_}'

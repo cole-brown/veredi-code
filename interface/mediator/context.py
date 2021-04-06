@@ -123,7 +123,7 @@ class MessageContext(EphemerealContext):
         '''
         Initializes and returns a MessageContext from a MediatorContext.
         '''
-        return MessageContext(ctx.dotted(),
+        return MessageContext(ctx.dotted,
                               id=id,
                               path=ctx.path)
 
@@ -174,15 +174,15 @@ class MessageContext(EphemerealContext):
         Raises a ValueError if an unsupported `type` is supplied.
         '''
         field = None
-        if MsgType.TEXT:
+        if MsgType.enum.TEXT:
             field = 'text'
 
-        elif MsgType.ENCODED:
+        elif MsgType.enum.ENCODED:
             field = 'encoded'
 
         # Other MsgTypes are invalid for the Game so we error on them.
         else:
-            supported = {MsgType.TEXT, MsgType.ENCODED}
+            supported = {MsgType.enum.TEXT, MsgType.enum.ENCODED}
             msg = (f"Invalid MsgType. Can only support: {supported}. "
                    f"Got: {type}.")
             raise log.exception(ValueError(msg, type),
@@ -217,28 +217,28 @@ class MessageContext(EphemerealContext):
         '''
         If a text-based message, this will return the string.
         '''
-        return self.get_msg_payload(MsgType.TEXT)
+        return self.get_msg_payload(MsgType.enum.TEXT)
 
     @msg_text.setter
     def msg_text(self, value: Optional[str]) -> None:
         '''
         Set the text string of the text-based message.
         '''
-        return self.set_msg_payload(MsgType.TEXT, value)
+        return self.set_msg_payload(MsgType.enum.TEXT, value)
 
     @property
     def msg_encoded(self) -> Optional[str]:
         '''
         If a encoded-based message, this will return the string.
         '''
-        return self.get_msg_payload(MsgType.ENCODED)
+        return self.get_msg_payload(MsgType.enum.ENCODED)
 
     @msg_encoded.setter
     def msg_encoded(self, value: Optional[str]) -> None:
         '''
         Set the value of the encoded-based message.
         '''
-        return self.set_msg_payload(MsgType.ENCODED, value)
+        return self.set_msg_payload(MsgType.enum.ENCODED, value)
 
     # ------------------------------
     # Pythonic Functions

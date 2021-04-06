@@ -25,6 +25,7 @@ from veredi.logs.mixin           import LogMixin
 from veredi.base                 import numbers
 from veredi.base.const           import SimpleTypes, SimpleTypesTuple
 from veredi.base.strings         import label, pretty
+from veredi.base.strings.mixin   import NamesMixin
 from veredi                      import time
 from veredi.data                 import background
 from veredi.data.context         import DataOperation
@@ -57,7 +58,9 @@ EncodeInput = NewType('EncodeInput',
 # Code
 # -----------------------------------------------------------------------------
 
-class Codec(LogMixin):
+class Codec(LogMixin, NamesMixin,
+            name_dotted='veredi.codec.codec',
+            name_string='codec'):
     '''
     Coder/Decoder for Encodables and the EncodableRegistry.
 
@@ -92,9 +95,6 @@ class Codec(LogMixin):
         '''
         Instance variable definitions, type hinting, doc strings, etc.
         '''
-        self._name: str = None
-        '''The name of the repository.'''
-
         self._bg: Dict[Any, Any] = {}
         '''Our background context data that is shared to the background.'''
 
@@ -109,19 +109,20 @@ class Codec(LogMixin):
         `config_context` is the context being used to set us up.
         '''
         self._define_vars()
-        self._name = (codec_name or 'codec').lower()
+        if codec_name:
+            self.name = codec_name.lower()
 
         # ---
         # Set-Up LogMixin before _configure() so we have logging.
         # ---
-        self._log_config(self.dotted())
+        self._log_config(self.dotted)
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               f"Codec ({self.__class__.__name__}) init...")
 
         self._configure(config_context)
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               f"Done with Codec init.")
 
     def _configure(self,
@@ -131,7 +132,7 @@ class Codec(LogMixin):
         finish up whatever is needed to set up themselves.
         '''
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               f"Codec ({self.__class__.__name__}) "
                               "configure...")
 
@@ -139,23 +140,8 @@ class Codec(LogMixin):
         self._make_background()
 
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "Done with Codec configuration.")
-
-    # -------------------------------------------------------------------------
-    # Codec Properties/Methods
-    # -------------------------------------------------------------------------
-
-    @property
-    def name(self) -> str:
-        '''
-        Should be lowercase and short.
-        '''
-        return self._name
-
-    @classmethod
-    def dotted(klass: 'Codec') -> label.DotStr:
-        return 'veredi.codec.codec'
 
     # -------------------------------------------------------------------------
     # Context Properties/Methods
@@ -175,7 +161,7 @@ class Codec(LogMixin):
         Start of the background data.
         '''
         self._bg = {
-            'dotted': self.dotted(),
+            'dotted': self.dotted,
             'type': self.name,
         }
         return self._bg
@@ -284,14 +270,14 @@ class Codec(LogMixin):
 
         If `with_reg_field` is True, returns:
           An output dict with key/values:
-            - ENCODABLE_REG_FIELD: `target.dotted()`
+            - ENCODABLE_REG_FIELD: `target.dotted`
             - ENCODABLE_PAYLOAD_FIELD: `target` encoded data
 
         Else returns:
           `target` encoded data
         '''
         # TODO v://future/2021-03-14T12:27:54
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   '_encode_encodable(): target: {}, '
                                   'in_progress: {}, with_reg_field: {}',
                                   target,
@@ -305,7 +291,7 @@ class Codec(LogMixin):
 
         encoding, encoded = target.encode(self)
         # TODO v://future/2021-03-14T12:27:54
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   '_encode_encodable(): Encoded.\n'
                                   '  encoding: {}\n'
                                   '      data: {}',
@@ -325,7 +311,7 @@ class Codec(LogMixin):
                 in_progress[target.type_field()] = encoded
                 # TODO v://future/2021-03-14T12:27:54
                 self._log_data_processing(
-                    self.dotted(),
+                    self.dotted,
                     '_encode_encodable(): Simple encoding was inserted into '
                     '`in_progress` data and is complete.\n'
                     '        field: {}\n'
@@ -336,7 +322,7 @@ class Codec(LogMixin):
 
             # TODO v://future/2021-03-14T12:27:54
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 '_encode_encodable(): Simple encoding is complete.\n'
                 '  encoded: {}',
                 encoded)
@@ -352,7 +338,7 @@ class Codec(LogMixin):
             in_progress[target.type_field()] = encoded
             # TODO v://future/2021-03-14T12:27:54
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 '_encode_encodable(): Complex encoding inserted into '
                 '`in_progress` data.\n'
                 '        field: {}\n'
@@ -364,7 +350,7 @@ class Codec(LogMixin):
         encoded[target.TYPE_FIELD_NAME] = target.type_field()
         # TODO v://future/2021-03-14T12:27:54
         self._log_data_processing(
-            self.dotted(),
+            self.dotted,
             '_encode_encodable(): Complex encoding had type-field '
             'added to its data.\n'
             '  field: {}\n'
@@ -375,13 +361,13 @@ class Codec(LogMixin):
         # Encode with reg/payload fields if requested.
         if with_reg_field:
             enc_with_reg = {
-                Encodable.ENCODABLE_REG_FIELD: target.dotted(),
+                Encodable.ENCODABLE_REG_FIELD: target.dotted,
                 Encodable.ENCODABLE_PAYLOAD_FIELD: encoded,
             }
 
             # TODO v://future/2021-03-14T12:27:54
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 '_encode_encodable(): Complex encoding had reg-field '
                 'added to its data and is complete.\n'
                 '      reg: {}\n'
@@ -390,7 +376,7 @@ class Codec(LogMixin):
                 '    value: {}\n'
                 '  encoded: {}',
                 Encodable.ENCODABLE_REG_FIELD,
-                target.dotted(),
+                target.dotted,
                 Encodable.ENCODABLE_PAYLOAD_FIELD,
                 encoded,
                 enc_with_reg)
@@ -400,7 +386,7 @@ class Codec(LogMixin):
         # Or just return the encoded data.
         # TODO v://future/2021-03-14T12:27:54
         self._log_data_processing(
-            self.dotted(),
+            self.dotted,
             '_encode_encodable(): Complex encoding is complete.\n'
             '  encoded: {}',
             encoded)
@@ -584,7 +570,7 @@ class Codec(LogMixin):
         if null_or_none(data):
             # Can't decode nothing; return nothing.
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Cannot decode nothing:\n"
                 "  data: {}",
                 data)
@@ -595,21 +581,21 @@ class Codec(LogMixin):
         # ---
         if target:
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Attempting to decode via Encodable:\n"
                 "  data: {}",
                 data)
             decoded = self._decode_encodable(target, data)
 
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Decode via Encodable returned:\n"
                 "  decoded: {}",
                 decoded)
             return decoded
 
         self._log_data_processing(
-            self.dotted(),
+            self.dotted,
             "decode: No target...\n"
             "  type: {}\n"
             "  data: {}",
@@ -621,7 +607,7 @@ class Codec(LogMixin):
         # ---
         if isinstance(data, EncodedSimpleTuple):
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Attempting to decode simply encoded data...\n"
                 "  data: {}",
                 data)
@@ -629,7 +615,7 @@ class Codec(LogMixin):
 
             if decoded:
                 self._log_data_processing(
-                    self.dotted(),
+                    self.dotted,
                     "decode: Decoded simply encoded data to:\n"
                     "  decoded: {}",
                     decoded)
@@ -637,7 +623,7 @@ class Codec(LogMixin):
 
             # Else: not this... Keep looking.
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Data is not Encoding.SIMPLE. Continuing...")
 
         # ---
@@ -645,7 +631,7 @@ class Codec(LogMixin):
         # ---
         try:
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Attempting to decode with registry...\n"
                 "  reg_find_dotted: {}\n"
                 "   reg_find_types: {}\n"
@@ -663,7 +649,7 @@ class Codec(LogMixin):
                                                  error_squelch=error_squelch,
                                                  fallback=fallback)
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Decode with registry returned:\n"
                 "  decoded: {}",
                 decoded)
@@ -679,7 +665,7 @@ class Codec(LogMixin):
         # ---
         if isinstance(data, dict):
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Attempting to decode mapping...\n"
                 "  map_expected: {}\n"
                 "          data: {}",
@@ -688,7 +674,7 @@ class Codec(LogMixin):
             # Decode via our map helper.
             decoded = self.decode_map(data, expected=map_expected)
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Decoded mapping returned:\n"
                 "  decoded: {}",
                 decoded)
@@ -699,14 +685,14 @@ class Codec(LogMixin):
         # ---
         try:
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Attempting to decode basic data type...\n"
                 "  data: {}",
                 data)
             decoded = self._decode_basic_types(data)
 
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: Decoded basic data to:\n"
                 "  decoded: {}",
                 decoded)
@@ -720,7 +706,7 @@ class Codec(LogMixin):
         # ---
         if fallback:
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode: No decoding known for data; returning fallback:\n"
                 "  fallback: {}",
                 fallback)
@@ -751,7 +737,7 @@ class Codec(LogMixin):
         `target` instance or None.
         '''
         self._log_data_processing(
-            self.dotted(),
+            self.dotted,
             "decode_encodable will be decoding data to target '{}'.\n"
             "  data: {}",
             target,
@@ -768,7 +754,7 @@ class Codec(LogMixin):
         encoding, decoded = target.decode(data, self, None)
 
         self._log_data_processing(
-            self.dotted(),
+            self.dotted,
             "decode_encodable decoded target '{}' to: {}",
             target,
             decoded)
@@ -782,7 +768,7 @@ class Codec(LogMixin):
         # ---
         if encoding == Encoding.SIMPLE:
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode_encodable {} decoding completed.\n"
                 "  decoded: {}",
                 encoding,
@@ -794,7 +780,7 @@ class Codec(LogMixin):
         # Decode Complexly?
         # ---
         self._log_data_processing(
-            self.dotted(),
+            self.dotted,
             "decode_encodable {} decoding completed.\n"
             "  decoded: {}",
             encoding,
@@ -848,7 +834,7 @@ class Codec(LogMixin):
             # No data at all. Use either fallback or None.
             if fallback:
                 self._log_data_processing(
-                    self.dotted(),
+                    self.dotted,
                     "decode_with_registry: data is None; using "
                     "using fallback. data: {}, fallback: {}",
                     data, fallback)
@@ -865,7 +851,7 @@ class Codec(LogMixin):
                 and Encodable.ENCODABLE_REG_FIELD not in data):
             # No hint as to what data is - use fallback.
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "decode_with_registry: No {} in data; using fallback. "
                 "data: {}, fallback: {}",
                 Encodable.ENCODABLE_REG_FIELD,

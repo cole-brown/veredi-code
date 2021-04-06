@@ -482,7 +482,9 @@ class ClientRegistry:
 # The "Mediator-to-Client" Bit
 # -----------------------------------------------------------------------------
 
-class WebSocketServer(WebSocketMediator):
+class WebSocketServer(WebSocketMediator,
+                      name_dotted='veredi.interface.mediator.websocket.server',
+                      name_string='server'):
     '''
     Mediator for serving over WebSockets.
     '''
@@ -501,14 +503,14 @@ class WebSocketServer(WebSocketMediator):
     def __init__(self,
                  context: VerediContext) -> None:
         # Base class init first.
-        super().__init__(context, 'server')
+        super().__init__(context)
 
         # NOTE: For increased logging on only client from the get-go:
         # log.set_group_level(log.Group.DATA_PROCESSING, log.Level.INFO)
         # log.set_group_level(log.Group.PARALLEL, log.Level.DEBUG)
         # log.critical("Server set data_proc to {}.",
         #              log.get_group_level(log.Group.DATA_PROCESSING))
-        # log.data_processing(self.dotted(),
+        # log.data_processing(self.dotted,
         #                     "Server set data_proc to {}.",
         #                     log.get_group_level(log.Group.DATA_PROCESSING))
 
@@ -525,17 +527,6 @@ class WebSocketServer(WebSocketMediator):
                                        port=self._port,
                                        secure=self._ssl,
                                        debug_fn=self.debug)
-
-    # -------------------------------------------------------------------------
-    # Properties
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'WebSocketServer') -> label.DotStr:
-        '''
-        The dotted label string this mediator has.
-        '''
-        return 'veredi.interface.mediator.websocket.server'
 
     # -------------------------------------------------------------------------
     # User Connection Tracking
@@ -702,7 +693,7 @@ class WebSocketServer(WebSocketMediator):
                                     DebugFlag.MEDIATOR_SERVER)):
             msg = f"{self._name}: " + msg
             kwargs = log.incr_stack_level(kwargs)
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       *args,
                                       **kwargs,
@@ -730,7 +721,7 @@ class WebSocketServer(WebSocketMediator):
         '''
         serdes_ctx, _ = self._serdes.background
         codec_ctx, _ = self._codec.background
-        ctx = MediatorServerContext(self.dotted(),
+        ctx = MediatorServerContext(self.dotted,
                                     type='websocket.server',
                                     serdes=serdes_ctx,
                                     codec=codec_ctx,
@@ -743,7 +734,7 @@ class WebSocketServer(WebSocketMediator):
         '''
         Make a context for a message.
         '''
-        ctx = MessageContext(self.dotted(), id)
+        ctx = MessageContext(self.dotted, id)
         return ctx
 
     def start(self) -> None:
@@ -897,7 +888,7 @@ class WebSocketServer(WebSocketMediator):
                                msg, ctx)
                     await self._continuing()
                     continue
-                if msg.type == MsgType.IGNORE:
+                if msg.type == MsgType.enum.IGNORE:
                     self.debug("_from_game_watcher (game_pipe->client_queue): "
                                "Ignoring IGNORE msg: {}",
                                msg)
@@ -912,7 +903,7 @@ class WebSocketServer(WebSocketMediator):
                        msg, ctx)
 
             # Is it an Envelope? They can be addressed to many clients.
-            if msg.type == MsgType.ENVELOPE:
+            if msg.type == MsgType.enum.ENVELOPE:
                 self.debug("_from_game_watcher (game_pipe->client_queue): "
                            "Envelope - creating message for each recipient: "
                            "{} {}",
@@ -990,7 +981,7 @@ class WebSocketServer(WebSocketMediator):
         envelope = message.payload
         if not isinstance(envelope, Envelope):
             err_msg = ("MediatorServer got incorrect payload in "
-                       f"'{MsgType.ENVELOPE}' message. Can only handle "
+                       f"'{MsgType.enum.ENVELOPE}' message. Can only handle "
                        "Envelope, got '{message.type}' from: {message}")
             error = ValueError(err_msg, message, context)
             raise log.exception(error, message, context=context)
@@ -1004,7 +995,7 @@ class WebSocketServer(WebSocketMediator):
                        "Processing recipient: {}",
                        recipient)
 
-            if (recipient is Recipient.INVALID
+            if (recipient is Recipient.enum.INVALID
                     or recipient not in envelope.valid_recipients):
                 self.debug("_envelope_to_messages: "
                            "Invalid recipient for message: {} (valid: {})",
@@ -1234,7 +1225,7 @@ class WebSocketServer(WebSocketMediator):
         Returns:
           - (False, False) if it found nothing to produce/send.
           - (Message, MessageContext) if it found something to produce/send.
-            - Could be Nones or MsgType.IGNORE.
+            - Could be Nones or MsgType.enum.IGNORE.
         '''
         # self.debug("_handle_produce_get_msg: {}",
         #            conn)
@@ -1286,7 +1277,7 @@ class WebSocketServer(WebSocketMediator):
                 # Ignore. Default return from _handle_produce_get_msg().
                 await self._continuing()
                 continue
-            if not msg or msg.type == MsgType.IGNORE:
+            if not msg or msg.type == MsgType.enum.IGNORE:
                 log.warning("_handle_produce: {}: "
                             "Produced nothing for sending."
                             "Ignoring msg: {}, ctx: {}",

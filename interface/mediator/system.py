@@ -155,7 +155,9 @@ def _start_server(comms: multiproc.SubToProcComm,
 # -----------------------------------------------------------------------------
 
 
-class MediatorSystem(System):
+class MediatorSystem(System,
+                     name_dotted='veredi.interface.mediator.system',
+                     name_string='mediator.system'):
 
     MSG_MAX_PER_UPDATE: int = 20
     '''
@@ -167,16 +169,16 @@ class MediatorSystem(System):
     '''
 
     MSG_TYPE_SELF = frozenset({
-        MsgType.CONNECT,
-        MsgType.DISCONNECT,
+        MsgType.enum.CONNECT,
+        MsgType.enum.DISCONNECT,
     })
     '''
     Messages between MediatorServer & MediatorSystem will use these types.
     '''
 
     MSG_TYPE_GAME = frozenset({
-        MsgType.TEXT,
-        MsgType.ENCODED,
+        MsgType.enum.TEXT,
+        MsgType.enum.ENCODED,
     })
     '''
     Messages between Mediator (Server or Client-via-Server) & Game will use
@@ -185,19 +187,19 @@ class MediatorSystem(System):
 
     MSG_TYPE_IGNORE_WHILE_DYING = frozenset({
         # Testing / Non-Standard
-        MsgType.IGNORE,
-        MsgType.PING,
-        MsgType.ECHO,
-        MsgType.ECHO_ECHO,
-        MsgType.LOGGING,
+        MsgType.enum.IGNORE,
+        MsgType.enum.PING,
+        MsgType.enum.ECHO,
+        MsgType.enum.ECHO_ECHO,
+        MsgType.enum.LOGGING,
 
         # Connections
-        MsgType.CONNECT,
-        MsgType.DISCONNECT,
+        MsgType.enum.CONNECT,
+        MsgType.enum.DISCONNECT,
 
         # ACKs
-        MsgType.ACK_CONNECT,
-        MsgType.ACK_ID,
+        MsgType.enum.ACK_CONNECT,
+        MsgType.enum.ACK_ID,
     })
     '''
     Messages of these types from client to server will be ignored from
@@ -273,7 +275,7 @@ class MediatorSystem(System):
         # Context Stuff
         # ---
         config = background.config.config(self.__class__.__name__,
-                                          self.dotted(),
+                                          self.dotted,
                                           context)
 
         # ---
@@ -327,14 +329,10 @@ class MediatorSystem(System):
         Get background data for background.mediator.set().
         '''
         self._bg = {
-            'dotted': self.dotted(),
+            'dotted': self.dotted,
             'server': self.dotted_server,
         }
         return self._bg, background.Ownership.SHARE
-
-    @classmethod
-    def dotted(klass: 'MediatorSystem') -> str:
-        return 'veredi.interface.mediator.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -449,15 +447,15 @@ class MediatorSystem(System):
 
         # Figure out message type.
         # self._decide_msg_type(event.payload, entity, user_id)???
-        msg_type = MsgType.TEXT
+        msg_type = MsgType.enum.TEXT
         if isinstance(event.payload, Envelope):
-            msg_type = MsgType.ENVELOPE
+            msg_type = MsgType.enum.ENVELOPE
 
         elif isinstance(event.payload, str):
-            msg_type = MsgType.TEXT
+            msg_type = MsgType.enum.TEXT
 
         elif isinstance(event.payload, dict):
-            msg_type = MsgType.ENCODE
+            msg_type = MsgType.enum.ENCODE
 
         send_msg = Message(send_id,
                            msg_type,
@@ -486,7 +484,7 @@ class MediatorSystem(System):
         User is changing connection state (CONNECT, DISCONNECT). Add or remove
         them from connected as indicated.
         '''
-        if message.type == MsgType.CONNECT:
+        if message.type == MsgType.enum.CONNECT:
             # Create UserPassport for our connected user, add to background so
             # other systems can translate user_id to useful info (e.g. entity)?
             user = UserPassport(message.user_id,
@@ -495,7 +493,7 @@ class MediatorSystem(System):
             background.users.add_connected(user)
             return
 
-        elif message.type == MsgType.DISCONNECT:
+        elif message.type == MsgType.enum.DISCONNECT:
             # Remove user from background data.
             background.users.remove_connected(message.user_id)
             return

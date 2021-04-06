@@ -14,6 +14,9 @@ from typing import Callable
 from datetime import datetime, timezone
 
 
+from veredi.base.strings.mixin import NamesMixin
+
+
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
@@ -25,7 +28,9 @@ from datetime import datetime, timezone
 # Clock for In Game DateTime
 # -----------------------------------------------------------------------------
 
-class Clock:
+class Clock(NamesMixin,
+            name_dotted='veredi.game.time.clock',
+            name_string='clock'):
     '''
     Keeps a time stamp & time zone. I.e. wall clock/calendar time.
     This is not a real, actual clock. It gets ticked manually and
@@ -40,13 +45,6 @@ class Clock:
         self.time_zone = time_zone or timezone.utc
         date_time = date_time or datetime.now(self.time_zone)
         self.time_stamp = convert_fn(date_time)
-
-    @classmethod
-    def dotted(klass: 'Clock') -> str:
-        '''
-        Our Veredi Dotted Label.
-        '''
-        return 'veredi.game.time.clock'
 
     def _to_game(self, date_time):
         game_time = date_time.replace(hour=0,

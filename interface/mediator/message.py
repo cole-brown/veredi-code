@@ -22,13 +22,13 @@ import re
 
 
 from veredi.logs                   import log
-from veredi.base.strings           import labeler
 from veredi.security               import abac
 from veredi.data.codec             import (Codec,
                                            Encodable,
                                            EncodedComplex,
                                            EncodedSimple,
-                                           FlagEncodeValueMixin)
+                                           FlagEncodeValue)
+from veredi.data                   import codec
 from veredi.data.exceptions        import EncodableError
 from veredi.base.identity          import MonotonicId
 from veredi.data.identity          import UserId, UserKey
@@ -57,8 +57,9 @@ MsgIdTypes = NewType('MsgIdTypes',
 # Code
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.mediator.message.message')
-class Message(Encodable):
+class Message(Encodable,
+              name_dotted='veredi.interface.mediator.message.message',
+              name_string='message'):
     '''
     Message object between game and mediator.
 
@@ -69,16 +70,11 @@ class Message(Encodable):
     # Constants
     # -------------------------------------------------------------------------
 
-    # ------------------------------
-    # Constants: Encodable
-    # ------------------------------
-
-    _ENCODE_NAME: str = 'message'
-    '''Name for this class when encoding/decoding.'''
-
-    @labeler.dotted('veredi.interface.mediator.message.sid')
+    @codec.enum.encodable(name_dotted='veredi.interface.mediator.message.sid',
+                          name_string='spid',
+                          enum_encode_type=FlagEncodeValue)
     @enum.unique
-    class SpecialId(FlagEncodeValueMixin, enum.IntEnum):
+    class SpecialId(enum.IntEnum):
         '''
         Super Special Message IDs for Super Special Messages!
         '''
@@ -94,27 +90,6 @@ class Message(Encodable):
         OR Server -> Game: This client has connected.
         '''
 
-        # ------------------------------
-        # Encodable API (Codec Support)
-        # ------------------------------
-
-        @classmethod
-        def dotted(klass: 'SpecialId') -> str:
-            '''
-            Unique dotted name for this class.
-            '''
-            return 'veredi.interface.mediator.message.specialid'
-
-        @classmethod
-        def type_field(klass: 'SpecialId') -> str:
-            '''
-            A short, unique name for encoding an instance into a field in
-            a dict.
-            '''
-            return 'spid'
-
-        # Rest of Encodabe funcs come from FlagEncodeValueMixin.
-
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
@@ -129,7 +104,7 @@ class Message(Encodable):
         sent with a non-None message id.
         '''
 
-        self._type: 'MsgType' = MsgType.IGNORE
+        self._type: 'MsgType' = MsgType.enum.IGNORE
         '''
         Message's Type. Determines how Mediators handle the message itself and
         its payload.
@@ -199,7 +174,7 @@ class Message(Encodable):
         Create an echo reply for this message.
         '''
         # Return same message but with type changed to ECHO_ECHO.
-        return klass(msg.msg_id, MsgType.ECHO_ECHO,
+        return klass(msg.msg_id, MsgType.enum.ECHO_ECHO,
                      payload=msg.payload,
                      user_id=msg.user_id,
                      user_key=msg.user_key)
@@ -215,17 +190,17 @@ class Message(Encodable):
                   key:     UserKey,
                   success: bool) -> 'Message':
         '''
-        Creates a MsgType.ACK_CONNECT message reply for success/failure of
+        Creates a MsgType.enum.ACK_CONNECT message reply for success/failure of
         connection.
         '''
         if success:
-            return klass(msg.msg_id, MsgType.ACK_CONNECT,
+            return klass(msg.msg_id, MsgType.enum.ACK_CONNECT,
                          payload=BarePayload({'text': 'Connected.',
                                               'code': True}),
                          user_id=id,
                          user_key=key)
 
-        return klass(msg.msg_id, MsgType.ACK_CONNECT,
+        return klass(msg.msg_id, MsgType.enum.ACK_CONNECT,
                      payload=BarePayload({'text': 'Failed to connect.',
                                           'code': False}),
                      user_id=id,
@@ -242,9 +217,9 @@ class Message(Encodable):
             - if success: None
             - if failure: Failure reason
         '''
-        if self.type != MsgType.ACK_CONNECT:
+        if self.type != MsgType.enum.ACK_CONNECT:
             return (False,
-                    f"Message is not MsgType.ACK_CONNECT. Is {self.type}")
+                    f"Message is not MsgType.enum.ACK_CONNECT. Is {self.type}")
 
         # Correct type of message, now check the payload.
         if not isinstance(self.payload, BarePayload):
@@ -310,7 +285,7 @@ class Message(Encodable):
         '''
         Creates a LOGGING message with the supplied data.
         '''
-        msg = Message(msg_id, MsgType.LOGGING,
+        msg = Message(msg_id, MsgType.enum.LOGGING,
                       user_id=user_id,
                       user_key=user_key,
                       payload=log_payload)
@@ -418,10 +393,6 @@ class Message(Encodable):
     # -------------------------------------------------------------------------
     # Encodable API
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'Message') -> str:
-        return klass._ENCODE_NAME
 
     def encode_simple(self, codec: 'Codec') -> EncodedSimple:
         '''
@@ -536,8 +507,10 @@ class Message(Encodable):
 # Message for Connecting/Disconnecting Users
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.mediator.message.connection')
-class ConnectionMessage(Message):
+class ConnectionMessage(
+        Message,
+        name_dotted='veredi.interface.mediator.message.connection',
+        name_string='message.connection'):
     '''
     Mediator -> Game message for a connecting or disconnecting client.
     '''
@@ -552,13 +525,13 @@ class ConnectionMessage(Message):
                  user_key:   Optional[UserKey],
                  connection: 'UserConnToken') -> None:
         # Type will be CONNECT or DISCONNECT, depending.
-        msg_type = (MsgType.CONNECT
+        msg_type = (MsgType.enum.CONNECT
                     if connected else
-                    MsgType.DISCONNECT)
+                    MsgType.enum.DISCONNECT)
 
         # Init base class with our data. `connection` token will be the
         # payload.
-        super().__init__(ConnectionMessage.SpecialId.CONNECT,
+        super().__init__(ConnectionMessage.SpecialId.enum.CONNECT,
                          msg_type,
                          connection, None,
                          user_id, user_key)

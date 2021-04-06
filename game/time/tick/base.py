@@ -20,8 +20,10 @@ from abc import ABC, abstractmethod
 from decimal import Decimal
 
 
-from veredi.base         import numbers
-from veredi.base.strings import label
+from veredi.base               import numbers
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -32,7 +34,7 @@ from veredi.base.strings import label
 # Game Time
 # -----------------------------------------------------------------------------
 
-class TickBase(ABC):
+class TickBase(NamesMixin, ABC):
     '''
     Keep a game tick clock. Base class is quite generic to allow subclasses
     like:
@@ -105,7 +107,7 @@ class TickBase(ABC):
         Initialize our background data dict with useful info about us.
         '''
         self._bg_data = {
-            'dotted': self.dotted()
+            'dotted': self.dotted
         }
 
     @abstractmethod
@@ -164,19 +166,6 @@ class TickBase(ABC):
                                   "class.")
 
     # -------------------------------------------------------------------------
-    # Identification
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    @abstractmethod
-    def dotted(klass: 'TickBase') -> label.DotStr:
-        '''
-        The dotted label string this Tick class has.
-        '''
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented in base class.")
-
-    # -------------------------------------------------------------------------
     # Ticking
     # -------------------------------------------------------------------------
     #
@@ -219,7 +208,7 @@ class TickBase(ABC):
         '''
         Returns tick, tick num, machine time.
         '''
-        return (f"{self.dotted()}: {str(self)}")
+        return (f"{self.dotted}: {str(self)}")
 
     @property
     def error_game_data(self) -> str:

@@ -86,7 +86,7 @@ class Test_FileTreeRepo(ZestBase):
         # Create a Repo.
         # ---
         self.context = ConfigContext(self.root,
-                                     self.dotted(__file__),
+                                     self.dotted,
                                      id=zpath.config_id(self._TEST_TYPE, None))
 
         # Finish set-up. Inject stuff repo needs to init proper - force them to
@@ -219,7 +219,7 @@ class Test_FileTreeRepo(ZestBase):
         context = None
         with log.LoggingManager.on_or_off(self.debugging):
             context = DataLoadContext(
-                self.dotted(__file__),
+                self.dotted,
                 taxon,
                 {
                     'unit_test_func': 'Test_FileTreeRepo.context_load',
@@ -258,7 +258,7 @@ class Test_FileTreeRepo(ZestBase):
         # ------------------------------
         with log.LoggingManager.on_or_off(self.debugging):
             context = DataSaveContext(
-                self.dotted(__file__),
+                self.dotted,
                 taxon,
                 temp,
                 {
@@ -743,8 +743,8 @@ class Test_FileTreeRepo(ZestBase):
         self.assertIsInstance(context.taxon, Taxon)
         self.assertIsInstance(context.taxon, SavedTaxon)
 
-        self.assertTrue(context.dotted())
-        self.assertEqual(context.dotted(), self.dotted(__file__))
+        self.assertTrue(context.dotted)
+        self.assertEqual(context.dotted, self.dotted)
 
         self.assertTrue(context.action)
         self.assertIsInstance(context.action, DataAction)
@@ -819,8 +819,8 @@ class Test_FileTreeRepo(ZestBase):
         self.assertIsInstance(context.taxon, Taxon)
         self.assertIsInstance(context.taxon, SavedTaxon)
 
-        self.assertTrue(context.dotted())
-        self.assertEqual(context.dotted(), self.dotted(__file__))
+        self.assertTrue(context.dotted)
+        self.assertEqual(context.dotted, self.dotted)
 
         self.assertTrue(context.action)
         self.assertIsInstance(context.action, DataAction)

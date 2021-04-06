@@ -18,7 +18,7 @@ from .ecs.const              import SystemTick, SystemPriority
 from .ecs.base.component     import (MockComponent,
                                      ComponentLifeCycle)
 from .ecs.base.entity        import EntityLifeCycle
-from .ecs.base.system        import (System,
+from .ecs.base.system        import (MockSystem,
                                      SystemLifeCycle)
 
 
@@ -43,7 +43,7 @@ class CompThree(MockComponent):
     pass
 
 
-class SysTest(System):
+class SysTest(MockSystem):
 
     def _configure(self,
                    context):
@@ -108,10 +108,6 @@ class SysJeff(SysTest):
                        | SystemTick.STANDARD
                        | SystemTick.POST)
 
-    @classmethod
-    def dotted(klass: 'SysJeff') -> str:
-        return 'veredi.game.zest_engine.SysJeff'
-
     def priority(self):
         return SystemPriority.MEDIUM + 13
 
@@ -132,10 +128,6 @@ class SysJill(SysTest):
             self.x = None
             self.y = None
 
-    @classmethod
-    def dotted(klass: 'SysJill') -> str:
-        return 'veredi.game.zest_engine.SysJill'
-
     def priority(self):
         return SystemPriority.HIGH
 
@@ -149,10 +141,6 @@ class SysNoTick(SysTest):
         super()._configure(context)
         self._ticks = None
 
-    @classmethod
-    def dotted(klass: 'SysNoTick') -> str:
-        return 'veredi.game.zest_engine.SysNoTick'
-
     def priority(self):
         return SystemPriority.LOW
 
@@ -162,10 +150,6 @@ class SysNoReq(SysTest):
                    context):
         super()._configure(context)
         self._ticks = None
-
-    @classmethod
-    def dotted(klass: 'SysNoReq') -> str:
-        return 'veredi.game.zest_engine.SysNoReq'
 
     def required(self):
         return None

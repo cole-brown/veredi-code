@@ -18,14 +18,15 @@ if TYPE_CHECKING:
 import enum
 
 
-from veredi.logs         import log
-from veredi.base.strings import label
-from veredi.base.null    import Null
-from veredi.base.context import VerediContext
-from .identity           import (ComponentId,
-                                 EntityId)
-from .component          import (Component,
-                                 CompIdOrType)
+from veredi.logs               import log
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+from veredi.base.null          import Null
+from veredi.base.context       import VerediContext
+from .identity                 import (ComponentId,
+                                       EntityId)
+from .component                import (Component,
+                                       CompIdOrType)
 
 
 # -----------------------------------------------------------------------------
@@ -63,16 +64,49 @@ class EntityLifeCycle(enum.Enum):
 # Code
 # -----------------------------------------------------------------------------
 
-class Entity:
+class Entity(NamesMixin,
+             name_dotted=('veredi', 'game', 'ecs', 'base', 'entity'),
+             name_string='entity'):
     '''
     An Entity tracks its EntityId and life cycle, but primarily holds a
-    collection of its Components. The components /are/ the entity,
-    basically.
+    collection of its Components.
+
+    Basically:
+      1) The entity is just its EntityID.
+      2) The components are the actual entity (its functionality and data).
     '''
 
     # --------------------------------------------------------------------------
     # Initialization
     # --------------------------------------------------------------------------
+
+    def _define_vars(self) -> None:
+        '''
+        Set up our vars with type hinting, docstrs.
+        '''
+        self._entity_id:         EntityId           = None
+        '''The entity's ID.'''
+
+        self._type_id:           EntityTypeId       = None
+        '''The entity's Type ID.'''
+
+        self._life_cycle:        EntityLifeCycle    = EntityLifeCycle.INVALID
+        '''The current life-cycle state of this entity.'''
+
+        # TODO: remove - use background to get to manager.
+        self._component_manager: 'ComponentManager' = component_manager
+        '''A link to the ComponentManager.'''
+
+        # TODO:
+        #  - Only hold on to component ids?
+        #  - Have getters go ask ComponentManager for component?
+        #  - This would make get-by-id O(n) instead of O(1)...
+        self._components: Dict[Type[Component], Component] = {}
+        '''
+        Our entity's components. You cannot assume these are ONLY this entity's
+        components. Some can be shared between multiple entities.
+        '''
+
 
     def __init__(self,
                  context:           Optional[VerediContext],
@@ -89,7 +123,7 @@ class Entity:
         #  - Only hold on to component ids?
         #  - Have getters go ask ComponentManager for component?
         #  - This would make get-by-id O(n) instead of O(1)...
-        self._components : Dict[Type[Component], Component] = {}
+        self._components: Dict[Type[Component], Component] = {}
 
         self._configure(context)
 
@@ -107,13 +141,6 @@ class Entity:
     # --------------------------------------------------------------------------
     # Properties
     # --------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'Entity') -> label.DotStr:
-        '''
-        Veredi dotted label string.
-        '''
-        return 'veredi.game.ecs.base.entity'
 
     @property
     def id(self) -> EntityId:

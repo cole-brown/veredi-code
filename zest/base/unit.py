@@ -13,10 +13,14 @@ Base Veredi Class for Tests.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, List, Tuple, Dict
+from typing import Optional, Union, Any, Type, List, Tuple, Dict
+from veredi.base.null import Null
+
 
 import sys
 import unittest
+from abc import ABC, abstractmethod
+
 
 from veredi.logs               import log
 from veredi.base               import paths
@@ -32,8 +36,86 @@ from veredi.base.context       import VerediContext, UnitTestContext
 
 
 # -----------------------------------------------------------------------------
-# Constants
+# Auto-Generate '.dotted' for a ZestBase class
 # -----------------------------------------------------------------------------
+
+class ZestDottedDescriptor:
+    '''
+    Veredi label.DotStr provided via descriptor - usually named `dotted`.
+    '''
+
+    def __init__(self,
+                 path_or_dotted: Union[str, paths.Path, Null, None],
+                 name:           Optional[str] = None) -> None:
+        print("ZestDottedDescriptor:")
+        print("  path_or_dotted:", path_or_dotted)
+        print("  name:", name)
+        self.name: str = name
+        self.dotted: label.DotStr = None
+        if path_or_dotted:
+            self.dotted = label.from_something(path_or_dotted)
+
+    def __get__(self,
+                instance: Optional[Any],
+                owner:    Type[Any]) -> label.DotStr:
+        '''
+        Returns the dotted label value.
+        '''
+        return self.dotted
+
+    def __set__(self,
+                instance:       Optional[Any],
+                path_or_dotted: Optional[str]) -> None:
+        '''
+        Set dotted label to DotStr created from file path.
+        '''
+        if path_or_dotted:
+            self.dotted = label.from_something(path_or_dotted)
+        else:
+            self.dotted = None
+
+    def __set_name__(self, owner: Type[Any], name: str) -> None:
+        '''
+        Save our descriptor variable's name in its owner's class.
+        '''
+        self.name = name
+
+# -----------------------------------------------------------------------------
+# Descriptor for TestType
+# -----------------------------------------------------------------------------
+
+class TestTypeDescriptor:
+    '''
+    Veredi TestType provided via descriptor.
+    '''
+
+    def __init__(self,
+                 type: TestType,
+                 name: Optional[str] = None) -> None:
+        self.name: str = name
+        self.type: TestType = type
+
+    def __get__(self,
+                instance: Optional[Any],
+                owner:    Type[Any]) -> label.DotStr:
+        '''
+        Returns the TestType value.
+        '''
+        return self.type
+
+    def __set__(self,
+                instance: Optional[Any],
+                type:     Optional[TestType]) -> None:
+        '''
+        Set the TestType value.
+        '''
+        self.type = type
+
+    def __set_name__(self, owner: Type[Any], name: str) -> None:
+        '''
+        Save our descriptor variable's name in its owner's class.
+        '''
+        self.name = name
 
 
 # -----------------------------------------------------------------------------
@@ -58,24 +140,14 @@ class ZestBase(unittest.TestCase):
       - r'_[a-z_][a-zA-Z_]*[a-z]': Just used by this internally, most likely.
     '''
 
-    # TODO: Make an instance variable?
-    _TEST_TYPE = TestType.UNIT
+    type: TestTypeDescriptor = TestTypeDescriptor(TestType.UNIT)
+    '''
+    TestType descriptor. Set to something else as needed.
+    '''
 
-    def dotted(self, uufileuu: str) -> None:
-        '''
-        If class or instance has a _DOTTED, returns that.
-
-        Else tries to build something from `uufileuu`, which should probably
-        just be:
-            __file__
-        '''
-        try:
-            return self._DOTTED
-        except AttributeError:
-            pass
-
-        # Didja know this exists?
-        return label.from_path(uufileuu)
+    dotted: ZestDottedDescriptor = ZestDottedDescriptor(
+        'veredi.zest.base.unit.TODO.give-your-test-a-dotted'
+    )
 
     # -------------------------------------------------------------------------
     # Set-Up
@@ -174,6 +246,27 @@ class ZestBase(unittest.TestCase):
         can use it.
         '''
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = self.get_dotted()
+
+    @abstractmethod
+    def get_dotted(self) -> str:
+        '''
+        Returns the test's actual file path (__file__) or some other string
+        suited for the test's `dotted` label.
+        '''
+        print("\n\n")
+        print("  ZestBase.get_dotted():")
+        print("     :", self.__class__.__name__)
+        print("    <-", __file__)
+        print("\n\n")
+        return __file__
+        # raise NotImplementedError(f"{self.__class__.__name__}.get_dotted() "
+        #                           "needs implementing!")
+
     def pre_set_up(self) -> None:
         '''
         Use this!
@@ -206,12 +299,13 @@ class ZestBase(unittest.TestCase):
         self._verify_clean_environment()
         self._define_vars()
 
+        self.set_dotted()
         self.pre_set_up()
 
         # ---
         # Our Set-Up.
         # ---
-        self._set_up_config(test_type=self._TEST_TYPE,
+        self._set_up_config(test_type=self.type,
                             rules=self.config_rules,
                             game_id=self.config_game_id,
                             config_path=self.config_path)
@@ -282,7 +376,7 @@ class ZestBase(unittest.TestCase):
                         f"it during `{self.__class__.__name__}"
                         "._set_up_config`. Creating one for now, but "
                         "this should be fixed.")
-            self.config = zmake.config(self._TEST_TYPE)
+            self.config = zmake.config(self.type)
         zinit.set_up_registries(self.config)
 
     def _verify_clean_environment(self):

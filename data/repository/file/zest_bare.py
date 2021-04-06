@@ -66,8 +66,8 @@ class Test_FileBareRepo(ZestBase):
         # Create Repo.
         # ---
         context = ConfigContext(self.root,
-                                self.dotted(__file__),
-                                id=zpath.config_id(self._TEST_TYPE, None))
+                                self.dotted,
+                                id=zpath.config_id(self.type, None))
         ConfigContext.set_testing(context, True)
         context.ut_inject(testing_target="FileBareRepository")
         self.repo = FileBareRepository(context)
@@ -153,7 +153,7 @@ class Test_FileBareRepo(ZestBase):
         Get some metadata for DataBareContext.
         '''
         return {
-            'dotted': self.dotted(__file__),
+            'dotted': self.dotted,
             'test-suite': self.__class__.__name__,
             'unit-test': func,
         }
@@ -368,7 +368,7 @@ class Test_FileBareRepo(ZestBase):
         self.assertFalse(dirpath.exists())
 
         # Only needed for logging:
-        context = DataBareContext(self.dotted(__file__),
+        context = DataBareContext(self.dotted,
                                   ConfigContext.KEY,
                                   "not-used-this-test",
                                   DataAction.SAVE,
@@ -457,7 +457,7 @@ class Test_FileBareRepo(ZestBase):
         self._set_up_repo()
 
         action = DataAction.SAVE
-        context = DataBareContext(self.dotted(__file__),
+        context = DataBareContext(self.dotted,
                                   ConfigContext.KEY,
                                   "not-used-this-test",
                                   action,
@@ -516,7 +516,7 @@ class Test_FileBareRepo(ZestBase):
         self._set_up_repo()
 
         action = DataAction.SAVE
-        context = DataBareContext(self.dotted(__file__),
+        context = DataBareContext(self.dotted,
                                   ConfigContext.KEY,
                                   "not-used-this-test",
                                   action,
@@ -588,7 +588,7 @@ class Test_FileBareRepo(ZestBase):
             # ---
             # BaseRepository
             # ---
-            self.assertEqual(filled[key]['meta']['dotted'], self.repo.dotted())
+            self.assertEqual(filled[key]['meta']['dotted'], self.repo.dotted)
             self.assertEqual(filled[key]['meta']['type'], self.repo.name)
 
             # ---
@@ -613,7 +613,7 @@ class Test_FileBareRepo(ZestBase):
         self._set_up_repo()
 
         # Test for LOAD.
-        load_context = DataBareContext(self.dotted(__file__),
+        load_context = DataBareContext(self.dotted,
                                        ConfigContext.KEY,
                                        self.path_file,
                                        DataAction.LOAD,
@@ -621,7 +621,7 @@ class Test_FileBareRepo(ZestBase):
         self._helper_test_context_data(load_context)
 
         # Test for SAVE.
-        save_context = DataBareContext(self.dotted(__file__),
+        save_context = DataBareContext(self.dotted,
                                        ConfigContext.KEY,
                                        self.path_file,
                                        DataAction.SAVE,
@@ -677,7 +677,7 @@ class Test_FileBareRepo(ZestBase):
         # Use repository to load a file, then check against directly read file
         # contents.
         self._set_up_repo()
-        ctx = DataBareContext(self.dotted(__file__),
+        ctx = DataBareContext(self.dotted,
                               ConfigContext.KEY,
                               self.path_file,
                               DataAction.LOAD,
@@ -707,7 +707,7 @@ class Test_FileBareRepo(ZestBase):
         # place, then check original vs saved.
         self._set_up_repo()
 
-        load_ctx = DataBareContext(self.dotted(__file__),
+        load_ctx = DataBareContext(self.dotted,
                                    ConfigContext.KEY,
                                    self.path_file,
                                    DataAction.LOAD,
@@ -731,7 +731,7 @@ class Test_FileBareRepo(ZestBase):
             # ------------------------------
             # Save data to temp.
             # ------------------------------
-            save_ctx = DataBareContext(self.dotted(__file__),
+            save_ctx = DataBareContext(self.dotted,
                                        ConfigContext.KEY,
                                        # Don't add temp dir ourself.
                                        self.path_file,

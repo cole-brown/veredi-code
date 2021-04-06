@@ -20,34 +20,30 @@ if TYPE_CHECKING:
     from .entity                    import Entity
 
 
-from abc import ABC, abstractmethod
 import enum
 
 
-from veredi.logs              import log
-from veredi.logs.mixin        import LogMixin
-from veredi.base.const        import VerediHealth
-from veredi.base.strings      import label
-from veredi.debug.const       import DebugFlag
-from veredi.base.assortments  import DeltaNext
+from veredi.logs               import log
+from veredi.logs.mixin         import LogMixin
+from veredi.base.const         import VerediHealth
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+from veredi.debug.const        import DebugFlag
+from veredi.base.assortments   import DeltaNext
 
-from .identity                import EntityId, SystemId
-from .exceptions              import EcsSystemError
+from .identity                 import EntityId, SystemId
+from .exceptions               import EcsSystemError
 
-from ..const                  import SystemTick, SystemPriority, tick_healthy
-from ..exceptions             import TickError
+from ..const                   import SystemTick, SystemPriority, tick_healthy
+from ..exceptions              import TickError
 
-from ..manager                import EcsManager
-from ..event                  import EventManager, Event
+from ..manager                 import EcsManager
+from ..event                   import EventManager, Event
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# ---
-# System's Life Cycle State
-# ---
 
 @enum.unique
 class SystemLifeCycle(enum.Enum):
@@ -120,15 +116,34 @@ class SystemLifeCycle(enum.Enum):
         )
 
 
-# ---
-# Helper class to hold onto stuff we use and pass into created Systems.
-# ---
+UT_DOTTED_MOCK_SYS: label.DotStr = 'veredi.zest.mock.system'
+'''Dotted label for MockSystem'''
+
 
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
 
-class System(LogMixin, ABC):
+class System(LogMixin, NamesMixin):
+    '''
+    System sub-classes are expected to use kwargs:
+      - Required:
+        + name_dotted: Optional[label.LabelInput]
+          - string/strings to create the Veredi dotted label.
+        + name_string: Optional[str]
+          - Any short string for describing class. Either short-hand or class's
+            __name__ are fine.
+      - Optional:
+        + name_klass:        Optional[str]
+          - If None, will be class's __name__.
+        + name_string_xform: Optional[Callable[[str], str]] = None,
+        + name_klass_xform:  Optional[Callable[[str], str]] = to_lower_lambda,
+
+    Example:
+      class JeffSystem(System,
+                       name_dotted=label.normalize('jeff', 'system'),
+                       name_string='jeff')
+    '''
 
     # -------------------------------------------------------------------------
     # Class Methods
@@ -264,7 +279,7 @@ class System(LogMixin, ABC):
         # Logger!
         # ---
         # Set up before _configure() so we have self._log_*() working ASAP.
-        self._log_config(self.dotted())
+        self._log_config(self.dotted)
 
         # ---
         # Final set up/configuration from context/config and
@@ -279,17 +294,6 @@ class System(LogMixin, ABC):
     @property
     def id(self) -> SystemId:
         return SystemId.INVALID if self._system_id is None else self._system_id
-
-    @classmethod
-    @abstractmethod
-    def dotted(klass: 'Component') -> label.DotStr:
-        '''
-        The dotted label string this system has.
-
-        e.g. 'veredi.jeff.system'
-        '''
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented.")
 
     @property
     def enabled(self) -> bool:
@@ -988,3 +992,25 @@ class System(LogMixin, ABC):
             f"{repr(self.life_cycle)}], "
             f"{repr(self.health)}]>"
         )
+
+
+# -----------------------------------------------------------------------------
+# Unit-Testing: Mock System
+# -----------------------------------------------------------------------------
+
+class MockSystem(System,
+                 name_dotted=UT_DOTTED_MOCK_SYS,
+                 name_string='mock-sys'):
+    '''
+    A System that has an auto-created return for 'dotted'.
+    '''
+
+    def __init__(self,
+                 context:  Optional['VerediContext'],
+                 sid:      SystemId,
+                 managers: 'Meeting') -> None:
+        super().__init__(context, sid, managers)
+
+        # Set up our actual mock dotted label.
+        self.dotted = label.normalize(self.dotted,
+                                      self.__class__.__name__.lower())

@@ -394,7 +394,7 @@ class ZestLogFormat(ZestLogBase):
             self.fail("verify_context requires an `expected_func`; "
                       f"got: {expected_func}")
         if not expected_dotted:
-            expected_dotted = self.dotted(__file__)
+            expected_dotted = self.dotted
         if not expected_class:
             expected_class = f'{self.__class__.__name__}'
         expected_method = f'{expected_class}.{expected_func}'
@@ -427,7 +427,7 @@ class ZestLogFormat(ZestLogBase):
         Verify that `record` has group fields as expected.
         '''
         if not dotted:
-            dotted = self.dotted(__file__)
+            dotted = self.dotted
 
         self.assertIn('group', record)
         data_group = record['group']
@@ -447,7 +447,7 @@ class ZestLogFormat(ZestLogBase):
         Verify that `record` has or does not have group fields as expected.
         '''
         if not dotted:
-            dotted = self.dotted(__file__)
+            dotted = self.dotted
         normalized = const.SuccessType.normalize(success, dry_run)
 
         # If no fields expected, verify success dict is not present
@@ -515,7 +515,7 @@ class ZestLogFormat(ZestLogBase):
         # Log to the group!
         # ---
         log.group(group,
-                  self.dotted(__file__),
+                  self.dotted,
                   message,
                   context=context,
                   log_success=success,
@@ -594,7 +594,7 @@ class ZestLogFormat(ZestLogBase):
         # ---
         # Log to the group!
         # ---
-        log.security(self.dotted(__file__),
+        log.security(self.dotted,
                      message,
                      context=context)
         # No logs yet but should have stream data.

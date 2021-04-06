@@ -233,8 +233,8 @@ def get_logger(*names:        str,
     E.g.:
       get_logger(__name__, self.__class__.__name__)
       get_logger(__name__)
-      get_logger(self.dotted(), min_log_level=log.const.Level.DEBUG)
-      get_logger(self.dotted(), 'client', '{:02d}'.format(client_num))
+      get_logger(self.dotted, min_log_level=log.const.Level.DEBUG)
+      get_logger(self.dotted, 'client', '{:02d}'.format(client_num))
     '''
     # Ignore any Falsy values in names
     logger_name = '.'.join([each for each in names if each])

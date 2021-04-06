@@ -615,7 +615,7 @@ class DottedRegistrar(BaseRegistrar):
 
     The registry is class-level, so subclass this for each unique registry.
 
-    This registrar layers creating a `dotted()` classmethod for registering
+    This registrar layers creating a `dotted` DottedDescriptor for registering
     classes on top of the BaseRegistrar funcionality.
     '''
 
@@ -628,10 +628,9 @@ class DottedRegistrar(BaseRegistrar):
         '''
         Let the parent class (BaseRegistrar) register this `registree`, then
         add these attribuets to the `registree`.
-          - 'labeler.KLASS_FUNC_NAME'
           - 'labeler.ATTRIBUTE_PRIVATE_NAME'
         As of [2020-11-09], these are:
-          - dotted() class method
+          - dotted
           - _DOTTED class variable
         '''
         # ------------------------------
@@ -654,83 +653,13 @@ class DottedRegistrar(BaseRegistrar):
         # ------------------------------
 
         # ---
-        # Check the registree for per-existing _DOTTED/dotted().
+        # Labeler will do the heavy-lifting.
         # ---
         dotted_name = label.normalize(reg_label)
-        dotted_attr = None
-        dotted_func = None
-        try:
-            dotted_attr = getattr(registree,
-                                  labeler.ATTRIBUTE_PRIVATE_NAME)
-            dotted_func = getattr(registree,
-                                  labeler.KLASS_FUNC_NAME, None)
-        except AttributeError:
-            pass
-
-        # ---
-        # Do they have `dotted()`?
-        # ---
-        if dotted_func:
-            # Pre-existing dotted attribute; is it abstract?
-            # Complain about abstract.
-            if getattr(dotted_func, '__isabstractmethod__', False):
-                msg = (f"{self.dotted}: Failed '{dotted_name}' registry of "
-                       f"{registree.__name__}. Registree has an abstract "
-                       "'{labeler.KLASS_FUNC_NAME}' attribute, "
-                       "which we cannot auto-generate a replacement for. "
-                       "Please implement one manually:\n"
-                       "    def dotted(klass: 'YOURKLASS') -> str:\n"
-                       "        # klass._DOTTED magically provided "
-                       "by {self.__class__.__name__}\n"
-                       "        return klass._DOTTED"
-                       "{labeler.KLASS_FUNC_NAME}")
-                raise log.exception(AttributeError(msg, registree), msg)
-
-            # Complain loudly if the registree has a `dotted` function and
-            # what it returns disagrees with what they gave us as their dotted
-            # name.
-            if registree.dotted() != dotted_name:
-                msg = (f"{self.dotted}: Failed '{dotted_name}' registry of "
-                       f"{registree.__name__}. Registree has a dotted() "
-                       "return value of "
-                       f"'{registree.dotted()}', which is "
-                       "not what it's trying to register as. Please fix the "
-                       "class to have the same registration dotted name as "
-                       "it has in its dotted() function.")
-                raise log.exception(AttributeError(msg, registree), msg)
-
-        else:
-            # ------------------------------
-            # Ok; add _DOTTED and dotted().
-            # ------------------------------
-
-            # ---
-            # _DOTTED
-            # ---
-            if not dotted_attr:
-                setattr(registree,
-                        labeler.ATTRIBUTE_PRIVATE_NAME,
-                        dotted_name)
-
-            # ---
-            # dotted()
-            # ---
-
-            # Getter yes; setter no.
-            def get_dotted(klass: Type[Any]) -> Optional[str]:
-                return getattr(klass,
-                               labeler.ATTRIBUTE_PRIVATE_NAME,
-                               None)
-            # def set_dotted(self, value):
-            #     return setattr(self, '_dotted', value)
-
-            # ---
-            # Set the getter @classmethod function.
-            # ---
-            method = classmethod(get_dotted)
-            setattr(registree,
-                    labeler.KLASS_FUNC_NAME,
-                    method)
+        labeler.dotted_helper(self.dotted,
+                              'register()',
+                              registree,
+                              reg_label)
 
 
 # -----------------------------------------------------------------------------
@@ -779,8 +708,8 @@ class DecoratorRegistrar:
             super().add(cls_or_func,
                         *dotted_label)
 
-            # _DOTTED and dotted() provided in super().register() by
-            # our DottedRegistrar parent class.
+            # (`dotted` checked for/optionally provided in super().register()
+            # by our DottedRegistrar parent class)
 
             # ...and then returning the cls_or_func we decorated.
             return cls_or_func

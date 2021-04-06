@@ -30,7 +30,9 @@ from ..output.envelope             import Envelope
 # Events
 # -----------------------------------------------------------------------------
 
-class MediatorEvent(Event):
+class MediatorEvent(Event,
+                    name_dotted='veredi.interface.mediator.event',
+                    name_string='mediator'):
     '''
     Base class for mediation events.
     '''
@@ -70,7 +72,10 @@ class MediatorEvent(Event):
 # Send Events: Server-to-Client Mediation Events
 # -----------------------------------------------------------------------------
 
-class GameToMediatorEvent(MediatorEvent):
+class GameToMediatorEvent(
+        MediatorEvent,
+        name_dotted='veredi.interface.mediator.event.game-to-mediator',
+        name_string='game-to-mediator'):
     '''
     Event for Mediator sending to an outside source. For example, server
     sending something to a client will receive this event from the
@@ -95,7 +100,10 @@ class GameToMediatorEvent(MediatorEvent):
 # Receive Events: Client-to-Server Mediation Events
 # -----------------------------------------------------------------------------
 
-class MediatorToGameEvent(MediatorEvent):
+class MediatorToGameEvent(
+        MediatorEvent,
+        name_dotted='veredi.interface.mediator.event.mediator-to-game',
+        name_string='mediator-to-game'):
     '''
     Event for Mediator receiving from an outside source. For example, the
     MediatorServer receiving something from a client will cause the

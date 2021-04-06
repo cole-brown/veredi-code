@@ -15,7 +15,7 @@ from veredi.base.enum            import FlagCheckMixin, FlagSetMixin
 from veredi.base.strings         import label
 
 from veredi.game.data.component  import DataComponent
-
+from veredi.data                 import codec
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -26,6 +26,9 @@ from veredi.game.data.component  import DataComponent
 # Code
 # -----------------------------------------------------------------------------
 
+@codec.enum.encodable(name_dotted='veredi.rules.d20.pf2.health.state',
+                      name_string='health.state',
+                      enum_encode_type=codec.enum.EnumEncodeName)
 @enum.unique
 class HealthState(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
@@ -40,7 +43,9 @@ class HealthState(FlagCheckMixin, FlagSetMixin, enum.Flag):
     DEAD = enum.auto()
 
 
-class HealthComponent(DataComponent):
+class HealthComponent(DataComponent,
+                      name_dotted='veredi.rules.d20.pf2.health.component',
+                      name_string='component.health'):
     '''
     Component with persistent data for health, hit points, etc.
     '''
@@ -56,14 +61,3 @@ class HealthComponent(DataComponent):
             'resistance': [],
         },
     }
-
-    # -------------------------------------------------------------------------
-    # Properties
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'HealthComponent') -> label.DotStr:
-        '''
-        Veredi dotted label string.
-        '''
-        return 'veredi.rules.d20.pf2.health.component'

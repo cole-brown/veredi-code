@@ -25,7 +25,9 @@ from ..event import DataEvent
 # Base Identity Events
 # -----------------------------------------------------------------------------
 
-class IdentityEvent(DataEvent):
+class IdentityEvent(DataEvent,
+                    name_dotted='veredi.game.data.identity.event',
+                    name_string='identity'):
     # -------------------------------------------------------------------------
     # To String
     # -------------------------------------------------------------------------
@@ -34,7 +36,9 @@ class IdentityEvent(DataEvent):
         return "IdEvent"
 
 
-class IdentityRequest(IdentityEvent):
+class IdentityRequest(IdentityEvent,
+                      name_dotted='veredi.game.data.identity.request',
+                      name_string='identity.request'):
     # -------------------------------------------------------------------------
     # To String
     # -------------------------------------------------------------------------
@@ -43,7 +47,9 @@ class IdentityRequest(IdentityEvent):
         return "IdReq"
 
 
-class IdentityResult(IdentityEvent):
+class IdentityResult(IdentityEvent,
+                     name_dotted='veredi.game.data.identity.result',
+                     name_string='identity.result'):
     def __init__(self,
                  id:           Union[int, MonotonicId],
                  type:         Union[int, enum.Enum],
@@ -85,7 +91,9 @@ class IdentityResult(IdentityEvent):
 # Identity Events
 # -----------------------------------------------------------------------------
 
-class CodeIdentityRequest(IdentityRequest):
+class CodeIdentityRequest(IdentityRequest,
+                          name_dotted='veredi.game.data.identity.request.code',
+                          name_string='identity.request.code'):
     '''
     Code or unit tests or something want to manually build an identity
     component from supplied data.
@@ -124,7 +132,9 @@ class CodeIdentityRequest(IdentityRequest):
 
 # §-TODO-§ [2020-06-11]: This maybe should be deleted as DataLoadRequest
 # probably covers it?
-class DataIdentityRequest(IdentityRequest):
+class DataIdentityRequest(IdentityRequest,
+                          name_dotted='veredi.game.data.identity.request.data',
+                          name_string='identity.request.data'):
     '''
     Identity data found while loading data - please turn it into an identity
     component.

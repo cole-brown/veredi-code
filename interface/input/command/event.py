@@ -28,7 +28,9 @@ from .args                          import (CommandArgType,
 # Base Command Event
 # -----------------------------------------------------------------------------
 
-class CommandEvent(Event):
+class CommandEvent(Event,
+                   name_dotted='veredi.interface.input.command.event',
+                   name_string='command'):
     '''Base Class: (Probably) Do Not Use.'''
 
     # -------------------------------------------------------------------------
@@ -39,7 +41,10 @@ class CommandEvent(Event):
         return "CmdEvent"
 
 
-class CommandRegistrationBroadcast(CommandEvent):
+class CommandRegistrationBroadcast(
+        CommandEvent,
+        name_dotted='veredi.interface.input.command.registration',
+        name_string='command.registration'):
     '''
     No special members or properties... Just a broadcast event to anyone that
     we can now receive CommandRegisterReplies.
@@ -56,7 +61,10 @@ class CommandRegistrationBroadcast(CommandEvent):
         return "CmdRegBcast"
 
 
-class CommandRegisterReply(CommandEvent):
+class CommandRegisterReply(
+        CommandEvent,
+        name_dotted='veredi.interface.input.command.register',
+        name_string='command.register'):
     '''
     Everything Commander needs to create a command for this should be in here.
     '''

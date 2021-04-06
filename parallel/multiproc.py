@@ -28,6 +28,7 @@ import veredi.time.machine
 from veredi.base.enum            import FlagCheckMixin
 from veredi.base.const           import VerediHealth
 from veredi.base.strings         import label
+from veredi.base.strings.mixin   import NamesMixin
 from veredi.game.ecs.base.system import SystemLifeCycle
 from veredi.logs                 import log, log_client
 from veredi.base.context         import VerediContext
@@ -111,7 +112,7 @@ Group of logs we use a lot for log.group_multi().
 '''
 
 
-_DOTTED_FUNCS = 'veredi.parallel.multiproc'
+_DOTTED_FUNCS: label.DotStr = 'veredi.parallel.multiproc'
 '''Veredi dotted label for multiproc functions.'''
 
 
@@ -145,7 +146,10 @@ def _sigalrm_end() -> None:
 # Process Info Tuple-ish Class
 # -----------------------------------------------------------------------------
 
-class ProcToSubComm:
+class ProcToSubComm(NamesMixin,
+                    name_dotted='veredi.parallel.multiproc.process',
+                    # Name replaced in __init__()
+                    name_string='multiproc.p2sc'):
     '''
     A collection of info and communication objects for the process to talk to
     its sub-process.
@@ -161,7 +165,9 @@ class ProcToSubComm:
                  pipe:       mp_conn,
                  shutdown:   multiprocessing.Event,
                  ut_pipe:    Optional[mp_conn] = None) -> None:
-        self.name:       str                     = name
+        # Updated name descriptor to parameter.
+        self.name = name
+
         self.process:    multiprocessing.Process = process
         self.pipe:       mp_conn                 = pipe
         self.shutdown:   multiprocessing.Event   = shutdown
@@ -178,17 +184,6 @@ class ProcToSubComm:
 
         self.time_end:   Optional[datetime]      = None
         '''Time that the process ended.'''
-
-    # -------------------------------------------------------------------------
-    # Properties
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(self) -> str:
-        '''
-        Returns our dotted name.
-        '''
-        return 'veredi.parallel.multiproc.process'
 
     # -------------------------------------------------------------------------
     # Process Control
@@ -219,7 +214,7 @@ class ProcToSubComm:
         Also sets `self.time_start` to current time.
         '''
         log.group_multi(_LOG_INIT,
-                        self.dotted(),
+                        self.dotted,
                         f"{self.__class__.__name__}: "
                         f"Starting {self.name} sub-process...")
         self.timer_val = time_sec
@@ -250,7 +245,7 @@ class ProcToSubComm:
             #     "ProcToSubComm.process is null for {self.name};"
             #     "cannot stop process.")
             log.group_multi(_LOG_KILL,
-                            self.dotted(),
+                            self.dotted,
                             f"{self.__class__.__name__}: "
                             "process is null for {self.name}; "
                             "cannot stop process. Returning successful "
@@ -262,7 +257,7 @@ class ProcToSubComm:
 
         if self.process.exitcode == 0:
             log.group_multi(_LOG_KILL,
-                            self.dotted(),
+                            self.dotted,
                             f"{self.__class__.__name__}: "
                             "{self.name} process already stopped.")
             return ExitCodeTuple(self.name, self.process.exitcode)
@@ -270,7 +265,7 @@ class ProcToSubComm:
         # Set our process's shutdown flag. It should notice soon and start
         # doing its shutdown.
         log.group_multi(_LOG_KILL,
-                        self.dotted(),
+                        self.dotted,
                         f"{self.__class__.__name__}: "
                         f"Asking {self.name} to end gracefully...")
         self.shutdown.set()
@@ -278,19 +273,19 @@ class ProcToSubComm:
         # Wait for our process to be done.
         if self.process.is_alive():
             log.group_multi(_LOG_KILL,
-                            self.dotted(),
+                            self.dotted,
                             f"{self.__class__.__name__}: "
                             f"Waiting for {self.name} to complete "
                             "structured shutdown...")
             self.process.join(wait_timeout)
             log.group_multi(_LOG_KILL,
-                            self.dotted(),
+                            self.dotted,
                             f"{self.__class__.__name__}: "
                             f"{self.name} exit code: "
                             f"{str(self.process.exitcode)}")
         else:
             log.group_multi(_LOG_KILL,
-                            self.dotted(),
+                            self.dotted,
                             f"{self.__class__.__name__}: "
                             f"{self.name} isn't alive; "
                             "skip shutdown...")
@@ -300,7 +295,7 @@ class ProcToSubComm:
                 and self.process.exitcode is None):
             # Still not exited; terminate it.
             log.group_multi(_LOG_KILL,
-                            self.dotted(),
+                            self.dotted,
                             f"{self.__class__.__name__}: "
                             f"{self.name} still not exited; terminating...")
             self.process.terminate()
@@ -308,7 +303,7 @@ class ProcToSubComm:
         # We stopped it so we know what time_end to set.
         self.time_end = veredi.time.machine.utcnow()
         log.group_multi(_LOG_KILL,
-                        self.dotted(),
+                        self.dotted,
                         f"{self.__class__.__name__}: "
                         f"{self.name} stopped.")
         return ExitCodeTuple(self.name, self.process.exitcode)
@@ -416,7 +411,7 @@ class ProcToSubComm:
         Returns True if pipe has data to recv().
         '''
         contains_data = self.pipe.poll()
-        # log.data_processing(self.dotted(),
+        # log.data_processing(self.dotted,
         #                     "{} '{}' pipe has data?: {}",
         #                     self.__class__.__name__, self.name,
         #                     contains_data)
@@ -428,7 +423,7 @@ class ProcToSubComm:
         Push package & context into IPC pipe.
         Waits/blocks until it receives something.
         '''
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             "{} '{}' send to sub-proc: {}, {}",
                             self.__class__.__name__, self.name,
                             package, context)
@@ -439,7 +434,7 @@ class ProcToSubComm:
         Pull a package & context from the IPC pipe.
         '''
         package, context = self.pipe.recv()
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             "{} '{}' recv from sub-proc: {}, {}",
                             self.__class__.__name__, self.name,
                             package, context)
@@ -450,7 +445,7 @@ class ProcToSubComm:
         Returns True if self._comms.ut_pipe is truthy.
         '''
         exists = bool(self.ut_pipe)
-        # log.data_processing(self.dotted(),
+        # log.data_processing(self.dotted,
         #                     "{} '{}' TESTING pipe exists?: {}",
         #                     self.__class__.__name__, self.name,
         #                     exists)
@@ -462,7 +457,7 @@ class ProcToSubComm:
         Returns True if unit-testing pipe has data to recv().
         '''
         contains_data = self.ut_pipe.poll()
-        # log.data_processing(self.dotted(),
+        # log.data_processing(self.dotted,
         #                     "{} '{}' TESTING pipe has data?: {}",
         #                     self.__class__.__name__, self.name,
         #                     contains_data)
@@ -473,7 +468,7 @@ class ProcToSubComm:
         Push package & context into IPC unit-testing pipe.
         Waits/blocks until it receives something.
         '''
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             "{} '{}' unit-test send to sub-proc: {}, {}",
                             self.__class__.__name__, self.name,
                             package, context)
@@ -484,7 +479,7 @@ class ProcToSubComm:
         Pull a package & context from the IPC unit-testing pipe.
         '''
         package, context = self.ut_pipe.recv()
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             "{} '{}' unit-test recv from sub-proc: {}, {}",
                             self.__class__.__name__, self.name,
                             package, context)
@@ -498,7 +493,10 @@ class ProcToSubComm:
         return f"{self.__class__.__name__}('{self.name}')"
 
 
-class SubToProcComm:
+class SubToProcComm(NamesMixin,
+                    name_dotted='veredi.parallel.multiproc.subprocess',
+                    # Name replaced in __init__()
+                    name_string='multiproc.s2pc'):
     '''
     A collection of info and communication objects for the sub-process to talk
     to its parent.
@@ -516,24 +514,15 @@ class SubToProcComm:
                  shutdown:    multiprocessing.Event,
                  debug_flags: Optional[DebugFlag] = None,
                  ut_pipe:     Optional[mp_conn]   = None) -> None:
-        self.name        = name
-        self.config      = config
-        self.pipe        = pipe
-        self.shutdown    = shutdown
-        self.debug_flags = debug_flags
-        self.ut_pipe     = ut_pipe
-        self._entry_fn   = entry_fn
+        # Updated name descriptor to parameter.
+        self.name = name
 
-    # -------------------------------------------------------------------------
-    # Properties
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(self) -> str:
-        '''
-        Returns our dotted name.
-        '''
-        return 'veredi.parallel.multiproc.subprocess'
+        self.config:      Optional[Configuration] = config
+        self.pipe:        mp_conn                 = pipe
+        self.shutdown:    multiprocessing.Event   = shutdown
+        self.debug_flags: Optional[DebugFlag]     = debug_flags
+        self.ut_pipe:     Optional[mp_conn]       = ut_pipe
+        self._entry_fn:   StartProcFn             = entry_fn
 
     # -------------------------------------------------------------------------
     # Process Control
@@ -544,7 +533,7 @@ class SubToProcComm:
         Runs the entry function.
         '''
         log.group_multi(_LOG_INIT,
-                        self.dotted(),
+                        self.dotted,
                         f"{self.__class__.__name__}: "
                         f"Starting {self.name}...")
         self._entry_fn(self, context)
@@ -559,7 +548,7 @@ class SubToProcComm:
         Returns True if pipe has data to recv().
         '''
         contains_data = self.pipe.poll()
-        # log.data_processing(self.dotted(),
+        # log.data_processing(self.dotted,
         #                     "{} '{}' pipe has data?: {}",
         #                     self.__class__.__name__, self.name,
         #                     contains_data)
@@ -570,7 +559,7 @@ class SubToProcComm:
         Push package & context into IPC pipe.
         Waits/blocks until it receives something.
         '''
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             "{} '{}' pipe send to main proc: {}, {}",
                             self.__class__.__name__, self.name,
                             package, context)
@@ -581,7 +570,7 @@ class SubToProcComm:
         Pull a package & context from the IPC pipe.
         '''
         package, context = self.pipe.recv()
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             "{} '{}' pipe recv from main proc: {}, {}",
                             self.__class__.__name__, self.name,
                             package, context)
@@ -592,7 +581,7 @@ class SubToProcComm:
         Returns True if self._comms.ut_pipe is truthy.
         '''
         exists = bool(self.ut_pipe)
-        # log.data_processing(self.dotted(),
+        # log.data_processing(self.dotted,
         #                     "{} '{}' TESTING pipe exists?: {}",
         #                     self.__class__.__name__, self.name,
         #                     exists)
@@ -604,7 +593,7 @@ class SubToProcComm:
         Returns True if unit-testing pipe has data to recv().
         '''
         contains_data = self.ut_pipe.poll()
-        # log.data_processing(self.dotted(),
+        # log.data_processing(self.dotted,
         #                     "{} '{}' TESTING pipe has data?: {}",
         #                     self.__class__.__name__, self.name,
         #                     contains_data)
@@ -615,7 +604,7 @@ class SubToProcComm:
         Push package & context into IPC unit-testing pipe.
         Waits/blocks until it receives something.
         '''
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             "{} '{}' TESTING pipe send to main proc: {}, {}",
                             self.__class__.__name__, self.name,
                             package, context)
@@ -626,7 +615,7 @@ class SubToProcComm:
         Pull a package & context from the IPC unit-testing pipe.
         '''
         package, context = self.ut_pipe.recv()
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             "{} '{}' TESTING pipe recv from main proc: {}, {}",
                             self.__class__.__name__, self.name,
                             package, context)

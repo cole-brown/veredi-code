@@ -38,7 +38,10 @@ from .event                          import AttackRequest, DefenseRequest
 # This means war!
 # -----------------------------------------------------------------------------
 
-class AttackComponent(DataComponent, queue.IQueueSingle[AttackRequest]):
+class AttackComponent(
+        DataComponent, queue.IQueueSingle[AttackRequest],
+        name_dotted='veredi.rules.d20.pf2.combat.component.attack',
+        name_string='combat.component.attack'):
     '''
     Component with offensive/attack numbers, attack action queue, probably
     other stuff...
@@ -62,10 +65,6 @@ class AttackComponent(DataComponent, queue.IQueueSingle[AttackRequest]):
         # ---
         # Nothing at the moment.
 
-    @classmethod
-    def dotted(klass: 'AttackComponent') -> label.DotStr:
-        return 'veredi.rules.d20.pf2.combat.component.attack'
-
     # ---
     # Queue Interface
     # ---
@@ -88,7 +87,10 @@ class AttackComponent(DataComponent, queue.IQueueSingle[AttackRequest]):
 # D-Fence.
 # -----------------------------------------------------------------------------
 
-class DefenseComponent(DataComponent, queue.IQueueSingle[DefenseRequest]):
+class DefenseComponent(
+        DataComponent, queue.IQueueSingle[DefenseRequest],
+        name_dotted='veredi.rules.d20.pf2.combat.component.defense',
+        name_string='combat.component.defense'):
     '''
     Component with defense numbers, defense action queue(?), probably other
     stuff...
@@ -111,10 +113,6 @@ class DefenseComponent(DataComponent, queue.IQueueSingle[DefenseRequest]):
         # Context Init Section
         # ---
         # Nothing at the moment.
-
-    @classmethod
-    def dotted(klass: 'DefenseComponent') -> label.DotStr:
-        return 'veredi.rules.d20.pf2.combat.component.defense'
 
     # ---
     # Queue Interface

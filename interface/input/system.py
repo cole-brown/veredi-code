@@ -87,7 +87,9 @@ import veredi.zest.debug.registration
 # -----------------------------------------------------------------------------
 
 
-class InputSystem(System):
+class InputSystem(System,
+                  name_dotted='veredi.interface.input.system',
+                  name_string='mather'):
 
     def _configure(self, context: 'VerediContext') -> None:
         '''
@@ -119,7 +121,7 @@ class InputSystem(System):
         # Context Stuff
         # ---
         config = background.config.config(self.__class__.__name__,
-                                          self.dotted(),
+                                          self.dotted,
                                           context)
 
         # Our input parsers collection. Will create our interfaces (Mather)
@@ -143,7 +145,7 @@ class InputSystem(System):
         # Create our background context now that we have enough info from
         # config.
         bg_data, bg_owner = self._background
-        background.input.set(self.dotted(),
+        background.input.set(self.dotted,
                              self._parsers,
                              bg_data,
                              bg_owner)
@@ -154,16 +156,12 @@ class InputSystem(System):
         Get background data for background.input.set().
         '''
         self._bg = {
-            'dotted':    self.dotted(),
+            'dotted':    self.dotted,
             'parsers':   self._parsers.get_background(),
-            'commander': self._commander.dotted(),
-            'historian': self._historian.dotted(),
+            'commander': self._commander.dotted,
+            'historian': self._historian.dotted,
         }
         return self._bg, background.Ownership.SHARE
-
-    @classmethod
-    def dotted(klass: 'InputSystem') -> str:
-        return 'veredi.interface.input.system'
 
     @property
     def historian(self) -> Historian:
@@ -278,7 +276,7 @@ class InputSystem(System):
         cmd_ctx = InputContext(input_id, command_safe,
                                entity.id,
                                ident.log_name,
-                               self.dotted())
+                               self.dotted)
         cmd_ctx.pull(event.context)
         status = self._commander.execute(entity, command_safe, cmd_ctx)
         # Update history w/ status.
@@ -299,7 +297,7 @@ class InputSystem(System):
         Input event from a client via the MediatorSystem.
         '''
         # We only care about the text-based messages.
-        if event.type != MsgType.TEXT:
+        if event.type != MsgType.enum.TEXT:
             return
 
         # Doctor checkup.

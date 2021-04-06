@@ -108,16 +108,6 @@ _FORMAT = (
 Format of a Veredi Resource Name
 '''
 
-# ------------------------------
-# Misc
-# ------------------------------
-
-_ENCODE_FIELD_NAME = 'name'
-'''
-For encoding a Veredi Resoure Name:
-  {'name': 'vrn:2020-10-18:veredi.jeff:9888aeournh:uh...:idk-yet...'}
-'''
-
 
 # -----------------------------------------------------------------------------
 # Veredi Resource Type

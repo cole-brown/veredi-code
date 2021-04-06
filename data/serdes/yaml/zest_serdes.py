@@ -314,7 +314,7 @@ class Test_YamlSerdes(ZestBase):
         self.assertEqual(bg['dotted'], self.serdes.dotted())
         self.assertEqual(bg['dotted'], 'veredi.serdes.yaml')
         self.assertIn('type', bg)
-        self.assertEqual(bg['type'], self.serdes._SERDES_NAME)
+        self.assertEqual(bg['type'], self.serdes.name)
         self.assertEqual(bg['type'], 'yaml')
 
         # ---

@@ -39,11 +39,11 @@ from .base                       import FileRepository
 # --                        Load a file specifically.                        --
 # -----------------------------------------------------------------------------
 
-class FileBareRepository(FileRepository):
+class FileBareRepository(FileRepository,
+                         name_dotted='veredi.repository.file-bare',
+                         name_string='file-bare'):
 
     _SANITIZE_KEYCHAIN = ['repository', 'sanitize']
-
-    _REPO_NAME = 'file-bare'
 
     _TEMP_PATH = 'zest-temp'
 
@@ -70,7 +70,7 @@ class FileBareRepository(FileRepository):
             # our specific unit test. Either way, we expect not to have a
             # config.
             config = background.config.config(self.__class__.__name__,
-                                              self.dotted(),
+                                              self.dotted,
                                               config_context,
                                               raises_error=False)
             if config:
@@ -80,7 +80,7 @@ class FileBareRepository(FileRepository):
         # ------------------------------
         # Normal Init
         # ------------------------------
-        super().__init__(self._REPO_NAME, config_context)
+        super().__init__(config_context)
 
         # ------------------------------
         # Now we can log complaint.
@@ -98,7 +98,7 @@ class FileBareRepository(FileRepository):
         # Done.
         # ------------------------------
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "Done with init.")
 
     def _configure(self,
@@ -108,7 +108,7 @@ class FileBareRepository(FileRepository):
         set up themselves.
         '''
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               f"{self.__class__.__name__} configure...")
 
         # ------------------------------
@@ -126,7 +126,7 @@ class FileBareRepository(FileRepository):
         # # Optional Config! No exception:
         # # ---
         # config = background.config.config(self.__class__.__name__,
-        #                                   self.dotted(),
+        #                                   self.dotted,
         #                                   context,
         #                                   raises_error=False)
         # # Expect Null() if no config.
@@ -137,16 +137,8 @@ class FileBareRepository(FileRepository):
         # Done.
         # ------------------------------
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "Done with configuration.")
-
-    # --------------------------------------------------------------------------
-    # Properties
-    # --------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'FileBareRepository') -> label.DotStr:
-        return 'veredi.repository.file-bare'
 
     # --------------------------------------------------------------------------
     # Load / Save Helpers
@@ -177,11 +169,11 @@ class FileBareRepository(FileRepository):
         Turns load/save meta-data in the context into a key we can use to
         retrieve the data.
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Getting data from context to "
                                   "create key...")
         if not context.key:
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Context must have a key: {}",
                                       context.key,
                                       context=context,
@@ -203,7 +195,7 @@ class FileBareRepository(FileRepository):
                          ensure=True,
                          glob=False)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Created key: {}",
                                   key,
                                   context=context,
@@ -220,7 +212,7 @@ class FileBareRepository(FileRepository):
         '''
         Looks for file at load_path. If it exists, loads that file.
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Loading '{}'...",
                                   paths.to_str(load_path),
                                   context=context)
@@ -230,7 +222,7 @@ class FileBareRepository(FileRepository):
         # load_path should be exact - no globbing.
         if not load_path.exists():
             msg = "Cannot load file. Path/file does not exist: {}"
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       msg,
                                       paths.to_str(load_path),
                                       context=context,
@@ -244,14 +236,14 @@ class FileBareRepository(FileRepository):
 
         data_stream = None
         with load_path.open('r') as file_stream:
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Reading...",
                                       context=context)
             # Can raise an error - we'll let it.
             try:
                 data_stream = StringIO(file_stream.read(None))
             except LoadError:
-                self._log_data_processing(self.dotted(),
+                self._log_data_processing(self.dotted,
                                           "Got LoadError trying to "
                                           "read file: {}",
                                           paths.to_str(load_path),
@@ -263,7 +255,7 @@ class FileBareRepository(FileRepository):
                 data_stream = None
                 raise
             except Exception as error:
-                self._log_data_processing(self.dotted(),
+                self._log_data_processing(self.dotted,
                                           "Got an exception trying to "
                                           "read file: {}",
                                           paths.to_str(load_path),
@@ -280,7 +272,7 @@ class FileBareRepository(FileRepository):
                     "Error loading data from file. context: {}",
                     context=context) from error
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Loaded file '{}'!",
                                   paths.to_str(load_path),
                                   context=context,
@@ -298,7 +290,7 @@ class FileBareRepository(FileRepository):
         '''
         Save `data` to `save_path`. If it already exists, overwrites that file.
         '''
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Saving '{}'...",
                                   paths.to_str(save_path),
                                   context=context)
@@ -307,7 +299,7 @@ class FileBareRepository(FileRepository):
 
         success = False
         with save_path.open('w') as file_stream:
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "Writing...",
                                       context=context)
             # Can raise an error - we'll let it.
@@ -322,7 +314,7 @@ class FileBareRepository(FileRepository):
                 success = True
 
             except SaveError:
-                self._log_data_processing(self.dotted(),
+                self._log_data_processing(self.dotted,
                                           "Got SaveError trying to "
                                           "write file: {}",
                                           paths.to_str(save_path),
@@ -333,7 +325,7 @@ class FileBareRepository(FileRepository):
                 raise
 
             except Exception as error:
-                self._log_data_processing(self.dotted(),
+                self._log_data_processing(self.dotted,
                                           "Got an exception trying to "
                                           "write file: {}",
                                           paths.to_str(save_path),
@@ -346,7 +338,7 @@ class FileBareRepository(FileRepository):
                     "Error saving data to file. context: {}",
                     context=context) from error
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "Saved file '{}'!",
                                   paths.to_str(save_path),
                                   context=context,

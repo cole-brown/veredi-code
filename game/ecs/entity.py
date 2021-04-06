@@ -67,15 +67,21 @@ EntityOrNull = NewType('EntityOrNull', Union[Entity, Null])
 # Code
 # -----------------------------------------------------------------------------
 
-class EntityEvent(Event):
+class EntityEvent(Event,
+                  name_dotted='veredi.game.ecs.entity.event',
+                  name_string='entity'):
     ...
 
 
-class EntityLifeEvent(Event):
+class EntityLifeEvent(EntityEvent,
+                      name_dotted='veredi.gamececs.entity.event.life',
+                      name_string='entity.life'):
     pass
 
 
-class EntityManager(EcsManagerWithEvents):
+class EntityManager(EcsManagerWithEvents,
+                    name_dotted='veredi.game.ecs.manager.entity',
+                    name_string='entity.manager'):
     '''
     Manages the life cycles of entities/components.
 
@@ -155,19 +161,12 @@ class EntityManager(EcsManagerWithEvents):
     # Properties
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def dotted(klass: 'EntityManager') -> str:
-        '''
-        The dotted name this Manager has.
-        '''
-        return 'veredi.game.ecs.manager.entity'
-
     def get_background(self):
         '''
         Data for the Veredi Background context.
         '''
         return {
-            background.Name.DOTTED.key: self.dotted(),
+            background.Name.DOTTED.key: self.dotted,
         }
 
     # -------------------------------------------------------------------------

@@ -95,13 +95,13 @@ def register(klass:          Type['Encodable'],
     if not dotted:
         # Check for class's dotted.
         try:
-            dotted = klass.dotted()
+            dotted = klass.dotted
         except AttributeError:
             pass
         # No dotted string is an error.
         if not dotted:
-            msg = ("Encodable sub-classes must either have a `dotted()` "
-                   "class method or be registered with a `dotted` "
+            msg = ("Encodable sub-classes must either have a `dotted` "
+                   "class attribute or be registered with a `dotted` "
                    "argument.")
             error = ValueError(msg, klass, dotted)
             log.registration(log_dotted,

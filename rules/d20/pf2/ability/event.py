@@ -26,7 +26,9 @@ from veredi.game.ecs.base.identity import EntityId
 # Base Event
 # -----------------------------------------------------------------------------
 
-class AbilityEvent(Event):
+class AbilityEvent(Event,
+                   name_dotted='veredi.rules.d20.pf2.ability.event',
+                   name_string='ability.event'):
     def __init__(self,
                  source_id:    EntityId,
                  type:         Union[int, enum.Enum],
@@ -70,7 +72,9 @@ class AbilityEvent(Event):
 # Ability Request Event
 # -----------------------------------------------------------------------------
 
-class AbilityRequest(AbilityEvent):
+class AbilityRequest(AbilityEvent,
+                     name_dotted='veredi.rules.d20.pf2.ability.request',
+                     name_string='ability.request'):
     '''
     An entity wants to do an ability check. This is the info about that.
     '''
@@ -116,7 +120,9 @@ class AbilityRequest(AbilityEvent):
         return "AbilReq"
 
 
-class AbilityResult(AbilityEvent):
+class AbilityResult(AbilityEvent,
+                    name_dotted='veredi.rules.d20.pf2.ability.result',
+                    name_string='ability.result'):
     '''
     An entity has done an ability check. This is the info about that.
     '''

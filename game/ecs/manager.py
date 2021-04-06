@@ -17,12 +17,14 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 
 
-from veredi.base.const   import VerediHealth
-from veredi.logs.mixin   import LogMixin
-from veredi.debug.const  import DebugFlag
-from veredi.data         import background
+from veredi.base.const         import VerediHealth
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+from veredi.logs.mixin         import LogMixin
+from veredi.debug.const        import DebugFlag
+from veredi.data               import background
 
-from .const              import SystemTick, tick_healthy
+from .const                    import SystemTick, tick_healthy
 
 
 # -----------------------------------------------------------------------------
@@ -34,9 +36,33 @@ from .const              import SystemTick, tick_healthy
 # Code
 # -----------------------------------------------------------------------------
 
-class EcsManager(LogMixin, ABC):
+class EcsManager(LogMixin, NamesMixin, ABC):
     '''
     Interface for ECS Managers.
+
+    Manager sub-classes are expected to use kwargs:
+      - Required:
+        + name_dotted: Optional[label.LabelInput]
+          - string/strings to create the Veredi dotted label.
+        + name_string: Optional[str]
+          - Any short string for describing class. Either short-hand or class's
+            __name__ are fine.
+      - Optional:
+        + name_klass:        Optional[str]
+          - If None, will be class's __name__.
+        + name_string_xform: Optional[Callable[[str], str]] = None,
+        + name_klass_xform:  Optional[Callable[[str], str]] = to_lower_lambda,
+
+    Example:
+      class JeffManager(Manager,
+                        name_dotted=label.normalize('jeff', 'manager'),
+                        name_string='jeff')
+      class JillManager(Manager,
+                        name_dotted=('jill', 'manager'),
+                        name_string='jill')
+      class GeoffManager(JeffManager,
+                         name_dotted='geoff.manager'),
+                         name_string='geoff')
     '''
 
     def _define_vars(self) -> None:
@@ -59,24 +85,14 @@ class EcsManager(LogMixin, ABC):
         # Logger!
         # ---
         # Set up ASAP so that we have self._log_*() working... ASAP? Yeah.
-        self._log_config(self.dotted())
+        self._log_config(self.dotted)
 
     # -------------------------------------------------------------------------
     # Properties
     # -------------------------------------------------------------------------
 
-    @classmethod
     @abstractmethod
-    def dotted(klass: 'EcsManager') -> str:
-        '''
-        The dotted name this Manager has. E.g. 'veredi.game.ecs.manager.entity'
-        '''
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented in base class. "
-                                  "Subclasses should defined it themselves.")
-
-    @abstractmethod
-    def get_background(self):
+    def get_background(self) -> label.DotStr:
         '''
         Data for the Veredi Background context.
         '''

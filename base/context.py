@@ -9,7 +9,8 @@ Helper classes for managing contexts for events, error messages, etc.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Type, MutableMapping, Dict, Literal)
+                    Optional, Union, Any, Type,
+                    MutableMapping, Dict, Tuple, Literal)
 if TYPE_CHECKING:
     from unittest import TestCase
 
@@ -17,8 +18,11 @@ from veredi.base.null import Null, Nullable, NullNoneOr
 import enum
 import uuid
 
-from veredi.logs import log
-from .exceptions import ContextError
+
+from veredi.logs         import log
+from veredi.base.strings import label
+from .exceptions         import ContextError
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -50,6 +54,92 @@ class Conflict(enum.Flag):
 
 
 # -----------------------------------------------------------------------------
+# Dotted Descriptor for Contexts
+# -----------------------------------------------------------------------------
+
+class ContextDottedDescriptor:
+    '''
+    Veredi label.DotStr provided via descriptor for contexts. Does not hold on
+    to the dotted string itself - references the context's data instead.
+    '''
+
+    _KEY = 'dotted'
+
+    def __init__(self,
+                 name_descriptor: str = None) -> None:
+        self.name: str = name_descriptor
+        '''
+        Optional name of this descriptor.
+        '''
+
+    def _get_from_ctx(self,
+                      instance: Optional['VerediContext']
+                      ) -> Tuple[Dict[Any, Any], Tuple]:
+        '''
+        Returns a tuple of: (<context data>, <dotted keys>)
+        '''
+        if not instance:
+            return None, None
+
+        data = instance.data
+        keys = instance.dotted_keys()
+        return data, keys
+
+    def __get__(self,
+                instance: Optional[Any],
+                owner:    Type[Any]) -> Optional[label.DotStr]:
+        '''
+        Returns the dotted label value if present in context's data.
+        '''
+        if not instance:
+            return None
+
+        data, keys = self._get_from_ctx(instance)
+        # Walk into dict using keys to find dotted.
+        for key in keys:
+            data = data.get(key, None)
+            # Give up early?
+            if not data:
+                return data
+
+        # Where we ended up is dotted, hopefully.
+        return data
+
+    def __set__(self,
+                instance: Optional[Any],
+                dotted:   Optional[label.LabelInput]) -> None:
+        '''
+        Setter for context's dotted label.
+        '''
+        if not instance:
+            return
+
+        # Walk into context dict using keys to find dotted.
+        # Don't go to final key. We'll use that to set it.
+        data, keys = self._get_from_ctx(instance)
+        for key in keys[:-1]:
+            # What to do with an empty key in data?.. Not exactly expected but
+            # I guess set to an empty dict.
+            data = data.setdefault(key, {})
+            if not data:
+                return
+
+        # Found the dict sub-entry that will hold our dotted label.
+        if not dotted:
+            # It might have a dotted already. Try to clear it out.
+            data.pop(keys[-1], None)
+        else:
+            # Normalize and set the dotted string now.
+            data[keys[-1]] = label.normalize(dotted)
+
+    def __set_name__(self, owner: Type[Any], name: str) -> None:
+        '''
+        Save our descriptor variable's name in its owner's class.
+        '''
+        self.name = name
+
+
+# -----------------------------------------------------------------------------
 # Base Context
 # -----------------------------------------------------------------------------
 
@@ -66,6 +156,13 @@ class VerediContext:
     # -------------------------------------------------------------------------
 
     _KEY_DOTTED = 'dotted'
+    _KEYS_DOTTED_DEFAULT = (_KEY_DOTTED, )
+
+    # -------------------------------------------------------------------------
+    # Descriptors
+    # -------------------------------------------------------------------------
+
+    dotted: ContextDottedDescriptor = ContextDottedDescriptor()
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -82,10 +179,10 @@ class VerediContext:
         it 'public' (sans underscore(s)).
         '''
 
-        self._dotted: str = None
+        self._dotted_keys: Optional[Tuple[Any]] = None
         '''
-        The veredi dotted label for use with this context.
-        Use for stuff like loading/making something via the Configuration.
+        The keys requried to find the Veredi Dotted Label in the context data.
+        Will use self._KEYS_DOTTED_DEFAULT if this is None.
         '''
 
         self._key: str = None
@@ -104,21 +201,13 @@ class VerediContext:
         self._dotted = dotted
         self._key  = key
 
-    def dotted(self, value: Union[str, Literal[False]] = False) -> None:
+    def dotted_keys(self) -> Tuple[Any]:
         '''
-        Getter/setter for context's dotted name.
-
-        If `value` keyword arg is supplied, sets dotted to value if we have
-        context data. Ignore if we do not have context data.
-
-        Returns self._dotted (after setting it, if needed).
+        Return the keys needed to get our dotted label from our context data.
         '''
-        if value is not False and isinstance(value, str):
-            if self.data:
-                self.data.setdefault(self._key, {})[self._KEY_DOTTED] = value
-                self._dotted = value
-
-        return self._dotted
+        if self._dotted_keys:
+            return self._dotted_keys
+        return self._KEYS_DOTTED_DEFAULT
 
     @property
     def key(self) -> str:
@@ -325,10 +414,10 @@ class VerediContext:
 
         self.data = self.data or {}
         sub_context = self.data.setdefault(top_key, {})
-        # Ensure our name if we're ensuring our subcontext.
-        if (top_key is self._key
-                and self._KEY_DOTTED not in sub_context):
-            sub_context[self._KEY_DOTTED] = self.dotted()
+        # TODO: a way to ensure a dotted name is present in the subcontext?
+        # if not self.dotted:
+        #     self.dotted_keys = ???
+        #     self.dotted = ???
         return sub_context
 
     # TODO: rename to _get_full?
@@ -641,7 +730,6 @@ class EphemerealContext(VerediContext):
 
 class UnitTestContext(EphemerealContext):
     def __init__(self,
-                 test_file:        str,
                  test_case:       'TestCase',
                  test_name:        str,
                  data:             MutableMapping[str, Any] = {},
@@ -663,7 +751,7 @@ class UnitTestContext(EphemerealContext):
         else:
             self.data = {}
 
-        self.data['dotted'] = test_case.dotted(test_file)
+        self.dotted = test_case.dotted
 
         # Ensure our sub-context and ingest the provided data.
         sub = self._ensure()

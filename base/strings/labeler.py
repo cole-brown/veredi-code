@@ -13,25 +13,26 @@ from typing import Optional, Union, Any, Type, Callable, Set
 
 from veredi.logs import log
 
-from .label import _DOTTED_NAME, LabelInput, normalize
+from .label import DOTTED_NAME, LabelInput, normalize
+from .mixin import DottedDescriptor
 
 
 # -------------------------------------------------------------------------
 # Variables
 # -------------------------------------------------------------------------
 
-KLASS_FUNC_NAME: str = _DOTTED_NAME
+DESCRIPTOR_NAME: str = DOTTED_NAME
 '''
-If at class level, and a function instead of a property... still call it
+Try to call your descriptor 'dotted', for consistency.
+'''
+
+
+KLASS_FUNC_NAME: str = DOTTED_NAME
+'''
+If at class level, and a function instead of a descriptor... still call it
 'dotted', for consistency.
 '''
 
-ATTRIBUTE_PRIVATE_NAME: str = '_DOTTED'
-'''
-Try to call your attribute/property 'dotted', for consistency.
-
-If you use 'register', your class will get a 'dotted' property for free.
-'''
 
 # -------------------------------------------------------------------------
 # Variables
@@ -50,20 +51,7 @@ Set of classes/functions to ignore if asked to make 'dotted' functions for.
 # A lil' decorator factory to take our args and make the decorator...
 def dotted(*dotted_label: LabelInput) -> Callable[..., Type[Any]]:
     '''
-    Property for adding a `dotted()` function and/or `_DOTTED` attribute to a
-    class.
-
-    Calling this `tag` so it doesn't conflict with all our 'label' and 'dotted'
-    names. It "tags" something with a veredi dotted label...
-
-    e.g.:
-      @tag('veredi', 'example', 'example-one')
-      class ExampleOne:
-        pass
-
-      @tag('veredi', 'example', 'ExampleTwo')
-      class ExampleTwo:
-        pass
+    Property for adding a `dotted` DottedDescriptor to a class.
     '''
 
     # Now make the actual decorator...
@@ -71,7 +59,7 @@ def dotted(*dotted_label: LabelInput) -> Callable[..., Type[Any]]:
             cls_or_func: Union[Type[Any], Callable[..., Type[Any]]]
     ) -> Type[Any]:  # noqa E123
         '''
-        Decorates class with `_DOTTED` attribute and `dotted()` function.
+        Decorates class with `dotted` descriptor.
         '''
         dotted_helper('veredi.base.strings.labeler.dotted',
                       '@dotted',
@@ -95,29 +83,22 @@ def ignore(parent_class: Type) -> None:
     _DOTTED_FUNC_IGNORE.add(parent_class)
 
 
-def has_dotted(klass: Type, const: bool, func: bool) -> bool:
+def has_dotted(klass: Type) -> bool:
     '''
-    Returns True if `klass` has a dotted constant and/or accessor.
+    Returns True if `klass` has a DOTTED_NAME, DESCRIPTOR_NAME, or
+    KLASS_FUNC_NAME attribute already.
 
-    If `const` is True, checks for ATTRIBUTE_PRIVATE_NAME. Returns False if
-    `klass` does not have it.
+    Can cause a false positive if e.g. `labeler.has_dotted(Jeff, False, False)`
+    is called for some reason, so... Don't do that.
 
-    If `func` is True, checks for KLASS_FUNC_NAME. Returns False if
-    `klass` does not have it.
-
-    Otherwise returns True.
+    Otherwise returns False.
     '''
-    # Assume true unless false. This can cause a 'false alarm' if
+    # Assume true unless false. This can cause a false positive if
     # labeler.has_dotted(Jeff, False, False) is called for some reason, but
-    # we'll allow it.
-    has_const = True
-    has_func = True
-    if const:
-        has_const = hasattr(klass, ATTRIBUTE_PRIVATE_NAME)
-    if func:
-        has_func = hasattr(klass, KLASS_FUNC_NAME)
-
-    return has_const or has_func
+    # we'll allow it. Don't be stupid please.
+    return (hasattr(klass, DOTTED_NAME)
+            or hasattr(klass, DESCRIPTOR_NAME)
+            or hasattr(klass, KLASS_FUNC_NAME))
 
 
 # -------------------------------------------------------------------------
@@ -135,113 +116,47 @@ def dotted_helper(caller_label: LabelInput,
     registries.
 
     Gives classes:
-      - a `_DOTTED` attribute string (via `_add_dotted_value()`)
-      - a `dotted(klass) -> str` function (via `_add_dotted_func()`)
+      - a `dotted` DottedDescriptor (via `_add_dotted_value()`)
     '''
     dotted = normalize(dotted_label)
 
-    _add_dotted_value(cls_or_func, dotted)
-    _add_dotted_func(caller_label, provider_str, cls_or_func, dotted)
+    _add_dotted_descriptor(caller_label, provider_str,
+                           cls_or_func, dotted)
 
 
-def _add_dotted_value(
-        cls_or_func:  Union[Type[Any], Callable[..., Type[Any]]],
-        dotted_label: LabelInput) -> None:
-    '''
-    Add an attribute for the `dotted_label` of the `cls_or_func`.
-
-    Allows but ignores functions.
-    '''
-    # Ignore things that aren't a class.
-    if not isinstance(cls_or_func, type):
-        return
-
-    dotted = normalize(dotted_label)
-    # Set the 'private'(-ish) attribute with the class's dotted name value.
-    setattr(cls_or_func, ATTRIBUTE_PRIVATE_NAME, dotted)
-
-
-def _add_dotted_func(
+def _add_dotted_descriptor(
         caller_label: LabelInput,
         provider_str: str,
         cls_or_func:  Union[Type[Any], Callable[..., Type[Any]]],
         add_label:    LabelInput) -> None:
     '''
-    Add a getter for the dotted name of registering classes. Getter returns
-    Optional[str].
+    Add a DottedDescriptor for the dotted name of this classes.
 
     Allows but ignores functions.
 
     `caller_label` and `provider_str` are used for error messages.
-    For example, "config.registry.register()" function could provide:
+    For example, "config.registry.register_this()" function could provide:
       caller_label='veredi.data.config.registry',
-      provider_str='@register',
+      provider_str='@register_this',
     '''
-    caller_dotted = normalize(caller_label)
-    add_dotted = normalize(add_label)
-
-    # Ignore things that aren't a class.
     if not isinstance(cls_or_func, type):
         return
 
     # ---
-    # Set the attribute with the class's dotted name value.
+    # Set the descriptor with the class's dotted name value.
     # ---
-    setattr(cls_or_func, ATTRIBUTE_PRIVATE_NAME, add_dotted)
-
-    # ---
-    # Check the dotted func now.
-    # ---
-
-    # Ignore things that already have the attribute we want to add. But do
-    # not ignore if they are abstract - we will replace with concrete in
-    # that case.
-    dotted_attr = getattr(cls_or_func, KLASS_FUNC_NAME, None)
-    if dotted_attr:
-        # Pre-existing dotted attribute; is it abstract?
-        if getattr(dotted_attr, '__isabstractmethod__', False):
-            msg = (f"{caller_dotted}: Failed to add function "
-                   f"'{KLASS_FUNC_NAME}' to '{add_dotted}'. "
-                   f"{cls_or_func.__name__} has an abstract "
-                   "'{KLASS_FUNC_NAME}' attribute, which we cannot "
-                   "auto-generate a replacement for. Please implement "
-                   "one manually:\n"
-                   "    @classmethod\n"
-                   "    def dotted(klass: 'YOURKLASS') -> str:\n"
-                   f"        # _DOTTED magically provided by {provider_str}\n"
-                   "        return klass._DOTTED")
-            raise log.exception(AttributeError(msg, cls_or_func),
-                                None,
-                                msg)
-
-        elif isinstance(cls_or_func, tuple(_DOTTED_FUNC_IGNORE)):
-            # This is fine, but let 'em know. They could've let it be
-            # auto-magically created.
-            msg = (f"{provider_str}: {cls_or_func.__name__} has a "
-                   f"'{KLASS_FUNC_NAME}' attribute already. "
-                   f"{provider_str}(...) can implement one "
-                   "automatically though; your "
-                   f"'{KLASS_FUNC_NAME}' attribute would "
-                   f"be: '{add_dotted}'")
-            log.warning(msg)
-            return
-
-    # ---
-    # Make Getter.
-    # ---
-    def get_dotted(klass: Type[Any]) -> Optional[str]:
-        return getattr(klass, ATTRIBUTE_PRIVATE_NAME, None)
-
-    # ---
-    # No Setter.
-    # ---
-    # def set_dotted(self, value):
-    #     return setattr(self, '_dotted', value)
-
-    # prop = property(get_dotted, set_dotted)
-
-    # ---
-    # Set the getter @classmethod function.
-    # ---
-    method = classmethod(get_dotted)
-    setattr(cls_or_func, KLASS_FUNC_NAME, method)
+    caller_dotted = normalize(caller_label)
+    descriptor = DottedDescriptor(add_label, DESCRIPTOR_NAME)
+    if not hasattr(cls_or_func, DESCRIPTOR_NAME):
+        setattr(cls_or_func, DESCRIPTOR_NAME, descriptor)
+    else:
+        add_dotted = normalize(add_label)
+        msg = (f"{caller_dotted}->{provider_str}: Failed to add descriptor "
+               f"'{DESCRIPTOR_NAME}' to '{add_dotted}'. "
+               f"{cls_or_func.__name__} has an atttribute by that "
+               "name alerady.")
+        # Changed into an info log... If it has a dotted already then why do we
+        # care, really...
+        log.info(msg)
+        # raise log.exception(AttributeError(msg, cls_or_func),
+        #                     msg)

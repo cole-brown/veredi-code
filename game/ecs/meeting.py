@@ -13,28 +13,29 @@ from typing import (TYPE_CHECKING,
 from veredi.base.null import (NullNoneOr, NullFalseOr, Nullable,
                               Null, null_or_none)
 if TYPE_CHECKING:
-    from veredi.base.context import VerediContext
-    from .base.entity        import Entity
-    from .base.component     import Component
+    from veredi.base.context   import VerediContext
+    from .base.entity          import Entity
+    from .base.component       import Component
 
 
-from veredi.base.const       import VerediHealth
-from veredi.base.exceptions  import HealthError
-from veredi.debug.const      import DebugFlag
-from veredi.data             import background
+from veredi.base.const         import VerediHealth
+from veredi.base.exceptions    import HealthError
+from veredi.base.strings.mixin import NamesMixin
+from veredi.debug.const        import DebugFlag
+from veredi.data               import background
 
-from .manager                import EcsManager
+from .manager                  import EcsManager
 
-from .time                   import TimeManager
-from .event                  import EventManager, Event
-from .component              import ComponentManager
-from .entity                 import EntityManager
-from .system                 import SystemManager
-from ..data.manager          import DataManager
-from ..data.identity.manager import IdentityManager
+from .time                     import TimeManager
+from .event                    import EventManager, Event
+from .component                import ComponentManager
+from .entity                   import EntityManager
+from .system                   import SystemManager
+from ..data.manager            import DataManager
+from ..data.identity.manager   import IdentityManager
 
-from .const                  import SystemTick
-from .base.identity          import ComponentId, EntityId
+from .const                    import SystemTick
+from .base.identity            import ComponentId, EntityId
 
 
 # -----------------------------------------------------------------------------
@@ -46,7 +47,9 @@ from .base.identity          import ComponentId, EntityId
 # Code
 # -----------------------------------------------------------------------------
 
-class Meeting:
+class Meeting(NamesMixin,
+              name_dotted='veredi.game.ecs.meeting',
+              name_string='game.meeting'):
     '''
     ...cuz managers are always in meetings, obviously.
 
@@ -150,10 +153,6 @@ class Meeting:
     # Meta - Misc Helpers.
     # -------------------------------------------------------------------------
 
-    def dotted(self) -> str:
-        '''Veredi dotted label.'''
-        return 'veredi.game.ecs.meeting'
-
     def get_background(self) -> Tuple[Dict[str, str], background.Ownership]:
         '''
         Data about all our managers for the Veredi Background context.
@@ -161,7 +160,7 @@ class Meeting:
         Returns: (data, background.Ownership)
         '''
         bg = {
-            background.Name.DOTTED.key: self.dotted(),
+            background.Name.DOTTED.key: self.dotted,
             'time': self.time.get_background(),
             'event': self.event.get_background(),
             'component': self.component.get_background(),

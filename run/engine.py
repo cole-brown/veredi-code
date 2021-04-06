@@ -142,7 +142,7 @@ def managers(configuration:     Configuration,
 
     # Save to background and return.
     mtg_bg_data, mtg_bg_owner = meeting.get_background()
-    background.manager.set(meeting.dotted(),
+    background.manager.set(meeting.dotted,
                            meeting,
                            mtg_bg_data,
                            mtg_bg_owner)

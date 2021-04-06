@@ -300,10 +300,10 @@ class Test_JsonSerdes(ZestBase):
         self.assertTrue(bg)
         self.assertIsInstance(bg, dict)
         self.assertIn('dotted', bg)
-        self.assertEqual(bg['dotted'], self.serdes.dotted())
+        self.assertEqual(bg['dotted'], self.serdes.dotted)
         self.assertEqual(bg['dotted'], 'veredi.serdes.json')
         self.assertIn('type', bg)
-        self.assertEqual(bg['type'], self.serdes._SERDES_NAME)
+        self.assertEqual(bg['type'], self.serdes.name)
         self.assertEqual(bg['type'], 'json')
 
         # ---

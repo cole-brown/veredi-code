@@ -95,7 +95,9 @@ class DataRequestEvent(DataEvent):
     pass
 
 
-class DataLoadRequest(DataRequestEvent):
+class DataLoadRequest(DataRequestEvent,
+                      name_dotted='veredi.game.data.event.load.request',
+                      name_string='load.request'):
     '''
     Event for requesting that this event's context be used to load a specific
     data record.
@@ -103,7 +105,9 @@ class DataLoadRequest(DataRequestEvent):
     pass
 
 
-class DataSaveRequest(DataRequestEvent):
+class DataSaveRequest(DataRequestEvent,
+                      name_dotted='veredi.game.data.event.save.request',
+                      name_string='save.request'):
     '''
     Event for requesting that this event's context be used to save a specific
     data record.
@@ -115,7 +119,9 @@ class DataSaveRequest(DataRequestEvent):
 # Results / Notifications
 # -----------------------------------------------------------------------------
 
-class DataLoadedEvent(DataEvent):
+class DataLoadedEvent(DataEvent,
+                      name_dotted='veredi.game.data.event.loaded.request',
+                      name_string='loaded.request'):
     def __init__(self,
                  id:           Union[int, MonotonicId],
                  type:         Union[int, enum.Enum],
@@ -147,7 +153,9 @@ class DataLoadedEvent(DataEvent):
         return "LoadEvent"
 
 
-class DataSavedEvent(DataEvent):
+class DataSavedEvent(DataEvent,
+                     name_dotted='veredi.game.data.event.saved.request',
+                     name_string='saved.request'):
 
     # -------------------------------------------------------------------------
     # To String
@@ -165,7 +173,9 @@ class DataSavedEvent(DataEvent):
 # Repository Events
 # -----------------------------------------------------------------------------
 
-class _LoadedEvent(DataEvent):
+class _LoadedEvent(DataEvent,
+                   name_dotted='veredi.game.data._.event.loaded',
+                   name_string='internal.loaded'):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -268,7 +278,9 @@ class _LoadedEvent(DataEvent):
                 f"context: {str(self._context)}>")
 
 
-class _SavedEvent(DataEvent):
+class _SavedEvent(DataEvent,
+                  name_dotted='veredi.game.data._.event.saved',
+                  name_string='internal.saved'):
     def __repr_name__(self):
         return "_SvdEvent"
 
@@ -277,7 +289,9 @@ class _SavedEvent(DataEvent):
 # Serdes Events
 # -----------------------------------------------------------------------------
 
-class _DeserializedEvent(DataEvent):
+class _DeserializedEvent(DataEvent,
+                         name_dotted='veredi.game.data._.event.deserialized',
+                         name_string='internal.deserialized'):
     def __init__(self,
                  id:      Union[int, MonotonicId],
                  type:    Union[int, enum.Enum],
@@ -316,7 +330,7 @@ class _DeserializedEvent(DataEvent):
         return (f"{self.__str_name__()}:\n"
                 + f"  data:  {self._str_data()}\n"
                 + "  context:\n"
-                + pretty.indented(self._context._pretty(), indent=4))
+                + pretty.indented(self._context._pretty(), indent_amount=4))
 
     def __str__(self):
         return (f"{self.__str_name__()}: data: {self._str_data()}, "
@@ -331,6 +345,8 @@ class _DeserializedEvent(DataEvent):
                 f"context: {str(self._context)}>")
 
 
-class _SerializedEvent(DataEvent):
+class _SerializedEvent(DataEvent,
+                       name_dotted='veredi.game.data._.event.serialized',
+                       name_string='internal.serialized'):
     def __repr_name__(self):
         return "_SerEvent"

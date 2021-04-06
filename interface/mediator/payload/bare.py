@@ -55,8 +55,9 @@ Basically: numbers, strings, or lists/dicts of numbers/strings.
 # Do Not Feed the Bares
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.mediator.payload.bare')
-class BarePayload(BasePayload):
+class BarePayload(BasePayload,
+                  name_dotted='veredi.interface.mediator.payload.bare',
+                  name_string='payload.bare'):
     '''
     Payload class for a bare payload.
 
@@ -67,13 +68,6 @@ class BarePayload(BasePayload):
     # Constants
     # -------------------------------------------------------------------------
 
-    # ------------------------------
-    # Constants: Encodable
-    # ------------------------------
-
-    _ENCODE_NAME: str = 'payload.bare'
-    '''Name for this class when encoding/decoding.'''
-
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
@@ -81,7 +75,7 @@ class BarePayload(BasePayload):
     def __init__(self,
                  data: BarePayloadType = None) -> None:
         # Ignore validity always... (valid property is hardcoded too).
-        super().__init__(data, Validity.VALID)
+        super().__init__(data, Validity.enum.VALID)
 
     # -------------------------------------------------------------------------
     # Data Structure
@@ -92,7 +86,7 @@ class BarePayload(BasePayload):
         '''
         Property for getting validity.
         '''
-        return Validity.VALID
+        return Validity.enum.VALID
 
     @valid.setter
     def valid(self, value: 'Validity') -> None:
@@ -121,10 +115,6 @@ class BarePayload(BasePayload):
     # -------------------------------------------------------------------------
     # Encodable API (Codec Support)
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def type_field(klass: 'BarePayload') -> str:
-        return klass._ENCODE_NAME
 
     # Simple:  BasePayload's are good.
 

@@ -282,7 +282,9 @@ class Transformer(lark.Transformer):
 # Input String -> Veredi d20 Tree
 # -----------------------------------------------------------------------------
 
-class D20Parser(MathParser):
+class D20Parser(MathParser,
+                name_dotted='veredi.math.d20.parser',
+                name_string='parser.d20'):
     '''
     MathParser interface implementation. Wraps up the lark parsing and
     tranformation operations for getting from a string to some valid d20 math
@@ -321,10 +323,6 @@ class D20Parser(MathParser):
 
         # And set up our transformer.
         self._transformer.set_up(self._variables, self._milieu)
-
-    @classmethod
-    def dotted(klass: Type['MathParser']) -> label.DotStr:
-        return 'veredi.math.d20.parser'
 
     def parse(self,
               string: str,

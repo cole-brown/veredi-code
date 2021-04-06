@@ -75,12 +75,18 @@ class StringDescriptor:
                  name_descriptor: str = None) -> None:
         self.name: str = name_descriptor
         self.value: str = None
+        self.transform: Optional[Callable[[str], str]] = transform
 
         # lower case? UPPER CASE? SaRcAsM CaSe?
-        if transform:
-            self.value = transform(value)
-        else:
-            self.value = value
+        self.value = self._transform(value)
+
+    def _transform(self, value: str) -> str:
+        '''
+        Run `value` through `self.transform` function, if we have one.
+        '''
+        if self.transform:
+            return self.transform(value)
+        return value
 
     def __get__(self,
                 instance: Optional[Any],
@@ -118,31 +124,11 @@ class ClassDescriptor(StringDescriptor):
                  transform: Optional[Callable[[str], str]],
                  name_descriptor: str = None) -> None:
         '''
-        NOTE: Need to init in the class level if using auto-generated name!
+        NOTE: Setting `auto` to True will have this return its owner's
+        instance's class's __name__ (transformed if `transform`).
 
-        /Cannot/ do something like this:
-
-        class Jeff:
-            klass: ClassDescriptor = Null()
-            def __init_subclass__(klass, ...):
-                if name_klass:
-                    klass.klass = ClassDescriptor(True, None, None)
-
-        Instead must do something like this:
-
-        class Jeff:
-            # Set-up auto-init in actual klass vars.
-            klass: ClassDescriptor = ClassDescriptor(True, None, None)
-
-            # OR manually init somewhere else.
-            def __init_subclass__(klass,
-                                  name_klass=None,
-                                  name_klass_xform=None,
-                                  ...):
-                if name_klass:
-                    klass.klass = ClassDescriptor(False,
-                                                   name_klass,
-                                                   name_klass_xform)
+        Setting `auto` to False will have this return `value` (transformed if
+        `transform`).
         '''
         if not auto and not value:
             raise ValueError(
@@ -150,16 +136,25 @@ class ClassDescriptor(StringDescriptor):
                 "Need a value provided if not auto-generating one!",
                 auto, value, transform)
 
-        self.transform: Optional[Callable[[str], str]] = None
-        if auto:
-            # Need to save transform in case value isn't provided here and we
-            # auto-fill in `__set_name__()`.
-            self.transform = transform
+        self.auto: bool = auto
+        self.transform: Optional[Callable[[str], str]] = transform
 
         # Finish w/ StringDescriptor's init. Want to run it after all our stuff
         # since it may or may not be setting a value in our case.
         super().__init__(value, transform, name_descriptor)
 
+    def __get__(self,
+                instance: Optional[Any],
+                owner:    Type[Any]) -> label.DotStr:
+        '''
+        Returns the string value.
+        '''
+        # Auto? Always try to apply transform.
+        if self.auto:
+            return self._transform(instance.__class__.__name__)
+
+        # Not auto? `self.value` has already been transformed if needed.
+        return self.value
 
     def __set__(self,
                 instance: Optional[Any],
@@ -171,16 +166,6 @@ class ClassDescriptor(StringDescriptor):
         # Could maybe have some check here...
         # Like only set if currently None/Null?
         super().__set__(instance, value)
-
-    def __set_name__(self, owner: Type[Any], name: str) -> None:
-        super().__set_name__(owner, name)
-
-        # Automatically set class name if not provided in init
-        if not self.value:
-            if self.transform:
-                self.value = self.transform(owner.__name__)
-            else:
-                self.value = owner.__name__
 
 
 class DottedMixin:

@@ -22,12 +22,13 @@ from abc import ABC, abstractmethod
 from io import StringIO, TextIOBase
 
 
-from veredi.logs         import log
-from veredi.logs.mixin   import LogMixin
+from veredi.logs               import log
+from veredi.logs.mixin         import LogMixin
 
-from veredi.base.strings import label
-from veredi.data         import background
-from veredi.data.codec   import Codec, Encodable
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+from veredi.data               import background
+from veredi.data.codec         import Codec, Encodable
 
 
 # -----------------------------------------------------------------------------
@@ -76,7 +77,7 @@ Serdes can serialize these types.
 # Code
 # -----------------------------------------------------------------------------
 
-class BaseSerdes(LogMixin, ABC):
+class BaseSerdes(ABC, LogMixin, NamesMixin):
     '''
     Base SERializer/DESerializer class.
 
@@ -107,14 +108,10 @@ class BaseSerdes(LogMixin, ABC):
         '''
         Instance variable definitions, type hinting, doc strings, etc.
         '''
-        self._name: str = None
-        '''The name of the serdes.'''
-
         self._bg: Dict[Any, Any] = {}
         '''Our background context data that is shared to the background.'''
 
     def __init__(self,
-                 serdes_name:    str,
                  config_context: Optional['VerediContext'] = None) -> None:
         '''
         `serdes_name` should be short and will be lowercased. It should
@@ -123,23 +120,22 @@ class BaseSerdes(LogMixin, ABC):
         `config_context` is the context being used to set us up.
         '''
         self._define_vars()
-        self._name = serdes_name.lower()
 
         # ---
         # Set-Up LogMixin before _configure() so we have logging.
         # ---
-        self._log_config(self.dotted())
+        self._log_config(self.dotted)
         # Log both class and base name?
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               f"{self.__class__.__name__} init...")
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "BaseSerdes init...")
 
         self._configure(config_context)
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "Done with BaseSerdes init.")
 
     def _configure(self,
@@ -149,36 +145,15 @@ class BaseSerdes(LogMixin, ABC):
         finish up whatever is needed to set up themselves.
         '''
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "BaseSerdes configure...")
 
         # Set up our background for when it gets pulled in.
         self._make_background()
 
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
-                              f"Done with BaseSerdes configuration.")
-
-    # -------------------------------------------------------------------------
-    # Serdes Properties/Methods
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    @abstractmethod
-    def dotted(klass: 'BaseSerdes') -> label.DotStr:
-        '''
-        Veredi dotted label string.
-        '''
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented.")
-
-    @property
-    def name(self) -> str:
-        '''
-        Should be lowercase and short. Probably like the filename extension.
-        E.g.: 'yaml', 'json'
-        '''
-        return self._name
+                              self.dotted,
+                              "Done with BaseSerdes configuration.")
 
     # -------------------------------------------------------------------------
     # Context Properties/Methods
@@ -198,7 +173,7 @@ class BaseSerdes(LogMixin, ABC):
         Start of the background data.
         '''
         self._bg = {
-            'dotted': self.dotted(),
+            'dotted': self.dotted,
             'type': self.name,
         }
         return self._bg

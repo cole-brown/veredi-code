@@ -110,7 +110,9 @@ from .component import DataComponent
 # Code
 # -----------------------------------------------------------------------------
 
-class DataManager(EcsManagerWithEvents):
+class DataManager(EcsManagerWithEvents,
+                  name_dotted='veredi.game.manager.data',
+                  name_string='manager.data'):
 
     # -------------------------------------------------------------------------
     # Constants
@@ -253,7 +255,7 @@ class DataManager(EcsManagerWithEvents):
         Make our stuff from context/config data.
         '''
         super().__init__(event_manager, debug_flags)
-        self._log_start_up(self.dotted(),
+        self._log_start_up(self.dotted,
                            "Creating DataManager...")
 
         # ---
@@ -270,7 +272,7 @@ class DataManager(EcsManagerWithEvents):
             msg = ("DataManager could not initialize. Require a Configuration "
                    f"and got: {config}")
             self._log_group_multi(self._LOG_INIT,
-                                  self.dotted(),
+                                  self.dotted,
                                   msg,
                                   log_success=False)
             raise background.config.exception(None, msg)
@@ -288,7 +290,7 @@ class DataManager(EcsManagerWithEvents):
                    f"config data: {label.normalize(key_repo)} "
                    f"{config.get(key_repo)}")
             self._log_group_multi(self._LOG_INIT,
-                                  self.dotted(),
+                                  self.dotted,
                                   msg,
                                   log_success=False)
             context = config.make_config_context()
@@ -299,7 +301,7 @@ class DataManager(EcsManagerWithEvents):
                    f"config data: {label.normalize(key_serdes)} "
                    f"{config.get(key_serdes)}")
             self._log_group_multi(self._LOG_INIT,
-                                  self.dotted(),
+                                  self.dotted,
                                   msg,
                                   log_success=False)
             context = config.make_config_context()
@@ -310,7 +312,7 @@ class DataManager(EcsManagerWithEvents):
                    f"config data: {label.normalize(key_codec)} "
                    f"{config.get(key_codec)}")
             self._log_group_multi(self._LOG_INIT,
-                                  self.dotted(),
+                                  self.dotted,
                                   msg,
                                   log_success=False)
             context = config.make_config_context()
@@ -320,12 +322,12 @@ class DataManager(EcsManagerWithEvents):
         # Load Data
         # ---
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager loading initial data...")
         self._game = config.rules(None)
         self._init_load()
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager done.",
                               log_success=True)
 
@@ -339,17 +341,13 @@ class DataManager(EcsManagerWithEvents):
             codec_data, _ = self._codec.background
 
             self._bg = {
-                background.Name.DOTTED.key: self.dotted(),
+                background.Name.DOTTED.key: self.dotted,
                 background.Name.REPO.key:   repo_data,
                 background.Name.SERDES.key: serdes_data,
                 background.Name.CODEC.key:  codec_data,
             }
 
         return self._bg
-
-    @classmethod
-    def dotted(klass: 'DataManager') -> label.DotStr:
-        return 'veredi.game.data.manager'
 
     # -------------------------------------------------------------------------
     # Codec
@@ -382,7 +380,7 @@ class DataManager(EcsManagerWithEvents):
         taxon = self._game.taxon(data_type,
                                  *taxonomy,
                                  context=context)
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "DataManager created taxon: {}",
                                   taxon,
                                   log_minimum=log.Level.DEBUG)
@@ -488,7 +486,7 @@ class DataManager(EcsManagerWithEvents):
             raise self._log_exception(error, msg, context=context)
 
         # Log about it and be done.
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "DataManager created request: {}",
                                   request,
                                   log_minimum=log.Level.DEBUG)
@@ -529,7 +527,7 @@ class DataManager(EcsManagerWithEvents):
         # ---
         # Return or!.. no, just return.
         # ---
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "DataManager created context: {}",
                                   data_context,
                                   log_minimum=log.Level.DEBUG)
@@ -555,7 +553,7 @@ class DataManager(EcsManagerWithEvents):
         Load everything needed from the very start.
         '''
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager initial loading...",
                               log_minimum=log.Level.DEBUG)
         self._load_game()
@@ -565,7 +563,7 @@ class DataManager(EcsManagerWithEvents):
         Load game definition and saved data from repository.
         '''
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager initial game loading...",
                               log_minimum=log.Level.DEBUG)
 
@@ -573,10 +571,10 @@ class DataManager(EcsManagerWithEvents):
         # Load Game Definition...
         # ---
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager loading definition...",
                               log_minimum=log.Level.DEBUG)
-        definition = self.load_definition(self.dotted(),
+        definition = self.load_definition(self.dotted,
                                           DocType.definition.game,
                                           self._game.game_definition())
 
@@ -584,10 +582,10 @@ class DataManager(EcsManagerWithEvents):
         # Load Game Save...
         # ---
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager loading saved...",
                               log_minimum=log.Level.DEBUG)
-        saved = self.load_saved(self.dotted(),
+        saved = self.load_saved(self.dotted,
                                 DocType.saved.game,
                                 self._game.game_saved())
 
@@ -595,13 +593,13 @@ class DataManager(EcsManagerWithEvents):
         # Tell our RulesGame object about 'em.
         # ---
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager finalizing game rules...",
                               log_minimum=log.Level.DEBUG)
         self._game.loaded(definition, saved)
 
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager initial game loading complete.",
                               log_minimum=log.Level.DEBUG,
                               log_success=True)
@@ -619,7 +617,7 @@ class DataManager(EcsManagerWithEvents):
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager load Definition for {}: {} {}...",
                               caller_dotted, doc_type, taxon,
                               log_minimum=log.Level.DEBUG)
@@ -627,7 +625,7 @@ class DataManager(EcsManagerWithEvents):
         data = self._load(context_definition)
         definition = Definition(doc_type, data)
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager load Definition complete.",
                               log_minimum=log.Level.DEBUG,
                               log_success=True)
@@ -646,7 +644,7 @@ class DataManager(EcsManagerWithEvents):
         NOTE: DO NOT USE DURING NORMAL OPERATION.
         '''
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager load Saved for {}: {} {}...",
                               caller_dotted, doc_type, taxon,
                               log_minimum=log.Level.DEBUG)
@@ -654,7 +652,7 @@ class DataManager(EcsManagerWithEvents):
         data = self._load(context_saved)
         saved = Saved(doc_type, data)
         self._log_group_multi(self._LOG_INIT,
-                              self.dotted(),
+                              self.dotted,
                               "DataManager load Saved complete.",
                               log_minimum=log.Level.DEBUG,
                               log_success=True)
@@ -803,7 +801,7 @@ class DataManager(EcsManagerWithEvents):
         intermediate/internal events, so we are able to subscribe to all if set
         up to.
         '''
-        self._log_start_up(self.dotted(),
+        self._log_start_up(self.dotted,
                            "DataManager.subscribe()...",
                            log_minimum=log.Level.DEBUG)
         # ---
@@ -823,7 +821,7 @@ class DataManager(EcsManagerWithEvents):
         #   - Repository creates a _LoadedEvent once it has done this.
         if not self._event.is_subscribed(DataLoadRequest,
                                          self._event_data_load_request):
-            self._log_start_up(self.dotted(),
+            self._log_start_up(self.dotted,
                                "DataManager subscribing to DataLoadRequest...")
             self._event.subscribe(DataLoadRequest,
                                   self._event_data_load_request)
@@ -833,7 +831,7 @@ class DataManager(EcsManagerWithEvents):
         #   - Serdes creates an _SerializedEvent once it has done this.
         if not self._event.is_subscribed(DataSaveRequest,
                                          self._event_data_save_request):
-            self._log_start_up(self.dotted(),
+            self._log_start_up(self.dotted,
                                "DataManager subscribing to DataSaveRequest...")
             self._event.subscribe(DataSaveRequest,
                                   self._event_data_save_request)
@@ -843,13 +841,13 @@ class DataManager(EcsManagerWithEvents):
         # ------------------------------
         if not self._ut_all_events_external:
             self._log_start_up(
-                self.dotted(),
+                self.dotted,
                 "DataManager subscribed to all standard events.",
                 log_success=True)
             return VerediHealth.HEALTHY
         # Unit Testing? Subscribe to the internal events too.
 
-        self._log_start_up(self.dotted(),
+        self._log_start_up(self.dotted,
                            "DataManager.subscribe() is subscribing to all its "
                            "internal events as well (unit testing?).",
                            log_minimum=log.Level.INFO)
@@ -866,7 +864,7 @@ class DataManager(EcsManagerWithEvents):
         if not self._event.is_subscribed(_DeserializedEvent,
                                          self._event_deserialized):
             self._log_start_up(
-                self.dotted(),
+                self.dotted,
                 "DataManager subscribing to _DeserializedEvent...")
             self._event.subscribe(_DeserializedEvent,
                                   self._event_deserialized)
@@ -877,7 +875,7 @@ class DataManager(EcsManagerWithEvents):
         if not self._event.is_subscribed(_SerializedEvent,
                                          self._event_serialized):
             self._log_start_up(
-                self.dotted(),
+                self.dotted,
                 "DataManager subscribing to _SerializedEvent...")
             self._event.subscribe(_SerializedEvent,
                                   self._event_serialized)
@@ -892,7 +890,7 @@ class DataManager(EcsManagerWithEvents):
         if not self._event.is_subscribed(_SavedEvent,
                                          self._event_saved):
             self._log_start_up(
-                self.dotted(),
+                self.dotted,
                 "DataManager subscribing to _SavedEvent...")
             self._event.subscribe(_SavedEvent,
                                   self._event_saved)
@@ -903,13 +901,13 @@ class DataManager(EcsManagerWithEvents):
         if not self._event.is_subscribed(_LoadedEvent,
                                          self._event_loaded):
             self._log_start_up(
-                self.dotted(),
+                self.dotted,
                 "DataManager subscribing to _LoadedEvent...")
             self._event.subscribe(_LoadedEvent,
                                   self._event_loaded)
 
         self._log_start_up(
-            self.dotted(),
+            self.dotted,
             "DataManager subscribed to all standard & "
             "internal events.",
             log_success=True)
@@ -926,12 +924,12 @@ class DataManager(EcsManagerWithEvents):
         '''
         # TODO: group_multi w/ EVENTS group?
         self._log_data_processing(
-            self.dotted(),
+            self.dotted,
             "DataManager event handling: DataLoadRequest...")
 
         # Doctor checkup.
         if not self._health_ok_event(event):
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "DataManager[DataLoadRequest] failed "
                                       "health check...",
                                       log_success=False)
@@ -939,7 +937,7 @@ class DataManager(EcsManagerWithEvents):
 
         context = event.context
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "DataManager[DataLoadRequest] loading...")
 
         # Ask my repository for this data.
@@ -947,7 +945,7 @@ class DataManager(EcsManagerWithEvents):
         loaded = self._repository.load(context)
         # Get back loaded data stream.
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "DataManager[DataLoadRequest] creating "
                                   "result _LoadedEvent...")
 
@@ -959,19 +957,19 @@ class DataManager(EcsManagerWithEvents):
         # Special Shenanigans: Publish this event, wait for it to come back.
         if self._ut_all_events_external:
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "DataManager[DataLoadRequest] publishing "
                 "result _LoadedEvent...")
             self._event_notify(event, False)
 
         # Normal Case: Pass on to process loaded data
         else:
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "DataManager[DataLoadRequest] handling "
                                       "result _LoadedEvent internally...")
             self._event_loaded(event)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "DataManager[DataLoadRequest] done.",
                                   log_success=True)
 
@@ -981,12 +979,12 @@ class DataManager(EcsManagerWithEvents):
         '''
         # TODO: group_multi w/ EVENTS group?
         self._log_data_processing(
-            self.dotted(),
+            self.dotted,
             "DataManager event handling: DataSaveRequest...")
 
         # Doctor checkup.
         if not self._health_ok_event(event):
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "DataManager[DataSaveRequest] failed "
                                       "health check...",
                                       log_success=False)
@@ -994,7 +992,7 @@ class DataManager(EcsManagerWithEvents):
 
         context = self._serdes.context.push(event.context)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "DataManager[DataSaveRequest] saving...")
 
         # TODO [2020-05-22]: Serialize it...
@@ -1004,7 +1002,7 @@ class DataManager(EcsManagerWithEvents):
 
         serialized = None
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "DataManager[DataSaveRequest] creating "
                                   "result _SavedEvent...")
 
@@ -1017,19 +1015,19 @@ class DataManager(EcsManagerWithEvents):
         # Special Shenanigans: Publish this event, wait for it to come back.
         if self._ut_all_events_external:
             self._log_data_processing(
-                self.dotted(),
+                self.dotted,
                 "DataManager[DataSaveRequest] publishing "
                 "result _SavedEvent...")
             self._event_notify(event, False)
 
         # Normal Case: Pass on to process deserialized data.
         else:
-            self._log_data_processing(self.dotted(),
+            self._log_data_processing(self.dotted,
                                       "DataManager[DataSaveRequest] handling "
                                       "result _SavedEvent internally...")
             self._event_serialized(event)
 
-        self._log_data_processing(self.dotted(),
+        self._log_data_processing(self.dotted,
                                   "DataManager[DataSaveRequest] done.",
                                   log_success=True)
 

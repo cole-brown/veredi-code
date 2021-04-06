@@ -21,7 +21,9 @@ from veredi.game.ecs.event         import Event
 # Base Skill Event
 # -----------------------------------------------------------------------------
 
-class SkillEvent(Event):
+class SkillEvent(Event,
+                 name_dotted='veredi.rules.d20.pf2.skill.event',
+                 name_string='skill.event'):
     def __init__(self,
                  id:           Union[int, MonotonicId],
                  type:         Union[int, enum.Enum],
@@ -59,7 +61,9 @@ class SkillEvent(Event):
 # Skill Request Event -> Skill Output Events
 # -----------------------------------------------------------------------------
 
-class SkillRequest(SkillEvent):
+class SkillRequest(SkillEvent,
+                   name_dotted='veredi.rules.d20.pf2.skill.request',
+                   name_string='skill.request'):
 
     # -------------------------------------------------------------------------
     # Skill Things
@@ -83,7 +87,9 @@ class SkillRequest(SkillEvent):
                 "{self.skill} :: {repr(self._context)}>")
 
 
-class SkillResult(SkillEvent):
+class SkillResult(SkillEvent,
+                  name_dotted='veredi.rules.d20.pf2.skill.result',
+                  name_string='skill.result'):
     def __init__(self,
                  id:           Union[int, MonotonicId],
                  type:         Union[int, enum.Enum],

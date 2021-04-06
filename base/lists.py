@@ -39,7 +39,6 @@ def flatten(*args: Any,
     '''
     # (Shallow) copy the list; we'll be flattening it as we go.
     flattening = list(args)
-
     # Loop over the list and flatten as we go.
     i = 0
     while i < len(flattening):

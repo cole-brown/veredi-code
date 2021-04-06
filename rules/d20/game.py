@@ -26,7 +26,9 @@ from ..game              import RulesGame
 # Game Definition, Saved Data
 # -----------------------------------------------------------------------------
 
-class D20RulesGame(RulesGame):
+class D20RulesGame(RulesGame,
+                   name_dotted='veredi.rules.d20.game',
+                   name_string='rules.d20'):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -39,17 +41,6 @@ class D20RulesGame(RulesGame):
     #     super()._define_vars()
 
     # -------------------------------------------------------------------------
-    # Properties
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'D20RulesGame') -> label.DotStr:
-        '''
-        Veredi dotted label string.
-        '''
-        return 'veredi.rules.d20.game'
-
-    # -------------------------------------------------------------------------
     # Saved
     # -------------------------------------------------------------------------
 
@@ -60,3 +51,5 @@ class D20RulesGame(RulesGame):
     # -------------------------------------------------------------------------
 
     # Anything?
+
+    pass

@@ -82,7 +82,9 @@ from .component                         import SkillComponent
 # Code
 # -----------------------------------------------------------------------------
 
-class SkillSystem(D20RulesSystem):
+class SkillSystem(D20RulesSystem,
+                  name_dotted='veredi.rules.d20.pf2.skill.system',
+                  name_string='skill.system'):
 
     def _configure(self, context: 'VerediContext') -> None:
         '''
@@ -92,21 +94,21 @@ class SkillSystem(D20RulesSystem):
 
         super()._configure(context)
         config = background.config.config(self.__class__.__name__,
-                                          self.dotted(),
+                                          self.dotted,
                                           context)
         self._config_rules_def(context, config, 'skill')
 
         # ---
         # Health Stuff
         # ---
-        self._required_managers:    Optional[Set[Type[EcsManager]]] = {
+        self._required_managers: Optional[Set[Type['EcsManager']]] = {
             TimeManager,
             EventManager,
             ComponentManager,
             EntityManager
         }
-        self._health_meter_update:  Optional['Decimal'] = None
-        self._health_meter_event:   Optional['Decimal'] = None
+        self._health_meter_update: Optional['Decimal'] = None
+        self._health_meter_event: Optional['Decimal'] = None
 
         # ---
         # Ticking Stuff
@@ -120,10 +122,6 @@ class SkillSystem(D20RulesSystem):
 
         # Just the normal one, for now.
         self._ticks: SystemTick = SystemTick.STANDARD
-
-    @classmethod
-    def dotted(klass: 'SkillSystem') -> label.DotStr:
-        return 'veredi.rules.d20.pf2.skill.system'
 
     # -------------------------------------------------------------------------
     # System Registration / Definition
@@ -161,7 +159,7 @@ class SkillSystem(D20RulesSystem):
             return
 
         skill_check = CommandRegisterReply(event,
-                                           self.dotted(),
+                                           self.dotted,
                                            'skill',
                                            CommandPermission.COMPONENT,
                                            self.command_skill,
@@ -197,7 +195,9 @@ class SkillSystem(D20RulesSystem):
         # Doctor checkup.
         if not self._health_ok_msg("Command ignored due to bad health.",
                                    context=context):
-            return CommandStatus.system_health(context)
+            return CommandStatus.system_health(self.name,
+                                               self._health,
+                                               context)
 
         eid = InputContext.source_id(context)
         entity, component = self._manager.get_with_log(
@@ -222,7 +222,7 @@ class SkillSystem(D20RulesSystem):
                             math, context,
                             InputContext.input_id(context),
                             # TODO [2020-07-11]: a proper output type...
-                            Recipient.BROADCAST),
+                            Recipient.enum.BROADCAST),
             context)
 
         return CommandStatus.successful(context)

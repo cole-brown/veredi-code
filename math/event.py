@@ -98,7 +98,9 @@ class MathEvent(Event):
 # A Result!
 # -----------------------------------------------------------------------------
 
-class MathResult(MathEvent):
+class MathResult(MathEvent,
+                 name_dotted='veredi.math.event.result',
+                 name_string='math.result'):
     '''
     Subclass off this or another MathEvent subclass to work with MathSystem
     on mathing stuff.
@@ -116,8 +118,9 @@ class MathResult(MathEvent):
 # Output to Users
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.math.event.output')
-class MathOutputEvent(OutputEvent):
+class MathOutputEvent(OutputEvent,
+                      name_dotted='veredi.math.event.output',
+                      name_string='math.output'):
     '''
     This math event is for directing a finalized math result towards the
     command/event output flow.
@@ -130,13 +133,6 @@ class MathOutputEvent(OutputEvent):
     # -------------------------------------------------------------------------
     # Constants
     # -------------------------------------------------------------------------
-
-    # ------------------------------
-    # Constants: Encodable
-    # ------------------------------
-
-    _ENCODE_NAME: str = 'math.output'
-    '''Name for this class when encoding/decoding.'''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -183,13 +179,6 @@ class MathOutputEvent(OutputEvent):
         '''
         return self._output
 
-    @classmethod
-    def dotted(klass: 'MathOutputEvent') -> str:
-        '''
-        Veredi dotted name for what type/kind of output this is.
-        '''
-        return 'veredi.math.event.output'
-
     # -------------------------------------------------------------------------
     # Math System
     # -------------------------------------------------------------------------
@@ -208,10 +197,6 @@ class MathOutputEvent(OutputEvent):
     # Encodable API
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def type_field(klass: 'MathOutputEvent') -> str:
-        return klass._ENCODE_NAME
-
     def encode_complex(self, codec: 'Codec') -> EncodedComplex:
         '''
         Encode ourself as an EncodedComplex, return that value.
@@ -223,7 +208,6 @@ class MathOutputEvent(OutputEvent):
         # Now we just need to do total...
         encoded['total'] = numbers.to_str(self._total)
 
-        print(f"MathOutputEvent.encode_complex: {encoded}")
         return encoded
 
     @classmethod

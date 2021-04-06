@@ -19,23 +19,24 @@ if TYPE_CHECKING:
 import pathlib
 
 
-from veredi.logs            import log
-from veredi.base.strings    import label
-from veredi.base            import paths
-from veredi.base.exceptions import VerediError
-from veredi.data.context    import DataAction, DataBareContext
-from veredi.base.const      import VerediHealth
-from veredi.rules.game      import RulesGame
+from veredi.logs               import log
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+from veredi.base               import paths
+from veredi.base.exceptions    import VerediError
+from veredi.data.context       import DataAction, DataBareContext
+from veredi.base.const         import VerediHealth
+from veredi.rules.game         import RulesGame
 
 
-from ..                     import background
-from ..exceptions           import ConfigError, LoadError
-from ..registration         import config as registrar
-from .hierarchy             import Document, Hierarchy
-from .context               import ConfigContext
-from ..repository.file.bare import FileBareRepository
-from ..serdes.yaml.serdes   import YamlSerdes
-from ..codec                import Codec
+from ..                        import background
+from ..exceptions              import ConfigError, LoadError
+from ..registration            import config as registrar
+from .hierarchy                import Document, Hierarchy
+from .context                  import ConfigContext
+from ..repository.file.bare    import FileBareRepository
+from ..serdes.yaml.serdes      import YamlSerdes
+from ..codec                   import Codec
 
 
 # -----------------------------------------------------------------------------
@@ -65,62 +66,17 @@ def default_path() -> Optional[paths.Path]:
     return path
 
 
-class Configuration:
+class Configuration(NamesMixin,
+                    name_dotted='veredi.data.config.config',
+                    name_string='config'):
     '''Config data for how a game will run and what stuff it will use.'''
 
     # -------------------------------------------------------------------------
     # Class Constants
     # -------------------------------------------------------------------------
 
-    _DOTTED_NAME = 'veredi.data.config.config'
-
     _CTX_KEY  = 'configuration'
     _CTX_NAME = 'configuration'
-
-    # -------------------------------------------------------------------------
-    # Python Functions
-    # -------------------------------------------------------------------------
-
-    def _to_str(self,
-                with_id:    bool,
-                with_rules: bool,
-                with_path:  bool) -> str:
-        '''
-        Returns a string with some data about this Configuration object.
-        '''
-        info = []
-        if with_id:
-            info.append(f"id:{self._id}")
-        if with_rules:
-            info.append(f"rules:{self._rules}")
-        if with_path:
-            info.append(f"path:{self._path}")
-
-        return ('Configuration['
-                + ','.join(info)
-                + ']')
-
-    def __str__(self) -> str:
-        '''
-        Returns a string with some data about this Configuration object.
-        '''
-        return (self._to_str(True, True, False)
-                + "\n"
-                + f"  path: {self._path}\n"
-                + f"  data: {self._config}")
-
-    def __repr__(self) -> str:
-        '''
-        Returns a string with some data about this Configuration object.
-        '''
-        return self._to_str(True, True, True)
-
-    def info_for_error(self) -> Tuple[str, Dict[Any, Any]]:
-        '''
-        Returns a string about the config object, and a dictionary of
-        all its config data.
-        '''
-        return (self._to_str(True, True, True), self._config)
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -197,7 +153,7 @@ class Configuration:
 
         Raises LoadError and ConfigError
         '''
-        log.start_up(self.dotted(),
+        log.start_up(self.dotted,
                      "Creating Configuration...")
         self._define_vars()
 
@@ -209,7 +165,7 @@ class Configuration:
             # Log start-up error...
             msg = ("A Configuration already exists in the background context! "
                    "Two configs cannot be used to initialize Veredi.")
-            log.start_up(self.dotted(),
+            log.start_up(self.dotted,
                          msg + ' Pre-existing: {}',
                          preexisting,
                          success=False)
@@ -221,12 +177,12 @@ class Configuration:
         # ---
         self._rules = label.normalize(rules)
         self._id = game_id
-        log.start_up(self.dotted(),
+        log.start_up(self.dotted,
                      "Creating Configuration for: "
                      f"rules: '{self._rules}', game-id: '{self._id}'...")
 
         self._path = config_path or default_path()
-        log.start_up(self.dotted(),
+        log.start_up(self.dotted,
                      "Configuration path (using {}): {}",
                      ('provided' if config_path else 'default'),
                      self._path)
@@ -240,7 +196,7 @@ class Configuration:
             #   2) Are the type for loading "this file (or data) exactly".
             # ---
 
-            context = ConfigContext(self._path, self.dotted())
+            context = ConfigContext(self._path, self.dotted)
 
             # ---
             # Config Repository
@@ -250,13 +206,13 @@ class Configuration:
             self._repo = config_repo
             if not self._repo:
                 self._repo = FileBareRepository(context)
-                log.start_up(self.dotted(),
+                log.start_up(self.dotted,
                              "  Created config's repo: '{}'",
-                             self._repo.dotted())
+                             self._repo.dotted)
             else:
-                log.start_up(self.dotted(),
+                log.start_up(self.dotted,
                              "  Using passed in repo: '{}'",
-                             self._repo.dotted())
+                             self._repo.dotted)
 
             # ---
             # Config Serdes
@@ -266,13 +222,13 @@ class Configuration:
             self._serdes = config_serdes
             if not self._serdes:
                 self._serdes = YamlSerdes()
-                log.start_up(self.dotted(),
+                log.start_up(self.dotted,
                              "  Created config's serdes: '{}'",
-                             self._serdes.dotted())
+                             self._serdes.dotted)
             else:
-                log.start_up(self.dotted(),
+                log.start_up(self.dotted,
                              "  Using passed in serdes: '{}'",
-                             self._serdes.dotted())
+                             self._serdes.dotted)
 
             # ---
             # Config Codec
@@ -282,31 +238,31 @@ class Configuration:
             self._codec = config_codec
             if not self._codec:
                 self._codec = Codec()
-                log.start_up(self.dotted(),
+                log.start_up(self.dotted,
                              "  Created config's codec: '{}'",
-                             self._codec.dotted())
+                             self._codec.dotted)
             else:
-                log.start_up(self.dotted(),
+                log.start_up(self.dotted,
                              "  Using passed in codec: '{}'",
-                             self._codec.dotted())
+                             self._codec.dotted)
 
             # ---
             # Background
             # ---
             # Do background stuff after repo/serdes so that they cannot try to
             # use us to make stuff from the config we haven't loaded yet.
-            log.start_up(self.dotted(),
+            log.start_up(self.dotted,
                          "Setting Configuration into background data...")
 
             # Set ourself into the background.
             background.config.init(self._path,
                                    self)
             self._set_background()
-            log.start_up(self.dotted(),
+            log.start_up(self.dotted,
                          "Configuration set into background data.")
 
         except Exception as err:
-            log.start_up(self.dotted(),
+            log.start_up(self.dotted,
                          "Configuration failed to initialize... Erroring out.",
                          log_success=False)
             raise log.exception(ConfigError,
@@ -316,25 +272,18 @@ class Configuration:
         # ---
         # Finalize: Load & Set-Up Configuration
         # ---
-        log.start_up(self.dotted(),
+        log.start_up(self.dotted,
                      "Configuration final load, set-up...")
         self._load()
         self._set_up()
 
-        log.start_up(self.dotted(),
+        log.start_up(self.dotted,
                      "Done initializing Configuration.",
                      log_success=True)
 
     # -------------------------------------------------------------------------
     # Properties: Generic
     # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'Configuration') -> str:
-        '''
-        Veredi dotted name for this class.
-        '''
-        return klass._DOTTED_NAME
 
     def path_config_file(self) -> paths.Path:
         '''
@@ -381,25 +330,25 @@ class Configuration:
         '''
         log_groups = [log.Group.START_UP, log.Group.DATA_PROCESSING]
         log.group_multi(log_groups,
-                        self.dotted(),
+                        self.dotted,
                         "Configuration load...")
 
         # Spawn a context from what we know, and ask the config repo to load
         # something based on that.
-        ctx = DataBareContext(self.dotted(),
+        ctx = DataBareContext(self.dotted,
                               ConfigContext.KEY,
                               self._path,
                               DataAction.LOAD,
                               self._meta())
         log.group_multi(log_groups,
-                        self.dotted(),
+                        self.dotted,
                         "Configuration loading from repo...")
         with self._repo.load(ctx) as stream:
             # Decode w/ serdes.
             # Can raise an error - we'll let it.
             try:
                 log.group_multi(log_groups,
-                                self.dotted(),
+                                self.dotted,
                                 "Configuration deserializing with serdes...")
                 log.debug("Config Load Context: {}, "
                           "Confgig Repo: {}, "
@@ -413,7 +362,7 @@ class Configuration:
 
             except LoadError as error:
                 log.group_multi(log_groups,
-                                self.dotted(),
+                                self.dotted,
                                 "Configuration load/deserialization failed "
                                 "with a LoadError. Erroring out.",
                                 log_success=False)
@@ -426,7 +375,7 @@ class Configuration:
 
             except Exception as error:
                 log.group_multi(log_groups,
-                                self.dotted(),
+                                self.dotted,
                                 "Configuration load/deserialization failed "
                                 "with an error of type {}. Erroring out.",
                                 type(error),
@@ -448,12 +397,12 @@ class Configuration:
         '''
         log_groups = [log.Group.START_UP, log.Group.DATA_PROCESSING]
         log.group_multi(log_groups,
-                        self.dotted(),
+                        self.dotted,
                         "Configuration loading document...")
 
         if isinstance(document, list):
             log.group_multi(log_groups,
-                            self.dotted(),
+                            self.dotted,
                             "Configuration loaded a list instead of a dict?! "
                             "Erroring out.",
                             log_success=False)
@@ -469,14 +418,14 @@ class Configuration:
             doc_type_str = document[Hierarchy.VKEY_DOC_TYPE]
             doc_type = Document.get(doc_type_str)
             log.group_multi(log_groups,
-                            self.dotted(),
+                            self.dotted,
                             "Configuration loaded doc_type: {}",
                             doc_type_str)
             self._config[doc_type] = document
 
         else:
             log.group_multi(log_groups,
-                            self.dotted(),
+                            self.dotted,
                             "Configuration cannot load unknow document. "
                             "Erroring out.",
                             log_success=False)
@@ -498,10 +447,10 @@ class Configuration:
         '''
         # TODO: Move creation of our repo/serdes here?
 
-        log.start_up(self.dotted(),
+        log.start_up(self.dotted,
                      "Configuration set-up...")
         if not self._path:
-            log.start_up(self.dotted(),
+            log.start_up(self.dotted,
                          "Configuration set-up: No path! Erroring out...",
                          log_success=False)
             raise log.exception(
@@ -509,7 +458,7 @@ class Configuration:
                 "No path for config data after loading!")
 
         if not self._codec:
-            log.start_up(self.dotted(),
+            log.start_up(self.dotted,
                          "Configuration set-up: No Codec! Erroring out...",
                          log_success=False)
             raise log.exception(
@@ -517,7 +466,7 @@ class Configuration:
                 "No codec for config data after loading!")
 
         if not self._serdes:
-            log.start_up(self.dotted(),
+            log.start_up(self.dotted,
                          "Configuration set-up: No Serdes! Erroring out...",
                          log_success=False)
             raise log.exception(
@@ -525,7 +474,7 @@ class Configuration:
                 "No serdes for config data after loading!")
 
         if not self._repo:
-            log.start_up(self.dotted(),
+            log.start_up(self.dotted,
                          "Configuration set-up: No Repository! "
                          "Erroring out...",
                          log_success=False)
@@ -533,7 +482,7 @@ class Configuration:
                 ConfigError,
                 "No repository for config data after loading!")
 
-        log.start_up(self.dotted(),
+        log.start_up(self.dotted,
                      "Done setting up Configuration.",
                      log_success=True)
         return VerediHealth.HEALTHY
@@ -547,7 +496,7 @@ class Configuration:
         Returns a generic config context.
         '''
         context = ConfigContext(self._path,
-                                self.dotted(),
+                                self.dotted,
                                 id=self._id)
         return context
 
@@ -560,7 +509,7 @@ class Configuration:
             serdes_data, _ = self._serdes.background
             repo_data, _ = self._repo.background
             self._metadata = {
-                background.Name.DOTTED.key: self.dotted(),
+                background.Name.DOTTED.key: self.dotted,
                 'path':                     self._path,
                 'rules':                    self._rules,
                 'id':                       self._id,
@@ -650,6 +599,7 @@ class Configuration:
         except VerediError:
             # Ignore these and subclasses - bubble up.
             raise
+
         except Exception as error:
             raise log.exception(
                 ConfigError,
@@ -726,7 +676,7 @@ class Configuration:
 
         data = self.get('data', *keychain)
 
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             'get_data: keychain: {} -> data: {}',
                             keychain, data,
                             log_minimum=log.Level.DEBUG)
@@ -748,7 +698,7 @@ class Configuration:
         data = self.get_by_doc(Document.CONFIG,
                                *keychain)
 
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             'get: doc: {}, keychain: {} -> data: {}',
                             Document.CONFIG, keychain, data,
                             log_minimum=log.Level.DEBUG)
@@ -767,14 +717,14 @@ class Configuration:
         # Ensure the keychain is in good shape from whatever was passed in.
         keychain = label.regularize(*keychain)
 
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             'get_by_doc: Getting doc: {}, keychain: {}...',
                             doc_type, keychain,
                             log_minimum=log.Level.DEBUG)
 
         hierarchy = Document.hierarchy(doc_type)
         if not hierarchy.valid(*keychain):
-            log.data_processing(self.dotted(),
+            log.data_processing(self.dotted,
                                 "get_by_doc: invalid document hierarchy for "
                                 "doc: {}, keychain: {}...",
                                 doc_type, keychain,
@@ -789,7 +739,7 @@ class Configuration:
         doc_data = self._config.get(doc_type, None)
         data = doc_data
         if data is None:
-            log.data_processing(self.dotted(),
+            log.data_processing(self.dotted,
                                 "get_by_doc: No document type '{}' in "
                                 "our config data: {}",
                                 doc_type, self._config,
@@ -801,7 +751,7 @@ class Configuration:
         for key in keychain:
             data = data.get(key, None)
             if data is None:
-                log.data_processing(self.dotted(),
+                log.data_processing(self.dotted,
                                     "get_by_doc: No data for key '{}' in "
                                     "keychain {} in our config "
                                     "document data: {}",
@@ -810,7 +760,7 @@ class Configuration:
                                     log_success=False)
                 return Null()
 
-        log.data_processing(self.dotted(),
+        log.data_processing(self.dotted,
                             "get_by_doc: Got data for {} in "
                             "keychain {}. Data: {}",
                             doc_type, keychain, data,
@@ -827,7 +777,7 @@ class Configuration:
         '''
         log_groups = [log.Group.START_UP, log.Group.DATA_PROCESSING]
         log.group_multi(log_groups,
-                        self.dotted(),
+                        self.dotted,
                         "rules: Creating game rules object "
                         "from rules: {}, id: {}",
                         self._rules, self._id)
@@ -837,7 +787,7 @@ class Configuration:
         # ---
         if not self._rules or not self._id:
             log.group_multi(log_groups,
-                            self.dotted(),
+                            self.dotted,
                             "rules: Failed to create game rules... missing "
                             "our rules or id: rules {}, id: {}",
                             self._rules, self._id,
@@ -855,7 +805,7 @@ class Configuration:
         if not context:
             # ...this default w/ rules/id should be good in most cases.
             context = ConfigContext(self._path,
-                                    self.dotted(),
+                                    self.dotted,
                                     key=self._rules,
                                     id=self._id)
 
@@ -867,7 +817,7 @@ class Configuration:
             label.normalize(self._rules, 'game'),
             context=context)
         log.group_multi(log_groups,
-                        self.dotted(),
+                        self.dotted,
                         "rules: Created game rules.",
                         log_success=True)
         return rules
@@ -897,3 +847,48 @@ class Configuration:
 
         # And set the key.
         data[keychain[-1]] = value
+
+    # -------------------------------------------------------------------------
+    # Python Functions
+    # -------------------------------------------------------------------------
+
+    def _to_str(self,
+                with_id:    bool,
+                with_rules: bool,
+                with_path:  bool) -> str:
+        '''
+        Returns a string with some data about this Configuration object.
+        '''
+        info = []
+        if with_id:
+            info.append(f"id:{self._id}")
+        if with_rules:
+            info.append(f"rules:{self._rules}")
+        if with_path:
+            info.append(f"path:{self._path}")
+
+        return ('Configuration['
+                + ','.join(info)
+                + ']')
+
+    def __str__(self) -> str:
+        '''
+        Returns a string with some data about this Configuration object.
+        '''
+        return (self._to_str(True, True, False)
+                + "\n"
+                + f"  path: {self._path}\n"
+                + f"  data: {self._config}")
+
+    def __repr__(self) -> str:
+        '''
+        Returns a string with some data about this Configuration object.
+        '''
+        return self._to_str(True, True, True)
+
+    def info_for_error(self) -> Tuple[str, Dict[Any, Any]]:
+        '''
+        Returns a string about the config object, and a dictionary of
+        all its config data.
+        '''
+        return (self._to_str(True, True, True), self._config)

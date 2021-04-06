@@ -46,7 +46,7 @@ class Test_Commander(ZestEcs):
     def set_up(self):
         super().set_up()
         self.config = zonfig.manual(
-            self._TEST_TYPE,
+            self.type,
             None,
             None,
             {
@@ -121,7 +121,7 @@ class Test_Commander(ZestEcs):
 
     def user_input_ctx(self, input_str, entity_id, entity_name):
         return InputContext(None, input_str, entity_id, entity_name,
-                            self.commander.dotted() + '.unit-test')
+                            self.commander.dotted + '.unit-test')
 
     def allow_registration(self):
         if self.reg_open:

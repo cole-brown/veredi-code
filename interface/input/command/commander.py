@@ -30,6 +30,7 @@ from veredi.base.null import Null, Nullable
 # ---
 from veredi.logs                         import log
 from veredi.base.strings                 import label, pretty
+from veredi.base.strings.mixin           import NamesMixin
 from veredi.base.const                   import VerediHealth
 from veredi.base.context                 import VerediContext
 from veredi.data                         import background
@@ -73,7 +74,9 @@ from .event                              import (CommandRegistrationBroadcast,
 # Code
 # -----------------------------------------------------------------------------
 
-class Commander:
+class Commander(NamesMixin,
+                name_dotted='veredi.interface.input.commander',
+                name_string='commander'):
     '''
     Command Pattern: Command Invoker, sort of.
       - InputSystem can also be seen as Invoker, sort of, since it decideds
@@ -103,13 +106,6 @@ class Commander:
         Commands based off of actual/real/base commands. Created by the
         add_alias() function of CommandRegisterReply.
         '''
-
-    @classmethod
-    def dotted(klass: 'Commander') -> label.DotStr:
-        '''
-        The dotted label string this class has.
-        '''
-        return 'veredi.interface.input.commander'
 
     # -------------------------------------------------------------------------
     # Events

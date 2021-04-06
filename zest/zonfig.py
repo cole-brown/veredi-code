@@ -92,8 +92,6 @@ class NoFileConfig(Configuration):
     # Class Constants
     # -------------------------------------------------------------------------
 
-    _DOTTED_NAME = 'veredi.zest.zonfig.no-file-config'
-
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
@@ -104,6 +102,7 @@ class NoFileConfig(Configuration):
                  config_data: MutableMapping[str, Any]) -> None:
         '''Don't call super().__init__()... we Just do it ourselves so as to
         avoid the normal config file.'''
+        self.dotted = 'veredi.zest.zonfig.no-file-config'
 
         # ---
         # Set up variables.
@@ -122,7 +121,7 @@ class NoFileConfig(Configuration):
         self._serdes = None
 
         self._metadata = {
-            background.Name.DOTTED.key: self.dotted(),
+            background.Name.DOTTED.key: self.dotted,
             'path':                     self._path,
             'rules':                    self._rules,
             'id':                       self._id,

@@ -12,7 +12,6 @@ from typing import Optional, Type, Mapping, Tuple, Dict, Union
 
 import uuid
 
-from veredi.base.strings  import labeler
 from veredi.logs          import log
 from veredi.base.identity import SerializableId
 import veredi.time.machine
@@ -43,8 +42,9 @@ class UserIdGenerator:
         return next_id
 
 
-@labeler.dotted('veredi.data.identity.user.id')
-class UserId(SerializableId):
+class UserId(SerializableId,
+             name_dotted='veredi.data.identity.user.id',
+             name_string='identity.user.id'):
     '''
     Serializable UserId class.
     '''
@@ -88,13 +88,6 @@ class UserId(SerializableId):
     '''
     An instance of an InputId with '_UUID_SID_BROADCAST' as its value.
     '''
-
-    # ------------------------------
-    # Misc
-    # ------------------------------
-
-    _ENCODE_FIELD_NAME = 'uid'
-    '''Short abbreviation for UserId.'''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -228,8 +221,9 @@ class UserKeyGenerator:
         return next_key
 
 
-@labeler.dotted('veredi.data.identity.user.key')
-class UserKey(SerializableId):
+class UserKey(SerializableId,
+              name_dotted='veredi.data.identity.user.key',
+              name_string='identity.user.key'):
     '''
     Serializable UserKey class.
     '''
@@ -273,13 +267,6 @@ class UserKey(SerializableId):
     '''
     An instance of an InputId with '_UUID_SID_BROADCAST' as its value.
     '''
-
-    # ------------------------------
-    # Misc
-    # ------------------------------
-
-    _ENCODE_FIELD_NAME = 'ukey'
-    '''Short abbreviation for UserKey.'''
 
     # -------------------------------------------------------------------------
     # Initialization

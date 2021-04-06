@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 import time as py_time
 from decimal import Decimal
 
+from veredi.base.strings.mixin import NamesMixin
+
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -66,19 +68,15 @@ def unique() -> str:
 # Class?
 # -----------------------------------------------------------------------------
 
-class MachineTime:
+
+class MachineTime(NamesMixin,
+                  name_dotted='veredi.time.machine',
+                  name_string='time.machine'):
     '''
     Time functions for non-game times.
     '''
 
     SEC_TO_NS = 1_000_000_000
-
-    @classmethod
-    def dotted(klass: 'MachineTime') -> str:
-        '''
-        Our Veredi Dotted Label.
-        '''
-        return 'veredi.time.machine'
 
     @classmethod
     def sec_to_ns(klass:  'MachineTime',

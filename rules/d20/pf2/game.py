@@ -101,7 +101,9 @@ class PF2SavedTaxon(SavedTaxon):
 # Game Definition, Saved Data
 # -----------------------------------------------------------------------------
 
-class PF2RulesGame(D20RulesGame):
+class PF2RulesGame(D20RulesGame,
+                   name_dotted='veredi.rules.d20.pf2.game',
+                   name_string='pf2.game'):
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -112,18 +114,6 @@ class PF2RulesGame(D20RulesGame):
     #     Instance variable definitions, type hinting, doc strings, etc.
     #     '''
     #     super()._define_vars()
-
-    # -------------------------------------------------------------------------
-    # Properties
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'D20RulesGame') -> label.DotStr:
-        '''
-        Veredi dotted label string.
-        '''
-        return 'veredi.rules.d20.pf2.game'
-
 
     # -------------------------------------------------------------------------
     # Loading...

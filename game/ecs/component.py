@@ -59,15 +59,21 @@ CompOrNull = NewType('CompOrNull', Union[Component, Null])
 # Code
 # -----------------------------------------------------------------------------
 
-class ComponentEvent(Event):
+class ComponentEvent(Event,
+                     name_dotted='veredi.game.ecs.component.event',
+                     name_string='component'):
     ...
 
 
-class ComponentLifeEvent(Event):
+class ComponentLifeEvent(ComponentEvent,
+                         name_dotted='veredi.game.ecs.component.event.life',
+                         name_string='component.life'):
     pass
 
 
-class ComponentManager(EcsManagerWithEvents):
+class ComponentManager(EcsManagerWithEvents,
+                       name_dotted='veredi.game.ecs.manager.component',
+                       name_string='manager.component'):
     '''
     Manages the life cycles of components.
 
@@ -142,19 +148,12 @@ class ComponentManager(EcsManagerWithEvents):
     # Properties
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def dotted(klass: 'ComponentManager') -> str:
-        '''
-        The dotted name this Manager has.
-        '''
-        return 'veredi.game.ecs.manager.component'
-
     def get_background(self):
         '''
         Data for the Veredi Background context.
         '''
         return {
-            background.Name.DOTTED.key: self.dotted(),
+            background.Name.DOTTED.key: self.dotted,
         }
 
     # -------------------------------------------------------------------------

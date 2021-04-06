@@ -8,27 +8,28 @@ Tests for SystemManager.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.base.unit import ZestBase
-from veredi.zest           import zmake
+from veredi.zest.base.unit     import ZestBase
+from veredi.zest               import zmake
 
-from veredi.base.const     import VerediHealth
-from veredi.base.context   import UnitTestContext
-from veredi.debug.const    import DebugFlag
-from veredi.data           import background
+from veredi.base.const         import VerediHealth
+from veredi.base.context       import UnitTestContext
+from veredi.base.strings.mixin import NamesMixin
+from veredi.debug.const        import DebugFlag
+from veredi.data               import background
 
-from .event                import EventManager
-from .time                 import TimeManager
-from .component            import ComponentManager
-from .entity               import EntityManager
-from .system               import (SystemManager,
-                                   SystemEvent,
-                                   SystemLifeEvent)
+from .event                    import EventManager
+from .time                     import TimeManager
+from .component                import ComponentManager
+from .entity                   import EntityManager
+from .system                   import (SystemManager,
+                                       SystemEvent,
+                                       SystemLifeEvent)
 
-from .const                import SystemTick, SystemPriority
+from .const                    import SystemTick, SystemPriority
 
-from .base.identity        import SystemId
-from .base.component       import MockComponent
-from .base.system          import System, SystemLifeCycle
+from .base.identity            import SystemId
+from .base.component           import MockComponent
+from .base.system              import MockSystem, SystemLifeCycle
 
 
 # -----------------------------------------------------------------------------
@@ -52,11 +53,7 @@ class CompThree(MockComponent):
     pass
 
 
-class SysTest(System):
-
-    @classmethod
-    def dotted(klass: 'SysTest') -> str:
-        return 'veredi.system.test'
+class SysTest(MockSystem):
 
     def _conifgure(self, context):
         self.ents_seen = {

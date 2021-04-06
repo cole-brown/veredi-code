@@ -42,8 +42,9 @@ class InputIdGenerator:
         return self._id_class(self._time)
 
 
-@labeler.dotted('veredi.interface.input.identity.input')
-class InputId(SerializableId):
+class InputId(SerializableId,
+              name_dotted='veredi.interface.input.identity.input',
+              name_string='iid'):
     '''
     ID for Input (events, commands, etc).
 
@@ -72,9 +73,6 @@ class InputId(SerializableId):
     '''
     An instance of an InputId with 'None' as its value.
     '''
-
-    _ENCODE_FIELD_NAME = 'iid'
-    '''Can override in sub-classes if needed. E.g. 'iid' for input id.'''
 
     def __init__(self,
                  time_manager: TimeManager,
@@ -143,10 +141,3 @@ class InputId(SerializableId):
         Format our value as a string and return only that.
         '''
         return str(self.value)
-
-    @property
-    def _short_name_(self) -> str:
-        '''
-        A short name for the class for abbreviated outputs (e.g. repr).
-        '''
-        return 'iid'

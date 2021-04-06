@@ -19,6 +19,7 @@ from veredi.data                         import background
 from veredi.logs                         import log
 from veredi.base.context                 import VerediContext
 from veredi.base.strings                 import label
+from veredi.base.strings.mixin           import NamesMixin
 
 # Identity Stuff
 from veredi.game.ecs.base.identity       import EntityId
@@ -108,7 +109,9 @@ class InputHistory(History):
 # History Keeper - A Wholly Owned Sub-System of InputSystem, Inc.
 # -----------------------------------------------------------------------------
 
-class Historian:
+class Historian(NamesMixin,
+                name_dotted='veredi.interface.input.historian',
+                name_string='historian'):
     '''
     TODO [2020-06-18]: This should be our undo history class. See:
       https://en.wikipedia.org/wiki/Undo
@@ -131,13 +134,6 @@ class Historian:
 
         # TODO [2020-06-21]: Write history to disk after x time?
         # TODO [2020-06-21]: Drop history from lists after y time?
-
-    @classmethod
-    def dotted(klass: 'Historian') -> label.DotStr:
-        '''
-        The dotted label string this class has.
-        '''
-        return 'veredi.interface.input.historian'
 
     # -------------------------------------------------------------------------
     # History Getters

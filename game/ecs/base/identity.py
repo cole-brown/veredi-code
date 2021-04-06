@@ -20,28 +20,17 @@ from veredi.base.identity import MonotonicId
 # ECS ID Types
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.game.ecs.base.identity.component')
-class ComponentId(MonotonicId):
-    _ENCODE_FIELD_NAME = 'cid'
-    '''Can override in sub-classes if needed.'''
-
-    # Subclass has no new functionality.
+class ComponentId(MonotonicId,
+                  name_dotted='veredi.game.ecs.base.identity.component',
+                  name_string='cid'):
     pass
 
-
-@labeler.dotted('veredi.game.ecs.base.identity.entity')
-class EntityId(MonotonicId):
-    _ENCODE_FIELD_NAME = 'eid'
-    '''Can override in sub-classes if needed.'''
-
-    # Subclass has no new functionality.
+class EntityId(MonotonicId,
+               name_dotted='veredi.game.ecs.base.identity.entity',
+               name_string='eid'):
     pass
 
-
-@labeler.dotted('veredi.game.ecs.base.identity.system')
-class SystemId(MonotonicId):
-    _ENCODE_FIELD_NAME = 'sid'
-    '''Can override in sub-classes if needed.'''
-
-    # Subclass has no new functionality.
+class SystemId(MonotonicId,
+               name_dotted='veredi.game.ecs.base.identity.system',
+               name_string='sid'):
     pass

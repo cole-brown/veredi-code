@@ -32,7 +32,9 @@ from veredi.game.data.component      import DataComponent
 # Code
 # -----------------------------------------------------------------------------
 
-class SkillComponent(DataComponent, queue.IQueueSingle['SkillEvent']):
+class SkillComponent(DataComponent, queue.IQueueSingle['SkillEvent'],
+                     name_dotted='veredi.rules.d20.pf2.skill.component',
+                     name_string='skill.component'):
     '''
     Component with skill numbers, probably other stuff...
     '''
@@ -74,17 +76,6 @@ class SkillComponent(DataComponent, queue.IQueueSingle['SkillEvent']):
         '''
         actual_data = data['skill']
         super()._from_data(actual_data)
-
-    # -------------------------------------------------------------------------
-    # Properties
-    # -------------------------------------------------------------------------
-
-    @classmethod
-    def dotted(klass: 'SkillComponent') -> label.DotStr:
-        '''
-        Veredi dotted label string.
-        '''
-        return 'veredi.rules.d20.pf2.skill.component'
 
     # -------------------------------------------------------------------------
     # Queue Interface

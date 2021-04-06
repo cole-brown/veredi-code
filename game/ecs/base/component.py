@@ -16,11 +16,11 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
 
-from abc import ABC, abstractmethod
 import enum
 
-from veredi.base.strings import label
-from .identity           import ComponentId
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import NamesMixin
+from .identity                 import ComponentId
 
 
 # -----------------------------------------------------------------------------
@@ -49,14 +49,36 @@ class ComponentLifeCycle(enum.Enum):
         )
 
 
+UT_DOTTED_MOCK_COMP: label.DotStr = 'veredi.zest.mock.component'
+'''Dotted label for MockComponent'''
+
+
 # -----------------------------------------------------------------------------
 # Code
 # -----------------------------------------------------------------------------
 
-class Component(ABC):
+class Component(NamesMixin):
     '''
     A component does not track its EntityId. This is so we can have entities
     that actually share the same exact component.
+
+    Component sub-classes are expected to use kwargs:
+      - Required:
+        + name_dotted: Optional[label.LabelInput]
+          - string/strings to create the Veredi dotted label.
+        + name_string: Optional[str]
+          - Any short string for describing class. Either short-hand or class's
+            __name__ are fine.
+      - Optional:
+        + name_klass:        Optional[str]
+          - If None, will be class's __name__.
+        + name_string_xform: Optional[Callable[[str], str]] = None,
+        + name_klass_xform:  Optional[Callable[[str], str]] = to_lower_lambda,
+
+    Example:
+      class JeffComponent(Component,
+                          name_dotted=label.normalize('jeff', 'component'),
+                          name_string='jeff')
     '''
 
     # --------------------------------------------------------------------------
@@ -94,15 +116,6 @@ class Component(ABC):
     # --------------------------------------------------------------------------
     # Properties
     # --------------------------------------------------------------------------
-
-    @classmethod
-    @abstractmethod
-    def dotted(klass: 'Component') -> label.DotStr:
-        '''
-        Veredi dotted label string.
-        '''
-        raise NotImplementedError(f"{klass.__name__}.dotted() "
-                                  "is not implemented.")
 
     @property
     def id(self) -> ComponentId:
@@ -149,17 +162,20 @@ class Component(ABC):
 # -----------------------------------------------------------------------------
 # Unit-Testing: Mock Component
 # -----------------------------------------------------------------------------
-class MockComponent(Component):
+
+class MockComponent(Component,
+                    name_dotted=UT_DOTTED_MOCK_COMP,
+                    name_string='mock'):
     '''
     A Component that has an auto-created return for 'dotted'.
     '''
 
-    _DOTTED: label.DotStr = 'veredi.zest.mock.component'
+    def __init__(self,
+                 context: Optional['VerediContext'],
+                 cid:     ComponentId) -> None:
+        '''DO NOT CALL THIS UNLESS YOUR NAME IS ComponentManager!'''
+        super().__init__(context, cid)
 
-    @classmethod
-    def dotted(klass: 'MockComponent') -> label.DotStr:
-        '''
-        Generate dotted from klass' const _DOTTED string and klass' name
-        (lowercased).
-        '''
-        return label.normalize(klass._DOTTED, klass.__name__.lower())
+        # Set up our actual mock dotted label.
+        self.dotted = label.normalize(self.dotted,
+                                      self.__class__.__name__.lower())

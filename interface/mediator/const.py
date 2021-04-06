@@ -18,20 +18,18 @@ import re
 from veredi.logs         import log
 from veredi.base.strings import labeler
 from veredi.base.enum    import FlagCheckMixin, FlagSetMixin
-from veredi.data.codec   import FlagEncodeValueMixin
-
-
-_MT_ENCODE_FIELD_NAME: str = 'v.mt'
-'''Can override in sub-classes if needed. E.g. 'eid' for entity id.'''
+from veredi.data         import codec
 
 
 # -----------------------------------------------------------------------------
 # Messages
 # -----------------------------------------------------------------------------
 
-@labeler.dotted('veredi.interface.mediator.message.type')
+@codec.enum.encodable(name_dotted='veredi.interface.mediator.message.type',
+                      name_string='v.mt',
+                      enum_encode_type=codec.enum.FlagEncodeValue)
 @enum.unique
-class MsgType(FlagCheckMixin, FlagSetMixin, FlagEncodeValueMixin, enum.Flag):
+class MsgType(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
     A message between game and Mediator will be assigned one of these types.
     '''
@@ -111,23 +109,3 @@ class MsgType(FlagCheckMixin, FlagSetMixin, FlagEncodeValueMixin, enum.Flag):
     The mediator should figure this one out and it should be one of the
     GAME_MSGS types.
     '''
-
-    # ------------------------------
-    # Encodable API (Codec Support)
-    # ------------------------------
-
-    @classmethod
-    def dotted(klass: 'MsgType') -> str:
-        '''
-        Unique dotted name for this class.
-        '''
-        return 'veredi.interface.mediator.msgtype'
-
-    @classmethod
-    def type_field(klass: 'MsgType') -> str:
-        '''
-        A short, unique name for encoding an instance into a field in a dict.
-        '''
-        return 'v.mt'
-
-    # Rest of Encodable is provided by FlagEncodeValueMixin.
