@@ -10,9 +10,11 @@ Test that event manager.
 
 from veredi.zest.base.unit import ZestBase
 
-from veredi.zest import zmake
+from veredi.zest           import zmake
+from veredi.zest.zpath     import TestType
 
-from .event import EventManager
+
+from .event                import EventManager
 
 
 # -----------------------------------------------------------------------------
@@ -41,6 +43,18 @@ class EventThree:
 # -----------------------------------------------------------------------------
 
 class Test_Events(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.events          = EventManager(self.config, self.debug_flags)

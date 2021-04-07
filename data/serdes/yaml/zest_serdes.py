@@ -14,6 +14,7 @@ import datetime
 
 from veredi.logs             import log
 from veredi.zest.base.unit   import ZestBase
+from veredi.zest.zpath       import TestType
 
 from veredi.base             import paths
 from veredi.base.context     import UnitTestContext
@@ -114,6 +115,18 @@ class Test_YamlSerdes(ZestBase):
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.serdes = YamlSerdes()
@@ -311,7 +324,7 @@ class Test_YamlSerdes(ZestBase):
         self.assertTrue(bg)
         self.assertIsInstance(bg, dict)
         self.assertIn('dotted', bg)
-        self.assertEqual(bg['dotted'], self.serdes.dotted())
+        self.assertEqual(bg['dotted'], self.serdes.dotted)
         self.assertEqual(bg['dotted'], 'veredi.serdes.yaml')
         self.assertIn('type', bg)
         self.assertEqual(bg['type'], self.serdes.name)

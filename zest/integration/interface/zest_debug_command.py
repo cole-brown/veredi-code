@@ -17,14 +17,16 @@ Test debug command(s).
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.base.integrate import ZestIntegrateEngine
+from veredi.zest.base.integrate   import ZestIntegrateEngine
+from veredi.zest.zpath            import TestType
 
-from veredi.logs                      import log
-from veredi.debug.const               import DebugFlag
-from veredi.base.context              import UnitTestContext
 
-from veredi.interface.input.event     import CommandInputEvent
-from veredi.game.ecs.const            import SystemTick
+from veredi.logs                  import log
+from veredi.debug.const           import DebugFlag
+from veredi.base.context          import UnitTestContext
+
+from veredi.interface.input.event import CommandInputEvent
+from veredi.game.ecs.const        import SystemTick
 
 # import veredi.zest.debug.debug
 import veredi.zest.debug.background
@@ -41,6 +43,12 @@ import veredi.data.background
 # -----------------------------------------------------------------------------
 
 class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
 
     def set_up(self):
         self.debug_flags = DebugFlag.GAME_ALL

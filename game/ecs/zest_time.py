@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from veredi.logs           import log
 
 from veredi.zest.base.unit import ZestBase
+from veredi.zest.zpath     import TestType
 from veredi.base.context   import UnitTestContext
 
 from veredi.base.strings   import label
@@ -33,6 +34,18 @@ from ..time.tick.round     import TickRounds
 # -----------------------------------------------------------------------------
 
 class Test_Time(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.round_amount = 6

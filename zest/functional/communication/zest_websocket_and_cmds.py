@@ -210,7 +210,6 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
 # -----------------------------------------------------------------------------
 
 class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
-    _TEST_TYPE = TestType.FUNCTIONAL
 
     # TODO [2020-09-09]: 2 or 4 or something?
     NUM_CLIENTS = 1
@@ -248,6 +247,18 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
 
         self.entity: Entity = None
         '''Entity for to test with.'''
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.FUNCTIONAL
 
     def pre_set_up(self) -> None:
         super().pre_set_up('config.websocket.yaml')

@@ -9,6 +9,7 @@ Tests for engine.py (The Game Itself).
 # -----------------------------------------------------------------------------
 
 from veredi.zest.base.engine import ZestEngine
+from veredi.zest.zpath       import TestType
 from veredi.base.const       import VerediHealth
 from veredi.debug.const      import DebugFlag
 from veredi.logs             import log
@@ -160,6 +161,18 @@ class SysNoReq(SysTest):
 # -----------------------------------------------------------------------------
 
 class Test_Engine(ZestEngine):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         with log.LoggingManager.on_or_off(self.debugging):

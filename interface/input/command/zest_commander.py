@@ -10,6 +10,7 @@ Tests for the Commander sub-system, events, components, commands......
 
 from veredi.zest.base.ecs         import ZestEcs
 from veredi.zest                  import zonfig
+from veredi.zest.zpath            import TestType
 from veredi.logs                  import log
 
 from veredi.data                  import background
@@ -42,6 +43,18 @@ class Test_Commander(ZestEcs):
     '''
     Test our Commander with some commands.
     '''
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         super().set_up()

@@ -65,6 +65,18 @@ class ZestFindRegistrations(ZestBase):
         structure to walk/ignore for finding registration files.
         '''
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self) -> None:
         '''
         Set up our logging to be unit-testable.

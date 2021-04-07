@@ -17,6 +17,7 @@ from io import StringIO
 
 from veredi.zest.base.ecs                  import ZestEcs
 from veredi.zest                           import zload
+from veredi.zest.zpath       import TestType
 from veredi.base                           import paths
 from veredi.base.context                   import UnitTestContext
 from veredi.logs                           import log
@@ -179,6 +180,18 @@ class BaseTest_DataManager(ZestEcs):
     # Set-Up
     # -------------------------------------------------------------------------
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'manager', 'base')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         super().set_up()
         self._all_events_external = False
@@ -277,6 +290,12 @@ class Test_DataManager_Repo(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'manager', 'repo')
+
     # -------------------------------------------------------------------------
     # Events
     # -------------------------------------------------------------------------
@@ -372,6 +391,12 @@ class BaseTest_DataManager_Serdes(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'manager', 'serdes')
+
     # -------------------------------------------------------------------------
     # Events
     # -------------------------------------------------------------------------
@@ -460,6 +485,12 @@ class Test_DataManager_ToGame(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'manager', 'to-game')
+
     # -------------------------------------------------------------------------
     # Events
     # -------------------------------------------------------------------------
@@ -528,6 +559,12 @@ class Test_DataManager_Actual(BaseTest_DataManager):
     '''
     Test our DataManager with HealthComponent class against some health data.
     '''
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'manager', 'actual')
 
     # -------------------------------------------------------------------------
     # Events

@@ -10,6 +10,7 @@ Tests for SystemManager.
 
 from veredi.zest.base.unit     import ZestBase
 from veredi.zest               import zmake
+from veredi.zest.zpath         import TestType
 
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import UnitTestContext
@@ -151,6 +152,18 @@ class SysFour(SysTest):
 # -----------------------------------------------------------------------------
 
 class Test_SystemManager(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'component', 'eventless')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.event_mgr = None
@@ -457,6 +470,13 @@ class Test_SystemManager(ZestBase):
 
 
 class Test_SystemManager_Events(Test_SystemManager):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'component', 'events')
+
     def set_up(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.

@@ -250,22 +250,40 @@ class ZestBase(unittest.TestCase):
         '''
         Set test class's `dotted` class-level descriptor.
         '''
-        self.dotted = self.get_dotted()
+        # Need the test's file, so can't do this here:
+        # self.dotted = __file__
+        raise NotImplementedError(
+            f"TODO: Implement {self.__class__.__name__}."
+            "set_dotted(self)!:\n"
+            "    def set_dotted(self) -> None:\n"
+            "        '''\n"
+            "        Set test class's `dotted` class-level descriptor.\n"
+            "        '''\n"
+            "        # self.dotted = __file__")
 
-    @abstractmethod
-    def get_dotted(self) -> str:
+
+    def set_type(self) -> None:
         '''
-        Returns the test's actual file path (__file__) or some other string
-        suited for the test's `dotted` label.
+        Set test class's `dotted` class-level descriptor.
         '''
-        print("\n\n")
-        print("  ZestBase.get_dotted():")
-        print("     :", self.__class__.__name__)
-        print("    <-", __file__)
-        print("\n\n")
-        return __file__
-        # raise NotImplementedError(f"{self.__class__.__name__}.get_dotted() "
-        #                           "needs implementing!")
+        # Choose your +weapon+ test-type!
+        # self.type = TestType.UNIT
+        # self.type = TestType.INTEGRATION
+        # self.type = TestType.FUNCTIONAL
+        raise NotImplementedError(
+            f"TODO: Implement {self.__class__.__name__}."
+            "set_type(self)!:\n"
+            "    def set_type(self) -> None:\n"
+            "        '''\n"
+            "        Set test class's `dotted` class-level descriptor.\n"
+            "        '''\n"
+            "        # Choose your +weapon+ test-type!
+            "        # self.type = TestType.UNIT\n"
+            "        # self.type = TestType.INTEGRATION\n"
+            "        # self.type = TestType.FUNCTIONAL\n\n"
+            "If you need TestType:\n"
+            "from veredi.zest.zpath import TestType")
+
 
     def pre_set_up(self) -> None:
         '''
@@ -300,6 +318,8 @@ class ZestBase(unittest.TestCase):
         self._define_vars()
 
         self.set_dotted()
+        self.set_type()
+
         self.pre_set_up()
 
         # ---

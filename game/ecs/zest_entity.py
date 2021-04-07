@@ -10,22 +10,23 @@ Tests for entity.py (EntityManager class).
 
 from veredi.zest.base.unit import ZestBase
 
-from veredi.logs           import log
-from veredi.zest           import zmake
-from veredi.base.context   import UnitTestContext
-from veredi.base.null      import Null
+from veredi.logs         import log
+from veredi.zest         import zmake
+from veredi.zest.zpath   import TestType
+from veredi.base.context import UnitTestContext
+from veredi.base.null    import Null
 
-from .event                import EventManager
-from .component            import (ComponentManager,
-                                   ComponentLifeCycle)
-from .entity               import (EntityManager,
-                                   EntityEvent,
-                                   EntityEventType,
-                                   EntityLifeEvent)
-from .base.identity        import EntityId
-from .base.component       import MockComponent
-from .base.entity          import (Entity,
-                                   EntityLifeCycle)
+from .event              import EventManager
+from .component          import (ComponentManager,
+                                 ComponentLifeCycle)
+from .entity             import (EntityManager,
+                                 EntityEvent,
+                                 EntityEventType,
+                                 EntityLifeEvent)
+from .base.identity      import EntityId
+from .base.component     import MockComponent
+from .base.entity        import (Entity,
+                                 EntityLifeCycle)
 
 
 # -----------------------------------------------------------------------------
@@ -55,6 +56,18 @@ class CompThree(MockComponent):
 
 class Test_EntityManager(ZestBase):
     _TYPE_DONT_CARE = 1
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'component', 'eventless')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.event_mgr = None
@@ -390,6 +403,13 @@ class Test_EntityManager(ZestBase):
 
 
 class Test_EntityManager_Events(Test_EntityManager):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'component', 'events')
+
     def set_up(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.

@@ -12,6 +12,7 @@ import random
 
 
 from veredi.zest.base.system        import ZestSystem
+from veredi.zest.zpath              import TestType
 
 from veredi.base.context            import UnitTestContext
 from veredi.data.exceptions         import LoadError
@@ -66,6 +67,18 @@ class Test_AbilitySystem(ZestSystem):
     # Strong aluminum dragon with normal str mod conversion.
     EXPECTED_STR_SCORE = 30
     EXPECTED_STR_MOD   = "(${this.score} - 10) // 2"
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         super().set_up()

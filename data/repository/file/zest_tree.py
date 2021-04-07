@@ -19,7 +19,7 @@ from io import TextIOBase
 from veredi.zest                  import zpath
 from veredi.zest                  import zmake
 from veredi.zest.base.unit        import ZestBase
-
+from veredi.zest.zpath            import TestType
 
 from veredi.logs                  import log
 from veredi.base                  import paths
@@ -69,6 +69,18 @@ class Test_FileTreeRepo(ZestBase):
     # Set-Up
     # -------------------------------------------------------------------------
 
+     def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self) -> None:
         # ---
         # Paths
@@ -87,7 +99,7 @@ class Test_FileTreeRepo(ZestBase):
         # ---
         self.context = ConfigContext(self.root,
                                      self.dotted,
-                                     id=zpath.config_id(self._TEST_TYPE, None))
+                                     id=zpath.config_id(self.type, None))
 
         # Finish set-up. Inject stuff repo needs to init proper - force them to
         # be this for this test.

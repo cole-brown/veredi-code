@@ -9,6 +9,7 @@ Tests for the DataDict and KeyGroup classes.
 # -----------------------------------------------------------------------------
 
 from veredi.zest.base.unit import ZestBase
+from veredi.zest.zpath     import TestType
 
 from .dict import DataDict, KeyGroupMarker
 
@@ -26,6 +27,18 @@ class Test_DataDict(ZestBase):
     '''
     Test that fancy sorta-dictionary.
     '''
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.raw_data = {

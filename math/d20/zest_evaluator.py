@@ -10,6 +10,7 @@ Unit tests for:
 # -----------------------------------------------------------------------------
 
 from veredi.zest.base.unit import ZestBase
+from veredi.zest.zpath     import TestType
 
 from . import tree
 from . import parser
@@ -30,6 +31,18 @@ from . import evaluator
 # -----------------------------------------------------------------------------
 
 class Test_Evaluator(ZestBase):
+
+     def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def str_to_transformed(self, string):
         ast = parser.Parser.parse(string)

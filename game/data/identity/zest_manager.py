@@ -10,6 +10,7 @@ Tests for the Skill system, events, and components.
 
 from veredi.zest.base.ecs           import ZestEcs
 from veredi.zest                    import zmake
+from veredi.zest.zpath              import TestType
 
 from veredi.base.context            import UnitTestContext
 from veredi.logs                    import log
@@ -68,6 +69,18 @@ class Test_IdentityManager(ZestEcs):
     # -------------------------------------------------------------------------
     # Set-Up
     # -------------------------------------------------------------------------
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         super().set_up()

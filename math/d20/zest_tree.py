@@ -12,6 +12,7 @@ Unit tests for:
 from typing import Optional
 
 from veredi.zest.base.unit import ZestBase
+from veredi.zest.zpath     import TestType
 from veredi.logs           import log
 
 from veredi.base.strings   import labeler
@@ -96,6 +97,18 @@ class MockLeaf(tree.Leaf,
 # -----------------------------------------------------------------------------
 
 class Test_Node(ZestBase):
+
+     def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'node')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.node0 = MockNode(NodeType.enum.INVALID)
@@ -294,6 +307,18 @@ class Test_Node(ZestBase):
 
 class Test_Leaf(ZestBase):
 
+     def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'leaf')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         self.leaf0 = MockLeaf(NodeType.enum.INVALID)
         self.value0 = 42
@@ -361,6 +386,18 @@ class Test_Leaf(ZestBase):
 
 class Test_Dice(ZestBase):
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'dice')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         self.dice0 = tree.Dice(1, 20)
 
@@ -405,6 +442,18 @@ class Test_Dice(ZestBase):
 
 class Test_Constant(ZestBase):
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'constant')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         self.value0 = 42
         self.const0 = tree.Constant(self.value0)
@@ -446,6 +495,18 @@ class Test_Constant(ZestBase):
 # -----------------------------------------------------------------------------
 
 class Test_Variable(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'variable')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.name0 = "$jeff-mod"
@@ -525,6 +586,18 @@ class Test_Variable(ZestBase):
 
 class Test_Branch(ZestBase):
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'branch')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def test_eval(self):
         # Branch base class shouldn't be able to eval successfully... It
         # shouldn't even be able to instantiate itself now, since it's
@@ -549,6 +622,18 @@ class Test_Branch(ZestBase):
 
 class Test_OperatorMath(ZestBase):
 
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'operator', 'math')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def test_eval(self):
         with self.assertRaises(TypeError):
             # OperatorMath base class shouldn't be able to eval successfully...
@@ -564,6 +649,19 @@ class Test_OperatorMath(ZestBase):
 # -----------------------------------------------------------------------------
 
 class Test_OperatorAdd(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'operator', 'add')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         self.value0 = 42
         self.value1 = 9001
@@ -598,6 +696,19 @@ class Test_OperatorAdd(ZestBase):
 # -----------------------------------------------------------------------------
 
 class Test_OperatorSub(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'operator', 'sub')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         self.value0 = 42
         self.value1 = 9001
@@ -632,6 +743,19 @@ class Test_OperatorSub(ZestBase):
 # -----------------------------------------------------------------------------
 
 class Test_OperatorMult(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'operator', 'mult')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         self.value0 = 42
         self.value1 = 9001
@@ -666,6 +790,19 @@ class Test_OperatorMult(ZestBase):
 # -----------------------------------------------------------------------------
 
 class Test_OperatorDiv(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'operator', 'div')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         self.value0 = 42
         self.value1 = 9001
@@ -700,6 +837,19 @@ class Test_OperatorDiv(ZestBase):
 # -----------------------------------------------------------------------------
 
 class Test_OperatorMod(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'operator', 'mod')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         self.value0 = 42
         self.value1 = 9001
@@ -734,6 +884,19 @@ class Test_OperatorMod(ZestBase):
 # -----------------------------------------------------------------------------
 
 class Test_OperatorPow(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'operator', 'pow')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         self.value0 = 42
         self.value1 = 9001
