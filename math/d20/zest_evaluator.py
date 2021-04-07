@@ -32,7 +32,7 @@ from . import evaluator
 
 class Test_Evaluator(ZestBase):
 
-     def set_dotted(self) -> None:
+    def set_dotted(self) -> None:
         '''
         Set test class's `dotted` class-level descriptor.
         '''

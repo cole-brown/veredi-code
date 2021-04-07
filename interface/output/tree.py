@@ -43,7 +43,7 @@ class MathOutputTree:
     # Template Fields
     # ---
     T_TYPE = 'type'
-    T_NAME = 'name'
+    T_MONIKER = 'moniker'
     T_VALUE = 'value'
     T_CHILD = 'children'
 
@@ -51,11 +51,11 @@ class MathOutputTree:
     # Templates
     # ---
     TEMPLATE_LEAF = {T_TYPE: None,
-                     T_NAME: None,
+                     T_MONIKER: None,
                      T_VALUE: None}
 
     TEMPLATE_BRANCH = {T_TYPE: None,
-                       T_NAME: None,
+                       T_MONIKER: None,
                        T_VALUE: None,
                        T_CHILD: None}
 
@@ -90,7 +90,7 @@ class MathOutputTree:
         '''
         Get a (shallow) copy of the correct template for this node's type, fill
         in these values and returns the data:
-          type, name, value
+          type, moniker, value
         '''
         if node.type == NodeType.enum.INVALID:
             return None
@@ -109,7 +109,7 @@ class MathOutputTree:
 
         data = klass._get_template(node)
         data[klass.T_TYPE] = type_name.lower()
-        data[klass.T_NAME] = str(node.name)
+        data[klass.T_MONIKER] = str(node.moniker)
         data[klass.T_VALUE] = node.value
         return data
 

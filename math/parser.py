@@ -195,7 +195,7 @@ class MathTree(Encodable, ABC):
                  value:    Any                  = None,
                  milieu:   str                  = None,
                  children: Iterable['MathTree'] = None,
-                 name:     str                  = None,
+                 moniker:     str                  = None,
                  tags:     VTags                = None) -> None:
         '''
         Base init - optional values for things so children can subclass
@@ -211,10 +211,10 @@ class MathTree(Encodable, ABC):
         self._value: Any = value or None
         '''Final value of math node - use node.value getter property.'''
 
-        self._name: str = name or None
+        self._moniker: str = moniker or None
         '''
-        Name of node (variable name, math operator sign, etc).
-        Use node.name getter property.
+        Moniker of node (variable moniker, math operator sign, etc).
+        Use node.moniker getter property.
         '''
 
         self._milieu: Optional[str] = milieu or None
@@ -235,37 +235,37 @@ class MathTree(Encodable, ABC):
         return self._node_type
 
     @property
-    def name_is_shortcut(self) -> bool:
+    def moniker_is_shortcut(self) -> bool:
         '''
-        Returns true if name has a shortcut in it, like 'this'.
+        Returns true if moniker has a shortcut in it, like 'this'.
         '''
-        # §-TODO-§ [2020-07-13]: 'name_is_alias'? 'name_is_canon'?
-        return self._name.find('this') != -1
+        # §-TODO-§ [2020-07-13]: 'moniker_is_alias'? 'moniker_is_canon'?
+        return self._moniker.find('this') != -1
 
     @property
-    def name(self) -> Any:
-        return self._name
+    def moniker(self) -> Any:
+        return self._moniker
 
-    @name.setter
-    def name(self, new_name: Any) -> None:
+    @moniker.setter
+    def moniker(self, new_moniker: Any) -> None:
         '''
-        Set name if allowed by NodeType.
+        Set moniker if allowed by NodeType.
         Raise AttributeError if not allowed.
         '''
-        if not self._node_type.any(*self._SET_NAME_ALLOWED):
-            msg = ("Node is not allowed to set name; wrong type. "
+        if not self._node_type.any(*self._SET_MONIKER_ALLOWED):
+            msg = ("Node is not allowed to set moniker; wrong type. "
                    "type: {}, allowed: {}").format(self.type,
-                                                   self._SET_NAME_ALLOWED)
+                                                   self._SET_MONIKER_ALLOWED)
             error = AttributeError(msg)
             raise log.exception(error, msg)
 
-        if self._name and not self.name_is_shortcut:
-            msg = ("Node is not allowed to change name unless name has "
-                   "'this' in it. current name: {}").format(self.name)
+        if self._moniker and not self.moniker_is_shortcut:
+            msg = ("Node is not allowed to change moniker unless moniker has "
+                   "'this' in it. current moniker: {}").format(self.moniker)
             error = ValueError(msg)
             raise log.exception(error, msg)
 
-        self._name = new_name
+        self._moniker = new_moniker
 
     @property
     def value(self) -> Any:
@@ -319,8 +319,8 @@ class MathTree(Encodable, ABC):
         self.milieu = new_milieu
         if (isinstance(self.value, FINAL_VALUE_TYPES)
                 and new_milieu
-                and self.name_is_shortcut):
-            self.name = new_milieu
+                and self.moniker_is_shortcut):
+            self.moniker = new_milieu
 
     # -------------------------------------------------------------------------
     # Evaluate
@@ -570,8 +570,8 @@ class MathTree(Encodable, ABC):
         # And return all our vars as a dictionary structure.
         encoded = {
             'dotted':   self.dotted,
+            'moniker':  self._moniker,
             'value':    self._value,  # should be a number or None...
-            'name':     self._name,
             'milieu':   self._milieu,
             'children': encoded_children,
             'tags':     self._tags,  # list of strings
@@ -599,7 +599,7 @@ class MathTree(Encodable, ABC):
         # Get/decode our fields.
         instance._node_type = codec.decode(NodeType, data['type'])
         instance._value = data['value']
-        instance._name = data['name']
+        instance._moniker = data['moniker']
         instance._milieu = data.get('milieu', None)
         instance._tags = data.get('tags', None)
 

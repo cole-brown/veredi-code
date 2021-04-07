@@ -69,7 +69,7 @@ class Test_FileTreeRepo(ZestBase):
     # Set-Up
     # -------------------------------------------------------------------------
 
-     def set_dotted(self) -> None:
+    def set_dotted(self) -> None:
         '''
         Set test class's `dotted` class-level descriptor.
         '''

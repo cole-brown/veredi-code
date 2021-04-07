@@ -289,13 +289,13 @@ class Leaf(Node,
                  type:     'NodeType',
                  value:    Any                  = None,
                  milieu:   str                  = None,
-                 name:     str                  = None,
+                 moniker:  str                  = None,
                  tags:     VTags                = None) -> None:
         super().__init__(NodeType.enum.LEAF | type,
                          value=value,
                          milieu=milieu,
                          children=None,
-                         name=name,
+                         moniker=moniker,
                          tags=tags)
 
         # 1 == positive, -1 == negative
@@ -357,7 +357,7 @@ class Dice(Leaf,
                  dice: int,
                  faces: int,
                  tags: Dict[str, str] = None) -> None:
-        super().__init__(NodeType.enum.RANDOM, name='dice', tags=tags)
+        super().__init__(NodeType.enum.RANDOM, moniker='dice', tags=tags)
 
         self.dice = dice
         self.faces = faces
@@ -495,7 +495,7 @@ class Constant(Leaf,
                  tags: Dict[str, str] = None) -> None:
         super().__init__(NodeType.enum.CONSTANT,
                          value=constant,
-                         name=constant,
+                         moniker=constant,
                          tags=tags)
 
     # -------------------------------------------------------------------------
@@ -591,7 +591,7 @@ class Variable(Leaf,
                  tags: Dict[str, str] = None):
         super().__init__(NodeType.enum.VARIABLE,
                          milieu=milieu,
-                         name=var,
+                         moniker=var,
                          tags=tags)
 
     # -------------------------------------------------------------------------
@@ -606,7 +606,7 @@ class Variable(Leaf,
             f"{self.__class__.__name__}"
             f"("
             f"{'-' if self._sign < 0 else ''}"
-            f"{self.name}"
+            f"{self.moniker}"
             f", '{self.milieu if self.milieu else ''}'"
             f")"
         )
@@ -631,18 +631,17 @@ class Variable(Leaf,
             return ''
 
         output = []
-        name_fmt = options.any(FormatOptions.INITIAL,
-                               FormatOptions.INTERMEDIATE)
-        if name_fmt:
-            if not self.name:
+        moniker_fmt = options.any(FormatOptions.INITIAL,
+                                  FormatOptions.INTERMEDIATE)
+        if moniker_fmt:
+            if not self.moniker:
                 output.append(self.NULL_SIGN)
             else:
-                # §-TODO-§ [2020-04-27]: 'proper name' instead of input name
-                output.append(f'${self.name}')
+                output.append(f'${self.moniker}')
 
         total_fmt = options.any(FormatOptions.FINAL)
         if total_fmt:
-            if name_fmt:
+            if moniker_fmt:
                 output.append("=")
             if self.value is None:
                 output.append(self.NULL_SIGN)
@@ -707,11 +706,11 @@ class Branch(Node, ABC,
     def __init__(self,
                  children: List['Node'],
                  type: NodeType,
-                 name: str,
+                 moniker: str,
                  tags: Dict[str, str] = None):
         super().__init__(NodeType.enum.BRANCH | type,
                          children=children,
-                         name=name,
+                         moniker=moniker,
                          tags=tags)
 
     # -------------------------------------------------------------------------
@@ -771,7 +770,7 @@ class Branch(Node, ABC,
         '''
         A pretty string name for this.
         '''
-        return f"{self.__class__.__name__}"
+        return self.moniker
 
     def _pretty(self, level: int, indent_str: str) -> str:
         '''
