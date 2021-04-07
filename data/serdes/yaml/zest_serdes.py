@@ -154,8 +154,7 @@ class Test_YamlSerdes(ZestBase):
         # DataBareContext...
         #
         # Just use a UnitTestContext so we can assign data easy.
-        context = UnitTestContext(__file__,
-                                  self,
+        context = UnitTestContext(self,
                                   test_name,
                                   data={
                                       'file': filepath,

@@ -122,10 +122,7 @@ class Test_EntityManager(ZestBase):
     def create_entity(self, *comps):
         # TODO [2020-06-01]: When we get to Entities-For-Realsies,
         # probably change to an EntityContext or something...
-        context = UnitTestContext(
-            __file__,
-            self,
-            'create_entity')
+        context = UnitTestContext(self)
 
         eid = self.entity_mgr.create(self._TYPE_DONT_CARE,
                                      context)

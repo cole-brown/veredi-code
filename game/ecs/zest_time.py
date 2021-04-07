@@ -51,9 +51,7 @@ class Test_Time(ZestBase):
         self.round_amount = 6
         self.round_duration = time.duration(f'{self.round_amount} seconds')
         context = UnitTestContext(
-            __file__,
             self,
-            'set_up',
             data={
                 TickRounds.dotted: {
                     'seconds-per-round': self.round_duration,

@@ -225,10 +225,7 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
         self.manager.system.get(OutputSystem)._unit_test(self.recv_output)
 
         # Ok... test the ability command.
-        context = UnitTestContext(
-            __file__,
-            self,
-            'test_input_to_output')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(

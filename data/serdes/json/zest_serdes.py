@@ -151,9 +151,8 @@ class Test_JsonSerdes(ZestBase):
         # DataBareContext...
         #
         # Just use a UnitTestContext so we can assign data easy.
-        context = UnitTestContext(__file__,
-                                  self,
-                                  test_name,
+        context = UnitTestContext(self,
+                                  test_name=test_name,
                                   data={
                                       'file': filepath,
                                   })

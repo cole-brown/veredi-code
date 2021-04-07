@@ -123,10 +123,7 @@ class Test_InputSystem(ZestSystem):
         # Do not create until we have our IdentityRequest in and triggered.
         # self.manager.entity.creation(self.manager.time)
 
-        context = UnitTestContext(
-            __file__,
-            self,
-            'create_entity')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Request our dude get an identity assigned via code.
         event = CodeIdentityRequest(
@@ -163,10 +160,7 @@ class Test_InputSystem(ZestSystem):
         self.assertTrue(entity)
         self.assertTrue(IdentityComponent in entity)
 
-        context = UnitTestContext(
-            __file__,
-            self,
-            'test_input_cmd')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(

@@ -531,9 +531,7 @@ class ZestLogFormat(ZestLogBase):
                 'here':  'there',
                 42:      '?',
             }
-        context = UnitTestContext(test_file=__file__,
-                                  test_case=self,
-                                  test_name=test_func,
+        context = UnitTestContext(self,
                                   data=data)
         return (data, context)
 

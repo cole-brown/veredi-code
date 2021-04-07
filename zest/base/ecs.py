@@ -355,9 +355,7 @@ class ZestEcs(ZestBase):
         Initializes a system and returns its instance object.
         '''
         context = UnitTestContext(
-            __file__,
             self,
-            'init_one_system',
             data=({}
                   if not kwargs else
                   {'system': kwargs}))
@@ -684,10 +682,7 @@ class ZestEcs(ZestBase):
 
         # TODO [2020-06-01]: When we get to Entities-For-Realsies,
         # probably change to an EntityContext or something?..
-        context = UnitTestContext(
-            __file__,
-            self,
-            'create_entity')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Set up an entity to load the component on to.
         eid = self.manager.entity.create(_TYPE_DONT_CARE,
@@ -783,10 +778,7 @@ class ZestEcs(ZestBase):
             event = request
 
         elif data:
-            context = UnitTestContext(
-                __file__,
-                self,
-                'create_identity')  # no initial sub-context
+            context = UnitTestContext(self)  # no initial sub-context
 
             # Create a request for our dude get an identity assigned via data
             # dictionary.

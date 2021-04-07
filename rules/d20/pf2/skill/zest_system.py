@@ -100,10 +100,7 @@ class Test_SkillSystem(ZestSystem):
         return component
 
     def skill_request(self, entity, skill):
-        context = UnitTestContext(
-            __file__,
-            self,
-            'skill_request')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         event = SkillRequest(
             entity.id,
