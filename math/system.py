@@ -360,11 +360,12 @@ class MathSystem(System,
         for var in entry.root.each_var():
             if self._should_debug():
                 self._log_debug(f"      ----- working on var: {var} -----")
-                self._log_debug(f"canonicalize_fn: var.name: {var.name}, "
+                self._log_debug("canonicalize_fn: "
+                                f"var.moniker: {var.moniker}, "
                                 f"var.milieu: {var.milieu}")
-            # If the function can canonicalize this variable's name, we'll
+            # If the function can canonicalize this variable's moniker, we'll
             # assume it's the owner and have it fill it in.
-            canon = entry.canonicalize(var.name, var.milieu)
+            canon = entry.canonicalize(var.moniker, var.milieu)
             if not canon:
                 continue
 

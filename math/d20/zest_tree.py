@@ -98,7 +98,7 @@ class MockLeaf(tree.Leaf,
 
 class Test_Node(ZestBase):
 
-     def set_dotted(self) -> None:
+    def set_dotted(self) -> None:
         '''
         Set test class's `dotted` class-level descriptor.
         '''
@@ -307,7 +307,7 @@ class Test_Node(ZestBase):
 
 class Test_Leaf(ZestBase):
 
-     def set_dotted(self) -> None:
+    def set_dotted(self) -> None:
         '''
         Set test class's `dotted` class-level descriptor.
         '''
@@ -509,19 +509,19 @@ class Test_Variable(ZestBase):
         self.type = TestType.UNIT
 
     def set_up(self):
-        self.name0 = "$jeff-mod"
+        self.moniker0 = "$jeff-mod"
         self.value0 = 3
-        self.var0 = tree.Variable(self.name0)
-        self.name1 = "$jeff"
+        self.var0 = tree.Variable(self.moniker0)
+        self.moniker1 = "$jeff"
         self.value1 = 1336
-        self.var1 = tree.Variable(self.name1)
+        self.var1 = tree.Variable(self.moniker1)
 
     def tear_down(self):
         self.var0 = None
         self.var1 = None
 
-        self.name0 = None
-        self.name1 = None
+        self.moniker0 = None
+        self.moniker1 = None
 
         self.value0 = None
         self.value1 = None
@@ -531,8 +531,8 @@ class Test_Variable(ZestBase):
     # -------------------------------------------------------------------------
 
     def test_roll_var(self):
-        # Variables should just be a name until we know what to do with
-        # that name...
+        # Variables should just be a moniker until we know what to do with
+        # that moniker...
         # So they shouldn't have a value just yet.
         self.assertEqual(None, self.var0.value)
         self.assertEqual(None, self.var1.value)
@@ -547,9 +547,9 @@ class Test_Variable(ZestBase):
         with self.assertRaises(ValueError):
             self.assertNotEqual(self.value1, self.var1)
 
-        # But they should have their name.
-        self.assertEqual(self.name0, self.var0.name)
-        self.assertEqual(self.name1, self.var1.name)
+        # But they should have their moniker.
+        self.assertEqual(self.moniker0, self.var0.moniker)
+        self.assertEqual(self.moniker1, self.var1.moniker)
 
         # Variables get their values filled in from outside systems in normal
         # cases. But this is a test and there is no outside, so... pretend.

@@ -105,10 +105,11 @@ def has_dotted(klass: Type) -> bool:
 # Helpers
 # -------------------------------------------------------------------------
 
-def dotted_helper(caller_label: LabelInput,
-                  provider_str: str,
-                  cls_or_func:  Union[Type[Any], Callable[..., Type[Any]]],
-                  dotted_label: LabelInput) -> Type[Any]:
+def dotted_helper(caller_label:    LabelInput,
+                  provider_str:    str,
+                  cls_or_func:     Union[Type[Any], Callable[..., Type[Any]]],
+                  dotted_label:    LabelInput,
+                  ignore_existing: bool = True) -> Type[Any]:
     '''
     Tag `cls_or_func` with a dotted `label`.
 
@@ -121,14 +122,16 @@ def dotted_helper(caller_label: LabelInput,
     dotted = normalize(dotted_label)
 
     _add_dotted_descriptor(caller_label, provider_str,
-                           cls_or_func, dotted)
+                           cls_or_func, dotted,
+                           ignore_existing=ignore_existing)
 
 
 def _add_dotted_descriptor(
-        caller_label: LabelInput,
-        provider_str: str,
-        cls_or_func:  Union[Type[Any], Callable[..., Type[Any]]],
-        add_label:    LabelInput) -> None:
+        caller_label:    LabelInput,
+        provider_str:    str,
+        cls_or_func:     Union[Type[Any], Callable[..., Type[Any]]],
+        add_label:       LabelInput,
+        ignore_existing: bool = True) -> None:
     '''
     Add a DottedDescriptor for the dotted name of this classes.
 
@@ -149,7 +152,8 @@ def _add_dotted_descriptor(
     descriptor = DottedDescriptor(add_label, DESCRIPTOR_NAME)
     if not hasattr(cls_or_func, DESCRIPTOR_NAME):
         setattr(cls_or_func, DESCRIPTOR_NAME, descriptor)
-    else:
+
+    elif not ignore_existing:
         add_dotted = normalize(add_label)
         msg = (f"{caller_dotted}->{provider_str}: Failed to add descriptor "
                f"'{DESCRIPTOR_NAME}' to '{add_dotted}'. "
@@ -160,3 +164,7 @@ def _add_dotted_descriptor(
         log.info(msg)
         # raise log.exception(AttributeError(msg, cls_or_func),
         #                     msg)
+
+    # else:
+    #     # Ignoring the fact that they already have a dotted attribute, so...
+    #     # nothing more to do.

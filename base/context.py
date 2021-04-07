@@ -743,7 +743,7 @@ class UnitTestContext(EphemerealContext):
         '''
         dotted = (test_case.dotted
                   if not test_name else
-                  label.normalize(test_case.dotted, test_name)
+                  label.normalize(test_case.dotted, test_name))
         super().__init__(test_case.dotted,
                          'unit-testing')
 

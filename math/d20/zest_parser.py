@@ -346,7 +346,7 @@ class Test_Transformer(ZestBase):
     #     # Make sure we only have what we input.
     #     self.assertEqual(1, len(roll_tree.children))
     #     self.assertTrue(isinstance(roll_tree, tree.Variable))
-    #     self.assertEqual(roll_tree.name, "jeff")
+    #     self.assertEqual(roll_tree.moniker, "jeff")
 
     def test_var(self):
         string = "$jeff"
@@ -357,7 +357,8 @@ class Test_Transformer(ZestBase):
 
         # Make sure we only have what we input.
         self.assertTrue(isinstance(roll_tree, tree.Variable))
-        self.assertEqual(roll_tree.name, "jeff")
+        self.assertEqual(roll_tree.name, "variable")
+        self.assertEqual(roll_tree.moniker, "jeff")
 
     def test_die(self):
         string = "d20"

@@ -47,9 +47,6 @@ class ZestDottedDescriptor:
     def __init__(self,
                  path_or_dotted: Union[str, paths.Path, Null, None],
                  name:           Optional[str] = None) -> None:
-        print("ZestDottedDescriptor:")
-        print("  path_or_dotted:", path_or_dotted)
-        print("  name:", name)
         self.name: str = name
         self.dotted: label.DotStr = None
         if path_or_dotted:
@@ -245,7 +242,6 @@ class ZestBase(unittest.TestCase):
         If class uses a special config, it should be saved here so set-up(s)
         can use it.
         '''
-
     def set_dotted(self) -> None:
         '''
         Set test class's `dotted` class-level descriptor.
@@ -260,7 +256,6 @@ class ZestBase(unittest.TestCase):
             "        Set test class's `dotted` class-level descriptor.\n"
             "        '''\n"
             "        # self.dotted = __file__")
-
 
     def set_type(self) -> None:
         '''
@@ -277,13 +272,12 @@ class ZestBase(unittest.TestCase):
             "        '''\n"
             "        Set test class's `dotted` class-level descriptor.\n"
             "        '''\n"
-            "        # Choose your +weapon+ test-type!
+            "        # Choose your +weapon+ test-type!"
             "        # self.type = TestType.UNIT\n"
             "        # self.type = TestType.INTEGRATION\n"
             "        # self.type = TestType.FUNCTIONAL\n\n"
             "If you need TestType:\n"
             "from veredi.zest.zpath import TestType")
-
 
     def pre_set_up(self) -> None:
         '''
