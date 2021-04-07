@@ -164,10 +164,7 @@ class Test_AbilitySystem(ZestSystem):
     # -------------------------------------------------------------------------
 
     def ability_request(self, entity, ability):
-        context = UnitTestContext(
-            __file__,
-            self,
-            'ability_request')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
         # ctx = self.context.spawn(EphemerealContext,
         #                          'unit-testing', None)
 
@@ -277,10 +274,7 @@ class Test_AbilitySystem(ZestSystem):
         self.allow_registration()
         entity = self.create_entity()
 
-        context = UnitTestContext(
-            __file__,
-            self,
-            'test_cmd_score')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(
@@ -295,10 +289,7 @@ class Test_AbilitySystem(ZestSystem):
         self.allow_registration()
         entity = self.create_entity()
 
-        context = UnitTestContext(
-            __file__,
-            self,
-            'test_cmd_mod')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(
@@ -313,10 +304,7 @@ class Test_AbilitySystem(ZestSystem):
         self.allow_registration()
         entity = self.create_entity()
 
-        context = UnitTestContext(
-            __file__,
-            self,
-            'test_cmd_shortcut')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(
@@ -331,10 +319,7 @@ class Test_AbilitySystem(ZestSystem):
         self.allow_registration()
         entity = self.create_entity()
 
-        context = UnitTestContext(
-            __file__,
-            self,
-            'test_cmd_alias')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(

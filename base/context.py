@@ -730,19 +730,21 @@ class EphemerealContext(VerediContext):
 
 class UnitTestContext(EphemerealContext):
     def __init__(self,
-                 test_case:       'TestCase',
-                 test_name:        str,
+                 test_case:        'TestCase',
+                 test_name:        Optional[str]            = None,
                  data:             MutableMapping[str, Any] = {},
                  starting_context: MutableMapping[str, Any] = None) -> None:
         '''
         Initialize Context with test class/name. e.g.:
 
-        context = UnitTestContext(__file__,
-                                  self,
+        context = UnitTestContext(self,
                                   'test_something',
                                   data={...})
         '''
-        super().__init__(test_case.__class__.__name__ + '.' + test_name,
+        dotted = (test_case.dotted
+                  if not test_name else
+                  label.normalize(test_case.dotted, test_name)
+        super().__init__(test_case.dotted,
                          'unit-testing')
 
         # Set starting context.

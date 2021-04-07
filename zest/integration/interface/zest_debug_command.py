@@ -111,10 +111,7 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
         admin = self.create_entity()
 
         # Ok... test the background debug command
-        context = UnitTestContext(
-            __file__,
-            self,
-            'test_background_cmd')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(
@@ -153,10 +150,7 @@ class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
         admin = self.create_entity()
 
         # Ok... test the background debug command
-        context = UnitTestContext(
-            __file__,
-            self,
-            'test_debug_background_cmd')  # no initial sub-context
+        context = UnitTestContext(self)  # no initial sub-context
 
         # Do the test command event.
         event = CommandInputEvent(

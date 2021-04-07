@@ -429,9 +429,7 @@ class BaseTest_DataManager_Serdes(BaseTest_DataManager):
                 42,
                 0xDEADBEEF,
                 UnitTestContext(
-                    __file__,
                     self,
-                    'test_deserialize',
                     data={
                         'unit-testing': "string 'test-data' in zest_manager.py"
                     }),
@@ -516,9 +514,7 @@ class Test_DataManager_ToGame(BaseTest_DataManager):
         self.set_up_events(clear_self=True, clear_manager=True)
 
         ctx = UnitTestContext(
-            __file__,
             self,
-            'test_event_loaded',
             data={'unit-testing': "Manually created _DeserializedEvent."})
         ctx.pull(self.context)
         decode_event = _DeserializedEvent(
