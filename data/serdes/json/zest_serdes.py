@@ -13,6 +13,7 @@ from typing import Union, Type
 import datetime
 
 from veredi.zest.base.unit   import ZestBase
+from veredi.zest.zpath       import TestType
 
 from veredi.base             import paths
 from veredi.base.context     import UnitTestContext
@@ -111,6 +112,18 @@ class Test_JsonSerdes(ZestBase):
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.serdes = JsonSerdes()

@@ -10,6 +10,7 @@ Tests for component.py (ComponentManager class).
 
 from veredi.zest.base.unit import ZestBase
 from veredi.zest           import zmake
+from veredi.zest.zpath       import TestType
 
 from veredi.base.context   import UnitTestContext
 from veredi.base.null      import Null
@@ -55,6 +56,18 @@ class CompThree(MockComponent):
 
 
 class Test_ComponentManager(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'component', 'eventless')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         self.event_mgr = None
@@ -291,6 +304,18 @@ class Test_ComponentManager(ZestBase):
 
 
 class Test_ComponentManager_Events(Test_ComponentManager):
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'component', 'events')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
+
     def set_up(self):
         # Add EventManager so that tests in parent class will
         # generate/check events.

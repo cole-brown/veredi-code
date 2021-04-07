@@ -29,7 +29,11 @@ class ZestIntegrateEcs(ZestEcs):
     multiple Systems.
     '''
 
-    _TEST_TYPE = TestType.INTEGRATION
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.INTEGRATION
 
     def set_up(self) -> None:
         super().set_up()
@@ -50,7 +54,11 @@ class ZestIntegrateEngine(ZestEngine):
     multiple Systems.
     '''
 
-    _TEST_TYPE = TestType.INTEGRATION
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.INTEGRATION
 
     def set_up(self) -> None:
         super().set_up()

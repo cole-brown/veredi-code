@@ -27,6 +27,7 @@ import sys
 # ------------------------------
 from veredi.zest               import zinit, zpath
 from veredi.zest.timing        import ZestTiming
+from veredi.zest.base.unit     import ZestDottedDescriptor
 
 # For asserting.
 from veredi.data.config.config import Configuration
@@ -75,6 +76,8 @@ class Test_From_Scratch(unittest.TestCase):
     This tests creating/starting a game the "correct" way. The way users of
     veredi should be creating/starting it.
     '''
+
+    dotted: ZestDottedDescriptor = ZestDottedDescriptor(__file__)
 
     # -------------------------------------------------------------------------
     # Set-Up
@@ -168,16 +171,6 @@ class Test_From_Scratch(unittest.TestCase):
     # -------------------------------------------------------------------------
     # Properties & Such
     # -------------------------------------------------------------------------
-
-    def dotted(self) -> None:
-        '''
-        If class or instance has a _DOTTED, returns that.
-
-        Else tries to build something from `uufileuu`, which should probably
-        just be:
-          __file__
-        '''
-        return 'veredi.zest.functional.from_scratch'
 
     def set_background_testing_flag(self, flag: bool) -> None:
         '''

@@ -12,6 +12,7 @@ import random
 
 
 from veredi.zest.base.system        import ZestSystem
+from veredi.zest.zpath              import TestType
 from veredi.base.context            import UnitTestContext
 from veredi.logs                    import log
 
@@ -42,6 +43,18 @@ class Test_SkillSystem(ZestSystem):
     '''
     Test our SkillSystem with some on-disk data.
     '''
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         super().set_up()

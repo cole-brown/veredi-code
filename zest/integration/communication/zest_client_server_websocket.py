@@ -17,6 +17,7 @@ import multiprocessing
 import multiprocessing.connection
 
 from veredi.zest                                import zontext
+from veredi.zest.zpath                          import TestType
 from veredi.parallel                            import multiproc
 from veredi.zest.base.multiproc                 import (ZestIntegrateMultiproc,
                                                         Processes,
@@ -213,6 +214,12 @@ class Test_WebSockets(ZestIntegrateMultiproc):
     # -------------------------------------------------------------------------
     # Set-Up & Tear-Down
     # -------------------------------------------------------------------------
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
 
     def pre_set_up(self) -> None:
         super().pre_set_up('config.websocket.yaml')

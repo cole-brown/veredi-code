@@ -149,7 +149,7 @@ class ZestEcs(ZestBase):
     # ------------------------------
 
     def _set_up_ecs(self,
-                    # Will be class._TEST_TYPE if None:
+                    # Will be class.type if None:
                     test_type:         Optional[TestType]         = None,
                     # Optional ECS:
                     require_engine:    Optional[bool]             = None,
@@ -171,11 +171,11 @@ class ZestEcs(ZestBase):
         a config file.
 
         None of the args are needed, usually.
-          - `test_type` will become `self._TEST_TYPE` if it is None.
+          - `test_type` will become `self.type` if it is None.
           - `require_engine` will become `self._REQUIRE_ENGINE` if it is None.
         '''
         if test_type is None:
-            test_type = self._TEST_TYPE
+            test_type = self.type
         if require_engine is None:
             require_engine = self._REQUIRE_ENGINE
         if configuration is None and self.config:

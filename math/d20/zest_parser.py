@@ -10,6 +10,7 @@ Unit tests for:
 # -----------------------------------------------------------------------------
 
 from veredi.zest.base.unit import ZestBase
+from veredi.zest.zpath     import TestType
 
 from . import parser
 from . import tree
@@ -30,6 +31,18 @@ from . import tree
 # -----------------------------------------------------------------------------
 
 class Test_Parser(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'parser')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     # NOTE!
     #  Don't test Lark itself. Just test some basics so I can know my grammar
@@ -290,6 +303,18 @@ class Test_Parser(ZestBase):
 # -----------------------------------------------------------------------------
 
 class Test_Transformer(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = (__file__, 'transformer')
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     # NOTE!
     #  Don't test Lark. Test my Transformer!

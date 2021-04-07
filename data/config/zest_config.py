@@ -13,6 +13,7 @@ from datetime import date
 
 from veredi.zest.base.unit            import ZestBase
 from veredi.zest                      import zpath, zmake
+from veredi.zest.zpath                import TestType
 from veredi.logs                      import log
 
 from .                                import hierarchy
@@ -29,6 +30,18 @@ from veredi.data.repository.file.tree import FileTreeRepository
 # -----------------------------------------------------------------------------
 
 class Test_Configuration(ZestBase):
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def pre_set_up(self) -> None:
         self.path = zpath.config('test-target.yaml')

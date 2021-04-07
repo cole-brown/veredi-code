@@ -8,6 +8,7 @@ Tests for the Input system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
+from veredi.zest.zpath                   import TestType
 from veredi.zest.base.system             import ZestSystem
 from veredi.logs                         import log
 
@@ -53,6 +54,18 @@ class Test_InputSystem(ZestSystem):
             'allonym': 'u/jill'
         },
     }
+
+    def set_dotted(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.dotted = __file__
+
+    def set_type(self) -> None:
+        '''
+        Set test class's `dotted` class-level descriptor.
+        '''
+        self.type = TestType.UNIT
 
     def set_up(self):
         super().set_up()
