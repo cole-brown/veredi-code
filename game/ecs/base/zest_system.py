@@ -8,6 +8,9 @@ Tests for the generic System class.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
+
 from veredi.zest.base.unit import ZestBase
 from veredi.zest.zpath     import TestType
 
@@ -85,17 +88,12 @@ class SysJill(system.MockSystem):
 
 class Test_System(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__)
 
     def set_up(self):
         self.sys = SysJeff(None, 1, None)

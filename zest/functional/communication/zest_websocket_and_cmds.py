@@ -33,7 +33,7 @@ Functional Test for a client talking to a server:
 # ---
 # Type Hinting
 # ---
-from typing import Optional, Set
+from typing import Optional, Set, Tuple, Literal
 
 
 # ---
@@ -248,20 +248,14 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.entity: Entity = None
         '''Entity for to test with.'''
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.FUNCTIONAL
-
-    def pre_set_up(self) -> None:
-        super().pre_set_up('config.websocket.yaml')
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up('config.websocket.yaml',
+                           filename=__file__,
+                           test_type=TestType.FUNCTIONAL)
 
     def set_up(self):
         # Want MEDIATOR_ALL for mediators and GAME_ALL for engine?
@@ -364,8 +358,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # And make as many as we want...
         for i in range(self.NUM_CLIENTS):
             name = self.NAME_CLIENT_FMT.format(i=i)
-            context = zontext.empty(__file__,
-                                    self,
+            context = zontext.empty(self,
                                     f"_set_up_clients('{name}')",
                                     UnitTestContext)
 

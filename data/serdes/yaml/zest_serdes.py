@@ -8,7 +8,7 @@ Tests for the YAML serializer/deserializer.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Union, Type
+from typing import Union, Type, Tuple, Literal
 
 import datetime
 
@@ -116,17 +116,12 @@ class Test_YamlSerdes(ZestBase):
     # Initialization
     # -------------------------------------------------------------------------
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__)
 
     def set_up(self):
         self.serdes = YamlSerdes()

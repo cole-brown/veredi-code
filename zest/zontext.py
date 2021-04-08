@@ -45,8 +45,7 @@ def _metadata(file_name: str,
 # General Unit Test Context
 # -----------------------------------------------------------------------------
 
-def empty(file_name:    str,
-          test_case:    'unittest.TestCase',
+def empty(test_case:    'unittest.TestCase',
           func_name:    str,
           context_type: Type[VerediContext],
           ) -> VerediContext:
@@ -65,8 +64,7 @@ def empty(file_name:    str,
     `real_config()` do!
     '''
     if context_type == UnitTestContext:
-        return context_type(file_name,
-                            test_case,
+        return context_type(test_case,
                             func_name,
                             data={})
     return context_type()
@@ -79,7 +77,10 @@ def test(file_name:   str,
          config:      Optional[Configuration] = None
          ) -> ConfigContext:
     '''
-    Creates a ConfigContext for general tests of `test_type`.
+    Creates a ConfigContext with 'test' key holding:
+      - `file_name`
+      - `test_case`
+      - `func_name`
     '''
     ctx = ConfigContext(repo_path,
                         'veredi.zest.zontext.test')
@@ -112,7 +113,7 @@ def real_config(file_name:  str,
     elif config:
         ctx = config.make_config_context()
     else:
-        ctx = empty(file_name, test_case, func_name, ConfigContext)
+        ctx = empty(test_case, func_name, ConfigContext)
 
     # Slip in the testing metadata befor returning.
     ctx['test'] = _metadata(file_name, test_case, func_name)

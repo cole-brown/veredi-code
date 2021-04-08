@@ -17,6 +17,9 @@ and doesn't really need the engine.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
+
 from veredi.zest.base.integrate             import ZestIntegrateEcs
 from veredi.zest.zpath                      import TestType
 
@@ -49,11 +52,12 @@ from veredi.game.data.identity.component    import IdentityComponent
 
 class Test_DataLoad_DiskToGame(ZestIntegrateEcs):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__)
 
     def set_up(self):
         super().set_up()

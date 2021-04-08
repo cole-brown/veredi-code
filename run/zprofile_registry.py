@@ -9,7 +9,7 @@ Profile our registration functionality.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import TYPE_CHECKING, Optional, Iterable
+from typing import TYPE_CHECKING, Optional, Iterable, Literal
 from types import ModuleType
 
 from veredi.zest.base.unit import ZestBase
@@ -65,17 +65,13 @@ class ZestFindRegistrations(ZestBase):
         structure to walk/ignore for finding registration files.
         '''
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__)
 
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
 
     def set_up(self) -> None:
         '''

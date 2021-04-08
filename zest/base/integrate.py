@@ -8,9 +8,13 @@ Base Class for Integration Tests.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.zest.zpath import TestType
-from .ecs              import ZestEcs
-from .engine           import ZestEngine
+from typing import Optional, Union
+
+from veredi.base         import paths
+from veredi.base.strings import label
+from veredi.zest.zpath   import TestType
+from .ecs                import ZestEcs
+from .engine             import ZestEngine
 
 
 # -----------------------------------------------------------------------------
@@ -29,11 +33,24 @@ class ZestIntegrateEcs(ZestEcs):
     multiple Systems.
     '''
 
-    def set_type(self) -> None:
+    def pre_set_up(self,
+                   filename:  Union[str, paths.Path]  = None,
+                   extra:     label.LabelLaxInputIter = (),
+                   test_type: Optional[TestType]      = TestType.INTEGRATION
+                   ) -> None:
         '''
-        Set test class's `dotted` class-level descriptor.
+        Use this!
+
+        Called in `self.setUp()` after `self._define_vars()` and before
+        anything happens.
+
+        Use it to do any prep-work needed (like defining a different path for
+        the config file).
         '''
-        self.type = TestType.INTEGRATION
+        # Tests based off of this, ZestIntegrateEcs, are INTEGRATION tests...
+        # So far. But I guess they can change test_type if they want.
+        super().pre_set_up(filename=filename,
+                           test_type=test_type)
 
     def set_up(self) -> None:
         super().set_up()
@@ -54,11 +71,24 @@ class ZestIntegrateEngine(ZestEngine):
     multiple Systems.
     '''
 
-    def set_type(self) -> None:
+    def pre_set_up(self,
+                   filename:  Union[str, paths.Path]  = None,
+                   extra:     label.LabelLaxInputIter = (),
+                   test_type: Optional[TestType]      = TestType.INTEGRATION
+                   ) -> None:
         '''
-        Set test class's `dotted` class-level descriptor.
+        Use this!
+
+        Called in `self.setUp()` after `self._define_vars()` and before
+        anything happens.
+
+        Use it to do any prep-work needed (like defining a different path for
+        the config file).
         '''
-        self.type = TestType.INTEGRATION
+        # Tests based off of this, ZestIntegrateEcs, are INTEGRATION tests...
+        # So far. But I guess they can change test_type if they want.
+        super().pre_set_up(filename=filename,
+                           test_type=test_type)
 
     def set_up(self) -> None:
         super().set_up()

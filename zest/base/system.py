@@ -36,6 +36,9 @@ class ZestSystem(ZestEcs):
     # Set-Up
     # -------------------------------------------------------------------------
 
+    # Just use ZestBase's currently.
+    # def pre_set_up(self, filename, test_type) -> None:
+
     def set_up(self) -> None:
         '''
         Override this!

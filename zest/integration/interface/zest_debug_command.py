@@ -17,6 +17,9 @@ Test debug command(s).
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
+
 from veredi.zest.base.integrate   import ZestIntegrateEngine
 from veredi.zest.zpath            import TestType
 
@@ -44,11 +47,12 @@ import veredi.data.background
 
 class Test_EngineStart_DebugCmds(ZestIntegrateEngine):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__)
 
     def set_up(self):
         self.debug_flags = DebugFlag.GAME_ALL

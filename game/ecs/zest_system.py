@@ -8,12 +8,16 @@ Tests for SystemManager.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
+
 from veredi.zest.base.unit     import ZestBase
 from veredi.zest               import zmake
 from veredi.zest.zpath         import TestType
 
 from veredi.base.const         import VerediHealth
 from veredi.base.context       import UnitTestContext
+from veredi.base.strings       import label
 from veredi.base.strings.mixin import NamesMixin
 from veredi.debug.const        import DebugFlag
 from veredi.data               import background
@@ -30,7 +34,7 @@ from .const                    import SystemTick, SystemPriority
 
 from .base.identity            import SystemId
 from .base.component           import MockComponent
-from .base.system              import MockSystem, SystemLifeCycle
+from .base.system              import System, MockSystem, SystemLifeCycle
 
 
 # -----------------------------------------------------------------------------
@@ -153,17 +157,14 @@ class SysFour(SysTest):
 
 class Test_SystemManager(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'component', 'eventless')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     label.LabelLaxInputIter = ('system',
+                                                         'eventless'),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=extra)
 
     def set_up(self):
         self.event_mgr = None
@@ -469,11 +470,13 @@ class Test_SystemManager(ZestBase):
 
 class Test_SystemManager_Events(Test_SystemManager):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'component', 'events')
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('system', 'events')
 
     def set_up(self):
         # Add EventManager so that tests in parent class will

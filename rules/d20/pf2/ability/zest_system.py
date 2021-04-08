@@ -8,6 +8,9 @@ Tests for the Ability system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
+
 import random
 
 
@@ -68,17 +71,12 @@ class Test_AbilitySystem(ZestSystem):
     EXPECTED_STR_SCORE = 30
     EXPECTED_STR_MOD   = "(${this.score} - 10) // 2"
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__)
 
     def set_up(self):
         super().set_up()

@@ -9,7 +9,7 @@ Helpers for names.
 # -----------------------------------------------------------------------------
 
 from typing import (Optional, Union, Any, NewType,
-                    Mapping, List, Tuple)
+                    Mapping, Iterable, List, Tuple)
 from ..null import Nullable, Null
 
 import pathlib
@@ -34,6 +34,18 @@ Examples:
   - "jeff.rules.x.y.z"
   - ["jeff", "rules", "x", "y", "z"]
   - ["jeff.rules", "x", "y.z"]
+'''
+
+LabelLaxInput = NewType('LabelLaxInput',
+                        Union[str, pathlib.Path, Null, None])
+'''
+Label functions that want to be ULTRA MAX helpful may take/handle all these
+types of input.
+'''
+
+LabelLaxInputIter = NewType('LabelLaxInputIter', Iterable[LabelLaxInput])
+'''
+Iterable of LabelLaxInput types.
 '''
 
 DotStr = NewType('DotStr', str)
@@ -199,7 +211,7 @@ def _split(dotted: str) -> DotList:
     '''
     return dotted.split('.')
 
-def _split_path_or_dot(input: Union[str, pathlib.Path]) -> DotList:
+def _split_path_or_dot(input: LabelLaxInput) -> DotList:
     '''
     Splits `names` strings up on '.' and retuns a list of the split strings.
 
@@ -212,7 +224,16 @@ def _split_path_or_dot(input: Union[str, pathlib.Path]) -> DotList:
     Mixed too:
       '/veredi/jeff.system' -> ['veredi', 'jeff', 'system']
     '''
-    return _DIR_OR_DOT_RX.split(str(input))
+    if not input:
+        return ()
+
+    # Get rid of ".py" if it's easy-ish.
+    if isinstance(input, pathlib.Path):
+        parts = list(input.parts)
+        parts[-1] = _scrub_for_path(parts[-1])
+        return parts
+    parts = _DIR_OR_DOT_RX.split(str(input))
+    return parts
 
 
 def regularize(*dotted: LabelInput, empty_ok: bool = False) -> DotList:
@@ -335,7 +356,7 @@ def from_path(path:     Union[str, pathlib.Path, Null],
     return _join(*list(reversed(dotted_parts)))
 
 
-def from_something(input:    Union[str, pathlib.Path, Null, None],
+def from_something(*input:   LabelLaxInput,
                    root_str: str = 'veredi') -> Optional[DotStr]:
     '''
     Builds a dotted string from the `input`, using `root_str` name as the
