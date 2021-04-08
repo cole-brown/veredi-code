@@ -8,11 +8,14 @@ Tests for the Input system, events, and components.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
 from veredi.zest.zpath                   import TestType
 from veredi.zest.base.system             import ZestSystem
 from veredi.logs                         import log
 
 from veredi.base.context                 import UnitTestContext
+from veredi.base.strings                 import label
 
 from veredi.game.data.identity.component import IdentityComponent
 from veredi.game.data.identity.event     import CodeIdentityRequest
@@ -55,17 +58,12 @@ class Test_InputSystem(ZestSystem):
         },
     }
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__)
 
     def set_up(self):
         super().set_up()

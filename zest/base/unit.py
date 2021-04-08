@@ -224,7 +224,7 @@ class ZestBase(unittest.TestCase):
         self.config_path: Optional[paths.Path] = None
         '''
         If not None, used as the path to the config file.
-        If None, _TEST_TYPE is used to figure out the path to the config file.
+        If None, self.type is used to figure out the path to the config file.
         '''
 
         self.config_rules: Optional[label.LabelInput] = None
@@ -242,22 +242,17 @@ class ZestBase(unittest.TestCase):
         If class uses a special config, it should be saved here so set-up(s)
         can use it.
         '''
-    def set_dotted(self) -> None:
+    def set_dotted(self,
+                   filename: Union[str, paths.Path],
+                   *dotted:  label.LabelInput) -> None:
         '''
-        Set test class's `dotted` class-level descriptor.
+        Set test class's `dotted` class-level descriptor based on `filename`
+        and `dotted`.
         '''
-        # Need the test's file, so can't do this here:
-        # self.dotted = __file__
-        raise NotImplementedError(
-            f"TODO: Implement {self.__class__.__name__}."
-            "set_dotted(self)!:\n"
-            "    def set_dotted(self) -> None:\n"
-            "        '''\n"
-            "        Set test class's `dotted` class-level descriptor.\n"
-            "        '''\n"
-            "        # self.dotted = __file__")
+        filename = paths.cast(filename)
+        self.dotted = (filename, *dotted)
 
-    def set_type(self) -> None:
+    def set_type(self, type: TestType) -> None:
         '''
         Set test class's `dotted` class-level descriptor.
         '''
@@ -265,31 +260,50 @@ class ZestBase(unittest.TestCase):
         # self.type = TestType.UNIT
         # self.type = TestType.INTEGRATION
         # self.type = TestType.FUNCTIONAL
-        raise NotImplementedError(
-            f"TODO: Implement {self.__class__.__name__}."
-            "set_type(self)!:\n"
-            "    def set_type(self) -> None:\n"
-            "        '''\n"
-            "        Set test class's `dotted` class-level descriptor.\n"
-            "        '''\n"
-            "        # Choose your +weapon+ test-type!"
-            "        # self.type = TestType.UNIT\n"
-            "        # self.type = TestType.INTEGRATION\n"
-            "        # self.type = TestType.FUNCTIONAL\n\n"
-            "If you need TestType:\n"
-            "from veredi.zest.zpath import TestType")
+        self.type = type
 
-    def pre_set_up(self) -> None:
+    def pre_set_up(self,
+                   filename:  Union[str, paths.Path]  = None,
+                   extra:     label.LabelLaxInputIter = (),
+                   test_type: Optional[TestType]      = TestType.UNIT
+                   ) -> None:
         '''
-        Use this!
+        NOTE: All tests are expected to have these inputs resolved to a
+        meaningful default!
+          - `filename` must be `__file__`.
+          - `extra` is available for tests that want to add more to their
+            auto-generated `self.dotted`.
+          - `test_type` is often already at the correct setting based on what
+            zest.base class you derived from.
 
         Called in `self.setUp()` after `self._define_vars()` and before
         anything happens.
 
         Use it to do any prep-work needed (like defining a different path for
-        the config file).
+        the config file, or setting up special logging needs before actual
+        `set_up()`).
         '''
-        ...
+        self.set_type(test_type)
+        self.set_dotted((filename, *extra))
+
+    def assert_pre_set_up(self) -> None:
+        '''
+        Make sure `self.dotted`, `self.type`, and whatever else needs to be
+        set_up (before the rest of set up is run) is ready.
+
+        E.g.: Logging should be ready to go after this if any special logging
+        is happening in this test.
+        '''
+        if not self.dotted:
+            self.fail(f"{self.__class__.__name__}.dotted is not set! Call "
+                      "`self.set_dotted(__file__)` in `self.pre_set_up()`! Or "
+                      "`self.set_dotted(__file__, 'jeff', 'test', ...)`.")
+
+        if not self.type:
+            self.fail(f"{self.__class__.__name__}.type is not set! Call "
+                      "`self.set_type(TestType.UNIT)` in `self.pre_set_up()`! "
+                      "Or `self.set_type(TestType.INTEGRATION)`. "
+                      "Or `self.set_type(TestType.FUNCTIONAL)`...")
 
     def set_up(self) -> None:
         '''
@@ -311,10 +325,11 @@ class ZestBase(unittest.TestCase):
         self._verify_clean_environment()
         self._define_vars()
 
-        self.set_dotted()
-        self.set_type()
-
+        # Assume the test has resolved all the keyword args to
+        # a meaningful default...
         self.pre_set_up()
+        # ...and now make sure of it.
+        self.assert_pre_set_up()
 
         # ---
         # Our Set-Up.

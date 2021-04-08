@@ -8,8 +8,12 @@ Tests for the FileBareRepository.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
+
 from io import TextIOBase
 import shutil
+
 
 from veredi.zest                import zpath
 from veredi.zest.base.unit      import ZestBase
@@ -50,17 +54,12 @@ class Test_FileBareRepo(ZestBase):
     # Set-Up
     # -------------------------------------------------------------------------
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__)
 
     def set_up(self) -> None:
         # ---

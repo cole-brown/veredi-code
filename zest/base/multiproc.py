@@ -19,9 +19,11 @@ import enum
 
 
 from veredi.zest          import zmake, zontext
+from veredi.zest.zpath    import TestType
 from veredi.logs          import log, log_server
 
 from veredi.base.strings  import label
+from veredi.base          import paths
 from veredi.base.enum     import FlagCheckMixin
 from veredi.base.context  import UnitTestContext
 
@@ -216,11 +218,17 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         self.proc: Processes = Processes()
         '''Our test processes.'''
 
-    def pre_set_up(self,
-                   config_path: str,
-                   rules:       Optional[label.LabelInput] = None,
-                   game_id:     Optional[Any]              = None
-                   ) -> None:
+    def pre_set_up(
+            self,
+            config_path: str,
+            rules:       Optional[label.LabelInput] = None,
+            game_id:     Optional[Any]              = None,
+            filename:    Union[str, paths.Path]     = None,
+            test_type:   Optional[TestType]         = TestType.INTEGRATION
+    ) -> None:
+        super().pre_set_up(filename=filename,
+                           test_type=test_type)
+
         # ---
         # Save these config args.
         # ---
@@ -298,8 +306,7 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         # Create our log server Process.
         self.log_debug(f"Set up log server... {proc_test}")
         name = self.NAME_LOG
-        context = zontext.empty(__file__,
-                                self,
+        context = zontext.empty(self,
                                 '_set_up_log',
                                 UnitTestContext)
         self.proc.log = log_server.init(process_name=name,

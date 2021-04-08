@@ -8,7 +8,7 @@ Tests for the DataManager class.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+from typing import Optional, Tuple, Literal
 
 
 import enum
@@ -17,8 +17,9 @@ from io import StringIO
 
 from veredi.zest.base.ecs                  import ZestEcs
 from veredi.zest                           import zload
-from veredi.zest.zpath       import TestType
+from veredi.zest.zpath                     import TestType
 from veredi.base                           import paths
+from veredi.base.strings                   import label
 from veredi.base.context                   import UnitTestContext
 from veredi.logs                           import log
 
@@ -180,17 +181,13 @@ class BaseTest_DataManager(ZestEcs):
     # Set-Up
     # -------------------------------------------------------------------------
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'manager', 'base')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     label.LabelLaxInputIter = ('manager', 'base'),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=extra)
 
     def set_up(self):
         super().set_up()
@@ -290,11 +287,13 @@ class Test_DataManager_Repo(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'manager', 'repo')
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('manager', 'repo'))
 
     # -------------------------------------------------------------------------
     # Events
@@ -391,11 +390,13 @@ class BaseTest_DataManager_Serdes(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'manager', 'serdes')
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('manager', 'serdes'))
 
     # -------------------------------------------------------------------------
     # Events
@@ -483,11 +484,13 @@ class Test_DataManager_ToGame(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'manager', 'to-game')
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('manager', 'to-game'))
 
     # -------------------------------------------------------------------------
     # Events
@@ -556,11 +559,13 @@ class Test_DataManager_Actual(BaseTest_DataManager):
     Test our DataManager with HealthComponent class against some health data.
     '''
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'manager', 'actual')
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('manager', 'actual'))
 
     # -------------------------------------------------------------------------
     # Events

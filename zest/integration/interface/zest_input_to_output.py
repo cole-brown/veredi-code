@@ -18,6 +18,9 @@ Make sure output meets expectations.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
+
 import re
 from itertools import zip_longest
 
@@ -72,11 +75,13 @@ from veredi.rules.d20.pf2.game              import PF2Rank
 
 class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__)
+
 
     def set_up(self):
         self.debug_flags = DebugFlag.GAME_ALL

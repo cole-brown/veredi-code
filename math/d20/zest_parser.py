@@ -9,11 +9,14 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
+
 from veredi.zest.base.unit import ZestBase
 from veredi.zest.zpath     import TestType
 
-from . import parser
-from . import tree
+from .                     import parser
+from .                     import tree
 
 
 # -----------------------------------------------------------------------------
@@ -32,17 +35,13 @@ from . import tree
 
 class Test_Parser(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'parser')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('parser', ))
 
     # NOTE!
     #  Don't test Lark itself. Just test some basics so I can know my grammar
@@ -304,17 +303,13 @@ class Test_Parser(ZestBase):
 
 class Test_Transformer(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'transformer')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('transformer', ))
 
     # NOTE!
     #  Don't test Lark. Test my Transformer!

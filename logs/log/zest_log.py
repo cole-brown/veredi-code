@@ -9,7 +9,7 @@ Test our logging and formatting.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import TYPE_CHECKING, Optional, Union, List, Tuple, Mapping
+from typing import Optional, Union, Tuple, Mapping, Literal
 
 
 from io import StringIO
@@ -65,17 +65,13 @@ class ZestLogBase(ZestBase):
         # Debugging
         # ------------------------------
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'log', 'base')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('log', 'base'))
 
     def set_up(self) -> None:
         '''
@@ -208,17 +204,13 @@ class ZestLogMessage(ZestLogBase):
     Does not test formatting.
     '''
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'log', 'message')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('log', 'message'))
 
     # -------------------------------------------------------------------------
     # Tests
@@ -266,11 +258,13 @@ class ZestLogFormat(ZestLogBase):
         # ------------------------------
         self.formatter: logging.Formatter = None
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'log', 'format')
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('log', 'format'))
 
     def set_type(self) -> None:
         '''
@@ -748,17 +742,13 @@ class ZestLogFormatDefault(ZestLogBase):
     Test veredi.logs.log has the expected default formatter.
     '''
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'log', 'format', 'default')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('log', 'format', 'default'))
 
     # -------------------------------------------------------------------------
     # Tests

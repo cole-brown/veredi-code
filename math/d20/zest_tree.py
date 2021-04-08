@@ -9,7 +9,7 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+from typing import Optional, Tuple, Literal
 
 from veredi.zest.base.unit import ZestBase
 from veredi.zest.zpath     import TestType
@@ -98,17 +98,13 @@ class MockLeaf(tree.Leaf,
 
 class Test_Node(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'node')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('node', ))
 
     def set_up(self):
         self.node0 = MockNode(NodeType.enum.INVALID)
@@ -307,17 +303,13 @@ class Test_Node(ZestBase):
 
 class Test_Leaf(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'leaf')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('leaf', ))
 
     def set_up(self):
         self.leaf0 = MockLeaf(NodeType.enum.INVALID)
@@ -386,17 +378,13 @@ class Test_Leaf(ZestBase):
 
 class Test_Dice(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'dice')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('dice', ))
 
     def set_up(self):
         self.dice0 = tree.Dice(1, 20)
@@ -442,17 +430,13 @@ class Test_Dice(ZestBase):
 
 class Test_Constant(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'constant')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('constant', ))
 
     def set_up(self):
         self.value0 = 42
@@ -496,17 +480,13 @@ class Test_Constant(ZestBase):
 
 class Test_Variable(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'variable')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('variable', ))
 
     def set_up(self):
         self.moniker0 = "$jeff-mod"
@@ -586,17 +566,13 @@ class Test_Variable(ZestBase):
 
 class Test_Branch(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'branch')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('branch', ))
 
     def test_eval(self):
         # Branch base class shouldn't be able to eval successfully... It
@@ -622,17 +598,13 @@ class Test_Branch(ZestBase):
 
 class Test_OperatorMath(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'operator', 'math')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('operator', 'math', ))
 
     def test_eval(self):
         with self.assertRaises(TypeError):
@@ -650,17 +622,13 @@ class Test_OperatorMath(ZestBase):
 
 class Test_OperatorAdd(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'operator', 'add')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('operator', 'add', ))
 
     def set_up(self):
         self.value0 = 42
@@ -697,17 +665,13 @@ class Test_OperatorAdd(ZestBase):
 
 class Test_OperatorSub(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'operator', 'sub')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('operator', 'sub', ))
 
     def set_up(self):
         self.value0 = 42
@@ -744,17 +708,13 @@ class Test_OperatorSub(ZestBase):
 
 class Test_OperatorMult(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'operator', 'mult')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('operator', 'mult', ))
 
     def set_up(self):
         self.value0 = 42
@@ -791,17 +751,13 @@ class Test_OperatorMult(ZestBase):
 
 class Test_OperatorDiv(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'operator', 'div')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('operator', 'div', ))
 
     def set_up(self):
         self.value0 = 42
@@ -838,17 +794,13 @@ class Test_OperatorDiv(ZestBase):
 
 class Test_OperatorMod(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'operator', 'mod')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('operator', 'mod', ))
 
     def set_up(self):
         self.value0 = 42
@@ -885,17 +837,13 @@ class Test_OperatorMod(ZestBase):
 
 class Test_OperatorPow(ZestBase):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'operator', 'pow')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=('operator', 'pow', ))
 
     def set_up(self):
         self.value0 = 42

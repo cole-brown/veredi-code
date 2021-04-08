@@ -15,6 +15,7 @@ Base Veredi Class for Testing ECS Engine.
 
 from typing import Optional, Dict, Set
 
+from ..zpath                     import TestType
 from veredi.logs                 import log
 from .ecs                        import ZestEcs
 
@@ -79,6 +80,9 @@ class ZestEngine(ZestEcs):
         '''
         Set to True while in ending ticks.
         '''
+
+    # Just use ZestBase's currently.
+    # def pre_set_up(self, filename, extra, test_type) -> None:
 
     def set_up(self) -> None:
         '''

@@ -8,6 +8,9 @@ Tests for entity.py (EntityManager class).
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import Tuple, Literal
+
+
 from veredi.zest.base.unit import ZestBase
 
 from veredi.logs         import log
@@ -15,6 +18,7 @@ from veredi.zest         import zmake
 from veredi.zest.zpath   import TestType
 from veredi.base.context import UnitTestContext
 from veredi.base.null    import Null
+from veredi.base.strings import label
 
 from .event              import EventManager
 from .component          import (ComponentManager,
@@ -57,17 +61,14 @@ class CompThree(MockComponent):
 class Test_EntityManager(ZestBase):
     _TYPE_DONT_CARE = 1
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'component', 'eventless')
-
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     label.LabelLaxInputIter = ('component',
+                                                         'eventless'),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(filename=__file__,
+                           extra=extra)
 
     def set_up(self):
         self.event_mgr = None
@@ -401,11 +402,12 @@ class Test_EntityManager(ZestBase):
 
 class Test_EntityManager_Events(Test_EntityManager):
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = (__file__, 'component', 'events')
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up(extra=('component', 'events'))
 
     def set_up(self):
         # Add EventManager so that tests in parent class will

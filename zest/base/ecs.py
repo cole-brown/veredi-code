@@ -134,6 +134,9 @@ class ZestEcs(ZestBase):
         zload.set_up_ecs() can provide this.
         '''
 
+    # Just use ZestBase's currently.
+    # def pre_set_up(self, filename, extra, test_type) -> None:
+
     def set_up(self) -> None:
         '''
         Override this!

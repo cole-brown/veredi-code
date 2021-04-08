@@ -11,7 +11,7 @@ Only really tests the websockets and Mediator.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional
+from typing import Optional, Tuple, Literal
 
 import multiprocessing
 import multiprocessing.connection
@@ -215,14 +215,13 @@ class Test_WebSockets(ZestIntegrateMultiproc):
     # Set-Up & Tear-Down
     # -------------------------------------------------------------------------
 
-    def set_dotted(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.dotted = __file__
-
-    def pre_set_up(self) -> None:
-        super().pre_set_up('config.websocket.yaml')
+    def pre_set_up(self,
+                   # Ignored params:
+                   filename:  Literal[None]  = None,
+                   extra:     Literal[Tuple] = (),
+                   test_type: Literal[None]  = None) -> None:
+        super().pre_set_up('config.websocket.yaml',
+                           filename=__file__)
 
     def set_up(self) -> None:
         self.debug_flags = DebugFlag.MEDIATOR_ALL
@@ -296,8 +295,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.log_debug("Set up mediator server... {}",
                        proc_test)
         name = self.NAME_SERVER
-        context = zontext.empty(__file__,
-                                self,
+        context = zontext.empty(self,
                                 '_set_up_server',
                                 UnitTestContext)
 
@@ -345,8 +343,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # And make as many as we want...
         for i in range(self.NUM_CLIENTS):
             name = self.NAME_CLIENT_FMT.format(i=i)
-            context = zontext.empty(__file__,
-                                    self,
+            context = zontext.empty(self,
                                     f"_set_up_clients('{name}')",
                                     UnitTestContext)
 
