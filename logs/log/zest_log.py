@@ -266,12 +266,6 @@ class ZestLogFormat(ZestLogBase):
         super().pre_set_up(filename=__file__,
                            extra=('log', 'format'))
 
-    def set_type(self) -> None:
-        '''
-        Set test class's `dotted` class-level descriptor.
-        '''
-        self.type = TestType.UNIT
-
     def set_up(self) -> None:
         '''
         Set up our logging to be unit-testable.
@@ -441,13 +435,9 @@ class ZestLogFormat(ZestLogBase):
         self.assertEqual(context_data['dotted'], expected_dotted)
         self.assertIn('unit-testing', context_data)
 
-        # Now we can check the expected_data...
+        # Now we can check the data; should equal expected_data.
         data = context_data['unit-testing']
-        # Slight detour: data has "test_case.test_name" in it, so pop that out
-        # and check it before comparing the rest of the dictionaries.
-        method = data.pop('dotted')
-        self.assertEqual(method, expected_method)
-        # Ok; now we can check the data; should equal expected_data.
+        # Ok; now we can check the data
         self.assertEqual(data, expected_data)
 
     def verify_group(self,

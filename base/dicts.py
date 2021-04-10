@@ -8,10 +8,13 @@ Dictionary helpers and special classes.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Any, Dict, Iterable, Iterator
-
+from typing import Optional, Any, Callable, Generator, Dict, Iterable, Iterator
 
 import enum
+# If we need threading, switch to:
+# from queue import Queue, LifoQueue
+from collections import deque
+
 
 from veredi.logs import log
 
@@ -22,8 +25,68 @@ from veredi.logs import log
 
 
 # -----------------------------------------------------------------------------
-# Constants
+# Functions
 # -----------------------------------------------------------------------------
+
+def walk(dictionary: Dict[Any, Any],
+         valid_predicate: Callable[[Any, Any], bool] = None
+         ) -> Generator[Any, None, None]:
+    '''
+    Generator that walks the dictionary as a tree, yielding each node in
+    depth-first manner.
+
+    If `valid_predicate` is supplied, it should be:
+      predicate(key: Any, value: Any) -> bool
+    And it should return True for desired items.
+    '''
+    visited = set()
+    # FIFO queue of items to be procecssed still
+    queue = [dictionary]
+
+    # LIFO stack of items that will be evaluated after processing step is
+    # completed.
+    items = deque()
+
+    # ---
+    # Walk tree from root for processing items into queue.
+    # ---
+    while queue:
+        element = queue.pop()
+        # Does this node look familiar? Should we bother with it?
+        # (Are there even roll trees with loops or clones?)
+        if id(element) in visited:
+            continue
+
+        # Process our element....
+        for key, value in element.items():
+            # Allow all entries in the dictionary/list that match predicate.
+            if valid_predicate:
+                if valid_predicate(key, value):
+                    # Is this an output or another thing to walk down into?
+                    if isinstance(value, dict):
+                        queue.append(value)
+                    else:
+                        items.append((key, value))
+
+            # No predicate? Everything goes.
+            else:
+                # Is this an output or another thing to walk down into?
+                if isinstance(value, dict):
+                    queue.append(value)
+                else:
+                    items.append((key, value))
+
+            visited.add(id((key, value)))
+
+    # ---
+    # Depth-first yielding of the items we've walked.
+    # ---
+    seen = set()
+    while items:
+        each = items.pop()
+        if id(each) not in seen:
+            yield each
+            seen.add(id(each))
 
 
 # -----------------------------------------------------------------------------

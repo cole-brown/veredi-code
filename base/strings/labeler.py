@@ -11,7 +11,8 @@ Decoration helper for labels.
 from typing import Optional, Union, Any, Type, Callable, Set
 
 
-from veredi.logs import log
+# Don't import log stuff - `base` needs to be more low-level than `logs`.
+# from veredi.logs import log
 
 from .label import DOTTED_NAME, LabelInput, normalize
 from .mixin import DottedDescriptor
@@ -151,20 +152,22 @@ def _add_dotted_descriptor(
     caller_dotted = normalize(caller_label)
     descriptor = DottedDescriptor(add_label, DESCRIPTOR_NAME)
     if not hasattr(cls_or_func, DESCRIPTOR_NAME):
+        # Don't have it; need it; set it.
         setattr(cls_or_func, DESCRIPTOR_NAME, descriptor)
 
     elif not ignore_existing:
+        # Have it; aren't expecting them to have it; complain.
         add_dotted = normalize(add_label)
         msg = (f"{caller_dotted}->{provider_str}: Failed to add descriptor "
                f"'{DESCRIPTOR_NAME}' to '{add_dotted}'. "
                f"{cls_or_func.__name__} has an atttribute by that "
                "name alerady.")
-        # Changed into an info log... If it has a dotted already then why do we
-        # care, really...
-        log.info(msg)
-        # raise log.exception(AttributeError(msg, cls_or_func),
-        #                     msg)
+        # Cannot use veredi.logs.log here, so... either use basic Python
+        # logging or throw an exception without `veredi.logs.log.exception()`.
+        raise AttributeError(msg, cls_or_func)
 
     # else:
+    #     # Have it; are expecting them to have it; this is fine.
+    #     #
     #     # Ignoring the fact that they already have a dotted attribute, so...
     #     # nothing more to do.

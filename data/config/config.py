@@ -33,7 +33,7 @@ from ..                        import background
 from ..exceptions              import ConfigError, LoadError
 from ..registration            import config as registrar
 from .hierarchy                import Document, Hierarchy
-from .context                  import ConfigContext
+from .context                  import ConfigContext, ConfigLink
 from ..repository.file.bare    import FileBareRepository
 from ..serdes.yaml.serdes      import YamlSerdes
 from ..codec                   import Codec
@@ -160,7 +160,7 @@ class Configuration(NamesMixin,
         # ---
         # Sanity Check...
         # ---
-        preexisting = background.config.link(background.config.Link.CONFIG)
+        preexisting = background.config.link(background.Link.CONFIG)
         if preexisting:
             # Log start-up error...
             msg = ("A Configuration already exists in the background context! "
@@ -645,7 +645,7 @@ class Configuration(NamesMixin,
         if not context:
             context = self.make_config_context()
 
-        context.add(ConfigContext.Link.KEYCHAIN, list(keychain[:-1]))
+        context.add(ConfigLink.KEYCHAIN, list(keychain[:-1]))
         log.debug("Make requested for: {}. context: {}",
                   keychain, context)
 

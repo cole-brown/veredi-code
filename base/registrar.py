@@ -17,10 +17,11 @@ if TYPE_CHECKING:
 
 from veredi.base.strings       import label, labeler, mixin
 from veredi.base.strings.mixin import NamesMixin
+from veredi.base               import types
+from veredi.base.exceptions    import RegistryError
 from veredi.logs               import log
 from veredi.logs.mixin         import LogMixin
 from veredi.data               import background
-from veredi.data.exceptions    import RegistryError
 
 from .context                  import VerediContext
 
@@ -227,21 +228,6 @@ class BaseRegistrar(LogMixin, NamesMixin):
     # -------------------------------------------------------------------------
     # Registry Internal Helpers
     # -------------------------------------------------------------------------
-
-    def _is_class(self, registree: 'RegisterType') -> bool:
-        '''
-        Is the registree a class or a function?
-        Returns True for class.
-        '''
-        return (isinstance(registree, type)
-                and issubclass(registree, object))
-
-    def _is_function(self, registree: 'RegisterType') -> bool:
-        '''
-        Is the registree a function or a class?
-        Returns True for function.
-        '''
-        return not self._is_class(registree)
 
     @property
     def _registry(self) -> Dict[str, Any]:
@@ -608,7 +594,6 @@ class BaseRegistrar(LogMixin, NamesMixin):
 # Registration-By-Calling Class
 # -----------------------------------------------------------------------------
 
-# TODO: create DottedDescriptor instead of this kind of attribute.
 class DottedRegistrar(BaseRegistrar):
     '''
     A class to hold registration data for whatever type of register you want.
@@ -645,7 +630,7 @@ class DottedRegistrar(BaseRegistrar):
         # ------------------------------
         # Skip adding dotted stuff?
         # ------------------------------
-        if not self._is_class(registree):
+        if not types.is_class(registree):
             return
 
         # ------------------------------
@@ -655,7 +640,6 @@ class DottedRegistrar(BaseRegistrar):
         # ---
         # Labeler will do the heavy-lifting.
         # ---
-        dotted_name = label.normalize(reg_label)
         labeler.dotted_helper(self.dotted,
                               'register()',
                               registree,

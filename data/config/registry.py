@@ -14,13 +14,12 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
 
-from veredi.logs           import log
-from veredi.data           import background
-from veredi.base.context   import VerediContext
-from veredi.base.registrar import CallRegistrar, RegisterType
-from veredi.base.strings   import label
-
-from ..exceptions          import RegistryError
+from veredi.logs            import log
+from veredi.data            import background
+from veredi.base.context    import VerediContext
+from veredi.base.registrar  import CallRegistrar, RegisterType
+from veredi.base.strings    import label
+from veredi.base.exceptions import RegistryError
 
 
 # -----------------------------------------------------------------------------

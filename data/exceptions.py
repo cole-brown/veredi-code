@@ -18,13 +18,6 @@ from veredi.base.exceptions import VerediError
 # Exceptions
 # -----------------------------------------------------------------------------
 
-class RegistryError(VerediError):
-    '''
-    Error getting something into or out of our registry.
-    '''
-    ...
-
-
 class LoadError(VerediError):
     '''
     Error loading data in some way.

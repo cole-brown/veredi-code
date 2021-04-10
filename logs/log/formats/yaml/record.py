@@ -26,7 +26,7 @@ from io import StringIO
 from traceback import print_exception
 
 
-from veredi.base.strings     import label
+from veredi.base.strings     import label, convert
 from veredi.base.paths.utils import to_str as path_to_str
 from veredi.base.paths.const import PathType
 
@@ -262,18 +262,29 @@ class LogRecordYaml:
     def __init__(self) -> None:
         self._define_vars()
 
-        # We have the record tag, but for now just say to deserialize it as a
-        # dictionary.
-        yaml.construct(self._DOC_TYPE_TAG,
-                       py_yaml.SafeLoader.construct_mapping)
+        # YAML setup happens in our __init__.py now.
+        # # We have the record tag, but for now just say to deserialize it as a
+        # # dictionary.
+        # yaml.construct(self._DOC_TYPE_TAG,
+        #                py_yaml.SafeLoader.construct_mapping,
+        #                __file__)
+        #
+        # # Let YAML know how we want our log enums serialized. Use an enum value
+        # # that is the correct type (e.g. SuccessType - don't use IGNORE).
+        # yaml.represent(const_l.Group,
+        #                yaml.enum_representer(const_l.Group),
+        #                __file__)
+        # yaml.represent(const_l.SuccessType,
+        #                # Use to-string to get the SuccessType formatting.
+        #                yaml.enum_to_string_representer,
+        #                __file__)
 
-        # Let YAML know how we want our log enums serialized. Use an enum value
-        # that is the correct type (e.g. SuccessType - don't use IGNORE).
-        yaml.represent(const_l.Group,
-                       yaml.enum_representer(const_l.Group.SECURITY))
-        yaml.represent(const_l.SuccessType,
-                       # Use to-string to get the SuccessType formatting.
-                       yaml.enum_to_string_representer)
+    @classmethod
+    def yaml_tag(klass: 'LogRecordYaml') -> str:
+        '''
+        This class's yaml tag.
+        '''
+        return klass._DOC_TYPE_TAG
 
     # -------------------------------------------------------------------------
     # Formatting
@@ -505,12 +516,11 @@ class LogRecordYaml:
         '''
         Take the context, pretty print it, and set the context field.
         '''
-        # Pretty Print!
+        # Not sure what might be in the context, so convert its values
+        # to just strings.
+        data = convert.to_str(context.data)
         self._dict_record['context'] = {
-            context.__class__.__name__: context.data,
-            # LiteralString(
-            #     pretty.to_str(context.data)
-            # ),
+            context.__class__.__name__: data,
         }
 
     # ------------------------------

@@ -10,8 +10,9 @@ YAML library subclasses for encoding identities.
 
 from typing import Optional, Type, Tuple
 
-from veredi.logs   import log
-from ...exceptions import RegistryError
+
+from veredi.logs            import log
+from veredi.base.exceptions import RegistryError
 
 
 # -----------------------------------------------------------------------------

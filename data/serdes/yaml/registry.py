@@ -13,9 +13,9 @@ from typing import Optional, Type, NewType, Callable, List, Tuple
 import yaml
 import re
 
-from veredi.logs   import log
-from ...exceptions import RegistryError
-from .             import tags
+from veredi.logs            import log
+from veredi.base.exceptions import RegistryError
+from .                      import tags
 
 
 # -----------------------------------------------------------------------------
@@ -274,17 +274,3 @@ def register(name:        str,
         raise log.exception(error, msg)
 
     log.debug(f"YAML Registry added: {name}, {klass}")
-
-
-# -----------------------------------------------------------------------------
-# Unit Testing
-# -----------------------------------------------------------------------------
-
-def _ut_unregister() -> None:
-    '''
-    Nuke everything from the register; reset it completely.
-    '''
-    global _TAG_TO_CLASS
-    global _CLASS_TO_TAG
-    _TAG_TO_CLASS = {}
-    _CLASS_TO_TAG = {}

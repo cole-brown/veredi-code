@@ -96,10 +96,10 @@ def set_up_registries(config: Optional['Configuration']) -> None:
     '''
     # TODO: v://future/registering/2021-04-01T17:10:21 MOVE THESE BEHIND
     # SENTINEL ONCE THEY HAVE BEEN UPDATED TO NEW REGISTRATION.
-    # ------------------------------
-    # Ensure Things Are Not Registered.
-    # ------------------------------
-    registry_yaml._ut_unregister()
+    # # ------------------------------
+    # # Ensure Things Are Not Registered.
+    # # ------------------------------
+    # registry_yaml._ut_unregister()
 
     # ------------------------------
     # Run our auto-registration.
@@ -122,14 +122,14 @@ def tear_down_registries() -> None:
     '''
     Get the registries cleared out and ready for a new test.
     '''
-    registry_yaml._ut_unregister()
+    # registry_yaml._ut_unregister()
 
     # Unregistering this way doesn't get things re-registered by the next
     # run.registration()... Probably because the imports do nothing since we
     # don't un-import?
     #
     # So for now just leave it alone?
-
+    ...
 
 # -----------------------------------------------------------------------------
 # Background: Set-up / Tear-Down

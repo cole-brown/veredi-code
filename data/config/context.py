@@ -30,6 +30,49 @@ from veredi.data            import background
 # Constants
 # -----------------------------------------------------------------------------
 
+@enum.unique
+class ConfigLink(enum.Enum):
+    KEYCHAIN = enum.auto()
+    '''
+    Iterable of keys into something in the Configuration object that is
+    important to the receiver of a context, probably.
+    '''
+
+    ID = enum.auto()
+    '''
+    Some sort of ID. Perhaps a record id/key for loading from a repository.
+    '''
+
+    PATH = enum.auto()
+    '''
+    A pathlib.Path to somewhere. Can look in background.data if none
+    supplied.
+    '''
+
+    LOG_LEVEL = enum.auto()
+    '''
+    A log level for things to config their sub-loggers.
+    Should just be used for main set-up (of primary logger) or
+    set-up of sub-processes (like mediator server).
+    '''
+
+    LOG_SERVER = enum.auto()
+    '''
+    A log level for things to config their sub-loggers.
+    Should just be used for main set-up (of primary logger) or
+    set-up of sub-processes (like mediator server).
+    '''
+
+    SUB_PROC = enum.auto()
+    '''
+    A SubToProcComm object to hold on to for a sub-process.
+    '''
+
+    UNIT_TESTING = enum.auto()
+    '''
+    Optional field for unit testing.
+    '''
+
 
 # -----------------------------------------------------------------------------
 # Config's Transient Context
@@ -47,49 +90,6 @@ class ConfigContext(EphemerealContext):
     NAME = 'configuration'
     KEY  = 'configuration'
 
-    @enum.unique
-    class Link(enum.Enum):
-        KEYCHAIN = enum.auto()
-        '''
-        Iterable of keys into something in the Configuration object that is
-        important to the receiver of a context, probably.
-        '''
-
-        ID = enum.auto()
-        '''
-        Some sort of ID. Perhaps a record id/key for loading from a repository.
-        '''
-
-        PATH = enum.auto()
-        '''
-        A pathlib.Path to somewhere. Can look in background.data if none
-        supplied.
-        '''
-
-        LOG_LEVEL = enum.auto()
-        '''
-        A log level for things to config their sub-loggers.
-        Should just be used for main set-up (of primary logger) or
-        set-up of sub-processes (like mediator server).
-        '''
-
-        LOG_SERVER = enum.auto()
-        '''
-        A log level for things to config their sub-loggers.
-        Should just be used for main set-up (of primary logger) or
-        set-up of sub-processes (like mediator server).
-        '''
-
-        SUB_PROC = enum.auto()
-        '''
-        A SubToProcComm object to hold on to for a sub-process.
-        '''
-
-        UNIT_TESTING = enum.auto()
-        '''
-        Optional field for unit testing.
-        '''
-
     # -------------------------------------------------------------------------
     # Initialization
     # -------------------------------------------------------------------------
@@ -104,12 +104,12 @@ class ConfigContext(EphemerealContext):
 
         # Add path to the context data if given.
         if id:
-            self.add(self.Link.ID, id)
+            self.add(ConfigLink.ID, id)
 
         # Make sure the path is a directory.
         if path:
             path = path if path.is_dir() else path.parent
-            self.add(self.Link.PATH, path)
+            self.add(ConfigLink.PATH, path)
 
     # -------------------------------------------------------------------------
     # Config-Specific Stuff
@@ -123,7 +123,7 @@ class ConfigContext(EphemerealContext):
 
         If none, returns Null().
         '''
-        id = context.sub_get(klass.Link.ID)
+        id = context.sub_get(ConfigLink.ID)
         if not id:
             log.debug("No id in context! context.id: {}, ",
                       id,
@@ -138,7 +138,7 @@ class ConfigContext(EphemerealContext):
 
         If none, returns PATH from background.manager.data.
         '''
-        path = context.sub_get(klass.Link.PATH)
+        path = context.sub_get(ConfigLink.PATH)
         if null_or_none(path):
             log.debug("No path in context; using background's. "
                       "context.path: {}, ",
@@ -167,7 +167,7 @@ class ConfigContext(EphemerealContext):
         '''
         Checks for a KEYCHAIN link in config's spot in this context.
         '''
-        keychain = context.sub_get(klass.Link.KEYCHAIN)
+        keychain = context.sub_get(ConfigLink.KEYCHAIN)
         return keychain
 
     @classmethod
@@ -179,7 +179,7 @@ class ConfigContext(EphemerealContext):
         Sets log_level in `context`. Pops if `level` is None.
         '''
         context._sub_set(klass.KEY,
-                         klass.Link.LOG_LEVEL,
+                         ConfigLink.LOG_LEVEL,
                          level)
 
     @classmethod
@@ -191,7 +191,7 @@ class ConfigContext(EphemerealContext):
         return log.Level.to_logging(
             context._sub_get(
                 klass.KEY,
-                klass.Link.LOG_LEVEL))
+                ConfigLink.LOG_LEVEL))
 
     @classmethod
     def set_log_is_server(klass: Type['ConfigContext'],
@@ -201,7 +201,7 @@ class ConfigContext(EphemerealContext):
         Set is_server in `context`. Pops if `is_server` is None.
         '''
         context._sub_set(klass.KEY,
-                         klass.Link.LOG_SERVER,
+                         ConfigLink.LOG_SERVER,
                          is_server)
 
     @classmethod
@@ -213,7 +213,7 @@ class ConfigContext(EphemerealContext):
         # _sub_get() returns None if key not found, which is convenient for
         # converting to a bool.
         return bool(context._sub_get(klass.KEY,
-                                     klass.Link.LOG_SERVER))
+                                     ConfigLink.LOG_SERVER))
 
     @classmethod
     def set_subproc(klass:   Type['ConfigContext'],
@@ -223,7 +223,7 @@ class ConfigContext(EphemerealContext):
         Sets a SubToProcComm. Pops if `value` is None.
         '''
         context._sub_set(klass.KEY,
-                         klass.Link.SUB_PROC,
+                         ConfigLink.SUB_PROC,
                          value)
 
     @classmethod
@@ -233,7 +233,7 @@ class ConfigContext(EphemerealContext):
         Returns a SubToProcComm or Null.
         '''
         comms = context._sub_get(klass.KEY,
-                                 klass.Link.SUB_PROC)
+                                 ConfigLink.SUB_PROC)
         return comms or Null()
 
     @classmethod
@@ -244,7 +244,7 @@ class ConfigContext(EphemerealContext):
         Sets the unit-testing link field. Pops if `value` is None.
         '''
         context._sub_set(klass.KEY,
-                         klass.Link.UNIT_TESTING,
+                         ConfigLink.UNIT_TESTING,
                          value)
 
     @classmethod
@@ -254,7 +254,7 @@ class ConfigContext(EphemerealContext):
         Returns the unit-testing link field or Null.
         '''
         unit_testing = context._sub_get(klass.KEY,
-                                        klass.Link.UNIT_TESTING)
+                                        ConfigLink.UNIT_TESTING)
         return unit_testing or Null()
 
     # -------------------------------------------------------------------------
@@ -273,11 +273,11 @@ class ConfigContext(EphemerealContext):
         '''
         config_data = self._get().get(self.KEY, {})
         if path is not None:
-            config_data[self.Link.PATH] = path
+            config_data[ConfigLink.PATH] = path
         if keychain is not None:
-            config_data[self.Link.KEYCHAIN] = keychain
+            config_data[ConfigLink.KEYCHAIN] = keychain
         if ut_flag is not None:
-            config_data[self.Link.UNIT_TESTING] = ut_flag
+            config_data[ConfigLink.UNIT_TESTING] = ut_flag
 
         for key in kwargs:
             config_data[key] = kwargs[key]

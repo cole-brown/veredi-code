@@ -44,7 +44,7 @@ class UserIdGenerator:
 
 class UserId(SerializableId,
              name_dotted='veredi.data.identity.user.id',
-             name_string='identity.user.id'):
+             name_string='uid'):
     '''
     Serializable UserId class.
     '''
@@ -223,7 +223,7 @@ class UserKeyGenerator:
 
 class UserKey(SerializableId,
               name_dotted='veredi.data.identity.user.key',
-              name_string='identity.user.key'):
+              name_string='ukey'):
     '''
     Serializable UserKey class.
     '''
