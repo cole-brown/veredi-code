@@ -11,7 +11,7 @@ Custom YAML Formatter for:
 # -----------------------------------------------------------------------------
 
 from typing import (Optional, Union, Any, Type, NewType,
-                    Callable, TextIO, Mapping)
+                    Callable, TextIO, Mapping, Dict)
 
 
 import yaml
@@ -24,6 +24,26 @@ from yaml import YAMLError
 
 # Logging needs this stuff for YAML formatted logs, so do not log from here.
 # from veredi.logs               import log
+
+from .exceptions import RegistryError
+
+
+# -----------------------------------------------------------------------------
+# Variables
+# -----------------------------------------------------------------------------
+
+_REPRESENTING: Dict[str, str] = {}
+'''
+A dictionary of classes already registered for representing and where
+they came from.
+'''
+
+
+_CONSTRUCTING: Dict[str, str] = {}
+'''
+A dictionary of classes already registered for constructing and where
+they came from.
+'''
 
 
 # -----------------------------------------------------------------------------
@@ -256,7 +276,7 @@ def enum_to_string_representer(dumper: yaml.Dumper,
                                    value)
 
 
-def enum_representer(enum_value: enum.Enum) -> YamlRepresenter:
+def enum_representer(enum_type: Type[enum.Enum] = None) -> YamlRepresenter:
     '''
     Get the correct representer function for the enum's value type.
 
@@ -266,7 +286,16 @@ def enum_representer(enum_value: enum.Enum) -> YamlRepresenter:
     If we don't have a representer for that specific kind of value, raises an
     error.
     '''
-    value = enum_value.value
+    # Find a value to use for figuring out which enum representer to use for
+    # this enum_type.
+    value = None
+    for each in enum_type:
+        if each.value is not None:
+            # Just use the first non-None as the value type of all of this
+            # enum's values. We don't support multi-type enums, like the NOTE
+            # says in the docstr.
+            value = each.value
+            break
 
     if isinstance(value, int):
         return enum_int_representer
@@ -274,9 +303,9 @@ def enum_representer(enum_value: enum.Enum) -> YamlRepresenter:
     if isinstance(value, str):
         return enum_string_value_representer
 
-    raise TypeError(f"No representer for {enum_value} with value "
+    raise TypeError(f"No representer for {enum_type} with value "
                     f"type {type(value)}.",
-                    enum_value,
+                    enum_type,
                     value)
 
 
@@ -284,10 +313,36 @@ def enum_representer(enum_value: enum.Enum) -> YamlRepresenter:
 # Register representers with YAML.
 # -----------------------------------------------------------------------------
 
-def represent(klass: Type, function: YamlRepresenter) -> None:
+def represent(klass:    Type,
+              function: YamlRepresenter,
+              file:     str) -> None:
     '''
     Add a representer to YAML.
     '''
+    # ------------------------------
+    # Make sure it's unique?
+    # ------------------------------
+    # NOTE: Not exactly necessary - yaml will register/use multiple classes of
+    # the same name, however we want to ensure uniqueness because tags will
+    # probably closely follow names?
+    # But if this is too restrictive, we can just drop it.
+    klass_name = str(klass)
+    if klass_name in _REPRESENTING:
+        blocker_file = _REPRESENTING[klass_name]
+        raise RegistryError(f"{klass_name} already has representer; "
+                            "one of you will need a rename...",
+                            data={
+                                'represent-this': klass,
+                                'represent-with': function,
+                                'represent-from': file,
+                                'blocked-by': klass_name,
+                                'blocked-from': blocker_file,
+                            })
+
+    # ------------------------------
+    # Ok; we can add it.
+    # ------------------------------
+    _REPRESENTING[str(klass)] = file
     yaml.add_representer(klass,
                          function,
                          Dumper=yaml.SafeDumper)
@@ -298,23 +353,43 @@ def representers() -> None:
     Add additional, common, basic representers needed to YAML.
     '''
     represent(FoldedString,
-              folded_string_representer)
+              folded_string_representer,
+              __file__)
     represent(LiteralString,
-              literal_string_representer)
+              literal_string_representer,
+              __file__)
     represent(OrderedDict,
-              ordered_dict_representer)
+              ordered_dict_representer,
+              __file__)
     represent(re.Pattern,
-              regex_representer)
+              regex_representer,
+              __file__)
 
 
 # -----------------------------------------------------------------------------
 # Register constructors with YAML.
 # -----------------------------------------------------------------------------
 
-def construct(tag: str, function: YamlConstructor) -> None:
+def construct(tag: str,
+              function: YamlConstructor,
+              file: str) -> None:
     '''
     Add a constructor to YAML.
     '''
+    # Make sure it's unique...
+    if tag in _CONSTRUCTING:
+        blocker_file = _CONSTRUCTING[tag]
+        raise RegistryError(f"{tag} already has constructor; ",
+                            "one of you will need a rename...",
+                            data={
+                                'construct-this': tag,
+                                'construct-with': function,
+                                'construct-from': file,
+                                'blocked-by': tag,
+                                'blocked-from': blocker_file,
+                            })
+    # Ok; we can add it.
+    _CONSTRUCTING[tag] = file
     yaml.add_constructor(tag,
                          function,
                          Loader=yaml.SafeLoader)
@@ -325,7 +400,8 @@ def constructors() -> None:
     Add additional, common, basic constructors needed to YAML.
     '''
     construct('!regex',
-              regex_constructor)
+              regex_constructor,
+              __file__)
 
 
 # -----------------------------------------------------------------------------

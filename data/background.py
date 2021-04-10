@@ -58,7 +58,43 @@ from veredi.base.dicts      import DoubleIndexDict
 from veredi.base.strings    import label
 
 
-# TODO [2020-06-23]: methods for: contains, [], others...?
+# -----------------------------------------------------------------------------
+# Exports
+# -----------------------------------------------------------------------------
+
+__all__ = [
+    # ------------------------------
+    # Enums
+    # ------------------------------
+    'Name',
+    'Ownership',
+    'Link',
+
+    # ------------------------------
+    # Classes
+    # ------------------------------
+    'veredi',
+    'config',
+    'registry',
+    'game',
+    'manager',
+    'system',
+    'interface',
+    'users',
+    'input',
+    'command',
+    'output',
+    'mediator',
+    'testing',
+
+    # ------------------------------
+    # Functions
+    # ------------------------------
+    'to_str',
+    'to_repr',
+    '__str__',
+    '__repr__',
+]
 
 
 # -----------------------------------------------------------------------------
@@ -278,6 +314,45 @@ class Ownership(enum.Enum):
     '''
 
 
+@enum.unique
+class Link(enum.Enum):
+    '''
+    Enum for linking to things in a background context for various classes here.
+    '''
+
+    # ------------------------------
+    # Configuration
+    # ------------------------------
+
+    CONFIG = enum.auto()
+    '''The Configuration object.'''
+
+    # KEYCHAIN = enum.auto()
+    # '''
+    # Iterable of keys into something in the Configuration object that is
+    # important to the receiver of a context, probably.
+    # '''
+
+    PATH = enum.auto()
+    '''A pathlib.Path to somewhere.'''
+
+    # ------------------------------
+    # Manager
+    # ------------------------------
+
+    MEETING = enum.auto()
+    '''
+    The Meeting of Managers.
+    '''
+
+    # ------------------------------
+    # Input
+    # ------------------------------
+
+    PARSERS = enum.auto()
+    '''The Parser object(s).'''
+
+
 # -----------------------------------------------------------------------------
 # Setter that obeys Ownership
 # -----------------------------------------------------------------------------
@@ -339,25 +414,11 @@ class ConfigMeta(type):
         Checks for a PATH link in config's spot in this context.
         '''
         ctx = klass._get()
-        retval = ctx.get(klass.Link.PATH, Null())
+        retval = ctx.get(Link.PATH, Null())
         return retval
 
 
 class config(metaclass=ConfigMeta):
-
-    @enum.unique
-    class Link(enum.Enum):
-        CONFIG = enum.auto()
-        '''The Configuration object.'''
-
-        # KEYCHAIN = enum.auto()
-        # '''
-        # Iterable of keys into something in the Configuration object that is
-        # important to the receiver of a context, probably.
-        # '''
-
-        PATH = enum.auto()
-        '''A pathlib.Path to somewhere.'''
 
     @classmethod
     def init(klass: Type['config'],
@@ -377,9 +438,9 @@ class config(metaclass=ConfigMeta):
             pass
         else:
             path = path if path.is_dir() else path.parent
-            klass.link_set(klass.Link.PATH, path)
+            klass.link_set(Link.PATH, path)
 
-        klass.link_set(klass.Link.CONFIG, back_link)
+        klass.link_set(Link.CONFIG, back_link)
 
     # -------------------------------------------------------------------------
     # Getters / Setters
@@ -410,7 +471,7 @@ class config(metaclass=ConfigMeta):
         '''
         # Get it.
         ctx = klass._get()
-        cfg_obj = ctx.get(klass.Link.CONFIG, Null())
+        cfg_obj = ctx.get(Link.CONFIG, Null())
 
         # Error on it or return it?
         if not cfg_obj:
@@ -460,7 +521,7 @@ class config(metaclass=ConfigMeta):
     #     Checks for a CONFIG link in config's spot in this context.
     #     '''
     #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.CONFIG, Null())
+    #     retval = ctx.get(Link.CONFIG, Null())
     #     return retval
 
     # Provided by ConfigMeta:
@@ -470,7 +531,7 @@ class config(metaclass=ConfigMeta):
     #     Checks for a PATH link in config's spot in this context.
     #     '''
     #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.PATH, Null())
+    #     retval = ctx.get(Link.PATH, Null())
     #     return retval
 
     # -------------------------------------------------------------------------
@@ -614,7 +675,7 @@ class ManagerMeta(type):
         you want to access several managers from it?
         '''
         ctx = klass._get()
-        retval = ctx.get(klass.Link.MEETING, Null())
+        retval = ctx.get(Link.MEETING, Null())
         return retval
 
     # -------------------------------------------------------------------------
@@ -680,13 +741,6 @@ class manager(metaclass=ManagerMeta):
       background.manager.time
     '''
 
-    @enum.unique
-    class Link(enum.Enum):
-        MEETING = enum.auto()
-        '''
-        The Meeting of Managers.
-        '''
-
     # -------------------------------------------------------------------------
     # Getters / Setters
     # -------------------------------------------------------------------------
@@ -711,7 +765,7 @@ class manager(metaclass=ManagerMeta):
         '''
         context = klass._get()
         _set(context, dotted_name, data, ownership)
-        context[klass.Link.MEETING] = managers
+        context[Link.MEETING] = managers
 
     # -------------------------------------------------------------------------
     # Properties: Manager Accessors
@@ -1030,16 +1084,11 @@ class InputMeta(type):
         Checks for a CONFIG link in config's spot in this context.
         '''
         ctx = klass._get()
-        retval = ctx.get(klass.Link.PARSERS, Null())
+        retval = ctx.get(Link.PARSERS, Null())
         return retval
 
 
 class input(metaclass=InputMeta):
-
-    @enum.unique
-    class Link(enum.Enum):
-        PARSERS = enum.auto()
-        '''The Parser object(s).'''
 
     # -------------------------------------------------------------------------
     # Getters / Setters
@@ -1066,7 +1115,7 @@ class input(metaclass=InputMeta):
         # Set data provided, then set parser (don't want parser overwritten by
         # data entry).
         _set(ctx, dotted_name, data, ownership)
-        ctx[klass.Link.PARSERS] = parsers
+        ctx[Link.PARSERS] = parsers
 
     # -------------------------------------------------------------------------
     # More Specific Getters
@@ -1079,7 +1128,7 @@ class input(metaclass=InputMeta):
     #     Checks for a CONFIG link in config's spot in this context.
     #     '''
     #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.PARSERS, Null())
+    #     retval = ctx.get(Link.PARSERS, Null())
     #     return retval
 
 
@@ -1136,16 +1185,11 @@ class OutputMeta(type):
     #     Checks for a CONFIG link in config's spot in this context.
     #     '''
     #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.PARSERS, Null())
+    #     retval = ctx.get(Link.PARSERS, Null())
     #     return retval
 
 
 class output(metaclass=OutputMeta):
-
-    # @enum.unique
-    # class Link(enum.Enum):
-    #     PARSERS = enum.auto()
-    #     '''The Parser object(s).'''
 
     # -------------------------------------------------------------------------
     # Getters / Setters
@@ -1182,7 +1226,7 @@ class output(metaclass=OutputMeta):
     #     Checks for a CONFIG link in config's spot in this context.
     #     '''
     #     ctx = klass._get()
-    #     retval = ctx.get(klass.Link.PARSERS, Null())
+    #     retval = ctx.get(Link.PARSERS, Null())
     #     return retval
 
 

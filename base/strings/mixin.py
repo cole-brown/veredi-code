@@ -13,7 +13,9 @@ from ..null import Null
 
 
 from . import label
-from veredi.logs import log
+
+# Don't import log stuff - `base` needs to be more low-level than `logs`.
+# from veredi.logs import log
 
 
 # -----------------------------------------------------------------------------

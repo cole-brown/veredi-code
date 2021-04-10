@@ -476,7 +476,7 @@ class Test_SystemManager_Events(Test_SystemManager):
                    extra:     Literal[Tuple] = (),
                    test_type: Literal[None]  = None) -> None:
         super().pre_set_up(filename=__file__,
-                           extra=('system', 'events')
+                           extra=('system', 'events'))
 
     def set_up(self):
         # Add EventManager so that tests in parent class will

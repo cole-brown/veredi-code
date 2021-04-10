@@ -63,7 +63,7 @@ class ContextDottedDescriptor:
     to the dotted string itself - references the context's data instead.
     '''
 
-    _KEY = 'dotted'
+    KEY = 'dotted'
 
     def __init__(self,
                  name_descriptor: str = None) -> None:
@@ -155,8 +155,10 @@ class VerediContext:
     # Constants
     # -------------------------------------------------------------------------
 
-    _KEY_DOTTED = 'dotted'
+    _KEY_DOTTED = ContextDottedDescriptor.KEY
     _KEYS_DOTTED_DEFAULT = (_KEY_DOTTED, )
+    _KEYS_DOTTED_CONFLICT_LIST = _KEY_DOTTED + '-list'
+
 
     # -------------------------------------------------------------------------
     # Descriptors
@@ -198,7 +200,14 @@ class VerediContext:
                  key: str) -> None:
         self._define_vars()
 
-        self._dotted = dotted
+        # ---
+        # Set our helper descriptor.
+        # ---
+        self.dotted = dotted
+
+        # ---
+        # Set our vars.
+        # ---
         self._key  = key
 
     def dotted_keys(self) -> Tuple[Any]:
@@ -612,6 +621,96 @@ class VerediContext:
             else:
                 d_to[key] = d_from[key]
 
+    def _deflict_dotted(self,
+                        resolution:   Conflict,
+                        d_to:         Dict[str, Any],
+                        key_sender:   str,
+                        value_sender: Any,
+                        verb:         str,
+                        preposition:  str) -> None:
+        '''
+        Special conflict-resolution for a 'dotted' key.
+
+        All dotteds go into a list and only one remains at 'dotted' key.
+        No munging of keys.
+        '''
+        quiet = (resolution & Conflict.QUIET) == Conflict.QUIET
+        resolution = resolution & ~Conflict.QUIET
+
+        # Put all dotteds into a list, and then keep only one.
+
+        # ---
+        # List of Dotteds
+        # ---
+        all_dotted = d_to.setdefault(self._KEYS_DOTTED_CONFLICT_LIST, [])
+        value_receiver = d_to[key_sender]
+
+        # ---
+        # Deconflict Dotteds
+        # ---
+        if resolution in (Conflict.SENDER_WINS, Conflict.RECEIVER_MUNGED):
+            # Sender wins or receiver 'loses' - so sender is more important.
+            if value_receiver not in all_dotted:
+                all_dotted.append(value_receiver)
+            # Delete from original spot so we can put at the tail in the
+            # 'winning' position.
+            try:
+                all_dotted.remove(value_sender)
+            except ValueError:
+                pass
+            all_dotted.append(value_sender)
+
+            # And now deconflict the 'dotted' key itself.
+            d_to[key_sender] = value_sender
+
+            if not quiet:
+                log.info(
+                    "{}({}): Sender and Receiver have same key: {}. "
+                    "De-conflicting keys by using sender's value as key. "
+                    "sender[{}] = {}, vs receiver[{}] = {}. "
+                    "List of Dotteds: {}",
+                    verb, resolution, key_sender,
+                    key_sender, value_sender,
+                    key_sender, value_receiver,
+                    all_dotted,
+                    context=self)
+
+        elif resolution in (Conflict.RECEIVER_WINS, Conflict.SENDER_MUNGED):
+            # Receiver wins or sender 'loses' - so receiver is more important.
+            if value_sender not in all_dotted:
+                all_dotted.append(value_sender)
+            # Delete from original spot so we can put at the tail in the
+            # 'winning' position.
+            try:
+                all_dotted.remove(value_receiver)
+            except ValueError:
+                pass
+            all_dotted.append(value_receiver)
+
+            # And now deconflict the 'dotted' key itself.
+            d_to[key_sender] = value_receiver
+
+            if not quiet:
+                log.info(
+                    "{}({}): Sender and Receiver have same key: {}. "
+                    "De-conflicting keys by using receiver's value as key. "
+                    "sender[{}] = {}, vs receiver[{}] = {}. "
+                    "List of Dotteds: {}",
+                    verb, resolution, key_sender,
+                    key_sender, value_sender,
+                    key_sender, value_receiver,
+                    all_dotted,
+                    context=self)
+        else:
+            if not quiet:
+                log.warning(
+                    "{}({}): Sender and Receiver have same key: {}. "
+                    "Don't know how to de-conflict though?! "
+                    "resolution '{}' is unhandled! Leaving context as-is.",
+                    verb, resolution,
+                    resolution,
+                    context=self)
+
     def _deflict(self,
                  resolution:   Conflict,
                  d_to:         Dict[str, Any],
@@ -619,6 +718,16 @@ class VerediContext:
                  value_sender: Any,
                  verb:         str,
                  preposition:  str) -> None:
+
+        # Special handling for 'dotted'.
+        if key_sender == self._KEY_DOTTED:
+            self._deflict_dotted(resolution,
+                                 d_to,
+                                 key_sender,
+                                 value_sender,
+                                 verb,
+                                 preposition)
+            return
 
         quiet = (resolution & Conflict.QUIET) == Conflict.QUIET
         resolution = resolution & ~Conflict.QUIET
@@ -665,37 +774,44 @@ class VerediContext:
                                 context=self)
 
         if resolution == Conflict.SENDER_MUNGED:
+            key_munged = key_sender + '-' + uuid.uuid4().hex[:6]
+            # Add sender's value to munged key.
+            d_to[key_munged] = value_sender
+
             if not quiet:
                 log.warning(
                     "{}({}): Sender and Receiver have same key: {}. "
                     "Sender's key will get random string appended to "
                     "de-conflict, but this could cause issues further along. "
-                    "sender[{}] = {}, vs receiver[{}] = {}",
+                    "sender[{}] = {}, vs receiver[{}] = {}. "
+                    "De-conflicted key: {}",
                     verb, resolution, key_sender,
-                    key_sender, value_sender, key_sender, d_to[key_sender],
+                    key_sender, value_sender,
+                    key_sender, d_to[key_munged],
+                    key_munged,
                     context=self)
-
-            key_munged = key_sender + '-' + uuid.uuid4().hex[:6]
-            # Add sender's value to munged key.
-            d_to[key_munged] = value_sender
 
         elif resolution == Conflict.SENDER_MUNGED:
-            if not quiet:
-                log.warning(
-                    "{}({}): Sender and Receiver have same key: {}. "
-                    "Receiver's key will get random string appended to "
-                    "de-conflict, but this could cause issues further along. "
-                    "sender[{}] = {}, vs receiver[{}] = {}",
-                    verb, resolution, key_sender,
-                    key_sender, value_sender, key_sender, d_to[key_sender],
-                    context=self)
-
             key_munged = key_sender + '-' + uuid.uuid4().hex[:6]
             # Move receiver's value to munged key.
             old_value = d_to.pop(key_sender)
             d_to[key_munged] = old_value
             # Add sender to original key.
             d_to[key_sender] = value_sender
+
+            if not quiet:
+                log.warning(
+                    "{}({}): Sender and Receiver have same key: {}. "
+                    "Receiver's key will get random string appended to "
+                    "de-conflict, but this could cause issues further along. "
+                    "sender[{}] = {}, vs receiver[{}] = {}. "
+                    "De-conflicted key: {}",
+                    verb, resolution, key_sender,
+                    key_sender, value_sender,
+                    key_sender, old_value,
+                    key_munged,
+                    context=self)
+
 
     # -------------------------------------------------------------------------
     # To String
@@ -741,11 +857,11 @@ class UnitTestContext(EphemerealContext):
                                   'test_something',
                                   data={...})
         '''
+        # Build dotted based on inputs.
         dotted = (test_case.dotted
                   if not test_name else
                   label.normalize(test_case.dotted, test_name))
-        super().__init__(test_case.dotted,
-                         'unit-testing')
+        super().__init__(dotted, 'unit-testing')
 
         # Set starting context.
         if starting_context:

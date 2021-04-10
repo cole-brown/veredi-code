@@ -12,9 +12,9 @@ from typing import (Optional, Union, Any, Type, NewType, Protocol,
                     Callable, Iterable, Dict)
 from abc import ABC, abstractmethod
 
-from collections import deque
 # If we need threading, switch to:
 # from queue import Queue, LifoQueue
+from collections import deque
 import enum
 from decimal import Decimal
 
@@ -184,7 +184,7 @@ class MathTree(Encodable, ABC):
     NULL_SIGN = '∅'
 
     _SET_VALUE_ALLOWED = (NodeType.enum.VARIABLE, NodeType.enum.RANDOM)
-    _SET_NAME_ALLOWED = (NodeType.enum.VARIABLE, )
+    _SET_MONIKER_ALLOWED = (NodeType.enum.VARIABLE, )
 
     # -------------------------------------------------------------------------
     # Initialization

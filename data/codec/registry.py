@@ -15,16 +15,16 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
 
-from veredi.logs           import log
-from veredi.data           import background
-from veredi.base.strings   import pretty
-from veredi.base.registrar import CallRegistrar, RegisterType
-from veredi.base.strings   import label
-from veredi.base           import numbers
+from veredi.logs            import log
+from veredi.data            import background
+from veredi.base.strings    import pretty
+from veredi.base.registrar  import CallRegistrar, RegisterType
+from veredi.base.strings    import label
+from veredi.base            import numbers
+from veredi.base.exceptions import RegistryError
 
-from .const                import EncodedComplex, EncodedSimple, EncodedEither
-from .encodable            import Encodable
-from ..exceptions          import RegistryError
+from .const                 import EncodedComplex, EncodedSimple, EncodedEither
+from .encodable             import Encodable
 
 
 # -----------------------------------------------------------------------------

@@ -88,7 +88,7 @@ def serializable_id_constructor(loader: yaml.SafeLoader,
     ident_map = loader.construct_mapping(node)
     klass = None
     for key in ident_map:
-        klass = tags.get_class(key)
+        klass = registry.get_class(key)
         if klass and isinstance(klass, SerializableId):
             break
 
@@ -113,10 +113,10 @@ def serializable_id_representer(dumper: yaml.SafeDumper,
     '''
     log.debug(f'Dump this SerializableId: {ident}')
 
-    yaml_tag = tags.get_tag(ident.__class__)
+    yaml_tag = registry.get_tag(ident.__class__)
     if not yaml_tag:
         msg = ("Couldn't find a SerializableId yaml tag to "
-               f"construct for this: {ident}")
+               f"represent for this: {ident}")
         error = VerediYamlSerializeError(msg)
         raise log.exception(error, msg)
 

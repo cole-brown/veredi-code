@@ -112,3 +112,10 @@ class HealthError(VerediError):
 
         self.previous = prev_health
         '''Health that the caller was at before the error happened.'''
+
+
+class RegistryError(VerediError):
+    '''
+    Error during registration, interacting with registry, etc.
+    '''
+    ...

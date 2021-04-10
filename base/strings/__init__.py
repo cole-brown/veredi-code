@@ -8,10 +8,11 @@ String helper functions?
 # Imports
 # -----------------------------------------------------------------------------
 
+from . import convert
 from . import label
 from . import labeler
-from . import text
 from . import mixin
+from . import text
 
 
 # -----------------------------------------------------------------------------
@@ -36,8 +37,9 @@ __all__ = [
     # ------------------------------
     # Namespaced
     # ------------------------------
+    'convert',
     'label',
     'labeler',
-    'text',
     'mixin',
+    'text',
 ]

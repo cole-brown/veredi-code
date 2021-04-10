@@ -284,7 +284,7 @@ class ZestBase(unittest.TestCase):
         `set_up()`).
         '''
         self.set_type(test_type)
-        self.set_dotted((filename, *extra))
+        self.set_dotted(filename, *extra)
 
     def assert_pre_set_up(self) -> None:
         '''
@@ -358,7 +358,7 @@ class ZestBase(unittest.TestCase):
         '''
         Uses `fail()` to indicate when a Configuration already exists.
         '''
-        existing_bg = background.config.link(background.config.Link.CONFIG)
+        existing_bg = background.config.link(background.Link.CONFIG)
         existing_test = self.config
 
         if existing_bg:

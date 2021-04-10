@@ -29,7 +29,7 @@ from .identity           import InputId
 # -----------------------------------------------------------------------------
 
 @enum.unique
-class Link(enum.Enum):
+class InputLink(enum.Enum):
     INPUT_SAFE = enum.auto()
     '''
     The full input string, after sanitizing/validating. Includes command
@@ -106,9 +106,9 @@ class InputContext(EphemerealContext):
         Set input str into `context` where InputContext wants it.
         '''
         input_ctx = self._get().get(self.KEY, {})
-        input_ctx[Link.INPUT_ID] = input_id
-        input_ctx[Link.INPUT_SAFE] = input_safe
-        input_ctx[Link.SOURCE_ID] = source_id
+        input_ctx[InputLink.INPUT_ID] = input_id
+        input_ctx[InputLink.INPUT_SAFE] = input_safe
+        input_ctx[InputLink.SOURCE_ID] = source_id
 
     def _set_names(self,
                    source_designation: str) -> None:
@@ -116,7 +116,7 @@ class InputContext(EphemerealContext):
         Set any names we're give into our context data.
         '''
         input_ctx = self._get().get(self.KEY, {})
-        input_ctx[Link.SOURCE_DESIGNATION] = source_designation
+        input_ctx[InputLink.SOURCE_DESIGNATION] = source_designation
 
     # -------------------------------------------------------------------------
     # Input/Command-Specific Stuff
@@ -129,7 +129,7 @@ class InputContext(EphemerealContext):
         Checks for & returns our Input ID or InputId.INVALID.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        input_id = input_ctx.get(Link.INPUT_ID, InputId.INVALID)
+        input_id = input_ctx.get(InputLink.INPUT_ID, InputId.INVALID)
         return input_id
 
     @classmethod
@@ -139,7 +139,7 @@ class InputContext(EphemerealContext):
         Checks for & returns our Input ID or InputId.INVALID.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        designation = input_ctx.get(Link.SOURCE_DESIGNATION, None)
+        designation = input_ctx.get(InputLink.SOURCE_DESIGNATION, None)
         return designation
 
     @classmethod
@@ -149,7 +149,7 @@ class InputContext(EphemerealContext):
         If there is a source id (EntityId, whatever), get it.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        ident = input_ctx.get(Link.SOURCE_ID, None)
+        ident = input_ctx.get(InputLink.SOURCE_ID, None)
         return ident
 
     @classmethod
@@ -159,7 +159,7 @@ class InputContext(EphemerealContext):
         If there is a type id, get it.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        type_id = input_ctx.get(Link.TYPE, None)
+        type_id = input_ctx.get(InputLink.TYPE, None)
         return type_id
 
     @classmethod
@@ -169,7 +169,7 @@ class InputContext(EphemerealContext):
         Checks for & returns our input string or None.
         '''
         input_ctx = context._get().get(klass.KEY, {})
-        input_id = input_ctx.get(Link.INPUT_SAFE, None)
+        input_id = input_ctx.get(InputLink.INPUT_SAFE, None)
         return input_id
 
     # -------------------------------------------------------------------------
