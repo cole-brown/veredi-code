@@ -15,6 +15,9 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
 
+import enum as py_enum
+
+
 from veredi.logs                import log
 from veredi.data                import background
 from veredi.base.registrar      import (RegisterType,
@@ -22,6 +25,7 @@ from veredi.base.registrar      import (RegisterType,
 from veredi.base.strings        import label
 
 from veredi.data.codec.registry import EncodableRegistry
+from veredi.data.codec          import enum
 
 
 # -----------------------------------------------------------------------------
@@ -29,6 +33,11 @@ from veredi.data.codec.registry import EncodableRegistry
 # -----------------------------------------------------------------------------
 
 __all__ = [
+    # ------------------------------
+    # Modules
+    # ------------------------------
+    'enum',
+
     # ------------------------------
     # Instances
     # ------------------------------
@@ -109,6 +118,19 @@ def register(klass:          Type['Encodable'],
                              dotted, klass)
             raise log.exception(error, msg)
 
+    if enum.needs_wrapped(klass):
+        msg = ("Enum sub-classes must be wrapped in an EnumWrap for "
+               "Encodable functionality. Call `register_enum()` "
+               "instead of `register()`.")
+        error = TypeError(msg, klass, dotted)
+        log.registration(log_dotted, msg)
+        raise log.exception(error, msg,
+                            data={
+                                'klass': klass,
+                                'dotted': label.normalize(dotted),
+                                'unit_test_only': unit_test_only,
+                            })
+
     # ---
     # Unit Testing?
     # ---
@@ -138,6 +160,58 @@ def register(klass:          Type['Encodable'],
                      codec.__class__.__name__,
                      dotted_str,
                      klass.__name__)
+
+
+def register_enum(klass:            Type['Encodable'],
+                  dotted:           Optional[label.LabelInput] = None,
+                  name_encode:      Optional[str]              = None,
+                  name_klass:       Optional[str]              = None,
+                  enum_encode_type: Optional['enum.EnumWrap']  = None,
+                  unit_test_only:   Optional[bool]             = False,
+                  ) -> None:
+    '''
+    Create a WrapEnum Encodable for this enum class.
+
+    Required:
+      - klass
+      - dotted
+      - name_encode
+      - enum_encode_type
+
+    Optional:
+      - name_klass
+      - unit_test_only
+    '''
+    if not enum.needs_wrapped(klass):
+        log_dotted = label.normalize(_DOTTED, 'register_enum')
+        msg = ("Only Enum sub-classes should be wrapped in an EnumWrap for "
+               "Encodable functionality. Call `register()` "
+               "instead of `register_wrap()` for this class.")
+        error = TypeError(msg, klass, dotted)
+        log.registration(log_dotted, msg + f" {klass}")
+        raise log.exception(error, msg,
+                            data={
+                                'klass': klass,
+                                'dotted': label.normalize(dotted),
+                                'name_encode': name_encode,
+                                'name_klass': name_klass,
+                                'enum_encode_type': enum_encode_type,
+                                'unit_test_only': unit_test_only,
+                            })
+
+    # ------------------------------
+    # Create wrapper and register it.
+    # ------------------------------
+    # This is an enum and we need to make a wrapper for it to be able to be
+    # an Encodable.
+    wrapped = enum.encodable(klass,
+                             name_dotted=dotted,
+                             name_string=name_encode,
+                             name_klass=name_klass,
+                             enum_encode_type=enum_encode_type)
+    register(wrapped,
+             dotted=dotted,
+             unit_test_only=unit_test_only)
 
 
 def ignore(ignoree: Type['Encodable']) -> None:

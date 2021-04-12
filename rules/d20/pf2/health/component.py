@@ -26,9 +26,6 @@ from veredi.data                 import codec
 # Code
 # -----------------------------------------------------------------------------
 
-@codec.enum.encodable(name_dotted='veredi.rules.d20.pf2.health.state',
-                      name_string='health.state',
-                      enum_encode_type=codec.enum.EnumEncodeName)
 @enum.unique
 class HealthState(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''

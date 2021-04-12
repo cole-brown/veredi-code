@@ -30,8 +30,16 @@ from .logging import LogField, LogReply, LogPayload
 # Registration
 # -----------------------------------------------------------------------------
 
-codec.register(Validity)
-codec.register(LogField)
+codec.register_enum(Validity,
+                    dotted='veredi.interface.mediator.payload.validity',
+                    name_encode='valid',
+                    enum_encode_type=codec.enum.FlagEncodeValue)
+
+codec.register_enum(LogField,
+                    dotted='veredi.interface.mediator.payload.log.field',
+                    name_encode='field',
+                    enum_encode_type=codec.enum.EnumEncodeName)
+
 codec.register(LogReply)
 codec.register(BarePayload)
 codec.register(LogPayload)

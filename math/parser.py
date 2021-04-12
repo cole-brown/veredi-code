@@ -22,11 +22,7 @@ from veredi.logs               import log
 from veredi.base.strings.mixin import NamesMixin
 from veredi.base.context       import VerediContext
 from veredi.base.enum          import FlagCheckMixin
-from veredi.data               import codec
-from veredi.data.codec         import (Codec,
-                                       Encodable,
-                                       EncodedComplex,
-                                       FlagEncodeName)
+from veredi.data.codec         import Encodable, EncodedComplex
 
 
 # -----------------------------------------------------------------------------
@@ -71,9 +67,6 @@ class TreeWalkerPredicate(Protocol):
         ...
 
 
-@codec.enum.encodable(name_dotted='veredi.math.parser.type',
-                      name_string='node.type',
-                      enum_encode_type=FlagEncodeName)
 @enum.unique
 class NodeType(FlagCheckMixin, enum.Flag):
     '''
@@ -183,8 +176,8 @@ class MathTree(Encodable, ABC):
     # NULL_SIGN = '\N{EMPTY SET}'
     NULL_SIGN = '∅'
 
-    _SET_VALUE_ALLOWED = (NodeType.enum.VARIABLE, NodeType.enum.RANDOM)
-    _SET_MONIKER_ALLOWED = (NodeType.enum.VARIABLE, )
+    _SET_VALUE_ALLOWED = (NodeType.VARIABLE, NodeType.RANDOM)
+    _SET_MONIKER_ALLOWED = (NodeType.VARIABLE, )
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -368,7 +361,7 @@ class MathTree(Encodable, ABC):
         '''
         Predicate for walk. Returns true if node is Truthy.
         '''
-        return bool(node) and node.type.has(NodeType.enum.VARIABLE)
+        return bool(node) and node.type.has(NodeType.VARIABLE)
 
     def walk(self, predicate=None):
         '''

@@ -297,7 +297,7 @@ class InputSystem(System,
         Input event from a client via the MediatorSystem.
         '''
         # We only care about the text-based messages.
-        if event.type != MsgType.enum.TEXT:
+        if event.type != MsgType.TEXT:
             return
 
         # Doctor checkup.

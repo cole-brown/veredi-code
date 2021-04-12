@@ -251,7 +251,7 @@ class WebSocketClient(WebSocketMediator,
         if (self._debug
                 and self._debug.any(DebugFlag.MEDIATOR_BASE,
                                     DebugFlag.MEDIATOR_CLIENT)):
-            msg = f"{self._name}: " + msg
+            msg = f"{self.name}: " + msg
             kwargs = log.incr_stack_level(kwargs)
             self._log_data_processing(self.dotted,
                                       msg,
@@ -609,12 +609,12 @@ class WebSocketClient(WebSocketMediator,
                    ("from provided context" if ctx else "and a context"),
                    ctx)
 
-        ctx = ctx or self.make_msg_context(Message.SpecialId.enum.CONNECT)
+        ctx = ctx or self.make_msg_context(Message.SpecialId.CONNECT)
         self.debug("_connect_message: "
                    "Creating connection message with context: {}",
                    ctx)
-        msg = Message(Message.SpecialId.enum.CONNECT,
-                      MsgType.enum.CONNECT,
+        msg = Message(Message.SpecialId.CONNECT,
+                      MsgType.CONNECT,
                       # TODO: different payload? add user_key?
                       payload=self._id,
                       user_id=self._id,
@@ -682,7 +682,7 @@ class WebSocketClient(WebSocketMediator,
                        msg)
             self._connection_attempt_success()
         else:
-            log.error("{self._name}: Failed to connect to server! "
+            log.error("{self.name}: Failed to connect to server! "
                       f"match: {match}, path: {path}, msg: {msg},"
                       f"Connection failure: {reason}")
             self._connection_attempt_failure()

@@ -15,23 +15,15 @@ from typing import Optional, Union, Any, Mapping
 import enum
 
 from veredi.logs            import log
-from veredi.base.strings    import labeler
-from veredi.data            import codec
-from veredi.data.codec      import (Codec,
-                                    Encodable,
+from veredi.data.codec      import (Encodable,
                                     EncodedSimple,
-                                    EncodedComplex,
-                                    FlagEncodeValue)
-from veredi.data.exceptions import EncodableError
+                                    EncodedComplex)
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-@codec.enum.encodable(name_dotted='veredi.interface.mediator.payload.validity',
-                      name_string='valid',
-                      enum_encode_type=FlagEncodeValue)
 @enum.unique
 class Validity(enum.Enum):
     '''
@@ -83,7 +75,7 @@ class BasePayload(Encodable):
         actually is...
         '''
 
-        self._valid: 'Validity' = Validity.enum.INVALID
+        self._valid: 'Validity' = Validity.INVALID
         '''
         Validity of self.value. An enum so we can tell "don't want to say"
         apart from "error - could not say".
@@ -114,7 +106,7 @@ class BasePayload(Encodable):
         '''
         # If we have a Validity and it is not INVALID, we are valid.
         if (isinstance(self.valid, Validity)
-                and self.valid != Validity.enum.INVALID):
+                and self.valid != Validity.INVALID):
             return
 
         # Otherwise raise an error.

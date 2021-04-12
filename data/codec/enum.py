@@ -8,11 +8,17 @@ Encodable Wrappers for Enums.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Type, Any
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Type, Any,
+                    TypeVar, Generic,
+                    Callable, Dict, Tuple)
+if TYPE_CHECKING:
+    from .codec import Codec
 
 
 import re
 import enum as py_enum
+import inspect
 
 
 from veredi.logs  import log
@@ -20,14 +26,43 @@ from veredi.base.strings import label
 
 from .const       import EncodedComplex, Encoding
 from .encodable   import Encodable
-from .codec       import Codec
 
 
 # -----------------------------------------------------------------------------
-# Constants
+# Types
 # -----------------------------------------------------------------------------
 
-_WRAPPER_CLASS_FMT: str = "Wrapper{name}"
+EnumEncode = TypeVar('EnumEncode',
+                     py_enum.Enum,
+                     py_enum.Flag)
+'''
+Types that EnumWrap supports.
+'''
+
+
+EnumWrapTypesTuple = (py_enum.Enum, py_enum.IntEnum,
+                      py_enum.Flag, py_enum.IntFlag)
+'''
+The enum types that should be wrapped (i.e. all of them).
+
+Could reduce to just EnumEncode's two, or just 'py_enum.Enum', but this is more
+explicit...
+'''
+
+
+# -----------------------------------------------------------------------------
+# Constants & Variables
+# -----------------------------------------------------------------------------
+
+_WRAPPER_CLASS_FMT: str = "Wrap{name}"
+
+
+_WRAPPED_ENUMS: Dict[Type[EnumEncode], 'EnumWrap'] = {}
+'''
+All the enums that have gone through our `encodable()` function.
+'''
+
+_DOTTED: label.DotStr = label.normalize('veredi.data.codec.enum')
 
 
 # -----------------------------------------------------------------------------
@@ -36,14 +71,22 @@ _WRAPPER_CLASS_FMT: str = "Wrapper{name}"
 
 class EnumDescriptor:
     '''
-    Provider for the wrapped enum class in EnumEncodableWrapper.
+    Provider for the wrapped enum class in EnumWrap.
     '''
 
+    # -------------------------------------------------------------------------
+    # Class Vars
+    # -------------------------------------------------------------------------
+
     def __init__(self,
-                 wrapped: Optional[py_enum.Enum],
+                 wrap:            Union[py_enum.Enum, Any, None],
+                 type:            Optional[py_enum.Enum],
                  name_descriptor: str = None) -> None:
-        self.name: str = name_descriptor
-        self.wrapped: py_enum.Enum = wrapped
+        self.name:       str                = name_descriptor
+        self.wrap_type:  Type[py_enum.Enum] = type
+        self.wrap_value: py_enum.Enum       = None
+
+        self._set(wrap)
 
     def __get__(self,
                 instance: Optional[Any],
@@ -51,16 +94,30 @@ class EnumDescriptor:
         '''
         Returns the enum class we wrap.
         '''
-        return self.wrapped
+        return self.wrap_value
+
+    def _set(self, input: Optional[py_enum.Enum]) -> None:
+        '''
+        Set `self.wrap_value` based on `input`.
+
+        Will just set if given the actual enum value. Will try to create/get
+        the enum value from `input` otherwise.
+        '''
+        if input in EnumWrapTypesTuple:
+            self.wrap_value = input
+        elif input:
+            # Got the wrap_type.value... hopefully.
+            # Use it to get the enum const.
+            self.wrap_value = self.wrap_type(input)
 
     def __set__(self,
                 instance: Optional[Any],
-                wrapped:  Optional[py_enum.Enum]) -> None:
+                wrap:     Optional[py_enum.Enum]) -> None:
         '''
         Setter should not be used during normal operation...
         Wrapped enum should not change.
         '''
-        self.wrapped = wrapped
+        self._set(wrap)
 
     def __set_name__(self, owner: Type[Any], name: str) -> None:
         '''
@@ -68,21 +125,27 @@ class EnumDescriptor:
         '''
         self.name = name
 
+    def __str__(self) -> str:
+        return f"{self.wrap_type}:{self.wrap_value}"
 
-class EnumEncodableWrapper(Encodable):
+    def __repr__(self) -> str:
+        return f"<{str(self)}>"
+
+
+class EnumWrap(Encodable, Generic[EnumEncode]):
     '''
     A wrapper class to hold the Encodable functions and dotted/name
     descriptors.
     '''
 
-    enum: EnumDescriptor = EnumDescriptor(None)
+    enum: EnumDescriptor = EnumDescriptor(None, None, None)
 
-    def __init__(self, wrap_enum: Optional[Type[py_enum.Enum]]) -> None:
+    def __init__(self, wrap_enum: Optional[py_enum.Enum]) -> None:
         if wrap_enum:
             self.enum = wrap_enum
 
     @classmethod
-    def encode_on(klass: 'EnumEncodableWrapper') -> str:
+    def encode_on(klass: 'EnumWrap') -> str:
         '''
         What is this class encoding/decoding?
         e.g. 'value' or 'name' or...?
@@ -90,17 +153,138 @@ class EnumEncodableWrapper(Encodable):
         raise NotImplementedError(f"{klass.__name__} needs to "
                                   "implement `encode_on()`!")
 
+    def __str__(self) -> str:
+        return f"{self.klass}['{self.dotted}','{self.name}']:{self.enum}"
+
+    def __repr__(self) -> str:
+        return f"<{str(self)}>"
+
 
 # -----------------------------------------------------------------------------
-# Decorator
+# Registration Helper
 # -----------------------------------------------------------------------------
 
-def encodable(name_dotted:         Optional[label.LabelInput] = None,
+def _to_class(coi: Union[EnumEncode, Type[EnumEncode]]
+              ) -> Tuple[Type[EnumEncode], bool]:
+    '''
+    Convert class or instance `coi` to a class.
+
+    Returns a tuple of (class, `coi`-is-class)
+    '''
+    if inspect.isclass(coi):
+        return coi, True
+    return coi.__class__, False
+
+
+def _known(coi: Union['EnumWrap', Type['EnumWrap']]) -> bool:
+    '''
+    Returns true if we have class or instance `coi` as a known wrapped enum.
+    '''
+    klass, _ = _to_class(coi)
+    return klass in _WRAPPED_ENUMS
+
+
+def needs_wrapped(cls_or_instance: Union[Encodable, Type[Encodable]]) -> bool:
+    '''
+    Returns true if the `klass` needs an EnumWrap for providing its Encodable
+    functionality.
+    '''
+    klass, _ = _to_class(cls_or_instance)
+    return issubclass(klass, EnumWrapTypesTuple)
+
+
+def needs_unwrapped(cls_or_instance: Union[Encodable, Type[Encodable]]
+                    ) -> bool:
+    '''Returns true if this `klass` is an EnumWrap that should be unwrapped.'''
+    klass, _ = _to_class(cls_or_instance)
+    return issubclass(klass, EnumWrap)
+
+
+def is_encodable(cls_or_instance: Union[Encodable, Type[Encodable]]) -> bool:
+    '''
+    Returns true if this `klass` is an enum registered with a WrapEnum.
+    '''
+    return (needs_wrapped(cls_or_instance)
+            and _known(cls_or_instance))
+
+
+def is_decodable(cls_or_instance: Union[Encodable, Type[Encodable]]) -> bool:
+    '''
+    Returns true if this `klass` is registered with a WrapEnum.
+    '''
+    return needs_unwrapped(cls_or_instance)
+
+
+def wrap(cls_or_instance: Union[EnumEncode, Type[EnumEncode]]
+         ) -> Union['EnumWrap', Type['EnumWrap']]:
+    '''
+    Returns the EnumWrap class for this enum `klass`.
+
+    Returns None if not found.
+    '''
+    # Get Class:
+    klass, is_class = _to_class(cls_or_instance)
+
+    # Do we know of this guy?
+    wrap_type = _WRAPPED_ENUMS.get(klass, None)
+
+    # Return what we were given: instance or class type
+    if is_class:
+        log.data_processing(label.normalize(_DOTTED, 'wrap'),
+                            "wrap:\n"
+                            "  --in--> {}\n"
+                            "  --type- {}\n"
+                            "  <-type- {}",
+                            cls_or_instance, wrap_type,
+                            wrap_type)
+        return wrap_type
+
+    wrap_instance = wrap_type(cls_or_instance)
+    log.data_processing(label.normalize(_DOTTED, 'wrap'),
+                        "wrap:\n"
+                        "  -in--> {}\n"
+                        "  -type- {}\n"
+                        "  <-out- {}",
+                        cls_or_instance, wrap_type,
+                        wrap_instance)
+    return wrap_instance
+
+
+def unwrap(instance: Union['EnumWrap', 'Encodable']) -> EnumEncode:
+    '''
+    If `instance` is an EnumWrap, returns the enum instance/value that the
+    EnumWrap `instance` contains. Else returns `instance`.
+    '''
+    if not isinstance(instance, EnumWrap):
+        log.data_processing(label.normalize(_DOTTED, 'unwrap'),
+                            "unwrap:\n"
+                            "  --ignore-> {}\n"
+                            "  <-ignore-- {}",
+                            instance, instance)
+        return instance
+
+    log.data_processing(label.normalize(_DOTTED, 'unwrap'),
+                        "unwrap:\n"
+                        "  -in--> {}\n"
+                        "  <-out- {}",
+                        instance, instance.enum)
+    return instance.enum
+
+
+# -----------------------------------------------------------------------------
+# Wrapper Class Creator
+# -----------------------------------------------------------------------------
+
+def encodable(klass:               Type[EnumEncode],
+              name_dotted:         Optional[label.LabelInput] = None,
               name_string:         Optional[str]              = None,
               name_klass:          Optional[str]              = None,
-              enum_encode_type:    'EnumEncodableWrapper'     = None):
+              enum_encode_type:    'EnumWrap'                 = None
+              ) -> Type['EnumWrap']:
     '''
-    Decorator for wrapping an Enum with Encodable support.
+    Helper for creating an EnumWrap subclass for a specific Enum that needs to
+    be Encodable. The enum itself cannot be an Encodable, but it will use this
+    wrapper class to provide its Encodable functionality.
 
     Required:
       - `name_dotted`
@@ -109,7 +293,7 @@ def encodable(name_dotted:         Optional[label.LabelInput] = None,
 
     Optional:
       - `name_klass`
-        + Will be `Wrapper{wrapped_class_name}` if not supplied.
+        + Will be `Wrap{wrapped_class_name}` if not supplied.
 
     Several helper/wrapper classes exist to be supplied as `enum_encode_type`:
       - FlagEncodeValue
@@ -120,91 +304,105 @@ def encodable(name_dotted:         Optional[label.LabelInput] = None,
     and FlagEncodeValue:
       - EnumEncodeValue
     '''
-    def decorator(klass) -> Type['EnumEncodableWrapper']:
-        # ------------------------------
-        # Sanity Checks
-        # ------------------------------
-        if not issubclass(klass, py_enum.Enum):
-            msg = (f"{klass.__name__}: `encodable` decorator should only be "
-                   "used on enum classes.")
-            error = ValueError(msg, klass, enum_encode_type)
-            raise log.exception(error, msg,
-                                data={
-                                    'class': klass,
-                                    'dotted': name_dotted,
-                                    'name': name_string,
-                                    'klass': name_klass,
-                                    'wrapper': enum_encode_type,
-                                })
+    # ------------------------------
+    # Sanity Checks
+    # ------------------------------
+    if not issubclass(klass, EnumWrapTypesTuple):
+        msg = (f"{klass.__name__}: `encodable` decorator should only be "
+               f"used on enum classes: {EnumWrapTypesTuple}")
+        error = ValueError(msg, klass, enum_encode_type)
+        raise log.exception(error, msg,
+                            data={
+                                'class': klass,
+                                'dotted': name_dotted,
+                                'name': name_string,
+                                'klass': name_klass,
+                                'wrapper': enum_encode_type,
+                            })
 
-        if not enum_encode_type:
-            msg = (f"{klass.__name__}: `encodable` decorator needs an "
-                   "`enum_encode_type` class to use for the wrapper.")
-            error = ValueError(msg, klass, enum_encode_type)
-            raise log.exception(error, msg,
-                                data={
-                                    'class': klass,
-                                    'dotted': name_dotted,
-                                    'name': name_string,
-                                    'klass': name_klass,
-                                    'wrapper': enum_encode_type,
-                                })
+    if not enum_encode_type:
+        msg = (f"{klass.__name__}: `encodable` decorator needs an "
+               "`enum_encode_type` class to use for the wrapper.")
+        error = ValueError(msg, klass, enum_encode_type)
+        raise log.exception(error, msg,
+                            data={
+                                'class': klass,
+                                'dotted': name_dotted,
+                                'name': name_string,
+                                'klass': name_klass,
+                                'wrapper': enum_encode_type,
+                            })
 
-        if not issubclass(enum_encode_type, EnumEncodableWrapper):
-            msg = (f"{klass.__name__}: `encodable` decorator needs an "
-                   "`enum_encode_type` that is EnumEncodableWrapper "
-                   "or a subclass.")
-            error = ValueError(msg, klass, enum_encode_type)
-            raise log.exception(error, msg,
-                                data={
-                                    'class': klass,
-                                    'dotted': name_dotted,
-                                    'name': name_string,
-                                    'klass': name_klass,
-                                    'wrapper': enum_encode_type,
-                                })
+    if not issubclass(enum_encode_type, EnumWrap):
+        msg = (f"{klass.__name__}: `encodable` decorator needs an "
+               "`enum_encode_type` that is an EnumWrap "
+               "or a subclass.")
+        error = ValueError(msg, klass, enum_encode_type)
+        raise log.exception(error, msg,
+                            data={
+                                'class': klass,
+                                'dotted': name_dotted,
+                                'name': name_string,
+                                'klass': name_klass,
+                                'wrapper': enum_encode_type,
+                            })
 
-        # ------------------------------
-        # Define Wrapper Class
-        # ------------------------------
-        class Wrapper(enum_encode_type,
-                      name_dotted=name_dotted,
-                      name_string=name_string,
-                      name_klass=name_klass):
-            '''
-            Wrapper class for an enum that wants to be encodable.
-            '''
-            enum: EnumDescriptor = EnumDescriptor(klass)
+    # ------------------------------
+    # Define Wrapper Class
+    # ------------------------------
+    class Wrapper(enum_encode_type,
+                  name_dotted=name_dotted,
+                  name_string=name_string,
+                  name_klass=name_klass):
+        '''
+        Wrapper class for an enum that wants to be encodable.
+        '''
+        enum: EnumDescriptor = EnumDescriptor(None, klass, None)
+        '''Init EnumDescriptor with the wrapper's class type.'''
 
-            def __init__(self) -> None:
-                super().__init__(klass)
+    # Dynamically set class name to something more specific
+    # than `Wrapper`.
+    name = (
+        # Prefer user supplied.
+        name_klass
+        if name_klass else
+        # Else build one using our formatting string.
+        _WRAPPER_CLASS_FMT.format(name=klass.__name__)
+    )
 
-        # Dynamically set class name to something more specific
-        # than `Wrapper`.
-        name = (
-            # Prefer user supplied.
-            name_klass
-            if name_klass else
-            # Else build one using our formatting string.
-            _WRAPPER_CLASS_FMT.format(name=klass.__name__)
-        )
+    Wrapper.__name__ = name
+    Wrapper.__qualname__ = name
 
-        Wrapper.__name__ = name
-        Wrapper.__qualname__ = name
+    global _WRAPPED_ENUMS
+    _WRAPPED_ENUMS[klass] = Wrapper
 
-        # ------------------------------
-        # Done; return the new Wrapper.
-        # ------------------------------
-        return Wrapper
+    log.group_multi([log.Group.REGISTRATION, log.Group.DATA_PROCESSING],
+                    label.normalize(_DOTTED, 'encodable'),
+                    "encodable enum:\n"
+                    "             klass: {}\n"
+                    "       name_dotted: {}\n"
+                    "       name_string: {}\n"
+                    "        name_klass: {}\n"
+                    "  enum_encode_type: {}\n"
+                    "      <--  wrapper: {}",
+                    klass,
+                    name_dotted,
+                    name_string,
+                    name_klass,
+                    enum_encode_type,
+                    Wrapper)
 
-    return decorator
+    # ------------------------------
+    # Done; return the new Wrapper.
+    # ------------------------------
+    return Wrapper
 
 
 # -----------------------------------------------------------------------------
 # By VALUE: Flag Enum
 # -----------------------------------------------------------------------------
 
-class FlagEncodeValue(EnumEncodableWrapper):
+class FlagEncodeValue(EnumWrap[py_enum.Flag]):
     '''
     Helpers for encoding a flag enum for codec support.
 
@@ -242,7 +440,7 @@ class FlagEncodeValue(EnumEncodableWrapper):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encode_on(klass: 'EnumEncodableWrapper') -> str:
+    def encode_on(klass: 'EnumWrap') -> str:
         '''
         This class is encoding on the enum's value.
         '''
@@ -294,7 +492,7 @@ class FlagEncodeValue(EnumEncodableWrapper):
         Encode ourself as a string, return that value.
         '''
         encoded = self._ENCODE_SIMPLE_FMT.format(type_field=self.type_field(),
-                                                 value=self.value)
+                                                 value=self.enum.value)
         # print(f"FlagEncodeValue.encode_simple: {self} -> {encoded}")
         return encoded
 
@@ -350,7 +548,7 @@ class FlagEncodeValue(EnumEncodableWrapper):
 # By NAME: Flag Enum
 # -----------------------------------------------------------------------------
 
-class FlagEncodeName(EnumEncodableWrapper):
+class FlagEncodeName(EnumWrap[py_enum.Flag]):
     '''
     Helpers for encoding a flag enum for codec support.
 
@@ -389,11 +587,11 @@ class FlagEncodeName(EnumEncodableWrapper):
     '''
 
     # -------------------------------------------------------------------------
-    # EnumEncodableWrapper
+    # EnumWrap
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encode_on(klass: 'EnumEncodableWrapper') -> str:
+    def encode_on(klass: 'EnumWrap') -> str:
         '''
         This class is encoding on the enum's value.
         '''
@@ -451,8 +649,8 @@ class FlagEncodeName(EnumEncodableWrapper):
         # names that I don't want to because we're just a ...
         #
         # Iterate over /all/ flags defined.
-        for each in self.__class__:
-            if each in self:
+        for each in self.enum.__class__:
+            if each in self.enum:
                 names.append(each.name)
 
         if not names:
@@ -529,14 +727,14 @@ class FlagEncodeName(EnumEncodableWrapper):
 # -----------------------------------------------------------------------------
 
 # Implement when needed.
-# class EnumEncodeValue(EnumEncodableWrapper):
+# class EnumEncodeValue(EnumWrap):
 
 
 # -----------------------------------------------------------------------------
 # By NAME: Enum
 # -----------------------------------------------------------------------------
 
-class EnumEncodeName(EnumEncodableWrapper):
+class EnumEncodeName(EnumWrap[py_enum.Enum]):
     '''
     Helpers for encoding a enum enum for codec support.
 
@@ -570,11 +768,11 @@ class EnumEncodeName(EnumEncodableWrapper):
     '''
 
     # -------------------------------------------------------------------------
-    # EnumEncodableWrapper
+    # EnumWrap
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encode_on(klass: 'EnumEncodableWrapper') -> str:
+    def encode_on(klass: 'EnumWrap') -> str:
         '''
         This class is encoding on the enum's value.
         '''
@@ -626,7 +824,7 @@ class EnumEncodeName(EnumEncodableWrapper):
         Encode ourself as a string, return that value.
         '''
         # This is our enum value/instance's name.
-        name = self.name
+        name = self.enum.name
 
         if not name:
             msg = (f"{self.__class__.__name__}: No enum name?!"
@@ -672,7 +870,7 @@ class EnumEncodeName(EnumEncodableWrapper):
         # Have regex, have match.
         # Turn into an enum value.
         name = match.group('name')
-        return klass[name]
+        return klass.enum[name]
 
     @classmethod
     def decode_complex(klass: 'EnumEncodeName',

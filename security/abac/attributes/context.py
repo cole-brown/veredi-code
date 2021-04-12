@@ -9,9 +9,7 @@ Access-Based Access Control - Attributes for Contextual aspects.
 # -----------------------------------------------------------------------------
 
 import enum
-from veredi.base.strings import labeler
 from veredi.base.enum    import FlagCheckMixin, FlagSetMixin
-from veredi.data         import   codec
 
 
 # -----------------------------------------------------------------------------
@@ -26,9 +24,6 @@ from veredi.data         import   codec
 # TODO: make sure we're actually doing Attribute-based Access Control
 # https://en.wikipedia.org/wiki/Attribute-based_access_control
 
-@codec.enum.encodable(name_dotted='veredi.security.abac.attributes.context',
-                      name_string='attributes.context',
-                      enum_encode_type=codec.enum.FlagEncodeName)
 @enum.unique
 class Context(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''

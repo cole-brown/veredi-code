@@ -11,9 +11,10 @@ Tests for component.py (ComponentManager class).
 from typing import Tuple, Literal
 
 
+from veredi.logs           import log
 from veredi.zest.base.unit import ZestBase
 from veredi.zest           import zmake
-from veredi.zest.zpath       import TestType
+from veredi.zest.zpath     import TestType
 
 from veredi.base.context   import UnitTestContext
 from veredi.base.null      import Null
@@ -60,6 +61,11 @@ class CompThree(MockComponent):
 
 class Test_ComponentManager(ZestBase):
 
+    def _define_vars(self):
+        super()._define_vars()
+        self.events_recv = {}
+        self.event_mgr = None
+
     def pre_set_up(self,
                    # Ignored params:
                    filename:  Literal[None]  = None,
@@ -69,15 +75,13 @@ class Test_ComponentManager(ZestBase):
                            extra=('component', 'eventless'))
 
     def set_up(self):
-        self.event_mgr = None
         self.finish_set_up()
 
     def finish_set_up(self):
         self.comp_mgr = ComponentManager(self.config,
                                          self.event_mgr,
                                          self.debug_flags)
-
-        self.events_recv = {}
+        self.clear_events()
 
     def tear_down(self):
         self.event_mgr = None
@@ -86,7 +90,6 @@ class Test_ComponentManager(ZestBase):
         self.events_recv = None
 
     def register_events(self):
-        self.event_mgr.subscribe(ComponentEvent, self.event_comp_recv)
         self.event_mgr.subscribe(ComponentLifeEvent, self.event_comp_recv)
 
     def clear_events(self):

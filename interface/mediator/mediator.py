@@ -111,7 +111,7 @@ class Mediator(ABC, LogMixin, NamesMixin):
         '''
         Whatever abnormal shenanigans are needed for unit testing are hidden
         behind this flag. For example, server shouldn't push
-        MsgType.enum.LOGGING reply messages into its _med_to_game_queue, but
+        MsgType.LOGGING reply messages into its _med_to_game_queue, but
         will if unit testing so that the unit test can inspect the client's
         response.
         '''
@@ -221,7 +221,7 @@ class Mediator(ABC, LogMixin, NamesMixin):
         handlers, ignore the whole thing... whatever you want.
         '''
         if (not msg
-                or msg.type != MsgType.enum.LOGGING
+                or msg.type != MsgType.LOGGING
                 or not isinstance(msg.payload, LogPayload)):
             self.debug("logging_request: wrong type or payload: {}",
                        msg)
@@ -239,9 +239,9 @@ class Mediator(ABC, LogMixin, NamesMixin):
             return None
 
         report_action = False
-        if LogField.enum.LEVEL in request:
+        if LogField.LEVEL in request:
             report_action = True
-            self._logging_req_level(request[LogField.enum.LEVEL])
+            self._logging_req_level(request[LogField.LEVEL])
 
         # We'll have others eventually. Like 'start up log_client and connect
         # to this WebSocket or Whatever to send logs there now please'.
@@ -250,10 +250,10 @@ class Mediator(ABC, LogMixin, NamesMixin):
         send = None
 
         # If report requested or if we did something as requested, report back!
-        # LogField.enum.REPORT is bool, so check that it exists and also is
+        # LogField.REPORT is bool, so check that it exists and also is
         # True.
-        report_requested = (LogField.enum.REPORT in request
-                            and request[LogField.enum.REPORT])
+        report_requested = (LogField.REPORT in request
+                            and request[LogField.REPORT])
         if report_requested or report_action:
             # Reuse received; send 'em back their data?
             payload_send = payload_recv
@@ -605,7 +605,7 @@ class Mediator(ABC, LogMixin, NamesMixin):
                 continue
 
             # Deal with this msg to us?
-            if msg.type == MsgType.enum.LOGGING:
+            if msg.type == MsgType.LOGGING:
                 self.debug("_med_queue_watcher: _med_rx_get got: {}", msg)
                 reply = self.logging_request(msg)
                 if reply:

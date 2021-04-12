@@ -79,10 +79,10 @@ class Address(Encodable,
         '''
         Init instance vars, type hinting, doc strings.
         '''
-        self._recipient: Recipient = Recipient.enum.INVALID
+        self._recipient: Recipient = Recipient.INVALID
         '''Recipient type of this Address.'''
 
-        self._security_subject: abac.Subject = abac.Subject.enum.INVALID
+        self._security_subject: abac.Subject = abac.Subject.INVALID
         '''
         Security type of this Address - primarily for deciding all of the data
         these users get sent.
@@ -192,8 +192,8 @@ class Address(Encodable,
         # Check claims.
         klass.error_for(data,
                         keys=['users'])
-        Recipient.enum.error_for_claim(data)
-        abac.Subject.enum.error_for_claim(data)
+        Recipient.error_for_claim(data)
+        abac.Subject.error_for_claim(data)
 
         # Decode users list.
         users = []
@@ -259,7 +259,7 @@ class Envelope(Encodable,
         # ------------------------------
         # Final Info
         # ------------------------------
-        self._recipients: Recipient = Recipient.enum.INVALID
+        self._recipients: Recipient = Recipient.INVALID
         '''All (validated) Recipients that we will be trying to send to.'''
 
         self._addresses: Dict[Recipient, Address] = {}
@@ -412,7 +412,7 @@ class Envelope(Encodable,
         # Build Message
         # -------------------------------
         message = Message(msg_id,
-                          MsgType.enum.ENCODED,
+                          MsgType.ENCODED,
                           payload=payload,
                           # entity_id=user.entity_prime,
                           user_id=user.id,

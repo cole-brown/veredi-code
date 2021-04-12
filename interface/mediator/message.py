@@ -70,9 +70,6 @@ class Message(Encodable,
     # Constants
     # -------------------------------------------------------------------------
 
-    @codec.enum.encodable(name_dotted='veredi.interface.mediator.message.sid',
-                          name_string='spid',
-                          enum_encode_type=FlagEncodeValue)
     @enum.unique
     class SpecialId(enum.IntEnum):
         '''
@@ -104,7 +101,7 @@ class Message(Encodable,
         sent with a non-None message id.
         '''
 
-        self._type: 'MsgType' = MsgType.enum.IGNORE
+        self._type: 'MsgType' = MsgType.IGNORE
         '''
         Message's Type. Determines how Mediators handle the message itself and
         its payload.
@@ -174,7 +171,7 @@ class Message(Encodable,
         Create an echo reply for this message.
         '''
         # Return same message but with type changed to ECHO_ECHO.
-        return klass(msg.msg_id, MsgType.enum.ECHO_ECHO,
+        return klass(msg.msg_id, MsgType.ECHO_ECHO,
                      payload=msg.payload,
                      user_id=msg.user_id,
                      user_key=msg.user_key)
@@ -190,17 +187,17 @@ class Message(Encodable,
                   key:     UserKey,
                   success: bool) -> 'Message':
         '''
-        Creates a MsgType.enum.ACK_CONNECT message reply for success/failure of
+        Creates a MsgType.ACK_CONNECT message reply for success/failure of
         connection.
         '''
         if success:
-            return klass(msg.msg_id, MsgType.enum.ACK_CONNECT,
+            return klass(msg.msg_id, MsgType.ACK_CONNECT,
                          payload=BarePayload({'text': 'Connected.',
                                               'code': True}),
                          user_id=id,
                          user_key=key)
 
-        return klass(msg.msg_id, MsgType.enum.ACK_CONNECT,
+        return klass(msg.msg_id, MsgType.ACK_CONNECT,
                      payload=BarePayload({'text': 'Failed to connect.',
                                           'code': False}),
                      user_id=id,
@@ -217,9 +214,9 @@ class Message(Encodable,
             - if success: None
             - if failure: Failure reason
         '''
-        if self.type != MsgType.enum.ACK_CONNECT:
+        if self.type != MsgType.ACK_CONNECT:
             return (False,
-                    f"Message is not MsgType.enum.ACK_CONNECT. Is {self.type}")
+                    f"Message is not MsgType.ACK_CONNECT. Is {self.type}")
 
         # Correct type of message, now check the payload.
         if not isinstance(self.payload, BarePayload):
@@ -285,7 +282,7 @@ class Message(Encodable,
         '''
         Creates a LOGGING message with the supplied data.
         '''
-        msg = Message(msg_id, MsgType.enum.LOGGING,
+        msg = Message(msg_id, MsgType.LOGGING,
                       user_id=user_id,
                       user_key=user_key,
                       payload=log_payload)
@@ -525,13 +522,13 @@ class ConnectionMessage(
                  user_key:   Optional[UserKey],
                  connection: 'UserConnToken') -> None:
         # Type will be CONNECT or DISCONNECT, depending.
-        msg_type = (MsgType.enum.CONNECT
+        msg_type = (MsgType.CONNECT
                     if connected else
-                    MsgType.enum.DISCONNECT)
+                    MsgType.DISCONNECT)
 
         # Init base class with our data. `connection` token will be the
         # payload.
-        super().__init__(ConnectionMessage.SpecialId.enum.CONNECT,
+        super().__init__(ConnectionMessage.SpecialId.CONNECT,
                          msg_type,
                          connection, None,
                          user_id, user_key)

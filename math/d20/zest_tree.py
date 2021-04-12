@@ -107,10 +107,10 @@ class Test_Node(ZestBase):
                            extra=('node', ))
 
     def set_up(self):
-        self.node0 = MockNode(NodeType.enum.INVALID)
+        self.node0 = MockNode(NodeType.INVALID)
         self.value0 = 42
 
-        self.node1 = MockNode(NodeType.enum.INVALID)
+        self.node1 = MockNode(NodeType.INVALID)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
@@ -312,10 +312,10 @@ class Test_Leaf(ZestBase):
                            extra=('leaf', ))
 
     def set_up(self):
-        self.leaf0 = MockLeaf(NodeType.enum.INVALID)
+        self.leaf0 = MockLeaf(NodeType.INVALID)
         self.value0 = 42
 
-        self.leaf1 = MockLeaf(NodeType.enum.INVALID)
+        self.leaf1 = MockLeaf(NodeType.INVALID)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
@@ -584,11 +584,11 @@ class Test_Branch(ZestBase):
             # Branch base class shouldn't be able to eval successfully... It
             # shouldn't even be able to instantiate itself now, since it's
             # abstract.
-            tree.Branch(None, NodeType.enum.INVALID, 'jeff')
+            tree.Branch(None, NodeType.INVALID, 'jeff')
 
         # And no more expecting an AttributeError on eval().
         # with self.assertRaises(AttributeError):
-        #     branch = tree.Branch(None, NodeType.enum.INVALID, 'jeff')
+        #     branch = tree.Branch(None, NodeType.INVALID, 'jeff')
         #     branch.eval()
 
 
@@ -610,7 +610,7 @@ class Test_OperatorMath(ZestBase):
         with self.assertRaises(TypeError):
             # OperatorMath base class shouldn't be able to eval successfully...
             branch = tree.OperatorMath(None,
-                                       NodeType.enum.OPERATOR,
+                                       NodeType.OPERATOR,
                                        None,
                                        None)
             branch.eval()

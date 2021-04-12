@@ -32,7 +32,11 @@ from .system import MathSystem
 # EncodableRegistry
 # ------------------------------
 
-codec.register(NodeType)
+codec.register_enum(NodeType,
+                    dotted='veredi.math.parser.type',
+                    name_encode='node.type',
+                    enum_encode_type=codec.enum.FlagEncodeName)
+
 codec.register(MathOutputEvent)
 
 codec.ignore(MathTree)

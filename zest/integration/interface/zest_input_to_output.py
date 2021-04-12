@@ -88,7 +88,7 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
         super().set_up()
 
         self.output_recvd = None
-        self.recipients = Recipient.enum.INVALID
+        self.recipients = Recipient.INVALID
         self.expected_components = {IdentityComponent,
                                     AbilityComponent,
                                     HealthComponent}
@@ -103,7 +103,7 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
         super().tear_down()
         self.expected_components = None
         self.output_recvd = None
-        self.recipients = Recipient.enum.INVALID
+        self.recipients = Recipient.INVALID
 
     def sub_events(self) -> None:
         self.manager.event.subscribe(AbilityResult, self.event_ability_res)
@@ -246,9 +246,9 @@ class Test_InputToOutput_AbilityCheck(ZestIntegrateEngine):
         self.assertTrue(self.output_recvd)
         self.assertIsInstance(self.output_recvd, Envelope)
         self.assertEqual(self.output_recvd.desired_recipients,
-                         Recipient.enum.BROADCAST)
+                         Recipient.BROADCAST)
         self.assertEqual(self.output_recvd.valid_recipients,
-                         Recipient.enum.BROADCAST)
+                         Recipient.BROADCAST)
         # Should be EntityId:001
         self.assertEqual(self.output_recvd.source_id.value, 1)
 

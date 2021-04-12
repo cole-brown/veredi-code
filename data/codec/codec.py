@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from veredi.data.config.context import ConfigContext
 
 import collections
-import enum
 from datetime import datetime
+import enum as py_enum
 
 from veredi.logs                 import log
 from veredi.logs.mixin           import LogMixin
@@ -40,7 +40,7 @@ from .const                      import (EncodeNull,
                                          EncodedEither,
                                          Encoding)
 from .encodable                  import Encodable
-
+from .                           import enum
 
 # -----------------------------------------------------------------------------
 # Constants
@@ -51,7 +51,14 @@ EncodeInput = NewType('EncodeInput',
                             EncodeAsIs,
                             Encodable,
                             Mapping,
-                            enum.Enum])
+                            enum.EnumEncode,
+                            py_enum.Enum])
+
+
+DecodeInput = NewType('DecodeInput',
+                      Union[Encodable,
+                            enum.EnumEncode,
+                            py_enum.Enum])
 
 
 # -----------------------------------------------------------------------------
@@ -198,14 +205,14 @@ class Codec(LogMixin, NamesMixin,
         If target is Null or None:
           - returns None
 
-        If target is an Encodable:
+        If target is an Encodable or enum with registered Encodable wrapper:
           - Encodes using Encodable functionality. See `_encode_encodable()`
             for details.
 
         If target is a Mapping:
           - Encodes as a dictionary.
 
-        If target is a non-Encodable enum.Enum:
+        If target is a non-Encodable py_enum.Enum:
           - Encodes target.value.
 
         If target is an EncodeAsIs type:
@@ -218,6 +225,15 @@ class Codec(LogMixin, NamesMixin,
         if null_or_none(target):
             # Null/None encode to None.
             return encoded
+
+        # Translate enum to its wrapper if needed/supported.
+        if enum.is_encodable(target):
+            input_enum = target
+            target = enum.wrap(target)
+            self._log_data_processing(self.dotted,
+                                      "codec.encode: enum found. "
+                                      "enum: {} -wrap-> {}",
+                                      input_enum, target)
 
         if isinstance(target, Encodable):
             # Encode via its function.
@@ -504,13 +520,14 @@ class Codec(LogMixin, NamesMixin,
         if isinstance(value, dict):
             node = self.encode_map(value)
 
-        elif isinstance(value, Encodable):
+        elif (isinstance(value, Encodable)
+              or enum.is_encodable(value)):
             # Encode it with its registry field so we can
             # know what it was encoded as during decoding.
             node = self.encode(value, with_reg_field=True)
 
         elif isinstance(value, (enum.Enum, enum.IntEnum)):
-            # Simple enum and aren't Encodables - just use value.
+            # An enum that isn't registered as Encodable - just use value.
             node = value.value
 
         else:
@@ -523,15 +540,56 @@ class Codec(LogMixin, NamesMixin,
     # Decoding
     # -------------------------------------------------------------------------
 
+    def _decode_enum_check(self,
+                           target: Optional[DecodeInput]
+                           ) -> Type['Encodable']:
+        '''
+        Convert `target` to its Encodable EnumWrap if it is an enum.
+
+        Return as-is otherwise.
+        '''
+        # Allow target of either the Enum type or the EnumWrap type
+        # as target.
+        if enum.is_encodable(target):  # Given the enum type as the target?
+            # Target is enum; translate to its EnumWrap class for decoding.
+            input_enum = target
+            target = enum.wrap(target)
+            self._log_data_processing(self.dotted,
+                                      "codec._decode_enum_check: enum found. "
+                                      "enum: {} -wrap-> {}",
+                                      input_enum, target)
+
+        elif enum.is_decodable(target):  # Given the EnumWrap as target?
+            # EnumWrap is what we need - no change.
+            self._log_data_processing(self.dotted,
+                                      "codec._decode_enum_check: EnumWrap found. "
+                                      "EnumWrap: {} - Use as-is.",
+                                      target)
+
+        return target
+
+    def _decode_finalize(self, result: Any) -> Any:
+        '''
+        Finalize decoding by e.g. converting EnumWrap to its enum value.
+        '''
+        finalized = result
+        if result and enum.needs_unwrapped(result):
+            finalized = enum.unwrap(result)
+        self._log_data_processing(self.dotted,
+                                  "codec._decode_finalize: "
+                                  "{} -> {}",
+                                  result, finalized)
+        return finalized
+
     def decode(self,
-               target:          Optional[Type['Encodable']],
+               target:          Optional[DecodeInput],
                data:            EncodedEither,
                error_squelch:   bool                        = False,
                reg_find_dotted: Optional[str]               = None,
                reg_find_types:  Optional[Type[Encodable]]   = None,
                map_expected:    Iterable[Type['Encodable']] = None,
                fallback:        Optional[Type[Encodable]]   = None
-               ) -> Optional['Encodable']:
+               ) -> Optional[Any]:
         '''
         Decode simple or complex `data` input, using it to build an
         instance of the `target` class.
@@ -574,7 +632,7 @@ class Codec(LogMixin, NamesMixin,
                 "decode: Cannot decode nothing:\n"
                 "  data: {}",
                 data)
-            return None
+            return self._decode_finalize(None)
 
         # ---
         # Decode target already known?
@@ -592,7 +650,7 @@ class Codec(LogMixin, NamesMixin,
                 "decode: Decode via Encodable returned:\n"
                 "  decoded: {}",
                 decoded)
-            return decoded
+            return self._decode_finalize(decoded)
 
         self._log_data_processing(
             self.dotted,
@@ -619,7 +677,7 @@ class Codec(LogMixin, NamesMixin,
                     "decode: Decoded simply encoded data to:\n"
                     "  decoded: {}",
                     decoded)
-                return decoded
+                return self._decode_finalize(decoded)
 
             # Else: not this... Keep looking.
             self._log_data_processing(
@@ -653,7 +711,7 @@ class Codec(LogMixin, NamesMixin,
                 "decode: Decode with registry returned:\n"
                 "  decoded: {}",
                 decoded)
-            return decoded
+            return self._decode_finalize(decoded)
 
         except (KeyError, ValueError, TypeError):
             # Expected exceptions from `_decode_with_registry`...
@@ -678,7 +736,7 @@ class Codec(LogMixin, NamesMixin,
                 "decode: Decoded mapping returned:\n"
                 "  decoded: {}",
                 decoded)
-            return decoded
+            return self._decode_finalize(decoded)
 
         # ---
         # Something Basic?
@@ -696,7 +754,7 @@ class Codec(LogMixin, NamesMixin,
                 "decode: Decoded basic data to:\n"
                 "  decoded: {}",
                 decoded)
-            return decoded
+            return self._decode_finalize(decoded)
         except EncodableError:
             # Not this either...
             pass
@@ -710,7 +768,7 @@ class Codec(LogMixin, NamesMixin,
                 "decode: No decoding known for data; returning fallback:\n"
                 "  fallback: {}",
                 fallback)
-            return fallback
+            return self._decode_finalize(fallback)
 
         msg = (f"{self.__class__.__name__}.decode: unknown "
                f"type of data {type(data)}. Cannot decode.")
@@ -728,7 +786,9 @@ class Codec(LogMixin, NamesMixin,
     def _decode_encodable(self,
                           target: Optional[Type['Encodable']],
                           data:   EncodedEither,
-                          ) -> Optional['Encodable']:
+                          ) -> Union['Encodable',
+                                     enum.EnumEncode,
+                                     None]:
         '''
         Decode simple or complex `data` input, using it to build an
         instance of the `target` class.
@@ -738,7 +798,7 @@ class Codec(LogMixin, NamesMixin,
         '''
         self._log_data_processing(
             self.dotted,
-            "decode_encodable will be decoding data to target '{}'.\n"
+            "_decode_encodable will be decoding data to target '{}'.\n"
             "  data: {}",
             target,
             data)
@@ -746,6 +806,7 @@ class Codec(LogMixin, NamesMixin,
         # ---
         # Wrong data for target?
         # ---
+        target = self._decode_enum_check(target)
         target.error_for_claim(data)
 
         # ---
@@ -755,9 +816,17 @@ class Codec(LogMixin, NamesMixin,
 
         self._log_data_processing(
             self.dotted,
-            "decode_encodable decoded target '{}' to: {}",
+            "_decode_encodable decoded target '{}' to: {}",
             target,
             decoded)
+
+        if enum.needs_unwrapped(decoded):
+            self._log_data_processing(
+                self.dotted,
+                "_decode_encodable unwrapped decoded EnumWrap '{}' to: {decode}",
+                decoded,
+                decoded.enum)
+            decoded = decoded.enum
 
         # Right now, same from here on for SIMPLE vs COMPLEX.
         # Keeping split up for parity with `_encode_encodable`, clarity,
@@ -769,11 +838,10 @@ class Codec(LogMixin, NamesMixin,
         if encoding == Encoding.SIMPLE:
             self._log_data_processing(
                 self.dotted,
-                "decode_encodable {} decoding completed.\n"
+                "_decode_encodable {} decoding completed.\n"
                 "  decoded: {}",
                 encoding,
                 decoded)
-
             return decoded
 
         # ---
@@ -781,7 +849,7 @@ class Codec(LogMixin, NamesMixin,
         # ---
         self._log_data_processing(
             self.dotted,
-            "decode_encodable {} decoding completed.\n"
+            "_decode_encodable {} decoding completed.\n"
             "  decoded: {}",
             encoding,
             decoded)
@@ -798,12 +866,34 @@ class Codec(LogMixin, NamesMixin,
 
         Will return None if no Encodable target is found.
         '''
+        self._log_data_processing(self.dotted,
+                                  "_decode_simple:\n"
+                                  "  data_type: {}\n"
+                                  "  data: {}",
+                                  data_type, data)
+        if not data:
+            self._log_data_processing(self.dotted,
+                                      "_decode_simple:\n"
+                                      "  no data; returning None")
+            return None
+
         target = registrar.codec.simple(data,
                                         data_type=data_type)
-        if target:
-            return self._decode_encodable(target, data)
-        return None
+        if not target:
+            self._log_data_processing(self.dotted,
+                                      "_decode_simple: "
+                                      "codec.simple() found no target for:\n"
+                                      "  data_type: {}\n"
+                                      "  data: {}",
+                                      data_type, data)
+            return None
 
+        self._log_data_processing(self.dotted,
+                                  "_decode_simple: "
+                                  "codec.simple() found target {}; "
+                                  "decoding...",
+                                  target)
+        return self._decode_encodable(target, data)
 
     def _decode_with_registry(self,
                               data:          EncodedComplex,

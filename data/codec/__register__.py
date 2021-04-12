@@ -21,7 +21,7 @@ from veredi.data.registration import config, codec
 # ------------------------------
 # Registrees
 # ------------------------------
-from .enum     import (EnumEncodableWrapper,
+from .enum     import (EnumWrap,
                        FlagEncodeValue,
                        FlagEncodeName,
                        EnumEncodeName)
@@ -33,7 +33,7 @@ from .codec    import Codec
 # Registration
 # -----------------------------------------------------------------------------
 
-codec.ignore(EnumEncodableWrapper)
+codec.ignore(EnumWrap)
 codec.ignore(FlagEncodeValue)
 codec.ignore(FlagEncodeName)
 codec.ignore(EnumEncodeName)

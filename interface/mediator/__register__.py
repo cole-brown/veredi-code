@@ -29,8 +29,15 @@ from . import websocket
 # Registration
 # -----------------------------------------------------------------------------
 
-codec.register(MsgType)
-codec.register(Message.SpecialId)
+codec.register_enum(MsgType,
+                    dotted='veredi.interface.mediator.message.type',
+                    name_encode='v.mt',
+                    enum_encode_type=codec.enum.FlagEncodeValue)
+codec.register_enum(Message.SpecialId,
+                    dotted='veredi.interface.mediator.message.sid',
+                    name_encode='spid',
+                    enum_encode_type=codec.enum.FlagEncodeValue)
+
 codec.register(Message)
 codec.register(ConnectionMessage)
 

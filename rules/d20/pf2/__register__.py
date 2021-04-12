@@ -11,7 +11,7 @@ Registries, Registrars, and Registrees this provides available at run-time.
 # Imports
 # -----------------------------------------------------------------------------
 
-from veredi.data.registration import config
+from veredi.data.registration import config, codec
 
 
 # -----------------------------------------------------------------------------
@@ -36,6 +36,11 @@ config.register(ability.system.AbilitySystem)
 
 config.register(skill.component.SkillComponent)
 config.register(skill.system.SkillSystem)
+
+codec.register_enum(health.component.HealthState,
+                    dotted='veredi.rules.d20.pf2.health.state',
+                    name_encode='health.state',
+                    enum_encode_type=codec.enum.EnumEncodeName)
 
 config.register(health.component.HealthComponent)
 

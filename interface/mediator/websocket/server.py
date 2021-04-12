@@ -691,7 +691,7 @@ class WebSocketServer(WebSocketMediator,
         if (self._debug
                 and self._debug.any(DebugFlag.MEDIATOR_BASE,
                                     DebugFlag.MEDIATOR_SERVER)):
-            msg = f"{self._name}: " + msg
+            msg = f"{self.name}: " + msg
             kwargs = log.incr_stack_level(kwargs)
             self._log_data_processing(self.dotted,
                                       msg,
@@ -888,7 +888,7 @@ class WebSocketServer(WebSocketMediator,
                                msg, ctx)
                     await self._continuing()
                     continue
-                if msg.type == MsgType.enum.IGNORE:
+                if msg.type == MsgType.IGNORE:
                     self.debug("_from_game_watcher (game_pipe->client_queue): "
                                "Ignoring IGNORE msg: {}",
                                msg)
@@ -903,7 +903,7 @@ class WebSocketServer(WebSocketMediator,
                        msg, ctx)
 
             # Is it an Envelope? They can be addressed to many clients.
-            if msg.type == MsgType.enum.ENVELOPE:
+            if msg.type == MsgType.ENVELOPE:
                 self.debug("_from_game_watcher (game_pipe->client_queue): "
                            "Envelope - creating message for each recipient: "
                            "{} {}",
@@ -981,7 +981,7 @@ class WebSocketServer(WebSocketMediator,
         envelope = message.payload
         if not isinstance(envelope, Envelope):
             err_msg = ("MediatorServer got incorrect payload in "
-                       f"'{MsgType.enum.ENVELOPE}' message. Can only handle "
+                       f"'{MsgType.ENVELOPE}' message. Can only handle "
                        "Envelope, got '{message.type}' from: {message}")
             error = ValueError(err_msg, message, context)
             raise log.exception(error, message, context=context)
@@ -995,7 +995,7 @@ class WebSocketServer(WebSocketMediator,
                        "Processing recipient: {}",
                        recipient)
 
-            if (recipient is Recipient.enum.INVALID
+            if (recipient is Recipient.INVALID
                     or recipient not in envelope.valid_recipients):
                 self.debug("_envelope_to_messages: "
                            "Invalid recipient for message: {} (valid: {})",
@@ -1225,7 +1225,7 @@ class WebSocketServer(WebSocketMediator,
         Returns:
           - (False, False) if it found nothing to produce/send.
           - (Message, MessageContext) if it found something to produce/send.
-            - Could be Nones or MsgType.enum.IGNORE.
+            - Could be Nones or MsgType.IGNORE.
         '''
         # self.debug("_handle_produce_get_msg: {}",
         #            conn)
@@ -1277,7 +1277,7 @@ class WebSocketServer(WebSocketMediator,
                 # Ignore. Default return from _handle_produce_get_msg().
                 await self._continuing()
                 continue
-            if not msg or msg.type == MsgType.enum.IGNORE:
+            if not msg or msg.type == MsgType.IGNORE:
                 log.warning("_handle_produce: {}: "
                             "Produced nothing for sending."
                             "Ignoring msg: {}, ctx: {}",

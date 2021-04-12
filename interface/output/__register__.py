@@ -28,7 +28,11 @@ from .system   import OutputSystem
 # Registration
 # -----------------------------------------------------------------------------
 
-codec.register(Recipient)
+codec.register_enum(Recipient,
+                    dotted='veredi.interface.output.event.recipient',
+                    name_encode='recipient',
+                    enum_encode_type=codec.enum.FlagEncodeValue)
+
 codec.register(Address)
 codec.register(Envelope)
 
