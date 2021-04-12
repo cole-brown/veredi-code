@@ -70,16 +70,16 @@ class MathOutputTree:
         Get a copy of the correct template for this node's type.
 
         Returns the dictionary template if it finds one.
-        Returns None for NodeType.enum.INVALID.
+        Returns None for NodeType.INVALID.
         Raises ValueError otherwies.
         '''
-        if node.type.has(NodeType.enum.LEAF):
+        if node.type.has(NodeType.LEAF):
             return copy.copy(klass.TEMPLATE_LEAF)
 
-        if node.type.has(NodeType.enum.BRANCH):
+        if node.type.has(NodeType.BRANCH):
             return copy.copy(klass.TEMPLATE_BRANCH)
 
-        if node.type.has(NodeType.enum.INVALID):
+        if node.type.has(NodeType.INVALID):
             return None
 
         raise ValueError(f"No template for NodeType: {node.type}", node)
@@ -92,19 +92,19 @@ class MathOutputTree:
         in these values and returns the data:
           type, moniker, value
         '''
-        if node.type == NodeType.enum.INVALID:
+        if node.type == NodeType.INVALID:
             return None
 
         type_name = None
-        if node.type.has(NodeType.enum.FUNCTION):
+        if node.type.has(NodeType.FUNCTION):
             type_name = 'function'
-        elif node.type.has(NodeType.enum.OPERATOR):
+        elif node.type.has(NodeType.OPERATOR):
             type_name = 'operator'
-        elif node.type.has(NodeType.enum.RANDOM):
+        elif node.type.has(NodeType.RANDOM):
             type_name = 'random'
-        elif node.type.has(NodeType.enum.VARIABLE):
+        elif node.type.has(NodeType.VARIABLE):
             type_name = 'variable'
-        elif node.type.has(NodeType.enum.CONSTANT):
+        elif node.type.has(NodeType.CONSTANT):
             type_name = 'constant'
 
         data = klass._get_template(node)
@@ -129,7 +129,7 @@ class MathOutputTree:
             data = klass._convert(node)
             if data:
                 output[id(node)] = data
-            if node.type.has(NodeType.enum.BRANCH):
+            if node.type.has(NodeType.BRANCH):
                 klass._add_children(node, data, output)
 
         return output[id(root)]
@@ -149,7 +149,7 @@ class MathOutputTree:
         '''
         if not node.children:
             raise ValueError(
-                f"NodeType.enum.BRANCH node has no children: {node}", node)
+                f"NodeType.BRANCH node has no children: {node}", node)
 
         data[klass.T_CHILD] = []
         for child in node.children:

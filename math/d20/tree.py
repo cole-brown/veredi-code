@@ -291,7 +291,7 @@ class Leaf(Node,
                  milieu:   str                  = None,
                  moniker:  str                  = None,
                  tags:     VTags                = None) -> None:
-        super().__init__(NodeType.enum.LEAF | type,
+        super().__init__(NodeType.LEAF | type,
                          value=value,
                          milieu=milieu,
                          children=None,
@@ -357,7 +357,7 @@ class Dice(Leaf,
                  dice: int,
                  faces: int,
                  tags: Dict[str, str] = None) -> None:
-        super().__init__(NodeType.enum.RANDOM, moniker='dice', tags=tags)
+        super().__init__(NodeType.RANDOM, moniker='dice', tags=tags)
 
         self.dice = dice
         self.faces = faces
@@ -493,7 +493,7 @@ class Constant(Leaf,
     def __init__(self,
                  constant: numbers.NumberTypes,
                  tags: Dict[str, str] = None) -> None:
-        super().__init__(NodeType.enum.CONSTANT,
+        super().__init__(NodeType.CONSTANT,
                          value=constant,
                          moniker=constant,
                          tags=tags)
@@ -589,7 +589,7 @@ class Variable(Leaf,
                  var: str,
                  milieu: str = None,
                  tags: Dict[str, str] = None):
-        super().__init__(NodeType.enum.VARIABLE,
+        super().__init__(NodeType.VARIABLE,
                          milieu=milieu,
                          moniker=var,
                          tags=tags)
@@ -708,7 +708,7 @@ class Branch(Node, ABC,
                  type: NodeType,
                  moniker: str,
                  tags: Dict[str, str] = None):
-        super().__init__(NodeType.enum.BRANCH | type,
+        super().__init__(NodeType.BRANCH | type,
                          children=children,
                          moniker=moniker,
                          tags=tags)
@@ -828,7 +828,7 @@ class OperatorMath(Branch,
                  children: List['Node'],
                  op_str: str,
                  tags: Dict[str, str] = None):
-        super().__init__(children, NodeType.enum.OPERATOR, op_str, tags)
+        super().__init__(children, NodeType.OPERATOR, op_str, tags)
         self.__operator_str = op_str
 
     # -------------------------------------------------------------------------

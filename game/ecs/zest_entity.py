@@ -61,6 +61,11 @@ class CompThree(MockComponent):
 class Test_EntityManager(ZestBase):
     _TYPE_DONT_CARE = 1
 
+    def _define_vars(self):
+        super()._define_vars()
+        self.events_recv = {}
+        self.event_mgr = None
+
     def pre_set_up(self,
                    # Ignored params:
                    filename:  Literal[None]  = None,
@@ -71,7 +76,6 @@ class Test_EntityManager(ZestBase):
                            extra=extra)
 
     def set_up(self):
-        self.event_mgr = None
         self.finish_set_up()
 
     def finish_set_up(self):
@@ -82,8 +86,7 @@ class Test_EntityManager(ZestBase):
                                         self.event_mgr,
                                         self.comp_mgr,
                                         self.debug_flags)
-
-        self.events_recv = {}
+        self.clear_events()
 
     def tear_down(self):
         self.config      = None
@@ -94,7 +97,8 @@ class Test_EntityManager(ZestBase):
 
     def register_events(self):
         self.event_mgr.subscribe(EntityEvent, self.event_comp_recv)
-        self.event_mgr.subscribe(EntityLifeEvent, self.event_comp_recv)
+        # EntityLifeEvent is an EntityEvent, so no need to double up.
+        # self.event_mgr.subscribe(EntityLifeEvent, self.event_comp_recv)
 
     def clear_events(self):
         self.events_recv.clear()

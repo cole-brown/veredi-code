@@ -75,7 +75,7 @@ class BarePayload(BasePayload,
     def __init__(self,
                  data: BarePayloadType = None) -> None:
         # Ignore validity always... (valid property is hardcoded too).
-        super().__init__(data, Validity.enum.VALID)
+        super().__init__(data, Validity.VALID)
 
     # -------------------------------------------------------------------------
     # Data Structure
@@ -86,7 +86,7 @@ class BarePayload(BasePayload,
         '''
         Property for getting validity.
         '''
-        return Validity.enum.VALID
+        return Validity.VALID
 
     @valid.setter
     def valid(self, value: 'Validity') -> None:

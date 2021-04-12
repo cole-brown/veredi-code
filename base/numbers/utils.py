@@ -15,7 +15,8 @@ import decimal
 from decimal import Decimal
 
 
-from veredi.logs import log
+# Cannot import log - base must be usable by log.
+# from veredi.logs import log
 
 from .const import (NumberTypes, NumberTypesTuple,
                     DecimalTypes, DecimalTypesTuple)
@@ -137,7 +138,7 @@ def to_decimal(input: DecimalTypes) -> Decimal:
 
     msg = f"Could not convert input to Decimal: {type(input)} '{input}'"
     error = ValueError(msg, input)
-    raise log.exception(error, msg)
+    raise error
 
 
 # -----------------------------------------------------------------------------

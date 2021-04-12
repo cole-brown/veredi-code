@@ -15,26 +15,19 @@ import enum
 
 from veredi.logs                    import log
 from veredi.game.ecs.event          import Event
-from veredi.data                    import codec
-from veredi.data.codec              import (Codec,
-                                            Encodable,
+from veredi.data.codec              import (Encodable,
                                             EncodedSimple,
-                                            EncodedComplex,
-                                            FlagEncodeValue)
+                                            EncodedComplex)
 from veredi.base.enum               import FlagCheckMixin, FlagSetMixin
 from veredi.base.context            import VerediContext
 from veredi.game.ecs.base.identity  import EntityId
 from veredi.base.identity           import SerializableId
-from veredi.interface.input.context import InputContext
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
 
-@codec.enum.encodable(name_dotted='veredi.interface.output.event.recipient',
-                      name_string='recipient',
-                      enum_encode_type=FlagEncodeValue)
 @enum.unique
 class Recipient(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
@@ -250,7 +243,7 @@ class OutputEvent(Event, Encodable):
         # Check claims.
         klass.error_for(data,
                         keys=['source_id', 'source_type', 'output', 'sid'])
-        Recipient.enum.error_for_claim(data)
+        Recipient.error_for_claim(data)
 
         # If no instance, we're decoding for ourself.
         if instance is None:

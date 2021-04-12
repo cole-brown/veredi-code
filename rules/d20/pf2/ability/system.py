@@ -231,7 +231,7 @@ class AbilitySystem(D20RulesSystem,
                             math, context,
                             InputContext.input_id(context),
                             # TODO [2020-07-11]: a proper output type...
-                            Recipient.enum.BROADCAST),
+                            Recipient.BROADCAST),
             context)
 
         return CommandStatus.successful(context)

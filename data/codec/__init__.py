@@ -24,8 +24,7 @@ from .const     import (EncodeNull, EncodeAsIs,
                         EncodedComplex, EncodedSimple, EncodedEither,
                         Encoding)
 from .          import enum
-from .enum      import (EnumEncodableWrapper,
-                        FlagEncodeValue,
+from .enum      import (FlagEncodeValue,
                         FlagEncodeName,
                         EnumEncodeName)
 from .codec     import Codec

@@ -344,17 +344,17 @@ class OutputSystem(System,
 
         Returns allowed recipients.
         '''
-        addressed_to = Recipient.enum.INVALID
+        addressed_to = Recipient.INVALID
 
         # ---
         # Address to GM?
         # ---
-        if envelope.desired_recipients.has(Recipient.enum.GM):
+        if envelope.desired_recipients.has(Recipient.GM):
             # We want to send to GM. Can we?
             recipient = self._address_to(envelope,
-                                         Recipient.enum.GM,
-                                         abac.Subject.enum.GM)
-            if recipient is Recipient.enum.INVALID:
+                                         Recipient.GM,
+                                         abac.Subject.GM)
+            if recipient is Recipient.INVALID:
                 self._log_error("Envelope recipient mismatch! The envelope "
                                 "has 'GM' in desired_recipients "
                                 f"({envelope.desired_recipients}), but "
@@ -366,12 +366,12 @@ class OutputSystem(System,
         # ---
         # Address to owning/controlling User?
         # ---
-        if envelope.desired_recipients.has(Recipient.enum.USER):
+        if envelope.desired_recipients.has(Recipient.USER):
             # We want to send to USER. Can we?
             recipient = self._address_to(envelope,
-                                         Recipient.enum.USER,
-                                         abac.Subject.enum.USER)
-            if recipient is Recipient.enum.INVALID:
+                                         Recipient.USER,
+                                         abac.Subject.PLAYER)
+            if recipient is Recipient.INVALID:
                 self._log_error("Envelope recipient mismatch! The envelope "
                                 "has 'USER' in desired_recipients "
                                 f"({envelope.desired_recipients}), but "
@@ -383,12 +383,12 @@ class OutputSystem(System,
         # ---
         # Broadcast to everyone connected?
         # ---
-        if envelope.desired_recipients.has(Recipient.enum.BROADCAST):
+        if envelope.desired_recipients.has(Recipient.BROADCAST):
             # We want to send to BROADCAST. Can we?
             recipient = self._address_to(envelope,
-                                         Recipient.enum.BROADCAST,
-                                         abac.Subject.enum.BROADCAST)
-            if recipient is Recipient.enum.INVALID:
+                                         Recipient.BROADCAST,
+                                         abac.Subject.BROADCAST)
+            if recipient is Recipient.INVALID:
                 self._log_error("Envelope recipient mismatch! The envelope "
                                 "has 'BROADCAST' in desired_recipients "
                                 f"({envelope.desired_recipients}), but "
@@ -410,7 +410,7 @@ class OutputSystem(System,
 
         Returns "allowed recipient", which is:
           - `recipient` on success.
-          - Recipient.enum.INVALID on failure.
+          - Recipient.INVALID on failure.
         '''
         if not self._pdp.allowed(envelope.context):
             self._log_security(self.dotted,
@@ -418,24 +418,24 @@ class OutputSystem(System,
                                f"at '{security_subject}': "
                                "Security has denied the action.")
             # Recipient was not allowed by security - failure return.
-            return Recipient.enum.INVALID
+            return Recipient.INVALID
 
         # ---
         # Get the actual "addresses" - user id/key.
         # ---
         users = None
-        if recipient is Recipient.enum.USER:
+        if recipient is Recipient.USER:
             # User/'owner' has their id in the event.
             users = background.users.connected(envelope.source_id)
 
-        elif recipient is Recipient.enum.GM:
+        elif recipient is Recipient.GM:
             # Get all GMs for sending.
             users = background.users.gm(None)
             # TODO: presumably, in multi-gm games, only one GM should get
             # some/most/all 'GM' output... But I'm not sure how/where/why/etc
             # to demark it as such yet.
 
-        elif recipient is Recipient.enum.BROADCAST:
+        elif recipient is Recipient.BROADCAST:
             # Get all connected users for sending.
             users = background.users.connected(None)
 
@@ -445,7 +445,7 @@ class OutputSystem(System,
                 recipient, security_subject)
             # Recipient was not found, which we'll treat as effectively a
             # failure/disallowed.
-            return Recipient.enum.INVALID
+            return Recipient.INVALID
 
         # ---
         # Address envelope to the recipient.

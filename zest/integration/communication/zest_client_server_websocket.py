@@ -419,8 +419,8 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # Send something... Currently client doesn't care and tries to connect
         # on any message it gets when it has no connection. But it may change
         # later.
-        mid = Message.SpecialId.enum.CONNECT
-        msg = Message(mid, MsgType.enum.IGNORE,
+        mid = Message.SpecialId.CONNECT
+        msg = Message(mid, MsgType.IGNORE,
                       payload=None)
         client.send(msg, self.msg_context(mid))
 
@@ -435,7 +435,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertTrue(recv)
         self.assertIsInstance(recv, Message)
         self.assertIsInstance(recv.msg_id, Message.SpecialId)
-        self.assertEqual(recv.type, MsgType.enum.ACK_CONNECT)
+        self.assertEqual(recv.type, MsgType.ACK_CONNECT)
         self.assertIsNotNone(recv.user_id)
 
         # Server->game. Server sends game user info when they connect.
@@ -445,8 +445,8 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertIsNotNone(ctx)
         self.assertIsInstance(recv, Message)
         self.assertIsInstance(recv.msg_id, Message.SpecialId)
-        self.assertEqual(recv.msg_id, Message.SpecialId.enum.CONNECT)
-        self.assertEqual(recv.type, MsgType.enum.CONNECT)
+        self.assertEqual(recv.msg_id, Message.SpecialId.CONNECT)
+        self.assertEqual(recv.type, MsgType.CONNECT)
 
         # Ok; now everyone should be empty.
         self.assert_empty_pipes()
@@ -500,8 +500,8 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # Send something... Currently client doesn't care and tries to connect
         # on any message it gets when it has no connection. But it may change
         # later.
-        mid = Message.SpecialId.enum.CONNECT
-        msg = Message(mid, MsgType.enum.IGNORE,
+        mid = Message.SpecialId.CONNECT
+        msg = Message(mid, MsgType.IGNORE,
                       payload=None)
         client.send(msg, self.msg_context(mid))
 
@@ -526,7 +526,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         # CONNECT, and we're expecting ACK_CONNECT back.
         # self.assertEqual(msg.type, recv.type)
         # Can do this though.
-        self.assertEqual(recv.type, MsgType.enum.ACK_CONNECT)
+        self.assertEqual(recv.type, MsgType.ACK_CONNECT)
         self.assertIsInstance(recv.payload, BarePayload)
         self.assertIn('code', recv.payload.data)
         self.assertIn('text', recv.payload.data)
@@ -559,7 +559,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.client_connect(client)
 
         mid = self._msg_id.next()
-        msg = Message(mid, MsgType.enum.PING,
+        msg = Message(mid, MsgType.PING,
                       payload=None)
         client.send(msg, self.msg_context(mid))
         recv, ctx = client.recv()
@@ -598,7 +598,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         mid = self._msg_id.next()
         expected = f"Hello from {client.name}"
         send_payload = Message.payload_basic(expected)
-        msg = Message(mid, MsgType.enum.ECHO,
+        msg = Message(mid, MsgType.ECHO,
                       payload=send_payload)
         ctx = self.msg_context(mid)
         client.send(msg, ctx)
@@ -615,8 +615,8 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertEqual(mid, recv.msg_id)
         self.assertEqual(msg.msg_id, recv.msg_id)
         # Sent echo, got echo-back.
-        self.assertEqual(msg.type, MsgType.enum.ECHO)
-        self.assertEqual(recv.type, MsgType.enum.ECHO_ECHO)
+        self.assertEqual(msg.type, MsgType.ECHO)
+        self.assertEqual(recv.type, MsgType.ECHO_ECHO)
         # Got what we sent.
         self.assertIsInstance(recv.payload, type(send_payload))
         self.assertEqual(recv.payload.data, expected)
@@ -645,7 +645,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
 
         expected = f"Hello from {client.name}?"
         send_payload = Message.payload_basic(expected)
-        client_send = Message(mid, MsgType.enum.TEXT,
+        client_send = Message(mid, MsgType.TEXT,
                               payload=send_payload)
         client_send_ctx = self.msg_context(mid)
 
@@ -675,7 +675,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertIsInstance(client_recv_ctx, MessageContext)
         self.assertEqual(mid, client_recv_msg.msg_id)
         self.assertEqual(client_send.msg_id, client_recv_msg.msg_id)
-        self.assertEqual(client_recv_msg.type, MsgType.enum.ACK_ID)
+        self.assertEqual(client_recv_msg.type, MsgType.ACK_ID)
         ack_id = client_recv_msg.payload
         self.assertIsInstance(ack_id, type(mid))
 
@@ -709,7 +709,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.log_debug("test_text: server_send/client_recv...")
         # Tell our server to send a reply to the client's text.
         recv_txt = f"Hello from {self.proc.server.name}!"
-        server_send = Message(server_recv_ctx.id, MsgType.enum.TEXT,
+        server_send = Message(server_recv_ctx.id, MsgType.TEXT,
                               user_id=server_recv_msg.user_id,
                               user_key=server_recv_msg.user_key,
                               payload=recv_txt)
@@ -756,7 +756,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertIsInstance(server_recv_ctx, MessageContext)
         self.assertEqual(mid, server_recv_msg.msg_id)
         self.assertEqual(server_send.msg_id, server_recv_msg.msg_id)
-        self.assertEqual(server_recv_msg.type, MsgType.enum.ACK_ID)
+        self.assertEqual(server_recv_msg.type, MsgType.ACK_ID)
         ack_id = server_recv_msg.payload
         self.assertIsInstance(ack_id, type(mid))
 
@@ -960,23 +960,23 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         self.assertTrue(recv_msg)
         self.assertIsInstance(recv_msg, Message)
         # Sent logging... right?
-        self.assertEqual(send_msg.type, MsgType.enum.LOGGING)
+        self.assertEqual(send_msg.type, MsgType.LOGGING)
         # Got logging... right?
-        self.assertEqual(recv_msg.type, MsgType.enum.LOGGING)
+        self.assertEqual(recv_msg.type, MsgType.LOGGING)
 
         # Got logging response?
         self.assertIsInstance(recv_msg.payload, LogPayload)
         report = recv_msg.payload.report
         self.assertIsNotNone(report)
-        level = report[LogField.enum.LEVEL]
+        level = report[LogField.LEVEL]
 
         # Got reply for our level request?
         self.assertIsInstance(level, LogReply)
-        self.assertEqual(level.valid, Validity.enum.VALID)
+        self.assertEqual(level.valid, Validity.VALID)
 
         # Got /valid/ reply?
         self.assertTrue(LogReply.validity(level.value, _NC_LEVEL),
-                        Validity.enum.VALID)
+                        Validity.VALID)
 
         # Client reports they're now at the level we requested?
         self.assertEqual(level.value, log.Level.DEBUG)
@@ -987,7 +987,7 @@ class Test_WebSockets(ZestIntegrateMultiproc):
         recv_msg_client, recv_ctx_client = client._ut_recv()
         self.assertTrue(recv_msg_client)
         self.assertIsInstance(recv_msg_client, Message)
-        self.assertEqual(recv_msg_client.type, MsgType.enum.LOGGING)
+        self.assertEqual(recv_msg_client.type, MsgType.LOGGING)
 
         self.wait(0.1)
 

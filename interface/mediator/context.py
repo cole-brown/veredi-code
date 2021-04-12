@@ -174,15 +174,15 @@ class MessageContext(EphemerealContext):
         Raises a ValueError if an unsupported `type` is supplied.
         '''
         field = None
-        if MsgType.enum.TEXT:
+        if MsgType.TEXT:
             field = 'text'
 
-        elif MsgType.enum.ENCODED:
+        elif MsgType.ENCODED:
             field = 'encoded'
 
         # Other MsgTypes are invalid for the Game so we error on them.
         else:
-            supported = {MsgType.enum.TEXT, MsgType.enum.ENCODED}
+            supported = {MsgType.TEXT, MsgType.ENCODED}
             msg = (f"Invalid MsgType. Can only support: {supported}. "
                    f"Got: {type}.")
             raise log.exception(ValueError(msg, type),
@@ -217,28 +217,28 @@ class MessageContext(EphemerealContext):
         '''
         If a text-based message, this will return the string.
         '''
-        return self.get_msg_payload(MsgType.enum.TEXT)
+        return self.get_msg_payload(MsgType.TEXT)
 
     @msg_text.setter
     def msg_text(self, value: Optional[str]) -> None:
         '''
         Set the text string of the text-based message.
         '''
-        return self.set_msg_payload(MsgType.enum.TEXT, value)
+        return self.set_msg_payload(MsgType.TEXT, value)
 
     @property
     def msg_encoded(self) -> Optional[str]:
         '''
         If a encoded-based message, this will return the string.
         '''
-        return self.get_msg_payload(MsgType.enum.ENCODED)
+        return self.get_msg_payload(MsgType.ENCODED)
 
     @msg_encoded.setter
     def msg_encoded(self, value: Optional[str]) -> None:
         '''
         Set the value of the encoded-based message.
         '''
-        return self.set_msg_payload(MsgType.enum.ENCODED, value)
+        return self.set_msg_payload(MsgType.ENCODED, value)
 
     # ------------------------------
     # Pythonic Functions

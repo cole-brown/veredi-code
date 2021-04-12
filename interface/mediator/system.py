@@ -169,16 +169,16 @@ class MediatorSystem(System,
     '''
 
     MSG_TYPE_SELF = frozenset({
-        MsgType.enum.CONNECT,
-        MsgType.enum.DISCONNECT,
+        MsgType.CONNECT,
+        MsgType.DISCONNECT,
     })
     '''
     Messages between MediatorServer & MediatorSystem will use these types.
     '''
 
     MSG_TYPE_GAME = frozenset({
-        MsgType.enum.TEXT,
-        MsgType.enum.ENCODED,
+        MsgType.TEXT,
+        MsgType.ENCODED,
     })
     '''
     Messages between Mediator (Server or Client-via-Server) & Game will use
@@ -187,19 +187,19 @@ class MediatorSystem(System,
 
     MSG_TYPE_IGNORE_WHILE_DYING = frozenset({
         # Testing / Non-Standard
-        MsgType.enum.IGNORE,
-        MsgType.enum.PING,
-        MsgType.enum.ECHO,
-        MsgType.enum.ECHO_ECHO,
-        MsgType.enum.LOGGING,
+        MsgType.IGNORE,
+        MsgType.PING,
+        MsgType.ECHO,
+        MsgType.ECHO_ECHO,
+        MsgType.LOGGING,
 
         # Connections
-        MsgType.enum.CONNECT,
-        MsgType.enum.DISCONNECT,
+        MsgType.CONNECT,
+        MsgType.DISCONNECT,
 
         # ACKs
-        MsgType.enum.ACK_CONNECT,
-        MsgType.enum.ACK_ID,
+        MsgType.ACK_CONNECT,
+        MsgType.ACK_ID,
     })
     '''
     Messages of these types from client to server will be ignored from
@@ -447,15 +447,15 @@ class MediatorSystem(System,
 
         # Figure out message type.
         # self._decide_msg_type(event.payload, entity, user_id)???
-        msg_type = MsgType.enum.TEXT
+        msg_type = MsgType.TEXT
         if isinstance(event.payload, Envelope):
-            msg_type = MsgType.enum.ENVELOPE
+            msg_type = MsgType.ENVELOPE
 
         elif isinstance(event.payload, str):
-            msg_type = MsgType.enum.TEXT
+            msg_type = MsgType.TEXT
 
         elif isinstance(event.payload, dict):
-            msg_type = MsgType.enum.ENCODE
+            msg_type = MsgType.ENCODE
 
         send_msg = Message(send_id,
                            msg_type,
@@ -484,7 +484,7 @@ class MediatorSystem(System,
         User is changing connection state (CONNECT, DISCONNECT). Add or remove
         them from connected as indicated.
         '''
-        if message.type == MsgType.enum.CONNECT:
+        if message.type == MsgType.CONNECT:
             # Create UserPassport for our connected user, add to background so
             # other systems can translate user_id to useful info (e.g. entity)?
             user = UserPassport(message.user_id,
@@ -493,7 +493,7 @@ class MediatorSystem(System,
             background.users.add_connected(user)
             return
 
-        elif message.type == MsgType.enum.DISCONNECT:
+        elif message.type == MsgType.DISCONNECT:
             # Remove user from background data.
             background.users.remove_connected(message.user_id)
             return

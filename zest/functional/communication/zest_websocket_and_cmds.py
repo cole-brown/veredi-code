@@ -439,8 +439,8 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # Send something... Currently client doesn't care and tries to connect
         # on any message it gets when it has no connection. But it may change
         # later.
-        mid = Message.SpecialId.enum.CONNECT
-        msg = Message(mid, MsgType.enum.IGNORE,
+        mid = Message.SpecialId.CONNECT
+        msg = Message(mid, MsgType.IGNORE,
                       payload=None,
                       user_id=client.user_id,
                       user_key=client.user_key)
@@ -454,7 +454,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.assertTrue(recv)
         self.assertIsInstance(recv, Message)
         self.assertIsInstance(recv.msg_id, Message.SpecialId)
-        self.assertEqual(recv.type, MsgType.enum.ACK_CONNECT)
+        self.assertEqual(recv.type, MsgType.ACK_CONNECT)
         self.assertIsNotNone(recv.user_id)
 
         self.assert_empty_pipes()
@@ -552,7 +552,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.assertEqual(msg.msg_id, ack.msg_id)
 
         # Received the ACK we expected.
-        self.assertEqual(ack.type, MsgType.enum.ACK_ID)
+        self.assertEqual(ack.type, MsgType.ACK_ID)
 
         # Return the ack. Don't need the context for anything atm.
         return ack
@@ -618,7 +618,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
 
         # Make a message with our command in it and send on up.
         mid = self._msg_id.next()
-        msg = Message(mid, MsgType.enum.TEXT,
+        msg = Message(mid, MsgType.TEXT,
                       payload=cmd_str,
                       user_id=client.user_id,
                       user_key=client.user_key)
@@ -657,7 +657,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         self.assertIsInstance(event_mediator, GameToMediatorEvent)
 
         # Check that envelope is addressed to our (only) user.
-        address = event_mediator.payload.address(Recipient.enum.BROADCAST)
+        address = event_mediator.payload.address(Recipient.BROADCAST)
         self.assertEqual(len(address.user_ids), 1)
         for uid in address.user_ids:
             user_list = background.users.connected(uid)
@@ -704,7 +704,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # self.assertEqual(msg.msg_id, ctx.id)
 
         # Does the Message type look right?
-        self.assertEqual(recv.type, MsgType.enum.ENCODED)
+        self.assertEqual(recv.type, MsgType.ENCODED)
 
         # We sent text, but we want back a message type for a math tree result.
         # So they should not be equal.
@@ -727,7 +727,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         server_recv, server_ctx = mediator_system.server.recv()
         self.assertTrue(server_recv)
         self.assertTrue(server_ctx)
-        self.assertEqual(server_recv.type, MsgType.enum.ACK_ID)
+        self.assertEqual(server_recv.type, MsgType.ACK_ID)
 
         # Make sure we don't have anything in the queues.
         self.assert_empty_pipes()

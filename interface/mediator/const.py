@@ -18,16 +18,12 @@ import re
 from veredi.logs         import log
 from veredi.base.strings import labeler
 from veredi.base.enum    import FlagCheckMixin, FlagSetMixin
-from veredi.data         import codec
 
 
 # -----------------------------------------------------------------------------
 # Messages
 # -----------------------------------------------------------------------------
 
-@codec.enum.encodable(name_dotted='veredi.interface.mediator.message.type',
-                      name_string='v.mt',
-                      enum_encode_type=codec.enum.FlagEncodeValue)
 @enum.unique
 class MsgType(FlagCheckMixin, FlagSetMixin, enum.Flag):
     '''
