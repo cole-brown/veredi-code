@@ -21,7 +21,7 @@ from veredi.zest.zpath      import TestType
 
 from veredi.base            import yaml
 from veredi.base.context    import UnitTestContext
-from veredi.base.strings    import label
+from veredi.base.strings    import label, convert
 from veredi.data            import background
 
 
@@ -438,7 +438,7 @@ class ZestLogFormat(ZestLogBase):
         # Now we can check the data; should equal expected_data.
         data = context_data['unit-testing']
         # Ok; now we can check the data
-        self.assertEqual(data, expected_data)
+        self.assertEqual(data, convert.to_str(expected_data))
 
     def verify_group(self,
                      record: Mapping,
