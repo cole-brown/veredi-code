@@ -182,11 +182,14 @@ class UserId(SerializableId,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def generator(klass: Type['UserId']) -> 'UserIdGenerator':
+    def generator(klass:        Type['UserId'],
+                  unit_testing: bool = False) -> 'UserIdGenerator':
         '''
         Returns a generator instance for UserIds.
         '''
         klass._init_invalid_()
+        if unit_testing:
+            return MockUserIdGenerator(klass)
         return UserIdGenerator(klass)
 
     # -------------------------------------------------------------------------
@@ -362,11 +365,14 @@ class UserKey(SerializableId,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def generator(klass: Type['UserKey']) -> 'UserKeyGenerator':
+    def generator(klass:        Type['UserKey'],
+                  unit_testing: bool = False) -> 'UserKeyGenerator':
         '''
         Returns a generator instance for UserKeys.
         '''
         klass._init_invalid_()
+        if unit_testing:
+            return MockUserKeyGenerator(klass)
         return UserKeyGenerator(klass)
 
     # -------------------------------------------------------------------------
@@ -379,3 +385,73 @@ class UserKey(SerializableId,
         Format our value as a string and return only that.
         '''
         return str(self.value)
+
+
+# -----------------------------------------------------------------------------
+# Unit-Test ID Generators
+# -----------------------------------------------------------------------------
+
+class MockUserIdGenerator(UserIdGenerator):
+    '''
+    Class that generates serializable UserIds that will always be the same for
+    the same inputs so... UUIDs that are not "universally unique" at all.
+    '''
+
+    def __init__(self,
+                 id_class: Type['UserId']) -> None:
+        super().__init__(id_class)
+
+        self._ut_seeds: Dict[str, int] = {}
+        '''Username strings to whatever ints you want as your UserId values.'''
+
+    def ut_set_up(self, user_names_to_ids: Dict[str, int]) -> None:
+        '''
+        Set up this 'generator' to 'generate' UserIds using the ints associated
+        with the username.
+        '''
+        self._ut_seeds = user_names_to_ids
+
+    def next(self, user: str) -> 'UserId':
+        # Need a constant for seed instead of time.
+        value = self._ut_seeds[user]
+
+        # Pretend we're decoding so we directly set instead of allowing UUID to
+        # generate a random value.
+        next_id = self._id_class(None, None,
+                                 decoding=True,
+                                 decoded_value=value)
+        return next_id
+
+
+class MockUserKeyGenerator(UserKeyGenerator):
+    '''
+    Class that generates serializable user keys that will always be the same
+    for the same inputs so... UUIDs that are not "universally unique" at all.
+    '''
+
+    def __init__(self,
+                 id_class: Type['UserId']) -> None:
+        super().__init__(id_class)
+
+        self._ut_seeds: Dict[Union[str, int], int] = {}
+        '''
+        User key strings/ints to whatever ints you want as your UserKey values.
+        '''
+
+    def ut_set_up(self, user_keys_to_ids: Dict[Union[str, int], int]) -> None:
+        '''
+        Set up this 'generator' to 'generate' UserIds using the ints associated
+        with the username.
+        '''
+        self._ut_seeds = user_keys_to_ids
+
+    def next(self, seed: Union[str, int]) -> 'UserKey':
+        # Need a constant for seed instead of time.
+        value = self._ut_seeds[seed]
+
+        # Pretend we're decoding so we directly set instead of allowing UUID to
+        # generate a random value.
+        next_id = self._id_class(None, None,
+                                 decoding=True,
+                                 decoded_value=value)
+        return next_id
