@@ -129,19 +129,19 @@ class FormatYaml(logging.Formatter):
         self._record_fmt.logger_dotted(record.name)
 
         # Group Stuff
-        if hasattr(record, 'group'):
+        if hasattr(record, 'group'):  # veredi attribute
             self._record_fmt.group(record.group.group,
                                    record.group.dotted)
 
         # Success Stuff
-        if hasattr(record, 'success'):
+        if hasattr(record, 'success'):  # veredi attribute
             self._record_fmt.success(record.success.normalized,
                                      record.success.verbatim,
                                      record.success.dry_run)
 
         # The Actual Main Thing and its buddy.
         self._record_fmt.message(record.message)
-        if hasattr(record, 'context'):
+        if hasattr(record, 'context'):  # veredi attribute
             self._record_fmt.context(record.context)
 
         # Python Stuff
@@ -154,8 +154,20 @@ class FormatYaml(logging.Formatter):
         self._record_fmt.thread_name(record.threadName)
 
         # Error Stuff
-        self._record_fmt.exception(record.exc_info, record.exc_text)
-        self._record_fmt.stack(record.stack_info)
+        if hasattr(record, 'exception'):  # veredi attribute
+            if record.exc_info or record.exception:
+                self._record_fmt.exception(record.exc_info,
+                                           record.exception)
+        else:
+            if record.exc_info:
+                self._record_fmt.exception(record.exc_info)
+        if hasattr(record, 'stack'):  # veredi attribute
+            if record.stack_info or record.stack:
+                self._record_fmt.stack(record.stack_info,
+                                       record.stack)
+        else:
+            if record.stack_info:
+                self._record_fmt.stack(record.stack_info)
 
         return str(self._record_fmt)
 

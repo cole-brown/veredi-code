@@ -120,7 +120,9 @@ class VerediFilter(logging.Filter):
         # Initialize our fields with Null...
         self._record_storage: threads.Local = threads.Local(context=Null(),
                                                             group=Null(),
-                                                            success=Null())
+                                                            success=Null(),
+                                                            exception=Null(),
+                                                            stack=Null())
         '''
         An instance of the thread-local data-storage class.
 
@@ -146,6 +148,7 @@ class VerediFilter(logging.Filter):
         self.context_filter(record)
         self.group_filter(record)
         self.success_filter(record)
+        self.exception_filter(record)
 
         # We just add data; always log all records that pass through this
         # 'filter'.
@@ -244,3 +247,42 @@ class VerediFilter(logging.Filter):
             record.success = success
             return True
         return False
+
+    def exception(self,
+                  clear:     Optional[bool]        = False,
+                  exception: NullNoneOr[Exception] = None,
+                  stack:     Optional[str]         = None) -> None:
+        '''
+        Save exception data off for injecting into LogRecord on filtering.
+
+        If `clear` is True, saves `Null()` instead.
+        '''
+        if clear:
+            self._record_storage.exception = Null()
+            self._record_storage.stack = Null()
+        else:
+            self._record_storage.exception = exception
+            self._record_storage.stack = stack
+
+    def exception_filter(self,
+                         record: logging.LogRecord) -> bool:
+        '''
+        Add Exception data to the LogRecord if we have any.
+        '''
+        added = False
+
+        # Do we have exception data to add?
+        exception = self._record_storage.exception
+        if exception:
+            # Have data; add to the log.
+            record.exception = exception
+            added = True
+
+        # Do we have stack data to add?
+        stack = self._record_storage.stack
+        if stack:
+            # Have data; add to the log.
+            record.stack = stack
+            added = True
+
+        return added

@@ -16,7 +16,10 @@ if TYPE_CHECKING:
 
 
 import logging
-
+import pprint
+import textwrap
+import traceback
+import sys
 
 from types import TracebackType
 
@@ -50,6 +53,7 @@ __all__ = [
     'set_level',
 
     'will_output',
+    'format_pretty',
     'incr_stack_level',
 
     'ultra_mega_debug',
@@ -322,6 +326,35 @@ def will_output(*args:         Union[const.LogLvlConversion, const.Group],
 # Log Output Formatting
 # -----------------------------------------------------------------------------
 
+def format_pretty(object:     object,
+                  prefix:     Optional[str] = None,
+                  indent:     int           = 2,
+                  width:      int           = 120,
+                  depth:      Optional[int] = None,
+                  compact:    bool          = False,
+                  sort_dicts: bool          = True) -> str:
+    '''
+    Pretty print `object` to a string, return the string.
+
+    Calls `pprint.pformat()` with all args except `prefix`
+    (`indent` becomes pformat's `indent` arg).
+
+    If `prefix` is positive int, call `textwrap.indent()` with output of
+    `pprint.pformat()` and `prefix`.
+    '''
+    pretty = pprint.pformat(object,
+                            indent=indent,
+                            width=width,
+                            depth=depth,
+                            compact=compact,
+                            sort_dicts=sort_dicts)
+    if prefix and isinstance(prefix, str):
+        pretty = textwrap.indent(pretty,
+                                 prefix)
+
+    return pretty
+
+
 # NOTE: Would make sense to puth these in formats/, but log.py owns the filter
 # right now so they're here for now.
 
@@ -393,6 +426,43 @@ def _clear_data() -> None:
     _filter.context(clear=True)
     _filter.group(clear=True)
     _filter.success(clear=True)
+    _filter.exception(clear=True)
+
+
+def _add_exception(error: Exception) -> None:
+    '''
+    Gets stack trace from `log.stack_trace()` and adds it to the filter so that
+    it can be added to the log.
+    '''
+    global _filter
+    if not _filter:
+        return
+
+    _filter.exception(exception=error,
+                      stack=stack_trace())
+
+
+def stack_trace() -> str:
+    '''
+    Returns a formatted multi-line string of the stack trace.
+
+    If there is an exception, the stack trace is for that exception.
+    Otherwise it is for the caller.
+    '''
+    exception_type = sys.exc_info()[0]
+    if exception_type is not None:
+        # Have an exception, so use the exception info's frame to get the stack
+        # trace.
+        frame = sys.exc_info()[-1].tb_frame.f_back
+        stack = traceback.extract_stack(frame)
+    else:
+        # Trim ourself (`stack_trace()`) out of the stack trace.
+        stack = traceback.extract_stack()[:-1]
+    title = 'Traceback (most recent call last):\n'
+    output = title + ''.join(traceback.format_list(stack))
+    if exception_type is not None:
+        output += '  ' + traceback.format_exc().lstrip()
+    return output
 
 
 # TODO: Delete this? Logs should be able to format themselves?
@@ -830,10 +900,10 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
               context=self.context
           ) from error
     '''
-    # ---
+    # ------------------------------
     # Why would you log an exception with no exception supplied?
     # Log critically. And judge them. Critically.
-    # ---
+    # ------------------------------
     if not err_or_class:
         critical(msg, *args,
                  context=context,
@@ -841,9 +911,9 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
                  **kwargs)
         return err_or_class
 
-    # ---
+    # ------------------------------
     # Did we get an instance or a type?
-    # ---
+    # ------------------------------
     make_instance = _except_type(err_or_class)
     log_msg_err_type = None
     log_msg_err_str = None
@@ -856,9 +926,9 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
         # This can have curly brackets, so take care with _except_msg!
         log_msg_err_str = str(err_or_class)
 
-    # ---
+    # ------------------------------
     # Create log msg.
-    # ---
+    # ------------------------------
     # Get kwargs for actual python logger call.
     log_kwargs = pop_log_kwargs(kwargs)
     # Now `kwargs` is our message's kwargs.
@@ -869,13 +939,10 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
                               context=context,
                               **kwargs)
 
-    # And now - finally - log it.
-    _logger(veredi_logger).error(log_message, **log_kwargs)
-
-    # ---
-    # Return the Exception instance.
-    # ---
-    return_exception = err_or_class
+    # ------------------------------
+    # Ensure the Exception instance.
+    # ------------------------------
+    exception_instance = err_or_class
     # Can finally make it if needed now that message is resolved.
     if (not isinstance(make_instance, bool)
             and (issubclass(make_instance, VerediError)
@@ -892,17 +959,24 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
             }
 
         # Make the VerediError.
-        return_exception = err_or_class(
+        exception_instance = err_or_class(
             log_message,
             context=context,
             data=data)
 
     elif make_instance is True:
         # Make the Python Exception.
-        return_exception = err_or_class(log_message)
+        exception_instance = err_or_class(log_message)
 
     # else it's an instance already - leave as-is.
-    return return_exception
+
+    # ------------------------------
+    # And now - finally - log it and return exception
+    # ------------------------------
+    _add_exception(exception_instance)
+    _logger(veredi_logger).error(log_message, **log_kwargs)
+
+    return exception_instance
 
 
 def critical(msg:           str,

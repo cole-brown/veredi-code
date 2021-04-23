@@ -140,7 +140,7 @@ class Lumberjack:
         self._logger.setLevel(log.Level.to_logging(level))
 
     def will_output(self,
-                    *args: log.LogLvlConversion) -> bool:
+                    *args: Union[log.LogLvlConversion, log.Group]) -> bool:
         '''
         Returns true if any supplied `args` (Group or Level) is high enough to
         output a log.
