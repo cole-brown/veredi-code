@@ -363,17 +363,6 @@ class Message(Encodable,
         self._payload = value
 
     @property
-    def payload_decoded(self) -> Union['Encodable', Any, None]:
-        '''
-        Tries to decode the message payload. Returns decoded value if it could
-        decode, or just returns payload itself if it could not decode.
-        '''
-        # TODO: foo: Do we need this? I think not?
-
-        # self._payload = value
-        pass
-
-    @property
     def security_subject(self) -> Optional[abac.Subject]:
         '''
         Return our security.abac.Subject value.
