@@ -324,33 +324,33 @@ class Encodable(NamesMixin):
             - If can claim, this is None.
             - If cannot claim, this is a string describing why not.
         '''
-        log.data_processing(
-            klass.dotted,
-            "{} checking for claim of data:\n"
-            "  {}",
-            klass.__name__, data)
+        # log.data_processing(
+        #     klass.dotted,
+        #     "{} checking for claim of data:\n"
+        #     "  {}",
+        #     klass.__name__, data)
 
         # ---
         # Simple?
         # ---
         # Is it EncodedSimple type and intended for this class?
         if klass.encoded_as(data) == Encoding.SIMPLE:
-            log.data_processing(
-                klass.dotted,
-                "{} checking for Encoding.SIMPLE claim of data:\n"
-                "  {}",
-                klass.__name__, data)
+            # log.data_processing(
+            #     klass.dotted,
+            #     "{} checking for Encoding.SIMPLE claim of data:\n"
+            #     "  {}",
+            #     klass.__name__, data)
 
             # If it's a simple encode and we don't have a decode regex for
             # that, then... No; It can't be ours.
             decode_rx = klass._get_decode_rx()
             if not decode_rx:
-                log.data_processing(
-                    klass.dotted,
-                    "{} has no Encoding.SIMPLE decode regex; "
-                    "cannot claim data:\n"
-                    "  {}",
-                    klass.__name__, data)
+                # log.data_processing(
+                #     klass.dotted,
+                #     "{} has no Encoding.SIMPLE decode regex; "
+                #     "cannot claim data:\n"
+                #     "  {}",
+                #     klass.__name__, data)
                 reason = (f"{klass.__name__} is (probably) encoded simply "
                           f"but has no {klass.__name__}._get_decode_rx(): "
                           f"rx: {decode_rx}, data: {data}")
@@ -360,33 +360,34 @@ class Encodable(NamesMixin):
             claimed = bool(decode_rx.match(data))
             data_claim = data if claimed else None
             reason = (None if claimed else "No regex match.")
-            log.data_processing(
-                klass.dotted,
-                "{} {} Encoding.SIMPLE data:\n"
-                "  {}",
-                klass.__name__,
-                'staking claim on' if claimed else 'will not claim',
-                data)
+            if claimed:
+                log.data_processing(
+                    klass.dotted,
+                    "{} {} Encoding.SIMPLE data:\n"
+                    "  {}",
+                    klass.__name__,
+                    'staking claim on' if claimed else 'will not claim',
+                    data)
             return claimed, data_claim, None
 
         # Does this class only do simple encode/decode?
         if not klass.encoding().has(Encoding.COMPLEX):
-            log.data_processing(
-                klass.dotted,
-                "{} was not Encoding.SIMPLE for us, but we don't do "
-                "Encoding.COMPLEX. Will not claim data:\n"
-                "  {}",
-                klass.__name__, data)
+            # log.data_processing(
+            #     klass.dotted,
+            #     "{} was not Encoding.SIMPLE, and we don't do "
+            #     "Encoding.COMPLEX. Will not claim data:\n"
+            #     "  {}",
+            #     klass.__name__, data)
 
             return (False,
                     None,
                     "Class only encodes simply and didn't match data.")
 
-        log.data_processing(
-            klass.dotted,
-            "{} checking for Encoding.COMPLEX claim of data:\n"
-            "  {}",
-            klass.__name__, data)
+        # log.data_processing(
+        #     klass.dotted,
+        #     "{} checking for Encoding.COMPLEX claim of data:\n"
+        #     "  {}",
+        #     klass.__name__, data)
 
         # ---
         # Complex?
@@ -431,14 +432,14 @@ class Encodable(NamesMixin):
                   f"our type-field ('{klass.type_field()}') at top level or "
                   "as 'type' value.")
 
-        # Debug output full data structure, but don't build the pretty string
-        # unless we're actually logging it.
-        if log.will_output(log.Group.DATA_PROCESSING):
-            log.data_processing(
-                klass.dotted,
-                reason + "\n"
-                + "Will not claim data:\n  {}",
-                pretty.indented(data))
+        # # Debug output full data structure, but don't build the pretty string
+        # # unless we're actually logging it.
+        # if log.will_output(log.Group.DATA_PROCESSING):
+        #     log.data_processing(
+        #         klass.dotted,
+        #         reason + "\n"
+        #         + "Will not claim data:\n  {}",
+        #         pretty.indented(data))
 
         return False, None, reason
 

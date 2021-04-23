@@ -567,10 +567,10 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
     # Check to see if we're blatently ignoring anything...
     # ------------------------------
 
-    # def test_ignored_tests(self):
-    #     self.assertFalse(self.DISABLED_TESTS,
-    #                      "Expected no disabled tests, "
-    #                      f"got: {self.DISABLED_TESTS}")
+    def test_ignored_tests(self):
+        self.assertFalse(self.DISABLED_TESTS,
+                         "Expected no disabled tests, "
+                         f"got: {self.DISABLED_TESTS}")
 
     # ------------------------------
     # Test doing nothing and cleaning up.
@@ -594,16 +594,16 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # multiple threads and multiple asyncios is... fun.
         self.assert_empty_pipes()
 
-    # def test_nothing(self):
-    #     self.assertIsNotNone(self.entity)
-    #     self.assertIsNotNone(self.entity_ident)
-    #     self.assertIsNotNone(self.input_system)
-    #     self.assertIsNotNone(self.output_system)
-    #     self.assertIsNotNone(self.manager.system.get(AbilitySystem))
-    #     self.assertIsNotNone(self.manager.system.get(MathSystem))
-    #     # No checks for this, really. Just "does it properly not explode"?
-    #     self.assert_test_ran(
-    #         self.runner_of_test(self.do_test_nothing))
+    def test_nothing(self):
+        self.assertIsNotNone(self.entity)
+        self.assertIsNotNone(self.entity_ident)
+        self.assertIsNotNone(self.input_system)
+        self.assertIsNotNone(self.output_system)
+        self.assertIsNotNone(self.manager.system.get(AbilitySystem))
+        self.assertIsNotNone(self.manager.system.get(MathSystem))
+        # No checks for this, really. Just "does it properly not explode"?
+        self.assert_test_ran(
+            self.runner_of_test(self.do_test_nothing))
 
     # ------------------------------
     # Test that our systems exist.
@@ -676,6 +676,7 @@ class Test_Functional_WebSockets_Commands(ZestIntegrateMultiproc):
         # gotten it to (hopefully), and sent something to MediatorServer
         # (hopefully). Wait a bit for MediatorServer to do stuff in its
         # process.
+
         self.wait(0.5)
         self.assertTrue(client.has_data())
 

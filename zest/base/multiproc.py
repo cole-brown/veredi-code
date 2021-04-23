@@ -196,7 +196,7 @@ class Processes:
 
 class ZestIntegrateMultiproc(ZestIntegrateEngine):
 
-    PER_TEST_TIMEOUT = 15  # seconds
+    PER_TEST_TIMEOUT = 20  # seconds
 
     NAME_LOG = 'veredi.test.multiproc.log'
     NAME_MAIN = 'veredi.test.multiproc.tester'
