@@ -110,6 +110,9 @@ def _start_server(comms: multiproc.SubToProcComm,
     log.debug(f"_start_server: {comms.name} {log_level}",
               veredi_logger=lumberjack)
 
+    # log.set_group_level(log.Group.DATA_PROCESSING, log.Level.DEBUG)
+    # log.set_group_level(log.Group.PARALLEL, log.Level.DEBUG)
+
     # ---
     # Config
     # ---

@@ -12,13 +12,12 @@ For a server mediator (e.g. WebSockets) talking to a game.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, NewType, Mapping, Tuple)
+                    Optional, Union, Any, NewType, Tuple)
 if TYPE_CHECKING:
     from veredi.interface.mediator.context import UserConnToken
 
 
 import enum
-import re
 
 
 from veredi.logs                   import log
@@ -26,9 +25,7 @@ from veredi.security               import abac
 from veredi.data.codec             import (Codec,
                                            Encodable,
                                            EncodedComplex,
-                                           EncodedSimple,
-                                           FlagEncodeValue)
-from veredi.data                   import codec
+                                           EncodedSimple)
 from veredi.data.exceptions        import EncodableError
 from veredi.base.identity          import MonotonicId
 from veredi.data.identity          import UserId, UserKey
@@ -414,7 +411,6 @@ class Message(Encodable,
         '''
         Encode ourself as an EncodedComplex, return that value.
         '''
-
         # Tell our payload to encode... or use as-is if not an Encodable.
         encoded_payload = self.payload
         if isinstance(self.payload, Encodable):
@@ -442,37 +438,41 @@ class Message(Encodable,
         Decode ourself from an EncodedComplex, return a new instance of `klass`
         as the result of the decoding.
         '''
+        try:
+            klass.error_for(data,
+                            keys=[
+                                'msg_id', 'type',
+                                'entity_id', 'user_id', 'user_key',
+                                'security',
+                                'payload',
+                            ])
 
-        klass.error_for(data,
-                        keys=[
-                            'msg_id', 'type',
-                            'entity_id', 'user_id', 'user_key',
-                            'security',
-                            'payload',
-                        ])
+            # msg_id could be a few different types.
+            msg_id = codec.decode(None, data['msg_id'])
 
-        # msg_id could be a few different types.
-        msg_id = codec.decode(None, data['msg_id'])
+            # These are always their one type.
+            _type = codec.decode(MsgType, data['type'])
+            entity_id = codec.decode(EntityId, data['entity_id'])
+            user_id = codec.decode(UserId, data['user_id'])
+            user_key = codec.decode(UserKey, data['user_key'])
+            security = codec.decode(abac.Subject, data['security'])
 
-        # These are always their one type.
-        _type = codec.decode(MsgType, data['type'])
-        entity_id = codec.decode(EntityId, data['entity_id'])
-        user_id = codec.decode(UserId, data['user_id'])
-        user_key = codec.decode(UserKey, data['user_key'])
-        security = codec.decode(abac.Subject, data['security'])
+            # Payload can be encoded or just itself. So try to decode, then
+            # fallback to use its value as is.
+            payload = codec.decode(None,
+                                   data['payload'],
+                                   fallback=data['payload'])
 
-        # Payload can be encoded or just itself. So try to decode, then
-        # fallback to use its value as is.
-        payload = codec.decode(None,
-                               data['payload'],
-                               fallback=data['payload'])
-
-        return klass(msg_id, _type,
-                     payload=payload,
-                     entity_id=entity_id,
-                     user_id=user_id,
-                     user_key=user_key,
-                     subject=security)
+            return klass(msg_id, _type,
+                         payload=payload,
+                         entity_id=entity_id,
+                         user_id=user_id,
+                         user_key=user_key,
+                         subject=security)
+        except Exception as error:
+            log.exception(error,
+                          "Caught exception decoding Message.")
+            raise
 
     # -------------------------------------------------------------------------
     # Python Functions

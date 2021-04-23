@@ -139,6 +139,7 @@ class EnumWrap(Encodable, Generic[EnumEncode]):
     '''
 
     enum: EnumDescriptor = EnumDescriptor(None, None, None)
+    type: Type[py_enum.Enum] = None
 
     def __init__(self, wrap_enum: Optional[py_enum.Enum]) -> None:
         if wrap_enum:
@@ -152,6 +153,13 @@ class EnumWrap(Encodable, Generic[EnumEncode]):
         '''
         raise NotImplementedError(f"{klass.__name__} needs to "
                                   "implement `encode_on()`!")
+
+    @classmethod
+    def wrap_type(klass: 'EnumWrap') -> Type[py_enum.Enum]:
+        '''
+        Returns the class type of the enum we are wrapping.
+        '''
+        return klass.enum.wrap_type
 
     def __str__(self) -> str:
         return f"{self.klass}['{self.dotted}','{self.name}']:{self.enum}"
@@ -359,6 +367,8 @@ def encodable(klass:               Type[EnumEncode],
         '''
         enum: EnumDescriptor = EnumDescriptor(None, klass, None)
         '''Init EnumDescriptor with the wrapper's class type.'''
+        type: Type[py_enum.Enum] = klass
+        '''Wrapped enum's type.'''
 
     # Dynamically set class name to something more specific
     # than `Wrapper`.
@@ -526,8 +536,8 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
             error = ValueError(msg, data)
             raise log.exception(error, msg)
 
-        # Have regex, have match. Build instance.
-        decoded = klass(int(match.group('value')))
+        # Have regex, have match. Init enum (not wrapping) from it.
+        decoded = klass.type(int(match.group('value')))
         # print(f"FlagEncodeValue.decode_simple: {data} -> {decoded}")
         return decoded
 
@@ -700,13 +710,13 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
         total = None
         # Ignore the blank ones. Use the rest to OR together flag enums.
         for name in filter(None, names):
-            flag = klass[name]
+            flag = klass.type[name]
             if total is None:
                 total = flag
             else:
                 total = total | flag
 
-        # Return final OR'd total.
+        # Return final OR'd enum instance.
         return total
 
     @classmethod
@@ -870,7 +880,8 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
         # Have regex, have match.
         # Turn into an enum value.
         name = match.group('name')
-        return klass.enum[name]
+        flag = klass.type[name]
+        return flag
 
     @classmethod
     def decode_complex(klass: 'EnumEncodeName',

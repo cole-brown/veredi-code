@@ -236,7 +236,8 @@ class OutputEvent(Event, Encodable):
     def decode_complex(klass:    'OutputEvent',
                        data:     EncodedComplex,
                        codec:    'Codec',
-                       instance: Optional['OutputEvent'] = None) -> 'OutputEvent':
+                       instance: Optional['OutputEvent'] = None
+                       ) -> 'OutputEvent':
         '''
         Decode our vars from data into the instance and return it.
         '''
