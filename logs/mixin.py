@@ -113,11 +113,12 @@ class LogMixin:
         self._lumberjack.level(level)
 
     def _log_will_output(self,
-                         level: log.LogLvlConversion) -> bool:
+                         *args: Union[log.LogLvlConversion, log.Group]
+                         ) -> bool:
         '''
         Returns true if supplied `level` is high enough to output a log.
         '''
-        return self._lumberjack.will_output(level)
+        return self._lumberjack.will_output(*args)
 
     def _log_stack(self,
                    amount: int = 1,

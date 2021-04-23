@@ -60,6 +60,7 @@ from .log import (
     set_level,
 
     will_output,
+    format_pretty,
     incr_stack_level,
 
     ultra_mega_debug,
@@ -163,6 +164,7 @@ __all__ = [
     'set_level',
 
     'will_output',
+    'format_pretty',
     'incr_stack_level',
 
     'ultra_mega_debug',

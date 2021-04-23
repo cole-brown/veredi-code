@@ -10,7 +10,7 @@ etc.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Any, Type, NewType, Tuple)
+                    Optional, Any, Type, NewType, Tuple)
 if TYPE_CHECKING:
     from veredi.base.context       import VerediContext
     from veredi.base.numbers.const import NumberTypes
@@ -590,40 +590,34 @@ class LogRecordYaml:
     # ------------------------------
 
     def exception(self,
-                  exception_info: TracebackTupleType,
-                  exception_text: str) -> None:
+                  exception_info: Optional[TracebackTupleType] = None,
+                  exception:      Optional[Exception] = None) -> None:
         '''
-        Format, set the exception data.
-
-        Uses, in preference order, `exception_text` or `exception_info` to
-        create the exception data string. This imitates Python's way of doing
-        it.
+        Format, set exception stuff into record.
         '''
         if exception_info:
-            # Cache the traceback text to avoid converting it multiple times
-            # (it's constant anyway)
-            if not exception_text:
-                stream = self._stream
-                print_exception(exception_info[0],
-                                exception_info[1],
-                                exception_info[2],
-                                None,
-                                stream)
-                exception_text = stream.getvalue()
+            stream = self._stream
+            print_exception(exception_info[0],
+                            exception_info[1],
+                            exception_info[2],
+                            None,
+                            stream)
+            self._error('exception-python', yaml.LiteralString(stream.getvalue()))
 
-        if not exception_text:
-            return
+        if exception:
+            self._error('exception', yaml.LiteralString(str(exception)))
 
-        self._error('exception', yaml.LiteralString(exception_text))
-
-    def stack(self, stack_info: str) -> None:
+    def stack(self,
+              stack_info: Optional[str] = None,
+              stack:      Optional[str] = None) -> None:
         '''
         Set the stack trace data.
         '''
-        if not stack_info:
-            return
+        if stack_info:
+            self._error('stack-python', yaml.LiteralString(stack_info))
 
-        self._error('exception', yaml.LiteralString(stack_info))
+        if stack:
+            self._error('stack', yaml.LiteralString(stack))
 
     # ------------------------------
     # Process Info
