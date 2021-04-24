@@ -740,6 +740,11 @@ class FileRepository(BaseRepository):
             # Some unit test failed? Try to clean up first.
             self._ut_tear_down(note=("_ut_set_up() needs to "
                                      "clean up dirty state."))
+            # Give it a bit to actually be deleted so we can check.
+            # Running a unit test so I'm ok with a sleep time here.
+            import time
+            time.sleep(0.1)
+
         # /Now/ it's gone.... right?
         if path.exists():
             msg = "Temp Dir Path for Unit-Testing already exists!"
