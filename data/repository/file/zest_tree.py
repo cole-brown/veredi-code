@@ -155,8 +155,12 @@ class Test_FileTreeRepo(ZestBase):
         # Set test's `root_temp` and make sure it doesn't exist yet.
         self.root_temp = self.repo.root(True)
         self.assertTrue(self.root_temp)
-        self.assertFalse(self.root_temp.exists(),
-                         f"Delete temp repo dir please: {self.root_temp}")
+        # if self.root_temp.exists():
+        #     # This is actually sort of ok... `self.repo._ut_set_up()` will
+        #     # take care of it later.
+        #     self.assertFalse(self.root_temp.exists(),
+        #                      "Delete temp repo dir please: "
+        #                      f"{self.root_temp}")
 
         # Set test's `path_temp_file`. Can't exist yet.
         self.path_temp_file = self.repo._path_temp(self.path_file)
@@ -885,7 +889,7 @@ class Test_FileTreeRepo(ZestBase):
 # -----------------------------------------------------------------------------
 
 # Can't just run file from here... Do:
-#   doc-veredi python -m veredi.data.repository.zest_file
+#   doc-veredi test data/repository/file/zest_tree.py
 
 if __name__ == '__main__':
     import unittest
