@@ -222,7 +222,8 @@ class UserConn(BaseUser):
         msg, ctx = self._tx_queue.get_nowait()
         if self.debug:
             self.debug("Got from client's queue for sending to client: "
-                       f"msg: {msg}, ctx: {ctx}, client: {self}")
+                       "msg: {}, ctx: {}, client: {}",
+                       msg, ctx, self)
         return msg, ctx
 
     async def put_data(self,
@@ -233,7 +234,8 @@ class UserConn(BaseUser):
         '''
         if self.debug:
             self.debug("Putting data into client's queue for sending to "
-                       f"client: msg: {msg}, ctx: {ctx}, client: {self}")
+                       "client: msg: {}, ctx: {}, client: {}",
+                       msg, ctx, self)
         await self._tx_queue.put((msg, ctx))
 
     # -------------------------------------------------------------------------
@@ -315,7 +317,6 @@ class UserPassport(BaseUser):
         '''
         Returns User's primary entity's EntityId. Could be EntityId.INVALID.
         '''
-        print(f"user.entity_prime getter: {self._entity_prime}")
         return self._entity_prime
 
     @entity_prime.setter
@@ -325,7 +326,6 @@ class UserPassport(BaseUser):
         'unset' is desired.
         '''
         self._entity_prime = value
-        print(f"user.entity_prime setter: self._entity_prime <- {value}")
 
     @property
     def entity_ids(self) -> Set[EntityId]:

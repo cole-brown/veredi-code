@@ -305,6 +305,13 @@ class ZestBase(unittest.TestCase):
                       "Or `self.set_type(TestType.INTEGRATION)`. "
                       "Or `self.set_type(TestType.FUNCTIONAL)`...")
 
+    def post_set_up(self) -> None:
+        '''
+        For some test bases that need to finish off set_up after children have
+        completed their own stuff.
+        '''
+        ...
+
     def set_up(self) -> None:
         '''
         Use this!
@@ -346,9 +353,8 @@ class ZestBase(unittest.TestCase):
         # ---
         self.set_up()
 
-        # except:
-        #     # Try to clean up a bit for next test suite.
-        #     self.tearDown()
+        # Any finalization?
+        self.post_set_up()
 
     # ------------------------------
     # Background / Registry Set-Up

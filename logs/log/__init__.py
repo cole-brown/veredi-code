@@ -58,6 +58,7 @@ from .log import (
     get_logger,
     get_level,
     set_level,
+    set_level_min,
 
     will_output,
     format_pretty,
@@ -162,6 +163,7 @@ __all__ = [
     'get_logger',
     'get_level',
     'set_level',
+    'set_level_min',
 
     'will_output',
     'format_pretty',

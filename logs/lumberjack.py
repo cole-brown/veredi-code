@@ -137,7 +137,18 @@ class Lumberjack:
             self.error("Invalid log level {}. Ignoring.", level)
             return
 
-        self._logger.setLevel(log.Level.to_logging(level))
+        log.set_level(level, self._logger)
+
+    def min_level(self,
+                  level: log.LogLvlConversion = log.Level.NOTSET) -> None:
+        '''
+        Set logger's level to min of current or level (by most verbose).
+        '''
+        if not log.Level.valid(level):
+            self.error("Invalid log level {}. Ignoring.", level)
+            return
+
+        log.set_level_min(level, self._logger)
 
     def will_output(self,
                     *args: Union[log.LogLvlConversion, log.Group]) -> bool:

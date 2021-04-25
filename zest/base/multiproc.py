@@ -18,40 +18,26 @@ import time as py_time
 import enum
 
 
-from veredi.zest          import zmake, zontext
-from veredi.zest.zpath    import TestType
-from veredi.logs          import log, log_server
+from veredi.zest               import zmake, zontext
+from veredi.zest.zpath         import TestType
+from veredi.logs               import log, log_server
 
-from veredi.base.strings  import label
-from veredi.base          import paths
-from veredi.base.enum     import FlagCheckMixin
-from veredi.base.context  import UnitTestContext
+from veredi.base.strings       import label
+from veredi.base               import paths
+from veredi.base.enum          import FlagCheckMixin
+from veredi.base.context       import UnitTestContext
 
-from veredi.parallel      import multiproc
-from veredi.time.timer    import MonotonicTimer
-from veredi.data.identity import UserId, UserKey
+from veredi.parallel           import multiproc
+from veredi.parallel.multiproc import ProcTest
+from veredi.time.timer         import MonotonicTimer
+from veredi.data.identity      import UserId, UserKey
 
-from .integrate           import ZestIntegrateEngine
+from .integrate                import ZestIntegrateEngine
 
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-
-# ------------------------------
-# Test Processes
-# ------------------------------
-
-@enum.unique
-class ProcTest(FlagCheckMixin, enum.Flag):
-    NONE = 0
-    '''No process testing flag.'''
-
-    DNE = enum.auto()
-    '''
-    Do not start/end/etc this process.
-    Make it not exist as much as possible.
-    '''
 
 
 # ------------------------------
@@ -218,6 +204,21 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         self.proc: Processes = Processes()
         '''Our test processes.'''
 
+        self.log_level: Optional[log.Level] = None
+        '''
+        What to set this process's logging level to during set_up/post_set_up.
+        '''
+
+        self.log_level_orig: Optional[log.Level] = None
+        '''
+        What to revert this process's logging level to during tear_down.
+        '''
+
+        self.delay_log_level: bool = False
+        '''
+        True delays setting logging to `self.log_level` until `self.post_set_up()`.
+        '''
+
     def pre_set_up(
             self,
             config_path: str,
@@ -237,8 +238,8 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         self.config_game_id = game_id
 
     def set_up(self,
-               log_level:  log.Level,
-               proc_flags: ProcTest) -> None:
+               log_level:       log.Level,
+               proc_flags_logs: ProcTest) -> None:
         # ---
         # Print out start of new test debuging separator lines.
         # ---
@@ -256,9 +257,11 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         # ---
         # Wanted ASAP.
         # ---
-        log.set_level(log_level)
+        self.log_level = log_level
+        self.delay_log_level = proc_flags_logs.has(ProcTest.LOG_LEVEL_DELAY)
+        if not self.delay_log_level:
+            log.set_level(log_level)
         self.lumberjack = log.get_logger(self.NAME_MAIN)
-
 
         # ------------------------------
         # Let parent do stuff.
@@ -268,9 +271,18 @@ class ZestIntegrateMultiproc(ZestIntegrateEngine):
         # ---
         # Finish our things.
         # ---
-        self._set_up_log(proc_flags, log_level)
+        self._set_up_log(proc_flags_logs, log_level)
+
+    def post_set_up(self) -> None:
+        # Delayed as much as we could.
+        if self.delay_log_level:
+            log.set_level(self.log_level)
 
     def tear_down(self, log_level: log.Level) -> None:
+        # Revert logging level if we delayed setting it.
+        if self.delay_log_level:
+            log.set_level(self.log_level_orig)
+
         self._tear_down_log()
         super().tear_down()
 

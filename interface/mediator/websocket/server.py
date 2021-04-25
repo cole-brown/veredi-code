@@ -755,7 +755,7 @@ class WebSocketServer(WebSocketMediator,
                                      self._from_game_watcher(),
                                      self._test_watcher()))
 
-        except websockets.exceptions.ConnectionClosedOK:
+        except websockets.exceptions.ConnectionClosedOK as error:
             pass
 
         except Exception as error:

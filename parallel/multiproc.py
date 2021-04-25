@@ -84,13 +84,18 @@ Name and exitcode tuple.
 
 @enum.unique
 class ProcTest(FlagCheckMixin, enum.Flag):
-    NONE = 0
+    NONE = enum.auto()
     '''No process testing flag.'''
 
     DNE = enum.auto()
     '''
     Do not start/end/etc this process.
     Make it not exist as much as possible.
+    '''
+
+    LOG_LEVEL_DELAY = enum.auto()
+    '''
+    Delay setting log level until late in initialization/set-up.
     '''
 
 
@@ -703,6 +708,7 @@ def set_up(proc_name:         str,
                         proc_name,
                         veredi_logger=logger)
         ut_child_pipe, ut_parent_pipe = multiprocessing.Pipe()
+        context.add('proc-test', proc_test)
 
     # multiproc shutdown flag
     if not shutdown:
