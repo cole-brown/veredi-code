@@ -410,7 +410,7 @@ class LogPayload(BasePayload,
 
         # Decode the data field with our expected key hint of LogField.
         decoded = codec.decode_map(data['data'],
-                                   expected=[LogField])
+                                   expected=[LogField, log.Level])
 
         # And make our class... Set valid afterwards since LogPayload doesn't
         # care about validity to start with.

@@ -272,7 +272,7 @@ class Codec(LogMixin, NamesMixin,
     def _encode_encodable(self,
                           target:         Optional[Encodable],
                           in_progress:    Optional[EncodedComplex] = None,
-                          with_reg_field: bool = False) -> EncodedEither:
+                          with_reg_field: bool = True) -> EncodedEither:
         '''
         Encode `target` as a simple or complex encoding, depending on
         `target`.encoding().
@@ -443,6 +443,14 @@ class Codec(LogMixin, NamesMixin,
         '''
         # log.debug(f"\n\nlogging._encode_key: {key}\n\n")
         field = None
+
+        if enum.is_encodable(key):
+            input_enum = key
+            key = enum.wrap(key)
+            self._log_data_processing(self.dotted,
+                                      "codec._encode_key: enum found. "
+                                      "enum: {} -wrap-> {}",
+                                      input_enum, key)
 
         # If key is an encodable, can it encode into a key?
         if isinstance(key, Encodable):
@@ -997,39 +1005,31 @@ class Codec(LogMixin, NamesMixin,
                     dotted)
 
             except KeyError:
+                # Error on the missing decoding hint.
                 self._log_data_processing(
                     self.dotted,
                     "decode_with_registry: No 'dotted' provided "
                     "and none in data!")
-                # Now we error on the missing decoding hint.
-                pretty_data = pretty.indented(data)
-                msg = ("decode_with_registry: data has no "
-                       f"'{Encodable.ENCODABLE_REG_FIELD}' key.")
-                raise self._log_exception(
-                    KeyError(Encodable.ENCODABLE_REG_FIELD,
-                             msg,
-                             data),
-                    msg + " Cannot decode: {}",
-                    pretty_data)
+                # Don't `self._log_exception()`... exceptions expected.
+                raise KeyError(Encodable.ENCODABLE_REG_FIELD,
+                               ("decode_with_registry: data has no "
+                                f"'{Encodable.ENCODABLE_REG_FIELD}' key."),
+                               data)
 
             except TypeError:
+                # Error on the missing decoding hint.
                 self._log_data_processing(
                     self.dotted,
                     "decode_with_registry: No 'dotted' provided. "
                     "...and data is not a dict type?\n"
                     "  type: {}",
                     type(data))
-                # Now we error on the missing decoding hint.
-                pretty_data = pretty.indented(data)
-                msg = ("decode_with_registry: data is not dict type? "
-                       f"Cannot check for '{Encodable.ENCODABLE_REG_FIELD}' "
-                       "key.")
-                raise self._log_exception(
-                    TypeError(Encodable.ENCODABLE_REG_FIELD,
-                              msg,
-                              data),
-                    msg + " Cannot decode: {}",
-                    pretty_data)
+                # Don't `self._log_exception()`... exceptions expected.
+                raise TypeError(Encodable.ENCODABLE_REG_FIELD,
+                                ("decode_with_registry: data is not dict "
+                                 "type? Cannot check for "
+                                 f"'{Encodable.ENCODABLE_REG_FIELD}' key."),
+                                data)
 
         try:
             encoded_data = data[Encodable.ENCODABLE_PAYLOAD_FIELD]
@@ -1047,15 +1047,12 @@ class Codec(LogMixin, NamesMixin,
                 "  encoded_data: {}",
                 Encodable.ENCODABLE_PAYLOAD_FIELD,
                 encoded_data)
-            pretty_data = pretty.indented(data)
-            msg = ("decode_with_registry: data has no "
-                   f"'{Encodable.ENCODABLE_PAYLOAD_FIELD}' key. "
-                   f"Cannot decode: {pretty_data}")
-            raise self._log_exception(
-                KeyError(Encodable.ENCODABLE_PAYLOAD_FIELD,
-                         msg,
-                         data),
-                msg)
+            # Don't `self._log_exception()`... exceptions expected.
+            raise KeyError(Encodable.ENCODABLE_PAYLOAD_FIELD,
+                           ("decode_with_registry: data has no "
+                            f"'{Encodable.ENCODABLE_PAYLOAD_FIELD}' key. "
+                            "Cannot decode data.."),
+                           data)
 
         except TypeError:
             self._log_data_processing(
@@ -1065,17 +1062,12 @@ class Codec(LogMixin, NamesMixin,
                 "  encoded_data: {}",
                 type(encoded_data),
                 encoded_data)
-            # Now we error on the missing decoding hint.
-            pretty_data = pretty.indented(data)
-            msg = ("decode_with_registry: data is not dict type? "
-                   f"Cannot find '{Encodable.ENCODABLE_PAYLOAD_FIELD}' "
-                   "key.")
-            raise self._log_exception(
-                KeyError(Encodable.ENCODABLE_PAYLOAD_FIELD,
-                         msg,
-                         data),
-                msg + " Cannot decode: {}",
-                pretty_data)
+            # Don't `self._log_exception()`... exceptions expected.
+            raise KeyError(Encodable.ENCODABLE_PAYLOAD_FIELD,
+                           ("decode_with_registry: data is not dict type? "
+                            f"Cannot find '{Encodable.ENCODABLE_PAYLOAD_FIELD}' "
+                            "key."),
+                           data)
 
         # ------------------------------
         # Now decode it.
@@ -1180,7 +1172,8 @@ class Codec(LogMixin, NamesMixin,
                     encodable)
 
                 # Yeah - get it to decode it then.
-                field = self.decode(encodable, claim)
+                field = self.decode(encodable, claim,
+                                    map_expected=expected)
                 self._log_data_processing(
                     self.dotted,
                     "decode_key:\n"
@@ -1234,6 +1227,7 @@ class Codec(LogMixin, NamesMixin,
             "  value: {}",
             expected,
             value)
+
         node = self.decode(None, value,
                            map_expected=expected)
         self._log_data_processing(
