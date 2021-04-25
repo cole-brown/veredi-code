@@ -51,6 +51,7 @@ __all__ = [
     'get_logger',
     'get_level',
     'set_level',
+    'set_level_min',
 
     'will_output',
     'format_pretty',
@@ -244,14 +245,8 @@ def get_logger(*names:        str,
     logger_name = '.'.join([each for each in names if each])
 
     named_logger = logging.getLogger(logger_name)
-
-    # Do we need to adjust the level?
-    if min_log_level:
-        current = get_level(named_logger)
-        desired = const.Level.to_logging(min_log_level)
-        if desired != current:
-            set_level(const.Level.most_verbose(current, desired),
-                      named_logger)
+    # Set level as needed.
+    set_level_min(min_log_level, named_logger)
 
     return named_logger
 
@@ -277,6 +272,27 @@ def get_level(veredi_logger: const.LoggerInput = None) -> const.Level:
     return level
 
 
+def set_level_min(min_level:     const.LogLvlConversion = const.DEFAULT_LEVEL,
+                  veredi_logger: const.LoggerInput      = None) -> None:
+    '''
+    Change logger's log level only if `min_level` is more verbose.
+    Options are:
+      - log.CRITICAL
+      - log.ERROR
+      - log.WARNING
+      - log.INFO
+      - log.DEBUG
+      - log.NOTSET
+      - log.DEFAULT_LEVEL
+    '''
+    # Do we need to adjust the level?
+    current = get_level(veredi_logger)
+    desired = const.Level.to_logging(min_level)
+    set_to = const.Level.most_verbose(current, desired)
+    if set_to != current:
+        set_level(set_to, veredi_logger)
+
+
 def set_level(level:         const.LogLvlConversion = const.DEFAULT_LEVEL,
               veredi_logger: const.LoggerInput      = None) -> None:
     '''
@@ -288,7 +304,6 @@ def set_level(level:         const.LogLvlConversion = const.DEFAULT_LEVEL,
       - log.DEBUG
       - log.NOTSET
       - log.DEFAULT_LEVEL
-
     '''
     if not const.Level.valid(level):
         error("Invalid log level {}. Ignoring.", level)

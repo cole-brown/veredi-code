@@ -58,8 +58,8 @@ class Test_WebSockets_Text(Test_WebSockets_Base):
             # 'test_text',
         })
 
-        default_flags_server = ProcTest.NONE  # ProcTest.DNE
-        default_flags_client = ProcTest.NONE  # ProcTest.DNE
+        default_flags_server = ProcTest.LOG_LEVEL_DELAY
+        default_flags_client = ProcTest.LOG_LEVEL_DELAY
         super().set_up(LOG_LEVEL,
                        default_flags_server,
                        default_flags_client)

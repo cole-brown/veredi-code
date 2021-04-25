@@ -32,7 +32,7 @@ from veredi.interface.mediator.payload.logging import (LogPayload,
 # Constants
 # -----------------------------------------------------------------------------
 
-LOG_LEVEL = log.Level.INFO  # DEBUG
+LOG_LEVEL = log.Level.INFO
 '''Test should set this to desired during set_up()'''
 
 
@@ -51,21 +51,18 @@ class Test_WebSockets_Logging(Test_WebSockets_Base):
             # Nothing, ideally.
 
             # # ---
-            # # This is cheating.
-            # # ---
-            # 'test_ignored_tests',
-
-            # # ---
             # # Logging tests.
             # # ---
             # 'test_logging',
         })
 
-        default_flags_server = ProcTest.NONE  # ProcTest.DNE
-        default_flags_client = ProcTest.NONE  # ProcTest.DNE
+        default_flags_server = ProcTest.LOG_LEVEL_DELAY
+        default_flags_client = ProcTest.LOG_LEVEL_DELAY
+        default_flags_logs   = ProcTest.LOG_LEVEL_DELAY
         super().set_up(LOG_LEVEL,
                        default_flags_server,
-                       default_flags_client)
+                       default_flags_client,
+                       default_flags_logs)
 
     def tear_down(self):
         super().tear_down(LOG_LEVEL)
@@ -73,14 +70,6 @@ class Test_WebSockets_Logging(Test_WebSockets_Base):
     # -------------------------------------------------------------------------
     # Tests
     # -------------------------------------------------------------------------
-
-    # ------------------------------
-    # Check to see if we're blatently ignoring anything...
-    # ------------------------------
-
-    def test_ignored_tests(self):
-        self.assert_test_ran(
-            self.runner_of_test(self.do_test_ignored_tests))
 
     # ------------------------------
     # Test Server sending LOGGING to client.
@@ -139,7 +128,7 @@ class Test_WebSockets_Logging(Test_WebSockets_Base):
                 + 'IGNORE LOGGING: \n'
                 + f'  was    = "{was}" \n'
                 + f'  set    = "{self.proc.log.ignore_logs.is_set()}" \n'
-                + f'  count  = "{self.proc.log.ignored_counter.value} \n'
+                + f'  count  = {self.proc.log.ignored_counter.value} \n'
                 + line_untitled
                 + '\n\n')
 
@@ -168,7 +157,7 @@ class Test_WebSockets_Logging(Test_WebSockets_Base):
                 + 'IGNORE LOGGING: \n'
                 + f'  was    = "{was}" \n'
                 + f'  set    = "{self.proc.log.ignore_logs.is_set()}" \n'
-                + f'  count  = "{self.proc.log.ignored_counter.value} \n'
+                + f'  count  = {self.proc.log.ignored_counter.value} \n'
                 + line_titled
                 + '\n\n')
 
@@ -192,7 +181,7 @@ class Test_WebSockets_Logging(Test_WebSockets_Base):
     def do_test_logging(self, client):
         # Get the connect out of the way.
         self.client_connect(client)
-        self.debugging = True
+        # self.debugging = True
 
         # ------------------------------
         # NOTE: Unit-Tests Failing?
@@ -200,6 +189,12 @@ class Test_WebSockets_Logging(Test_WebSockets_Base):
         # NOTE: Can't figure out why you're getting no logs in here?
         # ---------------
         #   START-NOTE: THIS IS WHY YOUR LOGS ARE MISSING!!!
+
+        if self._ut_is_verbose:
+            log.ultra_hyper_debug(
+                "YOU ARE NOW IGNORING LOGS!\n"
+                "  - This means you can't see what's actually going on now!\n"
+                "  - Comment out `ignore_logging` call when debugging!!!")
 
         # Start ignoring logs.
         self.ignore_logging(True, assert_eq_value=0)
@@ -272,6 +267,12 @@ class Test_WebSockets_Logging(Test_WebSockets_Base):
         # logging level or we have to keep ignoring. Clean-up / tear-down has
         # logs too.
         self.ignore_logging(None, assert_gt_value=2)
+
+        if self._ut_is_verbose:
+            log.ultra_hyper_debug(
+                "YOU ARE DONE IGNORING LOGS!\n"
+                "  - This means you just missed a lot of logs...\n"
+                "  - Comment out `ignore_logging` call when debugging!!!")
 
         # Make sure we don't have anything in the queues...
         self.assert_empty_pipes()

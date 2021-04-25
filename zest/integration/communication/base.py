@@ -67,10 +67,15 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
             TypeError,
             "MediatorServer requires a SubToProcComm; received None.")
 
+    proc_test = context.sub.get('proc-test', ProcTest.NONE)
+    delay_log_level = proc_test.has(ProcTest.LOG_LEVEL_DELAY)
     log_level = ConfigContext.log_level(context)
+    log_level_init = (None
+                      if delay_log_level else
+                      log_level)
 
-    lumberjack = log.get_logger(comms.name,
-                                min_log_level=log_level)
+    logger_server = log.get_logger(comms.name,
+                                   min_log_level=log_level_init)
 
     multiproc._sigint_ignore()
 
@@ -83,23 +88,23 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
         raise log.exception(
             TypeError,
             "MediatorServer requires a pipe connection; received None.",
-            veredi_logger=lumberjack)
+            veredi_logger=logger_server)
     if not comms.config:
         raise log.exception(
             TypeError,
             "MediatorServer requires a configuration; received None.",
-            veredi_logger=lumberjack)
+            veredi_logger=logger_server)
     if not log_level:
         raise log.exception(
             TypeError,
             "MediatorServer requires a default log level (int); "
             "received None.",
-            veredi_logger=lumberjack)
+            veredi_logger=logger_server)
     if not comms.shutdown:
         raise log.exception(
             TypeError,
             "MediatorServer requires a shutdown flag; received None.",
-            veredi_logger=lumberjack)
+            veredi_logger=logger_server)
 
     # ------------------------------
     # Finish Set-Up and Start It.
@@ -108,14 +113,18 @@ def run_server(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # Always set LOG_SKIP flag in case its wanted.
     comms.debug_flags = comms.debug_flags | DebugFlag.LOG_SKIP
 
-    lumberjack.debug(f"Starting WebSocketServer '{comms.name}'...")
+    logger_server.debug(f"Starting WebSocketServer '{comms.name}'...")
     mediator = WebSocketServer(context)
     mediator.start()
+
+    # We've delayed as long as we can; set log level.
+    if delay_log_level:
+        log.set_level_min(log_level, logger_server)
 
     # ------------------------------
     # Sub-Process is done now.
     # ------------------------------
-    lumberjack.debug(f"MediatorServer '{comms.name}' done.")
+    logger_server.debug(f"MediatorServer '{comms.name}' done.")
 
 
 def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
@@ -131,9 +140,15 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
             TypeError,
             "MediatorClient requires a SubToProcComm; received None.")
 
+    proc_test = context.sub.get('proc-test', ProcTest.NONE)
+    delay_log_level = proc_test.has(ProcTest.LOG_LEVEL_DELAY)
     log_level = ConfigContext.log_level(context)
-    lumberjack = log.get_logger(comms.name,
-                                min_log_level=log_level)
+    log_level_init = (None
+                      if delay_log_level else
+                      log_level)
+
+    logger_client = log.get_logger(comms.name,
+                                   min_log_level=log_level_init)
 
     multiproc._sigint_ignore()
 
@@ -146,23 +161,23 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
         raise log.exception(
             TypeError,
             "MediatorClient requires a pipe connection; received None.",
-            veredi_logger=lumberjack)
+            veredi_logger=logger_client)
     if not comms.config:
         raise log.exception(
             TypeError,
             "MediatorClient requires a configuration; received None.",
-            veredi_logger=lumberjack)
+            veredi_logger=logger_client)
     if not log_level:
         raise log.exception(
             TypeError,
             "MediatorClient requires a default log level (int); "
             "received None.",
-            veredi_logger=lumberjack)
+            veredi_logger=logger_client)
     if not comms.shutdown:
         raise log.exception(
             TypeError,
             "MediatorClient requires a shutdown flag; received None.",
-            veredi_logger=lumberjack)
+            veredi_logger=logger_client)
 
     # ------------------------------
     # Finish Set-Up and Start It.
@@ -171,14 +186,18 @@ def run_client(comms: multiproc.SubToProcComm, context: VerediContext) -> None:
     # Always set LOG_SKIP flag in case its wanted.
     comms.debug_flags = comms.debug_flags | DebugFlag.LOG_SKIP
 
-    lumberjack.debug(f"Starting WebSocketClient '{comms.name}'...")
+    logger_client.debug(f"Starting WebSocketClient '{comms.name}'...")
     mediator = WebSocketClient(context)
     mediator.start()
+
+    # We've delayed as long as we can; set log level.
+    if delay_log_level:
+         log.set_level_min(log_level, logger_client)
 
     # ------------------------------
     # Sub-Process is done now.
     # ------------------------------
-    lumberjack.debug(f"MediatorClient '{comms.name}' done.")
+    logger_client.debug(f"MediatorClient '{comms.name}' done.")
 
 
 # -----------------------------------------------------------------------------
@@ -219,11 +238,11 @@ class Test_WebSockets_Base(ZestIntegrateMultiproc):
     def set_up(self,
                log_level:         log.Level,
                proc_flags_server: ProcTest,
-               proc_flags_client: ProcTest) -> None:
+               proc_flags_client: ProcTest,
+               proc_flags_logs:   ProcTest = ProcTest.NONE) -> None:
         self.debug_flags = DebugFlag.MEDIATOR_ALL
 
-        default_flags = ProcTest.NONE
-        super().set_up(log_level, default_flags)
+        super().set_up(log_level, proc_flags_logs)
 
         self._msg_id: MonotonicIdGenerator = MonotonicId.generator()
         '''ID generator for creating Mediator messages.'''
@@ -231,8 +250,8 @@ class Test_WebSockets_Base(ZestIntegrateMultiproc):
         self._user_id: UserIdGenerator = UserId.generator()
         '''For these, just make up user ids.'''
 
-        self._set_up_server(log_level, default_flags)  # ProcTest.DNE)
-        self._set_up_clients(log_level, default_flags)  # ProcTest.DNE)
+        self._set_up_server(log_level, proc_flags_server)
+        self._set_up_clients(log_level, proc_flags_client)
 
     def tear_down(self,
                   log_level: log.Level) -> None:
