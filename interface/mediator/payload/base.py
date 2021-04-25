@@ -10,7 +10,10 @@ just a string, dict, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Mapping
+from typing import (TYPE_CHECKING,
+                    Optional, Union, Any, Mapping)
+if TYPE_CHECKING:
+    from veredi.data.codec import Codec
 
 import enum
 

@@ -278,8 +278,8 @@ class Encodable(NamesMixin):
         return class_type_field == data_type_field
 
     @classmethod
-    def _was_encoded_with_registry(klass: 'Encodable',
-                                   data:  EncodedEither) -> bool:
+    def was_encoded_with_registry(klass: 'Encodable',
+                                  data:  EncodedEither) -> bool:
         '''
         Returns True if `data` is not Encoding.SIMPLE and has
         klass.ENCODABLE_REG_FIELD key.
@@ -395,7 +395,7 @@ class Encodable(NamesMixin):
         # Else it's EncodedComplex.
 
         # Encoded with full registree information?
-        if klass._was_encoded_with_registry(data):
+        if klass.was_encoded_with_registry(data):
             log.data_processing(
                 klass.dotted,
                 "{} was encoded with registry. Staking claim on data:\n"

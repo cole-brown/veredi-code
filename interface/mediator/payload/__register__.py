@@ -21,9 +21,10 @@ from veredi.data.registration import codec
 # ------------------------------
 # Registrees
 # ------------------------------
-from .base    import Validity, BasePayload
-from .bare    import BarePayload
-from .logging import LogField, LogReply, LogPayload
+from veredi.logs import log
+from .base       import Validity, BasePayload
+from .bare       import BarePayload
+from .logging    import LogField, LogReply, LogPayload
 
 
 # -----------------------------------------------------------------------------
@@ -38,6 +39,16 @@ codec.register_enum(Validity,
 codec.register_enum(LogField,
                     dotted='veredi.interface.mediator.payload.log.field',
                     name_encode='field',
+                    enum_encode_type=codec.enum.EnumEncodeName)
+
+codec.register_enum(log.Level,
+                    dotted='veredi.logs.log.level',
+                    name_encode='log.level',
+                    enum_encode_type=codec.enum.EnumEncodeName)
+
+codec.register_enum(log.Group,
+                    dotted='veredi.logs.log.group',
+                    name_encode='log.group',
                     enum_encode_type=codec.enum.EnumEncodeName)
 
 codec.register(LogReply)
