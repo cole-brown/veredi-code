@@ -31,7 +31,7 @@ from veredi.base.exceptions import VerediError
 from .                      import const
 from .                      import formats
 from .                      import filter
-from .logger                import LoggerPlus
+from .logger                import LoggerPlus, LoggerInput
 
 
 # -----------------------------------------------------------------------------
@@ -258,7 +258,7 @@ def get_logger(*names:        str,
     return named_logger
 
 
-def _logger(veredi_logger: const.LoggerInput = None) -> logging.Logger:
+def _logger(veredi_logger: LoggerInput = None) -> logging.Logger:
     '''
     Returns `veredi_logger` if it is Truthy.
     Returns the default veredi logger if not.
@@ -272,7 +272,7 @@ def _logger(veredi_logger: const.LoggerInput = None) -> logging.Logger:
 # Log Output Levels
 # -----------------------------------------------------------------------------
 
-def get_level(veredi_logger: const.LoggerInput = None) -> const.Level:
+def get_level(veredi_logger: LoggerInput = None) -> const.Level:
     '''Returns current log level of logger, translated into Level enum.'''
     this = _logger(veredi_logger)
     level = const.Level(this.level)
@@ -280,7 +280,7 @@ def get_level(veredi_logger: const.LoggerInput = None) -> const.Level:
 
 
 def set_level_min(min_level:     const.LogLvlConversion = const.DEFAULT_LEVEL,
-                  veredi_logger: const.LoggerInput      = None) -> None:
+                  veredi_logger: LoggerInput            = None) -> None:
     '''
     Change logger's log level only if `min_level` is more verbose.
     Options are:
@@ -301,7 +301,7 @@ def set_level_min(min_level:     const.LogLvlConversion = const.DEFAULT_LEVEL,
 
 
 def set_level(level:         const.LogLvlConversion = const.DEFAULT_LEVEL,
-              veredi_logger: const.LoggerInput      = None) -> None:
+              veredi_logger: LoggerInput            = None) -> None:
     '''
     Change logger's log level. Options are:
       - log.CRITICAL
@@ -321,7 +321,7 @@ def set_level(level:         const.LogLvlConversion = const.DEFAULT_LEVEL,
 
 
 def will_output(*args:         Union[const.LogLvlConversion, const.Group],
-                veredi_logger: const.LoggerInput = None) -> bool:
+                veredi_logger: LoggerInput = None) -> bool:
     '''
     Returns true if any supplied `args` is high enough to output a log.
     '''
@@ -520,6 +520,20 @@ def _brace_message(fmt_msg:      str,
     return output_msg
 
 
+def clean_up() -> None:
+    '''
+    Clean up logger, filter, whatever for next log message.
+    '''
+
+    # ---
+    # Filter Clean-Up
+    # ---
+    global _filter
+    if _filter:
+        _filter.clear()
+
+
+
 # -----------------------------------------------------------------------------
 # Log Keyword Args Helpers
 # -----------------------------------------------------------------------------
@@ -565,12 +579,29 @@ def pop_log_kwargs(kwargs: Mapping[str, Any]) -> int:
 
 
 # -----------------------------------------------------------------------------
+# Log Output Help / Clean-Up
+# -----------------------------------------------------------------------------
+
+def _log_output(function: Callable,
+                msg:      str,
+                *args:    Any,
+                **kwargs: Any) -> None:
+    '''
+    Call logger's `function` for outputting log (or not, whatever).
+
+    Do clean-up afterwards (e.g. clearing out extra fields in our `_filter`.
+    '''
+    function(msg, *args, **kwargs)
+    clean_up()
+
+
+# -----------------------------------------------------------------------------
 # Logger Crazy Debug Functions
 # -----------------------------------------------------------------------------
 
 def ultra_mega_debug(msg:           str,
                      *args:         Any,
-                     veredi_logger: const.LoggerInput     = None,
+                     veredi_logger: LoggerInput     = None,
                      context:       'VerediContext' = None,
                      **kwargs:      Any) -> None:
     '''
@@ -611,8 +642,9 @@ def ultra_mega_debug(msg:           str,
         this = (veredi_logger
                 or get_logger('veredi.debug.DEBUG.!!!DEBUG!!!'))
         log_out = _ULTRA_MEGA_DEBUG_FMT.format(output=output)
-        this.critical(log_out,
-                      **log_kwargs)
+
+        this.apocalypse(log_out,
+                        **log_kwargs)
 
 
 def ultra_hyper_debug(msg:           str,
@@ -620,7 +652,7 @@ def ultra_hyper_debug(msg:           str,
                       format_str:    bool            = True,
                       add_type:      bool            = False,
                       title:         Optional[str]   = None,
-                      veredi_logger: const.LoggerInput     = None,
+                      veredi_logger: LoggerInput     = None,
                       context:       'VerediContext' = None,
                       **kwargs:      Any) -> None:
     '''
@@ -693,17 +725,17 @@ def ultra_hyper_debug(msg:           str,
         this = (veredi_logger
                 or get_logger('veredi.debug.DEBUG.☢☢DEBUG☢☢'))
         log_out = _ULTRA_HYPER_DEBUG_FMT.format(output=output)
-        this.critical(log_out,
-                      **log_kwargs)
+        this.apocalypse(log_out,
+                        **log_kwargs)
 
 
 # -----------------------------------------------------------------------------
-# Logger Normal Functions
+# Log Level Functions
 # -----------------------------------------------------------------------------
 
 def trace(msg:           str,
           *args:         Any,
-          veredi_logger: const.LoggerInput     = None,
+          veredi_logger: LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -713,13 +745,14 @@ def trace(msg:           str,
                      **kwargs)
     if not ut_call(const.Level.TRACE, output):
         this = _logger(veredi_logger)
-        this.trace(output,
-                   **log_kwargs)
+        _log_output(this.trace,
+                    output,
+                    **log_kwargs)
 
 
 def debug(msg:           str,
           *args:         Any,
-          veredi_logger: const.LoggerInput     = None,
+          veredi_logger: LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -729,13 +762,14 @@ def debug(msg:           str,
                      **kwargs)
     if not ut_call(const.Level.DEBUG, output):
         this = _logger(veredi_logger)
-        this.debug(output,
-                   **log_kwargs)
+        _log_output(this.debug,
+                    output,
+                    **log_kwargs)
 
 
 def info(msg:           str,
          *args:         Any,
-         veredi_logger: const.LoggerInput     = None,
+         veredi_logger: LoggerInput     = None,
          context:       'VerediContext' = None,
          **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -745,13 +779,14 @@ def info(msg:           str,
                      **kwargs)
     if not ut_call(const.Level.INFO, output):
         this = _logger(veredi_logger)
-        this.info(output,
-                  **log_kwargs)
+        _log_output(this.info,
+                    output,
+                    **log_kwargs)
 
 
 def notice(msg:           str,
            *args:         Any,
-           veredi_logger: const.LoggerInput     = None,
+           veredi_logger: LoggerInput     = None,
            context:       'VerediContext' = None,
            **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -761,13 +796,14 @@ def notice(msg:           str,
                      **kwargs)
     if not ut_call(const.Level.NOTICE, output):
         this = _logger(veredi_logger)
-        this.notice(output,
+        _log_output(this.notice,
+                    output,
                     **log_kwargs)
 
 
 def warning(msg:           str,
             *args:         Any,
-            veredi_logger: const.LoggerInput     = None,
+            veredi_logger: LoggerInput     = None,
             context:       'VerediContext' = None,
             **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -777,13 +813,15 @@ def warning(msg:           str,
                      **kwargs)
     if not ut_call(const.Level.WARNING, output):
         this = _logger(veredi_logger)
-        this.warning(output,
-                     **log_kwargs)
+        _log_output(this.warning,
+                    output,
+                    **log_kwargs)
+
 
 
 def error(msg:           str,
           *args:         Any,
-          veredi_logger: const.LoggerInput     = None,
+          veredi_logger: LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -793,8 +831,9 @@ def error(msg:           str,
                      **kwargs)
     if not ut_call(const.Level.ERROR, output):
         this = _logger(veredi_logger)
-        this.error(output,
-                   **log_kwargs)
+        _log_output(this.error,
+                    output,
+                    **log_kwargs)
 
 
 def _except_type(error_or_type: Union[Exception, Type[Exception]]) -> bool:
@@ -906,7 +945,7 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
               msg:           Optional[str],
               *args:         Any,
               context:       Optional['VerediContext'] = None,
-              veredi_logger: const.LoggerInput               = None,
+              veredi_logger: LoggerInput               = None,
               error_data:    Optional[Dict[Any, Any]]  = None,
               **kwargs:      Any) -> None:
     '''
@@ -1022,7 +1061,7 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
 
 def critical(msg:           str,
              *args:         Any,
-             veredi_logger: const.LoggerInput     = None,
+             veredi_logger: LoggerInput     = None,
              context:       'VerediContext' = None,
              **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -1032,13 +1071,14 @@ def critical(msg:           str,
                      **kwargs)
     if not ut_call(const.Level.CRITICAL, output):
         this = _logger(veredi_logger)
-        this.critical(output,
-                      **log_kwargs)
+        _log_output(this.critical,
+                    output,
+                    **log_kwargs)
 
 
 def alert(msg:           str,
           *args:         Any,
-          veredi_logger: const.LoggerInput     = None,
+          veredi_logger: LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -1048,13 +1088,14 @@ def alert(msg:           str,
                      **kwargs)
     if not ut_call(const.Level.ALERT, output):
         this = _logger(veredi_logger)
-        this.alert(output,
-                   **log_kwargs)
+        _log_output(this.alert,
+                    output,
+                    **log_kwargs)
 
 
 def emergency(msg:           str,
               *args:         Any,
-              veredi_logger: const.LoggerInput     = None,
+              veredi_logger: LoggerInput     = None,
               context:       'VerediContext' = None,
               **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -1064,13 +1105,14 @@ def emergency(msg:           str,
                      **kwargs)
     if not ut_call(const.Level.EMERGENCY, output):
         this = _logger(veredi_logger)
-        this.emergency(output,
-                       **log_kwargs)
+        _log_output(this.emergency,
+                    output,
+                    **log_kwargs)
 
 
 def apocalypse(msg:           str,
                *args:         Any,
-               veredi_logger: const.LoggerInput     = None,
+               veredi_logger: LoggerInput     = None,
                context:       'VerediContext' = None,
                **kwargs:      Any) -> None:
     log_kwargs = pop_log_kwargs(kwargs)
@@ -1087,7 +1129,7 @@ def apocalypse(msg:           str,
 def at_level(level:         'const.Level',
              msg:           str,
              *args:         Any,
-             veredi_logger: const.LoggerInput     = None,
+             veredi_logger: LoggerInput     = None,
              context:       'VerediContext' = None,
              **kwargs:      Any) -> None:
     kwargs = incr_stack_level(kwargs)
@@ -1098,16 +1140,26 @@ def at_level(level:         'const.Level',
                   msg,
                   args,
                   kwargs)
+    elif level == const.Level.TRACE:
+        log_fn = debug
     elif level == const.Level.DEBUG:
         log_fn = debug
     elif level == const.Level.INFO:
         log_fn = info
+    elif level == const.Level.NOTICE:
+        log_fn = notice
     elif level == const.Level.WARNING:
         log_fn = warning
     elif level == const.Level.ERROR:
         log_fn = error
     elif level == const.Level.CRITICAL:
         log_fn = critical
+    elif level == const.Level.ALERT:
+        log_fn = alert
+    elif level == const.Level.EMERGENCY:
+        log_fn = emergency
+    elif level == const.Level.APOCALYPSE:
+        log_fn = apocalypse
 
     log_fn(msg, *args,
            veredi_logger=veredi_logger,
@@ -1123,7 +1175,7 @@ def group(log_group:     'const.Group',
           dotted:        label.DotStr,
           msg:           str,
           *args:         Any,
-          veredi_logger: const.LoggerInput            = None,
+          veredi_logger: LoggerInput            = None,
           context:       'VerediContext'              = None,
           log_minimum:   const.Level                  = None,
           log_success:   Optional[const.SuccessInput] = const.SuccessType.IGNORE,
@@ -1227,17 +1279,18 @@ def set_group_level(group: 'const.Group',
     _GROUP_LEVELS[group] = level
 
 
-def group_multi(groups:        Iterable['const.Group'],
-                dotted:        label.DotStr,
-                msg:           str,
-                *args:         Any,
-                group_resolve: Optional[const.GroupResolve]   = const.GroupResolve.HIGHEST,
-                veredi_logger: const.LoggerInput               = None,
-                context:       'VerediContext'           = None,
-                log_minimum:   const.Level                     = None,
-                log_success:   Optional[const.SuccessInput] = const.SuccessType.IGNORE,
-                log_dry_run:   Optional[bool]            = False,
-                **kwargs:      Any) -> None:
+def group_multi(
+        groups:        Iterable['const.Group'],
+        dotted:        label.DotStr,
+        msg:           str,
+        *args:         Any,
+        group_resolve: const.GroupResolve = const.GroupResolve.HIGHEST,
+        veredi_logger: LoggerInput        = None,
+        context:       'VerediContext'    = None,
+        log_minimum:   const.Level        = None,
+        log_success:   const.SuccessInput = const.SuccessType.IGNORE,
+        log_dry_run:   Optional[bool]     = False,
+        **kwargs:      Any) -> None:
     '''
     Log at `group` log.const.Level, whatever it's set to right now.
 
@@ -1271,11 +1324,11 @@ def group_multi(groups:        Iterable['const.Group'],
 def security(dotted:        label.DotStr,
              msg:           str,
              *args:         Any,
-             veredi_logger: const.LoggerInput     = None,
-             context:       'VerediContext' = None,
-             log_minimum:   const.Level           = None,
-             log_success:   const.SuccessInput    = const.SuccessType.IGNORE,
-             log_dry_run:   Optional[bool]  = False,
+             veredi_logger: LoggerInput        = None,
+             context:       'VerediContext'    = None,
+             log_minimum:   const.Level        = None,
+             log_success:   const.SuccessInput = const.SuccessType.IGNORE,
+             log_dry_run:   Optional[bool]     = False,
              **kwargs:      Any) -> None:
     '''
     Log at Group.SECURITY log.Level, whatever it's set to right now.
@@ -1304,11 +1357,11 @@ def security(dotted:        label.DotStr,
 def start_up(dotted:        label.DotStr,
              msg:           str,
              *args:         Any,
-             veredi_logger: const.LoggerInput     = None,
-             context:       'VerediContext' = None,
-             log_minimum:   const.Level           = None,
-             log_success:   const.SuccessInput    = const.SuccessType.IGNORE,
-             log_dry_run:   Optional[bool]  = False,
+             veredi_logger: LoggerInput        = None,
+             context:       'VerediContext'    = None,
+             log_minimum:   const.Level        = None,
+             log_success:   const.SuccessInput = const.SuccessType.IGNORE,
+             log_dry_run:   Optional[bool]     = False,
              **kwargs:      Any) -> None:
     '''
     Log at Group.START_UP log.Level, whatever it's set to right now.
@@ -1337,11 +1390,11 @@ def start_up(dotted:        label.DotStr,
 def shutdown(dotted:        label.DotStr,
              msg:           str,
              *args:         Any,
-             veredi_logger: const.LoggerInput     = None,
-             context:       'VerediContext' = None,
-             log_minimum:   const.Level           = None,
-             log_success:   const.SuccessInput    = const.SuccessType.IGNORE,
-             log_dry_run:   Optional[bool]  = False,
+             veredi_logger: LoggerInput        = None,
+             context:       'VerediContext'    = None,
+             log_minimum:   const.Level        = None,
+             log_success:   const.SuccessInput = const.SuccessType.IGNORE,
+             log_dry_run:   Optional[bool]     = False,
              **kwargs:      Any) -> None:
     '''
     Log at Group.SHUTDOWN log.Level, whatever it's set to right now.
@@ -1367,15 +1420,16 @@ def shutdown(dotted:        label.DotStr,
           **kwargs)
 
 
-def data_processing(dotted:        label.DotStr,
-                    msg:           str,
-                    *args:         Any,
-                    veredi_logger: const.LoggerInput     = None,
-                    context:       'VerediContext' = None,
-                    log_minimum:   const.Level           = None,
-                    log_success:   const.SuccessInput    = const.SuccessType.IGNORE,
-                    log_dry_run:   Optional[bool]  = False,
-                    **kwargs:      Any) -> None:
+def data_processing(
+        dotted:        label.DotStr,
+        msg:           str,
+        *args:         Any,
+        veredi_logger: LoggerInput        = None,
+        context:       'VerediContext'    = None,
+        log_minimum:   const.Level        = None,
+        log_success:   const.SuccessInput = const.SuccessType.IGNORE,
+        log_dry_run:   Optional[bool]     = False,
+        **kwargs:      Any) -> None:
     '''
     Log at Group.DATA_PROCESSING log.Level, whatever it's set to right now.
 
@@ -1403,7 +1457,7 @@ def data_processing(dotted:        label.DotStr,
 def registration(dotted:        label.DotStr,
                  msg:           str,
                  *args:         Any,
-                 veredi_logger: const.LoggerInput  = None,
+                 veredi_logger: LoggerInput        = None,
                  context:       'VerediContext'    = None,
                  log_minimum:   const.Level        = None,
                  log_success:   const.SuccessInput = const.SuccessType.IGNORE,
@@ -1436,7 +1490,7 @@ def registration(dotted:        label.DotStr,
 def parallel(dotted:        label.DotStr,
              msg:           str,
              *args:         Any,
-             veredi_logger: const.LoggerInput  = None,
+             veredi_logger: LoggerInput        = None,
              context:       'VerediContext'    = None,
              log_minimum:   const.Level        = None,
              log_success:   const.SuccessInput = const.SuccessType.IGNORE,
@@ -1591,9 +1645,16 @@ def ut_call(level: 'const.Level',
       - False if no callback or it doesn't want to eat the log.
     '''
     if not _unit_test_callback or not callable(_unit_test_callback):
+        # Not unit testing.
         return False
 
-    return _unit_test_callback(level, output)
+    if _unit_test_callback(level, output):
+        # Unit test took the log, so clean up now.
+        clean_up()
+        return True
+
+    # Unit test didn't want this log.
+    return False
 
 
 def ut_set_up(callback: Nullable[Callable[['const.Level', str], bool]]) -> None:

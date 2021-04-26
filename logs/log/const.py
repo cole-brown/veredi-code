@@ -30,12 +30,6 @@ These input types can be converted to a log.Level.
 '''
 
 
-LoggerInput = NewType('LoggerInput', NullNoneOr[logging.Logger])
-'''
-Optional logger can be: Null, None, or a Python logging.Logger.
-'''
-
-
 @enum.unique
 class SuccessType(enum.Enum):
     '''
