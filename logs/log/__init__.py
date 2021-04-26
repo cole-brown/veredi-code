@@ -33,11 +33,13 @@ from .const import (
     DEFAULT_LEVEL,
 
     # Types
-    LogLvlConversion, LoggerInput, SuccessInput,
+    LogLvlConversion, SuccessInput,
 
     # Enums
     SuccessType, Level, Group, GroupResolve
 )
+
+from .logger import LoggerInput
 
 
 # ------------------------------

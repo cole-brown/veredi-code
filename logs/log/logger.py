@@ -8,6 +8,10 @@ Python Logger with extra levels.
 # Imports
 # -----------------------------------------------------------------------------
 
+from typing import NewType
+from veredi.base.null import NullNoneOr
+
+
 import logging
 
 
@@ -15,8 +19,13 @@ from .const import Level
 
 
 # -----------------------------------------------------------------------------
-# Constants
+# Types
 # -----------------------------------------------------------------------------
+
+LoggerInput = NewType('LoggerInput', NullNoneOr['LoggerPlus'])
+'''
+Optional logger can be: Null, None, or a Python logging.Logger.
+'''
 
 
 # -----------------------------------------------------------------------------

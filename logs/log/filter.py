@@ -151,13 +151,16 @@ class VerediFilter(logging.Filter):
         self.exception_filter(record)
 
         # Have done our part - clean up and get ready for the next one.
-        self._clear()
+        # ---
+        # NOTE: This isn't 100% useful as it doesn't clear when a log message
+        # isn't a high enough level to be output.
+        self.clear()
 
         # We just add data; always log all records that pass through this
         # 'filter'.
         return True
 
-    def _clear(self) -> None:
+    def clear(self) -> None:
         '''
         Clear our filters out to prep for next log record.
         '''
