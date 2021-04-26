@@ -236,12 +236,52 @@ class Level(enum.IntEnum):
     Log level enum. Values are python's logging module log level ints.
     '''
 
+    # ------------------------------
+    # Logging Levels: OTHERS
+    # ------------------------------
+    #
+    # ---
+    # Python levels:
+    # ---
+    #   - NOTSET
+    #   - DEBUG
+    #   - INFO
+    #   - WARNING
+    #   - ERROR
+    #   - CRITICAL
+    #
+    # ---
+    # Syslog levels:
+    # ---
+    #   - DEBUG
+    #   - INFORMATIONAL
+    #   - NOTICE
+    #   - WARNING
+    #   - ERROR
+    #   - CRITICAL
+    #   - ALERT
+    #   - EMERGENCY
+    #
+    # ------------------------------
+
+    # ------------------------------
+    # Logging Levels: Veredi
+    # ------------------------------
+    # (Python ∪ Syslog) + a really high level that is, basically, 'off'.
+
     NOTSET   = logging.NOTSET
+    TRACE    = int((logging.DEBUG + logging.NOTSET) / 2)
     DEBUG    = logging.DEBUG
     INFO     = logging.INFO
+    NOTICE   = int((logging.INFO + logging.WARNING) / 2)
     WARNING  = logging.WARNING
     ERROR    = logging.ERROR
     CRITICAL = logging.CRITICAL
+    ALERT    = logging.CRITICAL + logging.DEBUG
+    EMERGENCY = logging.CRITICAL + logging.INFO
+
+    # "Basically off."
+    APOCALYPSE = logging.CRITICAL ** 4
 
     # -------------------------------------------------------------------------
     # Helpers

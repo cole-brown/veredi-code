@@ -28,9 +28,10 @@ from veredi.base.null       import Null, Nullable
 from veredi.base.strings    import label, pretty
 from veredi.base.exceptions import VerediError
 
-from . import const
-from . import formats
-from . import filter
+from .                      import const
+from .                      import formats
+from .                      import filter
+from .logger                import LoggerPlus
 
 
 # -----------------------------------------------------------------------------
@@ -151,7 +152,7 @@ _GROUP_LEVELS: Dict[const.Group, const.Level] = {
 __initialized: bool = False
 '''Re-init protection.'''
 
-logger: logging.Logger = None
+logger: LoggerPlus = None
 '''Our main/default logger.'''
 
 _filter: filter.VerediFilter = None
@@ -189,6 +190,13 @@ def init(level:        const.LogLvlConversion    = const.DEFAULT_LEVEL,
     # ------------------------------
     # Initialize the Logger...
     # ------------------------------
+    # ---
+    # Init Manager to return our LoggerPlus class instead of default Logger.
+    # ---
+    logging.setLoggerClass(LoggerPlus)
+    # ---
+    # Now we can init our root logger.
+    # ---
     global logger
     logger = init_logger(str(const.LogName.ROOT), level)
 
@@ -209,13 +217,12 @@ def init_logger(logger_name: str,
     Initializes and returns a logger with the supplied name.
     '''
     # Create our logger at our default output level.
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(const.Level.to_logging(level))
-    logger.debug(f"Logger '{logger_name}' initialized at level {level}")
+    _logger = logging.getLogger(logger_name)
+    _logger.setLevel(const.Level.to_logging(level))
+    _logger.trace(f"Logger '{logger_name}' initialized at level {level}")
 
     # Non-root loggers should/must use the root's handler/formatter.
-
-    return logger
+    return _logger
 
 
 # -----------------------------------------------------------------------------
@@ -444,6 +451,17 @@ def _clear_data() -> None:
     _filter.exception(clear=True)
 
 
+def clean_up() -> None:
+    '''
+    Clean up logger, filter, whatever for next log message.
+    '''
+
+    # ---
+    # Filter Clean-Up
+    # ---
+    _clear_data()
+
+
 def _add_exception(error: Exception) -> None:
     '''
     Gets stack trace from `log.stack_trace()` and adds it to the filter so that
@@ -609,6 +627,7 @@ def ultra_mega_debug(msg:           str,
 
 
     '''
+    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -664,6 +683,7 @@ def ultra_hyper_debug(msg:           str,
       ---
       -----
     '''
+    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     # Do normal {} string formatting if we have a message string... but let
     # non-strings through so pretty.indented() can work better with dicts, etc.
@@ -708,11 +728,29 @@ def ultra_hyper_debug(msg:           str,
 # Logger Normal Functions
 # -----------------------------------------------------------------------------
 
+def trace(msg:           str,
+          *args:         Any,
+          veredi_logger: const.LoggerInput     = None,
+          context:       'VerediContext' = None,
+          **kwargs:      Any) -> None:
+    clean_up()
+    log_kwargs = pop_log_kwargs(kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
+    if not ut_call(const.Level.TRACE, output):
+        this = _logger(veredi_logger)
+        this.trace(output,
+                   **log_kwargs)
+
+
 def debug(msg:           str,
           *args:         Any,
           veredi_logger: const.LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
+    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -729,6 +767,7 @@ def info(msg:           str,
          veredi_logger: const.LoggerInput     = None,
          context:       'VerediContext' = None,
          **kwargs:      Any) -> None:
+    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -740,11 +779,29 @@ def info(msg:           str,
                   **log_kwargs)
 
 
+def notice(msg:           str,
+           *args:         Any,
+           veredi_logger: const.LoggerInput     = None,
+           context:       'VerediContext' = None,
+           **kwargs:      Any) -> None:
+    clean_up()
+    log_kwargs = pop_log_kwargs(kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
+    if not ut_call(const.Level.NOTICE, output):
+        this = _logger(veredi_logger)
+        this.notice(output,
+                    **log_kwargs)
+
+
 def warning(msg:           str,
             *args:         Any,
             veredi_logger: const.LoggerInput     = None,
             context:       'VerediContext' = None,
             **kwargs:      Any) -> None:
+    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -761,6 +818,7 @@ def error(msg:           str,
           veredi_logger: const.LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
+    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -915,6 +973,8 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
               context=self.context
           ) from error
     '''
+    clean_up()
+
     # ------------------------------
     # Why would you log an exception with no exception supplied?
     # Log critically. And judge them. Critically.
@@ -999,6 +1059,7 @@ def critical(msg:           str,
              veredi_logger: const.LoggerInput     = None,
              context:       'VerediContext' = None,
              **kwargs:      Any) -> None:
+    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -1010,12 +1071,64 @@ def critical(msg:           str,
                       **log_kwargs)
 
 
+def alert(msg:           str,
+          *args:         Any,
+          veredi_logger: const.LoggerInput     = None,
+          context:       'VerediContext' = None,
+          **kwargs:      Any) -> None:
+    clean_up()
+    log_kwargs = pop_log_kwargs(kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
+    if not ut_call(const.Level.ALERT, output):
+        this = _logger(veredi_logger)
+        this.alert(output,
+                   **log_kwargs)
+
+
+def emergency(msg:           str,
+              *args:         Any,
+              veredi_logger: const.LoggerInput     = None,
+              context:       'VerediContext' = None,
+              **kwargs:      Any) -> None:
+    clean_up()
+    log_kwargs = pop_log_kwargs(kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
+    if not ut_call(const.Level.EMERGENCY, output):
+        this = _logger(veredi_logger)
+        this.emergency(output,
+                       **log_kwargs)
+
+
+def apocalypse(msg:           str,
+               *args:         Any,
+               veredi_logger: const.LoggerInput     = None,
+               context:       'VerediContext' = None,
+               **kwargs:      Any) -> None:
+    clean_up()
+    log_kwargs = pop_log_kwargs(kwargs)
+    output = _format(msg,
+                     *args,
+                     context=context,
+                     **kwargs)
+    if not ut_call(const.Level.APOCALYPSE, output):
+        this = _logger(veredi_logger)
+        this.apocalypse(output,
+                        **log_kwargs)
+
+
 def at_level(level:         'const.Level',
              msg:           str,
              *args:         Any,
              veredi_logger: const.LoggerInput     = None,
              context:       'VerediContext' = None,
              **kwargs:      Any) -> None:
+    clean_up()
     kwargs = incr_stack_level(kwargs)
     log_fn = None
     if level == const.Level.NOTSET:
@@ -1067,6 +1180,7 @@ def group(log_group:     'const.Group',
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
+    clean_up()
 
     # ------------------------------
     # Get level from group.
@@ -1175,6 +1289,7 @@ def group_multi(groups:        Iterable['const.Group'],
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
+    clean_up()
     if group_resolve is None:
         group_resolve = const.GroupResolve.HIGHEST
 
@@ -1214,6 +1329,7 @@ def security(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
+    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.SECURITY,
           dotted,
@@ -1247,6 +1363,7 @@ def start_up(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
+    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.START_UP,
           dotted,
@@ -1280,6 +1397,7 @@ def shutdown(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
+    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.SHUTDOWN,
           dotted,
@@ -1313,6 +1431,7 @@ def data_processing(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
+    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.DATA_PROCESSING,
           dotted,
@@ -1346,6 +1465,7 @@ def registration(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
+    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.REGISTRATION,
           dotted,
@@ -1379,6 +1499,7 @@ def parallel(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
+    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.PARALLEL,
           dotted,
@@ -1427,7 +1548,8 @@ class LoggingManager:
 
         set_level(self._original)
 
-    def bookend(self, start):
+    @staticmethod
+    def bookend(start: bool) -> None:
         if start:
             print("\n\n\n")
         print("========================================"
@@ -1443,36 +1565,62 @@ class LoggingManager:
     # Specific Manager Types...
     # ---
     @staticmethod
-    def on_or_off(enabled: bool, bookends: bool = False) -> 'LoggingManager':
+    def on_or_off(on_off:   bool,
+                  level:    const.Level = const.Level.TRACE,
+                  bookends: bool        = False) -> 'LoggingManager':
         '''
-        Returns either a full_blast() manager or an ignored() manager,
-        depending on `enabled`.
+        Returns either a manager at `level` or a do-nothing (`no_op()`)
+        manager, depending on `on_off`.
         '''
-        if enabled:
-            return LoggingManager.full_blast()
-        return LoggingManager.ignored()
+        if bookends:
+            LoggingManager.bookend(on_off)
+        if on_off:
+            return LoggingManager.at_level(level)
+        return LoggingManager.no_op()
+
+    @staticmethod
+    def at_level(level: const.Level) -> 'LoggingManager':
+        '''
+        Returns a LoggingManager for the supplied log `level`.
+        '''
+        return LoggingManager(level)
+
+    @staticmethod
+    def debug() -> 'LoggingManager':
+        '''
+        This one sets logging to DEBUG level.
+        '''
+        return LoggingManager.at_level(const.Level.DEBUG)
+
+    @staticmethod
+    def trace() -> 'LoggingManager':
+        '''
+        This one sets logging to most verbose level - TRACE.
+        '''
+        return LoggingManager.at_level(const.Level.TRACE)
 
     @staticmethod
     def full_blast() -> 'LoggingManager':
         '''
-        This one sets logging to most verbose level - DEBUG.
+        This one sets logging to most verbose level - TRACE.
         '''
-        return LoggingManager(const.Level.DEBUG)
+        return LoggingManager.trace()
 
     @staticmethod
     def disabled() -> 'LoggingManager':
         '''
-        This one sets logging to least verbose level - CRITICAL.
+        This one sets logging to least verbose level - APOCALYPSE - which no
+        one should be using, really.
         '''
-        # TODO [2020-05-30]: more 'disabled' than this?
-        return LoggingManager(const.Level.CRITICAL)
+        return LoggingManager.at_level(const.Level.APOCALYPSE)
 
     @staticmethod
-    def ignored() -> 'LoggingManager':
+    def no_op() -> 'LoggingManager':
         '''
         This one does nothing.
         '''
-        return LoggingManager(const.Level.CRITICAL, no_op=True)
+        return LoggingManager(const.Level.NOTSET,
+                              no_op=True)
 
 
 # -----------------------------------------------------------------------------

@@ -107,10 +107,10 @@ class Test_Node(ZestBase):
                            extra=('node', ))
 
     def set_up(self):
-        self.node0 = MockNode(NodeType.INVALID)
+        self.node0 = MockNode(NodeType.VARIABLE)
         self.value0 = 42
 
-        self.node1 = MockNode(NodeType.INVALID)
+        self.node1 = MockNode(NodeType.RANDOM)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
@@ -141,6 +141,11 @@ class Test_Node(ZestBase):
     def test_value(self):
         self.assertIsNone(self.node0.value)
         self.assertEqual(self.node0._value, self.node0.value)
+
+        # Change node's type to something that should not allow value to be
+        # set.
+        self.node1._node_type = NodeType.INVALID
+        self.assertEqual(self.node1.type, NodeType.INVALID)
 
         # Turn off log for this exception we expect.
         with log.LoggingManager.disabled(), self.assertRaises(AttributeError):
@@ -312,10 +317,10 @@ class Test_Leaf(ZestBase):
                            extra=('leaf', ))
 
     def set_up(self):
-        self.leaf0 = MockLeaf(NodeType.INVALID)
+        self.leaf0 = MockLeaf(NodeType.VARIABLE)
         self.value0 = 42
 
-        self.leaf1 = MockLeaf(NodeType.INVALID)
+        self.leaf1 = MockLeaf(NodeType.RANDOM)
         self.value1 = 9001
 
     def set_values(self, value0=42, value1=9001):
@@ -584,7 +589,7 @@ class Test_Branch(ZestBase):
             # Branch base class shouldn't be able to eval successfully... It
             # shouldn't even be able to instantiate itself now, since it's
             # abstract.
-            tree.Branch(None, NodeType.INVALID, 'jeff')
+            tree.Branch(None, NodeType.BRANCH, 'jeff')
 
         # And no more expecting an AttributeError on eval().
         # with self.assertRaises(AttributeError):
