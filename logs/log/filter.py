@@ -150,12 +150,24 @@ class VerediFilter(logging.Filter):
         self.success_filter(record)
         self.exception_filter(record)
 
+        # Have done our part - clean up and get ready for the next one.
+        self._clear()
+
         # We just add data; always log all records that pass through this
         # 'filter'.
         return True
 
+    def _clear(self) -> None:
+        '''
+        Clear our filters out to prep for next log record.
+        '''
+        self.context(clear=True)
+        self.group(clear=True)
+        self.success(clear=True)
+        self.exception(clear=True)
+
     # -------------------------------------------------------------------------
-    # Filtering
+    # Extra Log Fields
     # -------------------------------------------------------------------------
 
     def context(self,

@@ -437,31 +437,6 @@ def _add_data(context:      Optional['VerediContext'] = None,
                     dry_run=log_dry_run)
 
 
-def _clear_data() -> None:
-    '''
-    Clears out our special LogRecord saved data.
-    '''
-    global _filter
-    if not _filter:
-        return
-
-    _filter.context(clear=True)
-    _filter.group(clear=True)
-    _filter.success(clear=True)
-    _filter.exception(clear=True)
-
-
-def clean_up() -> None:
-    '''
-    Clean up logger, filter, whatever for next log message.
-    '''
-
-    # ---
-    # Filter Clean-Up
-    # ---
-    _clear_data()
-
-
 def _add_exception(error: Exception) -> None:
     '''
     Gets stack trace from `log.stack_trace()` and adds it to the filter so that
@@ -627,7 +602,6 @@ def ultra_mega_debug(msg:           str,
 
 
     '''
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -683,7 +657,6 @@ def ultra_hyper_debug(msg:           str,
       ---
       -----
     '''
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     # Do normal {} string formatting if we have a message string... but let
     # non-strings through so pretty.indented() can work better with dicts, etc.
@@ -733,7 +706,6 @@ def trace(msg:           str,
           veredi_logger: const.LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -750,7 +722,6 @@ def debug(msg:           str,
           veredi_logger: const.LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -767,7 +738,6 @@ def info(msg:           str,
          veredi_logger: const.LoggerInput     = None,
          context:       'VerediContext' = None,
          **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -784,7 +754,6 @@ def notice(msg:           str,
            veredi_logger: const.LoggerInput     = None,
            context:       'VerediContext' = None,
            **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -801,7 +770,6 @@ def warning(msg:           str,
             veredi_logger: const.LoggerInput     = None,
             context:       'VerediContext' = None,
             **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -818,7 +786,6 @@ def error(msg:           str,
           veredi_logger: const.LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -973,7 +940,6 @@ def exception(err_or_class:  Union[Exception, Type[Exception]],
               context=self.context
           ) from error
     '''
-    clean_up()
 
     # ------------------------------
     # Why would you log an exception with no exception supplied?
@@ -1059,7 +1025,6 @@ def critical(msg:           str,
              veredi_logger: const.LoggerInput     = None,
              context:       'VerediContext' = None,
              **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -1076,7 +1041,6 @@ def alert(msg:           str,
           veredi_logger: const.LoggerInput     = None,
           context:       'VerediContext' = None,
           **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -1093,7 +1057,6 @@ def emergency(msg:           str,
               veredi_logger: const.LoggerInput     = None,
               context:       'VerediContext' = None,
               **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -1110,7 +1073,6 @@ def apocalypse(msg:           str,
                veredi_logger: const.LoggerInput     = None,
                context:       'VerediContext' = None,
                **kwargs:      Any) -> None:
-    clean_up()
     log_kwargs = pop_log_kwargs(kwargs)
     output = _format(msg,
                      *args,
@@ -1128,7 +1090,6 @@ def at_level(level:         'const.Level',
              veredi_logger: const.LoggerInput     = None,
              context:       'VerediContext' = None,
              **kwargs:      Any) -> None:
-    clean_up()
     kwargs = incr_stack_level(kwargs)
     log_fn = None
     if level == const.Level.NOTSET:
@@ -1180,7 +1141,6 @@ def group(log_group:     'const.Group',
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
-    clean_up()
 
     # ------------------------------
     # Get level from group.
@@ -1289,7 +1249,6 @@ def group_multi(groups:        Iterable['const.Group'],
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
-    clean_up()
     if group_resolve is None:
         group_resolve = const.GroupResolve.HIGHEST
 
@@ -1329,7 +1288,6 @@ def security(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
-    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.SECURITY,
           dotted,
@@ -1363,7 +1321,6 @@ def start_up(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
-    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.START_UP,
           dotted,
@@ -1397,7 +1354,6 @@ def shutdown(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
-    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.SHUTDOWN,
           dotted,
@@ -1431,7 +1387,6 @@ def data_processing(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
-    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.DATA_PROCESSING,
           dotted,
@@ -1465,7 +1420,6 @@ def registration(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
-    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.REGISTRATION,
           dotted,
@@ -1499,7 +1453,6 @@ def parallel(dotted:        label.DotStr,
       - True  -> SuccessType.SUCCESS
       - False -> SuccessType.FAILURE
     '''
-    clean_up()
     kwargs = incr_stack_level(kwargs)
     group(const.Group.PARALLEL,
           dotted,
