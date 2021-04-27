@@ -100,7 +100,7 @@ class BaseRepository(ABC, LogMixin, NamesMixin):
         self._log_config(self.dotted)
         self._log_group_multi(self._LOG_INIT,
                               self.dotted,
-                              f"{self.__class__.__name__} init...")
+                              f"{self.klass} init...")
         self._log_group_multi(self._LOG_INIT,
                               self.dotted,
                               "BaseRepository init...")
@@ -138,7 +138,7 @@ class BaseRepository(ABC, LogMixin, NamesMixin):
         '''
         Data for the Veredi Background context.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.background() "
+        raise NotImplementedError(f"{self.klass}.background() "
                                   "is not implemented.")
 
     def _make_background(self) -> None:
@@ -169,7 +169,7 @@ class BaseRepository(ABC, LogMixin, NamesMixin):
         '''
         Give the DataContext, return the data's repository key.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.load() "
+        raise NotImplementedError(f"{self.klass}.load() "
                                   "is not implemented.")
 
     @abstractmethod
@@ -180,7 +180,7 @@ class BaseRepository(ABC, LogMixin, NamesMixin):
 
         Returns io stream.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.load() "
+        raise NotImplementedError(f"{self.klass}.load() "
                                   "is not implemented.")
 
     @abstractmethod
@@ -192,7 +192,7 @@ class BaseRepository(ABC, LogMixin, NamesMixin):
 
         Returns success/failure of save operation.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.load() "
+        raise NotImplementedError(f"{self.klass}.load() "
                                   "is not implemented.")
 
     # -------------------------------------------------------------------------

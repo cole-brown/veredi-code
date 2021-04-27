@@ -114,7 +114,7 @@ class EncodableRegistry(CallRegistrar,
         try:
             name = encodable.type_field()
         except NotImplementedError as error:
-            msg = (f"{self.__class__.__name__}._register: '{type(encodable)}' "
+            msg = (f"{self.klass}._register: '{type(encodable)}' "
                    f"(\"{label.regularize(*reg_label)}\") needs to "
                    "implement type_field() function.")
             self._log_exception(error, msg)
@@ -250,7 +250,7 @@ class EncodableRegistry(CallRegistrar,
         # ---
         # No Fallback: Error out.
         # ---
-        msg = (f"{self.__class__.__name__}: "
+        msg = (f"{self.klass}: "
                "No registered Encodable found for "
                f"data. data_dotted: {data_dotted}")
         extra = (", \n"

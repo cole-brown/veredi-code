@@ -81,7 +81,7 @@ class CombatSystem(D20RulesSystem,
         '''Set our component type for the get() helper. We have two, so...'''
 
         super()._configure(context)
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           context)
         self._config_rules_def(context, config, 'combat')
@@ -194,7 +194,7 @@ class CombatSystem(D20RulesSystem,
 
         eid = InputContext.source_id(context)
         entity, component = self._manager.get_with_log(
-            f'{self.__class__.__name__}.command_attack',
+            f'{self.klass}.command_attack',
             eid,
             self._component_type,
             context=context,

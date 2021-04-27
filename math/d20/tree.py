@@ -242,7 +242,7 @@ class Node(MathTree,
         '''
         Don't support simple by default.
         '''
-        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+        msg = (f"{self.klass} doesn't support encoding to a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -253,7 +253,7 @@ class Node(MathTree,
         '''
         Don't support simple by default.
         '''
-        msg = (f"{klass.__name__} doesn't support decoding from a "
+        msg = (f"{klass.klass} doesn't support decoding from a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -309,7 +309,7 @@ class Leaf(Node,
         '''
         Python's str() function.
         '''
-        return self.__class__.__name__
+        return self.klass
 
     def __repr__(self) -> str:
         '''
@@ -372,7 +372,7 @@ class Dice(Leaf,
         Python's str() function.
         '''
         return (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"("
             f"{'-' if self._sign < 0 else ''}"
             f"{self.dice}d{self.faces}"
@@ -507,7 +507,7 @@ class Constant(Leaf,
         Python's str() function.
         '''
         return (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"("
             f"{'-' if self._sign < 0 else ''}"
             f"{self._value}"
@@ -603,7 +603,7 @@ class Variable(Leaf,
         Python's str() function.
         '''
         return (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"("
             f"{'-' if self._sign < 0 else ''}"
             f"{self.moniker}"
@@ -728,7 +728,7 @@ class Branch(Node, ABC,
         Returns some sort of number... int/float/etc.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._evaluate_children() "
+            f"{self.klass}._evaluate_children() "
             "is not implemented.")
 
     @property
@@ -744,10 +744,10 @@ class Branch(Node, ABC,
         Python's str() function.
         '''
         if not self.children:
-            raise ValueError(f"Branch class {self.__class__.__name__} has no "
+            raise ValueError(f"Branch class {self.klass} has no "
                              f"children?! children: {self._children}", self)
 
-        out = [f"{self.__class__.__name__}",
+        out = [f"{self.klass}",
                "("]
         first = True
         for each in self.children:

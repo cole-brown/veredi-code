@@ -93,7 +93,7 @@ class SkillSystem(D20RulesSystem,
         self._component_type: Type[Component] = SkillComponent
 
         super()._configure(context)
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           context)
         self._config_rules_def(context, config, 'skill')
@@ -201,7 +201,7 @@ class SkillSystem(D20RulesSystem,
 
         eid = InputContext.source_id(context)
         entity, component = self._manager.get_with_log(
-            f'{self.__class__.__name__}.command_skill',
+            f'{self.klass}.command_skill',
             eid,
             self._component_type,
             context=context,
@@ -236,7 +236,7 @@ class SkillSystem(D20RulesSystem,
             return
 
         entity, component = self._manager.get_with_log(
-            f'{self.__class__.__name__}.command_skill',
+            f'{self.klass}.command_skill',
             event.id,
             self._component_type,
             event=event)

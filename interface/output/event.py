@@ -186,7 +186,7 @@ class OutputEvent(Event, Encodable):
         '''
         Don't support simple for OutputEvents.
         '''
-        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+        msg = (f"{self.klass} doesn't support encoding to a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -197,7 +197,7 @@ class OutputEvent(Event, Encodable):
         '''
         Don't support simple by default.
         '''
-        msg = (f"{klass.__name__} doesn't support decoding from a "
+        msg = (f"{klass.klass} doesn't support decoding from a "
                "simple string.")
         raise NotImplementedError(msg)
 

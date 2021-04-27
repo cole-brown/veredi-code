@@ -277,7 +277,7 @@ class MediatorSystem(System,
         # ---
         # Context Stuff
         # ---
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           context)
 
@@ -842,11 +842,11 @@ class MediatorSystem(System,
                                 context=ctx)
                 # log.ultra_hyper_debug(
                 #     msg,
-                #     title=(f"{self.__class__.__name__}._update_autophagy: "
+                #     title=(f"{self.klass}._update_autophagy: "
                 #            "server _test_ msg:"))
                 # log.ultra_hyper_debug(
                 #     ctx,
-                #     title=((f"{self.__class__.__name__}._update_autophagy: "
+                #     title=((f"{self.klass}._update_autophagy: "
                 #             "server _test_ ctx:"))
 
             health = health.update(VerediHealth.AUTOPHAGY_FAILURE)

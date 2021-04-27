@@ -163,7 +163,7 @@ class Encodable(NamesMixin):
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if getattr(self, "__abstractmethods__", None):
             msg = ("Can't instantiate abstract class "
-                   f"{self.__class__.__name__} with abstract methods "
+                   f"{self.klass} with abstract methods "
                    f"{set(self.__abstractmethods__)}")
             error = TypeError(msg, self, args, kwargs)
             raise log.exception(error, msg)
@@ -328,7 +328,7 @@ class Encodable(NamesMixin):
         #     klass.dotted,
         #     "{} checking for claim of data:\n"
         #     "  {}",
-        #     klass.__name__, data)
+        #     klass.klass, data)
 
         # ---
         # Simple?
@@ -339,7 +339,7 @@ class Encodable(NamesMixin):
             #     klass.dotted,
             #     "{} checking for Encoding.SIMPLE claim of data:\n"
             #     "  {}",
-            #     klass.__name__, data)
+            #     klass.klass, data)
 
             # If it's a simple encode and we don't have a decode regex for
             # that, then... No; It can't be ours.
@@ -350,9 +350,9 @@ class Encodable(NamesMixin):
                 #     "{} has no Encoding.SIMPLE decode regex; "
                 #     "cannot claim data:\n"
                 #     "  {}",
-                #     klass.__name__, data)
-                reason = (f"{klass.__name__} is (probably) encoded simply "
-                          f"but has no {klass.__name__}._get_decode_rx(): "
+                #     klass.klass, data)
+                reason = (f"{klass.klass} is (probably) encoded simply "
+                          f"but has no {klass.klass}._get_decode_rx(): "
                           f"rx: {decode_rx}, data: {data}")
                 return False, None, reason
 
@@ -365,7 +365,7 @@ class Encodable(NamesMixin):
                     klass.dotted,
                     "{} {} Encoding.SIMPLE data:\n"
                     "  {}",
-                    klass.__name__,
+                    klass.klass,
                     'staking claim on' if claimed else 'will not claim',
                     data)
             return claimed, data_claim, None
@@ -377,7 +377,7 @@ class Encodable(NamesMixin):
             #     "{} was not Encoding.SIMPLE, and we don't do "
             #     "Encoding.COMPLEX. Will not claim data:\n"
             #     "  {}",
-            #     klass.__name__, data)
+            #     klass.klass, data)
 
             return (False,
                     None,
@@ -387,7 +387,7 @@ class Encodable(NamesMixin):
         #     klass.dotted,
         #     "{} checking for Encoding.COMPLEX claim of data:\n"
         #     "  {}",
-        #     klass.__name__, data)
+        #     klass.klass, data)
 
         # ---
         # Complex?
@@ -400,7 +400,7 @@ class Encodable(NamesMixin):
                 klass.dotted,
                 "{} was encoded with registry. Staking claim on data:\n"
                 "  {}",
-                klass.__name__, data[klass.ENCODABLE_PAYLOAD_FIELD])
+                klass.klass, data[klass.ENCODABLE_PAYLOAD_FIELD])
             return True, data[klass.ENCODABLE_PAYLOAD_FIELD], None
 
         # Are we a sub-field?
@@ -409,7 +409,7 @@ class Encodable(NamesMixin):
                 klass.dotted,
                 "{} was encoded with type_field. Staking claim on data:\n"
                 "  {}",
-                klass.__name__, data[klass.type_field()])
+                klass.klass, data[klass.type_field()])
             # Our type is a top level key, so our claim is the key's value.
             return True, data[klass.type_field()], None
 
@@ -419,7 +419,7 @@ class Encodable(NamesMixin):
                 klass.dotted,
                 "{}... um... /is/ type_field? IDK. Staking claim on data:\n"
                 "  {}",
-                klass.__name__, data)
+                klass.klass, data)
             # Our type is in the 'type' field, so our claim is this whole
             # data thing.
             return True, data, None
@@ -428,7 +428,7 @@ class Encodable(NamesMixin):
         # No Claim on Data.
         # ---
         # Doesn't have our type_field() value, so no.
-        reason = (f"{klass.__name__} is (probably) encoded but doesn't have "
+        reason = (f"{klass.klass} is (probably) encoded but doesn't have "
                   f"our type-field ('{klass.type_field()}') at top level or "
                   "as 'type' value.")
 
@@ -593,7 +593,7 @@ class Encodable(NamesMixin):
         '''
         claiming, _, reason = klass.claim(data)
         if not claiming:
-            msg = f"Cannot claim for {klass.__name__}: {reason}."
+            msg = f"Cannot claim for {klass.klass}: {reason}."
             error = EncodableError(msg, None,
                                    data={
                                        'data': data,
@@ -608,7 +608,7 @@ class Encodable(NamesMixin):
         Raises an EncodableError if supplied `key` is not in `mapping`.
         '''
         if key not in data:
-            msg = f"Cannot decode to {klass.__name__}: {data}"
+            msg = f"Cannot decode to {klass.klass}: {data}"
             error = EncodableError(msg, None,
                                    data={
                                        'key': key,
@@ -629,7 +629,7 @@ class Encodable(NamesMixin):
         '''
         if data[key] != value:
             msg = (
-                f"Cannot decode to {klass.__name__}. "
+                f"Cannot decode to {klass.klass}. "
                 f"Value of '{key}' is incorrect. "
                 f"Expected '{value}'; got '{data[key]}"
                 f": {data}",

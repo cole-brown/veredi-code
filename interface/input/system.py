@@ -120,7 +120,7 @@ class InputSystem(System,
         # ---
         # Context Stuff
         # ---
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           context)
 
@@ -305,7 +305,7 @@ class InputSystem(System,
             return
 
         entity = self._manager.entity.get_with_log(
-            f'{self.__class__.__name__}',
+            f'{self.klass}',
             event.id,
             event=event)
         if not entity:
@@ -324,7 +324,7 @@ class InputSystem(System,
             return
 
         entity = self._manager.entity.get_with_log(
-            f'{self.__class__.__name__}',
+            f'{self.klass}',
             event.id,
             event=event)
         if not entity:

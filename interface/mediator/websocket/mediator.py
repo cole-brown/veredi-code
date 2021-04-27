@@ -121,7 +121,7 @@ class WebSocketMediator(Mediator):
         # ---
         # Configuration
         # ---
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           context)
 

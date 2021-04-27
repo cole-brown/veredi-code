@@ -55,7 +55,7 @@ def registrar(reg_type:   Type['BaseRegistrar'],
         log_groups,
         reg_type.dotted,
         "Create requested for {} ({})...",
-        reg_type.__name__,
+        reg_type.klass,
         reg_type.dotted
     )
 
@@ -87,7 +87,7 @@ def registrar(reg_type:   Type['BaseRegistrar'],
     log.group_multi(
         log_groups,
         reg_type.dotted,
-        f"Create request completed for {reg_type.__name__} "
+        f"Create request completed for {reg_type.klass} "
         f"({instance.dotted})...")
 
     return instance
@@ -110,9 +110,9 @@ class BaseRegistrar(LogMixin, NamesMixin):
           - string/strings to create the Veredi dotted label.
         + name_string: Optional[str]
           - Any short string for describing class. Either short-hand or class's
-            __name__ are fine.
+            klass/__name__ descriptor are fine.
         + name_klass:        Optional[str]
-          - If None, will be class's __name__.
+          - If None, will be class's __name__ descriptor.
       - Optional:
         + name_string_xform: Optional[Callable[[str], str]] = None,
         + name_klass_xform:  Optional[Callable[[str], str]] = to_lower_lambda,
@@ -133,7 +133,7 @@ class BaseRegistrar(LogMixin, NamesMixin):
             log_groups,
             registry.dotted,
             "Creating {} ({})...",
-            registry.__name__,
+            registry.klass,
             registry.dotted)
 
         # Create it.
@@ -143,7 +143,7 @@ class BaseRegistrar(LogMixin, NamesMixin):
             log_groups,
             registry.dotted,
             "{} ({}) created.",
-            reg.__class__.__name__,
+            reg.klass,
             reg.dotted)
         return reg
 
@@ -197,7 +197,7 @@ class BaseRegistrar(LogMixin, NamesMixin):
         '''
         Sub-class configuration.
         '''
-        # config = background.config.config(self.__class__.__name__,
+        # config = background.config.config(self.klass,
         #                                   self.dotted,
         #                                   None)
         ...
@@ -411,7 +411,7 @@ class BaseRegistrar(LogMixin, NamesMixin):
                           name,
                           stacklevel=3)
         except TypeError as error:
-            msg = (f"{self.__class__.__name__}.add(): Our "
+            msg = (f"{self.klass}.add(): Our "
                    "'registry_our' dict is the incorrect type? Expected "
                    "something that can deal with 'in' operator. Have: "
                    f"{type(registry_our)} -> {registry_our}. Trying to "
@@ -571,7 +571,7 @@ class BaseRegistrar(LogMixin, NamesMixin):
                 # Leave (k)args for others.
                 "{} failed creating '{}' with: args: {}, "
                 "kwargs: {},  context: {}",
-                self.__class__.__name__,
+                self.klass,
                 entry, args, kwargs, context) from error
 
     # -------------------------------------------------------------------------

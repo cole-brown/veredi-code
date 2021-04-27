@@ -997,7 +997,7 @@ class DataManager(EcsManagerWithEvents,
 
         # TODO [2020-05-22]: Serialize it...
         raise NotImplementedError(
-            f"{self.__class__.__name__}.event_data_save_request() "
+            f"{self.klass}.event_data_save_request() "
             "is not yet implemented...")
 
         serialized = None
@@ -1051,7 +1051,7 @@ class DataManager(EcsManagerWithEvents,
                 EventError,
                 "{} could not create anything from event {}. "
                 "args: {}, kwargs: {}, context: {}",
-                self.__class__.__name__,
+                self.klass,
                 event, event.context
             )
 
@@ -1108,7 +1108,7 @@ class DataManager(EcsManagerWithEvents,
                     "{} failed when trying "
                     "to create from data. event: {}, "
                     "context: {}",
-                    self.__class__.__name__, event,
+                    self.klass, event,
                     event.context,
                     context=event.context) from error
 
@@ -1135,7 +1135,7 @@ class DataManager(EcsManagerWithEvents,
 
         # TODO [2020-05-22]: Save it.
         raise NotImplementedError(
-            f"{self.__class__.__name__}.event_serialized() "
+            f"{self.klass}.event_serialized() "
             "is not yet implemented.")
         serialized = None
 
@@ -1165,7 +1165,7 @@ class DataManager(EcsManagerWithEvents,
         if not self._health_ok_event(event):
             return
 
-        self._log_warning(f"{self.__class__.__name__}.event_saved() "
+        self._log_warning(f"{self.klass}.event_saved() "
                           "is not really implemented... ignoring event: {}",
                           event)
 
@@ -1178,7 +1178,7 @@ class DataManager(EcsManagerWithEvents,
         #
         # # TODO [2020-05-22]: Serialize it.
         # raise NotImplementedError(
-        #     f"{self.__class__.__name__}.event_saved() "
+        #     f"{self.klass}.event_saved() "
         #     "is not implemented.")
         # saved = None
         #

@@ -148,18 +148,18 @@ def register(klass:          Type['Encodable'],
     dotted_str = label.normalize(dotted)
     log.registration(log_dotted,
                      "{}: Registering '{}' to '{}'...",
-                     codec.__class__.__name__,
+                     codec.klass,
                      dotted_str,
-                     klass.__name__)
+                     klass.klass)
 
     dotted_args = label.regularize(dotted)
     codec.register(klass, *dotted_args)
 
     log.registration(log_dotted,
                      "{}: Registered '{}' to '{}'.",
-                     codec.__class__.__name__,
+                     codec.klass,
                      dotted_str,
-                     klass.__name__)
+                     klass.klass)
 
 
 def register_enum(klass:            Type['Encodable'],
@@ -222,12 +222,12 @@ def ignore(ignoree: Type['Encodable']) -> None:
     log_dotted = label.normalize(EncodableRegistry.dotted, 'ignore')
     log.registration(log_dotted,
                      "{}: '{}' marking as ignored for registration...",
-                     codec.__class__.__name__,
+                     codec.klass,
                      ignoree)
 
     codec.ignore(ignoree)
 
     log.registration(log_dotted,
                      "{}: '{}' marked as ignored.",
-                     codec.__class__.__name__,
+                     codec.klass,
                      ignoree)

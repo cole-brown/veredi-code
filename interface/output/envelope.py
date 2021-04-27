@@ -144,7 +144,7 @@ class Address(Encodable,
         '''
         Don't support simple for Addresss.
         '''
-        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+        msg = (f"{self.klass} doesn't support encoding to a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -155,7 +155,7 @@ class Address(Encodable,
         '''
         Don't support simple by default.
         '''
-        msg = (f"{klass.__name__} doesn't support decoding from a "
+        msg = (f"{klass.klass} doesn't support decoding from a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -213,7 +213,7 @@ class Address(Encodable,
 
     def __str__(self) -> str:
         return (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"[{self._recipient}, "
             f"{self._security_subject}]("
             f"{self._user_ids})"
@@ -428,7 +428,7 @@ class Envelope(Encodable,
         '''
         Don't support simple for Envelopes.
         '''
-        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+        msg = (f"{self.klass} doesn't support encoding to a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -439,7 +439,7 @@ class Envelope(Encodable,
         '''
         Don't support simple for Envelopes.
         '''
-        msg = (f"{klass.__name__} doesn't support decoding from a "
+        msg = (f"{klass.klass} doesn't support decoding from a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -494,7 +494,7 @@ class Envelope(Encodable,
 
     def __str__(self) -> str:
         return (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"[{self._recipients}, "
             f"{self._addresses}]("
             f"{self._event})"

@@ -1229,7 +1229,7 @@ class Engine(LogMixin, NamesMixin,
 
         else:
             error = EngineError(
-                f"{self.__class__.__name__}._run_cycle() "
+                f"{self.klass}._run_cycle() "
                 f"received an un-runnable SystemTick cycle: {cycle}",
                 data={
                     'cycle': cycle,
@@ -1239,7 +1239,7 @@ class Engine(LogMixin, NamesMixin,
                 error,
                 "{}._run_cycle({}) received an un-runnable SystemTick: {}. "
                 "Valid options are: {}",
-                self.__class__.__name__,
+                self.klass,
                 cycle,
                 cycle,
                 (SystemTick.TICKS_BIRTH,
@@ -1290,7 +1290,7 @@ class Engine(LogMixin, NamesMixin,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
                               "and timed out! (health: {}, took: {})",
-                              self.__class__.__name__,
+                              self.klass,
                               self.tick,
                               str(health),
                               self._timer_life.elapsed_str)
@@ -1323,7 +1323,7 @@ class Engine(LogMixin, NamesMixin,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
                               "and timed out! (health: {}, took: {})",
-                              self.__class__.__name__,
+                              self.klass,
                               self.tick,
                               str(health),
                               self._timer_life.elapsed_str)
@@ -1344,7 +1344,7 @@ class Engine(LogMixin, NamesMixin,
                       log.Level.ERROR,
                       "FATAL: {} is in {} but not in any "
                       "creation/start-up ticks? {}",
-                      self.__class__.__name__,
+                      self.klass,
                       self.tick,
                       self._timer_life.elapsed_str)
         self.set_all_health(VerediHealth.FATAL, True)
@@ -1466,7 +1466,7 @@ class Engine(LogMixin, NamesMixin,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
                               "and timed out! (health: {}, took: {})",
-                              self.__class__.__name__,
+                              self.klass,
                               self.tick,
                               str(health),
                               self._timer_life.elapsed_str)
@@ -1501,7 +1501,7 @@ class Engine(LogMixin, NamesMixin,
                               log.Level.ERROR,
                               "FATAL: {}'s {} took too long "
                               "and timed out! (health: {}, took: {})",
-                              self.__class__.__name__,
+                              self.klass,
                               self.tick,
                               str(self.health),
                               self._timer_life.elapsed_str)
@@ -1535,7 +1535,7 @@ class Engine(LogMixin, NamesMixin,
                               log.Level.WARNING,
                               "{}'s {} completed with poor "
                               "or incorrect health. (time: {})",
-                              self.__class__.__name__,
+                              self.klass,
                               self.tick,
                               self._timer_life.elapsed_str)
                 self.set_all_health(VerediHealth.FATAL, True)
@@ -1573,7 +1573,7 @@ class Engine(LogMixin, NamesMixin,
                               "{}'s {} completed with poor "
                               "or incorrect health: {} (expected: {}). "
                               "(time: {})",
-                              self.__class__.__name__,
+                              self.klass,
                               str(self.tick),
                               str(health),
                               str(VerediHealth.NECROSIS),
@@ -1588,7 +1588,7 @@ class Engine(LogMixin, NamesMixin,
                       log.Level.ERROR,
                       "FATAL: {} is in {} but not in any "
                       "tear-down/end ticks? tick: {}, timer-life: {}",
-                      self.__class__.__name__,
+                      self.klass,
                       self.life_cycle,
                       self.tick,
                       self._timer_life.elapsed_str)
@@ -1713,7 +1713,7 @@ class Engine(LogMixin, NamesMixin,
         if self.life_cycle == SystemTick.TICKS_AFTERLIFE:
             self.log_tick(self.life_cycle,
                           log.Level.INFO,
-                          f"{self.__class__.__name__} is stopped and "
+                          f"{self.klass} is stopped and "
                           "in the afterlife. Current life-cycle: {}, tick: {}",
                           str(self.life_cycle), str(self.tick))
             return True
@@ -2061,7 +2061,7 @@ class Engine(LogMixin, NamesMixin,
                               log.Level.ERROR,
                               "FATAL: In {}._update_game_loop() but not in "
                               "any game-loop ticks? Tick: {}. Valid: {}",
-                              self.__class__.__name__,
+                              self.klass,
                               self.tick,
                               _GAME_LOOP_SEQUENCE)
                 self.set_all_health(VerediHealth.FATAL, True)

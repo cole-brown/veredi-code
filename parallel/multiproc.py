@@ -220,7 +220,7 @@ class ProcToSubComm(NamesMixin,
         '''
         log.group_multi(_LOG_INIT,
                         self.dotted,
-                        f"{self.__class__.__name__}: "
+                        f"{self.klass}: "
                         f"Starting {self.name} sub-process...")
         self.timer_val = time_sec
         self.time_start = veredi.time.machine.utcnow()
@@ -251,7 +251,7 @@ class ProcToSubComm(NamesMixin,
             #     "cannot stop process.")
             log.group_multi(_LOG_KILL,
                             self.dotted,
-                            f"{self.__class__.__name__}: "
+                            f"{self.klass}: "
                             "process is null for {self.name}; "
                             "cannot stop process. Returning successful "
                             "exit anyways.",
@@ -263,7 +263,7 @@ class ProcToSubComm(NamesMixin,
         if self.process.exitcode == 0:
             log.group_multi(_LOG_KILL,
                             self.dotted,
-                            f"{self.__class__.__name__}: "
+                            f"{self.klass}: "
                             "{self.name} process already stopped.")
             return ExitCodeTuple(self.name, self.process.exitcode)
 
@@ -271,7 +271,7 @@ class ProcToSubComm(NamesMixin,
         # doing its shutdown.
         log.group_multi(_LOG_KILL,
                         self.dotted,
-                        f"{self.__class__.__name__}: "
+                        f"{self.klass}: "
                         f"Asking {self.name} to end gracefully...")
         self.shutdown.set()
 
@@ -279,19 +279,19 @@ class ProcToSubComm(NamesMixin,
         if self.process.is_alive():
             log.group_multi(_LOG_KILL,
                             self.dotted,
-                            f"{self.__class__.__name__}: "
+                            f"{self.klass}: "
                             f"Waiting for {self.name} to complete "
                             "structured shutdown...")
             self.process.join(wait_timeout)
             log.group_multi(_LOG_KILL,
                             self.dotted,
-                            f"{self.__class__.__name__}: "
+                            f"{self.klass}: "
                             f"{self.name} exit code: "
                             f"{str(self.process.exitcode)}")
         else:
             log.group_multi(_LOG_KILL,
                             self.dotted,
-                            f"{self.__class__.__name__}: "
+                            f"{self.klass}: "
                             f"{self.name} isn't alive; "
                             "skip shutdown...")
 
@@ -301,7 +301,7 @@ class ProcToSubComm(NamesMixin,
             # Still not exited; terminate it.
             log.group_multi(_LOG_KILL,
                             self.dotted,
-                            f"{self.__class__.__name__}: "
+                            f"{self.klass}: "
                             f"{self.name} still not exited; terminating...")
             self.process.terminate()
 
@@ -309,7 +309,7 @@ class ProcToSubComm(NamesMixin,
         self.time_end = veredi.time.machine.utcnow()
         log.group_multi(_LOG_KILL,
                         self.dotted,
-                        f"{self.__class__.__name__}: "
+                        f"{self.klass}: "
                         f"{self.name} stopped.")
         return ExitCodeTuple(self.name, self.process.exitcode)
 
@@ -418,7 +418,7 @@ class ProcToSubComm(NamesMixin,
         contains_data = self.pipe.poll()
         # log.data_processing(self.dotted,
         #                     "{} '{}' pipe has data?: {}",
-        #                     self.__class__.__name__, self.name,
+        #                     self.klass, self.name,
         #                     contains_data)
         #                     # log_only_at=log.Level.DEBUG)
         return contains_data
@@ -430,7 +430,7 @@ class ProcToSubComm(NamesMixin,
         '''
         log.data_processing(self.dotted,
                             "{} '{}' send to sub-proc: {}, {}",
-                            self.__class__.__name__, self.name,
+                            self.klass, self.name,
                             package, context)
         self.pipe.send((package, context))
 
@@ -441,7 +441,7 @@ class ProcToSubComm(NamesMixin,
         package, context = self.pipe.recv()
         log.data_processing(self.dotted,
                             "{} '{}' recv from sub-proc: {}, {}",
-                            self.__class__.__name__, self.name,
+                            self.klass, self.name,
                             package, context)
         return (package, context)
 
@@ -452,7 +452,7 @@ class ProcToSubComm(NamesMixin,
         exists = bool(self.ut_pipe)
         # log.data_processing(self.dotted,
         #                     "{} '{}' TESTING pipe exists?: {}",
-        #                     self.__class__.__name__, self.name,
+        #                     self.klass, self.name,
         #                     exists)
         return exists
 
@@ -464,7 +464,7 @@ class ProcToSubComm(NamesMixin,
         contains_data = self.ut_pipe.poll()
         # log.data_processing(self.dotted,
         #                     "{} '{}' TESTING pipe has data?: {}",
-        #                     self.__class__.__name__, self.name,
+        #                     self.klass, self.name,
         #                     contains_data)
         return contains_data
 
@@ -475,7 +475,7 @@ class ProcToSubComm(NamesMixin,
         '''
         log.data_processing(self.dotted,
                             "{} '{}' unit-test send to sub-proc: {}, {}",
-                            self.__class__.__name__, self.name,
+                            self.klass, self.name,
                             package, context)
         self.ut_pipe.send((package, context))
 
@@ -486,7 +486,7 @@ class ProcToSubComm(NamesMixin,
         package, context = self.ut_pipe.recv()
         log.data_processing(self.dotted,
                             "{} '{}' unit-test recv from sub-proc: {}, {}",
-                            self.__class__.__name__, self.name,
+                            self.klass, self.name,
                             package, context)
         return (package, context)
 
@@ -495,7 +495,7 @@ class ProcToSubComm(NamesMixin,
     # -------------------------------------------------------------------------
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}('{self.name}')"
+        return f"{self.klass}('{self.name}')"
 
 
 class SubToProcComm(NamesMixin,
@@ -539,7 +539,7 @@ class SubToProcComm(NamesMixin,
         '''
         log.group_multi(_LOG_INIT,
                         self.dotted,
-                        f"{self.__class__.__name__}: "
+                        f"{self.klass}: "
                         f"Starting {self.name}...")
         self._entry_fn(self, context)
 
@@ -555,7 +555,7 @@ class SubToProcComm(NamesMixin,
         contains_data = self.pipe.poll()
         # log.data_processing(self.dotted,
         #                     "{} '{}' pipe has data?: {}",
-        #                     self.__class__.__name__, self.name,
+        #                     self.klass, self.name,
         #                     contains_data)
         return contains_data
 
@@ -566,7 +566,7 @@ class SubToProcComm(NamesMixin,
         '''
         log.data_processing(self.dotted,
                             "{} '{}' pipe send to main proc: {}, {}",
-                            self.__class__.__name__, self.name,
+                            self.klass, self.name,
                             package, context)
         self.pipe.send((package, context))
 
@@ -577,7 +577,7 @@ class SubToProcComm(NamesMixin,
         package, context = self.pipe.recv()
         log.data_processing(self.dotted,
                             "{} '{}' pipe recv from main proc: {}, {}",
-                            self.__class__.__name__, self.name,
+                            self.klass, self.name,
                             package, context)
         return (package, context)
 
@@ -588,7 +588,7 @@ class SubToProcComm(NamesMixin,
         exists = bool(self.ut_pipe)
         # log.data_processing(self.dotted,
         #                     "{} '{}' TESTING pipe exists?: {}",
-        #                     self.__class__.__name__, self.name,
+        #                     self.klass, self.name,
         #                     exists)
         return exists
 
@@ -600,7 +600,7 @@ class SubToProcComm(NamesMixin,
         contains_data = self.ut_pipe.poll()
         # log.data_processing(self.dotted,
         #                     "{} '{}' TESTING pipe has data?: {}",
-        #                     self.__class__.__name__, self.name,
+        #                     self.klass, self.name,
         #                     contains_data)
         return contains_data
 
@@ -611,7 +611,7 @@ class SubToProcComm(NamesMixin,
         '''
         log.data_processing(self.dotted,
                             "{} '{}' TESTING pipe send to main proc: {}, {}",
-                            self.__class__.__name__, self.name,
+                            self.klass, self.name,
                             package, context)
         self.ut_pipe.send((package, context))
 
@@ -622,7 +622,7 @@ class SubToProcComm(NamesMixin,
         package, context = self.ut_pipe.recv()
         log.data_processing(self.dotted,
                             "{} '{}' TESTING pipe recv from main proc: {}, {}",
-                            self.__class__.__name__, self.name,
+                            self.klass, self.name,
                             package, context)
         return (package, context)
 
@@ -631,7 +631,7 @@ class SubToProcComm(NamesMixin,
     # -------------------------------------------------------------------------
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}('{self.name}')"
+        return f"{self.klass}('{self.name}')"
 
 
 # -----------------------------------------------------------------------------

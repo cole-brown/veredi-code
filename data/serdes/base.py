@@ -128,7 +128,7 @@ class BaseSerdes(ABC, LogMixin, NamesMixin):
         # Log both class and base name?
         self._log_group_multi(self._LOG_INIT,
                               self.dotted,
-                              f"{self.__class__.__name__} init...")
+                              f"{self.klass} init...")
         self._log_group_multi(self._LOG_INIT,
                               self.dotted,
                               "BaseSerdes init...")
@@ -271,7 +271,7 @@ class BaseSerdes(ABC, LogMixin, NamesMixin):
             - wrapping a library error?
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}.deserialize() "
+            f"{self.klass}.deserialize() "
             "is not implemented.")
 
     @abstractmethod
@@ -287,7 +287,7 @@ class BaseSerdes(ABC, LogMixin, NamesMixin):
             - wrapping a library error?
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}.deserialize_all() "
+            f"{self.klass}.deserialize_all() "
             "is not implemented.")
 
     @abstractmethod
@@ -306,7 +306,7 @@ class BaseSerdes(ABC, LogMixin, NamesMixin):
             - wrapped lib/module errors
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._read() "
+            f"{self.klass}._read() "
             "is not implemented.")
 
     @abstractmethod
@@ -325,7 +325,7 @@ class BaseSerdes(ABC, LogMixin, NamesMixin):
             - wrapped lib/module errors
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._read_all() "
+            f"{self.klass}._read_all() "
             "is not implemented.")
 
     # -------------------------------------------------------------------------
@@ -345,7 +345,7 @@ class BaseSerdes(ABC, LogMixin, NamesMixin):
             - wrapping a library error?
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}.serialize() "
+            f"{self.klass}.serialize() "
             "is not implemented.")
 
     @abstractmethod
@@ -361,7 +361,7 @@ class BaseSerdes(ABC, LogMixin, NamesMixin):
             - wrapping a library error?
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}.serialize_all() "
+            f"{self.klass}.serialize_all() "
             "is not implemented.")
 
     @abstractmethod
@@ -380,7 +380,7 @@ class BaseSerdes(ABC, LogMixin, NamesMixin):
             - wrapped lib/module errors
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._write() "
+            f"{self.klass}._write() "
             "is not implemented.")
 
     @abstractmethod
@@ -399,5 +399,5 @@ class BaseSerdes(ABC, LogMixin, NamesMixin):
             - wrapped lib/module errors
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}._write_all() "
+            f"{self.klass}._write_all() "
             "is not implemented.")

@@ -168,16 +168,16 @@ class Mediator(ABC, LogMixin, NamesMixin):
             raise background.config.exception(
                 context,
                 "Cannot configure {} without a supplied context.",
-                self.__class__.__name__)
+                self.klass)
 
         if not self._comms:
             raise background.config.exception(
                 context,
                 "Cannot configure {} without SubToProcComm object in context.",
-                self.__class__.__name__)
+                self.klass)
 
         # # Get (required) config.
-        # config = background.config.config(self.__class__.__name__,
+        # config = background.config.config(self.klass,
         #                                   self.dotted,
         #                                   context)
 

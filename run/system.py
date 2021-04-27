@@ -61,13 +61,13 @@ def create(config:      Optional[Configuration],
     '''
     log_dotted = label.normalize(_DOTTED, 'create')
     log.start_up(log_dotted,
-                 f"Creating system '{str(system_type.__name__)}'...")
+                 f"Creating system '{str(system_type.klass)}'...")
 
     sid = background.manager.system.create(system_type,
                                            context)
 
     log.start_up(log_dotted,
-                 f"Created system '{str(system_type.__name__)}' with "
+                 f"Created system '{str(system_type.klass)}' with "
                  f"SystemId: {str(sid)}",
                  log_success=log.SuccessType.SUCCESS)
     return sid
@@ -80,12 +80,12 @@ def add(system: System) -> SystemId:
     '''
     log_dotted = label.normalize(_DOTTED, 'add')
     log.start_up(log_dotted,
-                 f"Adding system '{str(system.__class__.__name__)}'...")
+                 f"Adding system '{str(system.klass)}'...")
 
     sid = background.manager.system.add(system)
 
     log.start_up(log_dotted,
-                 f"Added system '{str(system.__class__.__name__)}' with "
+                 f"Added system '{str(system.klass)}' with "
                  f"SystemId: {str(sid)}",
                  log_success=log.SuccessType.SUCCESS)
     return sid
@@ -109,7 +109,7 @@ def _create_or_add(log_dotted:      str,
     if issubclass(system_or_type, System):
         log.start_up(
             log_dotted,
-            f"Creating system '{str(system_or_type.__name__)}' "
+            f"Creating system '{str(system_or_type.klass)}' "
             f"with {ctx_str} {str(context)}...")
         sid = create(config,
                      context,
@@ -117,14 +117,14 @@ def _create_or_add(log_dotted:      str,
                      debug_flags)
         log.start_up(
             log_dotted,
-            f"Created system '{str(system_or_type.__name__)}'.",
+            f"Created system '{str(system_or_type.klass)}'.",
             log_success=log.SuccessType.SUCCESS)
 
     # System already created?
     elif isinstance(system_or_type, System):
         log.start_up(
             log_dotted,
-            f"Adding system '{str(system_or_type.__name__)}' "
+            f"Adding system '{str(system_or_type.klass)}' "
             f"with {ctx_str} {str(context)}...")
         sid = create(config,
                      context,
@@ -132,7 +132,7 @@ def _create_or_add(log_dotted:      str,
                      debug_flags)
         log.start_up(
             log_dotted,
-            f"Added system '{str(system_or_type.__name__)}'.",
+            f"Added system '{str(system_or_type.klass)}'.",
             log_success=log.SuccessType.SUCCESS)
 
     # Error!
@@ -197,7 +197,7 @@ def many(config:      Optional[Configuration],
             context_unique = False
 
         log.start_up(log_dotted,
-                     f"Processing system '{str(system_or_type.__name__)}' for "
+                     f"Processing system '{str(system_or_type.klass)}' for "
                      f"adding/creating...")
 
         # Alrighty - do the thing with the system.
@@ -210,7 +210,7 @@ def many(config:      Optional[Configuration],
         sids.append(sid)
 
         log.start_up(log_dotted,
-                     f"System '{str(system_or_type.__name__)}' processed.",
+                     f"System '{str(system_or_type.klass)}' processed.",
                      log_success=log.SuccessType.SUCCESS)
 
     log.start_up(log_dotted,

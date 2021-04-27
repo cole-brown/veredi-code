@@ -78,14 +78,14 @@ def create(log_groups: List[log.Group],
                      'Created EncodableRegistry.')
 
 
-def register(klass:          RegisterType,
+def register(cls_or_func:    RegisterType,
              dotted:         Optional[label.LabelInput] = None,
              unit_test_only: Optional[bool]             = False) -> None:
     '''
-    Register the `klass` with the `dotted` string to our registry.
+    Register the `cls_or_func` with the `dotted` string to our registry.
 
-    If `unit_test_only` is Truthy, the `klass` will be registered if we are
-    running a unit test, or handed off to `ignore()` if we are not.
+    If `unit_test_only` is Truthy, the `cls_or_func` will be registered if we
+    are running a unit test, or handed off to `ignore()` if we are not.
     '''
     log_dotted = label.normalize(_DOTTED, 'register')
 
@@ -95,7 +95,7 @@ def register(klass:          RegisterType,
     if not dotted:
         # Check for class's dotted.
         try:
-            dotted = klass.dotted
+            dotted = cls_or_func.dotted
         except AttributeError:
             pass
         # No dotted string is an error.
@@ -103,10 +103,10 @@ def register(klass:          RegisterType,
             msg = ("Config sub-classes must either have a `dotted` "
                    "class attribute or be registered with a `dotted` "
                    "argument.")
-            error = ValueError(msg, klass, dotted)
+            error = ValueError(msg, cls_or_func, dotted)
             log.registration(log_dotted,
                              msg + "Got '{}' for {}.",
-                             dotted, klass)
+                             dotted, cls_or_func)
             raise log.exception(error, msg)
 
     # ---
@@ -115,7 +115,7 @@ def register(klass:          RegisterType,
     # Unit-test registrees should continue on if in unit-testing mode,
     # or be diverted to ignore if not.
     if unit_test_only and not background.testing.get_unit_testing():
-        ignore(klass)
+        ignore(cls_or_func)
         return
 
     # ---
@@ -126,18 +126,18 @@ def register(klass:          RegisterType,
     dotted_str = label.normalize(dotted)
     log.registration(log_dotted,
                      "{}: Registering '{}' to '{}'...",
-                     config.__class__.__name__,
+                     config.klass,
                      dotted_str,
-                     klass.__name__)
+                     cls_or_func.__name__)
 
     dotted_args = label.regularize(dotted)
-    config.register(klass, *dotted_args)
+    config.register(cls_or_func, *dotted_args)
 
     log.registration(log_dotted,
                      "{}: Registered '{}' to '{}'.",
-                     config.__class__.__name__,
+                     config.klass,
                      dotted_str,
-                     klass.__name__)
+                     cls_or_func.__name__)
 
 
 # Decorator way of doing factory registration. Note that we will only get
@@ -184,12 +184,12 @@ def ignore(ignoree: RegisterType) -> None:
     log_dotted = label.normalize(ConfigRegistry.dotted, 'ignore')
     log.registration(log_dotted,
                      "{}: '{}' marking as ignored for registration...",
-                     config.__class__.__name__,
+                     config.klass,
                      ignoree)
 
     config.ignore(ignoree)
 
     log.registration(log_dotted,
                      "{}: '{}' marked as ignored.",
-                     config.__class__.__name__,
+                     config.klass,
                      ignoree)

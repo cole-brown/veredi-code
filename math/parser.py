@@ -150,7 +150,7 @@ class MathParser(NamesMixin, ABC):
         Optional `milieu` string is a context in the event of any 'this'
         variables.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.parse() is "
+        raise NotImplementedError(f"{self.klass}.parse() is "
                                   "not implemented.")
 
 
@@ -325,7 +325,7 @@ class MathTree(Encodable, ABC):
         Evaluate this tree node (roll dice, add children together, whatever)
         and return the resultant final value of this node.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.eval() is "
+        raise NotImplementedError(f"{self.klass}.eval() is "
                                   "not implemented.")
 
     @abstractmethod
@@ -334,7 +334,7 @@ class MathTree(Encodable, ABC):
         Internal method for evaluating this tree node (roll dice, add children
         together, whatever) and saving results internally.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.eval() is "
+        raise NotImplementedError(f"{self.klass}.eval() is "
                                   "not implemented.")
 
     # -------------------------------------------------------------------------
@@ -475,37 +475,37 @@ class MathTree(Encodable, ABC):
 
     @abstractmethod
     def __add__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__add__() is "
+        raise NotImplementedError(f"{self.klass}.__add__() is "
                                   "not implemented.")
 
     @abstractmethod
     def __sub__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__sub__() is "
+        raise NotImplementedError(f"{self.klass}.__sub__() is "
                                   "not implemented.")
 
     @abstractmethod
     def __mul__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__mul__() is "
+        raise NotImplementedError(f"{self.klass}.__mul__() is "
                                   "not implemented.")
 
     @abstractmethod
     def __truediv__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__truediv__() "
+        raise NotImplementedError(f"{self.klass}.__truediv__() "
                                   "is not implemented.")
 
     @abstractmethod
     def __floordiv__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__floordiv__() "
+        raise NotImplementedError(f"{self.klass}.__floordiv__() "
                                   "is not implemented.")
 
     @abstractmethod
     def __mod__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__mod__() is "
+        raise NotImplementedError(f"{self.klass}.__mod__() is "
                                   "not implemented.")
 
     @abstractmethod
     def __pow__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__pow__() is "
+        raise NotImplementedError(f"{self.klass}.__pow__() is "
                                   "not implemented.")
 
     # -------------------------------------------------------------------------
@@ -514,32 +514,32 @@ class MathTree(Encodable, ABC):
 
     @abstractmethod
     def __lt__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__lt__() is "
+        raise NotImplementedError(f"{self.klass}.__lt__() is "
                                   "not implemented.")
 
     @abstractmethod
     def __gt__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__gt__() is "
+        raise NotImplementedError(f"{self.klass}.__gt__() is "
                                   "not implemented.")
 
     @abstractmethod
     def __le__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__le__() is "
+        raise NotImplementedError(f"{self.klass}.__le__() is "
                                   "not implemented.")
 
     @abstractmethod
     def __ge__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__ge__() is "
+        raise NotImplementedError(f"{self.klass}.__ge__() is "
                                   "not implemented.")
 
     @abstractmethod
     def __eq__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__eq__() is "
+        raise NotImplementedError(f"{self.klass}.__eq__() is "
                                   "not implemented.")
 
     @abstractmethod
     def __ne__(self, other):
-        raise NotImplementedError(f"{self.__class__.__name__}.__ne__() is "
+        raise NotImplementedError(f"{self.klass}.__ne__() is "
                                   "not implemented.")
 
     # -------------------------------------------------------------------------
@@ -559,7 +559,7 @@ class MathTree(Encodable, ABC):
                 # TODO: add reg field to children?
                 #                                      with_reg_field=True))
 
-        # print("\nMathTree.encode_complex(): {self.__class__.__name__}.dott:
+        # print("\nMathTree.encode_complex(): {self.klass}.dott:
         # And return all our vars as a dictionary structure.
         encoded = {
             'dotted':   self.dotted,

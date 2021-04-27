@@ -125,7 +125,7 @@ class AbilityComponent(DataComponent, queue.IQueueSingle[AbilityEvent],
         '''
         entry = self.persistent.get(name, Null())
         log.debug("ABILITY: {} entry for {}: {}",
-                  self.__class__.__name__, name, entry)
+                  self.klass, name, entry)
         return entry
 
     def _score(self, name: str) -> int:

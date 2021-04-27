@@ -146,7 +146,7 @@ class DataLoadedEvent(DataEvent,
     # -------------------------------------------------------------------------
 
     def __str_name__(self, name: Optional[str] = None):
-        name = name or self.__class__.__name__
+        name = name or self.klass
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
     def __repr_name__(self):
@@ -162,7 +162,7 @@ class DataSavedEvent(DataEvent,
     # -------------------------------------------------------------------------
 
     def __str_name__(self, name: Optional[str] = None):
-        name = name or self.__class__.__name__
+        name = name or self.klass
         return f"{name}[id:{self.id},t:{self.type},cid:{self.component_id}]"
 
     def __repr_name__(self):

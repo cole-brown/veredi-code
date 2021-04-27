@@ -381,7 +381,7 @@ class Message(Encodable,
         '''
         Don't support simple for Messages.
         '''
-        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+        msg = (f"{self.klass} doesn't support encoding to a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -469,7 +469,7 @@ class Message(Encodable,
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"[{self.msg_id}, "
             f"{self.type}, "
             f"{self.user_id}, "

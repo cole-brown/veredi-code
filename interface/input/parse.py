@@ -95,7 +95,7 @@ class Mather(NamesMixin,
         if hasattr(self, '_parser') and self._parser:
             return
 
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           context)
 

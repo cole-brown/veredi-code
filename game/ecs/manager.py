@@ -96,7 +96,7 @@ class EcsManager(LogMixin, NamesMixin, ABC):
         '''
         Data for the Veredi Background context.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}."
+        raise NotImplementedError(f"{self.klass}."
                                   "get_background() "
                                   "is not implemented in base class. "
                                   "Subclasses should defined it themselves.")
