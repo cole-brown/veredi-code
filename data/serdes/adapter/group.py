@@ -396,11 +396,11 @@ class KeyGroup(abc.MutableMapping, abc.Hashable):
     # To String
     # ---
     def __str__(self) -> str:
-        return (f"{type(self).__name__}({self._name}, {self._mapping}, "
+        return (f"{self.__class__.__name__}({self._name}, {self._mapping}, "
                 f"{self._re_claim}, {self._re_member_key})")
 
     def __repr__(self) -> str:
-        return (f"{type(self).__name__}({self._name}, {self._mapping}, "
+        return (f"{self.__class__.__name__}({self._name}, {self._mapping}, "
                 f"{self._re_claim}, {self._re_member_key})")
 
 
@@ -453,10 +453,10 @@ class KeyGroupMarker(abc.Hashable):
     # To String
     # ---
     def __str__(self) -> str:
-        return (f"{type(self).__name__}({self._name})")
+        return (f"{self.__class__.__name__}({self._name})")
 
     def __repr__(self) -> str:
-        return (f"<{type(self).__name__}({self._name})>")
+        return (f"<{self.__class__.__name__}({self._name})>")
 
 
 # ------------------------------
@@ -497,7 +497,7 @@ class UserDefinedMarker(abc.Hashable):
     # To String
     # ---
     def __str__(self) -> str:
-        return (f"{type(self).__name__}({self._name})")
+        return (f"{self.__class__.__name__}({self._name})")
 
     def __repr__(self) -> str:
-        return (f"<{type(self).__name__}({self._name})>")
+        return (f"<{self.__class__.__name__}({self._name})>")

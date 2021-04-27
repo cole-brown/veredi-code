@@ -284,7 +284,7 @@ class DataGameContext(BaseDataContext):
         '''
         # Sanity check...
         if not isinstance(taxon, Taxon):
-            msg = (f"Must have a Taxon for the {self.__class__.__name__} "
+            msg = (f"Must have a Taxon for the {self.klass} "
                    f"- cannot initialize with: {taxon}")
             error = TypeError(msg, dotted, ctx_name, taxon)
             raise log.exception(error, msg)

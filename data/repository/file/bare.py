@@ -65,11 +65,11 @@ class FileBareRepository(FileRepository,
         log_config_complaint = False
         if (not unit_testing
             or (unit_testing
-                and self.__class__.__name__ != ut_target_class)):
+                and self.klass != ut_target_class)):
             # Either we aren't unit testing at all, or it's a test that's not
             # our specific unit test. Either way, we expect not to have a
             # config.
-            config = background.config.config(self.__class__.__name__,
+            config = background.config.config(self.klass,
                                               self.dotted,
                                               config_context,
                                               raises_error=False)
@@ -90,7 +90,7 @@ class FileBareRepository(FileRepository,
                 "{}._init_path_safing(): Expects no Configuration to "
                 "exist in the background yet, but Config and Context "
                 "exist. config: {}",
-                self.__class__.__name__,
+                self.klass,
                 config,
                 context=config_context)
 
@@ -109,7 +109,7 @@ class FileBareRepository(FileRepository,
         '''
         self._log_group_multi(self._LOG_INIT,
                               self.dotted,
-                              f"{self.__class__.__name__} configure...")
+                              f"{self.klass} configure...")
 
         # ------------------------------
         # Have Mom set us up.
@@ -125,7 +125,7 @@ class FileBareRepository(FileRepository,
         # # ---
         # # Optional Config! No exception:
         # # ---
-        # config = background.config.config(self.__class__.__name__,
+        # config = background.config.config(self.klass,
         #                                   self.dotted,
         #                                   context,
         #                                   raises_error=False)

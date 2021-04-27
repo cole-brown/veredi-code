@@ -156,7 +156,7 @@ class ConfigContext(EphemerealContext):
     #     Helper to get config object from ConfigContext, even though it's
     #     actually in the background context. We just redirect.
     #     '''
-    #     config = background.config.config(self.__class__.__name__,
+    #     config = background.config.config(self.klass,
     #                                       self.dotted,
     #                                       context)
     #     return background.config.config

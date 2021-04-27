@@ -107,12 +107,12 @@ class SystemLifeCycle(enum.Enum):
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}.{self._name_}"
+            f"{self.__class__.__name__}.{self.name}"
         )
 
     def __repr__(self):
         return (
-            f"SLC.{self._name_}"
+            f"SLC.{self.name}"
         )
 
 
@@ -574,7 +574,7 @@ class System(LogMixin, NamesMixin):
             if not system:
                 # Log and degrade our system dependency health.
                 self._log_warning("{} cannot find its requried system: {}",
-                                  self.__class__.__name__,
+                                  self.klass,
                                   sys_type)
                 dependency_health = dependency_health.update(
                     VerediHealth.UNHEALTHY)
@@ -854,7 +854,7 @@ class System(LogMixin, NamesMixin):
             # This, too, should be treated as a VerediHealth.FATAL...
             raise TickError(
                 "{} does not have an update_tick handler for {}.",
-                self.__class__.__name__, tick)
+                self.klass, tick)
 
     def _update_synthesis(self) -> VerediHealth:
         '''
@@ -978,7 +978,7 @@ class System(LogMixin, NamesMixin):
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"[{self.id}, "
             f"{str(self.life_cycle)}], "
             f"{str(self.health)}]"
@@ -987,7 +987,7 @@ class System(LogMixin, NamesMixin):
     def __repr__(self):
         return (
             '<v.sys:'
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"[{self.id}, "
             f"{repr(self.life_cycle)}], "
             f"{repr(self.health)}]>"
@@ -1013,4 +1013,4 @@ class MockSystem(System,
 
         # Set up our actual mock dotted label.
         self.dotted = label.normalize(self.dotted,
-                                      self.__class__.__name__.lower())
+                                      self.klass.lower())

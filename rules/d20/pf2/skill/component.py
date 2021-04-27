@@ -142,7 +142,7 @@ class SkillComponent(DataComponent, queue.IQueueSingle['SkillEvent'],
         '''
         entry = self.persistent.get(name, None)
         log.debug("SKILL: {} entry for {}: {}",
-                  self.__class__.__name__, name, entry)
+                  self.klass, name, entry)
         return entry
 
     def _is_class(self, entry: Mapping[str, Any]) -> bool:

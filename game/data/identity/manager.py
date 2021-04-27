@@ -402,7 +402,7 @@ class IdentityManager(EcsManagerWithEvents,
 
         elif not component_data:
             # Empty data is not ok. Throw an error.
-            msg = (f"{self.__class__.__name__} could not create "
+            msg = (f"{self.klass} could not create "
                    "IdentityComponent from no data.")
             error = EventError(msg,
                                context=context,
@@ -431,7 +431,7 @@ class IdentityManager(EcsManagerWithEvents,
         try:
             data = event.data
         except AttributeError as error:
-            msg = (f"{self.__class__.__name__} could not get identity "
+            msg = (f"{self.klass} could not get identity "
                    "data from event.")
             error = EventError(msg,
                                context=event.context,
@@ -454,7 +454,7 @@ class IdentityManager(EcsManagerWithEvents,
             return
 
         entity = self._entity.get_with_log(
-            f'{self.__class__.__name__}',
+            f'{self.klass}',
             event.id,
             event=event)
         if not entity:

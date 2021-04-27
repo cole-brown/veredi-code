@@ -186,7 +186,7 @@ class Event(NamesMixin):
     # -------------------------------------------------------------------------
 
     def __str_name__(self, name: Optional[str] = None):
-        name = name or self.__class__.__name__
+        name = name or self.klass
         return f"{name}[id:{self.id},t:{self.type}]"
 
     def _pretty(self):
@@ -198,7 +198,7 @@ class Event(NamesMixin):
         return f"{self.__str_name__()}: {str(self._context)}"
 
     def __repr_name__(self):
-        return self.__class__.__name__
+        return self.klass
 
     def __repr__(self):
         return (f"<{self.__str_name__(self.__repr_name__())}: "

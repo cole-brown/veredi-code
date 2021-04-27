@@ -69,7 +69,7 @@ class RulesGame(LogMixin, NamesMixin, ABC):
         # ---
         # Sanity
         # ---
-        # config = background.config.config(self.__class__.__name__,
+        # config = background.config.config(self.klass,
         #                                   self.dotted,
         #                                   context)
 
@@ -143,7 +143,7 @@ class RulesGame(LogMixin, NamesMixin, ABC):
         E.g. with game rules 'veredi.rules.d20.pf2', should return a
         PF2SavedTaxon.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}._taxon_saved() "
+        raise NotImplementedError(f"{self.klass}._taxon_saved() "
                                   "is not implemented in base class. "
                                   "Subclasses should defined it themselves.")
 
@@ -172,7 +172,7 @@ class RulesGame(LogMixin, NamesMixin, ABC):
         '''
         Create and return a SavedTaxon for the game saved data.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.taxon_saved() "
+        raise NotImplementedError(f"{self.klass}.taxon_saved() "
                                   "is not implemented in base class. "
                                   "Subclasses should defined it themselves.")
 
@@ -273,7 +273,7 @@ class RulesGame(LogMixin, NamesMixin, ABC):
         # TODO: THIS!!! I need the whole "saving" things side of
         # serdes/repo/etc.
         raise NotImplementedError(
-            f"{self.__class__.__name__}._save() "
+            f"{self.klass}._save() "
             "is not implemented. "
             "I need that save side of data serialization.")
         return False

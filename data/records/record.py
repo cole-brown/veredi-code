@@ -402,10 +402,10 @@ class Record(abc.MutableMapping):
     # -------------------------------------------------------------------------
 
     def __str__(self) -> str:
-        return f"{type(self).__name__}({self._documents})"
+        return f"{self.__class__.__name__}({self._documents})"
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._documents})"
+        return f"{self.__class__.__name__}({self._documents})"
 
     def __bool__(self) -> bool:
         '''

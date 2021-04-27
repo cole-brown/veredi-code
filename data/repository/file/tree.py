@@ -78,13 +78,13 @@ class FileTreeRepository(FileRepository,
         '''
         self._log_group_multi(self._LOG_INIT,
                               self.dotted,
-                              f"{self.__class__.__name__} configure...")
+                              f"{self.klass} configure...")
 
         super()._configure(context, require_config=True)
 
         # No FileTreeRepository config to do at present.
 
-        # config = background.config.config(self.__class__.__name__,
+        # config = background.config.config(self.klass,
         #                                   self.dotted,
         #                                   context)
 

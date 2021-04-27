@@ -19,9 +19,10 @@ import enum
 import uuid
 
 
-from veredi.logs         import log
-from veredi.base.strings import label
-from .exceptions         import ContextError
+from veredi.logs               import log
+from veredi.base.strings       import label
+from veredi.base.strings.mixin import ClassDescriptor
+from .exceptions               import ContextError
 
 
 # -----------------------------------------------------------------------------
@@ -159,12 +160,20 @@ class VerediContext:
     _KEYS_DOTTED_DEFAULT = (_KEY_DOTTED, )
     _KEYS_DOTTED_CONFLICT_LIST = _KEY_DOTTED + '-list'
 
-
     # -------------------------------------------------------------------------
     # Descriptors
     # -------------------------------------------------------------------------
 
     dotted: ContextDottedDescriptor = ContextDottedDescriptor()
+    '''
+    A short-cut to the dotted label in the context data.
+    '''
+
+    klass: ClassDescriptor = ClassDescriptor(True, None, None)
+    '''
+    A short-cut to 'self.__class__.__name__', or it can hold some other class
+    related name string.
+    '''
 
     # -------------------------------------------------------------------------
     # Initialization
@@ -820,14 +829,14 @@ class VerediContext:
     def _pretty(self):
         from veredi.base.strings import pretty
         from pprint import pformat
-        return pretty.indented(f"{self.__class__.__name__}:\n"
+        return pretty.indented(f"{self.klass}:\n"
                                + pformat(self._get()))
 
     def __str__(self):
-        return f"{self.__class__.__name__}: {str(self._get())}"
+        return f"{self.klass}: {str(self._get())}"
 
     def __repr_name__(self):
-        return self.__class__.__name__[:1] + 'Ctx'
+        return self.klass[:1] + 'Ctx'
 
     def __repr__(self):
         return f"<{self.__repr_name__()}: {str(self._get())}>"
@@ -942,10 +951,10 @@ class PersistentContext(VerediContext):
     # -------------------------------------------------------------------------
 
     def __str__(self):
-        return f"{self.__class__.__name__}: {str(self._get())}"
+        return f"{self.klass}: {str(self._get())}"
 
     def __repr_name__(self):
-        return self.__class__.__name__[:3] + 'Ctx'
+        return self.klass[:3] + 'Ctx'
 
     def __repr__(self):
         return f"<{self.__repr_name__()}: {str(self._get())}>"

@@ -115,7 +115,7 @@ class BasePayload(Encodable):
         # Otherwise raise an error.
         else:
             raise ValueError(
-                f"{self.__class__.__name__} is invalid.",
+                f"{self.klass} is invalid.",
                 self.valid, self.value)
 
     # -------------------------------------------------------------------------
@@ -163,7 +163,7 @@ class BasePayload(Encodable):
         '''
         Don't support simple for Payloads.
         '''
-        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+        msg = (f"{self.klass} doesn't support encoding to a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -222,10 +222,10 @@ class BasePayload(Encodable):
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}: {self.data}, {self.valid}"
+            f"{self.klass}: {self.data}, {self.valid}"
         )
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}({self.data}, {self.valid})"
+            f"{self.klass}({self.data}, {self.valid})"
         )

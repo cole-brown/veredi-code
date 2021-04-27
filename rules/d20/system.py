@@ -68,7 +68,7 @@ class D20RulesSystem(System,
         # ---
         # Config Stuff
         # ---
-        # config = background.config.config(self.__class__.__name__,
+        # config = background.config.config(self.klass,
         #                                   self.dotted,
         #                                   context)
         pass
@@ -92,7 +92,7 @@ class D20RulesSystem(System,
             raise background.config.exception(
                 context,
                 "Cannot configure {} without its system definitions.",
-                self.__class__.__name__)
+                self.klass)
 
     # -------------------------------------------------------------------------
     # Events
@@ -133,7 +133,7 @@ class D20RulesSystem(System,
         # We'll use Null(). Callers should do checks/logs if they want more
         # info about missing ent/comp.
         entity, component = self._manager.get_with_log(
-            f'{self.__class__.__name__}._query',
+            f'{self.klass}._query',
             entity_id,
             self._component_type,
             context=context)

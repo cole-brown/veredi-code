@@ -218,7 +218,7 @@ class MonotonicId(Encodable,
             # Build it from the regex str.
             rx_str = klass._get_decode_str_rx()
             if not rx_str:
-                msg = (f"{klass.__name__}: Cannot get decode regex "
+                msg = (f"{klass.klass}: Cannot get decode regex "
                        "- there is no decode regex string to compile it from.")
                 error = ValueError(msg, rx_str)
                 raise log.exception(error, msg)
@@ -239,7 +239,7 @@ class MonotonicId(Encodable,
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}.encode_complex() is not implemented.")
+            f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
     def decode_simple(klass: 'MonotonicId',
@@ -251,7 +251,7 @@ class MonotonicId(Encodable,
         '''
         rx = klass._get_decode_rx()
         if not rx:
-            msg = (f"{klass.__name__}: No decode regex - "
+            msg = (f"{klass.klass}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
             raise log.exception(error, msg)
@@ -259,7 +259,7 @@ class MonotonicId(Encodable,
         # Have regex, but does it work on data?
         match = rx.match(data)
         if not match or not match.group('value'):
-            msg = (f"{klass.__name__}: Decode regex failed to match "
+            msg = (f"{klass.klass}: Decode regex failed to match "
                    f"data - cannot decode: {data} "
                    f"(regex: {klass._get_decode_str_rx()})")
             error = ValueError(msg, data)
@@ -289,7 +289,7 @@ class MonotonicId(Encodable,
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}.decode_complex() is "
+        raise NotImplementedError(f"{klass.klass}.decode_complex() is "
                                   "not implemented.")
 
     # ------------------------------
@@ -343,7 +343,7 @@ class MonotonicId(Encodable,
         return '{:03d}'.format(self.value)
 
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}:{self._format_}'
+        return f'{self.klass}:{self._format_}'
 
     def __repr__(self) -> str:
         return f'{self.name}:{self._format_}'
@@ -618,7 +618,7 @@ class SerializableId(Encodable,
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}.encode_complex() is not implemented.")
+            f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
     def decode_simple(klass: 'SerializableId',
@@ -633,7 +633,7 @@ class SerializableId(Encodable,
         '''
         rx = klass._get_decode_rx()
         if not rx:
-            msg = (f"{klass.__name__}: No decode regex - "
+            msg = (f"{klass.klass}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
             raise log.exception(error, msg)
@@ -641,7 +641,7 @@ class SerializableId(Encodable,
         # Have regex, but does it work on data?
         match = rx.match(data)
         if not match or not match.group('value'):
-            msg = (f"{klass.__name__}: Decode regex failed to match "
+            msg = (f"{klass.klass}: Decode regex failed to match "
                    f"data - cannot decode: {data}")
             error = ValueError(msg, data)
             raise log.exception(error, msg)
@@ -678,7 +678,7 @@ class SerializableId(Encodable,
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}.encode_complex() is "
+        raise NotImplementedError(f"{klass.klass}.encode_complex() is "
                                   "not implemented.")
 
     # ------------------------------
@@ -711,11 +711,11 @@ class SerializableId(Encodable,
         '''
         Format our value as a string and return only that.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}._format() is "
+        raise NotImplementedError(f"{self.klass}._format() is "
                                   "not implemented.")
 
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}:{self._format_}'
+        return f'{self.klass}:{self._format_}'
 
     def __repr__(self) -> str:
         return f'{self.name}:{self._format_}'

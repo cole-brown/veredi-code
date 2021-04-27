@@ -93,7 +93,7 @@ class BarePayload(BasePayload,
         '''
         Disallow setting.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.valid() setter "
+        raise NotImplementedError(f"{self.klass}.valid() setter "
                                   "property is not implemented.")
 
     @property
@@ -152,10 +152,10 @@ class BarePayload(BasePayload,
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}: {self.data}"
+            f"{self.klass}: {self.data}"
         )
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}(data={self.data})"
+            f"{self.klass}(data={self.data})"
         )

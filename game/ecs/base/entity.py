@@ -340,7 +340,7 @@ class Entity(NamesMixin,
         # Don't eval all them args unless it'll be used...
         if log.will_output(log.Level.DEBUG):
             log.debug("{} contains {}? {} -> {}\n    all: {}",
-                      self.__class__.__name__,
+                      self.klass,
                       key,
                       self.get(key),
                       bool(self.get(key)),
@@ -349,7 +349,7 @@ class Entity(NamesMixin,
 
     def __str__(self):
         ent_str = (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"[{self.id}, "
             f"type:{self.type_id:03d}, "
             f"{str(self.life_cycle)}]: "
@@ -362,7 +362,7 @@ class Entity(NamesMixin,
 
     def __repr__(self):
         ent_str = (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"[{self.id}, "
             f"type:{self.type_id:03d}, "
             f"{repr(self.life_cycle)}]: "

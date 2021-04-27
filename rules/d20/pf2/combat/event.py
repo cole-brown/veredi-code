@@ -58,7 +58,7 @@ class CombatEvent(Event,
     # -------------------------------------------------------------------------
 
     def __str_name__(self, name: Optional[str] = None):
-        name = name or self.__class__.__name__
+        name = name or self.klass
         return f"{name}[id:{self.id},t:{self.type},src:{self.target}]"
 
     def __repr_name__(self):

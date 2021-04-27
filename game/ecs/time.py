@@ -182,7 +182,7 @@ class TimeManager(EcsManager,
         # ------------------------------
         # Config Stuff
         # ------------------------------
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           None)
         # No config stuff at the moment.
@@ -327,7 +327,7 @@ class TimeManager(EcsManager,
         timer = MonotonicTimer()
         if save_name:
             if save_name in self._timers:
-                msg = (f"{self.__class__.__name__}.make_timer: Timer "
+                msg = (f"{self.klass}.make_timer: Timer "
                        f"'{save_name}' already exists in our dictionary "
                        f"of timers. Cannot overwrite. {self._timers}")
                 error = ValueError(msg, save_name, self._timers)
@@ -397,7 +397,7 @@ class TimeManager(EcsManager,
 
         # timer_input wasn't understood - error out.
         else:
-            msg = (f"{self.__class__.__name__}.get_timer: No timer found for "
+            msg = (f"{self.klass}.get_timer: No timer found for "
                    f"input '{timer_input}'.")
             error = ValueError(msg, timer_input, self._timers)
             raise self._log_exceptions(error, msg)
@@ -487,7 +487,7 @@ class TimeManager(EcsManager,
         # Figure out the timeout.
         # ------------------------------
         if timeout and isinstance(timeout, str):
-            config = background.config.config(self.__class__.__name__,
+            config = background.config.config(self.klass,
                                               self.dotted,
                                               None,
                                               raises_error=False)

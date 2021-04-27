@@ -229,7 +229,7 @@ class MathSystem(System,
     #         return
 
     #     entity, component = background.manager.meeting.get_with_log(
-    #         f'{self.__class__.__name__}.event_skill_req'
+    #         f'{self.klass}.event_skill_req'
     #         event.id,
     #         SkillComponent,
     #         event=event)

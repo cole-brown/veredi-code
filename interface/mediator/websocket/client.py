@@ -406,7 +406,7 @@ class WebSocketClient(WebSocketMediator,
         # Error check: time to give up?
         if self._connect_attempts > self._MAX_CONNECT_ATTEMPT_FAILS:
             # Raise error to get out of context manager.
-            msg = (f"{self.__class__.__name__}: Failed to connect to "
+            msg = (f"{self.klass}: Failed to connect to "
                    f"the server! Failed {str(self._connect_attempts + 1)} "
                    "attempts.")
             error = ConnectionError(msg, None)

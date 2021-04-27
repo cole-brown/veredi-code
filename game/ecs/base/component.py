@@ -40,12 +40,12 @@ class ComponentLifeCycle(enum.Enum):
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}.{self._name_}"
+            f"{self.__class__.__name__}.{self.name}"
         )
 
     def __repr__(self):
         return (
-            f"ELC.{self._name_}"
+            f"ELC.{self.name}"
         )
 
 
@@ -145,7 +145,7 @@ class Component(NamesMixin):
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"[{self.id}, "
             f"{str(self.life_cycle)}]"
         )
@@ -153,7 +153,7 @@ class Component(NamesMixin):
     def __repr__(self):
         return (
             '<v.comp:'
-            f"{self.__class__.__name__}"
+            f"{self.klass}"
             f"[{self.id}, "
             f"{str(self.life_cycle)}]>"
         )

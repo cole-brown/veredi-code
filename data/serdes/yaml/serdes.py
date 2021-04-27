@@ -80,7 +80,7 @@ class YamlSerdes(BaseSerdes,
         '''Config from context and elsewhere.'''
         self._log_group_multi(self._LOG_INIT,
                               self.dotted,
-                              f"{self.__class__.__name__} configure...")
+                              f"{self.klass} configure...")
 
         super()._configure(context)
 

@@ -248,7 +248,7 @@ class ComponentManager(EcsManagerWithEvents,
         could be a good preface. Note the trailing space.
 
         Prepends `caller` to log.
-          f'{self.__class__.__name__}.<insert_method_name_here>'
+          f'{self.klass}.<insert_method_name_here>'
         Is a decent string to pass.
         '''
         # entity or Null(), so... No need to check.
@@ -270,7 +270,7 @@ class ComponentManager(EcsManagerWithEvents,
             self._log_info("{}: {}No '{}' on entity: {}",
                            caller,
                            preface,
-                           component.__class__.__name__,
+                           component.klass,
                            entity,
                            context=context)
             # TODO [2020-06-04]: a health thing? e.g.

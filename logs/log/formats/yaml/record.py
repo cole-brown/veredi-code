@@ -520,7 +520,7 @@ class LogRecordYaml:
         # to just strings.
         data = convert.to_str(context.data)
         self._dict_record['context'] = {
-            context.__class__.__name__: data,
+            context.klass: data,
         }
 
     # ------------------------------

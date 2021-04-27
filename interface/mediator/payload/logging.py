@@ -186,7 +186,7 @@ class LogReply(Encodable,
         '''
         Don't support simple for LogReplies.
         '''
-        msg = (f"{self.__class__.__name__} doesn't support encoding to a "
+        msg = (f"{self.klass} doesn't support encoding to a "
                "simple string.")
         raise NotImplementedError(msg)
 
@@ -241,12 +241,12 @@ class LogReply(Encodable,
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}(self.valid): {self.value}"
+            f"{self.klass}(self.valid): {self.value}"
         )
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}({self.value}, valid={self.valid})"
+            f"{self.klass}({self.value}, valid={self.valid})"
         )
 
 
@@ -424,10 +424,10 @@ class LogPayload(BasePayload,
 
     def __str__(self):
         return (
-            f"{self.__class__.__name__}(self.valid): {self.data}"
+            f"{self.klass}(self.valid): {self.data}"
         )
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}(data={self.data}, valid={self.valid})"
+            f"{self.klass}(data={self.data}, valid={self.valid})"
         )

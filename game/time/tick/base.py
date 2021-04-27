@@ -85,7 +85,7 @@ class TickBase(NamesMixin, ABC):
         Get current-seconds from repository, and whatever else sub-class needs
         from repo, config, etc.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.configure() "
+        raise NotImplementedError(f"{self.klass}.configure() "
                                   "is not implemented in base class. "
                                   "Subclasses should implement it.")
 
@@ -120,7 +120,7 @@ class TickBase(NamesMixin, ABC):
         #     # Insert stuff here...
         # }
         # return self._bg_data
-        raise NotImplementedError(f"{self.__class__.__name__}"
+        raise NotImplementedError(f"{self.klass}"
                                   "._bg_data_current() "
                                   "is not implemented in base class. "
                                   "Subclasses should implement it.")
@@ -149,7 +149,7 @@ class TickBase(NamesMixin, ABC):
         example if a round-and-turn-based ticker, this could be the round's
         current_seconds.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.current_seconds "
+        raise NotImplementedError(f"{self.klass}.current_seconds "
                                   "getter property is not implemented in base "
                                   "class.")
 
@@ -161,7 +161,7 @@ class TickBase(NamesMixin, ABC):
         example if a round-and-turn-based ticker, this could be the round's
         current_seconds.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}.current_seconds "
+        raise NotImplementedError(f"{self.klass}.current_seconds "
                                   "setter property is not implemented in base "
                                   "class.")
 
@@ -199,7 +199,7 @@ class TickBase(NamesMixin, ABC):
         Subclasses should implement as needed, or just `pass`. E.g. to add a
         fixed amount of time to self._current_seconds if on a fixed time tick.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}._delta() "
+        raise NotImplementedError(f"{self.klass}._delta() "
                                   "is not implemented in base class. "
                                   "Subclasses should define it themselves.")
 
@@ -224,11 +224,11 @@ class TickBase(NamesMixin, ABC):
     # -------------------------------------------------------------------------
 
     def __str__(self) -> str:
-        return (f"<{self.__class__.__name__}:"
+        return (f"<{self.klass}:"
                 f"#{self.count:08,d},"
                 f"{self.current_seconds}>")
 
     def __repr__(self) -> str:
-        return (f"<{self.__class__.__name__}:"
+        return (f"<{self.klass}:"
                 f"#{self.count:08,d},"
                 f"{self.current_seconds}>")

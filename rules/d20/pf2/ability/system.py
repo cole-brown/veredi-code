@@ -96,7 +96,7 @@ class AbilitySystem(D20RulesSystem,
         self._component_type: Type[Component] = AbilityComponent
 
         super()._configure(context)
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           context)
         self._config_rules_def(context, config, 'ability')
@@ -210,7 +210,7 @@ class AbilitySystem(D20RulesSystem,
 
         eid = InputContext.source_id(context)
         entity, component = self._manager.get_with_log(
-            f'{self.__class__.__name__}.command_ability',
+            f'{self.klass}.command_ability',
             eid,
             self._component_type,
             context=context,
@@ -245,7 +245,7 @@ class AbilitySystem(D20RulesSystem,
             return
 
         entity, component = self._manager.get_with_log(
-            f'{self.__class__.__name__}.command_ability',
+            f'{self.klass}.command_ability',
             event.id,
             self._component_type,
             event=event)

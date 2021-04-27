@@ -95,7 +95,7 @@ class FileRepository(BaseRepository):
         # ------------------------------
         # Get Config.
         # ------------------------------
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           context,
                                           raises_error=require_config)
@@ -111,7 +111,7 @@ class FileRepository(BaseRepository):
                                       "Config required and is Null/None!",
                                       log_minimum=log.Level.ERROR,
                                       log_success=False)
-                msg = (f"{self.__class__.__name__}: "
+                msg = (f"{self.klass}: "
                        "Configuration required, but found Null/None!")
                 raise background.config.exception(context, msg)
 
@@ -212,7 +212,7 @@ class FileRepository(BaseRepository):
         If no context, no config, or no safing function found in config, use
         the default of `paths.safing.to_human_readable`.
         '''
-        config = background.config.config(self.__class__.__name__,
+        config = background.config.config(self.klass,
                                           self.dotted,
                                           context,
                                           raises_error=require_config)
@@ -329,7 +329,7 @@ class FileRepository(BaseRepository):
         Inject our repository, path, and any other desired data into the
         context. In the case of file repositories, include the file path.
         '''
-        raise NotImplementedError(f"{self.__class__.__name__}._context_data() "
+        raise NotImplementedError(f"{self.klass}._context_data() "
                                   "is not implemented.")
 
     # -------------------------------------------------------------------------

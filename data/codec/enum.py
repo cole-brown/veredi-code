@@ -151,7 +151,7 @@ class EnumWrap(Encodable, Generic[EnumEncode]):
         What is this class encoding/decoding?
         e.g. 'value' or 'name' or...?
         '''
-        raise NotImplementedError(f"{klass.__name__} needs to "
+        raise NotImplementedError(f"{klass.klass} needs to "
                                   "implement `encode_on()`!")
 
     @classmethod
@@ -316,7 +316,7 @@ def encodable(klass:               Type[EnumEncode],
     # Sanity Checks
     # ------------------------------
     if not issubclass(klass, EnumWrapTypesTuple):
-        msg = (f"{klass.__name__}: `encodable` decorator should only be "
+        msg = (f"{klass.klass}: `encodable` decorator should only be "
                f"used on enum classes: {EnumWrapTypesTuple}")
         error = ValueError(msg, klass, enum_encode_type)
         raise log.exception(error, msg,
@@ -329,7 +329,7 @@ def encodable(klass:               Type[EnumEncode],
                             })
 
     if not enum_encode_type:
-        msg = (f"{klass.__name__}: `encodable` decorator needs an "
+        msg = (f"{klass.klass}: `encodable` decorator needs an "
                "`enum_encode_type` class to use for the wrapper.")
         error = ValueError(msg, klass, enum_encode_type)
         raise log.exception(error, msg,
@@ -342,7 +342,7 @@ def encodable(klass:               Type[EnumEncode],
                             })
 
     if not issubclass(enum_encode_type, EnumWrap):
-        msg = (f"{klass.__name__}: `encodable` decorator needs an "
+        msg = (f"{klass.klass}: `encodable` decorator needs an "
                "`enum_encode_type` that is an EnumWrap "
                "or a subclass.")
         error = ValueError(msg, klass, enum_encode_type)
@@ -488,7 +488,7 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
             # Build it from the regex str.
             rx_str = klass._get_decode_str_rx()
             if not rx_str:
-                msg = (f"{klass.__name__}: Cannot get decode regex "
+                msg = (f"{klass.klass}: Cannot get decode regex "
                        "- there is no decode regex string to compile it from.")
                 error = ValueError(msg, rx_str)
                 raise log.exception(error, msg)
@@ -511,7 +511,7 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}.encode_complex() is not implemented.")
+            f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
     def decode_simple(klass: 'FlagEncodeValue',
@@ -523,7 +523,7 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
         '''
         rx = klass._get_decode_rx()
         if not rx:
-            msg = (f"{klass.__name__}: No decode regex - "
+            msg = (f"{klass.klass}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
             raise log.exception(error, msg)
@@ -531,7 +531,7 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
         # Have regex, but does it work on data?
         match = rx.match(data)
         if not match or not match.group('value'):
-            msg = (f"{klass.__name__}: Decode regex failed to match "
+            msg = (f"{klass.klass}: Decode regex failed to match "
                    f"data - cannot decode: {data}")
             error = ValueError(msg, data)
             raise log.exception(error, msg)
@@ -550,7 +550,7 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}.decode_complex() is "
+        raise NotImplementedError(f"{klass.klass}.decode_complex() is "
                                   "not implemented.")
 
 
@@ -639,7 +639,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
             # Build it from the regex str.
             rx_str = klass._get_decode_str_rx()
             if not rx_str:
-                msg = (f"{klass.__name__}: Cannot get decode regex "
+                msg = (f"{klass.klass}: Cannot get decode regex "
                        "- there is no decode regex string to compile it from.")
                 error = ValueError(msg, rx_str)
                 raise log.exception(error, msg)
@@ -664,7 +664,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
                 names.append(each.name)
 
         if not names:
-            msg = (f"{self.__class__.__name__}: No enum values found?! "
+            msg = (f"{self.klass}: No enum values found?! "
                    f"'{str(self)}' didn't resolve to any of its class's "
                    "enums values.")
             error = ValueError(msg, self, names)
@@ -679,7 +679,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}.encode_complex() is not implemented.")
+            f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
     def decode_simple(klass: 'FlagEncodeName',
@@ -691,7 +691,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
         '''
         rx = klass._get_decode_rx()
         if not rx:
-            msg = (f"{klass.__name__}: No decode regex - "
+            msg = (f"{klass.klass}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
             raise log.exception(error, msg)
@@ -699,7 +699,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
         # Have regex, but does it work on data?
         match = rx.match(data)
         if not match or not match.group('names'):
-            msg = (f"{klass.__name__}: Decode regex failed to match "
+            msg = (f"{klass.klass}: Decode regex failed to match "
                    f"data - cannot decode: {data}")
             error = ValueError(msg, data)
             raise log.exception(error, msg)
@@ -728,7 +728,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}.decode_complex() is "
+        raise NotImplementedError(f"{klass.klass}.decode_complex() is "
                                   "not implemented.")
 
 
@@ -820,7 +820,7 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
             # Build it from the regex str.
             rx_str = klass._get_decode_str_rx()
             if not rx_str:
-                msg = (f"{klass.__name__}: Cannot get decode regex "
+                msg = (f"{klass.klass}: Cannot get decode regex "
                        "- there is no decode regex string to compile it from.")
                 error = ValueError(msg, rx_str)
                 raise log.exception(error, msg)
@@ -837,7 +837,7 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
         name = self.enum.name
 
         if not name:
-            msg = (f"{self.__class__.__name__}: No enum name?!"
+            msg = (f"{self.klass}: No enum name?!"
                    f"'{str(self)}' didn't resolve to any of its class's "
                    "enums values.")
             error = ValueError(msg, self, name)
@@ -852,7 +852,7 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
         NotImplementedError: We don't do complex.
         '''
         raise NotImplementedError(
-            f"{self.__class__.__name__}.encode_complex() is not implemented.")
+            f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
     def decode_simple(klass: 'EnumEncodeName',
@@ -864,7 +864,7 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
         '''
         rx = klass._get_decode_rx()
         if not rx:
-            msg = (f"{klass.__name__}: No decode regex - "
+            msg = (f"{klass.klass}: No decode regex - "
                    f"- cannot decode: {data}")
             error = ValueError(msg, data)
             raise log.exception(error, msg)
@@ -872,7 +872,7 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
         # Have regex, but does it work on data?
         match = rx.match(data)
         if not match or not match.group('name'):
-            msg = (f"{klass.__name__}: Decode regex failed to match "
+            msg = (f"{klass.klass}: Decode regex failed to match "
                    f"data - cannot decode: {data}")
             error = ValueError(msg, data)
             raise log.exception(error, msg)
@@ -892,5 +892,5 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
         '''
         NotImplementedError: We don't do complex.
         '''
-        raise NotImplementedError(f"{klass.__name__}.decode_complex() is "
+        raise NotImplementedError(f"{klass.klass}.decode_complex() is "
                                   "not implemented.")

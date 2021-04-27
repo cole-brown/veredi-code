@@ -126,7 +126,7 @@ class Codec(LogMixin, NamesMixin,
         self._log_config(self.dotted)
         self._log_group_multi(self._LOG_INIT,
                               self.dotted,
-                              f"Codec ({self.__class__.__name__}) init...")
+                              f"Codec ({self.klass}) init...")
 
         self._configure(config_context)
         self._log_group_multi(self._LOG_INIT,
@@ -141,7 +141,7 @@ class Codec(LogMixin, NamesMixin,
         '''
         self._log_group_multi(self._LOG_INIT,
                               self.dotted,
-                              f"Codec ({self.__class__.__name__}) "
+                              f"Codec ({self.klass}) "
                               "configure...")
 
         # Set up our background for when it gets pulled in.
@@ -221,7 +221,7 @@ class Codec(LogMixin, NamesMixin,
 
         Else raises an EncodableError.
         '''
-        # log.debug(f"{self.__class__.__name__}.encode: {target}")
+        # log.debug(f"{self.klass}.encode: {target}")
         encoded = None
         if null_or_none(target):
             # Null/None encode to None.
@@ -266,7 +266,7 @@ class Codec(LogMixin, NamesMixin,
                                    })
             raise self._log_exception(error, msg)
 
-        # log.debug(f"{self.__class__.__name__}.encode: Done. {encoded}")
+        # log.debug(f"{self.klass}.encode: Done. {encoded}")
         return encoded
 
     def _encode_encodable(self,
@@ -457,7 +457,7 @@ class Codec(LogMixin, NamesMixin,
             if key.encoding().has(Encoding.SIMPLE):
                 field = self._encode_encodable(key)
             else:
-                msg = (f"{self.__class__.__name__}._encode_key: Encodable "
+                msg = (f"{self.klass}._encode_key: Encodable "
                        f"'{key}' cannot be encoded into a key value for "
                        "a dict - only Encoding.SIMPLE can be used here.")
                 error = EncodableError(msg,
@@ -482,7 +482,7 @@ class Codec(LogMixin, NamesMixin,
         else:
             # # Final guess: stringify it.
             # field = str(key)
-            msg = (f"{self.__class__.__name__}._encode_key: Key of type "
+            msg = (f"{self.klass}._encode_key: Key of type "
                    f"'{type(key)}' is not currently supported for encoding "
                    " into a field for an encoded dictionary.")
             error = EncodableError(msg,
@@ -506,7 +506,7 @@ class Codec(LogMixin, NamesMixin,
         elif isinstance(value, str):
             encoded = value
         else:
-            msg = (f"{self.__class__.__name__}._encode_simple_types: "
+            msg = (f"{self.klass}._encode_simple_types: "
                    f"'{type(value)}' is not a member of "
                    "SimpleTypes and cannot be encoded this way.")
             error = EncodableError(msg, value)
@@ -783,7 +783,7 @@ class Codec(LogMixin, NamesMixin,
                 fallback)
             return self._decode_finalize(fallback)
 
-        msg = (f"{self.__class__.__name__}.decode: unknown "
+        msg = (f"{self.klass}.decode: unknown "
                f"type of data {type(data)}. Cannot decode.")
         error = EncodableError(msg,
                                data={
@@ -1316,7 +1316,7 @@ class Codec(LogMixin, NamesMixin,
             "    value: {}",
             type(value),
             value)
-        msg = (f"{self.__class__.__name__}.decode_basic_types: "
+        msg = (f"{self.klass}.decode_basic_types: "
                f"'{type(value)}' is not a known 'basic' type "
                "and cannot be decoded.")
         error = EncodableError(msg, value)
