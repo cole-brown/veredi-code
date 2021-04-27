@@ -9,7 +9,7 @@ Unit tests for:
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Tuple, Literal
+from typing import Optional, Type, Tuple, Literal
 
 from veredi.zest.base.unit import ZestBase
 from veredi.zest.zpath     import TestType
@@ -44,7 +44,7 @@ class MockNode(tree.Node,
         raise NotImplementedError
 
     @classmethod
-    def decode_complex(klass: 'MockNode',
+    def decode_complex(klass: Type['MockNode'],
                        data:  EncodedComplex,
                        codec: Codec,
                        instance: Optional['MockNode'] = None):
@@ -77,7 +77,7 @@ class MockLeaf(tree.Leaf,
         raise NotImplementedError
 
     @classmethod
-    def decode_complex(klass: 'MockLeaf',
+    def decode_complex(klass: Type['MockLeaf'],
                        data:  EncodedComplex,
                        codec: Codec,
                        instance: Optional['MockLeaf'] = None):

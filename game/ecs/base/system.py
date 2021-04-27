@@ -150,7 +150,7 @@ class System(LogMixin, NamesMixin):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def dependencies(klass: 'System') -> Optional[Dict[Type['System'], str]]:
+    def dependencies(klass: Type['System']) -> Optional[Dict[Type['System'], str]]:
         '''
         System's dependencies in a System class/type to dotted string
         dictionary.

@@ -8,7 +8,7 @@ Machine Time (Computer Time (OS Time)) for logs, etc.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union
+from typing import Optional, Union, Type
 
 from datetime import datetime, timezone
 import time as py_time
@@ -79,7 +79,7 @@ class MachineTime(NamesMixin,
     SEC_TO_NS = 1_000_000_000
 
     @classmethod
-    def sec_to_ns(klass:  'MachineTime',
+    def sec_to_ns(klass:  Type['MachineTime'],
                   seconds: Union[int, float, Decimal]) -> int:
         '''
         Convert seconds to a nanoseconds value compatible with

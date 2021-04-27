@@ -92,7 +92,7 @@ __all__ = [
 #     '''
 #
 #     @classmethod
-#     def decode(klass:    'Encodable',
+#     def decode(klass:    Type['Encodable'],
 #                data:     EncodedComplex,
 #                <get an up-to-date params list from Codec.decode()>,
 #                ) -> Optional['Encodable']:

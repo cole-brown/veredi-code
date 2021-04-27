@@ -175,7 +175,7 @@ class Encodable(NamesMixin):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encoding(klass: 'Encodable') -> 'Encoding':
+    def encoding(klass: Type['Encodable']) -> 'Encoding':
         '''
         Returns what type of encoding this Encodable supports.
 
@@ -185,7 +185,7 @@ class Encodable(NamesMixin):
         return Encoding.COMPLEX
 
     @classmethod
-    def encoded_as(klass: 'Encodable', data: EncodedEither) -> 'Encoding':
+    def encoded_as(klass: Type['Encodable'], data: EncodedEither) -> 'Encoding':
         '''
         Figure out what encoding type was used for the data when encoded
         (simple or complex).
@@ -210,7 +210,7 @@ class Encodable(NamesMixin):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def type_field(klass: 'Encodable') -> str:
+    def type_field(klass: Type['Encodable']) -> str:
         '''
         A short, unique name for encoding an instance into the field of a dict.
 
@@ -228,7 +228,7 @@ class Encodable(NamesMixin):
         return klass.name
 
     @classmethod
-    def _get_type_field(klass: 'Encodable',
+    def _get_type_field(klass: Type['Encodable'],
                         data:  Optional[EncodedEither]) -> Optional[str]:
         '''
         If data is not a mapping, returns None.
@@ -248,7 +248,7 @@ class Encodable(NamesMixin):
         return None
 
     @classmethod
-    def _is_type_field(klass: 'Encodable',
+    def _is_type_field(klass: Type['Encodable'],
                        data:  Optional[EncodedEither]) -> bool:
         '''
         Returns False if `klass._get_type_field()` or `klass.type_field()`
@@ -278,7 +278,7 @@ class Encodable(NamesMixin):
         return class_type_field == data_type_field
 
     @classmethod
-    def was_encoded_with_registry(klass: 'Encodable',
+    def was_encoded_with_registry(klass: Type['Encodable'],
                                   data:  EncodedEither) -> bool:
         '''
         Returns True if `data` is not Encoding.SIMPLE and has
@@ -298,7 +298,7 @@ class Encodable(NamesMixin):
         return False
 
     @classmethod
-    def claim(klass: 'Encodable',
+    def claim(klass: Type['Encodable'],
               data:  EncodedEither
               ) -> Tuple[bool, Optional[EncodedEither], Optional[str]]:
         '''
@@ -481,7 +481,7 @@ class Encodable(NamesMixin):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def decode(klass:   'Encodable',
+    def decode(klass:   Type['Encodable'],
                data:    EncodedEither,
                codec:   'Codec',
                instance: Optional['Encodable']) -> Tuple[Encoding, 'Encodable']:
@@ -507,7 +507,7 @@ class Encodable(NamesMixin):
 
     @classmethod
     @abstractmethod
-    def decode_simple(klass: 'Encodable',
+    def decode_simple(klass: Type['Encodable'],
                       data:  EncodedSimple,
                       codec: 'Codec') -> 'Encodable':
         '''
@@ -518,7 +518,7 @@ class Encodable(NamesMixin):
 
     @classmethod
     @abstractmethod
-    def decode_complex(klass: 'Encodable',
+    def decode_complex(klass: Type['Encodable'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Encodable'] = None) -> 'Encodable':
@@ -536,7 +536,7 @@ class Encodable(NamesMixin):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _get_decode_str_rx(klass: 'Encodable') -> Optional[str]:
+    def _get_decode_str_rx(klass: Type['Encodable']) -> Optional[str]:
         '''
         Returns regex /string/ (not compiled regex) of what to look for to
         claim just a string as this class.
@@ -559,7 +559,7 @@ class Encodable(NamesMixin):
         return None
 
     @classmethod
-    def _get_decode_rx(klass: 'Encodable') -> Optional[re.Pattern]:
+    def _get_decode_rx(klass: Type['Encodable']) -> Optional[re.Pattern]:
         '''
         Returns /compiled/ regex (not regex string) of what to look for to
         claim just a string as this class.
@@ -586,7 +586,7 @@ class Encodable(NamesMixin):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def error_for_claim(klass: 'Encodable',
+    def error_for_claim(klass: Type['Encodable'],
                         data: EncodedEither) -> None:
         '''
         Raises an EncodableError if claim() returns false.
@@ -601,7 +601,7 @@ class Encodable(NamesMixin):
             raise log.exception(error, msg + ' data: {}', data)
 
     @classmethod
-    def error_for_key(klass: 'Encodable',
+    def error_for_key(klass: Type['Encodable'],
                       key:   str,
                       data:  EncodedComplex) -> None:
         '''
@@ -617,7 +617,7 @@ class Encodable(NamesMixin):
             raise log.exception(error, msg)
 
     @classmethod
-    def error_for_value(klass: 'Encodable',
+    def error_for_value(klass: Type['Encodable'],
                         key:   str,
                         value: Any,
                         data:  EncodedComplex) -> None:
@@ -644,7 +644,7 @@ class Encodable(NamesMixin):
             raise log.exception(error, msg)
 
     @classmethod
-    def error_for(klass:  'Encodable',
+    def error_for(klass:  Type['Encodable'],
                   data:   EncodedComplex,
                   keys:   Iterable[str]     = [],
                   values: Mapping[str, Any] = {}) -> None:

@@ -8,7 +8,7 @@ Tree base classes for a d20 roll tree.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import (TYPE_CHECKING, Optional, Any, Dict, List)
+from typing import (TYPE_CHECKING, Optional, Any, Type, Dict, List)
 if TYPE_CHECKING:
     import re
 
@@ -247,7 +247,7 @@ class Node(MathTree,
         raise NotImplementedError(msg)
 
     @classmethod
-    def decode_simple(klass: 'Encodable',
+    def decode_simple(klass: Type['Encodable'],
                       data:  EncodedSimple,
                       codec: 'Codec') -> 'Encodable':
         '''
@@ -258,14 +258,14 @@ class Node(MathTree,
         raise NotImplementedError(msg)
 
     @classmethod
-    def _get_decode_str_rx(klass: 'Encodable') -> Optional[str]:
+    def _get_decode_str_rx(klass: Type['Encodable']) -> Optional[str]:
         '''
         We don't support simple encoding.
         '''
         return None
 
     @classmethod
-    def _get_decode_rx(klass: 'Encodable') -> Optional['re.Pattern']:
+    def _get_decode_rx(klass: Type['Encodable']) -> Optional['re.Pattern']:
         '''
         We don't support simple encoding.
         '''
@@ -458,7 +458,7 @@ class Dice(Leaf,
         return enc_data
 
     @classmethod
-    def decode_complex(klass: 'Dice',
+    def decode_complex(klass: Type['Dice'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Dice'] = None) -> 'Dice':
@@ -557,7 +557,7 @@ class Constant(Leaf,
         return enc_data
 
     @classmethod
-    def decode_complex(klass: 'Constant',
+    def decode_complex(klass: Type['Constant'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Encodable'] = None) -> 'Constant':
@@ -671,7 +671,7 @@ class Variable(Leaf,
         return enc_data
 
     @classmethod
-    def decode_complex(klass: 'Variable',
+    def decode_complex(klass: Type['Variable'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Encodable'] = None) -> 'Variable':
@@ -888,7 +888,7 @@ class OperatorAdd(OperatorMath,
         return enc_data
 
     @classmethod
-    def decode_complex(klass: 'OperatorAdd',
+    def decode_complex(klass: Type['OperatorAdd'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Encodable'] = None) -> 'OperatorAdd':
@@ -954,7 +954,7 @@ class OperatorSub(OperatorMath,
         return enc_data
 
     @classmethod
-    def decode_complex(klass: 'OperatorSub',
+    def decode_complex(klass: Type['OperatorSub'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Encodable'] = None) -> 'OperatorSub':
@@ -1020,7 +1020,7 @@ class OperatorMult(OperatorMath,
         return enc_data
 
     @classmethod
-    def decode_complex(klass: 'OperatorMult',
+    def decode_complex(klass: Type['OperatorMult'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Encodable'] = None
@@ -1113,7 +1113,7 @@ class OperatorDiv(OperatorMath,
         return enc_data
 
     @classmethod
-    def decode_complex(klass: 'OperatorDiv',
+    def decode_complex(klass: Type['OperatorDiv'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Encodable'] = None
@@ -1178,7 +1178,7 @@ class OperatorMod(OperatorMath,
         return enc_data
 
     @classmethod
-    def decode_complex(klass: 'OperatorMod',
+    def decode_complex(klass: Type['OperatorMod'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Encodable'] = None
@@ -1245,7 +1245,7 @@ class OperatorPow(OperatorMath,
         return enc_data
 
     @classmethod
-    def decode_complex(klass: 'OperatorPow',
+    def decode_complex(klass: Type['OperatorPow'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Encodable'] = None

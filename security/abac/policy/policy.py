@@ -9,7 +9,7 @@ about the request that needs conntrolling - subject, resource, action, context.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Type
 if TYPE_CHECKING:
     from veredi.data.serdes.base import BaseSerdes
 
@@ -31,7 +31,7 @@ class Request:
     '''todo'''
 
     @classmethod
-    def from_serdes(klass: 'Request', serdes: 'BaseSerdes') -> 'Request':
+    def from_serdes(klass: Type['Request'], serdes: 'BaseSerdes') -> 'Request':
         '''todo'''
         return Request()
 

@@ -14,7 +14,7 @@ For:
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, NewType, Mapping)
+                    Optional, Union, Any, Type, NewType, Mapping)
 if TYPE_CHECKING:
     from veredi.data.codec import Codec
 
@@ -157,7 +157,7 @@ class LogReply(Encodable,
                     value, valid, no_comment_check, self.valid)
 
     @classmethod
-    def validity(klass: 'LogReply',
+    def validity(klass: Type['LogReply'],
                  value: Any,
                  no_comment: Any) -> 'Validity':
         '''
@@ -191,7 +191,7 @@ class LogReply(Encodable,
         raise NotImplementedError(msg)
 
     @classmethod
-    def decode_simple(klass: 'LogReply',
+    def decode_simple(klass: Type['LogReply'],
                       data: EncodedSimple,
                       codec: 'Codec') -> 'LogReply':
         '''
@@ -216,7 +216,7 @@ class LogReply(Encodable,
         }
 
     @classmethod
-    def decode_complex(klass: 'LogReply',
+    def decode_complex(klass: Type['LogReply'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['LogReply'] = None) -> 'LogReply':
@@ -394,7 +394,7 @@ class LogPayload(BasePayload,
         }
 
     @classmethod
-    def decode_complex(klass: 'BasePayload',
+    def decode_complex(klass: Type['BasePayload'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['BasePayload'] = None

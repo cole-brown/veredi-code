@@ -166,9 +166,9 @@ class UserId(SerializableId,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _decode_simple_init(klass: 'SerializableId',
+    def _decode_simple_init(klass: Type['UserId'],
                             value: int,
-                            codec: 'Codec') -> 'SerializableId':
+                            codec: 'Codec') -> 'UserId':
         '''
         Subclasses can override this if they have a different constructor.
         '''
@@ -349,9 +349,9 @@ class UserKey(SerializableId,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def _decode_simple_init(klass: 'SerializableId',
+    def _decode_simple_init(klass: Type['UserKey'],
                             value: int,
-                            codec: 'Codec') -> 'SerializableId':
+                            codec: 'Codec') -> 'UserKey':
         '''
         Subclasses can override this if they have a different constructor.
         '''

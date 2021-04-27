@@ -11,7 +11,7 @@ Er. For bare payloads. E.g. dictionaries to be transmitted as-is.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, NewType, Mapping, Iterable
+from typing import Optional, Union, Any, Type, NewType, Mapping, Iterable
 
 import enum
 
@@ -132,9 +132,9 @@ class BarePayload(BasePayload,
         }
 
     @classmethod
-    def decode_complex(klass: 'BarePayload',
-                       data:   EncodedComplex,
-                       codec: 'Codec',
+    def decode_complex(klass:    Type['BarePayload'],
+                       data:     EncodedComplex,
+                       codec:    'Codec',
                        instance: Optional['BarePayload'] = None
                        ) -> 'BarePayload':
         '''

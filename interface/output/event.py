@@ -9,7 +9,7 @@ packaged up into an event or perhaps fed directly/firstly into InputSystem.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, Any, Mapping
+from typing import Optional, Union, Any, Type, Mapping
 import enum
 
 
@@ -191,7 +191,7 @@ class OutputEvent(Event, Encodable):
         raise NotImplementedError(msg)
 
     @classmethod
-    def decode_simple(klass: 'OutputEvent',
+    def decode_simple(klass: Type['OutputEvent'],
                       data:  EncodedSimple,
                       codec: 'Codec') -> 'OutputEvent':
         '''
@@ -233,7 +233,7 @@ class OutputEvent(Event, Encodable):
         return encoded
 
     @classmethod
-    def decode_complex(klass:    'OutputEvent',
+    def decode_complex(klass:    Type['OutputEvent'],
                        data:     EncodedComplex,
                        codec:    'Codec',
                        instance: Optional['OutputEvent'] = None
