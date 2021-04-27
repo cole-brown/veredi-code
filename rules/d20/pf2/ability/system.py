@@ -15,7 +15,7 @@ Open doors the aggressive way.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Set, Type, Union, Dict)
+                    Optional, Type, Set, Type, Union, Dict)
 if TYPE_CHECKING:
     from veredi.base.context            import VerediContext
     from veredi.game.ecs.manager        import EcsManager
@@ -75,8 +75,8 @@ class AbilitySystem(D20RulesSystem,
                     name_string='ability.system'):
 
     @classmethod
-    def dependencies(
-            klass: 'AbilitySystem') -> Optional[Dict[Type['System'], str]]:
+    def dependencies(klass: Type['AbilitySystem']
+                     ) -> Optional[Dict[Type['System'], str]]:
         '''
         AbilitySystem's dependencies in a System class/type to dotted string
         dictionary.

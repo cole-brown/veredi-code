@@ -9,7 +9,7 @@ Set up the registries.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, NewType, Callable,
+                    Optional, Union, Type, Any, NewType, Callable,
                     Tuple, Set, List, Dict, Iterator)
 from veredi.base.null import Nullable, Null, null_or_none
 from types import ModuleType
@@ -231,7 +231,7 @@ class ConfigRegistration(enum.Enum):
         return label.normalize(self.KEY.value, self.value)
 
     @classmethod
-    def _get(klass: 'ConfigRegistration',
+    def _get(klass: Type['ConfigRegistration'],
              path:  'ConfigRegistration',
              entry: Dict[str, Any]) -> Union[str, re.Pattern]:
         '''
@@ -244,7 +244,7 @@ class ConfigRegistration(enum.Enum):
         return entry
 
     @classmethod
-    def name(klass: 'ConfigRegistration',
+    def name(klass: Type['ConfigRegistration'],
              entry: Dict[str, Any]) -> str:
         '''
         Returns the NAME entry of this registration entry.
@@ -253,7 +253,7 @@ class ConfigRegistration(enum.Enum):
         return value
 
     @classmethod
-    def dotted(klass: 'ConfigRegistration',
+    def dotted(klass: Type['ConfigRegistration'],
                entry: Dict[str, Any]) -> label.DotStr:
         '''
         Returns the DOTTED entry of this registration entry.
@@ -262,7 +262,7 @@ class ConfigRegistration(enum.Enum):
         return label.normalize(value)
 
     @classmethod
-    def path_root(klass:  'ConfigRegistration',
+    def path_root(klass:  Type['ConfigRegistration'],
                   entry:  Dict[str, Any],
                   config: 'Configuration') -> Nullable[paths.Path]:
         '''
@@ -281,7 +281,7 @@ class ConfigRegistration(enum.Enum):
         return path
 
     @classmethod
-    def path_run(klass:      'ConfigRegistration',
+    def path_run(klass:      Type['ConfigRegistration'],
                  entry:      Dict[str, Any],
                  registrars: bool) -> Nullable[str]:
         '''
@@ -297,7 +297,7 @@ class ConfigRegistration(enum.Enum):
         return klass._get(klass.PATH_REGISTREES_RUN, entry)
 
     @classmethod
-    def path_test(klass: 'ConfigRegistration',
+    def path_test(klass: Type['ConfigRegistration'],
                   entry: Dict[str, Any],
                   registrars: bool) -> Nullable[str]:
         '''
@@ -313,7 +313,7 @@ class ConfigRegistration(enum.Enum):
         return klass._get(klass.PATH_REGISTREES_TEST, entry)
 
     @classmethod
-    def path_ignore_files(klass: 'ConfigRegistration',
+    def path_ignore_files(klass: Type['ConfigRegistration'],
                           entry: Dict[str, Any]) -> Nullable[str]:
         '''
         Returns the PATH_IGNORE_FILES entry of this registration entry.
@@ -324,7 +324,7 @@ class ConfigRegistration(enum.Enum):
         return klass._get(klass.PATH_IGNORE_FILES, entry)
 
     @classmethod
-    def path_ignore_dirs(klass: 'ConfigRegistration',
+    def path_ignore_dirs(klass: Type['ConfigRegistration'],
                          entry: Dict[str, Any]) -> Nullable[str]:
         '''
         Returns the PATH_IGNORE_DIRS entry of this registration entry.
@@ -335,7 +335,7 @@ class ConfigRegistration(enum.Enum):
         return klass._get(klass.PATH_IGNORE_DIRS, entry)
 
     @classmethod
-    def force_test(klass: 'ConfigRegistration',
+    def force_test(klass: Type['ConfigRegistration'],
                    entry: Dict[str, Any]) -> Nullable[bool]:
         '''
         Returns the FORCE_TEST entry of this registration entry.

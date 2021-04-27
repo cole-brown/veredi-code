@@ -280,7 +280,7 @@ class LogRecordYaml:
         #                __file__)
 
     @classmethod
-    def yaml_tag(klass: 'LogRecordYaml') -> str:
+    def yaml_tag(klass: Type['LogRecordYaml']) -> str:
         '''
         This class's yaml tag.
         '''

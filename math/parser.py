@@ -575,7 +575,7 @@ class MathTree(Encodable, ABC):
         return encoded
 
     @classmethod
-    def decode_complex(klass: 'MathTree',
+    def decode_complex(klass: Type['MathTree'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['MathTree'] = None) -> 'MathTree':

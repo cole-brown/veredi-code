@@ -9,7 +9,7 @@ Events for Math, Maths, Mathing, Mathers, and Jeff.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Optional, Union, NewType
+from typing import Optional, Union, Type, NewType
 import enum
 
 from veredi.base                   import numbers
@@ -211,7 +211,7 @@ class MathOutputEvent(OutputEvent,
         return encoded
 
     @classmethod
-    def decode_complex(klass: 'MathOutputEvent',
+    def decode_complex(klass: Type['MathOutputEvent'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['MathOutputEvent'] = None

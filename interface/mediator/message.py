@@ -12,7 +12,7 @@ For a server mediator (e.g. WebSockets) talking to a game.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, NewType, Tuple)
+                    Optional, Union, Any, Type, NewType, Tuple)
 if TYPE_CHECKING:
     from veredi.interface.mediator.context import UserConnToken
 
@@ -162,7 +162,7 @@ class Message(Encodable,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def echo(klass: 'Message',
+    def echo(klass: Type['Message'],
              msg:   'Message') -> 'Message':
         '''
         Create an echo reply for this message.
@@ -178,7 +178,7 @@ class Message(Encodable,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def connected(klass:   'Message',
+    def connected(klass:   Type['Message'],
                   msg:     'Message',
                   id:      UserId,
                   key:     UserKey,
@@ -259,7 +259,7 @@ class Message(Encodable,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def payload_basic(klass:   'Message',
+    def payload_basic(klass:   Type['Message'],
                       payload: str) -> BarePayload:
         '''
         Creates and returns a bare payload for the message string.
@@ -271,7 +271,7 @@ class Message(Encodable,
     # -------------------------------------------------------------------------
 
     @classmethod
-    def log(klass:       'Message',
+    def log(klass:       Type['Message'],
             msg_id:      Union[MonotonicId, int],
             user_id:     Optional[UserId],
             user_key:    Optional[UserKey],
@@ -386,7 +386,7 @@ class Message(Encodable,
         raise NotImplementedError(msg)
 
     @classmethod
-    def decode_simple(klass: 'Message',
+    def decode_simple(klass: Type['Message'],
                       data:  EncodedSimple,
                       codec: 'Codec') -> 'Message':
         '''
@@ -419,7 +419,7 @@ class Message(Encodable,
         return encoded
 
     @classmethod
-    def decode_complex(klass: 'Message',
+    def decode_complex(klass: Type['Message'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Message'] = None) -> 'Message':
@@ -523,7 +523,7 @@ class ConnectionMessage(
                          user_id, user_key)
 
     @classmethod
-    def connected(klass:      'ConnectionMessage',
+    def connected(klass:      Type['ConnectionMessage'],
                   user_id:    UserId,
                   user_key:   Optional[UserKey],
                   connection: 'UserConnToken'
@@ -534,7 +534,7 @@ class ConnectionMessage(
         return ConnectionMessage(True, user_id, user_key, connection)
 
     @classmethod
-    def disconnected(klass:      'ConnectionMessage',
+    def disconnected(klass:      Type['ConnectionMessage'],
                      user_id:    Optional[UserId],
                      user_key:   Optional[UserKey],
                      connection: 'UserConnToken'

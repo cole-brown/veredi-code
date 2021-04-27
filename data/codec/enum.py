@@ -146,7 +146,7 @@ class EnumWrap(Encodable, Generic[EnumEncode]):
             self.enum = wrap_enum
 
     @classmethod
-    def encode_on(klass: 'EnumWrap') -> str:
+    def encode_on(klass: Type['EnumWrap']) -> str:
         '''
         What is this class encoding/decoding?
         e.g. 'value' or 'name' or...?
@@ -155,7 +155,7 @@ class EnumWrap(Encodable, Generic[EnumEncode]):
                                   "implement `encode_on()`!")
 
     @classmethod
-    def wrap_type(klass: 'EnumWrap') -> Type[py_enum.Enum]:
+    def wrap_type(klass: Type['EnumWrap']) -> Type[py_enum.Enum]:
         '''
         Returns the class type of the enum we are wrapping.
         '''
@@ -450,7 +450,7 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encode_on(klass: 'EnumWrap') -> str:
+    def encode_on(klass: Type['FlagEncodeValue']) -> str:
         '''
         This class is encoding on the enum's value.
         '''
@@ -461,12 +461,12 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encoding(klass: 'FlagEncodeValue') -> Encoding:
+    def encoding(klass: Type['FlagEncodeValue']) -> Encoding:
         '''We are too simple to bother with being a complex type.'''
         return Encoding.SIMPLE
 
     @classmethod
-    def _get_decode_str_rx(klass: 'FlagEncodeValue') -> Optional[str]:
+    def _get_decode_str_rx(klass: Type['FlagEncodeValue']) -> Optional[str]:
         '''
         Returns regex /string/ (not compiled regex) of what to look for to
         claim just a string as this class.
@@ -479,7 +479,7 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
         return klass._ENCODABLE_RX_STR
 
     @classmethod
-    def _get_decode_rx(klass: 'FlagEncodeValue') -> re.Pattern:
+    def _get_decode_rx(klass: Type['FlagEncodeValue']) -> re.Pattern:
         '''
         Returns /compiled/ regex (not regex string) of what to look for to
         claim just a string as this class.
@@ -514,7 +514,7 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
             f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'FlagEncodeValue',
+    def decode_simple(klass: Type['FlagEncodeValue'],
                       data:  str,
                       codec: 'Codec') -> 'FlagEncodeValue':
         '''
@@ -542,7 +542,7 @@ class FlagEncodeValue(EnumWrap[py_enum.Flag]):
         return decoded
 
     @classmethod
-    def decode_complex(klass: 'FlagEncodeValue',
+    def decode_complex(klass: Type['FlagEncodeValue'],
                        value: EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['FlagEncodeValue'] = None
@@ -601,7 +601,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encode_on(klass: 'EnumWrap') -> str:
+    def encode_on(klass: Type['FlagEncodeName']) -> str:
         '''
         This class is encoding on the enum's value.
         '''
@@ -612,12 +612,12 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encoding(klass: 'FlagEncodeName') -> Encoding:
+    def encoding(klass: Type['FlagEncodeName']) -> Encoding:
         '''We are too simple to bother with being a complex type.'''
         return Encoding.SIMPLE
 
     @classmethod
-    def _get_decode_str_rx(klass: 'FlagEncodeName') -> Optional[str]:
+    def _get_decode_str_rx(klass: Type['FlagEncodeName']) -> Optional[str]:
         '''
         Returns regex /string/ (not compiled regex) of what to look for to
         claim just a string as this class.
@@ -630,7 +630,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
         return klass._ENCODABLE_RX_STR
 
     @classmethod
-    def _get_decode_rx(klass: 'FlagEncodeName') -> re.Pattern:
+    def _get_decode_rx(klass: Type['FlagEncodeName']) -> re.Pattern:
         '''
         Returns /compiled/ regex (not regex string) of what to look for to
         claim just a string as this class.
@@ -682,7 +682,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
             f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'FlagEncodeName',
+    def decode_simple(klass: Type['FlagEncodeName'],
                       data:  str,
                       codec: 'Codec') -> 'FlagEncodeName':
         '''
@@ -720,7 +720,7 @@ class FlagEncodeName(EnumWrap[py_enum.Flag]):
         return total
 
     @classmethod
-    def decode_complex(klass: 'FlagEncodeName',
+    def decode_complex(klass: Type['FlagEncodeName'],
                        value: EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['FlagEncodeName'] = None
@@ -782,7 +782,7 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encode_on(klass: 'EnumWrap') -> str:
+    def encode_on(klass: Type['EnumEncodeName']) -> str:
         '''
         This class is encoding on the enum's value.
         '''
@@ -793,12 +793,12 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def encoding(klass: 'EnumEncodeName') -> Encoding:
+    def encoding(klass: Type['EnumEncodeName']) -> Encoding:
         '''We are too simple to bother with being a complex type.'''
         return Encoding.SIMPLE
 
     @classmethod
-    def _get_decode_str_rx(klass: 'EnumEncodeName') -> Optional[str]:
+    def _get_decode_str_rx(klass: Type['EnumEncodeName']) -> Optional[str]:
         '''
         Returns regex /string/ (not compiled regex) of what to look for to
         claim just a string as this class.
@@ -811,7 +811,7 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
         return klass._ENCODABLE_RX_STR
 
     @classmethod
-    def _get_decode_rx(klass: 'EnumEncodeName') -> re.Pattern:
+    def _get_decode_rx(klass: Type['EnumEncodeName']) -> re.Pattern:
         '''
         Returns /compiled/ regex (not regex string) of what to look for to
         claim just a string as this class.
@@ -855,7 +855,7 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
             f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'EnumEncodeName',
+    def decode_simple(klass: Type['EnumEncodeName'],
                       data:  str,
                       codec: 'Codec') -> 'EnumEncodeName':
         '''
@@ -884,7 +884,7 @@ class EnumEncodeName(EnumWrap[py_enum.Enum]):
         return flag
 
     @classmethod
-    def decode_complex(klass: 'EnumEncodeName',
+    def decode_complex(klass: Type['EnumEncodeName'],
                        value: EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['EnumEncodeName'] = None

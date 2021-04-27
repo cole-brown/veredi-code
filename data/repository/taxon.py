@@ -8,7 +8,7 @@ Taxonomic ranking for identifying things to be loaded by a repository.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Any, List, Dict
+from typing import Any, Type, List, Dict
 
 
 import enum
@@ -103,7 +103,7 @@ class Rank:
     # -------------------------------------------------------------------------
 
     @classmethod
-    def replace(klass: 'Rank', rank: Any) -> Any:
+    def replace(klass: Type['Rank'], rank: Any) -> Any:
         '''
         If `rank` is a Rank member enum, and we know how to do the
         substitution, this will return the substitution.

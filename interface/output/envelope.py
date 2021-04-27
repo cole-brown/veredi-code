@@ -149,7 +149,7 @@ class Address(Encodable,
         raise NotImplementedError(msg)
 
     @classmethod
-    def decode_simple(klass: 'Address',
+    def decode_simple(klass: Type['Address'],
                       data:  EncodedSimple,
                       codec: 'Codec') -> 'Address':
         '''
@@ -181,7 +181,7 @@ class Address(Encodable,
         return encoded
 
     @classmethod
-    def decode_complex(klass: 'Address',
+    def decode_complex(klass: Type['Address'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Address'] = None) -> 'Address':
@@ -433,7 +433,7 @@ class Envelope(Encodable,
         raise NotImplementedError(msg)
 
     @classmethod
-    def decode_simple(klass: 'Envelope',
+    def decode_simple(klass: Type['Envelope'],
                       data:  EncodedSimple,
                       codec: 'Codec') -> 'Envelope':
         '''
@@ -457,7 +457,7 @@ class Envelope(Encodable,
         return encoded
 
     @classmethod
-    def decode_complex(klass: 'Envelope',
+    def decode_complex(klass: Type['Envelope'],
                        data:  EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['Envelope'] = None) -> 'Envelope':

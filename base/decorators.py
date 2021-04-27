@@ -13,7 +13,7 @@ Some general decorators for Veredi.
 # ------------------------------
 #    @classmethod
 #    @abstractmethod
-#    def func(klass: 'KlassName', ...) -> ...:
+#    def func(klass: Type['KlassName'], ...) -> ...:
 #       ...
 #
 # ------------------------------

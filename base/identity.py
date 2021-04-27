@@ -109,7 +109,7 @@ class MonotonicId(Encodable,
     # Initialization
     # ------------------------------
 
-    def __init_subclass__(klass:    'Encodable',
+    def __init_subclass__(klass:    Type['Encodable'],
                           **kwargs: Any) -> None:
         '''
         Initialize sub-classes.
@@ -191,12 +191,12 @@ class MonotonicId(Encodable,
     # ------------------------------
 
     @classmethod
-    def encoding(klass: 'MonotonicId') -> Encoding:
+    def encoding(klass: Type['MonotonicId']) -> Encoding:
         '''We are too simple to bother with being a complex type.'''
         return Encoding.SIMPLE
 
     @classmethod
-    def _get_decode_str_rx(klass: 'MonotonicId') -> Optional[str]:
+    def _get_decode_str_rx(klass: Type['MonotonicId']) -> Optional[str]:
         '''
         Returns regex /string/ (not compiled regex) of what to look for to
         claim just a string as this class.
@@ -209,7 +209,7 @@ class MonotonicId(Encodable,
         return klass._ENCODABLE_RX_STR
 
     @classmethod
-    def _get_decode_rx(klass: 'MonotonicId') -> re.Pattern:
+    def _get_decode_rx(klass: Type['MonotonicId']) -> re.Pattern:
         '''
         Returns /compiled/ regex (not regex string) of what to look for to
         claim just a string as this class.
@@ -242,7 +242,7 @@ class MonotonicId(Encodable,
             f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'MonotonicId',
+    def decode_simple(klass: Type['MonotonicId'],
                       data:  str,
                       codec: 'Codec') -> 'MonotonicId':
         '''
@@ -270,7 +270,7 @@ class MonotonicId(Encodable,
         return klass._decode_simple_init(value, codec)
 
     @classmethod
-    def _decode_simple_init(klass: 'MonotonicId',
+    def _decode_simple_init(klass: Type['MonotonicId'],
                             value: int,
                             codec: 'Codec') -> 'MonotonicId':
         '''
@@ -281,7 +281,7 @@ class MonotonicId(Encodable,
         return decoded
 
     @classmethod
-    def decode_complex(klass: 'MonotonicId',
+    def decode_complex(klass: Type['MonotonicId'],
                        value: EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['MonotonicId'] = None
@@ -476,7 +476,7 @@ class SerializableId(Encodable,
     # Initialization
     # ------------------------------
 
-    def __init_subclass__(klass:    'Encodable',
+    def __init_subclass__(klass:    Type['Encodable'],
                           dotted:   Optional[str] = None,
                           **kwargs: Any) -> None:
         '''
@@ -586,12 +586,12 @@ class SerializableId(Encodable,
     # ------------------------------
 
     @classmethod
-    def encoding(klass: 'SerializableId') -> Encoding:
+    def encoding(klass: Type['SerializableId']) -> Encoding:
         '''We are too simple to bother with being a complex type.'''
         return Encoding.SIMPLE
 
     @classmethod
-    def _get_decode_str_rx(klass: 'SerializableId') -> Optional[str]:
+    def _get_decode_str_rx(klass: Type['SerializableId']) -> Optional[str]:
         '''
         Returns regex /string/ (not compiled regex) of what to look for to
         claim just a string as this class.
@@ -599,7 +599,7 @@ class SerializableId(Encodable,
         return klass._ENCODABLE_RX_STR
 
     @classmethod
-    def _get_decode_rx(klass: 'SerializableId') -> re.Pattern:
+    def _get_decode_rx(klass: Type['SerializableId']) -> re.Pattern:
         '''
         Returns /compiled/ regex (not regex string) of what to look for to
         claim just a string as this class.
@@ -621,7 +621,7 @@ class SerializableId(Encodable,
             f"{self.klass}.encode_complex() is not implemented.")
 
     @classmethod
-    def decode_simple(klass: 'SerializableId',
+    def decode_simple(klass: Type['SerializableId'],
                       data:  str,
                       codec: 'Codec') -> 'SerializableId':
         '''
@@ -658,7 +658,7 @@ class SerializableId(Encodable,
         return klass._decode_simple_init(hex_value, codec)
 
     @classmethod
-    def _decode_simple_init(klass: 'SerializableId',
+    def _decode_simple_init(klass: Type['SerializableId'],
                             value: int,
                             codec: 'Codec') -> 'SerializableId':
         '''
@@ -670,7 +670,7 @@ class SerializableId(Encodable,
         return decoded
 
     @classmethod
-    def decode_complex(klass: 'SerializableId',
+    def decode_complex(klass: Type['SerializableId'],
                        value: EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['SerializableId'] = None

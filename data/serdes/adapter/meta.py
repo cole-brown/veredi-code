@@ -12,7 +12,7 @@ a DB or JSON comes along they can just implement to the same thing.
 # Imports
 # -----------------------------------------------------------------------------
 
-from typing import Tuple
+from typing import Type, Tuple
 from collections import abc
 import enum
 
@@ -40,7 +40,7 @@ class MetaType(enum.Enum):
     '''User can do things; be very careful.'''
 
     @classmethod
-    def from_str(klass: 'MetaType', string: str) -> 'MetaType':
+    def from_str(klass: Type['MetaType'], string: str) -> 'MetaType':
         '''Either returns a valid value or throws a KeyError.'''
         string = text.normalize(string)
         retval = klass.INVALID

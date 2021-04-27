@@ -5,7 +5,7 @@
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, NewType, Iterable, Dict)
+                    Optional, Union, Any, Type, NewType, Iterable, Dict)
 from veredi.base.null import null_or_none
 if TYPE_CHECKING:
     from veredi.base.context import VerediContext
@@ -73,7 +73,7 @@ class SuccessType(enum.Enum):
     # ------------------------------
 
     @classmethod
-    def success_or_failure(klass: 'SuccessType',
+    def success_or_failure(klass: Type['SuccessType'],
                            check_success: Optional[Any],
                            check_failure: Optional[Any]) -> 'SuccessType':
         '''
@@ -105,7 +105,7 @@ class SuccessType(enum.Enum):
         return failure
 
     @classmethod
-    def _ok_or_fail(klass: 'SuccessType',
+    def _ok_or_fail(klass: Type['SuccessType'],
                     check: Any,
                     invert: bool = False) -> 'SuccessType':
         '''
@@ -129,7 +129,7 @@ class SuccessType(enum.Enum):
         return klass.FAILURE
 
     @classmethod
-    def valid(klass: 'SuccessType',
+    def valid(klass: Type['SuccessType'],
               success: NullNoneOr['SuccessType']) -> bool:
         '''
         Returns true if `success` is a SuccessType value other than IGNORE.
@@ -138,7 +138,7 @@ class SuccessType(enum.Enum):
                 and success is not klass.IGNORE)
 
     @classmethod
-    def normalize(klass: 'SuccessType',
+    def normalize(klass: Type['SuccessType'],
                   success: 'SuccessInput',
                   dry_run: bool) -> 'SuccessType':
         '''

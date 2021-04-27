@@ -143,7 +143,7 @@ class DocType:
     # -------------------------------------------------------------------------
 
     @classmethod
-    def types(klass: 'DocType') -> Tuple[enum.Enum]:
+    def types(klass: ['DocType']) -> Tuple[enum.Enum]:
         '''
         Returns all of DocType's enum types in a tuple.
         '''
@@ -152,7 +152,7 @@ class DocType:
                 klass.saved)
 
     @classmethod
-    def verify_and_get(klass:    'DocType',
+    def verify_and_get(klass:    ['DocType'],
                        doc_type: Union[str, enum.Enum]) -> str:
         '''
         Normalizes string, verifies that it is one of our DocTypes, and returns

@@ -11,7 +11,7 @@ just a string, dict, etc.
 # -----------------------------------------------------------------------------
 
 from typing import (TYPE_CHECKING,
-                    Optional, Union, Any, Mapping)
+                    Optional, Union, Any, Type, Mapping)
 if TYPE_CHECKING:
     from veredi.data.codec import Codec
 
@@ -168,7 +168,7 @@ class BasePayload(Encodable):
         raise NotImplementedError(msg)
 
     @classmethod
-    def decode_simple(klass: 'BasePayload',
+    def decode_simple(klass: Type['BasePayload'],
                       data:  EncodedSimple,
                       codec: 'Codec') -> 'BasePayload':
         '''
@@ -193,7 +193,7 @@ class BasePayload(Encodable):
         }
 
     @classmethod
-    def decode_complex(klass: 'BasePayload',
+    def decode_complex(klass: Type['BasePayload'],
                        data:   EncodedComplex,
                        codec: 'Codec',
                        instance: Optional['BasePayload'] = None
