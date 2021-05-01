@@ -1,0 +1,63 @@
+#+TITLE:       LICENSE NOTES
+#+AUTHOR:      Cole Brown
+#+EMAIL:       code@brown.dev
+#+DATE:        [2021-05-01]
+
+
+     ┌┬┬┬──────────────────────────────────────────────────────────────┬┬┬┐
+     ├┼┼┤                           LICENSE                            ├┼┼┤
+     └┴┴┴──────────────────────────────────────────────────────────────┴┴┴┘
+
+* LICENSEs
+
+Veredi is dual-licensed.
+
+Choose a license to follow, and you may:
+  1) Delete the other "LICENSE_*" files in this directory.
+  2) Remove the other license sub-sections from this document's COPYRIGHT section.
+
+
+* COPYRIGHT
+
+These copyright notices apply to all of veredi.
+
+Veredi's coding style does not include any copyright notices in the source code as:
+  a) Veredi follows a dual-licensing scheme.
+  b) One central point is easier to keep updated.
+
+** ALL LICENSES
+
+#+BEGIN_SRC elisp
+(let* ((date-list (calendar-current-date))
+       (year (nth 2 date-list))
+       (description "Veredi is a client/server ECS game engine primarily for dice table-top RPG games.")
+       (copyright-fmt "Copyright (C) %d Cole Brown"))
+  (format (concat description
+                  "\n"
+                  copyright-fmt)
+          year))
+#+END_SRC
+
+#+RESULTS:
+: Veredi is a client/server ECS game engine primarily for dice table-top RPG games.
+: Copyright (C) 2021 Cole Brown
+
+
+** Proprietary
+
+  All rights reserved.
+
+** GPL 3.0
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.

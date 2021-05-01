@@ -1,0 +1,12 @@
+#+TITLE:       Proprietary LICENSE
+#+AUTHOR:      Cole Brown
+#+EMAIL:       code@brown.dev
+#+DATE:        [2021-05-01]
+
+
+Copyright (C) Cole Brown - All Rights Reserved
+
+Unauthorized copying of this project, via any medium, is strictly prohibited.
+Proprietary and confidential.
+
+Written by Cole Brown <code@brown.dev>, 2021
